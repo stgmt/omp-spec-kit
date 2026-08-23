@@ -38,7 +38,9 @@ verification:
   imported_source_status: MIT_ATTESTED_SOURCE_OWNER
   implementation_state: SPEC_ONLY
   public_init_state: PUBLIC_INIT_VALIDATED
-  publication_state: NON_PUBLIC
+  publication_state: PUBLIC_SPECIFICATION_INIT
+  repository: https://github.com/stgmt/omp-spec-kit
+  initial_commit: fe70b10caaed888daf7c48dfc8f1bad9caf45598
   snapshot_byte_provenance: PINNED
   license_evidence: DURABLE_MERGED_SOURCE_OWNER_ATTESTATION
   future_import_policy: FAIL_CLOSED_REQUIRE_LICENSE_EVIDENCE

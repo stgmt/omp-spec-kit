@@ -1,7 +1,7 @@
 # OMP Spec Kit Public Initialization Decision
 
 - **Decision status:** Accepted for specification
-- **Implementation status:** `SPEC_ONLY / LICENSE_RESOLVED / PUBLIC_INIT_VALIDATED / NON_PUBLIC`
+- **Implementation status:** `SPEC_ONLY / LICENSE_RESOLVED / PUBLIC_INIT_VALIDATED / PUBLIC_SPECIFICATION_INIT`
 - **Decision scope:** repository initialization, product boundary, import policy, distribution shape, and staged release gates
 - **Source snapshot:** `stgmt/dev-pomogator` commit `158cd5ccfe4d08625734fc1692d8916cc5838fd6`
 - **Source-owner attestation:** commit `a21d27ba08919cb5340493adac8dbbf2f8fec72a`, [PR #232](https://github.com/stgmt/dev-pomogator/pull/232)
@@ -16,7 +16,7 @@ The repository therefore begins specification-first. Its initial seed records th
 
 Create `stgmt/omp-spec-kit` with fresh history as the public home of a single OMP specification product. The repository-owned specifications are the product source of truth. Imported upstream material is retained only as provenance evidence and is never treated as an automatically valid target contract or as proof of implementation.
 
-This decision authorizes creation and push of the reviewed specification-only initial commit. The historical license blocker is resolved and the source-freeze, specification, anchor, and public-safety evidence is recorded under `docs/validation/`; it does not authorize an installable payload or release.
+This decision's specification-only publication action is complete: reviewed initial commit `fe70b10caaed888daf7c48dfc8f1bad9caf45598` is public at `stgmt/omp-spec-kit`, with source-freeze, specification, anchor, public-safety, and SHA/tree/readback evidence under `docs/validation/`. It does not authorize or prove an installable payload or release.
 
 ## Product boundary
 
@@ -63,7 +63,7 @@ At the frozen snapshot commit, dev-pomogator declared MIT in package and marketp
 
 The source owner later merged `LICENSE` and `LICENSE-ATTESTATION.md` at commit `a21d27ba08919cb5340493adac8dbbf2f8fec72a` in [PR #232](https://github.com/stgmt/dev-pomogator/pull/232). The attestation expressly covers every included byte at snapshot commit `158cd5ccfe4d08625734fc1692d8916cc5838fd6` under `.specs/spec-generator-v4/**` and licenses it under MIT. Exact copies and SHA-256 hashes are recorded under `docs/upstream/dev-pomogator/`, `IMPORT_MANIFEST.yaml`, and the bounded provenance receipt.
 
-This later evidence resolves the historical license blocker without changing the snapshot's byte provenance, admitting the three excluded mutable state/temp paths, or changing runtime implementation status. The repository is `SPEC_ONLY / LICENSE_RESOLVED / PUBLIC_INIT_VALIDATED / NON_PUBLIC`: the reviewed initial commit may be published, while every runtime, installability, and release claim remains gated separately.
+This later evidence resolves the historical license blocker without changing the snapshot's byte provenance, admitting the three excluded mutable state/temp paths, or changing runtime implementation status. The repository is `SPEC_ONLY / LICENSE_RESOLVED / PUBLIC_INIT_VALIDATED / PUBLIC_SPECIFICATION_INIT`; every runtime, installability, and release claim remains gated separately.
 
 For future or changed imports, the policy remains fail closed:
 

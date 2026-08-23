@@ -47,7 +47,9 @@ status:
   implementation: SPEC_ONLY
   license: LICENSE_RESOLVED
   public_initialization: PUBLIC_INIT_VALIDATED
-  publication: NON_PUBLIC
+  publication: PUBLIC_SPECIFICATION_INIT
+  repository: https://github.com/stgmt/omp-spec-kit
+  initial_commit: fe70b10caaed888daf7c48dfc8f1bad9caf45598
 files:
   - source_path: .specs/spec-generator-v4/.progress.json
     target_path: null
