@@ -1,0 +1,328 @@
+{
+  "schemaVersion": "omp-spec-kit/kernel-fixture-manifest@1",
+  "fixtureId": "FIXTURE-5",
+  "fixtureType": "real",
+  "label": "real four-spec corpus ground truth",
+  "provenance": {
+    "capturedFromRepository": "E:/repos/omp-spec-kit",
+    "captureCommand": "git rev-parse HEAD == 1e1475c139406c112dab43dfa689d1140a57ddb3; byte+GLFM-lexical capture over .specs/",
+    "capturedAt": "2026-08-23",
+    "captureMethodDescription": "Documents enumerated from .specs/<slug>/ at the pinned commit; sha256 and byteLength taken from exact file bytes; heading counts are ATX level 1-6 lines outside fenced and indented code, and <slug>.feature Gherkin documents are excluded from heading counts (725 = 727 total ATX minus 2 Feature-level H1s); definition counts follow the role-aware grammar (FR-N level-2 colon/em-dash in FR.md, AC-N.M level-2/3 colon/em-dash/bare in ACCEPTANCE_CRITERIA.md, TASK-N level-2 colon/em-dash in TASKS.md); link counts are inline markdown links and URI autolinks outside code, excluding images; SCEN ids counted from @id: tags in <slug>.feature files. Counts pending reconciliation against the reference kernel build.",
+    "licenseDisposition": "repository-owned, same license as omp-spec-kit repository"
+  },
+  "groundTruth": {
+    "discoveredDocuments": 60,
+    "acceptedDocuments": 60,
+    "rejectedDocuments": 0,
+    "functionalRequirements": 48,
+    "acceptanceCriteria": 96,
+    "tasks": 45,
+    "scenarios": 89,
+    "markdownHeadingOccurrences": 725,
+    "markdownLinkOccurrences": 431,
+    "markdownExternalLinks": 5,
+    "unresolvedReferenceOccurrences": 0
+  },
+  "documents": [
+    {
+      "path": ".specs/plugin-distribution/ACCEPTANCE_CRITERIA.md",
+      "sha256": "ee6f80464fc183a77c27876ec97c55755daee064fa19910f0f61adef1618bb90",
+      "byteLength": 7732
+    },
+    {
+      "path": ".specs/plugin-distribution/CHANGELOG.md",
+      "sha256": "650124456e9ce6c1df7021c6a305531efda3896acdbd1fb6cb358d7742ee9342",
+      "byteLength": 1561
+    },
+    {
+      "path": ".specs/plugin-distribution/DESIGN.md",
+      "sha256": "db51dd14c3615d53e941d7c8a63b8c7ffdfd14309f78f5b49712bda056862360",
+      "byteLength": 12297
+    },
+    {
+      "path": ".specs/plugin-distribution/FILE_CHANGES.md",
+      "sha256": "cbdfe305e73073293d7c06d7c4eb8d194d1f44fcb98842a4ed309fbd7863e941",
+      "byteLength": 5805
+    },
+    {
+      "path": ".specs/plugin-distribution/FIXTURES.md",
+      "sha256": "b665ccd3a59acbb5b77a104b041b6270537e9beebe3749fe35b819e561c3f3d1",
+      "byteLength": 3943
+    },
+    {
+      "path": ".specs/plugin-distribution/FR.md",
+      "sha256": "ad66b67f61ae5c311481489237f5ce588cd73457576703a391cac4fe8d94bebd",
+      "byteLength": 10739
+    },
+    {
+      "path": ".specs/plugin-distribution/NFR.md",
+      "sha256": "763d0a873f5bf09c9d4c986de26a53ff20e0585747f0b44be4dbbb1a6269ab7c",
+      "byteLength": 3087
+    },
+    {
+      "path": ".specs/plugin-distribution/README.md",
+      "sha256": "04a4edb8512efd6e2b4e3c621821d541c6fb5a774326ba9accf3a1a3562a4d64",
+      "byteLength": 2428
+    },
+    {
+      "path": ".specs/plugin-distribution/REQUIREMENTS.md",
+      "sha256": "4defb8ec3114eb8a6ee73513c6190e4ea0212d544be1d55dce7a281fbfd68259",
+      "byteLength": 7300
+    },
+    {
+      "path": ".specs/plugin-distribution/RESEARCH.md",
+      "sha256": "eff55b40d7ab1374841888144141ec9d91e00342c0522ceeec5e741655307d33",
+      "byteLength": 8153
+    },
+    {
+      "path": ".specs/plugin-distribution/TASKS.md",
+      "sha256": "5007b0435cb5c92fec68709a4d536d36c5221b370586a074bb43836ff9cfe99d",
+      "byteLength": 5901
+    },
+    {
+      "path": ".specs/plugin-distribution/USER_STORIES.md",
+      "sha256": "1408f1f821bbaf86d24b19ff204c7f8ab9ef1e8c4c4eb7c600b0a3508331e3d0",
+      "byteLength": 3665
+    },
+    {
+      "path": ".specs/plugin-distribution/USE_CASES.md",
+      "sha256": "4d706aebe6db523bbd1a1a9f809388096a601466e9316ea07f932f42485f102a",
+      "byteLength": 5618
+    },
+    {
+      "path": ".specs/plugin-distribution/plugin-distribution.feature",
+      "sha256": "a9b3cbdbec827d8b7721a366fc5b93fa7fa6db61e69fadca265096dfc84c4046",
+      "byteLength": 14674
+    },
+    {
+      "path": ".specs/plugin-distribution/plugin-distribution_SCHEMA.md",
+      "sha256": "4cb9035ce05033bbc331749af9c098abad02acda67b3523fb79ac5adde71c0e1",
+      "byteLength": 18873
+    },
+    {
+      "path": ".specs/product/ACCEPTANCE_CRITERIA.md",
+      "sha256": "8a125016b4eeca69c94aa220ad0a42e0e7cf18d9a2188ede032bd568fa351c0e",
+      "byteLength": 10161
+    },
+    {
+      "path": ".specs/product/CHANGELOG.md",
+      "sha256": "efe32778d5f2af59b3dc9b90584e7442da73589e624ba2922f46b3fdb4cc7f9a",
+      "byteLength": 2232
+    },
+    {
+      "path": ".specs/product/DESIGN.md",
+      "sha256": "4360cc2b364832f457fce36e89d738276f8df1041bdeda06e1eaa2ff371dece5",
+      "byteLength": 12844
+    },
+    {
+      "path": ".specs/product/FILE_CHANGES.md",
+      "sha256": "cee5196b810c8b0b744ff13e7d4250dbd5296754491d45db2c5790a87a7219d6",
+      "byteLength": 5083
+    },
+    {
+      "path": ".specs/product/FIXTURES.md",
+      "sha256": "6adaedb3af887de3e71adf0a1070bffd34457dea25998ad2e4e5f143d063ae3b",
+      "byteLength": 6123
+    },
+    {
+      "path": ".specs/product/FR.md",
+      "sha256": "914c4577efb37b467d836ecff4bcf7606f3b26ad54914c14fc157a92773536ad",
+      "byteLength": 10468
+    },
+    {
+      "path": ".specs/product/NFR.md",
+      "sha256": "968e637c24aa9e0224af1bf64c25b3240f9f69a38f9bb13dd9eadab1744b7519",
+      "byteLength": 3905
+    },
+    {
+      "path": ".specs/product/README.md",
+      "sha256": "8dbe0e440241e58a27233dceaee71ebd27ea91b2cae339e4f4e4424e7c5b7393",
+      "byteLength": 4520
+    },
+    {
+      "path": ".specs/product/REQUIREMENTS.md",
+      "sha256": "9363626959b22435a2df8e6959cac4b6c28f0e27d6bf4f31ad88f27baa481062",
+      "byteLength": 8662
+    },
+    {
+      "path": ".specs/product/RESEARCH.md",
+      "sha256": "e7f5b17ba8ac4f353dbdcff26208c1e1616f5c9a0bec4f98b15c14a8558547e7",
+      "byteLength": 12047
+    },
+    {
+      "path": ".specs/product/TASKS.md",
+      "sha256": "627e043cc846225c698f99511b7222ce572f23d731a6caf51621146baec1d8bb",
+      "byteLength": 9368
+    },
+    {
+      "path": ".specs/product/USER_STORIES.md",
+      "sha256": "76ae351f2ffd8f600b67cdeca349421f8dcdb2402fbbca736becad5de0d77438",
+      "byteLength": 4020
+    },
+    {
+      "path": ".specs/product/USE_CASES.md",
+      "sha256": "791288eb75bd3247cf765e8a5fffe3bfef71e3c1307ea553e187bcc89bac16d4",
+      "byteLength": 6080
+    },
+    {
+      "path": ".specs/product/product.feature",
+      "sha256": "af45b8d556a523ac107b349b2e97c237dd7507877bba14e7944df79c16f2e47c",
+      "byteLength": 10855
+    },
+    {
+      "path": ".specs/product/product_SCHEMA.md",
+      "sha256": "4a02667c49ff954abbf0814e023f1e5d0b89d4d2214f004694c5c2df256d901e",
+      "byteLength": 14746
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/ACCEPTANCE_CRITERIA.md",
+      "sha256": "aab6cd4c5d3582e420149073220f937186e3ffb3350b0332feb93cc864b9acd1",
+      "byteLength": 18173
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/CHANGELOG.md",
+      "sha256": "6e009e5cceea0566035f01c3e93c3ce5e947fe244756e12d5f9dd114303f002d",
+      "byteLength": 3352
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/DESIGN.md",
+      "sha256": "37aadea0155b64afbbf79669e7881f20d0fbf887cf4f11976a86fcacf9f9a998",
+      "byteLength": 17099
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/FILE_CHANGES.md",
+      "sha256": "515a534f14c4b540f3055ea0c6a00c07a6afdd38eaf52eefa82f40aff4f6b53f",
+      "byteLength": 6307
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/FIXTURES.md",
+      "sha256": "dacc7fe77a61b77b75c63bbcad7a678b4d653d703b0113741767a0074beb3c19",
+      "byteLength": 9316
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/FR.md",
+      "sha256": "6d012a5208c0d320e662595979cc05cec1364dedf3a925a1425f838657885975",
+      "byteLength": 26571
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/NFR.md",
+      "sha256": "45e0b4393bac9cbf00f0804958b5ff017060a17bdde94d844bd47cdd6a10ef1f",
+      "byteLength": 6810
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/README.md",
+      "sha256": "6c0bd54316f87115092a825175876729dc09377c1e65d07494c1337716d0a507",
+      "byteLength": 5655
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/REQUIREMENTS.md",
+      "sha256": "f86147649d08b861bc4d59423f069d1498dd6ef80a4759fc5c6afe3ffe244de8",
+      "byteLength": 8910
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/RESEARCH.md",
+      "sha256": "643f5f7905613d4055dcd44fef37f09a9494754f9d2a8d33dc5461f3629b3b5a",
+      "byteLength": 10718
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/TASKS.md",
+      "sha256": "6d21a04daa5c3f3d7a43e8368c4e3062b429bf6374d8723edd22004651c0da2c",
+      "byteLength": 9568
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/USER_STORIES.md",
+      "sha256": "818dfcd2bed978f26a44435056fa66f6682ca8cc7e14cb80178a95f1f762b317",
+      "byteLength": 6617
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/USE_CASES.md",
+      "sha256": "18bd54db646c908eea9060419f457ac134e5c4da730f89c478fc2004f1d76690",
+      "byteLength": 11114
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/spec-authoring-workflow.feature",
+      "sha256": "cf2ccbbcd3ce972a7910bc979fd401a08c568bc4dc8718afc0ca3025c4210b4f",
+      "byteLength": 28144
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/spec-authoring-workflow_SCHEMA.md",
+      "sha256": "b61e50046b1f28c7a6fbcd4d6417405cf6055f27972e9e474ab2fb39bc4f10af",
+      "byteLength": 36192
+    },
+    {
+      "path": ".specs/spec-kernel/ACCEPTANCE_CRITERIA.md",
+      "sha256": "d12cf73f03030b16a2f85efdc0f12ea863d78054a0b058e0a8fc5a57e57a0f1e",
+      "byteLength": 10085
+    },
+    {
+      "path": ".specs/spec-kernel/CHANGELOG.md",
+      "sha256": "daabb1b630d970a2cf3f5feed2649d65c970b87653eaf32f876fa134938712e1",
+      "byteLength": 2514
+    },
+    {
+      "path": ".specs/spec-kernel/DESIGN.md",
+      "sha256": "689de35a98d560196078f410c538632d09781fa21f7d02a524247a117ac457e5",
+      "byteLength": 19970
+    },
+    {
+      "path": ".specs/spec-kernel/FILE_CHANGES.md",
+      "sha256": "90b8b6243830d10dc76e613b7b447f71ae823a56d4541576f7ce8cc4b46507b9",
+      "byteLength": 10325
+    },
+    {
+      "path": ".specs/spec-kernel/FIXTURES.md",
+      "sha256": "d611e015fae726a88384d9f00a8e1396f60626aaf6ece13a431e418d5ffdb107",
+      "byteLength": 11909
+    },
+    {
+      "path": ".specs/spec-kernel/FR.md",
+      "sha256": "1c3b58679dcf97064dc52f76c0176932984b86aa34e0d80d285f32e952b8b3dd",
+      "byteLength": 20434
+    },
+    {
+      "path": ".specs/spec-kernel/NFR.md",
+      "sha256": "0d75012b3aa3a6685727aa530f675a275846509e611289b4eaff86992b10113c",
+      "byteLength": 7410
+    },
+    {
+      "path": ".specs/spec-kernel/README.md",
+      "sha256": "dd2fa36a0cbf9604e346d64d6dc3bd6da5f55a6d05b8b065370a4f5bdbe01900",
+      "byteLength": 5784
+    },
+    {
+      "path": ".specs/spec-kernel/REQUIREMENTS.md",
+      "sha256": "5dcfe52270be402b95ce8cb5ed860f7ffd6fb41701e2fee72ce2bc66187476a8",
+      "byteLength": 11381
+    },
+    {
+      "path": ".specs/spec-kernel/RESEARCH.md",
+      "sha256": "85094a2634b6fab45561a698f2974f6155f0c85b5043c301dfaf4877591f8ba1",
+      "byteLength": 10237
+    },
+    {
+      "path": ".specs/spec-kernel/TASKS.md",
+      "sha256": "8ab4ac1ada1fe0b572d5b03dcfa52949efbd70d117d74829f460d56a94f76580",
+      "byteLength": 13393
+    },
+    {
+      "path": ".specs/spec-kernel/USER_STORIES.md",
+      "sha256": "d525da56169c082dc3a97eee50d5d8589cc438807183f228588806b053f37663",
+      "byteLength": 4492
+    },
+    {
+      "path": ".specs/spec-kernel/USE_CASES.md",
+      "sha256": "bb13299c0682c9980725fa6d37ff0a7811bf6032b670fe74a4d1621ae049302a",
+      "byteLength": 9422
+    },
+    {
+      "path": ".specs/spec-kernel/spec-kernel.feature",
+      "sha256": "80421a8f8c7d54f234ab376e2362d3898328b70cdd37c9a11559e1f941305afc",
+      "byteLength": 9553
+    },
+    {
+      "path": ".specs/spec-kernel/spec-kernel_SCHEMA.md",
+      "sha256": "e6d992abcda0d398e5508e8c765303597997c1175b37d885e51158890ff0e4f4",
+      "byteLength": 47027
+    }
+  ]
+}
