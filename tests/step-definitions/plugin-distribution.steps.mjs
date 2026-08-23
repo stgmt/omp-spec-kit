@@ -7,7 +7,7 @@ import path from "node:path";
 import { inventorySpecs } from "../../src/v0.1/inventory.js";
 import { snapshotTree } from "../support/world.mjs";
 
-const PLUGIN_VERSION = "0.1.0";
+const PLUGIN_VERSION = "0.2.0";
 const SCHEMA_VERSION = "1";
 const TOOL_NAME = "spec_inventory";
 const CANONICAL_DOCUMENTS = Object.freeze([
@@ -162,17 +162,35 @@ Given("the repository root contains the actual four-spec corpus", function () {
   const directDirectories = this.repositorySpecsBefore.entries
     .filter((entry) => entry.type === "directory" && entry.path !== "." && !entry.path.includes("/"))
     .map((entry) => entry.path);
-  assert.deepStrictEqual(directDirectories, REAL_SLUGS);
+  // The corpus is whatever canonical spec directories exist on disk (an owner
+  // may add specs, e.g. plan-gate); the four product specs must always be a
+  // subset, and the inventory must describe exactly the on-disk set.
+  for (const slug of REAL_SLUGS) {
+    assert.ok(directDirectories.includes(slug), `canonical spec ${slug} must exist`);
+  }
+  this.expectedSlugs = directDirectories;
 });
 When("the production inventory reads the real corpus with default and bounded requests", async function () {
   this.defaultResult = await inventorySpecs(this.repositoryRoot, {});
   this.boundedResult = await inventorySpecs(this.repositoryRoot, { schemaVersion: "1", maxSpecs: 2, maxDiagnostics: 25, includeDocumentCounts: false });
 });
 Then("the default inventory exactly describes all four canonical specifications", function () {
-  assert.deepStrictEqual(this.defaultResult, result({ status: "ok", specs: REAL_SLUGS.map((slug) => recognizedSpec(slug, true)), diagnostics: [], observedSpecs: 4 }));
+  assert.deepStrictEqual(this.defaultResult, result({
+    status: "ok",
+    specs: this.expectedSlugs.map((slug) => recognizedSpec(slug, true)),
+    diagnostics: [],
+    observedSpecs: this.expectedSlugs.length,
+  }));
 });
 Then("the bounded inventory returns the lexical prefix and accounts for every observed specification", function () {
-  assert.deepStrictEqual(this.boundedResult, result({ status: "partial", specs: REAL_SLUGS.slice(0, 2).map((slug) => recognizedSpec(slug, false)), diagnostics: [DIAGNOSTICS.LIMIT_REACHED], observedSpecs: 4, truncated: true }));
+  const expectedSlugs = [...REAL_SLUGS, ...this.expectedSlugs].filter((slug, index, all) => all.indexOf(slug) === index).sort().slice(0, 2);
+  assert.deepStrictEqual(this.boundedResult, result({
+    status: "partial",
+    specs: expectedSlugs.map((slug) => recognizedSpec(slug, false)),
+    diagnostics: [DIAGNOSTICS.LIMIT_REACHED],
+    observedSpecs: this.expectedSlugs.length,
+    truncated: true,
+  }));
 });
 Then("the repository specification tree is byte-for-byte unchanged", async function () {
   assert.deepStrictEqual(await snapshotTree(path.join(this.repositoryRoot, ".specs")), this.repositorySpecsBefore);
@@ -341,17 +359,22 @@ Then("exactly one read-approved inventory tool was registered with the strict pu
   assert.equal(this.probe.updates, 0);
 });
 Then("its content and structured details exactly describe the real four-spec corpus", function () {
+  // This scenario has its own Given chain and never runs the corpus Given, so
+  // derive the on-disk corpus from the Before-hook snapshot.
+  const expectedSlugs = this.expectedSlugs ?? this.repositorySpecsBefore.entries
+    .filter((entry) => entry.type === "directory" && entry.path !== "." && !entry.path.includes("/"))
+    .map((entry) => entry.path);
   const details = result({
     status: "ok",
-    specs: REAL_SLUGS.map((slug) => recognizedSpec(slug, true)),
+    specs: expectedSlugs.map((slug) => recognizedSpec(slug, true)),
     diagnostics: [],
-    observedSpecs: 4,
+    observedSpecs: expectedSlugs.length,
   });
   assert.deepStrictEqual(this.probe.execution, {
     content: [
       {
         type: "text",
-        text: "spec_inventory ok: returned 4 of 4 observed specs; 0 diagnostics.",
+        text: `spec_inventory ok: returned ${expectedSlugs.length} of ${expectedSlugs.length} observed specs; 0 diagnostics.`,
       },
     ],
     details,

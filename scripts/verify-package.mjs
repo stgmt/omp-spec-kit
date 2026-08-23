@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { lstat, readFile, readdir } from "node:fs/promises";
+import { lstat, readFile, readdir, readdir as readdirDir } from "node:fs/promises";
 import path from "node:path";
 import {
   PLUGIN_VERSION,
@@ -12,7 +12,48 @@ import {
 
 const pluginRoot = path.join(repositoryRoot, "plugins", "omp-spec-kit");
 const sourceRoot = path.join(repositoryRoot, "src", "v0.1");
-const expectedDirectories = Object.freeze(["commands", "dist", "skills", "skills/spec-inventory"]);
+const kernelSourceRoot = path.join(repositoryRoot, "src", "kernel");
+
+// The closed dist/kernel payload mirrors src/kernel exactly; the expectation is
+// derived from the source tree so it cannot drift from the build input.
+async function collectKernelSources() {
+  const files = [];
+  async function visit(directory, relativeDirectory) {
+    const entries = await readdirDir(directory, { withFileTypes: true });
+    for (const entry of entries) {
+      const relative = relativeDirectory === "" ? entry.name : `${relativeDirectory}/${entry.name}`;
+      const absolute = path.join(directory, entry.name);
+      const stats = await lstat(absolute);
+      if (stats.isSymbolicLink()) fail(`symlink forbidden in src/kernel: ${relative}`);
+      if (!stats.isDirectory() && !stats.isFile()) fail(`non-regular source entry: src/kernel/${relative}`);
+      if (stats.isDirectory()) await visit(absolute, relative);
+      else if (relative.endsWith(".js")) files.push(relative);
+      else fail(`unexpected non-JS source file: src/kernel/${relative}`);
+    }
+  }
+  await visit(kernelSourceRoot, "");
+  return files.sort();
+}
+
+const kernelSources = await collectKernelSources();
+const kernelDistDirectories = [
+  ...new Set(
+    kernelSources
+      .map((name) => name.split("/").slice(0, -1).join("/"))
+      .filter((directory) => directory !== ""),
+  ),
+].sort();
+
+const expectedDirectories = Object.freeze([
+  ...new Set([
+    "commands",
+    "dist",
+    "dist/kernel",
+    "skills",
+    "skills/spec-inventory",
+    ...kernelDistDirectories.map((directory) => `dist/kernel/${directory}`),
+  ]),
+]);
 const expectedFiles = Object.freeze([
   "LICENSE",
   "README.md",
@@ -22,6 +63,7 @@ const expectedFiles = Object.freeze([
   "dist/manifest.json",
   "package.json",
   "skills/spec-inventory/SKILL.md",
+  ...kernelSources.map((name) => `dist/kernel/${name}`),
 ]);
 const packageFiles = Object.freeze(["package.json", "README.md", "LICENSE", "dist/", "skills/", "commands/"]);
 
@@ -85,6 +127,13 @@ function assertRuntimeImports(relativePath, source) {
   for (const specifier of importedSpecifiers(source)) {
     if (specifier.startsWith("node:")) continue;
     if (relativePath === "dist/extension.js" && specifier === "./inventory.js") continue;
+    // Kernel modules may import sibling kernel modules only.
+    if (
+      relativePath.startsWith("dist/kernel/") &&
+      (specifier.startsWith("./") || specifier.startsWith("../"))
+    ) {
+      continue;
+    }
     fail(`${relativePath} has forbidden runtime import: ${specifier}`);
   }
 }
@@ -132,7 +181,8 @@ async function verifyPackage() {
   if (distManifest.schema !== "omp-spec-kit-dist-manifest@1" || distManifest.pluginVersion !== PLUGIN_VERSION) {
     fail("dist manifest schema/version mismatch");
   }
-  assertExactKeys(distManifest.files, ["extension.js", "inventory.js"], "dist manifest files", fail);
+  const expectedManifestKeys = ["extension.js", "inventory.js", ...kernelSources.map((name) => `kernel/${name}`)];
+  assertExactKeys(distManifest.files, expectedManifestKeys, "dist manifest files", fail);
 
   for (const name of ["extension.js", "inventory.js"]) {
     assertExactKeys(distManifest.files[name], ["sha256"], `dist manifest ${name}`, fail);
@@ -141,13 +191,25 @@ async function verifyPackage() {
     if (!bytes.equals(sourceBytes)) fail(`dist/${name} is stale against src/v0.1/${name}`);
     if (distManifest.files[name].sha256 !== sha256(bytes)) fail(`dist hash mismatch for ${name}`);
     const source = bytes.toString("utf8");
-    if (!/export\s+const\s+PLUGIN_VERSION\s*=\s*["']0\.1\.0["']/u.test(source)) {
-      fail(`${name} does not embed exported PLUGIN_VERSION 0.1.0`);
+    if (!/export\s+const\s+PLUGIN_VERSION\s*=\s*["']0\.2\.0["']/u.test(source)) {
+      fail(`${name} does not embed exported PLUGIN_VERSION 0.2.0`);
     }
     if (!/export\s+const\s+SCHEMA_VERSION\s*=\s*["']1["']/u.test(source)) {
       fail(`${name} does not embed exported SCHEMA_VERSION 1`);
     }
     assertRuntimeImports(`dist/${name}`, source);
+  }
+
+  // Kernel payload: byte equality against src/kernel plus manifest hashes and
+  // the dependency-free runtime-import rule.
+  for (const relative of kernelSources) {
+    const distBytes = await readFile(path.join(pluginRoot, "dist", "kernel", relative));
+    const sourceBytes = await readFile(path.join(kernelSourceRoot, relative));
+    if (!distBytes.equals(sourceBytes)) fail(`dist/kernel/${relative} is stale against src/kernel/${relative}`);
+    if (distManifest.files[`kernel/${relative}`].sha256 !== sha256(distBytes)) {
+      fail(`dist hash mismatch for kernel/${relative}`);
+    }
+    assertRuntimeImports(`dist/kernel/${relative}`, distBytes.toString("utf8"));
   }
 
   const distManifestText = await readFile(distManifestPath, "utf8");

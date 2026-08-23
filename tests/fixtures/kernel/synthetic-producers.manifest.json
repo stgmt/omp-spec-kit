@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "omp-spec-kit/kernel-fixture-manifest@1",
+  "fixtureType": "synthetic",
+  "label": "generated negative and scale producers for the v0.2 kernel BDD suite",
+  "provenance": {
+    "capturedFromRepository": null,
+    "capturedAt": "2026-08-23",
+    "captureMethodDescription": "Producers are generated deterministically at runtime by tests/helpers/kernel-world.mjs from literal template strings recorded below; no repository bytes are captured or trimmed. Per FR-11 these are labeled synthetic and used only for generated scale and minimal negative variants.",
+    "licenseDisposition": "repository-owned, generated in-test"
+  },
+  "producers": [
+    {
+      "producerId": "anchor-lab",
+      "synthetic": true,
+      "purpose": "adversarial glfm-anchor@1 allocation across the complete previously emitted anchor set (AC-13.1)",
+      "documents": [
+        { "path": ".specs/anchor-lab/README.md", "headings": ["Foo", "Foo", "Foo-1"] },
+        { "path": ".specs/anchor-lab/DESIGN.md", "headings": ["Foo-1", "Foo", "Foo"] }
+      ],
+      "expectedAnchors": {
+        ".specs/anchor-lab/README.md": ["foo", "foo-1", "foo-1-1"],
+        ".specs/anchor-lab/DESIGN.md": ["foo-1", "foo", "foo-1-1"]
+      }
+    },
+    {
+      "producerId": "dupe-lab",
+      "synthetic": true,
+      "purpose": "lossless duplicate FR election (AC-4.1)",
+      "documents": [{ "path": ".specs/dupe-lab/FR.md" }],
+      "expectedDuplicateCanonicalId": "dupe-lab:FR-1"
+    },
+    {
+      "producerId": "diag-lab",
+      "synthetic": true,
+      "purpose": "typed broken-link and duplicate-identity diagnostics with stable ordering (AC-6.1)",
+      "documents": [
+        { "path": ".specs/diag-lab/FR.md" },
+        { "path": ".specs/diag-lab/README.md" }
+      ],
+      "expectedDiagnosticCodes": ["BROKEN_MARKDOWN_LINK", "DUPLICATE_DEFINITION"]
+    },
+    {
+      "producerId": "bounds-lab",
+      "synthetic": true,
+      "purpose": "pagination bounds, truncation visibility, and stale-cursor rejection over generated scale (AC-8.1, AC-12.1)",
+      "documents": "four specs (big-a .. big-d), each with FR.md defining 30 FRs and README.md carrying 12 ordinary headings",
+      "expectedFunctionalRequirements": 120,
+      "pageLimitUsed": 3
+    }
+  ]
+}
