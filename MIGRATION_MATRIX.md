@@ -4,7 +4,7 @@ This matrix classifies the immutable `dev-pomogator` source at commit
 `158cd5ccfe4d08625734fc1692d8916cc5838fd6`. The upstream snapshot is a
 reference, not the requirements source of truth for `omp-spec-kit`.
 
-The snapshot's historical root-license evidence gap was later resolved by the source-owner MIT attestation merged in dev-pomogator commit `a21d27ba08919cb5340493adac8dbbf2f8fec72a` ([PR #232](https://github.com/stgmt/dev-pomogator/pull/232)). This later evidence covers the frozen subtree without changing the snapshot commit, source-document decisions, requirement counts, or implementation status. Public-init source-freeze, specification, anchor, secret/public-tree, and candidate-diff validation are complete; the repository remains non-public, non-installable, and unreleased.
+The snapshot's historical root-license evidence gap was later resolved by the source-owner MIT attestation merged in dev-pomogator commit `a21d27ba08919cb5340493adac8dbbf2f8fec72a` ([PR #232](https://github.com/stgmt/dev-pomogator/pull/232)). This later evidence covers the frozen subtree without changing the snapshot commit, source-document decisions, requirement counts, or implementation status. Public-init source-freeze, specification, anchor, secret/public-tree, and candidate-diff validation are complete; reviewed initial commit `fe70b10caaed888daf7c48dfc8f1bad9caf45598` is public, non-installable, and unreleased.
 
 - **ADOPT** — retain the product-neutral contract, with new wording and tests in the standalone product.
 - **REWRITE** — retain the intent, but remove dev-pomogator, Claude Code, mutable-runtime, or monorepo assumptions.

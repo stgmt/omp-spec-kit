@@ -36,12 +36,13 @@ All tasks are planned work. No task status below constitutes executed evidence. 
 
 ## TASK-4 — Certify the clean public export
 
-- **Status:** Planned
+- **Status:** Completed
 - **Estimate:** 1 day
 - **Owner:** Security reviewer
 - **Depends on:** TASK-2 and TASK-3.
 - **Traces:** `product:FR-4`; `product:AC-4.1`; `product:AC-4.2`; `@feature4`; `SCEN-prohibited-state-path`; `SCEN-unresolved-secret-finding`.
 - **Planned paths:** `.gitignore`, `SECURITY.md`, `docs/validation/public-safety.md`.
+- **Evidence:** `docs/validation/public-safety.md` and `docs/validation/publication-receipt.md`; zero secret/path/payload findings, approved 100-file initial diff, public SHA/tree equality.
 - **Done When:** The exact candidate tree/history matches the approved allowlist, contains no prohibited local/state/evidence paths, has zero unresolved secret findings, records every exception with full review fields, and has an approved public diff.
 
 ## TASK-5 — Enforce one future product identity
@@ -66,12 +67,13 @@ All tasks are planned work. No task status below constitutes executed evidence. 
 
 ## TASK-7 — Publish an honest status record
 
-- **Status:** Planned
+- **Status:** Completed
 - **Estimate:** 0.5 day per candidate
 - **Owner:** Product owner
 - **Depends on:** Current public-init evidence or every aggregate in the release stage's cumulative gate set is assembled with explicit current-candidate/predecessor binding for one candidate artifact lineage.
 - **Traces:** `product:FR-7`; `product:AC-7.1`; `product:AC-7.2`; `@feature7`; `SCEN-status-fails-closed`; `SCEN-unexecuted-bdd-not-evidence`.
 - **Planned paths:** `README.md`, `ROADMAP.md`, `docs/validation/release-status.json`, `CHANGELOG.md`.
+- **Evidence:** root/product README, `docs/validation/publication-receipt.md`, and commit `fe70b10caaed888daf7c48dfc8f1bad9caf45598`; status separates the public specification init from every unimplemented runtime stage.
 - **Done When:** Public status names stage, conservative state, product revision, current candidate artifact/lineage, typed evidence binding roles, linked v0.2 predecessor and exact parent SHA where applicable, evidence timestamps/revocation state, blockers, and next gates; each non-public-init stage points to every required cumulative aggregate result and contains no unsupported, latest-only, wrong-target-stage, current-artifact-mismatched, parent-mismatched, historical, stale, revoked, cross-lineage, or member-subset-derived delivered claim.
 
 ## TASK-8 — Review roadmap clarity and canonical boundaries
@@ -92,8 +94,8 @@ All tasks are planned work. No task status below constitutes executed evidence. 
 | `product:TASK-1` | Completed | 1 day | Product owner | `product:FR-1` |
 | `product:TASK-2` | Completed | 1 day | Provenance reviewer | `product:FR-2` |
 | `product:TASK-3` | Completed | 2 days + external latency | Legal/provenance owner | `product:FR-3` |
-| `product:TASK-4` | Planned | 1 day | Security reviewer | `product:FR-4` |
+| `product:TASK-4` | Completed | 1 day | Security reviewer | `product:FR-4` |
 | `product:TASK-5` | Planned | 1 day | Distribution owner | `product:FR-5` |
 | `product:TASK-6` | Planned | 1 day/stage | Release owner | `product:FR-6` |
-| `product:TASK-7` | Planned | 0.5 day/candidate | Product owner | `product:FR-7` |
+| `product:TASK-7` | Completed | 0.5 day/candidate | Product owner | `product:FR-7` |
 | `product:TASK-8` | Completed | 0.5 day | Documentation reviewer | `product:FR-8` |

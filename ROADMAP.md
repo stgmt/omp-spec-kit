@@ -13,9 +13,9 @@ The roadmap delivers one standalone OMP product in verifiable stages. Dates are 
 - ADOPT / REWRITE / DEFER / DROP decisions;
 - README, license, security, contribution, and roadmap policy.
 
-**Not included:** marketplace catalog, plugin package, extension, MCP server, install command, release, remote, or publication.
+**Not included:** marketplace catalog, plugin package, extension, MCP server, install command, runtime artifact, tag, or release.
 
-**Exit gates:** zero secrets/state imports; every copied byte matches the pinned commit; redistribution rights are established; standalone requirements and anchors are reviewed; the complete candidate tree is scanned; the repository clearly reports NOT INSTALLABLE. These pre-publication gates are satisfied by `docs/validation/source-freeze.md`, `spec-review.md`, and `public-safety.md`; the repository remains non-public until the reviewed initial commit is created and pushed.
+**Exit evidence:** zero secrets/state imports; every copied byte matches the pinned commit; redistribution rights are established; standalone requirements and anchors are reviewed; the complete candidate tree is scanned; the repository clearly reports NOT INSTALLABLE. The reviewed initial commit `fe70b10caaed888daf7c48dfc8f1bad9caf45598` is published at `https://github.com/stgmt/omp-spec-kit`; `docs/validation/publication-receipt.md` proves public visibility and local/remote/tree identity.
 
 ## v0.1.0 — one plugin, first read-only value
 

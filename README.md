@@ -3,10 +3,10 @@
 `omp-spec-kit` is a specification-first project for bringing trustworthy specification inventory, traceability, evidence, and authoring workflows to Oh My Pi (OMP).
 
 ## Current status: `SPEC_ONLY / LICENSE_RESOLVED / PUBLIC_INIT_VALIDATED`
-**Publication:** `NON_PUBLIC`
+**Publication:** `PUBLIC_SPECIFICATION_INIT`
 
 
-**There is no installable plugin, marketplace catalog, package, release, public remote, or runtime capability in this repository yet.** Do not add this repository as an OMP marketplace and do not treat the imported upstream scenarios as passing evidence for this product.
+**There is no installable plugin, marketplace catalog, package, release, or runtime capability in this repository yet.** The public repository currently publishes specifications and provenance only; do not add it as an OMP marketplace and do not treat imported upstream scenarios as passing evidence for this product.
 
 This initial repository contains:
 
@@ -34,7 +34,7 @@ The reference snapshot comes only from immutable dev-pomogator commit:
 
 ### Publication gate
 
-The historical upstream root-license evidence gap is resolved by the merged source-owner MIT attestation at commit `a21d27ba08919cb5340493adac8dbbf2f8fec72a`, copied byte-for-byte under [`docs/upstream/dev-pomogator/`](docs/upstream/dev-pomogator/). `IMPORT_MANIFEST.yaml` records the separate snapshot and attestation commits and marks all 24 copied entries `MIT_ATTESTED_SOURCE_OWNER`. Source-freeze, specification, anchor, secret/public-tree, and complete candidate review are recorded under [`docs/validation/`](docs/validation/). The repository remains `NON_PUBLIC` until the reviewed initial commit is created and pushed to a fresh public remote.
+The historical upstream root-license evidence gap is resolved by the merged source-owner MIT attestation at commit `a21d27ba08919cb5340493adac8dbbf2f8fec72a`, copied byte-for-byte under [`docs/upstream/dev-pomogator/`](docs/upstream/dev-pomogator/). Source-freeze, specification, anchor, secret/public-tree, and complete candidate review are recorded under [`docs/validation/`](docs/validation/). The reviewed initial commit `fe70b10caaed888daf7c48dfc8f1bad9caf45598` is public at [`stgmt/omp-spec-kit`](https://github.com/stgmt/omp-spec-kit); its SHA/tree/readback proof is in [`publication-receipt.md`](docs/validation/publication-receipt.md).
 
 ## Planned delivery
 
@@ -46,7 +46,7 @@ The roadmap deliberately keeps one product boundary:
 4. v0.3 — one MCP adapter over the same query service;
 5. later — safe authoring and mutation, only after containment, CAS, concurrency, and evidence gates.
 
-See [`ROADMAP.md`](ROADMAP.md) for stage gates. No GitHub remote, release, or publication is part of this local initialization.
+See [`ROADMAP.md`](ROADMAP.md) for stage gates. The public specification-init repository contains no installable payload or release; v0.1.0 remains a separately gated implementation stage.
 
 ## Repository policy
 
