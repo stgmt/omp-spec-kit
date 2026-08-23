@@ -8,6 +8,8 @@
 # Dependencies and generated output
 node_modules/
 dist/
+!plugins/omp-spec-kit/dist/
+!plugins/omp-spec-kit/dist/**
 build/
 coverage/
 .tmp/

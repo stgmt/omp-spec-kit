@@ -1,0 +1,26 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "omp-spec-kit",
+  "owner": {
+    "name": "stgmt"
+  },
+  "metadata": {
+    "description": "Read-only OMP specification inventory guidance and tooling.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "omp-spec-kit",
+      "source": "./plugins/omp-spec-kit",
+      "description": "Inventory direct .specs children from the active OMP project without modifying them.",
+      "version": "0.1.0",
+      "author": {
+        "name": "stgmt"
+      },
+      "homepage": "https://github.com/stgmt/omp-spec-kit",
+      "repository": "https://github.com/stgmt/omp-spec-kit.git",
+      "license": "MIT",
+      "category": "development"
+    }
+  ]
+}
