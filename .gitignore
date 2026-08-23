@@ -24,6 +24,7 @@ tmp/
 .dev-pomogator/
 .test-results*
 .progress.json
+.omp/
 
 # Editor and operating-system state
 .vscode/
