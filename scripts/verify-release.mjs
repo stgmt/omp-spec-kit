@@ -3,8 +3,8 @@ import { lstat, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const PLUGIN_VERSION = "0.2.0";
-const EXPECTED_PAYLOAD_DIGEST = "e71067472e60d926bd73177c97b05df156e9e5b70b6def6bc70fa920e6c3dc1e";
+const PLUGIN_VERSION = "0.3.0";
+const EXPECTED_PAYLOAD_DIGEST = "69f0a10a0e2f3e42e8827c48919cb3a1afcc55743d05df37e184c02e51822e4e";
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function fail(message) {
@@ -40,7 +40,7 @@ async function payloadDigest() {
 }
 
 const tag = process.env.RELEASE_TAG ?? "";
-if (!/^v\d+\.\d+\.\d+$/.test(tag)) fail(`RELEASE_TAG must look like v0.2.0, got ${JSON.stringify(tag)}`);
+if (!/^v\d+\.\d+\.\d+$/.test(tag)) fail(`RELEASE_TAG must look like v0.3.0, got ${JSON.stringify(tag)}`);
 const expectedVersion = tag.slice(1);
 if (expectedVersion !== PLUGIN_VERSION) {
   fail(`tag ${tag} does not match the verified plugin version ${PLUGIN_VERSION}`);

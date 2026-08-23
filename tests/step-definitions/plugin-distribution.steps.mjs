@@ -7,7 +7,7 @@ import path from "node:path";
 import { inventorySpecs } from "../../src/v0.1/inventory.js";
 import { snapshotTree } from "../support/world.mjs";
 
-const PLUGIN_VERSION = "0.2.0";
+const PLUGIN_VERSION = "0.3.0";
 const SCHEMA_VERSION = "1";
 const TOOL_NAME = "spec_inventory";
 const CANONICAL_DOCUMENTS = Object.freeze([
@@ -336,6 +336,9 @@ Then("exactly one read-approved inventory tool was registered with the strict pu
     defaultType: "function",
   });
   assert.deepStrictEqual(this.probe.labels, ["OMP Spec Kit"]);
+  // v0.3: the extension registers 8 read-approved tools; this step pins the
+  // v0.1 spec_inventory contract, the MCP/kernel suites pin the other 7.
+  assert.strictEqual(this.probe.toolCount, 8);
   assert.deepStrictEqual(this.probe.tool, {
     keys: ["approval", "description", "execute", "label", "name", "parameters", "strict"],
     name: TOOL_NAME,

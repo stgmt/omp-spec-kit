@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Read-only OMP specification inventory guidance and tooling.",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "plugins": [
     {
       "name": "omp-spec-kit",
       "source": "./plugins/omp-spec-kit",
       "description": "Inventory direct .specs children from the active OMP project without modifying them.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "author": {
         "name": "stgmt"
       },
