@@ -62,10 +62,10 @@ jobs:
             --title "omp-spec-kit ${TAG}" \
             --notes "Specification-first OMP plugin v0.1.0: one marketplace, one plugin package, one read-only \`spec_inventory\` tool.
 
-Install:
-\`\`\`
-omp plugin marketplace add stgmt/omp-spec-kit
-omp plugin install omp-spec-kit@omp-spec-kit --scope project
-\`\`\`
+          Install:
+          \`\`\`
+          omp plugin marketplace add stgmt/omp-spec-kit
+          omp plugin install omp-spec-kit@omp-spec-kit --scope project
+          \`\`\`
 
-Evidence: Docker BDD 17/17 scenarios, dependency-absent clean payload, installed lifecycle (install / fresh-session invocation / uninstall / reinstall) bound to \`${COMMIT}\` in \`docs/validation/distribution-lifecycle.md\`. First release: prior-version upgrade/rollback is inapplicable by contract."
+          Evidence: Docker BDD 17/17 scenarios, dependency-absent clean payload, installed lifecycle (install / fresh-session invocation / uninstall / reinstall) bound to \`${COMMIT}\` in \`docs/validation/distribution-lifecycle.md\`. First release: prior-version upgrade/rollback is inapplicable by contract."

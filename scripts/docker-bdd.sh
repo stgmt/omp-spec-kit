@@ -3,7 +3,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-export DOCKER_HOST="${DOCKER_HOST:-tcp://127.0.0.1:2375}"
+if [[ -z "${GITHUB_ACTIONS:-}" && -z "${DOCKER_HOST:-}" ]]; then
+  export DOCKER_HOST="tcp://127.0.0.1:2375"
+fi
 
 if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
   if [[ -z "${OMP_SPEC_KIT_WSL_SHIM:-}" ]] && command -v wsl.exe >/dev/null 2>&1; then
