@@ -5,10 +5,18 @@
 ```text
 repository root / marketplace root
 ├── .omp-plugin/marketplace.json          (one catalog, one entry)
-└── plugins/omp-spec-kit/                 (one child package)
+├── src/v0.1/                             (repository-only runtime sources)
+├── scripts/                              (repository-only build and validators)
+└── plugins/omp-spec-kit/                 (complete recursively copied payload)
     ├── package.json                      (one omp.extensions entry)
-    ├── dist/extension.js                 (clean-built installed entry)
-    └── approved guidance assets          (no second runtime)
+    ├── README.md
+    ├── LICENSE
+    ├── dist/
+    │   ├── extension.js                  (clean-built installed entry)
+    │   ├── inventory.js
+    │   └── manifest.json                 (deterministic source hashes)
+    ├── skills/spec-inventory/SKILL.md    (guidance only)
+    └── commands/spec-inventory.md        (guidance only)
 
 fresh OMP session
   -> installed child manifest
@@ -19,7 +27,7 @@ fresh OMP session
   -> typed redacted result; zero writes
 ```
 
-There is no nested marketplace, nested plugin, source-tree entry, v0.1.0 MCP adapter, hook, watcher, writer, or alternate control plane.
+OMP v17.3.7 `cachePlugin` recursively copies the catalog source directory with `fs.cp`; it does not filter the copy through `package.json#files`. Therefore the child directory is the closed installable payload, not a workspace. There is no source, build script, test, evidence, nested marketplace, nested plugin, v0.1.0 MCP adapter, hook, watcher, writer, or alternate control plane beneath it.
 
 ## Component responsibilities
 
@@ -87,7 +95,7 @@ Each transition has its own receipt. `reload-observed` cannot skip to `extension
 
 ## Clean build and package boundary
 
-The build starts from absent/isolated `dist/`, produces `dist/extension.js`, and fails on non-deterministic or forbidden imports. Package assembly uses a positive allowlist. The dependency-absent experiment installs from assembled bytes, hides the checkout and root dependencies, and invokes the extension in a pinned clean OMP fixture. The exact bytes invoked are the bytes later uploaded, identified by digest.
+The build starts from absent/isolated `plugins/omp-spec-kit/dist/`, copies the two external repository sources `src/v0.1/extension.js` and `src/v0.1/inventory.js`, and emits a deterministic manifest of their output hashes. It rejects missing, unexpected, non-regular, or symlink output. Because OMP v17.3.7 recursively copies the whole catalog source directory, package assembly is enforced as an exact positive allowlist over `plugins/omp-spec-kit/`; `package.json#files` documents that boundary but does not create it. The dependency-absent experiment installs those assembled bytes, hides the checkout and root dependencies, and invokes the extension in a pinned clean OMP fixture. The exact bytes invoked are the bytes later uploaded, identified by digest.
 
 ## GitHub Actions workflow design
 
@@ -174,6 +182,16 @@ Pull requests and pushes run verification only. A `v*` tag does not bypass jobs.
 **Trade-off:** Lifecycle automation has two explicit applicability profiles.
 
 **Alternatives:** Publishing an artificial `0.0.x` solely to satisfy the proof or silently skipping all removal/recovery evidence was rejected.
+
+### D-8 — External sources, closed copied payload
+
+**Decision:** Keep runtime sources and build/verification programs at repository root, outside `plugins/omp-spec-kit/`; generate only `dist/` into the child and verify the complete child tree against an exact allowlist.
+
+**Rationale:** Pinned OMP v17.3.7 `cachePlugin` uses recursive `fs.cp` for relative marketplace sources, so any source, test, or build file beneath the child would be installed.
+
+**Trade-off:** The child cannot be treated as a self-building workspace; repository-root scripts own build and validation.
+
+**Alternatives:** Relying on `package.json#files` or keeping `src/`, `scripts/`, or compiler configuration in the child was rejected because OMP's copy path does not filter on that field.
 
 ## Security review boundaries
 

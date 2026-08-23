@@ -21,7 +21,7 @@ Path: `.omp-plugin/marketplace.json`. Exactly one such file exists in the reposi
 
 | Field | Type | Required | v0.1.0 value/policy |
 |---|---|---:|---|
-| `$schema` | string URI | yes | Exact marketplace schema URI selected and pinned during implementation; current docs illustrate `https://anthropic.com/claude-code/marketplace.schema.json`. |
+| `$schema` | string URI | yes | Exact `https://anthropic.com/claude-code/marketplace.schema.json`, as referenced by the pinned OMP v17.3.7 marketplace documentation. |
 | `name` | string | yes | Exact `omp-spec-kit`; OMP naming grammar applies. |
 | `owner` | object | yes | Closed owner object below. |
 | `metadata` | object | yes | Closed metadata object below. |
@@ -71,7 +71,7 @@ Documented `source` variants are: relative string; `{source:"url",url,sha?}`; `{
 
 ## 3. Child package manifest profile
 
-Path: `plugins/omp-spec-kit/package.json`. No other `package.json` may occur beneath `plugins/omp-spec-kit/`.
+Path: `plugins/omp-spec-kit/package.json`. No other `package.json` may occur beneath `plugins/omp-spec-kit/`. Pinned OMP v17.3.7 recursively copies this entire directory with `fs.cp`; `package.json#files` does not filter installation.
 
 | Field | Type | Required | v0.1.0 value/policy |
 |---|---|---:|---|
@@ -82,14 +82,14 @@ Path: `plugins/omp-spec-kit/package.json`. No other `package.json` may occur ben
 | `repository` | string or `{type,url,directory?}` | yes | Canonical repository; if object, `type` is `git` and `directory` is `plugins/omp-spec-kit`. |
 | `license` | SPDX string | yes | Exact license approved by provenance gate. |
 | `type` | string | yes | Exact `module`. |
-| `files` | string array | yes | Closed package allowlist; includes `dist/` and approved user guidance only, excludes `src/`, tests, secrets, state, and evidence. |
-| `scripts` | object string map | yes | Only deterministic build/package verification scripts; `preinstall`, `install`, `postinstall`, `prepare`, network fetch, and user-state mutation scripts are forbidden. |
-| `engines` | object | yes | Exact supported OMP/Bun/Node constraints chosen after pinning; no wildcard. |
+| `files` | string array | yes | Exact ordered values: `package.json`, `README.md`, `LICENSE`, `dist/`, `skills/`, `commands/`. |
+| `engines` | object | yes | Closed object `{ "omp": "17.3.7" }`. |
 | `omp` | object | yes | Closed OMP object below. |
-| `dependencies` | object semver map | no | Omitted if fully bundled/host-provided; otherwise every runtime dependency is bundled or shipped and proven dependency-absent. |
-| `devDependencies` | object semver map | no | Build-only exact/ranged inputs; never required by installed runtime. |
+| `scripts` | object | no | Forbidden; build and verification scripts live at repository root and are not copied into the payload. |
+| `dependencies` | object | no | Forbidden; v0.1.0 has no non-host runtime dependency. |
+| `devDependencies` | object | no | Forbidden; the installed child is not a build workspace. |
 
-Unknown fields are rejected by the product package-shape validator. Fields commonly used for npm publication (`main`, `module`, `exports`, `bin`, `publishConfig`) are forbidden unless a later specification expands the marketplace contract. `private` is forbidden for the installable release manifest because this package is a marketplace payload rather than an unpublished workspace marker.
+Unknown fields are rejected by the product package-shape validator. The complete child tree is exactly `package.json`, `README.md`, `LICENSE`, `dist/{extension.js,inventory.js,manifest.json}`, `skills/spec-inventory/SKILL.md`, and `commands/spec-inventory.md`; every entry is a real directory or regular file, never a symlink. `dist/manifest.json` is canonical deterministic JSON with schema `omp-spec-kit-dist-manifest@1`, plugin version `0.1.0`, and SHA-256 values for the two JavaScript files. Fields commonly used for npm publication (`main`, `module`, `exports`, `bin`, `publishConfig`), lifecycle/build scripts, dependencies, and `private` are forbidden.
 
 ### 3.1 `omp` object and extension entry
 
@@ -249,15 +249,8 @@ This closed object is computed by the release evaluator after receipt validation
 
 `outcome: eligible` is valid only when all 12 requirement keys are present, all mandatory claims for the candidate profile have current passed receipts, all shared identity fields are equal, and `blockingReasons` is empty. A partial object, an empty evidence array, a passed job/stage summary, or an aggregate object that cites itself is invalid and yields `blocked`.
 
-## 11. Unresolved upstream compatibility questions
+## 11. Pinned compatibility boundary
 
+The v0.1.0 implementation authority is OMP v17.3.7 at commit `8500092296621a6826b7136e840f8a59ea338958`; the catalog schema URI is `https://anthropic.com/claude-code/marketplace.schema.json`. Repository validators deliberately enforce the narrower closed product profile regardless of whether the upstream parser preserves additional fields. The child declares no `omp` property beyond `extensions`, and the only supported OMP compatibility row is exact v17.3.7.
 
-The following remain blocking implementation-time checks:
-
-1. Which exact OMP release/commit and marketplace JSON Schema URI are pinned for v0.1.0?
-2. Does that pin enforce or merely preserve unknown catalog fields, and does it accept the closed profile without compatibility translation?
-3. Which exact `package.json#omp` properties exist at that pin beyond `extensions`, if any, and are they ignored or validated?
-4. What stable structured tool-result `details` behavior is guaranteed to callers at that pin?
-5. Which OMP versions/platforms form the supported compatibility matrix for release receipts?
-
-Until answered against pinned source/runtime evidence, these are `[SINGLE_SOURCE]` uncertainties and the release remains `SPEC_ONLY/NOT_READY`.
+Pinned source establishes recursive relative-source copying and extension discovery, but source inspection alone is not fresh-session runtime evidence. Structured `details` behavior and closed-profile loader acceptance remain release-proof obligations for the pinned lifecycle fixture; absence of those receipts keeps release eligibility blocked without weakening the schemas above.
