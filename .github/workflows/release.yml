@@ -1,0 +1,71 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      commit: ${{ steps.sha.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: sha
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - run: npm run verify
+      - name: Docker BDD (Docker-only suite)
+        run: bash scripts/docker-bdd.sh
+      - name: Release consistency gate
+        run: node scripts/verify-release.mjs
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_COMMIT: ${{ steps.sha.outputs.commit }}
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish GitHub release for the tagged commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          COMMIT: ${{ needs.verify.outputs.commit }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            existing="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish)"
+            if [ "$existing" != "$COMMIT" ]; then
+              echo "::error::release $TAG already exists for $existing; refusing to republish for $COMMIT"
+              exit 1
+            fi
+            echo "release $TAG already exists at $COMMIT; nothing to publish"
+            exit 0
+          fi
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$COMMIT" \
+            --title "omp-spec-kit ${TAG}" \
+            --notes "Specification-first OMP plugin v0.1.0: one marketplace, one plugin package, one read-only \`spec_inventory\` tool.
+
+Install:
+\`\`\`
+omp plugin marketplace add stgmt/omp-spec-kit
+omp plugin install omp-spec-kit@omp-spec-kit --scope project
+\`\`\`
+
+Evidence: Docker BDD 17/17 scenarios, dependency-absent clean payload, installed lifecycle (install / fresh-session invocation / uninstall / reinstall) bound to \`${COMMIT}\` in \`docs/validation/distribution-lifecycle.md\`. First release: prior-version upgrade/rollback is inapplicable by contract."
