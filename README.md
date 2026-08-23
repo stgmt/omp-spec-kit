@@ -2,11 +2,11 @@
 
 `omp-spec-kit` is a specification-first project for bringing trustworthy specification inventory, traceability, evidence, and authoring workflows to Oh My Pi (OMP).
 
-## Current status: `v0.1.0 RELEASED / SPEC_ONLY+INVENTORY`
+## Current status: `v0.2.0 RELEASED / INVENTORY+KERNEL`
 **Publication:** `PUBLIC_SPECIFICATION_INIT + v0.1.0 PLUGIN`
 
 
-**v0.1.0 is released and installable.** It contains exactly one marketplace, one plugin package, and one bounded read-only tool, `spec_inventory`. It does **not** yet contain a graph/query kernel, MCP server, or any write/authoring capability; those remain gated stages below.
+**v0.2.0 is released and installable.** It contains exactly one marketplace, one plugin package, one bounded read-only tool, `spec_inventory`, and the v0.2 read-only specification kernel (parse/identity/graph/query over `.specs`). It does **not** yet contain an MCP server or any write/authoring capability; those remain gated stages below.
 
 ### Install v0.1.0
 
@@ -15,7 +15,7 @@ omp plugin marketplace add stgmt/omp-spec-kit
 omp plugin install omp-spec-kit@omp-spec-kit --scope project
 ```
 
-Start a fresh OMP session in your project and call `spec_inventory`. Uninstall with `omp plugin uninstall omp-spec-kit@omp-spec-kit --scope project`. Evidence for this exact artifact: Docker BDD 17/17 scenarios, dependency-absent payload, and the installed lifecycle (install / fresh-session invocation / uninstall / reinstall) bound to release commit `a959a1af3abeb1fc61eefda48b011a6470a6d621` in [`docs/validation/distribution-lifecycle.md`](docs/validation/distribution-lifecycle.md). First release: prior-version upgrade/rollback is inapplicable by contract.
+Start a fresh OMP session in your project and call `spec_inventory`. Uninstall with `omp plugin uninstall omp-spec-kit@omp-spec-kit --scope project`. Evidence for this exact artifact: Docker BDD 25/25 scenarios (inventory + kernel suites), dependency-absent payload, and the installed lifecycle bound to payload digest `e7106747…c1e` in [`docs/validation/distribution-lifecycle-v0.2.0.md`](docs/validation/distribution-lifecycle-v0.2.0.md).
 
 
 

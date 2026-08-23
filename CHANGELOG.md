@@ -2,6 +2,24 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 0.2.0 — 2026-08-23
+
+Read-only specification kernel: parse, identity, graph, and bounded query over a repository's `.specs` corpus.
+
+### Added
+
+- `src/kernel/**` (shipped as `dist/kernel/**`): role-aware Markdown/Gherkin parsers (FR/AC/TASK definitions in owning documents only), lossless duplicate election, typed edge resolution, conservation invariants, complete GLFM heading/anchor/link inventory with collision-safe `glfm-anchor@1` allocation, eight-operation fail-closed query service (`inventory`, `getNode`, `findNodes`, `getEdges`, `trace`, `diagnostics`, `overview`, `markdownInventory`) with fingerprint-bound cursors, and a contained filesystem reader that refuses symlinks/junctions before any content read.
+- Kernel Docker BDD suite: real-corpus determinism (60 docs / 48 FR / 725 headings / 431 links vs an independently captured manifest), adversarial anchors, duplicate election, typed diagnostics, fail-closed envelopes, junction refusal, pagination bounds.
+- v0.2.0 lifecycle evidence: `docs/validation/distribution-lifecycle-v0.2.0.md` (payload digest `e7106747…c1e`).
+
+### Fixed
+
+- Parser correctness from adversarial review: underscore-preserving heading anchors, `mailto:` autolinks, empty inline destinations, fragment-only self-links, absolute structured-field spans, Setext 1+ underlines, post-fence indented code, junction refusal before read, `INVALID_PARAMETER` page bounds.
+
+### Not in this release
+
+- MCP projection (v0.3), authoring/mutation (later). `spec_inventory` v0.1 behavior is unchanged apart from the version constant.
+
 ## 0.1.0 — 2026-08-23
 
 First installable release: one OMP marketplace, one plugin package, one extension entry, one read-only tool.
