@@ -68,7 +68,7 @@ if (digest !== EXPECTED_PAYLOAD_DIGEST) {
   fail(`payload digest ${digest} differs from the lifecycle-proven candidate ${EXPECTED_PAYLOAD_DIGEST}`);
 }
 
-const receiptRelativePath = "docs/validation/distribution-lifecycle.md";
+const receiptRelativePath = `docs/validation/distribution-lifecycle-v${PLUGIN_VERSION}.md`;
 const receipt = await readFile(path.join(repositoryRoot, receiptRelativePath), "utf8");
 if (!receipt.includes(EXPECTED_PAYLOAD_DIGEST)) {
   fail(`${receiptRelativePath} does not record the proven payload digest`);
