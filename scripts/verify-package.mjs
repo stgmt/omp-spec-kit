@@ -12,11 +12,21 @@ import {
 
 const pluginRoot = path.join(repositoryRoot, "plugins", "omp-spec-kit");
 const sourceRoot = path.join(repositoryRoot, "src", "v0.1");
-const kernelSourceRoot = path.join(repositoryRoot, "src", "kernel");
+// Source trees byte-copied into same-named dist subtrees (must mirror
+// scripts/build-plugin.mjs SOURCE_TREES).
+const sourceTrees = Object.freeze([
+  { source: path.join(repositoryRoot, "src", "kernel"), output: "kernel" },
+  { source: path.join(repositoryRoot, "src", "adapters"), output: "adapters" },
+  { source: path.join(repositoryRoot, "src", "mcp"), output: "mcp" },
+]);
 
-// The closed dist/kernel payload mirrors src/kernel exactly; the expectation is
-// derived from the source tree so it cannot drift from the build input.
-async function collectKernelSources() {
+function fail(message) {
+  throw new Error(`verify-package: ${message}`);
+}
+
+// The closed dist payload mirrors each src tree exactly; the expectation is
+// derived from the source trees so it cannot drift from the build input.
+async function collectTreeSources(rootDirectory, label) {
   const files = [];
   async function visit(directory, relativeDirectory) {
     const entries = await readdirDir(directory, { withFileTypes: true });
@@ -24,37 +34,40 @@ async function collectKernelSources() {
       const relative = relativeDirectory === "" ? entry.name : `${relativeDirectory}/${entry.name}`;
       const absolute = path.join(directory, entry.name);
       const stats = await lstat(absolute);
-      if (stats.isSymbolicLink()) fail(`symlink forbidden in src/kernel: ${relative}`);
-      if (!stats.isDirectory() && !stats.isFile()) fail(`non-regular source entry: src/kernel/${relative}`);
+      if (stats.isSymbolicLink()) fail(`symlink forbidden in ${label}: ${relative}`);
+      if (!stats.isDirectory() && !stats.isFile()) fail(`non-regular source entry: ${label}/${relative}`);
       if (stats.isDirectory()) await visit(absolute, relative);
       else if (relative.endsWith(".js")) files.push(relative);
-      else fail(`unexpected non-JS source file: src/kernel/${relative}`);
+      else fail(`unexpected non-JS source file: ${label}/${relative}`);
     }
   }
-  await visit(kernelSourceRoot, "");
+  await visit(rootDirectory, "");
   return files.sort();
 }
 
-const kernelSources = await collectKernelSources();
-const kernelDistDirectories = [
+const treeSources = [];
+for (const tree of sourceTrees) {
+  const files = await collectTreeSources(tree.source, path.relative(repositoryRoot, tree.source));
+  treeSources.push({ ...tree, files });
+}
+
+const allTreeDistDirectories = [
   ...new Set(
-    kernelSources
-      .map((name) => name.split("/").slice(0, -1).join("/"))
-      .filter((directory) => directory !== ""),
+    treeSources.flatMap((tree) => [
+      `dist/${tree.output}`,
+      ...tree.files
+        .map((name) => name.split("/").slice(0, -1).join("/"))
+        .filter((directory) => directory !== "")
+        .map((directory) => `dist/${tree.output}/${directory}`),
+    ]),
   ),
 ].sort();
 
 const expectedDirectories = Object.freeze([
-  ...new Set([
-    "commands",
-    "dist",
-    "dist/kernel",
-    "skills",
-    "skills/spec-inventory",
-    ...kernelDistDirectories.map((directory) => `dist/kernel/${directory}`),
-  ]),
+  ...new Set(["commands", "dist", "skills", "skills/spec-inventory", ...allTreeDistDirectories]),
 ]);
 const expectedFiles = Object.freeze([
+  ".mcp.json",
   "LICENSE",
   "README.md",
   "commands/spec-inventory.md",
@@ -63,13 +76,17 @@ const expectedFiles = Object.freeze([
   "dist/manifest.json",
   "package.json",
   "skills/spec-inventory/SKILL.md",
-  ...kernelSources.map((name) => `dist/kernel/${name}`),
+  ...treeSources.flatMap((tree) => tree.files.map((name) => `dist/${tree.output}/${name}`)),
 ]);
-const packageFiles = Object.freeze(["package.json", "README.md", "LICENSE", "dist/", "skills/", "commands/"]);
-
-function fail(message) {
-  throw new Error(`verify-package: ${message}`);
-}
+const packageFiles = Object.freeze([
+  ".mcp.json",
+  "package.json",
+  "README.md",
+  "LICENSE",
+  "dist/",
+  "skills/",
+  "commands/",
+]);
 
 function sameStrings(actual, expected) {
   return (
@@ -122,19 +139,66 @@ function importedSpecifiers(source) {
   return specifiers;
 }
 
+// The single documented build rewrite: flat extension sources live one
+// directory deeper in src than in dist, so adapter import specifiers rooted at
+// "../adapters/" are rebased to "./adapters/" at emission time.
+function emitTransform(text) {
+  return text.replaceAll('"../adapters/', '"./adapters/');
+}
+
 function assertRuntimeImports(relativePath, source) {
   if (/\brequire\s*\(/u.test(source)) fail(`${relativePath} uses CommonJS require`);
   for (const specifier of importedSpecifiers(source)) {
     if (specifier.startsWith("node:")) continue;
     if (relativePath === "dist/extension.js" && specifier === "./inventory.js") continue;
-    // Kernel modules may import sibling kernel modules only.
+    // dist/extension.js may import its flat siblings and the adapters subtree.
     if (
-      relativePath.startsWith("dist/kernel/") &&
+      relativePath === "dist/extension.js" &&
+      (specifier === "./inventory.js" || specifier.startsWith("./adapters/") || specifier.startsWith("./kernel/"))
+    ) {
+      continue;
+    }
+    // Tree modules may import sibling modules within their own subtree and
+    // across dist subtrees (e.g. dist/mcp/server.js -> ../kernel/...), but
+    // never outside the closed dist payload.
+    if (
+      (relativePath.startsWith("dist/kernel/") ||
+        relativePath.startsWith("dist/adapters/") ||
+        relativePath.startsWith("dist/mcp/")) &&
       (specifier.startsWith("./") || specifier.startsWith("../"))
     ) {
       continue;
     }
     fail(`${relativePath} has forbidden runtime import: ${specifier}`);
+  }
+}
+
+async function verifyMcpJson() {
+  const mcpJsonPath = path.join(pluginRoot, ".mcp.json");
+  const mcpJson = await readStrictJson(mcpJsonPath, ".mcp.json", fail);
+  assertExactKeys(mcpJson, ["$schema", "mcpServers"], ".mcp.json", fail);
+  if (
+    mcpJson.$schema !==
+    "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json"
+  ) {
+    fail(".mcp.json $schema must reference the pinned OMP mcp-schema.json");
+  }
+  assertExactKeys(mcpJson.mcpServers, ["omp-spec-kit"], ".mcp.json servers", fail);
+  const server = mcpJson.mcpServers["omp-spec-kit"];
+  assertExactKeys(server, ["type", "command", "args", "cwd", "env"], ".mcp.json omp-spec-kit entry", fail);
+  if (server.type !== "stdio") fail(".mcp.json server must be stdio");
+  if (server.command !== "node") fail('.mcp.json command must be "node"');
+  if (!sameStrings(server.args, ["dist/mcp/server.js"])) {
+    fail('.mcp.json args must be exactly ["dist/mcp/server.js"]');
+  }
+  if (server.cwd !== ".") fail('.mcp.json cwd must be "." so it roots at the plugin package directory');
+  assertExactKeys(server.env, ["OMP_SPEC_KIT_ROOT"], ".mcp.json env", fail);
+  if (server.env.OMP_SPEC_KIT_ROOT !== "OMP_SPEC_KIT_ROOT") {
+    fail(".mcp.json env must pass OMP_SPEC_KIT_ROOT through by name indirection");
+  }
+  const serialized = JSON.stringify(mcpJson);
+  for (const flag of ["--inspect", "--experimental-inspect"]) {
+    if (serialized.includes(flag)) fail(`.mcp.json must not contain ${flag}`);
   }
 }
 
@@ -148,6 +212,8 @@ async function verifyPackage() {
   if (tree.files.filter((file) => path.posix.basename(file) === "package.json").length !== 1) {
     fail("payload must contain exactly one package.json");
   }
+
+  await verifyMcpJson();
 
   const manifestPath = path.join(pluginRoot, "package.json");
   const manifest = await readStrictJson(manifestPath, "plugin package.json", fail);
@@ -181,18 +247,25 @@ async function verifyPackage() {
   if (distManifest.schema !== "omp-spec-kit-dist-manifest@1" || distManifest.pluginVersion !== PLUGIN_VERSION) {
     fail("dist manifest schema/version mismatch");
   }
-  const expectedManifestKeys = ["extension.js", "inventory.js", ...kernelSources.map((name) => `kernel/${name}`)];
+  const expectedManifestKeys = [
+    "extension.js",
+    "inventory.js",
+    ...treeSources.flatMap((entry) => entry.files.map((name) => `${entry.output}/${name}`)),
+  ];
   assertExactKeys(distManifest.files, expectedManifestKeys, "dist manifest files", fail);
 
+  // Flat extension sources: emitted with emitTransform applied.
   for (const name of ["extension.js", "inventory.js"]) {
     assertExactKeys(distManifest.files[name], ["sha256"], `dist manifest ${name}`, fail);
     const bytes = await readFile(path.join(pluginRoot, "dist", name));
-    const sourceBytes = await readFile(path.join(sourceRoot, name));
-    if (!bytes.equals(sourceBytes)) fail(`dist/${name} is stale against src/v0.1/${name}`);
+    const sourceText = await readFile(path.join(sourceRoot, name), "utf8");
+    if (!bytes.equals(Buffer.from(emitTransform(sourceText), "utf8"))) {
+      fail(`dist/${name} is stale against src/v0.1/${name}`);
+    }
     if (distManifest.files[name].sha256 !== sha256(bytes)) fail(`dist hash mismatch for ${name}`);
     const source = bytes.toString("utf8");
-    if (!/export\s+const\s+PLUGIN_VERSION\s*=\s*["']0\.2\.0["']/u.test(source)) {
-      fail(`${name} does not embed exported PLUGIN_VERSION 0.2.0`);
+    if (!/export\s+const\s+PLUGIN_VERSION\s*=\s*["']0\.3\.0["']/u.test(source)) {
+      fail(`${name} does not embed exported PLUGIN_VERSION 0.3.0`);
     }
     if (!/export\s+const\s+SCHEMA_VERSION\s*=\s*["']1["']/u.test(source)) {
       fail(`${name} does not embed exported SCHEMA_VERSION 1`);
@@ -200,16 +273,20 @@ async function verifyPackage() {
     assertRuntimeImports(`dist/${name}`, source);
   }
 
-  // Kernel payload: byte equality against src/kernel plus manifest hashes and
-  // the dependency-free runtime-import rule.
-  for (const relative of kernelSources) {
-    const distBytes = await readFile(path.join(pluginRoot, "dist", "kernel", relative));
-    const sourceBytes = await readFile(path.join(kernelSourceRoot, relative));
-    if (!distBytes.equals(sourceBytes)) fail(`dist/kernel/${relative} is stale against src/kernel/${relative}`);
-    if (distManifest.files[`kernel/${relative}`].sha256 !== sha256(distBytes)) {
-      fail(`dist hash mismatch for kernel/${relative}`);
+  // Tree payloads: byte equality against their src trees plus manifest hashes
+  // and the dependency-free runtime-import rule.
+  for (const treeEntry of treeSources) {
+    for (const relative of treeEntry.files) {
+      const distRelative = `dist/${treeEntry.output}/${relative}`;
+      const sourceRelative = `${path.relative(repositoryRoot, treeEntry.source).split(path.sep).join("/")}/${relative}`;
+      const distBytes = await readFile(path.join(pluginRoot, distRelative));
+      const sourceBytes = await readFile(path.join(repositoryRoot, sourceRelative));
+      if (!distBytes.equals(sourceBytes)) fail(`${distRelative} is stale against ${sourceRelative}`);
+      if (distManifest.files[`${treeEntry.output}/${relative}`].sha256 !== sha256(distBytes)) {
+        fail(`dist hash mismatch for ${treeEntry.output}/${relative}`);
+      }
+      assertRuntimeImports(distRelative, distBytes.toString("utf8"));
     }
-    assertRuntimeImports(`dist/kernel/${relative}`, distBytes.toString("utf8"));
   }
 
   const distManifestText = await readFile(distManifestPath, "utf8");

@@ -4,7 +4,10 @@ import {
   inventorySpecs,
   summarizeInventory,
 } from "./inventory.js";
-export const PLUGIN_VERSION = "0.2.0";
+import { registerSpecTools } from "./adapters/omp/register-spec-tools.js";
+import { createSpecService, resolveRepositoryRoot } from "./adapters/query-service.js";
+
+export const PLUGIN_VERSION = "0.3.0";
 export const SCHEMA_VERSION = "1";
 
 // OMP v17.3.7 extension contract pinned at commit
@@ -38,4 +41,24 @@ export default function ompSpecKitExtension(pi) {
       };
     },
   });
+
+  // One lazily-built reader/graph/query service per repository root, shared by
+  // the seven kernel-backed tools registered below. Keyed by the session's
+  // resolved root (OMP_SPEC_KIT_ROOT override, else ctx.cwd); the graph is
+  // built at most once per root per extension lifetime.
+  const servicesByRoot = new Map();
+  function getService(ctx) {
+    const root = resolveRepositoryRoot(globalThis.process?.env, ctx?.cwd);
+    let service = servicesByRoot.get(root);
+    if (service === undefined) {
+      service = createSpecService(root);
+      servicesByRoot.set(root, service);
+    }
+    return service;
+  }
+
+  // FC-6: registers spec_get_node/spec_find_nodes/spec_get_edges/spec_trace/
+  // spec_diagnostics/spec_overview/spec_markdown_inventory. Together with
+  // spec_inventory above the extension exposes exactly eight read-only tools.
+  registerSpecTools(pi, getService);
 }

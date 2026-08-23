@@ -1,12 +1,21 @@
 {
   "schema": "omp-spec-kit-dist-manifest@1",
-  "pluginVersion": "0.2.0",
+  "pluginVersion": "0.3.0",
   "files": {
+    "adapters/omp/register-spec-tools.js": {
+      "sha256": "e9e70714cb5c8236e100df5f8056346f3aeaafa9a6ac92efe6aba85cec902109"
+    },
+    "adapters/query-service.js": {
+      "sha256": "cee940ded60bf951b4e97607ee2a9727220f1229c31a06b220d4f46466b5ad93"
+    },
+    "adapters/tool-contracts.js": {
+      "sha256": "ef4d30478a5db7165a36bf2b57a45168da38485c13da265ce0f1d9dd20a531af"
+    },
     "extension.js": {
-      "sha256": "49476678aec4d9590d18cd0455c3ef7062f092ceac10da746a1216c056423b83"
+      "sha256": "580d0a1179ff6baea839fbf813fb7054d31ebc7feb1a1d3f50f65b189ee0c78a"
     },
     "inventory.js": {
-      "sha256": "8562bef4cfd2610a57a7a40f7ee1fc1f1f70f88961b08dcd8a51c872ea2d3eae"
+      "sha256": "54622bff77cd19d6c493e7a7f1a4de160f392660e082f88200accdd152287e8f"
     },
     "kernel/adapters/fs.js": {
       "sha256": "31e338483be6ebcea53588efd832fa0153febf8e098e55f614206f007abcc38e"
@@ -58,6 +67,9 @@
     },
     "kernel/types.js": {
       "sha256": "ff1a46bba6a1940a5a1aff16d5c3b0e5799790c1418f6b5ae18bceec3a2da883"
+    },
+    "mcp/server.js": {
+      "sha256": "e56c33a73a67e1a8e5e28ca63d889f04f89b06645fc08ca07e62bbe10b75c383"
     }
   }
 }
