@@ -30,7 +30,7 @@ Before public publication, every copied upstream item SHALL have an accepted red
 
 - **Stage:** Public init
 - **Priority:** Must
-- **Status:** Specified; public-init source, license, specification, anchor, and candidate safety validation complete; publication pending
+- **Status:** Specified; public specification-init published with source, license, specification, anchor, candidate safety, and SHA/tree readback evidence; runtime stages remain planned
 - **Acceptance:** [AC-3.1](ACCEPTANCE_CRITERIA.md#ac-31-unresolved-license-blocks-publication), [AC-3.2](ACCEPTANCE_CRITERIA.md#ac-32-root-license-does-not-cure-import-gap)
 - **Scenario trace:** `@feature3`; `SCEN-unresolved-import-license`; `SCEN-root-license-import-separation`.
 - **Stories/use cases:** US-3; UC-2.

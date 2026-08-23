@@ -8,7 +8,7 @@ This specification defines the public product boundary and repository lifecycle 
 
 | Stage | State | Public claim permitted now |
 |---|---|---|
-| Public init | `SPEC_ONLY / LICENSE_RESOLVED / PUBLIC_INIT_VALIDATED / NON_PUBLIC` | Source-freeze, specification, anchor, and complete candidate safety reports are green. No installable payload exists; publication still requires creating and pushing the reviewed initial commit to a fresh public remote. |
+| Public init | `SPEC_ONLY / LICENSE_RESOLVED / PUBLIC_INIT_VALIDATED / PUBLIC_SPECIFICATION_INIT` | Reviewed initial commit `fe70b10caaed888daf7c48dfc8f1bad9caf45598` is public with matching local/remote/tree evidence. No marketplace, plugin payload, runtime, tag, or release exists. |
 | v0.1.0 | `PLANNED` | No install or runtime claim is permitted until `plugin-distribution:FR-13` accepts complete mandatory evidence bound to the current candidate revision, artifact, and lineage. |
 | v0.2 | `PLANNED` | No graph/query claim is permitted until distribution and `spec-kernel:FR-14` `targetStage: "v0.2"` are accepted and both bind to the current v0.2 candidate artifact/revision/lineage. |
 | v0.3 | `PLANNED` | No MCP claim is permitted until distribution and `spec-kernel:FR-14` `targetStage: "v0.3"` bind to current candidate B and a separate active v0.2 result is linked as predecessor A by the v0.3 result's exact `v02ParentArtifactSha256`; both kernel results must share revision/lineage in strict stage order. A and B may differ. |

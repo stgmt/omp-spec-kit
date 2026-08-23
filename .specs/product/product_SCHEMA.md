@@ -159,7 +159,7 @@ The current public-init instance is:
 - `state`: `SPEC_ONLY`
 - `licenseEvidence`: `LICENSE_RESOLVED`
 - `publicInitValidation`: `PUBLIC_INIT_VALIDATED`
-- `publicVisibility`: `LOCAL_ONLY`
+- `publicVisibility`: `PUBLIC`
 - `installable`: `false`
 - `artifactLineageId`, `candidateArtifactSha256`, `v02ParentArtifactSha256`: `null`
 - `marketplaceName`, `pluginName`, `installedIdentity`: `null`
