@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const PLUGIN_VERSION = "0.2.0";
-const EXPECTED_PAYLOAD_DIGEST = "abcf2be68e479ef6e552b2bc5c290b9bed0f9ca6f9ca2d7a605f574e135428d0";
+const EXPECTED_PAYLOAD_DIGEST = "e71067472e60d926bd73177c97b05df156e9e5b70b6def6bc70fa920e6c3dc1e";
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function fail(message) {

@@ -24,9 +24,10 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run build
       - run: npm run verify
-      - run: node scripts/verify-release.mjs
+      - name: Release consistency gate
+        run: node scripts/verify-release.mjs
         env:
-          RELEASE_TAG: v0.1.0
+          RELEASE_TAG: v$(node -p "require('./plugins/omp-spec-kit/package.json').version")
           RELEASE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
 
   bdd:
