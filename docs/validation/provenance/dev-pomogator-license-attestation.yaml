@@ -1,0 +1,44 @@
+schema_version: 1
+receipt_id: dev-pomogator-license-attestation-a21d27b
+scope:
+  source_repository: https://github.com/stgmt/dev-pomogator.git
+  snapshot_commit: 158cd5ccfe4d08625734fc1692d8916cc5838fd6
+  snapshot_subtree: .specs/spec-generator-v4/**
+  target_snapshot_root: docs/upstream/dev-pomogator/spec-generator-v4
+  source_owner_account: stgmt
+  attested_git_identities:
+    - stgmt <stigmat.rudnev@gmail.com>
+    - <mrudnev@cleverence.local>
+  copied_files: 24
+  excluded_files: 3
+  inventoried_files: 27
+  boundary: >-
+    This receipt covers only the 24 copied snapshot files enumerated in
+    IMPORT_MANIFEST.yaml. It does not admit the three excluded mutable state or
+    temporary test-result files, later source commits, other subtrees, runtime
+    implementation, publication, installation, or release readiness.
+attestation:
+  commit: a21d27ba08919cb5340493adac8dbbf2f8fec72a
+  pull_request: https://github.com/stgmt/dev-pomogator/pull/232
+  source_license_path: LICENSE
+  source_attestation_path: LICENSE-ATTESTATION.md
+artifacts:
+  - source_path: LICENSE
+    source_sha256: 8bcaa5a789720e50c513acb976965141ffee19fdcf2eaf6778c5c2d4537a4551
+    target_path: docs/upstream/dev-pomogator/LICENSE
+    target_sha256: 8bcaa5a789720e50c513acb976965141ffee19fdcf2eaf6778c5c2d4537a4551
+    byte_identity: MATCH
+  - source_path: LICENSE-ATTESTATION.md
+    source_sha256: 0f431d35a2e1182f7360b1b596758f18e536f2c3103e0e6f38c34427f6a97062
+    target_path: docs/upstream/dev-pomogator/LICENSE-ATTESTATION.md
+    target_sha256: 0f431d35a2e1182f7360b1b596758f18e536f2c3103e0e6f38c34427f6a97062
+    byte_identity: MATCH
+verification:
+  license_state: LICENSE_RESOLVED
+  imported_source_status: MIT_ATTESTED_SOURCE_OWNER
+  implementation_state: SPEC_ONLY
+  public_init_state: PUBLIC_INIT_VALIDATED
+  publication_state: NON_PUBLIC
+  snapshot_byte_provenance: PINNED
+  license_evidence: DURABLE_MERGED_SOURCE_OWNER_ATTESTATION
+  future_import_policy: FAIL_CLOSED_REQUIRE_LICENSE_EVIDENCE

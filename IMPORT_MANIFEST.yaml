@@ -1,0 +1,213 @@
+schema_version: 1
+source:
+  repository: https://github.com/stgmt/dev-pomogator.git
+  commit: 158cd5ccfe4d08625734fc1692d8916cc5838fd6
+  subtree: .specs/spec-generator-v4
+  extraction_rule: git-object-bytes-only
+snapshot:
+  target_root: docs/upstream/dev-pomogator/spec-generator-v4
+  inventoried_files: 27
+  copied_files: 24
+  intentionally_excluded_files: 3
+  expected_byte_mismatches: 0
+attestation:
+  repository: https://github.com/stgmt/dev-pomogator.git
+  commit: a21d27ba08919cb5340493adac8dbbf2f8fec72a
+  pull_request: https://github.com/stgmt/dev-pomogator/pull/232
+  source_license_path: LICENSE
+  source_license_sha256: 8bcaa5a789720e50c513acb976965141ffee19fdcf2eaf6778c5c2d4537a4551
+  source_attestation_path: LICENSE-ATTESTATION.md
+  source_attestation_sha256: 0f431d35a2e1182f7360b1b596758f18e536f2c3103e0e6f38c34427f6a97062
+  target_license_path: docs/upstream/dev-pomogator/LICENSE
+  target_license_sha256: 8bcaa5a789720e50c513acb976965141ffee19fdcf2eaf6778c5c2d4537a4551
+  target_attestation_path: docs/upstream/dev-pomogator/LICENSE-ATTESTATION.md
+  target_attestation_sha256: 0f431d35a2e1182f7360b1b596758f18e536f2c3103e0e6f38c34427f6a97062
+  covered_snapshot_commit: 158cd5ccfe4d08625734fc1692d8916cc5838fd6
+  covered_subtree: .specs/spec-generator-v4/**
+license:
+  new_repository_material: MIT
+  upstream_declared_identifier: MIT
+  imported_source_status: MIT_ATTESTED_SOURCE_OWNER
+  upstream_evidence:
+    - package.json#license at source.commit
+    - .claude-plugin/marketplace.json#plugins[0].license at source.commit
+    - LICENSE at attestation.commit
+    - LICENSE-ATTESTATION.md at attestation.commit
+  later_attestation_scope: >-
+    The source-owner attestation merged after the frozen snapshot expressly
+    covers every included byte at source.commit under source.subtree. The
+    snapshot commit remains the byte provenance; the attestation commit and PR
+    are separate durable redistribution evidence.
+  excluded_state_scope: >-
+    The attestation expressly excludes mutable state and temporary test-result
+    files. Those three inventoried paths remain excluded and receive no copied
+    material license status.
+  future_import_policy: FAIL_CLOSED_REQUIRE_LICENSE_EVIDENCE
+status:
+  implementation: SPEC_ONLY
+  license: LICENSE_RESOLVED
+  public_initialization: PUBLIC_INIT_VALIDATED
+  publication: NON_PUBLIC
+files:
+  - source_path: .specs/spec-generator-v4/.progress.json
+    target_path: null
+    sha256: 4ef9a1bd74400e5b3b3fcbbea78177d90f7633acfbad46040dcf1b119968e45c
+    disposition: DROP
+    import_status: EXCLUDED_STATE
+    license_status: OWNER_ATTESTATION_PRESENT_EXCLUDED_STATE
+  - source_path: .specs/spec-generator-v4/.test-results.ndjson.tmp.21652
+    target_path: null
+    sha256: a14799913b7c519155bb60ff3c433955acc486b37605d735c0011de006df74c2
+    disposition: DROP
+    import_status: EXCLUDED_TEST_STATE
+    license_status: OWNER_ATTESTATION_PRESENT_EXCLUDED_TEST_STATE
+  - source_path: .specs/spec-generator-v4/.test-results.ndjson.tmp.41720
+    target_path: null
+    sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    disposition: DROP
+    import_status: EXCLUDED_TEST_STATE
+    license_status: OWNER_ATTESTATION_PRESENT_EXCLUDED_TEST_STATE
+  - source_path: .specs/spec-generator-v4/ACCEPTANCE_CRITERIA.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/ACCEPTANCE_CRITERIA.md
+    sha256: 7f26d8a1645a23c29e3de1cb109064be1c6d3e15d7958da473d597cda1330bf6
+    disposition: REWRITE
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/BACKLOG_DESIGN.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/BACKLOG_DESIGN.md
+    sha256: 602793c73c3068cbd5e3c56b95f2565569a464a1364394e1d4566c1034a1bb7b
+    disposition: DEFER
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/CHANGELOG.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/CHANGELOG.md
+    sha256: 47c98bd672d6cc5049781120e36e8f27735bbeb6c8da01bc257af8538d3eab8e
+    disposition: DROP
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/DECISION_RECOMMENDATION.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/DECISION_RECOMMENDATION.md
+    sha256: fbced8b2a287d14992e75e4c6c1d6caf663a5ed61cef301328abfc0f0b7d904e
+    disposition: DEFER
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/DESIGN.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/DESIGN.md
+    sha256: 6922bdbafd0cff3281522da12d5e74d1ff1ef06bc8db120a43c9277e870d42c1
+    disposition: REWRITE
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/FILE_CHANGES.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/FILE_CHANGES.md
+    sha256: a6a9b36ff2365ac94d872ab19c6c7e2262b68161456062122892fd7f4d39c0d9
+    disposition: DROP
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/FIXTURES.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/FIXTURES.md
+    sha256: 49bcfaee155fb27ecc62526ee49f62922eb1828e3f8464ed829966f830638007
+    disposition: REWRITE
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/FR.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/FR.md
+    sha256: cbcd2a59b1e1aefd121ab61b5590c3c77c29059e8f281607ae89281eb70f6ce2
+    disposition: REWRITE
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/MANUAL_AGENT_E2E_WALKTHROUGH.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/MANUAL_AGENT_E2E_WALKTHROUGH.md
+    sha256: a01105cbae7bf03b265b45d839617c1f3dced496b67ce4cbe9070d9e9315b3bf
+    disposition: DROP
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/MISSING_FILE_PATCHES_REVIEW.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/MISSING_FILE_PATCHES_REVIEW.md
+    sha256: 5431b0ff0973c351198c87ccd240ddc333275201a6c84c024d08f38d866a0f97
+    disposition: DROP
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/MISSING_FILE_REPORT.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/MISSING_FILE_REPORT.md
+    sha256: 664f909dc2be4c950d30c73b3fe04ef9b1ca891aba9519608ebdc3dac195fc3a
+    disposition: DROP
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/NFR.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/NFR.md
+    sha256: a8ed3834760feca10c30c7fa1333da16f182f6b66e9360ea4fc5c23479989a35
+    disposition: REWRITE
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/OWNERSHIP_RECOMMENDATION.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/OWNERSHIP_RECOMMENDATION.md
+    sha256: b998990b9d70a2743dc13fdd70815ce88a75f56ec7cd168aa6ca7afc947fa5bc
+    disposition: DEFER
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/README.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/README.md
+    sha256: 548725564717816517e76aaa6589af84ec87453bcfea01bb07aba4ca05282134
+    disposition: REWRITE
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/REQUIREMENTS.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/REQUIREMENTS.md
+    sha256: ab683846615ac2503be8546ba1d9b4f50f3491eabdf6ea5eafdfdcd818559c18
+    disposition: REWRITE
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/RESEARCH.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/RESEARCH.md
+    sha256: 7405aca003fa32ed051c8ad073b3f682d0b901c6de837607ff28b2193ba5a450
+    disposition: REWRITE
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/RESUME.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/RESUME.md
+    sha256: 01279ca530b1914003a7152b960797e479ee9cda20425606dbb236059d18511b
+    disposition: DROP
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/REVIEW_NOTES.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/REVIEW_NOTES.md
+    sha256: 6785725c7d5b377ee151f1b89e8fce2b1a5e839ac0620444ebd745fdd62ad265
+    disposition: DROP
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/TASKS.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/TASKS.md
+    sha256: 48ee59e073c1a6f0f1817c0ce922fd52bcd56a813a1602fb21ea38b4b386abf2
+    disposition: REWRITE
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/TASK_PLANNING_PRIOR_ART.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/TASK_PLANNING_PRIOR_ART.md
+    sha256: 31e4573cd8ef8936a3703ac2bc490aafed78d9f785da7dc1829206bde63789b0
+    disposition: DEFER
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/USER_STORIES.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/USER_STORIES.md
+    sha256: 0b903e96f4264c4cf4a38b70f61173522ec2a616b074487c0d42d157a3d51ee5
+    disposition: REWRITE
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/USE_CASES.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/USE_CASES.md
+    sha256: 52ab7a22eda30d0f75186b6c0fad620b9eccd8323209fe207fc3e0bfeb0b1564
+    disposition: REWRITE
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/spec-generator-v4.feature
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/spec-generator-v4.feature
+    sha256: 3d7757d3b9fd179928d43253f7ea69227aaaaafdc7da2dae757d0da8cb775c96
+    disposition: REWRITE
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER
+  - source_path: .specs/spec-generator-v4/spec-generator-v4_SCHEMA.md
+    target_path: docs/upstream/dev-pomogator/spec-generator-v4/spec-generator-v4_SCHEMA.md
+    sha256: 44d233d6f2db1c36f500f58d16f8b52cab39ec000ffafe4460dc62581183cedb
+    disposition: REWRITE
+    import_status: COPIED_REFERENCE
+    license_status: MIT_ATTESTED_SOURCE_OWNER

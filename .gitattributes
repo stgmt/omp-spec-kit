@@ -1,0 +1,5 @@
+* text=auto eol=lf
+
+docs/upstream/dev-pomogator/spec-generator-v4/** -text
+docs/upstream/dev-pomogator/LICENSE -text
+docs/upstream/dev-pomogator/LICENSE-ATTESTATION.md -text

@@ -1,0 +1,30 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies and generated output
+node_modules/
+dist/
+build/
+coverage/
+.tmp/
+tmp/
+.cache/
+
+# Logs, test evidence, and mutable state
+*.log
+*.ndjson
+*.sqlite
+*.sqlite3
+.dev-pomogator/
+.test-results*
+.progress.json
+
+# Editor and operating-system state
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
