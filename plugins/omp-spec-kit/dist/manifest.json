@@ -1,0 +1,12 @@
+{
+  "schema": "omp-spec-kit-dist-manifest@1",
+  "pluginVersion": "0.1.0",
+  "files": {
+    "extension.js": {
+      "sha256": "b2b55e6d2f9f547cc12998ef61c8f20dbaca47536a91f970680f6d124f40cc54"
+    },
+    "inventory.js": {
+      "sha256": "fe7a326d76eee55150689ac4ebf8e1bb96c7adaa064618f4d47bf048c9b968af"
+    }
+  }
+}

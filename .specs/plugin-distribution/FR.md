@@ -12,7 +12,7 @@ The repository SHALL expose exactly one OMP marketplace catalog at `.omp-plugin/
 
 ## FR-2 — Single child package and extension entry
 
-The only installable plugin package SHALL be `plugins/omp-spec-kit`. Its `package.json` SHALL conform to the closed public profile in `plugin-distribution_SCHEMA.md`, identify version `0.1.0`, and contain exactly one `omp.extensions` entry: `./dist/extension.js`. It SHALL NOT declare legacy `pi.extensions`, nested plugin packages, a second extension, source-tree runtime entries, lifecycle install scripts, or an MCP server in v0.1.0.
+The only installable plugin package SHALL be `plugins/omp-spec-kit`. Its `package.json` SHALL conform to the closed public profile in `plugin-distribution_SCHEMA.md`, identify version `0.1.0`, and contain exactly one `omp.extensions` entry: `./dist/extension.js`. Because pinned OMP v17.3.7 recursively copies the complete relative source directory, the child tree SHALL contain only `package.json`, `README.md`, `LICENSE`, generated `dist/`, one guidance skill, and one guidance command. It SHALL NOT contain or declare legacy `pi.extensions`, nested plugin packages, another manifest, a second extension, source/build/test/evidence files, lifecycle install scripts, runtime dependencies, or an MCP server in v0.1.0.
 
 **Acceptance:** [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-single-child-package-and-extension)
 
@@ -36,7 +36,7 @@ The documented v0.1.0 lifecycle SHALL separately prove marketplace add/discovery
 
 ## FR-5 — Clean-build dependency-independent package
 
-Release packaging SHALL delete or isolate prior build output, build deterministic runtime output into `plugins/omp-spec-kit/dist/`, and install only an allowlisted child payload. The installed `dist/extension.js` SHALL load and execute with repository-root and source-checkout dependencies absent. Any non-host runtime dependency SHALL be bundled or explicitly shipped inside the child package; ambient root `node_modules`, source files, absolute paths, and dev-pomogator modules are forbidden.
+Release packaging SHALL delete prior `plugins/omp-spec-kit/dist/` output, copy the exact external sources `src/v0.1/extension.js` and `src/v0.1/inventory.js` into it, emit a deterministic hash manifest, and reject missing, unexpected, non-regular, or symlink output. Since OMP copies the entire child source recursively rather than honoring `package.json#files` as an assembler, validation SHALL enforce the complete child tree as a positive allowlist. The installed `dist/extension.js` SHALL load and execute with repository-root and source-checkout dependencies absent; ambient root `node_modules`, source/build/test/evidence files, bare non-`node:` external imports, absolute paths, runtime dependencies, and dev-pomogator modules are forbidden.
 
 **Acceptance:** [AC-5.1](ACCEPTANCE_CRITERIA.md#ac-51-dependency-absent-execution)
 

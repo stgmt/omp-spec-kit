@@ -6,17 +6,20 @@ Every row is a future implementation change. Presence here does not mean the pat
 |---|---|---|---|
 | `.omp-plugin/marketplace.json` | Create (planned) | FR-1, FR-7 | One root catalog with one relative child entry and explicit `0.1.0`. |
 | `plugins/omp-spec-kit/package.json` | Create (planned) | FR-2, FR-5, FR-7 | One child package, allowlisted files, matching version, one built extension. |
-| `plugins/omp-spec-kit/tsconfig.json` | Create (planned) | FR-5 | Deterministic isolated compile settings. |
-| `plugins/omp-spec-kit/src/extension.ts` | Create (planned) | FR-2, FR-4 | Default registration-only factory for the one tool. |
-| `plugins/omp-spec-kit/src/tools/spec-inventory.ts` | Create (planned) | FR-3, FR-6, FR-12 | Root-relative bounded read-only inventory implementation. |
-| `plugins/omp-spec-kit/src/contracts/spec-inventory.ts` | Create (planned) | FR-12 | Versioned request/result/diagnostic schemas and canonical codes. |
-| `plugins/omp-spec-kit/scripts/build.mjs` | Create (planned) | FR-5 | Clean deterministic bundled build with forbidden-import checks. |
+| `src/v0.1/extension.js` | Create (planned) | FR-2, FR-4, FR-12 | External registration-only factory for the one tool; copied byte-for-byte into generated `dist/`. |
+| `src/v0.1/inventory.js` | Create (planned) | FR-3, FR-6, FR-12 | External root-relative bounded read-only inventory and public contract implementation. |
+| `scripts/build-plugin.mjs` | Create (planned) | FR-5 | Repository-root clean copier and deterministic two-module hash-manifest builder. |
 | `plugins/omp-spec-kit/dist/extension.js` | Create generated (planned) | FR-2, FR-5 | Verified installed runtime artifact; never hand-edited. |
-| `plugins/omp-spec-kit/skills/spec-kit/SKILL.md` | Create (planned) | FR-3, FR-11 | User guidance routed to the registered tool; no second runtime. |
-| `plugins/omp-spec-kit/commands/spec-kit.md` | Create (planned) | FR-3, FR-11 | Human invocation guidance; no duplicate inventory logic. |
+| `plugins/omp-spec-kit/dist/inventory.js` | Create generated (planned) | FR-3, FR-5, FR-12 | Verified installed inventory artifact; never hand-edited. |
+| `plugins/omp-spec-kit/dist/manifest.json` | Create generated (planned) | FR-5, FR-7 | Deterministic extension/inventory SHA-256 manifest. |
+| `plugins/omp-spec-kit/README.md` | Create (planned) | FR-2, FR-4 | Installed package scope and fresh-session usage boundary. |
+| `plugins/omp-spec-kit/LICENSE` | Create (planned) | FR-2, FR-9 | Payload copy of the approved repository license. |
+| `plugins/omp-spec-kit/skills/spec-inventory/SKILL.md` | Create (planned) | FR-3, FR-11 | User guidance routed to the registered tool; no second runtime. |
+| `plugins/omp-spec-kit/commands/spec-inventory.md` | Create (planned) | FR-3, FR-11 | Human invocation guidance; no duplicate inventory logic. |
 | `scripts/verify-marketplace.mjs` | Create (planned) | FR-1, FR-2, FR-7 | Closed schema/cardinality/version/path validator. |
 | `scripts/verify-public-tree.mjs` | Create (planned) | FR-9 | Secret/local-state/license/provenance/public-path gate. |
 | `scripts/verify-package.mjs` | Create (planned) | FR-5, FR-12 | Allowlist, artifact digest, dependency and embedded-version verification. |
+| `docs/omp-v17.3.7-contract.md` | Create (planned) | FR-2, FR-4, FR-5 | Immutable OMP pin, source links, recursive-copy finding, commands, and reload/fresh-session boundary. |
 | `scripts/verify-release.mjs` | Create (planned) | FR-7, FR-8, FR-10, FR-11, FR-13 | Receipt freshness, candidate-aware applicability, FR-1..FR-12 completeness, tag/version/digest consistency, and aggregate eligibility evaluator. |
 | `tests/distribution/Dockerfile` | Create (planned) | FR-4, FR-5 | Pin OMP and isolate dependency-absent lifecycle runtime. |
 | `tests/distribution/compose.yaml` | Create (planned) | FR-4 through FR-9 | Isolate user/project roots, credentials, network policy, and mounts. |
@@ -37,4 +40,4 @@ Every row is a future implementation change. Presence here does not mean the pat
 
 ## Explicitly absent in v0.1.0
 
-The plan SHALL NOT create `plugins/omp-spec-kit/.mcp.json`, an MCP server, another plugin package, another marketplace catalog, another extension entry, a writer, watcher, database, lock, advisor, backlog, dashboard, hook, user-state store, or dev-pomogator runtime import.
+The plan SHALL NOT create `plugins/omp-spec-kit/.mcp.json`, an MCP server, another plugin package, another marketplace catalog, another extension entry, a writer, watcher, database, lock, advisor, backlog, dashboard, hook, user-state store, or dev-pomogator runtime import. Because OMP recursively copies the catalog source directory, the child SHALL also exclude `src/`, `scripts/`, compiler configuration, tests, fixtures, evidence, nested manifests, and runtime dependencies; those repository-only inputs remain outside the payload.

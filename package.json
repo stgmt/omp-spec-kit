@@ -1,0 +1,19 @@
+{
+  "name": "omp-spec-kit-repository",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "node scripts/build-plugin.mjs",
+    "verify": "node scripts/verify-marketplace.mjs && node scripts/verify-package.mjs",
+    "bdd:container": "node scripts/run-bdd-container.mjs",
+    "test:bdd": "bash scripts/docker-bdd.sh",
+    "test": "npm run build && npm run verify && npm run test:bdd"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "13.2.1"
+  }
+}

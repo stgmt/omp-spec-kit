@@ -1,0 +1,11 @@
+.git
+node_modules
+.omp
+.tmp
+tmp
+coverage
+*.log
+*.ndjson
+*.sqlite
+*.sqlite3
+.dev-pomogator
