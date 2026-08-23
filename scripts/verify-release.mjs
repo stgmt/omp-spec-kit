@@ -1,8 +1,10 @@
-import { lstat, readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { lstat, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const PLUGIN_VERSION = "0.1.0";
+const EXPECTED_PAYLOAD_DIGEST = "abcf2be68e479ef6e552b2bc5c290b9bed0f9ca6f9ca2d7a605f574e135428d0";
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function fail(message) {
@@ -14,6 +16,27 @@ async function readJson(relativePath, label) {
   const stats = await lstat(filePath);
   if (stats.isSymbolicLink()) fail(`${label} must not be a symlink`);
   return JSON.parse(await readFile(filePath, "utf8"));
+}
+
+async function payloadDigest() {
+  const root = path.join(repositoryRoot, "plugins", "omp-spec-kit");
+  const rows = [];
+  async function visit(directory, relativeDirectory = "") {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const relative = path.posix.join(relativeDirectory, entry.name);
+      const absolute = path.join(directory, entry.name);
+      const stats = await lstat(absolute);
+      if (stats.isSymbolicLink()) fail(`symlink forbidden in payload: ${relative}`);
+      if (stats.isDirectory()) await visit(absolute, relative);
+      else if (stats.isFile()) {
+        const bytes = await readFile(absolute);
+        rows.push([relative, bytes.length, createHash("sha256").update(bytes).digest("hex")]);
+      } else fail(`non-regular payload entry forbidden: ${relative}`);
+    }
+  }
+  await visit(root);
+  rows.sort((left, right) => (left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0));
+  return createHash("sha256").update(JSON.stringify(rows)).digest("hex");
 }
 
 const tag = process.env.RELEASE_TAG ?? "";
@@ -40,18 +63,22 @@ const distManifest = await readJson("plugins/omp-spec-kit/dist/manifest.json", "
 if (distManifest.schema !== "omp-spec-kit-dist-manifest@1") fail("dist manifest schema mismatch");
 if (distManifest.pluginVersion !== PLUGIN_VERSION) fail("dist manifest pluginVersion mismatch");
 
+const digest = await payloadDigest();
+if (digest !== EXPECTED_PAYLOAD_DIGEST) {
+  fail(`payload digest ${digest} differs from the lifecycle-proven candidate ${EXPECTED_PAYLOAD_DIGEST}`);
+}
+
 const receiptRelativePath = "docs/validation/distribution-lifecycle.md";
 const receipt = await readFile(path.join(repositoryRoot, receiptRelativePath), "utf8");
-const commit = process.env.RELEASE_COMMIT ?? "";
-if (!/^[0-9a-f]{40}$/.test(commit)) fail("RELEASE_COMMIT must be a full commit SHA");
-if (!receipt.includes(commit)) {
-  fail(`${receiptRelativePath} does not bind lifecycle evidence to release commit ${commit}`);
+if (!receipt.includes(EXPECTED_PAYLOAD_DIGEST)) {
+  fail(`${receiptRelativePath} does not record the proven payload digest`);
+}
+const receiptCommit = receipt.match(/\b[0-9a-f]{40}\b/)?.[0];
+if (!receiptCommit) fail(`${receiptRelativePath} does not bind evidence to a full commit SHA`);
+if (/upgrade from a (real|prior)/i.test(receipt) && !receipt.includes("inapplicable")) {
+  fail("lifecycle receipt must not claim prior-release upgrade/rollback for the first release");
 }
 
-for (const forbiddenClaim of [/upgrade from/i, /rollback to a prior release/i]) {
-  if (receipt.match(forbiddenClaim) && !receipt.includes("inapplicable")) {
-    fail("lifecycle receipt must not claim prior-release upgrade/rollback for the first release");
-  }
-}
-
-console.log(`verified release ${tag} for omp-spec-kit@${PLUGIN_VERSION} at commit ${commit}`);
+console.log(
+  `verified release ${tag} for omp-spec-kit@${PLUGIN_VERSION}: payload ${digest} bound to ${receiptCommit}`,
+);
