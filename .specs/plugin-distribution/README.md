@@ -18,7 +18,7 @@ The repository root is the marketplace root. A nested marketplace, a nested plug
 
 ## Readiness rule
 
-A catalog file, a successful build, plugin installation, `/reload-plugins`, or an individual passing job is not release proof. `v0.1.0` may be claimed only when [FR-13](FR.md#fr-13-aggregate-release-eligibility) has complete current mandatory FR-1..FR-12 evidence for one candidate identity, including version consistency, dependency-absent clean install, fresh-session `spec_inventory` activation/invocation, uninstall with fresh-session absence, exact `0.1.0` reinstall with fresh-session invocation, preservation, and release/provenance/security gates. Upgrade-from-prior and rollback-to-prior are not `0.1.0` prerequisites; they become mandatory beginning with the first subsequent release.
+A catalog file, a successful build, plugin installation, `/reload-plugins`, an individual passing job, or a structurally complete self-authored distribution JSON bundle is not release proof. `v0.1.0` may be claimed only when [FR-13](FR.md#fr-13-aggregate-release-eligibility) has complete current mandatory FR-1..FR-12 evidence for one candidate identity **and** a separately implemented independently verifiable producer-attestation path exists. No such trust root is currently supported, so `distribution-producer-provenance-untrusted:no-independent-trust-root` keeps artifacts, notes, and publication blocked. Upgrade-from-prior and rollback-to-prior are not `0.1.0` prerequisites; they become mandatory beginning with the first subsequent release.
 
 ## Documents
 

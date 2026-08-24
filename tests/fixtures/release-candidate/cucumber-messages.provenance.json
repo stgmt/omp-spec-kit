@@ -1,0 +1,12 @@
+{
+  "schema": "omp-spec-kit-cucumber-fixture-provenance@1",
+  "fixture": "cucumber-messages.ndjson",
+  "sha256": "3f748539baa884a29b3c99e94d98087a1e8876257d924719238e89ab64f44335",
+  "repositoryCommit": "86a80f59d600d6c6f2c581c93d55fd3981a92989",
+  "dockerImageDigest": "sha256:75680db26398fa5250cbb349f523d8d481ed50aa91fa758c8b6e1c7298f6daab",
+  "cucumberVersion": "13.2.1",
+  "captureCommand": "wsl.exe -e bash -lc \"docker run --rm --env OMP_SPEC_KIT_BDD_MESSAGE_STDOUT=1 omp-spec-kit-bdd:local\"",
+  "capturedAt": "2026-08-24",
+  "scenarioCount": 38,
+  "stepCount": 302
+}

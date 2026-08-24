@@ -19,7 +19,7 @@ const cucumber = path.join(
   "bin",
   "cucumber.js",
 );
-const result = spawnSync(process.execPath, [cucumber, "--config", "cucumber.mjs"], {
+const result = spawnSync(process.execPath, [cucumber, "--config", "cucumber.mjs", ...process.argv.slice(2)], {
   cwd: process.cwd(),
   env: process.env,
   encoding: "utf8",

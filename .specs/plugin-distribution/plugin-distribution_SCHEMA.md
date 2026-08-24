@@ -183,30 +183,34 @@ Codes are exhaustive for v0.1.0: `SPECS_ABSENT`, `SPECS_NOT_DIRECTORY`, `SPEC_SL
 
 Errors are mapped to these codes; raw exception messages, stacks, absolute paths, environment values, and file contents are never returned.
 
-## 9. `distribution-evidence-receipt@1`
+## 9. Distribution producer receipt and claim matrix
 
-Receipts are CI artifacts, never shipped in the plugin package and never inferred from `.feature` text.
+Distribution evidence is a bundle of content-addressed producer receipts used for structural diagnostics. It is never inferred from a stage name, a free-form `claims` list, `.feature` text, or an aggregate eligibility object, and it is not current release authority.
 
-| Field | Type | Required | Constraint |
-|---|---|---:|---|
-| `schemaVersion` | literal `1` | yes | Receipt schema. |
-| `requirement` | qualified requirement ID | yes | Exact owning ID from `plugin-distribution:FR-1` through `plugin-distribution:FR-12`; FR-13 is computed from these receipts and cannot attest itself. |
-| `claim` | enum | yes | `marketplace-shape`, `package-shape`, `clean-build`, `deps-absent`, `install`, `reload`, `fresh-session-activation`, `inventory`, `inventory-containment`, `version-consistency`, `upgrade`, `uninstall-preservation`, `reinstall`, `rollback`, `public-safety`, `release-transaction`, `evidence-honesty`, `schema-containment`, or `release-consistency`. |
-| `outcome` | enum | yes | `passed`, `failed`, or `blocked`; no `skipped` success. |
-| `commit` | lowercase hex SHA | yes | Exact immutable target commit. |
-| `ompRevision` | string | yes | Exact OMP version plus commit/image digest; mutable branch alone invalid. |
-| `platform` | object | yes | Closed OS, architecture, and fixture-image digest fields. |
-| `pluginVersion` | semver | yes | Exact candidate/installed version. |
-| `catalogDigest` | `sha256:<64hex>` | yes | Catalog bytes. |
-| `artifactDigest` | `sha256:<64hex>` | yes | Installed/published payload. |
-| `fixtureDigest` | `sha256:<64hex>` | yes | Fixture input. |
-| `startedAt` | RFC 3339 timestamp | yes | UTC. |
-| `finishedAt` | RFC 3339 timestamp | yes | UTC and not earlier than start. |
-| `observations` | bounded array | yes | Stable step id, outcome, bounded public summary, optional safe project-relative evidence path. |
-| `projectHashesBefore` | object map | conditional | Required for install, upgrade, uninstall-preservation, reinstall, and rollback claims. |
-| `projectHashesAfter` | object map | conditional | Same key set and digest values for preservation claims. |
+`omp-spec-kit-distribution-evidence@1` has the exact candidate identity fields,
+`ompRevision`, closed `platform { os, architecture, fixtureDigest }`,
+`applicability`, `mriDiscoveryDigest`, and `records`. Each record has exactly
+`requirement`, `claim`, and `receipt`; `receipt` is `{ status: "present", path,
+digest }` and binds a copied regular producer artifact below the evidence root.
 
-A receipt is current only when all identity/digest fields match the release candidate and every required observation passed. Missing, foreign, stale, blocked, or failed receipts cannot support a public claim.
+Each bound artifact is `omp-spec-kit-distribution-producer-receipt@1` with exact
+candidate identity, `requirement`, one `claim`, `fixtureDigest`, `ompRevision`,
+`platform`, `applicability`, `lifecycle`, `producer { workflow:
+"distribution-lifecycle", runId }`, and a non-empty unique `observations` list.
+Every observation has exact `id`, `outcome: "passed"`, bounded public `summary`,
+and the same `fixtureDigest` as `platform.fixtureDigest`. The evaluator reads the
+artifact only through canonical containment: the evidence root, every parent, and
+the leaf must be non-symlinks; the leaf's realpath must remain under the root; and
+its SHA-256 must equal the record reference.
+
+`workflow`, `runId`, and `observations` are self-authored JSON metadata. No
+supported cryptographic or independently verifiable producer-attestation provider
+exists for this schema version. Therefore every supplied matrix is explicitly
+`untrusted-self-attested` and produces
+`distribution-producer-provenance-untrusted:no-independent-trust-root`; its
+structural fields remain useful diagnostics but cannot produce public eligibility.
+A future trusted path MUST be separately specified and implemented with an
+independent verifier; this schema does not reserve or simulate an attestation field.
 
 ### 9.1 Mandatory evidence matrix
 
@@ -218,39 +222,65 @@ A receipt is current only when all identity/digest fields match the release cand
 | FR-4 | `install`, `reload`, `fresh-session-activation`, `inventory` | none |
 | FR-5 | `clean-build`, `package-shape`, `deps-absent` | none |
 | FR-6 | `inventory-containment` | none |
-| FR-7 | `version-consistency` | `upgrade` only beginning with the first subsequent release |
-| FR-8 | `uninstall-preservation`, `reinstall` | `rollback` only beginning with the first subsequent release |
+| FR-7 | `version-consistency` | `upgrade` after the first release |
+| FR-8 | `uninstall-preservation`, `reinstall` | `rollback` after the first release |
 | FR-9 | `public-safety` | none |
 | FR-10 | `release-transaction` | none |
 | FR-11 | `evidence-honesty` | none |
 | FR-12 | `schema-containment` | none |
 
-For `0.1.0`, `upgrade` and `rollback` are explicitly inapplicable, not absent failures. For every later candidate they are mandatory and must name real public from/to versions. Exact-candidate reinstall remains mandatory for every release; no other matrix cell may be marked inapplicable.
+For `0.1.0`, upgrade and rollback lifecycle values are `inapplicable`; later
+candidates require passed upgrade and rollback receipts. Reinstall is always
+passed. A missing, duplicate, foreign, unexpected, non-passed, fixture-mismatched,
+unprovenanced, invalid-observation, or self-attested record is blocked.
 
 ## 10. `distribution-release-eligibility@1`
 
-This closed object is computed by the release evaluator after receipt validation. It is never accepted as a substitute receipt and is never inferred from workflow stage status.
-
-| Field | Type | Required | Constraint |
-|---|---|---:|---|
-| `schemaVersion` | literal `1` | yes | Eligibility schema. |
-| `candidateVersion` | semver | yes | Exact candidate version. |
-| `releasePosition` | enum | yes | `first` only for `0.1.0`; otherwise `subsequent`. |
-| `commit` | lowercase hex SHA | yes | Same value on every supporting receipt. |
-| `ompRevision` | string | yes | Same pinned value on every supporting receipt. |
-| `platform` | object | yes | Same closed platform identity on every supporting receipt. |
-| `catalogDigest` | `sha256:<64hex>` | yes | Same value on every supporting receipt. |
-| `artifactDigest` | `sha256:<64hex>` | yes | Same value on every supporting receipt. |
-| `mandatoryRequirements` | qualified requirement ID array | yes | Exactly the 12 unique IDs `plugin-distribution:FR-1` through `plugin-distribution:FR-12`. |
-| `evidenceByRequirement` | closed object | yes | Exactly one key per mandatory requirement; each value is a non-empty unique array of supporting receipt digests satisfying the matrix. |
-| `applicability` | closed object | yes | `upgrade` and `rollback` are `inapplicable` only for `0.1.0`; `reinstall` is always `mandatory`; upgrade and rollback are `mandatory` for subsequent releases. |
-| `outcome` | enum | yes | `eligible` or `blocked`. |
-| `blockingReasons` | bounded array | yes | Empty only when eligible; otherwise identifies every missing, failed, blocked, stale, mismatched, or inapplicable-without-authority matrix item. |
-
-`outcome: eligible` is valid only when all 12 requirement keys are present, all mandatory claims for the candidate profile have current passed receipts, all shared identity fields are equal, and `blockingReasons` is empty. A partial object, an empty evidence array, a passed job/stage summary, or an aggregate object that cites itself is invalid and yields `blocked`.
+This is a closed computed result, never a receipt. `evidenceByRequirement` has
+every FR-1 through FR-12 and lists the unique digest of each matrix producer
+artifact. Structural validation checks the complete matrix, matching candidate and
+platform identity, and verified artifact digests. However, while the only producer
+metadata is self-attested, the current implementation always emits
+`outcome: "blocked"` with
+`distribution-producer-provenance-untrusted:no-independent-trust-root`. The
+`eligible` outcome is reserved for a future separately implemented independently
+verifiable producer-attestation path; a supplied JSON cannot select that outcome.
 
 ## 11. Pinned compatibility boundary
 
 The v0.1.0 implementation authority is OMP v17.3.7 at commit `8500092296621a6826b7136e840f8a59ea338958`; the catalog schema URI is `https://anthropic.com/claude-code/marketplace.schema.json`. Repository validators deliberately enforce the narrower closed product profile regardless of whether the upstream parser preserves additional fields. The child declares no `omp` property beyond `extensions`, and the only supported OMP compatibility row is exact v17.3.7.
 
 Pinned source establishes recursive relative-source copying and extension discovery, but source inspection alone is not fresh-session runtime evidence. Structured `details` behavior and closed-profile loader acceptance remain release-proof obligations for the pinned lifecycle fixture; absence of those receipts keeps release eligibility blocked without weakening the schemas above.
+
+## 12. Executable v0.3.1 evidence envelopes
+
+`omp-spec-kit-release-evidence@3` is the closed assembler output. Its exact fields are
+`schema`, candidate identity (`version`, `tag`, `commit`, `candidateDigest`,
+`packageTreeDigest`, `archiveSha256`, `catalogDigest`), `mri`, and `distribution`.
+It replaces the unqualified v2 `frReceipts` object; no bare `FR-N` key is valid at
+this boundary.
+
+`mri` is `omp-spec-kit-mri-evidence@1`: exact fields `schema`, `checks`,
+`frReceipts`, and `discovery`. Its six receipt keys are exactly
+`mcp-release-integrity:FR-1` through `mcp-release-integrity:FR-6`. `discovery` is a
+content-addressed copy of `docs/validation/omp-discovery-v17.3.7.md`; it must prove
+the pinned v17.3.7 manager connection and eight-tool handoff. MRI produces only
+`mri-release-eligibility@1`; it does not attest `plugin-distribution:FR-13`.
+
+`distribution` is the closed assembler input `{ schema:
+"omp-spec-kit-distribution-evidence-input@1", trust:
+"untrusted-self-attested", receipt }`, where `receipt` is either `{ status:
+"missing" }` or a content-addressed `omp-spec-kit-distribution-evidence@1`
+manifest. The assembler copies referenced producer receipts into
+`receipts/distribution/`, rewrites their references to copied paths, and preserves
+their digests only for inspection; copying does not attest them. The verifier
+rejects a symlinked root, parent, or leaf; a realpath escape; a non-regular file; a
+digest mismatch; or any missing matrix cell. Regardless of structural completeness,
+the self-attested input remains blocked with
+`distribution-producer-provenance-untrusted:no-independent-trust-root`.
+
+The composed evaluator result is `public-release-eligibility@1` with the candidate
+identity, `mri`, `distribution`, `eligible`, and namespaced `blocking`. It is
+currently always ineligible for a supplied distribution bundle; a future eligible
+result requires both an eligible MRI result and a separately implemented trusted
+distribution verifier.

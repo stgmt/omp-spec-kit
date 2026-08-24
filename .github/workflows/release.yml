@@ -15,57 +15,88 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    outputs:
-      commit: ${{ steps.sha.outputs.commit }}
     steps:
       - uses: actions/checkout@v4
-      - id: sha
-        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify frozen corpus provenance before release execution
+        run: node scripts/refresh-real-corpus-manifest.mjs --check
       - run: npm run build
       - run: npm run verify
-      - name: Docker BDD (Docker-only suite)
-        run: bash scripts/docker-bdd.sh
-      - name: Release consistency gate
-        run: node scripts/verify-release.mjs
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-          RELEASE_COMMIT: ${{ steps.sha.outputs.commit }}
+      - name: Assemble candidate from peeled tag checkout
+        run: node scripts/create-release-candidate.mjs --tag "$GITHUB_REF_NAME" --output release-candidate
+      - name: Verify candidate public safety
+        run: node scripts/verify-public-tree.mjs --candidate release-candidate/candidate.json --output release-candidate/public-safety.json
+      - name: Run Docker BDD and preserve canonical Cucumber messages
+        run: |
+          set -o pipefail
+          OMP_SPEC_KIT_BDD_MESSAGE_STDOUT=1 bash scripts/docker-bdd.sh > release-candidate/cucumber.ndjson
+      - name: Assemble MRI evidence; absence of live distribution producer artifacts remains blocked
+        run: |
+          node scripts/create-release-evidence.mjs \
+            --candidate release-candidate/candidate.json \
+            --public-safety release-candidate/public-safety.json \
+            --cucumber-messages release-candidate/cucumber.ndjson \
+            --lifecycle-dir "docs/validation/releases/${GITHUB_REF_NAME}" \
+            --mri-discovery docs/validation/omp-discovery-v17.3.7.md \
+            --output release-candidate
+      - name: Enforce producer-artifact claim matrix before notes or candidate upload
+        run: node scripts/verify-release.mjs --candidate release-candidate/candidate.json --evidence release-candidate/evidence.json --tag "$GITHUB_REF_NAME"
+      - name: Render evidence-bound release notes
+        run: node scripts/render-release-notes.mjs --candidate release-candidate/candidate.json --evidence release-candidate/evidence.json --tag "$GITHUB_REF_NAME" --output release-candidate/release-notes.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: omp-spec-kit-release-candidate-${{ github.ref_name }}
+          path: release-candidate
+          if-no-files-found: error
 
   publish:
     needs: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Publish GitHub release for the tagged commit
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: omp-spec-kit-release-candidate-${{ github.ref_name }}
+          path: release-candidate
+      - name: Reverify downloaded candidate without rebuilding
+        run: node scripts/verify-release.mjs --candidate release-candidate/candidate.json --evidence release-candidate/evidence.json --tag "$GITHUB_REF_NAME"
+      - name: Publish only matching candidate assets
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
-          COMMIT: ${{ needs.verify.outputs.commit }}
         run: |
+          set -euo pipefail
+          archive="$(node -p "require('./release-candidate/candidate.json').archive.file")"
+          expected_sha="$(node -p "require('./release-candidate/candidate.json').archive.sha256")"
+          expected_commit="$(node -p "require('./release-candidate/candidate.json').commit")"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            existing="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish)"
-            if [ "$existing" != "$COMMIT" ]; then
-              echo "::error::release $TAG already exists for $existing; refusing to republish for $COMMIT"
+            existing_commit="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish)"
+            if [ "$existing_commit" != "$expected_commit" ]; then
+              echo "::error::existing release commit differs from verified candidate"
               exit 1
             fi
-            echo "release $TAG already exists at $COMMIT; nothing to publish"
+            mkdir existing-assets
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$archive" --dir existing-assets
+            actual_sha="$(sha256sum "existing-assets/$archive" | cut -d ' ' -f1)"
+            if [ "$actual_sha" != "$expected_sha" ]; then
+              echo "::error::existing release archive differs from verified candidate"
+              exit 1
+            fi
             exit 0
           fi
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
-            --target "$COMMIT" \
-            --title "omp-spec-kit ${TAG}" \
-            --notes "Specification-first OMP plugin v0.1.0: one marketplace, one plugin package, one read-only \`spec_inventory\` tool.
-
-          Install:
-          \`\`\`
-          omp plugin marketplace add stgmt/omp-spec-kit
-          omp plugin install omp-spec-kit@omp-spec-kit --scope project
-          \`\`\`
-
-          Evidence: Docker BDD 17/17 scenarios, dependency-absent clean payload, installed lifecycle (install / fresh-session invocation / uninstall / reinstall) bound to \`${COMMIT}\` in \`docs/validation/distribution-lifecycle.md\`. First release: prior-version upgrade/rollback is inapplicable by contract."
+            --verify-tag \
+            --title "omp-spec-kit $TAG" \
+            --notes-file release-candidate/release-notes.md \
+            "release-candidate/$archive" \
+            release-candidate/candidate.json \
+            release-candidate/evidence.json

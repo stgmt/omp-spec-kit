@@ -363,7 +363,7 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
       kind: "DOCUMENT",
       title: entry.filename,
       body: "",
-      span: wholeFileSpan(entry.text),
+      span: { ...wholeFileSpan(entry.text), path: entry.row.path },
       documentKind: entry.documentKind,
       attributes: {
         filename: entry.filename,

@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# Preserve OMP's active-project cwd; resolve only this package-local server path.
+set -eu
+
+launcher_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec node "$launcher_dir/../dist/mcp/server.js" "$@"

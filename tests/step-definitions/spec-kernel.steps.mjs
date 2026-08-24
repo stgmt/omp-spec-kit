@@ -11,7 +11,7 @@ import {
   duplicateProducerFiles,
   envelopeData,
   largeSyntheticCorpusFiles,
-  loadRealCorpusManifest,
+  loadFrozenRealCorpus,
   plantDirectoryJunction,
   query,
   readRepositorySpecs,
@@ -112,18 +112,17 @@ After({ tags: "@spec-kernel" }, async function () {
 
 Given("the repository's own four-spec corpus pinned by the captured fixture manifest", async function () {
   this.kernel.repositoryRoot = path.resolve(import.meta.dirname, "..", "..");
-  this.kernel.manifest = await loadRealCorpusManifest(this.kernel.repositoryRoot);
+  const frozen = await loadFrozenRealCorpus(this.kernel.repositoryRoot);
+  this.kernel.manifest = frozen.manifest;
+  this.kernel.fixtureRoot = frozen.fixtureRoot;
 });
 
 When("the filesystem reader ingests the corpus and the kernel builds two graphs in competing input orders", async function () {
-  const read = await readRepositorySpecs({ root: this.kernel.repositoryRoot });
-  assert.ok(Object.prototype.hasOwnProperty.call(read, "files"), "the reader must return files for the real corpus");
-  // The fixture corpus is the manifest's pinned 60-path set (commit 1e1475c…).
-  // Owner-added untracked spec directories (e.g. plan-gate) are outside the
-  // captured fixture and are filtered out here, not silently ingested.
+  const read = await readRepositorySpecs({ root: this.kernel.fixtureRoot });
+  assert.ok(Object.prototype.hasOwnProperty.call(read, "files"), "the reader must return files for the frozen real corpus");
   const manifestPaths = new Set(this.kernel.manifest.documents.map((entry) => entry.path));
   const missing = [...manifestPaths].filter((p) => !read.files.some((file) => file.path === p));
-  assert.deepStrictEqual(missing, [], "every manifest path must exist on disk");
+  assert.deepStrictEqual(missing, [], "every manifest path must exist in the frozen fixture");
   const files = read.files.filter((file) => manifestPaths.has(file.path));
   this.kernel.corpusRead = { files };
   this.kernel.builds = {

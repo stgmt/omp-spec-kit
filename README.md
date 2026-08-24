@@ -2,20 +2,20 @@
 
 `omp-spec-kit` is a specification-first project for bringing trustworthy specification inventory, traceability, evidence, and authoring workflows to Oh My Pi (OMP).
 
-## Current status: `v0.2.0 RELEASED / INVENTORY+KERNEL`
-**Publication:** `PUBLIC_SPECIFICATION_INIT + v0.1.0 PLUGIN`
+## Current status: v0.3.0 MCP advisory; v0.3.1 corrective work
 
+v0.3.0 is publicly tagged, but its MCP server can read its package directory rather than the active OMP project. Do not rely on its MCP query results. See the [v0.3.0 MCP advisory](docs/advisories/v0.3.0-mcp-root.md).
 
-**v0.2.0 is released and installable.** It contains exactly one marketplace, one plugin package, one bounded read-only tool, `spec_inventory`, and the v0.2 read-only specification kernel (parse/identity/graph/query over `.specs`). It does **not** yet contain an MCP server or any write/authoring capability; those remain gated stages below.
+v0.3.1 is corrective work in this repository, not a released claim. It will publish only after its exact candidate archive, peeled tag, Docker BDD message artifact, public-safety record, v0.3.0 source proof, upgrade, rollback, and requirement receipts agree.
 
-### Install v0.1.0
+### Current published installation
 
 ```text
 omp plugin marketplace add stgmt/omp-spec-kit
 omp plugin install omp-spec-kit@omp-spec-kit --scope project
 ```
 
-Start a fresh OMP session in your project and call `spec_inventory`. Uninstall with `omp plugin uninstall omp-spec-kit@omp-spec-kit --scope project`. Evidence for this exact artifact: Docker BDD 25/25 scenarios (inventory + kernel suites), dependency-absent payload, and the installed lifecycle bound to payload digest `e7106747…c1e` in [`docs/validation/distribution-lifecycle-v0.2.0.md`](docs/validation/distribution-lifecycle-v0.2.0.md).
+After installation, reload plugin metadata and start a fresh OMP session. The v0.1 `spec_inventory` tool remains a separate bounded read-only OMP tool; MCP guidance is in the advisory until v0.3.1 evidence is public.
 
 
 
@@ -54,10 +54,9 @@ The roadmap deliberately keeps one product boundary:
 1. public specification and provenance init;
 2. v0.1.0 — one installable OMP plugin with a bounded read-only inventory path (released);
 3. v0.2 — a standalone graph/query kernel;
-4. v0.3 — one MCP adapter over the same query service;
-5. later — safe authoring and mutation, only after containment, CAS, concurrency, and evidence gates.
-
-See [`ROADMAP.md`](ROADMAP.md) for stage gates. Released capability is limited to what the evidence receipts cover; see [`CHANGELOG.md`](CHANGELOG.md).
+4. v0.3.0 — read-only MCP adapter, now superseded for its active-project-root defect;
+5. v0.3.1 — corrective launcher, protocol, all-tool BDD, and evidence-bound release candidate (unreleased);
+6. later — safe authoring and mutation, only after containment, CAS, concurrency, and evidence gates.
 
 ## Repository policy
 

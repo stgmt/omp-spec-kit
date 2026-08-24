@@ -10,7 +10,7 @@
 // imported in-process here.
 
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
@@ -18,15 +18,26 @@ import { pathToFileURL } from "node:url";
 import {
   KERNEL_SCHEMA_VERSION,
   buildKernelGraph,
+  loadFrozenRealCorpus,
   loadRealCorpusManifest,
   query,
   readRepositorySpecs,
+  sha256Hex,
   writeCorpus,
 } from "./kernel-world.mjs";
 
-export { KERNEL_SCHEMA_VERSION, buildKernelGraph, loadRealCorpusManifest, query, readRepositorySpecs, writeCorpus };
+export {
+  KERNEL_SCHEMA_VERSION,
+  buildKernelGraph,
+  loadFrozenRealCorpus,
+  loadRealCorpusManifest,
+  query,
+  readRepositorySpecs,
+  sha256Hex,
+  writeCorpus,
+};
 
-export const PLUGIN_VERSION = "0.3.0";
+export const PLUGIN_VERSION = "0.3.1";
 export const EXTENSION_SCHEMA_VERSION = "1";
 export const EXTENSION_LABEL = "OMP Spec Kit";
 
@@ -47,27 +58,37 @@ export const QUERY_ENVELOPE_KEYS = Object.freeze(
   ["ok", "schemaVersion", "requestId", "operation", "graph", "page", "data", "error", "diagnostics"].sort(),
 );
 
+function sameBytes(left, right) {
+  if (left.byteLength !== right.byteLength) return false;
+  for (let index = 0; index < left.byteLength; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+}
+
 /**
- * Loads the fixture-manifest-pinned real corpus through the filesystem reader
- * (same pattern as the v0.2 kernel suite), builds ONE in-process kernel graph
- * used as the parity oracle for spawned-server answers, and returns the pinned
- * files so a byte-exact replica corpus can be planted for the server process.
+ * Loads the immutable fixture bytes through the filesystem reader, builds one
+ * in-process kernel parity oracle, and returns those same frozen files for the
+ * byte-exact spawned-server replica. Mutable repository .specs files never
+ * participate in this comparison.
  */
 export async function loadPinnedCorpusGraph(repositoryRoot) {
-  const manifest = await loadRealCorpusManifest(repositoryRoot);
-  const read = await readRepositorySpecs({ root: repositoryRoot });
-  const manifestPaths = new Set(manifest.documents.map((entry) => entry.path));
-  const files = read.files.filter((file) => manifestPaths.has(file.path));
-  if (files.length !== manifest.documents.length) {
-    throw new Error(
-      `pinned corpus drifted: manifest pins ${manifest.documents.length} documents, disk offered ${files.length}`,
-    );
+  const frozen = await loadFrozenRealCorpus(repositoryRoot);
+  const read = await readRepositorySpecs({ root: frozen.fixtureRoot });
+  if (read.error) throw new Error(`frozen corpus reader failed: ${read.error.code}`);
+  if (read.files.length !== frozen.manifest.documents.length) {
+    throw new Error(`frozen corpus reader offered ${read.files.length}, expected ${frozen.manifest.documents.length} files`);
   }
-  const built = buildKernelGraph({ files });
+  const byPath = new Map(frozen.files.map((file) => [file.path, file]));
+  for (const file of read.files) {
+    const pinned = byPath.get(file.path);
+    if (pinned === undefined || !sameBytes(file.bytes, pinned.bytes)) throw new Error(`frozen corpus reader byte drifted: ${file.path}`);
+  }
+  const built = buildKernelGraph({ files: read.files });
   if (built.graph.valid !== true) {
-    throw new Error("pinned corpus must build a valid graph before MCP parity comparison");
+    throw new Error("frozen corpus must build a valid graph before MCP parity comparison");
   }
-  return { manifest, graph: built.graph, files };
+  return { manifest: frozen.manifest, graph: built.graph, files: read.files };
 }
 
 /**
@@ -75,20 +96,26 @@ export async function loadPinnedCorpusGraph(repositoryRoot) {
  * process. Requests are correlated by id; a stuck request rejects with the
  * server's collected stderr instead of hanging the suite.
  */
-export function spawnMcpServer({ serverPath, root, cwd }) {
-  const child = spawn(process.execPath, [serverPath], {
+export function spawnMcpServer({ command = process.execPath, args, serverPath, root, cwd, env = {} }) {
+  const childEnv = { ...process.env, ...env };
+  if (root === undefined) delete childEnv.OMP_SPEC_KIT_ROOT;
+  else childEnv.OMP_SPEC_KIT_ROOT = root;
+  const child = spawn(command, args ?? (serverPath ? [serverPath] : []), {
     cwd,
-    env: { ...process.env, OMP_SPEC_KIT_ROOT: root },
+    env: childEnv,
     stdio: ["pipe", "pipe", "pipe"],
     windowsHide: true,
   });
 
   const pending = new Map();
+  const frames = [];
+  const nonProtocolLines = [];
   let nextId = 0;
   let stderrText = "";
 
   const exited = new Promise((resolve) => {
     child.once("exit", (code, signal) => resolve({ code, signal }));
+    child.once("error", (error) => resolve({ error }));
   });
   child.stderr.on("data", (chunk) => {
     stderrText += chunk.toString("utf8");
@@ -102,8 +129,14 @@ export function spawnMcpServer({ serverPath, root, cwd }) {
     try {
       message = JSON.parse(trimmed);
     } catch {
+      nonProtocolLines.push(line);
       return;
     }
+    if (message?.jsonrpc !== "2.0") {
+      nonProtocolLines.push(line);
+      return;
+    }
+    frames.push(message);
     const entry = pending.get(message.id);
     if (entry !== undefined) {
       pending.delete(message.id);
@@ -112,15 +145,16 @@ export function spawnMcpServer({ serverPath, root, cwd }) {
     }
   });
 
-  function request(method, params, timeoutMs = 30000) {
-    const id = ++nextId;
+  function sendFrame(frame, timeoutMs = 30000) {
+    const id = frame?.id;
+    if (id === undefined) throw new Error("sendFrame requires an id");
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         pending.delete(id);
-        reject(new Error(`MCP request "${method}" timed out after ${timeoutMs}ms; server stderr:\n${stderrText}`));
+        reject(new Error(`MCP request id ${JSON.stringify(id)} timed out after ${timeoutMs}ms; server stderr:\n${stderrText}`));
       }, timeoutMs);
       pending.set(id, { resolve, reject, timer });
-      child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`, (error) => {
+      child.stdin.write(`${JSON.stringify(frame)}\n`, (error) => {
         if (error !== undefined && error !== null) {
           clearTimeout(timer);
           pending.delete(id);
@@ -128,6 +162,27 @@ export function spawnMcpServer({ serverPath, root, cwd }) {
         }
       });
     });
+  }
+
+  function sendRaw(line, id, timeoutMs = 30000) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        reject(new Error(`raw MCP frame for id ${JSON.stringify(id)} timed out after ${timeoutMs}ms; server stderr:\n${stderrText}`));
+      }, timeoutMs);
+      pending.set(id, { resolve, reject, timer });
+      child.stdin.write(`${line}\n`, (error) => {
+        if (error !== undefined && error !== null) {
+          clearTimeout(timer);
+          pending.delete(id);
+          reject(error);
+        }
+      });
+    });
+  }
+
+  function request(method, params, timeoutMs = 30000) {
+    return sendFrame({ jsonrpc: "2.0", id: ++nextId, method, params }, timeoutMs);
   }
 
   function notify(method, params) {
@@ -149,7 +204,7 @@ export function spawnMcpServer({ serverPath, root, cwd }) {
     return { stderr: stderrText };
   }
 
-  return { child, request, notify, close };
+  return { child, request, notify, sendFrame, sendRaw, close, frames, nonProtocolLines };
 }
 
 // Generated probe source. Runs as its own node process: imports the built
@@ -262,6 +317,15 @@ export async function runExtensionProbe({ extensionPath, cwd }) {
   }
   if (receipt.stderr !== "") throw new Error(`extension probe wrote stderr: ${receipt.stderr}`);
   return JSON.parse(receipt.stdout);
+}
+
+export async function copyPluginPackage(repositoryRoot, destination) {
+  await cp(path.join(repositoryRoot, "plugins", "omp-spec-kit"), destination, {
+    recursive: true,
+    dereference: false,
+    errorOnExist: true,
+    force: false,
+  });
 }
 
 export function createMcpState() {

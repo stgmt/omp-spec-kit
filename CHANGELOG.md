@@ -2,6 +2,19 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## Unreleased — v0.3.1 corrective candidate
+
+### Fixed
+
+- MCP package launch now preserves the active OMP project cwd rather than forcing package cwd.
+- Invalid JSON-RPC request objects receive terminal `-32600` responses.
+- Candidate verification binds package tree/archive bytes, peeled tag, Cucumber messages, public safety, lifecycle, and requirement receipts.
+
+### Advisory
+
+- v0.3.0 MCP results are superseded for the active-project-root defect; see `docs/advisories/v0.3.0-mcp-root.md`.
+- This entry is not a release claim. v0.3.1 remains unpublished until real candidate evidence is complete.
+
 ## 0.2.0 — 2026-08-23
 
 Read-only specification kernel: parse, identity, graph, and bounded query over a repository's `.specs` corpus.

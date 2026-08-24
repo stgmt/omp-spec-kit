@@ -7,7 +7,7 @@
 // JSON-RPC responses.
 //
 // Repository-root resolution (see plugins/omp-spec-kit/.mcp.json):
-//   1. OMP_SPEC_KIT_ROOT environment variable (absolute or cwd-relative),
+//   1. OMP_SPEC_KIT_ROOT environment variable, when absolute,
 //   2. otherwise the server process working directory.
 
 import { createInterface } from "node:readline";
@@ -87,8 +87,11 @@ const contractsByName = new Map(TOOL_CONTRACTS.map((contract) => [contract.tool,
 const service = createSpecService(resolveRepositoryRoot());
 
 async function handleMessage(message) {
-  if (!isPlainObject(message) || message.jsonrpc !== "2.0") return;
-  const hasId = Object.prototype.hasOwnProperty.call(message, "id");
+  const hasId = isPlainObject(message) && Object.prototype.hasOwnProperty.call(message, "id");
+  if (!isPlainObject(message) || message.jsonrpc !== "2.0") {
+    respondError(hasId ? message.id : null, -32600, "Invalid Request");
+    return;
+  }
   if (typeof message.method !== "string") {
     if (hasId) respondError(message.id, -32600, "Invalid Request");
     return;
