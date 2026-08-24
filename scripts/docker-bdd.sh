@@ -15,6 +15,7 @@ if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
         echo "[docker-bdd] Docker unavailable on host; re-executing inside WSL."
         exec wsl.exe --cd "$WIN_ROOT" -e env \
           OMP_SPEC_KIT_WSL_SHIM=1 \
+          OMP_SPEC_KIT_BDD_MESSAGE_STDOUT="${OMP_SPEC_KIT_BDD_MESSAGE_STDOUT:-}" \
           DOCKER_HOST="$DOCKER_HOST" \
           bash scripts/docker-bdd.sh
       fi
@@ -25,7 +26,12 @@ if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
 fi
 
 IMAGE="omp-spec-kit-bdd:local"
-docker build --file tests/distribution/Dockerfile --tag "$IMAGE" .
+if [[ "${OMP_SPEC_KIT_BDD_MESSAGE_STDOUT:-}" == "1" ]]; then
+  docker build --file tests/distribution/Dockerfile --tag "$IMAGE" . >&2
+else
+  docker build --file tests/distribution/Dockerfile --tag "$IMAGE" .
+fi
 docker run --rm \
   --env OMP_SPEC_KIT_BDD_CONTAINER=1 \
+  --env OMP_SPEC_KIT_BDD_MESSAGE_STDOUT="${OMP_SPEC_KIT_BDD_MESSAGE_STDOUT:-}" \
   "$IMAGE"

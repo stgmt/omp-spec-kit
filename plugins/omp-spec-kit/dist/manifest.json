@@ -1,21 +1,21 @@
 {
   "schema": "omp-spec-kit-dist-manifest@1",
-  "pluginVersion": "0.3.0",
+  "pluginVersion": "0.3.1",
   "files": {
     "adapters/omp/register-spec-tools.js": {
       "sha256": "e9e70714cb5c8236e100df5f8056346f3aeaafa9a6ac92efe6aba85cec902109"
     },
     "adapters/query-service.js": {
-      "sha256": "cee940ded60bf951b4e97607ee2a9727220f1229c31a06b220d4f46466b5ad93"
+      "sha256": "b148e5b0a909d80b75f12cdf8549dbdc99af001cd1007c6e403c1daa73adc53b"
     },
     "adapters/tool-contracts.js": {
       "sha256": "ef4d30478a5db7165a36bf2b57a45168da38485c13da265ce0f1d9dd20a531af"
     },
     "extension.js": {
-      "sha256": "580d0a1179ff6baea839fbf813fb7054d31ebc7feb1a1d3f50f65b189ee0c78a"
+      "sha256": "b8265427c18172e3b45c1e9206b5e9d4d7dd464b268449efd4ca838c7b748bdb"
     },
     "inventory.js": {
-      "sha256": "54622bff77cd19d6c493e7a7f1a4de160f392660e082f88200accdd152287e8f"
+      "sha256": "58e401a561af2eb0ae8c860ec5e5c366dcb431cdfc35bfe3f45021e27c9ee4a9"
     },
     "kernel/adapters/fs.js": {
       "sha256": "31e338483be6ebcea53588efd832fa0153febf8e098e55f614206f007abcc38e"
@@ -24,7 +24,7 @@
       "sha256": "04c3778d0bcdaae9eccc277ef33004bf0012fdbe2357589452450481c1ec1687"
     },
     "kernel/graph/build.js": {
-      "sha256": "e880fb6b8ad79732aa5b2e3480e7de3d5f182f87b74f1013e3e6a8d0635551b4"
+      "sha256": "39616de39352b5b14daa9870ae5458f950301400c667071646458c557b539ce9"
     },
     "kernel/graph/invariants.js": {
       "sha256": "bbcde11d9bad8c2d2a751a6a0c972d1aed4e9a64d028258181040d4cd03db04b"
@@ -63,13 +63,13 @@
       "sha256": "6149e4ad947bc49544d59f78a04b55c410145245ba369b323ce221be29675942"
     },
     "kernel/query/service.js": {
-      "sha256": "7c26cadc0bb4d790cffce31c39e44457bf36872fd0fedc71df234b60a3db8362"
+      "sha256": "254119bb02dc746807b910d352801070081335039702b66dae32a426abb4e0af"
     },
     "kernel/types.js": {
       "sha256": "ff1a46bba6a1940a5a1aff16d5c3b0e5799790c1418f6b5ae18bceec3a2da883"
     },
     "mcp/server.js": {
-      "sha256": "e56c33a73a67e1a8e5e28ca63d889f04f89b06645fc08ca07e62bbe10b75c383"
+      "sha256": "f834de07510110a31b904ef1230584bef5ffc92bb9fb7af6412d6c41e8d06cea"
     }
   }
 }

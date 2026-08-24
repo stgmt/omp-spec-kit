@@ -12,4 +12,4 @@ RUN node scripts/build-plugin.mjs \
  && node scripts/verify-package.mjs
 
 ENV OMP_SPEC_KIT_BDD_CONTAINER=1
-CMD ["npm", "run", "bdd:container"]
+CMD ["node", "scripts/run-bdd-container.mjs"]

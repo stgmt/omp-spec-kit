@@ -64,12 +64,14 @@ const allTreeDistDirectories = [
 ].sort();
 
 const expectedDirectories = Object.freeze([
-  ...new Set(["commands", "dist", "skills", "skills/spec-inventory", ...allTreeDistDirectories]),
+  ...new Set(["bin", "commands", "dist", "skills", "skills/spec-inventory", ...allTreeDistDirectories]),
 ]);
 const expectedFiles = Object.freeze([
   ".mcp.json",
   "LICENSE",
   "README.md",
+  "bin/omp-spec-kit-mcp",
+  "bin/omp-spec-kit-mcp.cmd",
   "commands/spec-inventory.md",
   "dist/extension.js",
   "dist/inventory.js",
@@ -83,6 +85,7 @@ const packageFiles = Object.freeze([
   "package.json",
   "README.md",
   "LICENSE",
+  "bin/",
   "dist/",
   "skills/",
   "commands/",
@@ -185,20 +188,14 @@ async function verifyMcpJson() {
   }
   assertExactKeys(mcpJson.mcpServers, ["omp-spec-kit"], ".mcp.json servers", fail);
   const server = mcpJson.mcpServers["omp-spec-kit"];
-  assertExactKeys(server, ["type", "command", "args", "cwd", "env"], ".mcp.json omp-spec-kit entry", fail);
+  assertExactKeys(server, ["type", "command"], ".mcp.json omp-spec-kit entry", fail);
   if (server.type !== "stdio") fail(".mcp.json server must be stdio");
-  if (server.command !== "node") fail('.mcp.json command must be "node"');
-  if (!sameStrings(server.args, ["dist/mcp/server.js"])) {
-    fail('.mcp.json args must be exactly ["dist/mcp/server.js"]');
-  }
-  if (server.cwd !== ".") fail('.mcp.json cwd must be "." so it roots at the plugin package directory');
-  assertExactKeys(server.env, ["OMP_SPEC_KIT_ROOT"], ".mcp.json env", fail);
-  if (server.env.OMP_SPEC_KIT_ROOT !== "OMP_SPEC_KIT_ROOT") {
-    fail(".mcp.json env must pass OMP_SPEC_KIT_ROOT through by name indirection");
+  if (server.command !== "./bin/omp-spec-kit-mcp") {
+    fail('.mcp.json command must be "./bin/omp-spec-kit-mcp"');
   }
   const serialized = JSON.stringify(mcpJson);
-  for (const flag of ["--inspect", "--experimental-inspect"]) {
-    if (serialized.includes(flag)) fail(`.mcp.json must not contain ${flag}`);
+  for (const forbidden of ["cwd", "OMP_SPEC_KIT_ROOT", "--inspect", "--experimental-inspect"]) {
+    if (serialized.includes(forbidden)) fail(`.mcp.json must not contain ${forbidden}`);
   }
 }
 
@@ -217,6 +214,18 @@ async function verifyPackage() {
 
   const manifestPath = path.join(pluginRoot, "package.json");
   const manifest = await readStrictJson(manifestPath, "plugin package.json", fail);
+
+  const posixLauncher = await lstat(path.join(pluginRoot, "bin", "omp-spec-kit-mcp"));
+  if (!posixLauncher.isFile() || posixLauncher.isSymbolicLink()) {
+    fail("POSIX MCP launcher must be a regular file");
+  }
+  if (process.platform !== "win32" && (posixLauncher.mode & 0o111) !== 0o111) {
+    fail("POSIX MCP launcher must be executable on a POSIX package build");
+  }
+  const windowsLauncher = await lstat(path.join(pluginRoot, "bin", "omp-spec-kit-mcp.cmd"));
+  if (!windowsLauncher.isFile() || windowsLauncher.isSymbolicLink()) {
+    fail("Windows MCP launcher must be a regular file");
+  }
   assertExactKeys(
     manifest,
     ["name", "version", "description", "homepage", "repository", "license", "type", "files", "engines", "omp"],
@@ -264,8 +273,8 @@ async function verifyPackage() {
     }
     if (distManifest.files[name].sha256 !== sha256(bytes)) fail(`dist hash mismatch for ${name}`);
     const source = bytes.toString("utf8");
-    if (!/export\s+const\s+PLUGIN_VERSION\s*=\s*["']0\.3\.0["']/u.test(source)) {
-      fail(`${name} does not embed exported PLUGIN_VERSION 0.3.0`);
+    if (!source.includes(`export const PLUGIN_VERSION = "${PLUGIN_VERSION}";`)) {
+      fail(`${name} does not embed exported PLUGIN_VERSION ${PLUGIN_VERSION}`);
     }
     if (!/export\s+const\s+SCHEMA_VERSION\s*=\s*["']1["']/u.test(source)) {
       fail(`${name} does not embed exported SCHEMA_VERSION 1`);

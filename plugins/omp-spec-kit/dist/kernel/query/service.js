@@ -45,6 +45,8 @@ const OPERATION_ARG_FIELDS = {
 const MAX_CANDIDATES = 50;
 const MAX_SUMMARY_DIAGNOSTICS = 20;
 
+const DIAGNOSTIC_SEVERITY_RANK = Object.freeze({ ERROR: 0, WARNING: 1, INFO: 2 });
+
 // Per-snapshot derived indexes; WeakMap keeps public snapshots unchanged.
 const indexCache = new WeakMap();
 
@@ -175,7 +177,7 @@ function summaryOf(diagnostic) {
     remediation: diagnostic.remediation,
     source: diagnostic.span
       ? {
-          path: diagnostic.span.path,
+          path: typeof diagnostic.span.path === "string" ? diagnostic.span.path : null,
           startLine: diagnostic.span.startLine,
           startColumn: diagnostic.span.startColumn,
           endLine: diagnostic.span.endLine,
@@ -188,7 +190,7 @@ function summaryOf(diagnostic) {
 
 function sourceSummary(span) {
   return {
-    path: span.path,
+    path: typeof span?.path === "string" ? span.path : null,
     startLine: span.startLine,
     startColumn: span.startColumn,
     endLine: span.endLine,
@@ -1064,7 +1066,7 @@ function runDiagnostics(graph, request, args, limits) {
 
   const binding = { fingerprint: graph.fingerprint, operation: "diagnostics", digest: filterDigest(args) };
   const pagination = paginate(items, (diagnostic) => [
-    SEVERITY_RANK[diagnostic.severity],
+    DIAGNOSTIC_SEVERITY_RANK[diagnostic.severity],
     diagnostic.code,
     diagnostic.span?.path ?? null,
     diagnostic.span?.startOffset ?? null,
@@ -1131,7 +1133,9 @@ function runOverview(graph, request, args, limits) {
 function runMarkdownInventory(graph, request, args, limits) {
   const slugFilter = new Set(args.specSlugs);
   const outcomeFilter = new Set(args.outcomes);
-  const pathInScope = (path) => slugFilter.size === 0 || (slugOfPath(path) !== null && slugFilter.has(slugOfPath(path)));
+  const pathInScope = (candidatePath) =>
+    slugFilter.size === 0 ||
+    (typeof candidatePath === "string" && slugOfPath(candidatePath) !== null && slugFilter.has(slugOfPath(candidatePath)));
 
   let headingRecords = graph.markdownHeadingOccurrences.filter((heading) => pathInScope(heading.path));
   let linkRecords = graph.markdownLinkOccurrences.filter((link) => pathInScope(link.path));
@@ -1264,8 +1268,9 @@ function runMarkdownInventory(graph, request, args, limits) {
   return successEnvelope(graph, request.requestId, "markdownInventory", data, makePage(args, pagination, dataBytes), summaries);
 }
 
-function slugOfPath(path) {
-  const parts = path.split("/");
+function slugOfPath(value) {
+  if (typeof value !== "string") return null;
+  const parts = value.split("/");
   return parts.length >= 2 && parts[0] === ".specs" ? parts[1] : null;
 }
 

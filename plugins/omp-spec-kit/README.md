@@ -1,15 +1,21 @@
 # omp-spec-kit
 
-`omp-spec-kit` v0.1.0 adds one read-only OMP tool, `spec_inventory`, plus guidance for using it. The tool inventories direct children of `.specs` under the active project's `ctx.cwd`; it never writes, repairs, or claims that a specification is complete.
+`omp-spec-kit` v0.3.1 provides one bounded read-only OMP tool, `spec_inventory`, and an eight-tool read-only MCP surface over the active project specification corpus. It does not write, repair, or claim a specification is complete.
 
 ## Use
 
-Ask OMP to call `spec_inventory` for the active project. Optional request fields narrow the returned entries; the tool's schema documents their bounds and defaults.
+Install at project scope, reload plugin metadata, then start a fresh OMP session. MCP tools read the project from which that fresh OMP session starts; the package launcher locates only its packaged server code and does not select the data root.
 
-The command `/spec-inventory` and skill `spec-inventory` provide guidance only. They do not implement a second scanner or runtime.
+`OMP_SPEC_KIT_ROOT` is optional diagnostic configuration. Only an explicit absolute value is accepted; a missing, relative, placeholder, or bare variable name leaves the active project as the root.
+
+The command `/spec-inventory` and skill `spec-inventory` provide guidance only. They do not implement another scanner or runtime.
+
+## v0.3.0 advisory
+
+v0.3.0 MCP results can use package cwd rather than active project cwd. See [the advisory](../../docs/advisories/v0.3.0-mcp-root.md). v0.3.1 remains unreleased until its candidate evidence is published.
 
 ## Compatibility
 
-This payload targets OMP v17.3.7 at commit `8500092296621a6826b7136e840f8a59ea338958`. Installing or reloading plugin metadata does not activate a newly installed extension in an already-running session; start a fresh OMP session before invoking the tool.
+This payload targets OMP v17.3.7 at commit `8500092296621a6826b7136e840f8a59ea338958`.
 
 License: MIT.

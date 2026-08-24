@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+set -eu
+
+launcher_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec node "$launcher_dir/../dist/mcp/server.js" "$@"

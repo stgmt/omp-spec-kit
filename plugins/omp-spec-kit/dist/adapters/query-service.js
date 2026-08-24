@@ -12,23 +12,23 @@ import { readRepositorySpecs } from "../kernel/adapters/fs.js";
 
 export { KERNEL_SCHEMA_VERSION };
 
-// Environment override documented in plugins/omp-spec-kit/.mcp.json: the
-// target repository whose `.specs/` corpus is read. Placeholder remnants and
-// the unset name-indirection literal are treated as "not set" (cwd fallback).
+// Optional root override for explicit diagnostics and controlled integration.
+// Normal installed MCP execution relies on OMP's active project cwd. An absent
+// legacy name-indirection literal, a placeholder, or a relative value must not
+// redirect a server toward package-local data.
 export function resolveRepositoryRoot(env = process.env, cwd = process.cwd()) {
+  const fallback = path.resolve(cwd);
   const raw = env?.OMP_SPEC_KIT_ROOT;
   if (
     typeof raw === "string" &&
     raw.length > 0 &&
     !raw.includes("${") &&
-    // The .mcp.json env mapping uses the documented name-indirection idiom
-    // ("OMP_SPEC_KIT_ROOT": "OMP_SPEC_KIT_ROOT"); when the variable is unset,
-    // pre-connect resolution leaves that bare name as a literal value.
-    raw !== "OMP_SPEC_KIT_ROOT"
+    raw !== "OMP_SPEC_KIT_ROOT" &&
+    path.isAbsolute(raw)
   ) {
     return path.resolve(raw);
   }
-  return path.resolve(cwd);
+  return fallback;
 }
 
 function adapterDiagnosticSummaries(readerError) {

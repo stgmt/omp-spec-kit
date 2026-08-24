@@ -7,7 +7,7 @@ import {
 import { registerSpecTools } from "./adapters/omp/register-spec-tools.js";
 import { createSpecService, resolveRepositoryRoot } from "./adapters/query-service.js";
 
-export const PLUGIN_VERSION = "0.3.0";
+export const PLUGIN_VERSION = "0.3.1";
 export const SCHEMA_VERSION = "1";
 
 // OMP v17.3.7 extension contract pinned at commit
