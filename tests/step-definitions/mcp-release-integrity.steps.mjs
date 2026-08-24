@@ -141,6 +141,7 @@ Given("an installed MCP server is running", async function () {
 });
 
 When("the client sends JSON-RPC 1.0 with id 7 and then a valid request", async function () {
+  this.mri.invalidId = 7;
   this.mri.invalidResponse = await this.mri.server.sendFrame({ jsonrpc: "1.0", id: 7, method: "ping" }, 1000);
   this.mri.recoveryResponse = await this.mri.server.request("tools/call", {
     name: "spec_overview",
@@ -156,10 +157,31 @@ Then("the first response is -32600 for id 7", function () {
   });
 });
 
+When("the client sends malformed JSON and then a valid request", async function () {
+  this.mri.invalidId = null;
+  this.mri.invalidResponse = await this.mri.server.sendRaw('{"jsonrpc":', null, 1000);
+  this.mri.recoveryResponse = await this.mri.server.request("tools/call", {
+    name: "spec_overview",
+    arguments: toolArguments("spec_overview"),
+  });
+});
+
+Then("the first response is -32700 with null id", function () {
+  assert.deepStrictEqual(this.mri.invalidResponse, {
+    jsonrpc: "2.0",
+    id: null,
+    error: { code: -32700, message: "Parse error" },
+  });
+});
+
 Then("the valid request returns one canonical envelope with no extra stdout frames", function () {
   assert.equal(this.mri.recoveryResponse.result.isError, false);
   assert.equal(this.mri.server.nonProtocolLines.length, 0, "server stdout must contain only JSON-RPC frames");
-  assert.equal(this.mri.server.frames.filter((frame) => frame.id === 7).length, 1, "invalid request has one response");
+  assert.equal(
+    this.mri.server.frames.filter((frame) => frame.id === this.mri.invalidId).length,
+    1,
+    "invalid request has one response",
+  );
   assert.equal(this.mri.server.frames.filter((frame) => frame.id === this.mri.recoveryResponse.id).length, 1, "valid request has one response");
 });
 

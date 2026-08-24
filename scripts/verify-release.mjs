@@ -2,6 +2,7 @@ import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { peelTagCommit } from "./create-release-candidate.mjs";
+import { cucumberMessages } from "./create-release-evidence.mjs";
 import { PLUGIN_VERSION, repositoryRoot as defaultRepositoryRoot } from "./verify-marketplace.mjs";
 import {
   assertCandidateShape,
@@ -88,16 +89,17 @@ async function readReceipt(record, name, evidenceDirectory, blocking) {
   }
 }
 
-async function messageArtifactMatches(receipt, evidenceDirectory) {
+async function readMessageArtifact(receipt, evidenceDirectory) {
   try {
     const relative = relativeSafePath(receipt.messagePath, "Cucumber message path");
     const absolute = path.resolve(evidenceDirectory, relative);
-    if (absolute !== evidenceDirectory && !absolute.startsWith(`${evidenceDirectory}${path.sep}`)) return false;
+    if (absolute !== evidenceDirectory && !absolute.startsWith(`${evidenceDirectory}${path.sep}`)) return null;
     const stats = await lstat(absolute);
-    if (!stats.isFile() || stats.isSymbolicLink()) return false;
-    return sha256(await readFile(absolute)) === receipt.messageDigest;
+    if (!stats.isFile() || stats.isSymbolicLink()) return null;
+    const bytes = await readFile(absolute);
+    return sha256(bytes) === receipt.messageDigest ? bytes : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -154,6 +156,10 @@ async function scenarioRequirementMap(repositoryRoot) {
       continue;
     }
     if (!/^Scenario(?: Outline)?:/u.test(trimmed)) continue;
+    if (!tags.includes("@release-evidence")) {
+      tags = [];
+      continue;
+    }
     const id = tags.find((tag) => tag.startsWith("@id:"))?.slice(4);
     const requirement = tags.find((tag) => /^@FR-\d+$/u.test(tag))?.slice(1);
     if (!id || !requirement || map.has(id)) throw new Error(`invalid required scenario tags near ${trimmed}`);
@@ -236,15 +242,24 @@ export async function evaluateRelease({ candidatePath, evidencePath, tag, reposi
     }
     dockerBdd = await readReceipt(checks.dockerBdd, "dockerBdd", evidenceDirectory, blocking);
     const expectedScenarioIds = [...scenarioRequirements.keys()].sort();
+    const messageBytes =
+      dockerBdd && typeof dockerBdd.messagePath === "string" && isSha256(dockerBdd.messageDigest)
+        ? await readMessageArtifact(dockerBdd, evidenceDirectory)
+        : null;
+    let messageScenarioIds = [];
+    try {
+      if (messageBytes === null) throw new Error("message artifact is missing, unsafe, or hash-mismatched");
+      messageScenarioIds = cucumberMessages(messageBytes, expectedScenarioIds);
+    } catch (error) {
+      blocking.push(`invalid-cucumber-messages:${error.message}`);
+    }
     const receivedScenarioIds = Array.isArray(dockerBdd?.scenarioIds) ? [...new Set(dockerBdd.scenarioIds)].sort() : [];
     if (
       !hasExactKeys(dockerBdd, ["archiveSha256", "candidateDigest", "commit", "messageDigest", "messagePath", "packageTreeDigest", "scenarioIds", "schema", "status", "tag", "version"]) ||
       dockerBdd.schema !== "omp-spec-kit-bdd-receipt@1" ||
       !passedIdentityMatches(dockerBdd, candidate) ||
-      !isSha256(dockerBdd.messageDigest) ||
-      typeof dockerBdd.messagePath !== "string" ||
-      !(await messageArtifactMatches(dockerBdd, evidenceDirectory)) ||
-      JSON.stringify(receivedScenarioIds) !== JSON.stringify(expectedScenarioIds)
+      JSON.stringify(receivedScenarioIds) !== JSON.stringify(expectedScenarioIds) ||
+      JSON.stringify(messageScenarioIds) !== JSON.stringify(expectedScenarioIds)
     ) {
       blocking.push("invalid-docker-bdd-receipt");
     }

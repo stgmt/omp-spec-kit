@@ -27,17 +27,17 @@
 
 | CHK-ID | Requirement | Traces To (FR+SC) | Verification Method | Status | Notes |
 |--------|-------------|-------------------|---------------------|--------|-------|
-| CHK-FR1-01 | Active project root through package launcher | FR-1, AC-1, UC-1 | BDD scenario | Draft | SCEN-MRI-001 |
-| CHK-FR1-02 | Invalid root override retains active project | FR-1, AC-1, UC-1 | BDD scenario | Draft | SCEN-MRI-001 negative path |
-| CHK-FR2-01 | JSON-RPC 1.0 request returns -32600 | FR-2, AC-2, UC-2 | BDD scenario | Draft | SCEN-MRI-002 |
-| CHK-FR2-02 | Malformed JSON is framed and recovery succeeds | FR-2, AC-2, UC-2 | BDD scenario | Draft | SCEN-MRI-002 negative path |
-| CHK-FR3-01 | All eight tools equal direct service envelopes | FR-3, AC-3, UC-3 | BDD scenario | Draft | SCEN-MRI-003 |
-| CHK-FR3-02 | Isolated payload has no source or ambient dependency | FR-3, AC-3, UC-3 | Integration test | Draft | SCEN-MRI-003 isolation path |
-| CHK-FR4-01 | Complete candidate binds required evidence identities | FR-4, AC-4, UC-4 | BDD scenario | Draft | SCEN-MRI-004 |
-| CHK-FR4-02 | Missing transition or foreign identity fails eligibility | FR-4, AC-4, UC-4 | BDD scenario | Draft | SCEN-MRI-004 negative matrix |
-| CHK-FR5-01 | Publish reuses verified archive without rebuilding | FR-5, AC-5, UC-5 | Integration test | Draft | SCEN-MRI-005 |
-| CHK-FR5-02 | Existing mismatched asset fails closed | FR-5, AC-5, UC-5 | Integration test | Draft | SCEN-MRI-005 negative path |
-| CHK-FR6-01 | Candidate-derived notes and advisory have current claims | FR-6, AC-6, UC-5 | Integration test | Draft | SCEN-MRI-006 |
+| CHK-FR1-01 | Active project root through package launcher | FR-1, AC-1, UC-1 | BDD scenario | In Progress | P0: current BDD bypasses OMP discovery; pinned OMP v17.3.7 has not discovered this server. |
+| CHK-FR1-02 | Invalid root override retains active project | FR-1, AC-1, UC-1 | BDD scenario | In Progress | Requires real discovered OMP server receipt. |
+| CHK-FR2-01 | JSON-RPC 1.0 request returns -32600 | FR-2, AC-2, UC-2 | BDD scenario | In Progress | Covered by direct launcher only; retain until discovered runtime path passes. |
+| CHK-FR2-02 | Malformed JSON is framed and recovery succeeds | FR-2, AC-2, UC-2 | BDD scenario | In Progress | P0: no malformed raw JSON frame is currently sent. |
+| CHK-FR3-01 | All eight tools equal direct service envelopes | FR-3, AC-3, UC-3 | BDD scenario | In Progress | Direct copied-package parity passes; OMP discovery remains unproven. |
+| CHK-FR3-02 | Isolated payload has no source or ambient dependency | FR-3, AC-3, UC-3 | Integration test | In Progress | Requires pinned OMP runtime installation path. |
+| CHK-FR4-01 | Complete candidate binds required evidence identities | FR-4, AC-4, UC-4 | BDD scenario | In Progress | P0: evidence parser accepted a one-line meta-only stream. |
+| CHK-FR4-02 | Missing transition or foreign identity fails eligibility | FR-4, AC-4, UC-4 | BDD scenario | In Progress | Must validate actual Cucumber pickle/test-case status chain. |
+| CHK-FR5-01 | Publish reuses verified archive without rebuilding | FR-5, AC-5, UC-5 | Integration test | Blocked | Requires real v0.3.1 tag and lifecycle receipts; no public release run yet. |
+| CHK-FR5-02 | Existing mismatched asset fails closed | FR-5, AC-5, UC-5 | Integration test | Blocked | Requires real release asset state; local evaluator proof is not publication proof. |
+| CHK-FR6-01 | Candidate-derived notes and advisory have current claims | FR-6, AC-6, UC-5 | Integration test | In Progress | Advisory exists; generated-release proof depends on semantic Cucumber evidence. |
 
 ## Verification Process
 
@@ -61,6 +61,6 @@
 
 - Total CHKs: 11
 - Verified: 0
-- In Progress: 0
-- Draft: 11
-- Blocked: 0
+- In Progress: 9
+- Draft: 0
+- Blocked: 2

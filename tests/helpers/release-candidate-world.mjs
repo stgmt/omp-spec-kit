@@ -54,7 +54,7 @@ export async function createCandidateWorld(repositoryRoot, tempRoot) {
   });
   const safety = await verifyPublicTree(manifestPath);
   const messageRelativePath = "messages/cucumber.ndjson";
-  const messageBytes = Buffer.from('{"meta":{"protocolVersion":"22.0.0"}}\n');
+  const messageBytes = await readFile(path.join(repositoryRoot, "tests", "fixtures", "release-candidate", "cucumber-messages.ndjson"));
   const messagePath = path.join(candidateDirectory, messageRelativePath);
   await mkdir(path.dirname(messagePath), { recursive: true });
   await writeFile(messagePath, messageBytes);
@@ -144,4 +144,18 @@ export async function extractCandidate(world, destination) {
 export async function appendArchiveByte(world) {
   const original = await readFile(world.archivePath);
   await writeFile(world.archivePath, Buffer.concat([original, Buffer.from([0])])) ;
+}
+
+export async function replaceMessageWithMeta(world) {
+  const evidence = JSON.parse(await readFile(world.evidencePath, "utf8"));
+  const bddReceiptPath = path.join(world.candidateDirectory, evidence.checks.dockerBdd.path);
+  const bddReceipt = JSON.parse(await readFile(bddReceiptPath, "utf8"));
+  const messagePath = path.join(world.candidateDirectory, bddReceipt.messagePath);
+  const bytes = Buffer.from('{"meta":{"protocolVersion":"33.0.4"}}\n');
+  await writeFile(messagePath, bytes);
+  bddReceipt.messageDigest = sha256(bytes);
+  const receiptBytes = Buffer.from(`${JSON.stringify(bddReceipt, null, 2)}\n`);
+  await writeFile(bddReceiptPath, receiptBytes);
+  evidence.checks.dockerBdd.digest = sha256(receiptBytes);
+  await writeFile(world.evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
 }

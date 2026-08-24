@@ -26,50 +26,89 @@ async function copyReceipt(source, outputDirectory, outputName) {
 }
 
 function requiredScenarioIds(featureSource) {
-  const ids = [...featureSource.matchAll(/@id:([A-Za-z0-9_-]+)/gu)].map((match) => match[1]);
-  if (ids.length === 0 || new Set(ids).size !== ids.length) fail("release BDD feature must contain unique scenario ids");
+  const ids = [];
+  let tags = [];
+  for (const line of featureSource.split(/\r?\n/u)) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("@")) {
+      tags = trimmed.split(/\s+/u).filter((tag) => tag.startsWith("@"));
+      continue;
+    }
+    if (!/^Scenario(?: Outline)?:/u.test(trimmed)) continue;
+    if (tags.includes("@release-evidence")) {
+      const id = tags.find((tag) => tag.startsWith("@id:"))?.slice(4);
+      if (!id) fail(`release-evidence scenario has no id near ${trimmed}`);
+      ids.push(id);
+    }
+    tags = [];
+  }
+  if (ids.length === 0 || new Set(ids).size !== ids.length) fail("release BDD feature must contain unique release-evidence scenario ids");
   return ids.sort();
 }
 
-function cucumberMessages(bytes, requiredIds) {
+export function cucumberMessages(bytes, requiredIds) {
   const messages = [];
-  for (const line of bytes.toString("utf8").split(/\r?\n/u)) {
+  for (const [index, line] of bytes.toString("utf8").split(/\r?\n/u).entries()) {
     if (!line.trim()) continue;
+    let parsed;
     try {
-      const parsed = JSON.parse(line);
-      if (parsed && typeof parsed === "object") messages.push(parsed);
+      parsed = JSON.parse(line);
     } catch {
-      // Docker transport diagnostics are deliberately excluded from the canonical message stream.
+      fail(`Cucumber Message artifact is not strict NDJSON at line ${index + 1}`);
     }
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      fail(`Cucumber Message artifact has a non-object frame at line ${index + 1}`);
+    }
+    messages.push(parsed);
   }
+  if (messages.length === 0) fail("Cucumber Message artifact is empty");
+
   const pickles = new Map();
   const testCases = new Map();
   const starts = new Map();
   const statuses = new Map();
-  const finished = new Set();
-  for (const envelope of messages) {
+  const finished = new Map();
+  const runStarts = new Map();
+  const runFinished = [];
+  for (const [sequence, envelope] of messages.entries()) {
     if (envelope.pickle) pickles.set(envelope.pickle.id, envelope.pickle);
     if (envelope.testCase) testCases.set(envelope.testCase.id, envelope.testCase);
-    if (envelope.testCaseStarted) starts.set(envelope.testCaseStarted.id, envelope.testCaseStarted.testCaseId);
+    if (envelope.testCaseStarted) starts.set(envelope.testCaseStarted.id, { ...envelope.testCaseStarted, sequence });
     if (envelope.testStepFinished) {
       const id = envelope.testStepFinished.testCaseStartedId;
       const list = statuses.get(id) ?? [];
       list.push(envelope.testStepFinished.testStepResult?.status);
       statuses.set(id, list);
     }
-    if (envelope.testCaseFinished) finished.add(envelope.testCaseFinished.testCaseStartedId);
+    if (envelope.testCaseFinished) finished.set(envelope.testCaseFinished.testCaseStartedId, envelope.testCaseFinished);
+    if (envelope.testRunStarted) runStarts.set(envelope.testRunStarted.id, envelope.testRunStarted);
+    if (envelope.testRunFinished) runFinished.push({ ...envelope.testRunFinished, sequence });
   }
+  if (
+    runFinished.length !== 1 ||
+    runFinished[0].success !== true ||
+    !runStarts.has(runFinished[0].testRunStartedId) ||
+    runFinished[0].sequence !== messages.length - 1
+  ) {
+    fail("Cucumber Message artifact lacks one final successful testRunFinished");
+  }
+
   const passed = [];
   for (const scenarioId of requiredIds) {
     const pickle = [...pickles.values()].find((value) => value.tags?.some((tag) => tag.name === `@id:${scenarioId}`));
-    if (!pickle) fail(`Cucumber message artifact has no pickle for ${scenarioId}`);
+    if (!pickle) fail(`Cucumber Message artifact has no pickle for ${scenarioId}`);
     const testCase = [...testCases.values()].find((value) => value.pickleId === pickle.id);
-    if (!testCase) fail(`Cucumber message artifact has no test case for ${scenarioId}`);
-    const startId = [...starts.entries()].find(([, testCaseId]) => testCaseId === testCase.id)?.[0];
-    if (!startId || !finished.has(startId)) fail(`Cucumber message artifact has no finished execution for ${scenarioId}`);
+    if (!testCase) fail(`Cucumber Message artifact has no test case for ${scenarioId}`);
+    const terminalAttempts = [...starts.entries()]
+      .filter(([, start]) => start.testCaseId === testCase.id && finished.get(start.id)?.willBeRetried === false)
+      .sort(([, left], [, right]) => (right.attempt ?? 0) - (left.attempt ?? 0) || right.sequence - left.sequence);
+    if (terminalAttempts.length !== 1) {
+      fail(`Cucumber Message artifact has ${terminalAttempts.length} terminal attempts for ${scenarioId}`);
+    }
+    const [startId] = terminalAttempts[0];
     const stepStatuses = statuses.get(startId) ?? [];
     if (stepStatuses.length === 0 || stepStatuses.some((status) => status !== "PASSED")) {
-      fail(`Cucumber message artifact records a non-passing execution for ${scenarioId}`);
+      fail(`Cucumber Message artifact records a non-passing terminal attempt for ${scenarioId}`);
     }
     passed.push(scenarioId);
   }

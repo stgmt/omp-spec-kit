@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { After, Before, Given, Then, When } from "@cucumber/cucumber";
 import { renderReleaseNotes } from "../../scripts/render-release-notes.mjs";
+import { cucumberMessages } from "../../scripts/create-release-evidence.mjs";
 import { loadPinnedCorpusGraph, spawnMcpServer, writeCorpus } from "../helpers/mcp-world.mjs";
-import { appendArchiveByte, createCandidateWorld, evaluateCandidate, extractCandidate } from "../helpers/release-candidate-world.mjs";
+import { appendArchiveByte, createCandidateWorld, evaluateCandidate, extractCandidate, replaceMessageWithMeta } from "../helpers/release-candidate-world.mjs";
 
 function repositoryRoot() {
   return path.resolve(import.meta.dirname, "..", "..");
@@ -36,6 +37,58 @@ When("the release evaluator checks the candidate", async function () {
 
 Then("the candidate is eligible only when every identity and lifecycle record agrees", function () {
   assert.equal(this.releaseResult.eligible, true, this.releaseResult.blocking.join(", "));
+});
+
+When("the candidate message artifact contains only meta", async function () {
+  await replaceMessageWithMeta(this.release);
+  this.releaseResult = await evaluateCandidate(this.release, repositoryRoot());
+});
+
+Then("the candidate is refused for nonsemantic Cucumber evidence", function () {
+  assert.equal(this.releaseResult.eligible, false);
+  assert.equal(
+    this.releaseResult.blocking.some((finding) => finding.startsWith("invalid-cucumber-messages:")),
+    true,
+  );
+});
+
+Given("the captured real Cucumber message fixture", async function () {
+  this.cucumberFixture = await readFile(
+    path.join(repositoryRoot(), "tests", "fixtures", "release-candidate", "cucumber-messages.ndjson"),
+  );
+});
+
+When("the Cucumber evidence stream is {string}", function (fault) {
+  const text = this.cucumberFixture.toString("utf8");
+  if (fault === "corrupt-line") {
+    this.cucumberEvidence = Buffer.from(`${text}not-json\n`);
+    return;
+  }
+  const finalLine = text.trimEnd().split(/\r?\n/u).at(-1);
+  if (fault === "duplicate-finish") {
+    this.cucumberEvidence = Buffer.from(`${text}${finalLine}\n`);
+    return;
+  }
+  if (fault === "retried-without-terminal") {
+    this.cucumberEvidence = Buffer.from(text.replaceAll('"willBeRetried":false', '"willBeRetried":true'));
+    return;
+  }
+  throw new Error(`unknown Cucumber evidence fault ${fault}`);
+});
+
+Then("the semantic Cucumber evidence parser rejects it", function () {
+  assert.throws(
+    () =>
+      cucumberMessages(this.cucumberEvidence, [
+        "SCEN-MRI-001",
+        "SCEN-MRI-002",
+        "SCEN-MRI-003",
+        "SCEN-MRI-004",
+        "SCEN-MRI-005",
+        "SCEN-MRI-006",
+        "SCEN-MRI-007",
+      ]),
+  );
 });
 
 Given("an eligible candidate artifact", async function () {
