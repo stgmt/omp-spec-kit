@@ -178,13 +178,16 @@ Feature: Distribute omp-spec-kit as one proven OMP plugin
 
     Examples:
       | violation                                      |
-      | imported bytes differ from immutable source    |
+      | Authorization Bearer synthetic sentinel is packaged |
+      | credential=synthetic sentinel is packaged      |
+      | Cookie synthetic sentinel is packaged          |
+      | PEM private-key synthetic sentinel is packaged |
+      | known token-prefix synthetic sentinel is packaged |
       | an imported license is unknown                 |
-      | a credential-like value is outside canary      |
-      | a user OMP state path is packaged               |
-      | an evidence or log file is packaged             |
-      | the public diff contains an unapproved file     |
-      | the package exceeds its positive allowlist      |
+      | a user OMP state path is packaged              |
+      | an evidence or log file is packaged            |
+      | the public diff contains an unapproved file    |
+      | the package exceeds its positive allowlist     |
 
   @id:SCEN-enforce-github-release-transaction @feature10 @FR-10 @AC-10.1
   Scenario Outline: Publish only through the GitHub Actions release transaction
@@ -197,14 +200,14 @@ Feature: Distribute omp-spec-kit as one proven OMP plugin
 
     Examples:
       | event          | jobs         | identity                          | eligibility | outcome     |
-      | pull_request   | all passed   | matching                          | eligible    | verify-only |
-      | push           | all passed   | matching                          | eligible    | verify-only |
+      | pull_request   | all passed   | matching                          | blocked  | verify-only |
+      | push           | all passed   | matching                          | blocked  | verify-only |
       | tag v0.1.0     | one failed   | matching                          | blocked     | blocked     |
       | tag v0.1.0     | all passed   | version mismatch                  | blocked     | blocked     |
       | tag v0.1.0     | all passed   | digest differs from verified      | blocked     | blocked     |
-      | tag v0.1.0     | all passed   | existing release different digest | eligible    | blocked     |
-      | tag v0.1.0     | all passed   | matching verified digest          | blocked     | blocked     |
-      | tag v0.1.0     | all passed   | matching verified digest          | eligible    | eligible    |
+      | tag v0.1.0     | all passed   | existing release different digest | blocked  | blocked     |
+      | tag v0.1.0     | all passed   | matching verified digest          | blocked  | blocked     |
+      | tag v0.1.0     | all passed   | structurally complete self-attested matrix | blocked  | blocked     |
 
   @id:SCEN-refuse-readiness-without-evidence @feature11 @FR-11 @AC-11.1
   Scenario Outline: Refuse readiness claims without current evidence
@@ -219,7 +222,7 @@ Feature: Distribute omp-spec-kit as one proven OMP plugin
       | extension activated      | install and reload only               | SPEC_ONLY/NOT_READY |
       | dependency independent   | receipt from another commit           | SPEC_ONLY/NOT_READY |
       | upgradeable              | first subsequent release lacks prior-upgrade observation | SPEC_ONLY/NOT_READY |
-      | releasable               | current eligible FR-13 aggregate     | eligible             |
+      | releasable               | structurally complete self-attested FR-13 aggregate | SPEC_ONLY/NOT_READY |
 
   @id:SCEN-fail-closed-on-unsafe-contract-data @feature12 @FR-12 @AC-12.1
   Scenario Outline: Fail closed on unsafe request or public result data
@@ -246,9 +249,10 @@ Feature: Distribute omp-spec-kit as one proven OMP plugin
 
     Examples:
       | candidate | evidence                                                                       | outcome  |
-      | 0.1.0     | complete FR-1 through FR-12 including install invoke uninstall and reinstall | eligible |
-      | 0.1.0     | complete applicable evidence with prior upgrade and rollback inapplicable      | eligible |
-      | 0.1.0     | every receipt except FR-5 dependency-absent proof                              | blocked  |
-      | 0.1.1     | complete FR-1 through FR-12 including upgrade and rollback                     | eligible |
-      | 0.1.1     | every receipt except rollback-to-prior                                         | blocked  |
-      | 0.1.1     | passing stage summaries without requirement receipts                           | blocked  |
+      | 0.1.0     | complete self-attested producer receipt matrix with matching platform fixture and inapplicable upgrade/rollback | blocked |
+      | 0.1.0     | arbitrary `claims` placeholders without producer artifacts                         | blocked  |
+      | 0.1.0     | every receipt except FR-5 dependency-absent producer proof                          | blocked  |
+      | 0.1.1     | complete self-attested producer receipt matrix including upgrade and rollback       | blocked |
+      | 0.1.1     | receipt fixture digest differs from platform fixture                                | blocked  |
+      | 0.1.1     | symlinked producer receipt or realpath escape                                       | blocked  |
+      | 0.1.1     | passing stage summaries without producer receipts                                   | blocked  |

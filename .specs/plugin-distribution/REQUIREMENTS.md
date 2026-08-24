@@ -76,9 +76,9 @@
 
 - **Trigger:** Any release-eligibility evaluation.
 - **Input:** Current mandatory evidence mapped to every FR-1 through FR-12 for one candidate identity.
-- **Output:** `eligible` only for a complete candidate-aware set; otherwise `blocked` with missing or invalid evidence.
+- **Output:** `blocked` with structural diagnostics and `distribution-producer-provenance-untrusted:no-independent-trust-root` while producer evidence is self-attested; `eligible` is reserved for a separately implemented independently verifiable producer-attestation path.
 - **Invariant:** `0.1.0` requires install/activation/invocation/uninstall/reinstall but not prior-version upgrade/rollback; subsequent releases require upgrade and rollback too.
-- **Failure:** Any missing, failed, blocked, stale, mismatched, partial, or stage-summary-only evidence blocks release.
+- **Failure:** Any self-authored, missing, failed, blocked, stale, mismatched, partial, or stage-summary-only evidence blocks release.
 
 ## CHK traceability matrix
 
@@ -99,7 +99,7 @@
 | CHK-FR10-01 | Required CI jobs gate digest-preserving tagged publication. | FR-10 | AC-10.1 | `@feature10`, UC-6 |
 | CHK-FR11-01 | Stale/missing/spec-only evidence yields `SPEC_ONLY/NOT_READY`. | FR-11 | AC-11.1 | `@feature11`, UC-2/6 |
 | CHK-FR12-01 | Unknown/unsafe/oversized public data fails closed without disclosure. | FR-12 | AC-12.1 | `@feature12`, UC-3 |
-| CHK-FR13-01 | Eligibility requires current passed mandatory evidence for every FR-1 through FR-12 under one candidate identity. | FR-13 | AC-13.1 | `@feature13`, UC-6 |
+| CHK-FR13-01 | Structural receipt validation never authorizes release: every self-attested matrix is blocked with `distribution-producer-provenance-untrusted:no-independent-trust-root` until a separately implemented independent verifier exists. | FR-13 | AC-13.1 | `@feature13`, UC-6 |
 | CHK-FR13-02 | The `0.1.0` profile makes prior-version upgrade/rollback inapplicable while requiring candidate uninstall/reinstall; subsequent profiles retain candidate reinstall and add both prior-version proofs. | FR-13 | AC-13.1 | `@feature13`, UC-4/5/6 |
 
 ## Assumptions that require implementation-time proof

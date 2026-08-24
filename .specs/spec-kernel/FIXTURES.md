@@ -100,11 +100,15 @@ A stored fixture is immutable. A byte change requires a new fixture ID or explic
 
 ## FIXTURE-5: Target-owned canonical spec capture
 
-**Type:** planned real fixture
+**Type:** admitted real fixture
 
-**Future path:** `plugins/omp-spec-kit/test/fixtures/real/target-spec-corpus/`
+**Fixture paths:** `tests/fixtures/kernel/real-corpus-manifest.json` and `tests/fixtures/kernel/real-corpus/.specs/…`
 
-**Capture method:** Copy exact committed bytes from the target-owned `product`, `plugin-distribution`, `spec-kernel`, and `spec-authoring-workflow` corpus at a recorded omp-spec-kit commit after its license is established; record commit/path and per-file hashes before any trimming. The captured FR, AC, and TASK documents SHALL retain the authored forms rather than rewriting them to one separator.
+**Frozen source:** exact bytes from clean commit `1e1475c139406c112dab43dfa689d1140a57ddb3`, selected by the original immutable manifest at `b40db2e57f0b4c093a8a0e96e591d9109e3335be`. The committed manifest records the 60-entry content address (`fixtureSha256`) plus every per-file SHA-256 and byte length.
+
+**Capture scope and extraction:** exactly the original manifest-selected documents from `product`, `plugin-distribution`, `spec-kernel`, and `spec-authoring-workflow`; never a scan of the mutable `.specs` tree. Re-materialize only with `node scripts/refresh-real-corpus-manifest.mjs --source-commit 1e1475c139406c112dab43dfa689d1140a57ddb3`; it reads each source byte with `git show <commit>:<path>`, writes that byte verbatim below the frozen fixture root, and then hashes it.
+
+**Independent count oracle:** `node scripts/refresh-real-corpus-manifest.mjs --check` imports no kernel code. It independently applies the documented lexical grammar for visible ATX headings, owning-document FR/AC/TASK definitions, inline Markdown links/autolinks, qualified references, and `@id` Gherkin scenarios. It must reconcile with the manifest before any kernel/MCP parity run.
 
 **Required definition grammar ground truth:**
 
@@ -116,9 +120,9 @@ A stored fixture is immutable. A byte change requires a new fixture ID or explic
 
 The reviewer SHALL enumerate every current FR, AC, and TASK ID per owning document and assert one definition occurrence for each, zero definition occurrences for grouping/reference headings, and the closed task-status results `Planned` → `planned`, `todo` → `todo`, and `Completed` → `done`.
 
-**Required inventory ground truth:** All canonical documents present in the capture; every definition/reference occurrence and unique/ambiguous/rejected/edge outcome; every ordinary-or-ID ATX/Setext heading with `glfm-anchor@1` base/canonical anchor and selected duplicate ordinal; adversarial rendered-heading vectors `Foo`/`Foo`/`Foo-1` → `foo`/`foo-1`/`foo-1-1`, `Foo-1`/`Foo`/`Foo` → `foo-1`/`foo`/`foo-2`, and `Foo`/`Foo-1`/`Foo` → `foo`/`foo-1`/`foo-2`; pairwise uniqueness against the complete previously emitted anchor set; every inline/reference/autolink semantic use, destination rewrite span/key, enclosing heading, and internal-heading/internal-document/external/unresolved outcome; and all diagnostic/count conservation reconciled by an independent reviewer.
+**Required inventory ground truth:** All canonical documents in the immutable capture; every definition/reference occurrence and unique/ambiguous/rejected/edge outcome; every ordinary-or-ID ATX/Setext heading with `glfm-anchor@1` base/canonical anchor and selected duplicate ordinal; adversarial rendered-heading vectors `Foo`/`Foo`/`Foo-1` → `foo`/`foo-1`/`foo-1-1`, `Foo-1`/`Foo`/`Foo` → `foo-1`/`foo`/`foo-2`, and `Foo`/`Foo-1`/`Foo` → `foo`/`foo-1`/`foo-2`; pairwise uniqueness against the complete previously emitted anchor set; every inline/reference/autolink semantic use, destination rewrite span/key, enclosing heading, and internal-heading/internal-document/external/unresolved outcome; and all diagnostic/count conservation reconciled by an independent review.
 
-**Allowed claims after admission:** The v0.2 parser handles the exact captured target format, heading/link inventory, and reconciled counts.
+**Allowed claims:** The kernel handles the exact captured target format, heading/link inventory, and graph-derived reconciled counts.
 
 **Forbidden claims:** All Markdown/Gherkin compatibility, upstream parity, or scenario pass status.
 

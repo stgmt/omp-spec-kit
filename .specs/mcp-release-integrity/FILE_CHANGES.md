@@ -13,22 +13,22 @@
 | `scripts/build-plugin.mjs` | edit | Version authority becomes v0.3.1. |
 | `scripts/verify-marketplace.mjs` | edit | Version authority becomes v0.3.1. |
 | `scripts/verify-package.mjs` | edit | Verifies launcher configuration, allowlist, mode, and dynamic version. |
-| `scripts/release-candidate-utils.mjs` | edit | FR-4 provides lexical file, mode, tar, digest, and candidate-shape primitives. |
+| `scripts/release-candidate-utils.mjs` | edit | FR-4 provides lexical candidate primitives plus canonical evidence containment that rejects symlinked root/parents and realpath escape. |
 | `scripts/create-release-candidate.mjs` | edit | FR-4 peels the tag and refuses a dirty/different package checkout before archiving. |
-| `scripts/verify-public-tree.mjs` | edit | FR-4/FR-5 emits public-safety evidence over candidate bytes. |
-| `scripts/create-release-evidence.mjs` | edit | FR-4 binds real Cucumber messages and external lifecycle receipts into evidence. |
-| `scripts/verify-release.mjs` | edit | FR-4 rejects unbound tag, archive, message, evidence, lifecycle, and FR-to-scenario records. |
+| `scripts/verify-public-tree.mjs` | edit | FR-4/FR-5 emits redacted public-safety findings and detects generic credential names with environment-variable prefixes without echoing payloads. |
+| `scripts/create-release-evidence.mjs` | edit | FR-4 preserves optional distribution JSON only as explicitly `untrusted-self-attested` structural diagnostics, never release authority. |
+| `scripts/verify-release.mjs` | edit | FR-4 rejects unsafe receipt/message paths, validates structural claim-matrix diagnostics, and fail-closes all self-attested distribution producers with the independent-trust-root blocker. |
 | `scripts/render-release-notes.mjs` | edit | FR-5/FR-6 emits notes only from an eligible candidate. |
-| `scripts/docker-bdd.sh` | edit | FR-4 forwards Cucumber message mode through WSL/Docker. |
+| `scripts/docker-bdd.sh` | edit | FR-4 runs `refresh-real-corpus-manifest.mjs --check` on the git-capable host, creates and bind-mounts only `.dev-pomogator/bdd-results/`, validates a successful unfiltered Cucumber Messages file, and atomically publishes `.dev-pomogator/.last-test-run.ndjson` without clobbering it for scoped or failed runs. |
 | `tests/distribution/Dockerfile` | edit | FR-3/FR-4 runs the BDD container directly for structured formatter control. |
-| `cucumber.mjs` | edit | FR-4 includes executable spec BDD and switches between progress and message formatter. |
-| `.github/workflows/verify.yml` | edit | FR-5 keeps PR/push package and Docker BDD verification non-publishing. |
-| `.github/workflows/release.yml` | edit | FR-5 builds/uploads one candidate then publish rechecks and attaches only it. |
+| `cucumber.mjs` | edit | FR-4 keeps progress for ordinary BDD while an explicit message-file path adds Cucumber Messages NDJSON; release stdout capture remains pure Messages. |
+| `.github/workflows/verify.yml` | edit | FR-4/FR-5 checks out full history so the Docker BDD host preflight can verify immutable corpus bytes before image build. |
+| `.github/workflows/release.yml` | edit | FR-4/FR-5 verifies immutable corpus provenance on the git-capable runner before release execution and then fail-closes untrusted distribution evidence. |
 | `tests/helpers/mcp-world.mjs` | edit | FR-2/FR-3 gains hash checks, raw frame handling, copied-package launch, and stdout enforcement. |
-| `tests/helpers/release-candidate-world.mjs` | edit | FR-4/FR-5 builds isolated candidate/evidence variants and extracts the tar. |
+| `tests/helpers/release-candidate-world.mjs` | edit | FR-4/FR-5 builds both placeholder and structurally complete self-attested distribution matrices for rejection coverage, never public eligibility. |
 | `tests/step-definitions/mcp-release-integrity.steps.mjs` | edit | FR-1/FR-2/FR-3 runs active-root, protocol, and eight-tool package BDD. |
-| `tests/step-definitions/release-candidate.steps.mjs` | edit | FR-4/FR-5/FR-6 runs candidate, tamper, archive, and note BDD. |
-| `.specs/mcp-release-integrity/mcp-release-integrity.feature` | edit | FR-1 through FR-6 become executable BDD scenarios. |
+| `tests/step-definitions/release-candidate.steps.mjs` | edit | FR-4/FR-5/FR-6 drives canonical evidence rejection, structurally complete self-attestation rejection, withheld notes, and redacted real-package secret mutation BDD. |
+| `.specs/mcp-release-integrity/mcp-release-integrity.feature` | edit | FR-1 through FR-6 executable BDD includes prefixed-secret and self-attested-evidence negative scenarios. |
 | `docs/advisories/v0.3.0-mcp-root.md` | edit | FR-6 records reversible public advisory. |
 | `README.md` | edit | FR-6 corrects public status without claiming v0.3.1 release. |
 | `CHANGELOG.md` | edit | FR-6 records corrective patch work as unreleased. |

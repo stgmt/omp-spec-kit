@@ -102,8 +102,8 @@
 3. Prove clean install, reload, fresh-session invocation, uninstall absence, and exact-artifact reinstall/reinvocation; mark prior-version upgrade/rollback inapplicable for `0.1.0`.
 4. Map current passed receipts to every FR-1 through FR-12 under one commit/OMP/platform/catalog/artifact/version identity.
 5. Upload only allowlisted clean-build artifacts and evidence receipts.
-6. Create the GitHub release only when FR-13 reports `eligible`.
+6. Create the GitHub release only when a future independently verifiable producer-attestation path allows FR-13 to report `eligible`.
 
-**Alternates:** Any missing, stale, mismatched, failed, blocked, partial, or stage-summary-only evidence blocks release creation; workflows never mark BDD specification text as executed evidence.
+**Alternates:** Any self-attested, missing, stale, mismatched, failed, blocked, partial, or stage-summary-only evidence blocks release creation; current self-authored producer metadata returns `distribution-producer-provenance-untrusted:no-independent-trust-root`, and workflows never mark BDD specification text as executed evidence.
 
 **Trace:** FR-9, FR-10, FR-11, FR-13; AC-9.1, AC-10.1, AC-11.1, AC-13.1; `@feature9`, `@feature10`, `@feature11`, `@feature13`.

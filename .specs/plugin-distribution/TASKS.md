@@ -80,7 +80,7 @@ All tasks are planned. No task status here is execution evidence.
 - **Owner:** Release maintainer
 - **Status:** Planned
 - **Estimate:** 1 day
-- **Done When:** Same-commit/version/OMP/platform/digest receipts are mapped to every FR-1 through FR-12; candidate-aware applicability is enforced; only a complete passed set yields `eligible`, while missing, stale, blocked, failed, foreign, partial, stage-summary-only, or spec-only inputs return `SPEC_ONLY/NOT_READY` or `blocked`.
+- **Done When:** Same-commit/version/OMP/platform/digest receipts are mapped to every FR-1 through FR-12; candidate-aware applicability and structural diagnostics are enforced; self-authored `workflow`/`runId` and observation JSON always returns `blocked` with `distribution-producer-provenance-untrusted:no-independent-trust-root`, while any future `eligible` result requires a separately implemented independently verifiable producer-attestation path.
 
 ## TASK-11 — Automate GitHub Actions verification and release
 
@@ -88,7 +88,7 @@ All tasks are planned. No task status here is execution evidence.
 - **Owner:** Release maintainer
 - **Status:** Planned
 - **Estimate:** 2 days
-- **Done When:** Required evidence-producing jobs, least permissions, protected tag-only release, artifact digest handoff, concurrency/idempotency behavior, and no-publish PR/push behavior meet the design; the release job consumes only an eligible FR-13 aggregate, and a failed job, partial evidence set, or mismatched existing release cannot publish/overwrite.
+- **Done When:** Required evidence-producing jobs, least permissions, protected tag-only release, artifact digest handoff, concurrency/idempotency behavior, and no-publish PR/push behavior meet the design; the release job refuses every current self-attested FR-13 aggregate, and a failed job, partial evidence set, untrusted provenance, or mismatched existing release cannot publish/overwrite.
 
 ## TASK-12 — Publish v0.1.0 only after complete aggregate proof
 
@@ -96,7 +96,7 @@ All tasks are planned. No task status here is execution evidence.
 - **Owner:** Release owner
 - **Status:** Planned
 - **Estimate:** 0.5 day
-- **Done When:** FR-13 reports eligible from complete current mandatory FR-1..FR-12 evidence for the tagged commit and artifact; catalog/package/runtime/tag versions agree; clean install, fresh-session invocation, uninstall, and exact `0.1.0` reinstall pass; public README/changelog/release notes describe only proven capability; annotated `v0.1.0` and the GitHub release reference the verified digest.
+- **Done When:** The composed public result remains blocked for all current self-attested distribution evidence, including a structurally complete matrix with matching candidate/OMP/platform-fixture/catalog/package/archive/applicability/lifecycle identity and passed observations. MRI names only `mcp-release-integrity:FR-1..FR-6`. A future eligible result requires a separately implemented independently verifiable producer-attestation path; until then the workflow blocks artifact upload, release notes, and publication.
 
 ## TASK-13 — Rehearse public recovery under the applicable release profile
 
