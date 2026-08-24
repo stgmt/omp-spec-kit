@@ -30,6 +30,8 @@ candidate + evidence.json ──> eligibility.json ──> publish verified asse
 - `src/mcp/server.js` writes exactly one terminal JSON-RPC response for every request with an id.
 - `scripts/release-candidate-utils.mjs` and `scripts/create-release-candidate.mjs` create a lexical mode-preserving tar only from a clean peeled-tag checkout.
 - `scripts/verify-public-tree.mjs`, `scripts/create-release-evidence.mjs`, `scripts/verify-release.mjs`, and `scripts/render-release-notes.mjs` bind safety, real Cucumber messages, lifecycle records, eligibility, and public claims fail closed.
+- `scripts/docker-bdd.sh` allocates one host-side `.dev-pomogator/bdd-results/run.*.ndjson` file, mounts only that dedicated directory writable into the disposable BDD container, and atomically promotes a successful unfiltered semantic Cucumber Messages stream to `.dev-pomogator/.last-test-run.ndjson`.
+- `cucumber.mjs` keeps interactive `progress` output while an explicit `OMP_SPEC_KIT_BDD_MESSAGE_PATH` adds a file message formatter; `OMP_SPEC_KIT_BDD_MESSAGE_STDOUT=1` keeps its release-capture NDJSON stdout and mirrors the same messages to that path.
 - `tests/helpers/mcp-world.mjs` and release-candidate BDD helpers drive the real built package and release scripts.
 
 ## Algorithm
@@ -38,7 +40,11 @@ candidate + evidence.json ──> eligibility.json ──> publish verified asse
 2. Launcher derives its own directory, `exec`s `plugins/omp-spec-kit/dist/mcp/server.js`, and never changes cwd.
 3. Server selects a validated absolute root override or inherited cwd once, then creates one service.
 4. Parse errors yield `-32700`; invalid request objects yield `-32600`; valid notifications have no reply; other identified requests have one reply.
-5. Verify builds once; candidate assembly checks peeled tag and clean package tree, hashes a lexical mode-preserving tar, copies canonical Cucumber messages plus lifecycle receipts, and publish rechecks the same candidate before asset mutation.
+5. The host wrapper creates a unique result file under its ignored dedicated results directory, passes only its container-visible path as `OMP_SPEC_KIT_BDD_MESSAGE_PATH`, and bind-mounts no source workspace.
+6. Cucumber writes progress plus Messages NDJSON for an ordinary run; release capture mode writes Messages to stdout and the per-run file without mixing progress into stdout.
+7. A successful no-argument Docker run must produce nonempty parseable Cucumber envelopes containing the complete feature/pickle/test-run/test-case lifecycle before the host atomically renames that per-run file to `.dev-pomogator/.last-test-run.ndjson`.
+8. Any failed, malformed, or argument-scoped run—including `--tags` or `--name`—retains the previous canonical file; a scoped run may leave its unique result artifact for inspection but cannot make `spec-verdict` appear fresh.
+9. Verify builds once; candidate assembly checks peeled tag and clean package tree, hashes a lexical mode-preserving tar, copies canonical Cucumber messages plus lifecycle receipts, and publish rechecks the same candidate before asset mutation.
 
 ## API
 

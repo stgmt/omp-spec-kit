@@ -12,6 +12,18 @@ export function sha256Hex(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+const FROZEN_REAL_CORPUS_SOURCE_COMMIT = "1e1475c139406c112dab43dfa689d1140a57ddb3";
+const FROZEN_REAL_CORPUS_SELECTION_MANIFEST_COMMIT = "b40db2e57f0b4c093a8a0e96e591d9109e3335be";
+
+function frozenCorpusDigest(documents) {
+  const bytes = documents
+    .slice()
+    .sort((left, right) => left.path.localeCompare(right.path))
+    .map((entry) => `${entry.path}\0${entry.byteLength}\0${entry.sha256}\n`)
+    .join("");
+  return sha256Hex(Buffer.from(bytes, "utf8"));
+}
+
 export function canonicalJson(value) {
   if (Array.isArray(value)) {
     return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
@@ -116,6 +128,40 @@ export function largeSyntheticCorpusFiles() {
 export async function loadRealCorpusManifest(repositoryRoot) {
   const manifestPath = path.join(repositoryRoot, "tests", "fixtures", "kernel", "real-corpus-manifest.json");
   return JSON.parse(await readFile(manifestPath, "utf8"));
+}
+
+export function frozenRealCorpusFixtureRoot(repositoryRoot) {
+  return path.join(repositoryRoot, "tests", "fixtures", "kernel", "real-corpus");
+}
+
+/**
+ * Returns only the manifest-selected bytes frozen under tests/fixtures. The
+ * repository's mutable .specs tree is deliberately never consulted here.
+ */
+export async function loadFrozenRealCorpus(repositoryRoot) {
+  const manifest = await loadRealCorpusManifest(repositoryRoot);
+  const fixtureRoot = frozenRealCorpusFixtureRoot(repositoryRoot);
+  const paths = manifest.documents.map((entry) => entry.path);
+  if (paths.length !== 60 || new Set(paths).size !== paths.length) {
+    throw new Error("frozen corpus manifest must contain exactly 60 unique paths");
+  }
+  if (
+    manifest.provenance?.sourceCommit !== FROZEN_REAL_CORPUS_SOURCE_COMMIT ||
+    manifest.provenance?.selectionManifestCommit !== FROZEN_REAL_CORPUS_SELECTION_MANIFEST_COMMIT
+  ) {
+    throw new Error("frozen corpus manifest does not identify its immutable source and selection commits");
+  }
+  if (manifest.provenance?.fixtureSha256 !== frozenCorpusDigest(manifest.documents)) {
+    throw new Error("frozen corpus manifest content address is invalid");
+  }
+  const files = await Promise.all(manifest.documents.map(async (entry) => {
+    const bytes = await readFile(path.join(fixtureRoot, ...entry.path.split("/")));
+    if (bytes.byteLength !== entry.byteLength || sha256Hex(bytes) !== entry.sha256) {
+      throw new Error(`frozen corpus byte drifted: ${entry.path}`);
+    }
+    return { path: entry.path, bytes };
+  }));
+  return { manifest, fixtureRoot, files };
 }
 
 export async function createTempRepo() {

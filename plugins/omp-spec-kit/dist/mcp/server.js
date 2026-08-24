@@ -7,7 +7,7 @@
 // JSON-RPC responses.
 //
 // Repository-root resolution (see plugins/omp-spec-kit/.mcp.json):
-//   1. OMP_SPEC_KIT_ROOT environment variable (absolute or cwd-relative),
+//   1. OMP_SPEC_KIT_ROOT environment variable, when absolute,
 //   2. otherwise the server process working directory.
 
 import { createInterface } from "node:readline";

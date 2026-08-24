@@ -1,13 +1,17 @@
 {
-  "schemaVersion": "omp-spec-kit/kernel-fixture-manifest@1",
+  "schemaVersion": "omp-spec-kit/kernel-fixture-manifest@2",
   "fixtureId": "FIXTURE-5",
   "fixtureType": "real",
-  "label": "real four-spec corpus ground truth",
+  "label": "frozen real four-spec corpus ground truth",
   "provenance": {
-    "capturedFromRepository": "E:/repos/omp-spec-kit",
-    "captureCommand": "git rev-parse HEAD == 1e1475c139406c112dab43dfa689d1140a57ddb3; byte+GLFM-lexical capture over .specs/",
-    "capturedAt": "2026-08-23",
-    "captureMethodDescription": "Documents enumerated from .specs/<slug>/ at the pinned commit; sha256 and byteLength taken from exact file bytes; heading counts are ATX level 1-6 lines outside fenced and indented code, and <slug>.feature Gherkin documents are excluded from heading counts (725 = 727 total ATX minus 2 Feature-level H1s); definition counts follow the role-aware grammar (FR-N level-2 colon/em-dash in FR.md, AC-N.M level-2/3 colon/em-dash/bare in ACCEPTANCE_CRITERIA.md, TASK-N level-2 colon/em-dash in TASKS.md); link counts are inline markdown links and URI autolinks outside code, excluding images; SCEN ids counted from @id: tags in <slug>.feature files. Counts pending reconciliation against the reference kernel build.",
+    "sourceCommit": "1e1475c139406c112dab43dfa689d1140a57ddb3",
+    "selectionManifestCommit": "b40db2e57f0b4c093a8a0e96e591d9109e3335be",
+    "extractionCommand": "node scripts/refresh-real-corpus-manifest.mjs --source-commit 1e1475c139406c112dab43dfa689d1140a57ddb3",
+    "captureScope": "Exactly the original manifest-selected 60 canonical documents across plugin-distribution, product, spec-authoring-workflow, and spec-kernel; paths are loaded from the immutable selection manifest, not scanned from the working tree.",
+    "fixtureDirectory": "tests/fixtures/kernel/real-corpus",
+    "fixtureSha256": "9265a896a8bfe463d585e2b23e7b44ec5e9f23d50e6b0c9e9cb28ad8519b5ac3",
+    "byteSource": "git show <sourceCommit>:<path>; bytes are written verbatim before SHA-256 and byteLength are recorded.",
+    "countMethod": "independent lexical oracle in scripts/refresh-real-corpus-manifest.mjs: no kernel imports; counts visible ATX headings, owning-document FR/AC/TASK grammar, inline Markdown links/autolinks, declared qualified references, and @id-tagged Gherkin scenarios.",
     "licenseDisposition": "repository-owned, same license as omp-spec-kit repository"
   },
   "groundTruth": {
@@ -60,6 +64,16 @@
       "byteLength": 3087
     },
     {
+      "path": ".specs/plugin-distribution/plugin-distribution_SCHEMA.md",
+      "sha256": "4cb9035ce05033bbc331749af9c098abad02acda67b3523fb79ac5adde71c0e1",
+      "byteLength": 18873
+    },
+    {
+      "path": ".specs/plugin-distribution/plugin-distribution.feature",
+      "sha256": "a9b3cbdbec827d8b7721a366fc5b93fa7fa6db61e69fadca265096dfc84c4046",
+      "byteLength": 14674
+    },
+    {
       "path": ".specs/plugin-distribution/README.md",
       "sha256": "04a4edb8512efd6e2b4e3c621821d541c6fb5a774326ba9accf3a1a3562a4d64",
       "byteLength": 2428
@@ -80,24 +94,14 @@
       "byteLength": 5901
     },
     {
-      "path": ".specs/plugin-distribution/USER_STORIES.md",
-      "sha256": "1408f1f821bbaf86d24b19ff204c7f8ab9ef1e8c4c4eb7c600b0a3508331e3d0",
-      "byteLength": 3665
-    },
-    {
       "path": ".specs/plugin-distribution/USE_CASES.md",
       "sha256": "4d706aebe6db523bbd1a1a9f809388096a601466e9316ea07f932f42485f102a",
       "byteLength": 5618
     },
     {
-      "path": ".specs/plugin-distribution/plugin-distribution.feature",
-      "sha256": "a9b3cbdbec827d8b7721a366fc5b93fa7fa6db61e69fadca265096dfc84c4046",
-      "byteLength": 14674
-    },
-    {
-      "path": ".specs/plugin-distribution/plugin-distribution_SCHEMA.md",
-      "sha256": "4cb9035ce05033bbc331749af9c098abad02acda67b3523fb79ac5adde71c0e1",
-      "byteLength": 18873
+      "path": ".specs/plugin-distribution/USER_STORIES.md",
+      "sha256": "1408f1f821bbaf86d24b19ff204c7f8ab9ef1e8c4c4eb7c600b0a3508331e3d0",
+      "byteLength": 3665
     },
     {
       "path": ".specs/product/ACCEPTANCE_CRITERIA.md",
@@ -135,6 +139,16 @@
       "byteLength": 3905
     },
     {
+      "path": ".specs/product/product_SCHEMA.md",
+      "sha256": "4a02667c49ff954abbf0814e023f1e5d0b89d4d2214f004694c5c2df256d901e",
+      "byteLength": 14746
+    },
+    {
+      "path": ".specs/product/product.feature",
+      "sha256": "af45b8d556a523ac107b349b2e97c237dd7507877bba14e7944df79c16f2e47c",
+      "byteLength": 10855
+    },
+    {
       "path": ".specs/product/README.md",
       "sha256": "8dbe0e440241e58a27233dceaee71ebd27ea91b2cae339e4f4e4424e7c5b7393",
       "byteLength": 4520
@@ -155,24 +169,14 @@
       "byteLength": 9368
     },
     {
-      "path": ".specs/product/USER_STORIES.md",
-      "sha256": "76ae351f2ffd8f600b67cdeca349421f8dcdb2402fbbca736becad5de0d77438",
-      "byteLength": 4020
-    },
-    {
       "path": ".specs/product/USE_CASES.md",
       "sha256": "791288eb75bd3247cf765e8a5fffe3bfef71e3c1307ea553e187bcc89bac16d4",
       "byteLength": 6080
     },
     {
-      "path": ".specs/product/product.feature",
-      "sha256": "af45b8d556a523ac107b349b2e97c237dd7507877bba14e7944df79c16f2e47c",
-      "byteLength": 10855
-    },
-    {
-      "path": ".specs/product/product_SCHEMA.md",
-      "sha256": "4a02667c49ff954abbf0814e023f1e5d0b89d4d2214f004694c5c2df256d901e",
-      "byteLength": 14746
+      "path": ".specs/product/USER_STORIES.md",
+      "sha256": "76ae351f2ffd8f600b67cdeca349421f8dcdb2402fbbca736becad5de0d77438",
+      "byteLength": 4020
     },
     {
       "path": ".specs/spec-authoring-workflow/ACCEPTANCE_CRITERIA.md",
@@ -225,19 +229,9 @@
       "byteLength": 10718
     },
     {
-      "path": ".specs/spec-authoring-workflow/TASKS.md",
-      "sha256": "6d21a04daa5c3f3d7a43e8368c4e3062b429bf6374d8723edd22004651c0da2c",
-      "byteLength": 9568
-    },
-    {
-      "path": ".specs/spec-authoring-workflow/USER_STORIES.md",
-      "sha256": "818dfcd2bed978f26a44435056fa66f6682ca8cc7e14cb80178a95f1f762b317",
-      "byteLength": 6617
-    },
-    {
-      "path": ".specs/spec-authoring-workflow/USE_CASES.md",
-      "sha256": "18bd54db646c908eea9060419f457ac134e5c4da730f89c478fc2004f1d76690",
-      "byteLength": 11114
+      "path": ".specs/spec-authoring-workflow/spec-authoring-workflow_SCHEMA.md",
+      "sha256": "b61e50046b1f28c7a6fbcd4d6417405cf6055f27972e9e474ab2fb39bc4f10af",
+      "byteLength": 36192
     },
     {
       "path": ".specs/spec-authoring-workflow/spec-authoring-workflow.feature",
@@ -245,9 +239,19 @@
       "byteLength": 28144
     },
     {
-      "path": ".specs/spec-authoring-workflow/spec-authoring-workflow_SCHEMA.md",
-      "sha256": "b61e50046b1f28c7a6fbcd4d6417405cf6055f27972e9e474ab2fb39bc4f10af",
-      "byteLength": 36192
+      "path": ".specs/spec-authoring-workflow/TASKS.md",
+      "sha256": "6d21a04daa5c3f3d7a43e8368c4e3062b429bf6374d8723edd22004651c0da2c",
+      "byteLength": 9568
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/USE_CASES.md",
+      "sha256": "18bd54db646c908eea9060419f457ac134e5c4da730f89c478fc2004f1d76690",
+      "byteLength": 11114
+    },
+    {
+      "path": ".specs/spec-authoring-workflow/USER_STORIES.md",
+      "sha256": "818dfcd2bed978f26a44435056fa66f6682ca8cc7e14cb80178a95f1f762b317",
+      "byteLength": 6617
     },
     {
       "path": ".specs/spec-kernel/ACCEPTANCE_CRITERIA.md",
@@ -300,19 +304,9 @@
       "byteLength": 10237
     },
     {
-      "path": ".specs/spec-kernel/TASKS.md",
-      "sha256": "8ab4ac1ada1fe0b572d5b03dcfa52949efbd70d117d74829f460d56a94f76580",
-      "byteLength": 13393
-    },
-    {
-      "path": ".specs/spec-kernel/USER_STORIES.md",
-      "sha256": "d525da56169c082dc3a97eee50d5d8589cc438807183f228588806b053f37663",
-      "byteLength": 4492
-    },
-    {
-      "path": ".specs/spec-kernel/USE_CASES.md",
-      "sha256": "bb13299c0682c9980725fa6d37ff0a7811bf6032b670fe74a4d1621ae049302a",
-      "byteLength": 9422
+      "path": ".specs/spec-kernel/spec-kernel_SCHEMA.md",
+      "sha256": "e6d992abcda0d398e5508e8c765303597997c1175b37d885e51158890ff0e4f4",
+      "byteLength": 47027
     },
     {
       "path": ".specs/spec-kernel/spec-kernel.feature",
@@ -320,9 +314,19 @@
       "byteLength": 9553
     },
     {
-      "path": ".specs/spec-kernel/spec-kernel_SCHEMA.md",
-      "sha256": "e6d992abcda0d398e5508e8c765303597997c1175b37d885e51158890ff0e4f4",
-      "byteLength": 47027
+      "path": ".specs/spec-kernel/TASKS.md",
+      "sha256": "8ab4ac1ada1fe0b572d5b03dcfa52949efbd70d117d74829f460d56a94f76580",
+      "byteLength": 13393
+    },
+    {
+      "path": ".specs/spec-kernel/USE_CASES.md",
+      "sha256": "bb13299c0682c9980725fa6d37ff0a7811bf6032b670fe74a4d1621ae049302a",
+      "byteLength": 9422
+    },
+    {
+      "path": ".specs/spec-kernel/USER_STORIES.md",
+      "sha256": "d525da56169c082dc3a97eee50d5d8589cc438807183f228588806b053f37663",
+      "byteLength": 4492
     }
   ]
 }

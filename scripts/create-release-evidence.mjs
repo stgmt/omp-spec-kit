@@ -1,11 +1,23 @@
 import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertCandidateShape, canonicalJson, fail, parseArgs, readStrictJson, sha256 } from "./release-candidate-utils.mjs";
+import { assertCandidateShape, canonicalJson, fail, isSha256, parseArgs, readStrictJson, resolveContainedRegularFile, sha256 } from "./release-candidate-utils.mjs";
 
-const REQUIRED_FRS = Object.freeze(["FR-1", "FR-2", "FR-3", "FR-4", "FR-5", "FR-6"]);
+const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, index) => `mcp-release-integrity:FR-${index + 1}`));
 
-function identity(candidate) {
+export class CucumberEvidenceError extends Error {
+  constructor(code, message) {
+    super(`release-candidate: Cucumber Message artifact ${message}`);
+    this.name = "CucumberEvidenceError";
+    this.code = code;
+  }
+}
+
+function cucumberEvidenceFail(code, message) {
+  throw new CucumberEvidenceError(code, message);
+}
+
+function identity(candidate, catalogDigest) {
   return {
     version: candidate.version,
     tag: candidate.tag,
@@ -13,6 +25,7 @@ function identity(candidate) {
     candidateDigest: candidate.candidateDigest,
     packageTreeDigest: candidate.packageTreeDigest,
     archiveSha256: candidate.archive.sha256,
+    catalogDigest,
   };
 }
 
@@ -22,7 +35,38 @@ async function copyReceipt(source, outputDirectory, outputName) {
   await mkdir(path.dirname(target), { recursive: true });
   await cp(source, target, { force: false, errorOnExist: true, dereference: false });
   const bytes = await readFile(target);
-  return { status: "passed", path: targetRelative, digest: sha256(bytes) };
+  return { status: "present", path: targetRelative, digest: sha256(bytes) };
+}
+
+async function optionalReceipt(source, outputDirectory, outputName) {
+  if (!source) return { status: "missing" };
+  return copyReceipt(source, outputDirectory, outputName);
+}
+
+async function copyUntrustedDistributionEvidenceBundle(source, outputDirectory) {
+  if (!source) return { status: "missing" };
+  const sourceDirectory = path.dirname(source);
+  const input = await readStrictJson(source, "distribution evidence");
+  if (!Array.isArray(input.records)) return copyReceipt(source, outputDirectory, "distribution-evidence.json");
+  const copied = structuredClone(input);
+  for (const [index, record] of copied.records.entries()) {
+    const ref = record?.receipt;
+    if (!ref || ref.status !== "present" || typeof ref.path !== "string" || !isSha256(ref.digest)) continue;
+    const sourceReceipt = await resolveContainedRegularFile(sourceDirectory, ref.path, `distribution receipt ${index}`);
+    const bytes = await readFile(sourceReceipt);
+    if (sha256(bytes) !== ref.digest) fail(`distribution receipt ${index} digest does not match its declaration`);
+    const targetRelative = `receipts/distribution/${index}-${ref.digest}.json`;
+    const target = path.join(outputDirectory, targetRelative);
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, bytes, { flag: "wx" });
+    record.receipt = { status: "present", path: targetRelative, digest: ref.digest };
+  }
+  const targetRelative = "receipts/distribution-evidence.json";
+  const target = path.join(outputDirectory, targetRelative);
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, canonicalJson(copied), "utf8");
+  const bytes = await readFile(target);
+  return { status: "present", path: targetRelative, digest: sha256(bytes) };
 }
 
 function requiredScenarioIds(featureSource) {
@@ -54,14 +98,17 @@ export function cucumberMessages(bytes, requiredIds) {
     try {
       parsed = JSON.parse(line);
     } catch {
-      fail(`Cucumber Message artifact is not strict NDJSON at line ${index + 1}`);
+      cucumberEvidenceFail("MALFORMED_NDJSON_FRAME", `is not strict NDJSON at line ${index + 1}`);
     }
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-      fail(`Cucumber Message artifact has a non-object frame at line ${index + 1}`);
+      cucumberEvidenceFail("NON_OBJECT_FRAME", `has a non-object frame at line ${index + 1}`);
     }
     messages.push(parsed);
   }
-  if (messages.length === 0) fail("Cucumber Message artifact is empty");
+  if (messages.length === 0) cucumberEvidenceFail("EMPTY_STREAM", "is empty");
+  if (messages.every((envelope) => Object.keys(envelope).length === 1 && envelope.meta !== undefined)) {
+    cucumberEvidenceFail("META_ONLY_STREAM", "contains only meta frames");
+  }
 
   const pickles = new Map();
   const testCases = new Map();
@@ -80,46 +127,62 @@ export function cucumberMessages(bytes, requiredIds) {
       list.push(envelope.testStepFinished.testStepResult?.status);
       statuses.set(id, list);
     }
-    if (envelope.testCaseFinished) finished.set(envelope.testCaseFinished.testCaseStartedId, envelope.testCaseFinished);
+    if (envelope.testCaseFinished) {
+      const id = envelope.testCaseFinished.testCaseStartedId;
+      if (finished.has(id)) cucumberEvidenceFail("DUPLICATE_TEST_CASE_FINISHED", `has duplicate testCaseFinished for ${id}`);
+      finished.set(id, envelope.testCaseFinished);
+    }
     if (envelope.testRunStarted) runStarts.set(envelope.testRunStarted.id, envelope.testRunStarted);
     if (envelope.testRunFinished) runFinished.push({ ...envelope.testRunFinished, sequence });
   }
+  if (runFinished.length > 1) cucumberEvidenceFail("DUPLICATE_TEST_RUN_FINISHED", "has more than one testRunFinished");
   if (
     runFinished.length !== 1 ||
     runFinished[0].success !== true ||
     !runStarts.has(runFinished[0].testRunStartedId) ||
     runFinished[0].sequence !== messages.length - 1
   ) {
-    fail("Cucumber Message artifact lacks one final successful testRunFinished");
+    cucumberEvidenceFail("INVALID_FINAL_TEST_RUN", "lacks one final successful testRunFinished");
   }
 
   const passed = [];
   for (const scenarioId of requiredIds) {
     const pickle = [...pickles.values()].find((value) => value.tags?.some((tag) => tag.name === `@id:${scenarioId}`));
-    if (!pickle) fail(`Cucumber Message artifact has no pickle for ${scenarioId}`);
+    if (!pickle) cucumberEvidenceFail("MISSING_PICKLE", `has no pickle for ${scenarioId}`);
     const testCase = [...testCases.values()].find((value) => value.pickleId === pickle.id);
-    if (!testCase) fail(`Cucumber Message artifact has no test case for ${scenarioId}`);
-    const terminalAttempts = [...starts.entries()]
-      .filter(([, start]) => start.testCaseId === testCase.id && finished.get(start.id)?.willBeRetried === false)
+    if (!testCase) cucumberEvidenceFail("MISSING_TEST_CASE", `has no testCase for ${scenarioId}`);
+    const attempts = [...starts.entries()].filter(([, start]) => start.testCaseId === testCase.id);
+    if (attempts.length === 0) cucumberEvidenceFail("MISSING_TEST_CASE_STARTED", `has no testCaseStarted for ${scenarioId}`);
+    const completedAttempts = attempts.filter(([startId]) => finished.has(startId));
+    if (completedAttempts.length === 0) cucumberEvidenceFail("MISSING_TEST_CASE_FINISHED", `has no testCaseFinished for ${scenarioId}`);
+    const terminalAttempts = completedAttempts
+      .filter(([startId]) => finished.get(startId).willBeRetried === false)
       .sort(([, left], [, right]) => (right.attempt ?? 0) - (left.attempt ?? 0) || right.sequence - left.sequence);
-    if (terminalAttempts.length !== 1) {
-      fail(`Cucumber Message artifact has ${terminalAttempts.length} terminal attempts for ${scenarioId}`);
-    }
+    if (terminalAttempts.length === 0) cucumberEvidenceFail("RETRY_ONLY_TERMINAL_PATH", `has no non-retried terminal attempt for ${scenarioId}`);
+    if (terminalAttempts.length > 1) cucumberEvidenceFail("MULTIPLE_TERMINAL_ATTEMPTS", `has ${terminalAttempts.length} terminal attempts for ${scenarioId}`);
     const [startId] = terminalAttempts[0];
     const stepStatuses = statuses.get(startId) ?? [];
-    if (stepStatuses.length === 0 || stepStatuses.some((status) => status !== "PASSED")) {
-      fail(`Cucumber Message artifact records a non-passing terminal attempt for ${scenarioId}`);
-    }
+    if (stepStatuses.length === 0) cucumberEvidenceFail("MISSING_TEST_STEP_FINISHED", `has no testStepFinished for ${scenarioId}`);
+    if (stepStatuses.some((status) => status !== "PASSED")) cucumberEvidenceFail("NON_PASSING_TERMINAL_STEP", `records a non-passing terminal step for ${scenarioId}`);
     passed.push(scenarioId);
   }
   return passed;
 }
 
-export async function createReleaseEvidence({ candidatePath, publicSafetyPath, cucumberMessagesPath, lifecycleDirectory, outputDirectory }) {
+export async function createReleaseEvidence({
+  candidatePath,
+  publicSafetyPath,
+  cucumberMessagesPath,
+  lifecycleDirectory,
+  outputDirectory,
+  mriDiscoveryPath,
+  distributionEvidencePath,
+  repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
+}) {
   const candidate = assertCandidateShape(await readStrictJson(candidatePath, "candidate manifest"), "candidate manifest");
   await mkdir(outputDirectory, { recursive: true });
-  const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-  const requiredIds = requiredScenarioIds(await readFile(path.join(sourceRoot, ".specs", "mcp-release-integrity", "mcp-release-integrity.feature"), "utf8"));
+  const catalogDigest = sha256(await readFile(path.join(repositoryRoot, ".omp-plugin", "marketplace.json")));
+  const requiredIds = requiredScenarioIds(await readFile(path.join(repositoryRoot, ".specs", "mcp-release-integrity", "mcp-release-integrity.feature"), "utf8"));
   const sourceMessageBytes = await readFile(cucumberMessagesPath);
   const scenarioIds = cucumberMessages(sourceMessageBytes, requiredIds);
   const messageRelativePath = "messages/cucumber.ndjson";
@@ -130,7 +193,7 @@ export async function createReleaseEvidence({ candidatePath, publicSafetyPath, c
   const bddReceipt = {
     schema: "omp-spec-kit-bdd-receipt@1",
     status: "passed",
-    ...identity(candidate),
+    ...identity(candidate, catalogDigest),
     messagePath: messageRelativePath,
     messageDigest: sha256(messageBytes),
     scenarioIds,
@@ -146,18 +209,26 @@ export async function createReleaseEvidence({ candidatePath, publicSafetyPath, c
     rollbackToV030: await copyReceipt(path.join(lifecycleDirectory, "rollback-to-v0.3.0.json"), outputDirectory, "rollback-to-v0.3.0.json"),
   };
   const frReceipts = Object.create(null);
-  for (const requirement of REQUIRED_FRS) {
-    frReceipts[requirement] = await copyReceipt(path.join(lifecycleDirectory, "fr", `${requirement}.json`), outputDirectory, `fr-${requirement}.json`);
+  for (const requirement of MRI_REQUIREMENTS) {
+    const localRequirement = requirement.slice(requirement.lastIndexOf(":") + 1);
+    frReceipts[requirement] = await copyReceipt(path.join(lifecycleDirectory, "fr", `${localRequirement}.json`), outputDirectory, `mri-${localRequirement}.json`);
   }
-  const evidence = { schema: "omp-spec-kit-release-evidence@2", ...identity(candidate), checks, frReceipts };
+  const mriDiscovery = await optionalReceipt(mriDiscoveryPath, outputDirectory, "omp-discovery.json");
+  const untrustedDistributionEvidence = await copyUntrustedDistributionEvidenceBundle(distributionEvidencePath, outputDirectory);
+  const evidence = {
+    schema: "omp-spec-kit-release-evidence@3",
+    ...identity(candidate, catalogDigest),
+    mri: { schema: "omp-spec-kit-mri-evidence@1", checks, frReceipts, discovery: mriDiscovery },
+    distribution: { schema: "omp-spec-kit-distribution-evidence-input@1", trust: "untrusted-self-attested", receipt: untrustedDistributionEvidence },
+  };
   const outputPath = path.join(outputDirectory, "evidence.json");
   await writeFile(outputPath, canonicalJson(evidence), "utf8");
   return { evidence, outputPath };
 }
 
 async function main() {
-  const args = parseArgs(process.argv.slice(2), ["--candidate", "--public-safety", "--cucumber-messages", "--lifecycle-dir", "--output"]);
-  for (const flag of ["--candidate", "--public-safety", "--cucumber-messages", "--lifecycle-dir", "--output"]) {
+  const args = parseArgs(process.argv.slice(2), ["--candidate", "--public-safety", "--cucumber-messages", "--lifecycle-dir", "--output", "--mri-discovery", "--distribution-evidence"]);
+  for (const flag of ["--candidate", "--public-safety", "--cucumber-messages", "--lifecycle-dir", "--output", "--mri-discovery"]) {
     if (!args[flag]) fail(`${flag} is required`);
   }
   const { evidence } = await createReleaseEvidence({
@@ -166,6 +237,8 @@ async function main() {
     cucumberMessagesPath: path.resolve(args["--cucumber-messages"]),
     lifecycleDirectory: path.resolve(args["--lifecycle-dir"]),
     outputDirectory: path.resolve(args["--output"]),
+    mriDiscoveryPath: path.resolve(args["--mri-discovery"]),
+    distributionEvidencePath: args["--distribution-evidence"] ? path.resolve(args["--distribution-evidence"]) : undefined,
   });
   process.stdout.write(canonicalJson(evidence));
 }

@@ -22,7 +22,7 @@ WHEN an isolated allowlisted package copy is launched without repository source 
 
 **Requirement:** [FR-4](FR.md#fr-4-candidate-bound-lifecycle-eligibility).
 
-WHEN v0.3.1 eligibility is evaluated THEN it SHALL require matching candidate version, peeled tag commit, package-tree digest, archive digest, public-safety result, Docker BDD result, all FR receipts, public v0.3.0 tagged-source proof, upgrade receipt, and rollback receipt; IF any one is absent, stale, foreign, duplicate, failed, or mismatched THEN the evaluator SHALL make the candidate ineligible before publication.
+WHEN v0.3.1 MRI eligibility is evaluated THEN it SHALL require matching candidate version, peeled tag commit, package-tree digest, archive digest, public-safety result, Docker BDD result, all FR receipts, public v0.3.0 tagged-source proof, upgrade receipt, and rollback receipt; IF any one is absent, stale, foreign, duplicate, failed, or mismatched THEN the evaluator SHALL make the candidate ineligible before publication. IF a structurally complete distribution matrix supplies only self-authored `workflow`/`runId` metadata and observations, THEN public release SHALL remain blocked with `distribution-producer-provenance-untrusted:no-independent-trust-root` until a separately implemented independently verifiable producer-attestation path exists.
 
 ## AC-5 (FR-5): Publish consumes the verified artifact only
 

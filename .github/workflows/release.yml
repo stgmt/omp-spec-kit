@@ -24,6 +24,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify frozen corpus provenance before release execution
+        run: node scripts/refresh-real-corpus-manifest.mjs --check
       - run: npm run build
       - run: npm run verify
       - name: Assemble candidate from peeled tag checkout
@@ -34,15 +36,16 @@ jobs:
         run: |
           set -o pipefail
           OMP_SPEC_KIT_BDD_MESSAGE_STDOUT=1 bash scripts/docker-bdd.sh > release-candidate/cucumber.ndjson
-      - name: Assemble candidate evidence
+      - name: Assemble MRI evidence; absence of live distribution producer artifacts remains blocked
         run: |
           node scripts/create-release-evidence.mjs \
             --candidate release-candidate/candidate.json \
             --public-safety release-candidate/public-safety.json \
             --cucumber-messages release-candidate/cucumber.ndjson \
             --lifecycle-dir "docs/validation/releases/${GITHUB_REF_NAME}" \
+            --mri-discovery docs/validation/omp-discovery-v17.3.7.md \
             --output release-candidate
-      - name: Evaluate release eligibility
+      - name: Enforce producer-artifact claim matrix before notes or candidate upload
         run: node scripts/verify-release.mjs --candidate release-candidate/candidate.json --evidence release-candidate/evidence.json --tag "$GITHUB_REF_NAME"
       - name: Render evidence-bound release notes
         run: node scripts/render-release-notes.mjs --candidate release-candidate/candidate.json --evidence release-candidate/evidence.json --tag "$GITHUB_REF_NAME" --output release-candidate/release-notes.md

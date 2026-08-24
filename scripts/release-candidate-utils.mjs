@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { lstat, readFile, readdir } from "node:fs/promises";
+import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
@@ -55,6 +55,39 @@ export function relativeSafePath(value, label) {
   const normalized = value.split("\\").join("/");
   if (normalized.startsWith("../") || normalized.includes("/../") || normalized === "..") fail(`${label} must not escape its parent`);
   return normalized;
+}
+
+function containedPath(root, target) {
+  const relative = path.relative(root, target);
+  return relative !== "" && !relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative);
+}
+
+/**
+ * Resolves an untrusted evidence path only after rejecting every symlink below
+ * the declared root and proving the canonical result remains contained.
+ */
+export async function resolveContainedRegularFile(rootDirectory, value, label) {
+  const relative = relativeSafePath(value, label);
+  const lexicalRoot = path.resolve(rootDirectory);
+  const rootStat = await lstat(lexicalRoot);
+  if (rootStat.isSymbolicLink()) fail(`EVIDENCE_ROOT_SYMLINK:${label}`);
+  const canonicalRoot = await realpath(lexicalRoot);
+  const lexicalTarget = path.resolve(lexicalRoot, relative);
+  if (!containedPath(lexicalRoot, lexicalTarget)) fail(`EVIDENCE_PATH_ESCAPE:${label}`);
+
+  let current = lexicalRoot;
+  for (const segment of relative.split("/")) {
+    if (!segment || segment === ".") continue;
+    current = path.join(current, segment);
+    const stat = await lstat(current);
+    if (stat.isSymbolicLink()) fail(`EVIDENCE_SYMLINK_COMPONENT:${label}`);
+  }
+
+  const canonicalTarget = await realpath(lexicalTarget);
+  if (!containedPath(canonicalRoot, canonicalTarget)) fail(`EVIDENCE_REALPATH_ESCAPE:${label}`);
+  const targetStat = await lstat(canonicalTarget);
+  if (!targetStat.isFile() || targetStat.isSymbolicLink()) fail(`EVIDENCE_NOT_REGULAR:${label}`);
+  return canonicalTarget;
 }
 
 export async function readStrictJson(filePath, label) {

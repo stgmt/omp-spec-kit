@@ -12,6 +12,7 @@ import {
   writeCorpus,
 } from "../helpers/mcp-world.mjs";
 import { snapshotTree } from "../support/world.mjs";
+import { runPinnedManagerProbe } from "../helpers/omp-discovery-world.mjs";
 
 const INITIALIZE_PARAMS = Object.freeze({
   protocolVersion: "2025-03-26",
@@ -221,4 +222,154 @@ Then("each structured result equals the direct service envelope", function () {
 
 Then("the served corpus is byte-for-byte unchanged", async function () {
   assert.deepStrictEqual(await snapshotTree(path.join(this.mri.projectA, ".specs")), this.mri.specsBefore);
+});
+
+Given("the copied package payload is missing its OMP MCP declaration", async function () {
+  await rm(path.join(this.mri.packageRoot, ".mcp.json"));
+});
+
+When("the bounded pinned OMP manager handoff runs from project-a", async function () {
+  const repositoryRoot = path.resolve(import.meta.dirname, "..", "..");
+  const runtimeHost = path.join(repositoryRoot, "tests", "fixtures", "omp-discovery-runtime");
+  const home = path.join(this.mri.tempRoot, "omp-home");
+  const agentRoot = path.join(this.mri.tempRoot, "omp-agent");
+  await Promise.all([mkdir(home, { recursive: true }), mkdir(agentRoot, { recursive: true })]);
+  const inventoryArgs = {
+    specSlugs: [],
+    includeDocuments: false,
+    limit: 50,
+    cursor: null,
+  };
+  const inventoryRequest = {
+    requestId: "omp-manager-handoff-probe",
+    schemaVersion: "spec-kernel@1",
+  };
+  this.mri.managerInventoryOracle = await this.mri.directService.runQuery("inventory", inventoryArgs, inventoryRequest);
+  this.mri.managerDecoyInventoryOracle = await createSpecService(this.mri.packageRoot).runQuery(
+    "inventory",
+    inventoryArgs,
+    inventoryRequest,
+  );
+  this.mri.managerProbe = await runPinnedManagerProbe({
+    runtimeHost,
+    cwd: this.mri.projectA,
+    packageRoot: this.mri.packageRoot,
+    verifiedPackageRoot: path.join(repositoryRoot, "plugins", "omp-spec-kit"),
+    home,
+    agentRoot,
+  });
+});
+
+Then("the bounded receipt proves the isolated target-only manager query and copied build payload", function () {
+  const { exitCode, stderr, expectedDistManifestSha256, expectedLauncherSha256, receipt } = this.mri.managerProbe;
+  assert.equal(exitCode, 0, `${stderr}\n${JSON.stringify(receipt, null, 2)}`);
+  assert.equal(stderr, "");
+  assert.equal(receipt.schema, "omp-manager-handoff-probe@2");
+  assert.equal(receipt.result, "completed");
+  assert.deepStrictEqual(receipt.phaseMode.mode, "bounded");
+  assert.equal(receipt.phaseMode.timeoutMs, 30000);
+  assert.equal(receipt.phaseMode.terminalPhase, null);
+  assert.deepStrictEqual(
+    Object.fromEntries(Object.entries(receipt.phaseMode.checkpoints).map(([name, checkpoint]) => [name, checkpoint.status])),
+    {
+      payload: "completed",
+      imports: "completed",
+      enrollment: "completed",
+      "capability-config-load": "completed",
+      "manager-construction": "completed",
+      "target-only-connection": "completed",
+      "managed-query": "completed",
+      disconnect: "completed",
+      receipt: "completed",
+    },
+  );
+  assert.deepStrictEqual(receipt.provenance.runtime.name, "@oh-my-pi/pi-coding-agent");
+  assert.equal(receipt.provenance.runtime.version, "17.3.7");
+  assert.equal(receipt.provenance.package.verification.distManifest.sha256, expectedDistManifestSha256);
+  assert.equal(receipt.provenance.package.verification.distManifest.expectedSha256, expectedDistManifestSha256);
+  assert.equal(receipt.provenance.package.verification.launcher.sha256, expectedLauncherSha256);
+  assert.equal(receipt.provenance.package.verification.launcher.expectedSha256, expectedLauncherSha256);
+  assert.equal(
+    receipt.provenance.package.verification.distManifest.fileCount,
+    receipt.provenance.package.verification.distManifest.files.length,
+  );
+  assert.equal(receipt.provenance.package.verification.distManifest.fileCount > 0, true);
+  assert.deepStrictEqual(
+    receipt.provenance.package.payload.map(({ relative }) => relative).sort(),
+    ["bin/omp-spec-kit-mcp", "dist/extension.js", "dist/mcp/server.js"],
+  );
+  assert.equal(receipt.enrollment.method, "new PluginManager(cwd).link(packageRoot)");
+  assert.equal(receipt.enrollment.result.name, "omp-spec-kit");
+  assert.equal(receipt.enrollment.result.version, "0.3.1");
+  assert.equal(receipt.enrollment.result.path, "<package-copy>");
+  assert.equal(receipt.enrollment.result.enabledFeatures, null);
+  assert.equal(receipt.enrollment.result.enabled, true);
+  assert.deepStrictEqual(receipt.enrollment.result.manifest, {
+    extensions: ["./dist/extension.js"],
+    version: "0.3.1",
+  });
+  assert.deepStrictEqual(receipt.enrollment.lockfile.contents.plugins, {
+    "omp-spec-kit": { version: "0.3.1", enabledFeatures: null, enabled: true },
+  });
+  assert.deepStrictEqual(receipt.capability.providers, ["omp-plugins"]);
+  assert.deepStrictEqual(receipt.capability.items.map(({ name }) => name), ["omp-spec-kit"]);
+  assert.deepStrictEqual(receipt.configLoad.inspection.loadedNames, ["omp-spec-kit"]);
+  assert.equal(receipt.configLoad.inspection.targetName, "omp-spec-kit");
+  assert.deepStrictEqual(Object.keys(receipt.configLoad.inspection.targetConfigs), ["omp-spec-kit"]);
+  assert.deepStrictEqual(Object.keys(receipt.configLoad.inspection.targetSources), ["omp-spec-kit"]);
+  assert.equal(receipt.configLoad.inspection.targetSources["omp-spec-kit"].provider, "omp-plugins");
+  assert.equal(Object.hasOwn(receipt.configLoad.inspection.targetConfigs["omp-spec-kit"], "cwd"), false);
+  assert.match(receipt.configLoad.inspection.targetConfigs["omp-spec-kit"].command, /\/bin\/omp-spec-kit-mcp$/);
+  assert.deepStrictEqual(receipt.manager.connectionResult.connectedServers, ["omp-spec-kit"]);
+  assert.deepStrictEqual(receipt.manager.connectionResult.errors, {});
+  assert.equal(receipt.manager.connectionResult.toolCount, 8);
+  const managedQuery = receipt.manager.connectionResult.managedQuery;
+  assert.equal(managedQuery.tool.mcpServerName, "omp-spec-kit");
+  assert.equal(managedQuery.tool.mcpToolName, "spec_inventory");
+  assert.equal(managedQuery.result.isError, false);
+  assert.deepStrictEqual(managedQuery.result.details, {
+    serverName: "omp-spec-kit",
+    mcpToolName: "spec_inventory",
+    provider: "omp-plugins",
+    providerName: "OMP Extension Packages",
+  });
+  const projectACounts = {
+    returnedCount: this.mri.managerInventoryOracle.page.returned,
+    observedCount: this.mri.managerInventoryOracle.page.totalMatched,
+  };
+  const packageDecoyCounts = {
+    returnedCount: this.mri.managerDecoyInventoryOracle.page.returned,
+    observedCount: this.mri.managerDecoyInventoryOracle.page.totalMatched,
+  };
+  assert.notDeepStrictEqual(
+    projectACounts,
+    packageDecoyCounts,
+    "project-a and package-decoy fixtures must retain distinct inventory cardinalities",
+  );
+  assert.deepStrictEqual(managedQuery.result.content, {
+    text: `inventory ok, returned=${projectACounts.returnedCount}/${projectACounts.observedCount}`,
+    ...projectACounts,
+  });
+  assert.deepStrictEqual(receipt.manager.disconnect.before.serverNames, ["omp-spec-kit"]);
+  assert.deepStrictEqual(receipt.manager.disconnect.after, { serverNames: [], servers: {} });
+  assert.deepStrictEqual(receipt.manager.stateAfterDisconnect, { serverNames: [], servers: {} });
+});
+
+Then("the invalid payload receipt fails before OMP enrollment", function () {
+  const { exitCode, stderr, receipt } = this.mri.managerProbe;
+  assert.equal(exitCode, 1, stderr);
+  assert.equal(stderr, "");
+  assert.equal(receipt.schema, "omp-manager-handoff-probe@2");
+  assert.equal(receipt.result, "incomplete");
+  assert.equal(receipt.phaseMode.terminalPhase, "payload");
+  assert.equal(receipt.phaseMode.checkpoints.payload.status, "failed");
+  assert.equal(receipt.phaseMode.checkpoints.enrollment.status, "skipped");
+  assert.equal(receipt.phaseMode.checkpoints["capability-config-load"].status, "skipped");
+  assert.equal(receipt.phaseMode.checkpoints["manager-construction"].status, "skipped");
+  assert.equal(receipt.phaseMode.checkpoints["target-only-connection"].status, "skipped");
+  assert.equal(receipt.phaseMode.checkpoints["managed-query"].status, "skipped");
+  assert.equal(receipt.enrollment, undefined);
+  assert.equal(receipt.capability, undefined);
+  assert.equal(receipt.configLoad, undefined);
+  assert.equal(receipt.manager, undefined);
 });

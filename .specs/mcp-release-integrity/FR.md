@@ -133,7 +133,7 @@ contract:
 
 ## FR-4: Candidate-bound lifecycle eligibility
 
-The release evaluator SHALL accept a v0.3.1 candidate only when its version authorities, peeled tag commit, package tree digest, archive digest, candidate manifest, public-safety result, Docker BDD result, and all mandatory requirement receipts agree. For v0.3.1, the lifecycle set SHALL include a named public v0.3.0 tagged-source proof, upgrade from v0.3.0, and rollback to v0.3.0; a stage/job summary, any arbitrary SHA, or a missing transition SHALL not establish eligibility.
+The release evaluator SHALL accept MRI evidence for a v0.3.1 candidate only when its version authorities, peeled tag commit, package tree digest, archive digest, candidate manifest, public-safety result, Docker BDD result, and all mandatory MRI requirement receipts agree. For v0.3.1, the MRI lifecycle set SHALL include a named public v0.3.0 tagged-source proof, upgrade from v0.3.0, and rollback to v0.3.0; a stage/job summary, any arbitrary SHA, or a missing transition SHALL not establish MRI eligibility. Public release SHALL nevertheless remain blocked while distribution producer receipts expose only self-authored `workflow`/`runId` metadata and observations, because no independently verifiable producer-attestation trust root is implemented.
 
 ```yaml metadata
 schemaVersion: 1
@@ -149,22 +149,24 @@ contract:
       - The candidate was assembled after one clean package build
       - The required evidence matrix names the candidate version and tag commit
     observable_outcomes:
-      - Eligibility is true only for a complete mutually consistent candidate
-      - Blocking details name every failed identity or missing lifecycle item
+      - MRI eligibility is true only for a complete mutually consistent candidate
+      - Public eligibility is false when structurally complete distribution evidence is self-attested
+      - Blocking details name every failed identity, missing lifecycle item, or absent distribution trust root
     forbidden_outcomes:
       - An arbitrary receipt commit satisfies RELEASE_COMMIT
       - Upgrade or rollback is inferred from a release job success
+      - Self-authored distribution metadata authorizes public release
   observables:
-    - when: The v0.3.1 candidate has matching complete current evidence
-      then: The evaluator emits eligible true with the candidate archive digest and peeled commit
+    - when: The v0.3.1 candidate has matching complete MRI evidence and a structurally complete self-attested distribution matrix
+      then: The evaluator emits an eligible MRI result but public eligible false with distribution-producer-provenance-untrusted:no-independent-trust-root
   negative_cases:
-    - when: One receipt, archive byte, tag commit, upgrade, or rollback is missing or different
-      then: The evaluator emits eligible false and publication is blocked
+    - when: One receipt, archive byte, tag commit, upgrade, rollback, or independent distribution trust root is missing or different
+      then: The evaluator emits public eligible false and publication is blocked
   verification:
     method: bdd
     required_evidence: [bdd, integration, implementation, operational-proof]
     scenario:
-      refs: [SCEN-MRI-004]
+      refs: [SCEN-MRI-004, SCEN-MRI-017]
     implementation_surface:
       refs: ["scripts/create-release-candidate.mjs", "scripts/verify-public-tree.mjs", "scripts/verify-release.mjs"]
     evidence_policy:

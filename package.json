@@ -11,6 +11,7 @@
     "verify": "node scripts/verify-marketplace.mjs && node scripts/verify-package.mjs",
     "bdd:container": "node scripts/run-bdd-container.mjs",
     "test:bdd": "bash scripts/docker-bdd.sh",
+    "test:bdd:omp-discovery": "bash scripts/docker-bdd.sh --tags '@id:SCEN-MRI-012 or @id:SCEN-MRI-013'",
     "test": "npm run build && npm run verify && npm run test:bdd"
   },
   "devDependencies": {

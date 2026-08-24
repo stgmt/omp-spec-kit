@@ -1,0 +1,8 @@
+{
+  "name": "omp-spec-kit-pinned-discovery-runtime",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@oh-my-pi/pi-coding-agent": "17.3.7"
+  }
+}

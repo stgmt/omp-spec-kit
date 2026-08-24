@@ -10,7 +10,7 @@
 // imported in-process here.
 
 import { spawn, spawnSync } from "node:child_process";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
@@ -18,6 +18,7 @@ import { pathToFileURL } from "node:url";
 import {
   KERNEL_SCHEMA_VERSION,
   buildKernelGraph,
+  loadFrozenRealCorpus,
   loadRealCorpusManifest,
   query,
   readRepositorySpecs,
@@ -28,6 +29,7 @@ import {
 export {
   KERNEL_SCHEMA_VERSION,
   buildKernelGraph,
+  loadFrozenRealCorpus,
   loadRealCorpusManifest,
   query,
   readRepositorySpecs,
@@ -56,33 +58,37 @@ export const QUERY_ENVELOPE_KEYS = Object.freeze(
   ["ok", "schemaVersion", "requestId", "operation", "graph", "page", "data", "error", "diagnostics"].sort(),
 );
 
+function sameBytes(left, right) {
+  if (left.byteLength !== right.byteLength) return false;
+  for (let index = 0; index < left.byteLength; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+}
+
 /**
- * Loads the fixture-manifest-pinned real corpus through the filesystem reader
- * (same pattern as the v0.2 kernel suite), builds ONE in-process kernel graph
- * used as the parity oracle for spawned-server answers, and returns the pinned
- * files so a byte-exact replica corpus can be planted for the server process.
+ * Loads the immutable fixture bytes through the filesystem reader, builds one
+ * in-process kernel parity oracle, and returns those same frozen files for the
+ * byte-exact spawned-server replica. Mutable repository .specs files never
+ * participate in this comparison.
  */
 export async function loadPinnedCorpusGraph(repositoryRoot) {
-  const manifest = await loadRealCorpusManifest(repositoryRoot);
-  const expected = new Map(manifest.documents.map((entry) => [entry.path, entry]));
-  for (const [relativePath, entry] of expected) {
-    const bytes = await readFile(path.join(repositoryRoot, ...relativePath.split("/")));
-    if (bytes.length !== entry.byteLength || sha256Hex(bytes) !== entry.sha256) {
-      throw new Error(`pinned corpus byte drifted: ${relativePath}`);
-    }
+  const frozen = await loadFrozenRealCorpus(repositoryRoot);
+  const read = await readRepositorySpecs({ root: frozen.fixtureRoot });
+  if (read.error) throw new Error(`frozen corpus reader failed: ${read.error.code}`);
+  if (read.files.length !== frozen.manifest.documents.length) {
+    throw new Error(`frozen corpus reader offered ${read.files.length}, expected ${frozen.manifest.documents.length} files`);
   }
-  const read = await readRepositorySpecs({ root: repositoryRoot });
-  const files = read.files.filter((file) => expected.has(file.path));
-  if (files.length !== manifest.documents.length) {
-    throw new Error(
-      `pinned corpus drifted: manifest pins ${manifest.documents.length} documents, disk offered ${files.length}`,
-    );
+  const byPath = new Map(frozen.files.map((file) => [file.path, file]));
+  for (const file of read.files) {
+    const pinned = byPath.get(file.path);
+    if (pinned === undefined || !sameBytes(file.bytes, pinned.bytes)) throw new Error(`frozen corpus reader byte drifted: ${file.path}`);
   }
-  const built = buildKernelGraph({ files });
+  const built = buildKernelGraph({ files: read.files });
   if (built.graph.valid !== true) {
-    throw new Error("pinned corpus must build a valid graph before MCP parity comparison");
+    throw new Error("frozen corpus must build a valid graph before MCP parity comparison");
   }
-  return { manifest, graph: built.graph, files };
+  return { manifest: frozen.manifest, graph: built.graph, files: read.files };
 }
 
 /**
