@@ -105,11 +105,11 @@ Required jobs:
 2. `schema-cardinality`: catalog/manifest public profile, one catalog/plugin/package/extension, matching identities/versions.
 3. `clean-build-package`: clean build, deterministic/allowlisted payload, artifact digest publication.
 4. `deps-absent-smoke`: consume the artifact with source/root dependencies unavailable.
-5. `distribution-lifecycle`: for `0.1.0`, isolated clean install, reload receipt, fresh-session invocation, negative inventory cases, uninstall absence, same-artifact reinstall/reinvocation, and preservation; beginning with the first subsequent release, also upgrade from and rollback to a real prior release.
-6. `release-consistency`: validate receipt identity, tag/version/digest agreement, evidence freshness, and the candidate-aware FR-1..FR-12 mandatory evidence matrix.
-7. `release`: require the FR-13 aggregate eligibility result, then run tag-only, environment-protected, and least-privilege; download the verified artifact by digest and create the release without rebuilding.
+5. `distribution-lifecycle`: emits one content-addressed producer receipt per mandatory FR claim-matrix cell from the isolated fixture; every receipt carries the candidate and platform fixture identities plus passed observations. These self-authored artifacts are structurally diagnostic only. For `0.1.0`, upgrade and rollback are inapplicable; later releases prove both against a real prior artifact.
+6. `release-consistency`: copies only digest-verified regular producer receipts, rejects symlinked evidence paths and realpath escapes, validates the candidate-aware FR-1..FR-12 matrix, and labels all current inputs `untrusted-self-attested`.
+7. `release`: requires the FR-13 aggregate eligibility result, which remains blocked with `distribution-producer-provenance-untrusted:no-independent-trust-root` until an independently verifiable producer-attestation path is separately implemented; it emits neither notes nor publication and uploads no publishable candidate.
 
-Pull requests and pushes run verification only. A `v*` tag does not bypass jobs. Concurrency groups serialize a version's release; an existing release with a different artifact fails rather than being overwritten. Individual passing jobs are evidence producers, not release gates by themselves; only the aggregate evaluator may declare eligibility after mapping complete receipts to every FR-1 through FR-12.
+Pull requests and pushes run verification only. A `v*` tag does not bypass jobs. Concurrency groups serialize a version's release; an existing release with a different artifact fails rather than being overwritten. Individual passing jobs are evidence producers, not release gates by themselves; structural matrix validation preserves diagnostics but cannot declare eligibility without an independent trust root.
 
 ## Key decisions
 

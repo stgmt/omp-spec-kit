@@ -20,7 +20,7 @@ Every row is a future implementation change. Presence here does not mean the pat
 | `scripts/verify-public-tree.mjs` | Create (planned) | FR-9 | Secret/local-state/license/provenance/public-path gate. |
 | `scripts/verify-package.mjs` | Create (planned) | FR-5, FR-12 | Allowlist, artifact digest, dependency and embedded-version verification. |
 | `docs/omp-v17.3.7-contract.md` | Create (planned) | FR-2, FR-4, FR-5 | Immutable OMP pin, source links, recursive-copy finding, commands, and reload/fresh-session boundary. |
-| `scripts/verify-release.mjs` | Create (planned) | FR-7, FR-8, FR-10, FR-11, FR-13 | Receipt freshness, candidate-aware applicability, FR-1..FR-12 completeness, tag/version/digest consistency, and aggregate eligibility evaluator. |
+| `scripts/verify-release.mjs` | Edit | FR-11, FR-13 | Computes independent qualified MRI and distribution gates, validates closed record cardinality and all candidate/OMP/platform/catalog/package/archive/applicability/lifecycle/discovery dimensions, and composes public eligibility fail-closed. |
 | `tests/distribution/Dockerfile` | Create (planned) | FR-4, FR-5 | Pin OMP and isolate dependency-absent lifecycle runtime. |
 | `tests/distribution/compose.yaml` | Create (planned) | FR-4 through FR-9 | Isolate user/project roots, credentials, network policy, and mounts. |
 | `tests/fixtures/distribution/valid-project/.specs/sample/README.md` | Create (planned) | FR-3 | Real minimal recognized fixture with provenance. |
@@ -33,7 +33,7 @@ Every row is a future implementation change. Presence here does not mean the pat
 | `tests/step-definitions/plugin-distribution.ts` | Create (planned) | FR-1 through FR-13 | Drive real OMP CLI/session and inspect candidate-aware receipts and aggregate eligibility without fake status. |
 | `tests/hooks/distribution-fixture.ts` | Create (planned) | FR-4 through FR-9, FR-13 | Isolated setup, instrumentation, hashes, and bounded cleanup for first/subsequent release profiles. |
 | `.github/workflows/verify.yml` | Create (planned) | FR-9, FR-10, FR-11, FR-13 | Evidence-producing verification jobs for PRs/pushes without publication. |
-| `.github/workflows/release.yml` | Create (planned) | FR-7, FR-8, FR-10, FR-11, FR-13 | Protected tag-only same-artifact transaction gated solely by complete FR-13 eligibility. |
+| `.github/workflows/release.yml` | Edit | FR-10, FR-11, FR-13 | Supplies the pinned manager-discovery receipt to assembly; without a real distribution evidence input, eligibility fails and publication cannot start. |
 | `README.md` | Edit (planned) | FR-4, FR-7, FR-8, FR-11, FR-13 | Exact proven install/reload/fresh-session/uninstall/reinstall and subsequent-release upgrade/rollback guidance. |
 | `CHANGELOG.md` | Edit (planned) | FR-7, FR-11, FR-13 | Record delivered v0.1.0 only after aggregate proof. |
 | `SECURITY.md` | Edit (planned) | FR-9 | Public reporting and release-secret policy. |
