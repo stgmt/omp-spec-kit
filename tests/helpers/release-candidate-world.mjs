@@ -31,7 +31,13 @@ const DISTRIBUTION_CLAIMS = Object.freeze({
 });
 const PLATFORM = Object.freeze({ os: "linux", architecture: "x64", fixtureDigest: "c".repeat(64) });
 const APPLICABILITY = Object.freeze({ releasePosition: "subsequent", upgrade: "mandatory", rollback: "mandatory", reinstall: "mandatory" });
-const LIFECYCLE = Object.freeze({ upgrade: "passed", rollback: "passed", reinstall: "passed" });
+// Mirrors the producer/verifier honest per-claim contract: an axis is
+// "passed" only when the receipt's own claim IS that lifecycle proof,
+// "inapplicable" when the profile marks it out of scope, else "not-run".
+function lifecycleForClaim(claim, applicability) {
+  const axisState = (axis) => (claim === axis ? "passed" : applicability[axis] === "inapplicable" ? "inapplicable" : "not-run");
+  return { upgrade: axisState("upgrade"), rollback: axisState("rollback"), reinstall: axisState("reinstall") };
+}
 
 export async function readVerifiedCucumberFixture(repositoryRoot) {
   const fixtureDirectory = path.join(repositoryRoot, "tests", "fixtures", "release-candidate");
@@ -44,11 +50,12 @@ export async function readVerifiedCucumberFixture(repositoryRoot) {
   assert.equal(frames.filter((frame) => frame.testStepFinished !== undefined).length, provenance.stepCount, "Cucumber fixture step count must match provenance");
   return bytes;
 }
+
 function resolveTagCommit(tag) { if (tag === "v0.3.1") return CANDIDATE_COMMIT; if (tag === "v0.3.0") return PRIOR_COMMIT; throw new Error(`unexpected test tag ${tag}`); }
 async function writeBytes(directory, name, bytes) { const relative = `receipts/${name}`; const absolute = path.join(directory, relative); await mkdir(path.dirname(absolute), { recursive: true }); await writeFile(absolute, bytes); return { status: "present", path: relative, digest: sha256(bytes) }; }
 async function writeReceipt(directory, name, value) { return writeBytes(directory, `${name}.json`, Buffer.from(`${JSON.stringify(value, null, 2)}\n`)); }
 function identity(candidate, catalogDigest) { return { version: candidate.version, tag: candidate.tag, commit: candidate.commit, candidateDigest: candidate.candidateDigest, packageTreeDigest: candidate.packageTreeDigest, archiveSha256: candidate.archive.sha256, catalogDigest }; }
-function placeholderClaim(candidate, catalogDigest, requirement) { return { schema: "omp-spec-kit-distribution-evidence-receipt@1", status: "passed", ...identity(candidate, catalogDigest), requirement, claims: ["candidate-evidence"], ompRevision: "@oh-my-pi/pi-coding-agent@17.3.7#8500092296621a6826b7136e840f8a59ea338958", platform: structuredClone(PLATFORM), fixtureDigest: "d".repeat(64), applicability: structuredClone(APPLICABILITY), lifecycle: structuredClone(LIFECYCLE) }; }
+function placeholderClaim(candidate, catalogDigest, requirement) { return { schema: "omp-spec-kit-distribution-evidence-receipt@1", status: "passed", ...identity(candidate, catalogDigest), requirement, claims: ["candidate-evidence"], ompRevision: "@oh-my-pi/pi-coding-agent@17.3.7#8500092296621a6826b7136e840f8a59ea338958", platform: structuredClone(PLATFORM), fixtureDigest: "d".repeat(64), applicability: structuredClone(APPLICABILITY), lifecycle: lifecycleForClaim("candidate-evidence", APPLICABILITY) }; }
 
 export async function createCandidateWorld(repositoryRoot, tempRoot) {
   const candidateDirectory = path.join(tempRoot, "candidate");
@@ -97,7 +104,7 @@ export async function writeStructurallyCompleteSelfAttestedDistributionEvidence(
         ompRevision,
         platform: structuredClone(PLATFORM),
         applicability: structuredClone(APPLICABILITY),
-        lifecycle: structuredClone(LIFECYCLE),
+        lifecycle: lifecycleForClaim(claim, APPLICABILITY),
         producer: { workflow: "distribution-lifecycle", runId: String(index) },
         observations: [{ id: `self-attested-${index}`, outcome: "passed", summary: "Fabricated structural observation", fixtureDigest: PLATFORM.fixtureDigest }],
       };
@@ -139,7 +146,7 @@ export async function writeStructurallyCompleteAttestationTrustedDistributionEvi
         ompRevision,
         platform: structuredClone(PLATFORM),
         applicability: structuredClone(APPLICABILITY),
-        lifecycle: structuredClone(LIFECYCLE),
+        lifecycle: lifecycleForClaim(claim, APPLICABILITY),
         producer: { workflow: "distribution-lifecycle", runId: String(index) },
         observations: [{ id: `attestation-trusted-${index}`, outcome: "passed", summary: "Fabricated structural observation", fixtureDigest: PLATFORM.fixtureDigest }],
       };

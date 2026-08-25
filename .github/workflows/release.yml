@@ -15,6 +15,10 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    # Least privilege: the job token exists only so `gh` can list and download
+    # workflow runs of this repository during evidence discovery.
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,33 +40,45 @@ jobs:
         run: |
           set -o pipefail
           OMP_SPEC_KIT_BDD_MESSAGE_STDOUT=1 bash scripts/docker-bdd.sh > release-candidate/cucumber.ndjson
-      - name: Download cross-run attested distribution evidence when present
+      - name: Download commit-bound attested distribution evidence when present
         id: dist_evidence
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          if gh run list --repo "$GITHUB_REPOSITORY" \
-              --workflow distribution-evidence.yml \
-              --branch "$TAG" \
-              --status success \
-              --limit 20 \
-              --json databaseId,headBranch \
-              --jq '.[].databaseId' | head -n 1 > /tmp/dist-run-id; then
-            run_id="$(cat /tmp/dist-run-id)"
-          else
-            run_id=""
-          fi
+          # Resolve the peeled tag commit so workflow_dispatch runs (whose
+          # headBranch is not the tag) are discoverable, and select only a
+          # successful run whose headSha IS that commit — never a stale
+          # artifact left over from an earlier tag of the same name.
+          COMMIT="$(git rev-parse "$TAG^{commit}")"
+          run_id="$(gh run list --repo "$GITHUB_REPOSITORY" \
+            --workflow distribution-evidence.yml \
+            --limit 50 \
+            --json databaseId,headSha,status,conclusion \
+            --jq ".[] | select(.conclusion == \"success\" and .headSha == \"$COMMIT\") | .databaseId" \
+            | head -n 1 || true)"
+          identity_ok=""
           if [ -n "$run_id" ]; then
             mkdir dist-evidence
             gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
               --name "omp-spec-kit-distribution-evidence-$TAG" --dir dist-evidence
-            echo "path=dist-evidence/distribution-evidence.json" >> "$GITHUB_OUTPUT"
+            # Positively bind the downloaded bundle to THIS candidate before
+            # any trust is stamped: candidate digests must match.
+            downloaded="$(node -p "JSON.parse(require('fs').readFileSync('dist-evidence/distribution-evidence.json','utf8')).candidateDigest")"
+            expected="$(node -p "require('./release-candidate/candidate.json').candidateDigest")"
+            if [ -n "$downloaded" ] && [ "$downloaded" = "$expected" ]; then
+              identity_ok=1
+            else
+              echo "::error::downloaded distribution evidence candidateDigest does not match this release candidate" >&2
+            fi
           else
-            echo "No successful distribution-evidence run for $TAG; staying on the blocked untrusted path." >&2
+            echo "No successful distribution-evidence run for commit $COMMIT; staying on the blocked untrusted path." >&2
           fi
-      - name: Assemble MRI evidence; trust root depends on downloaded attestation availability
+          if [ "$identity_ok" = "1" ]; then
+            echo "path=dist-evidence/distribution-evidence.json" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Assemble MRI evidence; trust is stamped only on a digest-matched bundle from this commit
         run: |
           if [ -f "${{ steps.dist_evidence.outputs.path || 'dist-evidence/absent' }}" ]; then
             node scripts/create-release-evidence.mjs \
@@ -96,6 +112,10 @@ jobs:
   publish:
     needs: verify
     runs-on: ubuntu-latest
+    # Least privilege: the job token exists only so `gh` can reverify and
+    # create the GitHub release for this repository.
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
         with:

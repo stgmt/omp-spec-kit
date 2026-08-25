@@ -43,7 +43,8 @@ async function optionalReceipt(source, outputDirectory, outputName) {
   return copyReceipt(source, outputDirectory, outputName);
 }
 
-async function copyUntrustedDistributionEvidenceBundle(source, outputDirectory) {
+
+export async function copyUntrustedDistributionEvidenceBundle(source, outputDirectory) {
   if (!source) return { status: "missing" };
   const sourceDirectory = path.dirname(source);
   const input = await readStrictJson(source, "distribution evidence");
@@ -52,14 +53,22 @@ async function copyUntrustedDistributionEvidenceBundle(source, outputDirectory) 
   for (const [index, record] of copied.records.entries()) {
     const ref = record?.receipt;
     if (!ref || ref.status !== "present" || typeof ref.path !== "string" || !isSha256(ref.digest)) continue;
+    // Byte-identity with the attested subject: every receipt is copied
+    // byte-for-byte to its canonical name, but when the producer already used
+    // the canonical scheme the record's reference is left untouched, so the
+    // copied bundle serializes byte-identically to the signed subject and
+    // gh attestation verify checks exactly these bytes. Legacy (never
+    // attested) naming schemes get their references rewritten as before.
     const sourceReceipt = await resolveContainedRegularFile(sourceDirectory, ref.path, `distribution receipt ${index}`);
     const bytes = await readFile(sourceReceipt);
     if (sha256(bytes) !== ref.digest) fail(`distribution receipt ${index} digest does not match its declaration`);
-    const targetRelative = `receipts/distribution/${index}-${ref.digest}.json`;
-    const target = path.join(outputDirectory, targetRelative);
+    const canonicalTargetRelative = `receipts/distribution/${index}-${ref.digest}.json`;
+    const target = path.join(outputDirectory, canonicalTargetRelative);
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, bytes, { flag: "wx" });
-    record.receipt = { status: "present", path: targetRelative, digest: ref.digest };
+    if (ref.path !== canonicalTargetRelative) {
+      record.receipt = { status: "present", path: canonicalTargetRelative, digest: ref.digest };
+    }
   }
   const targetRelative = "receipts/distribution-evidence.json";
   const target = path.join(outputDirectory, targetRelative);

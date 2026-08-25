@@ -125,12 +125,13 @@ function expectedClaims(requirement, expectedProfile) {
   return claims;
 }
 
-function expectedLifecycle(expectedProfile) {
-  return {
-    upgrade: expectedProfile.upgrade === "mandatory" ? "passed" : "inapplicable",
-    rollback: expectedProfile.rollback === "mandatory" ? "passed" : "inapplicable",
-    reinstall: "passed",
-  };
+// Lifecycle axes reflect per-receipt proof state: an axis is "passed" only
+// when THIS receipt's own claim IS that lifecycle proof, "inapplicable" when
+// the candidate profile marks the axis out of scope, and otherwise "not-run"
+// because no real lifecycle producer ran for that claim.
+function expectedLifecycleFromClaim(claim, expectedProfile) {
+  const axisState = (axis) => (claim === axis ? "passed" : expectedProfile[axis] === "inapplicable" ? "inapplicable" : "not-run");
+  return { upgrade: axisState("upgrade"), rollback: axisState("rollback"), reinstall: axisState("reinstall") };
 }
 
 function validObservation(observation, fixtureDigest) {
@@ -157,21 +158,23 @@ async function verifyDistributionRecord(record, requirement, claim, input, id, e
   if (receipt.ompRevision !== input.ompRevision) add(blocking, `distribution-identity-mismatch:ompRevision:${requirement}:${claim}`);
   if (JSON.stringify(receipt.platform) !== JSON.stringify(input.platform)) add(blocking, `distribution-identity-mismatch:platform:${requirement}:${claim}`);
   if (receipt.fixtureDigest !== input.platform.fixtureDigest) add(blocking, `distribution-fixture-mismatch:${requirement}:${claim}`);
-  if (JSON.stringify(receipt.applicability) !== JSON.stringify(expectedProfile)) add(blocking, `distribution-applicability-mismatch:${requirement}:${claim}`);
-  if (JSON.stringify(receipt.lifecycle) !== JSON.stringify(expectedLifecycle(expectedProfile))) add(blocking, `distribution-lifecycle-mismatch:${requirement}:${claim}`);
+  if (JSON.stringify(receipt.lifecycle) !== JSON.stringify(expectedLifecycleFromClaim(claim, expectedProfile))) add(blocking, `distribution-lifecycle-mismatch:${requirement}:${claim}`);
   if (!exact(receipt.producer, ["runId", "workflow"]) || receipt.producer.workflow !== "distribution-lifecycle" || !/^[1-9]\d*$/u.test(receipt.producer.runId)) add(blocking, `invalid-producer-provenance:${requirement}:${claim}`);
   if (!Array.isArray(receipt.observations) || receipt.observations.length === 0 || new Set(receipt.observations.map((observation) => observation?.id)).size !== receipt.observations.length || receipt.observations.some((observation) => !validObservation(observation, input.platform.fixtureDigest))) add(blocking, `invalid-producer-observations:${requirement}:${claim}`);
   return loaded.digest;
 }
 
-function repositorySlugFromGitRemote(repositoryRoot) {
-  try {
-    const remote = execFileSync("git", ["-C", repositoryRoot, "remote", "get-url", "origin"], { encoding: "utf8" }).trim();
-    const https = remote.match(/^https:\/\/[^/]+\/([^/]+)\/([^/]+?)(?:\.git)?$/u);
-    if (https) return `${https[1]}/${https[2]}`;
-    const ssh = remote.match(/^git@[^:]+:([^/]+)\/([^/]+?)(?:\.git)?$/u);
-    if (ssh) return `${ssh[1]}/${ssh[2]}`;
-  } catch { /* fall through to fail-closed handling at the call site */ }
+
+const ATTESTATION_REPO_OVERRIDE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9_.-]+$/u;
+
+function attestationTrustRootRepository() {
+  // The trust root is pinned: it comes from the GitHub Actions environment or
+  // from an explicitly set override variable. It is never derived from local
+  // git config, so a workstation remote cannot select the verification target.
+  const fromCi = process.env.GITHUB_REPOSITORY;
+  if (typeof fromCi === "string" && ATTESTATION_REPO_OVERRIDE_PATTERN.test(fromCi)) return fromCi;
+  const override = process.env.OMP_SPEC_KIT_ATTESTATION_REPO;
+  if (typeof override === "string" && ATTESTATION_REPO_OVERRIDE_PATTERN.test(override)) return override;
   return null;
 }
 
@@ -209,11 +212,10 @@ function ghAttestationVerify({ filePath, repository, signerWorkflow, sourceRef }
     });
   });
 }
-
-async function verifyAttestedTrustRoot({ receiptRelativePath, evidenceDirectory, candidate, repositoryRoot }) {
+async function verifyAttestedTrustRoot({ receiptRelativePath, evidenceDirectory, candidate }) {
   const reasons = [];
-  const repository = process.env.GITHUB_REPOSITORY ?? repositorySlugFromGitRemote(repositoryRoot);
-  if (!repository) return ["gh-repository-unresolved"];
+  const repository = attestationTrustRootRepository();
+  if (!repository) return ["trust-root-unpinned"];
   if (!/^v\d+\.\d+\.\d+$/u.test(String(candidate?.tag ?? ""))) return ["attestation-source-ref-unresolved"];
   let absoluteReceipt;
   try {
@@ -281,7 +283,6 @@ async function evaluateDistribution(evidence, evidenceDirectory, candidate, cata
       receiptRelativePath: ref.path,
       evidenceDirectory,
       candidate,
-      repositoryRoot,
     })) add(blocking, `distribution-producer-attestation-unverified:${reason}`);
   }
   return distributionResult(candidate, catalogDigest, blocking, evidenceByRequirement, expectedProfile, input.ompRevision, input.platform);

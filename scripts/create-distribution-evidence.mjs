@@ -78,12 +78,13 @@ function profileFor(version) {
     : { releasePosition: "subsequent", upgrade: "mandatory", rollback: "mandatory", reinstall: "mandatory" };
 }
 
-function expectedLifecycle(expectedProfile) {
-  return {
-    upgrade: expectedProfile.upgrade === "mandatory" ? "passed" : "inapplicable",
-    rollback: expectedProfile.rollback === "mandatory" ? "passed" : "inapplicable",
-    reinstall: "passed",
-  };
+// Lifecycle axes are honest per-receipt proof state: an axis is "passed" only
+// when THIS receipt's own claim IS that lifecycle proof, "inapplicable" when
+// the candidate profile marks the axis out of scope, and otherwise "not-run"
+// because no real lifecycle producer ran for it.
+function lifecycleForClaim(claim, expectedProfile) {
+  const axisState = (axis) => (claim === axis ? "passed" : expectedProfile[axis] === "inapplicable" ? "inapplicable" : "not-run");
+  return { upgrade: axisState("upgrade"), rollback: axisState("rollback"), reinstall: axisState("reinstall") };
 }
 
 // Deterministic platform-fixture digest: SHA-256 over the canonical JSON of
@@ -185,33 +186,45 @@ async function main() {
     fail("inventory run output was produced against a different corpus fixture");
   }
 
-  // --- Claim derivations --------------------------------------------------
   const records = [];
   const omitted = [];
+  let recordIndex = 0;
   const baseObservations = (id, summary) => [observation(id, summary, fixtureDigest)];
 
-  // FR-1 / marketplace-shape — from verify-marketplace success marker bytes.
-  records.push({
-    requirement: "plugin-distribution:FR-1",
-    claim: "marketplace-shape",
-    receipt: await writeFileReceipt({
+  // Every receipt write consumes the next record index; the receipt file name
+  // is derived from it so the bundle's own assembly-time copier in
+  // create-release-evidence rewrites nothing (byte-identical subject).
+  const emitRecord = async ({ requirement, claim, observations }) => {
+    const receipt = await writeFileReceipt({
       directory: args["--output"],
       receipt: makeReceipt({
         candidate,
         catalogDigest,
-        requirement: "plugin-distribution:FR-1",
-        claim: "marketplace-shape",
+        requirement,
+        claim,
         fixtureDigest,
         applicability,
-        lifecycle,
+        lifecycle: lifecycleForClaim(claim, applicability),
         runId: process.env.GITHUB_RUN_ID ?? 1,
-        observations: baseObservations(
-          "marketplace-shape-marker",
-          `verify-marketplace succeeded in this workflow; marker sha256 ${fixtureParts.marketplaceMarkerSha256.slice(0, 12)} matches catalog ${catalog.name}@${catalog.metadata?.version}.`,
-        ),
+        observations,
       }),
-    }),
+      index: recordIndex++,
+    });
+    records.push({ requirement, claim, receipt });
+  };
+
+
+
+  // FR-1 / marketplace-shape — from verify-marketplace success marker bytes.
+  await emitRecord({
+    requirement: "plugin-distribution:FR-1",
+    claim: "marketplace-shape",
+    observations: baseObservations(
+      "marketplace-shape-marker",
+      `verify-marketplace succeeded in this workflow; marker sha256 ${fixtureParts.marketplaceMarkerSha256.slice(0, 12)} matches catalog ${catalog.name}@${catalog.metadata?.version}.`,
+    ),
   });
+
 
   // FR-5 / clean-build + package-shape + deps-absent — from the built dist
   // manifest digests and the verify-package success marker. Dependency
@@ -243,23 +256,9 @@ async function main() {
       "deps-absent-closed-imports",
       "verify-package enforces a closed import surface (node: builtins plus in-payload specifiers only); no ambient dependency resolves.",
     );
-    records.push(
-      {
-        requirement: "plugin-distribution:FR-5",
-        claim: "clean-build",
-        receipt: await writeFileReceipt({ directory: args["--output"], receipt: makeReceipt({ candidate, catalogDigest, requirement: "plugin-distribution:FR-5", claim: "clean-build", fixtureDigest, applicability, lifecycle, runId: process.env.GITHUB_RUN_ID ?? 1, observations: cleanBuildObservations }) }),
-      },
-      {
-        requirement: "plugin-distribution:FR-5",
-        claim: "package-shape",
-        receipt: await writeFileReceipt({ directory: args["--output"], receipt: makeReceipt({ candidate, catalogDigest, requirement: "plugin-distribution:FR-5", claim: "package-shape", fixtureDigest, applicability, lifecycle, runId: process.env.GITHUB_RUN_ID ?? 1, observations: packageShapeObservations }) }),
-      },
-      {
-        requirement: "plugin-distribution:FR-5",
-        claim: "deps-absent",
-        receipt: await writeFileReceipt({ directory: args["--output"], receipt: makeReceipt({ candidate, catalogDigest, requirement: "plugin-distribution:FR-5", claim: "deps-absent", fixtureDigest, applicability, lifecycle, runId: process.env.GITHUB_RUN_ID ?? 1, observations: depsAbsentObservations }) }),
-      },
-    );
+    await emitRecord({ requirement: "plugin-distribution:FR-5", claim: "clean-build", observations: cleanBuildObservations });
+    await emitRecord({ requirement: "plugin-distribution:FR-5", claim: "package-shape", observations: packageShapeObservations });
+    await emitRecord({ requirement: "plugin-distribution:FR-5", claim: "deps-absent", observations: depsAbsentObservations });
   }
 
   // FR-6 / inventory-containment and FR-3 / inventory — from the real
@@ -269,50 +268,22 @@ async function main() {
     if (!Number.isInteger(inventoryRun.returnedSpecs) || inventoryRun.returnedSpecs <= 0) fail("inventory run returned no specs");
     if (inventoryRun.observedSpecs !== null && !Number.isInteger(inventoryRun.observedSpecs)) fail("inventory observedSpecs must be an integer or null");
     if (inventoryRun.observedSpecs !== null && inventoryRun.returnedSpecs > inventoryRun.observedSpecs) fail("inventory returned more specs than it observed");
-    records.push(
-      {
-        requirement: "plugin-distribution:FR-3",
-        claim: "inventory",
-        receipt: await writeFileReceipt({
-          directory: args["--output"],
-          receipt: makeReceipt({
-            candidate,
-            catalogDigest,
-            requirement: "plugin-distribution:FR-3",
-            claim: "inventory",
-            fixtureDigest,
-            applicability,
-            lifecycle,
-            runId: process.env.GITHUB_RUN_ID ?? 1,
-            observations: baseObservations(
-              "real-corpus-inventory",
-              `Real four-spec corpus inventory returned ${inventoryRun.returnedSpecs} of ${inventoryRun.observedSpecs ?? "unknown"} observed specs against frozen corpus fixture ${inventoryRun.corpusFixtureSha256.slice(0, 12)}.`,
-            ),
-          }),
-        }),
-      },
-      {
-        requirement: "plugin-distribution:FR-6",
-        claim: "inventory-containment",
-        receipt: await writeFileReceipt({
-          directory: args["--output"],
-          receipt: makeReceipt({
-            candidate,
-            catalogDigest,
-            requirement: "plugin-distribution:FR-6",
-            claim: "inventory-containment",
-            fixtureDigest,
-            applicability,
-            lifecycle,
-            runId: process.env.GITHUB_RUN_ID ?? 1,
-            observations: baseObservations(
-              "inventory-containment-kernel-reader",
-              "Standalone kernel reader enforced lexical containment, symlink refusal, and bounded reads over the frozen corpus without writes.",
-            ),
-          }),
-        }),
-      },
-    );
+    await emitRecord({
+      requirement: "plugin-distribution:FR-3",
+      claim: "inventory",
+      observations: baseObservations(
+        "real-corpus-inventory",
+        `Real four-spec corpus inventory returned ${inventoryRun.returnedSpecs} of ${inventoryRun.observedSpecs ?? "unknown"} observed specs against frozen corpus fixture ${inventoryRun.corpusFixtureSha256.slice(0, 12)}.`,
+      ),
+    });
+    await emitRecord({
+      requirement: "plugin-distribution:FR-6",
+      claim: "inventory-containment",
+      observations: baseObservations(
+        "inventory-containment-kernel-reader",
+        "Standalone kernel reader enforced lexical containment, symlink refusal, and bounded reads over the frozen corpus without writes.",
+      ),
+    });
   }
 
   // FR-7 / version-consistency — catalog, package, dist manifest, and tag
@@ -327,26 +298,13 @@ async function main() {
     for (const [authority, value] of Object.entries(authorities)) {
       if (value !== candidate.version) fail(`version authority mismatch: ${authority} declares ${value}, candidate declares ${candidate.version}`);
     }
-    records.push({
+    await emitRecord({
       requirement: "plugin-distribution:FR-7",
       claim: "version-consistency",
-      receipt: await writeFileReceipt({
-        directory: args["--output"],
-        receipt: makeReceipt({
-          candidate,
-          catalogDigest,
-          requirement: "plugin-distribution:FR-7",
-          claim: "version-consistency",
-          fixtureDigest,
-          applicability,
-          lifecycle,
-          runId: process.env.GITHUB_RUN_ID ?? 1,
-          observations: baseObservations(
-            "version-authority-agreement",
-            `Catalog, plugin package, dist manifest, and peeled tag all declare ${candidate.version}; upgrade/rollback receipts remain lifecycle-producer work.`,
-          ),
-        }),
-      }),
+      observations: baseObservations(
+        "version-authority-agreement",
+        `Catalog, plugin package, dist manifest, and peeled tag all declare ${candidate.version}; upgrade/rollback receipts remain lifecycle-producer work.`,
+      ),
     });
   }
 
@@ -356,26 +314,13 @@ async function main() {
     requireKeys(publicSafety, REQUIRED_CHECK_KEYS, "public safety report");
     if (publicSafety.schema !== "omp-spec-kit-public-safety@1" || publicSafety.status !== "passed") fail("public safety report is not a passed omp-spec-kit-public-safety@1 record");
     if (publicSafety.candidateDigest !== candidate.candidateDigest || publicSafety.packageTreeDigest !== candidate.packageTreeDigest) fail("public safety report identity differs from the candidate");
-    records.push({
+    await emitRecord({
       requirement: "plugin-distribution:FR-9",
       claim: "public-safety",
-      receipt: await writeFileReceipt({
-        directory: args["--output"],
-        receipt: makeReceipt({
-          candidate,
-          catalogDigest,
-          requirement: "plugin-distribution:FR-9",
-          claim: "public-safety",
-          fixtureDigest,
-          applicability,
-          lifecycle,
-          runId: process.env.GITHUB_RUN_ID ?? 1,
-          observations: baseObservations(
-            "public-safety-passed",
-            `verify-public-tree passed with zero findings; report digest ${publicSafety.digest.slice(0, 12)} bound to candidate ${candidate.candidateDigest.slice(0, 12)}.`,
-          ),
-        }),
-      }),
+      observations: baseObservations(
+        "public-safety-passed",
+        `verify-public-tree passed with zero findings; report digest ${publicSafety.digest.slice(0, 12)} bound to candidate ${candidate.candidateDigest.slice(0, 12)}.`,
+      ),
     });
   }
 
@@ -440,8 +385,11 @@ async function main() {
   }));
 }
 
-async function writeFileReceipt({ directory, receipt }) {
-  const targetRelative = `receipts/distribution/${receipt.requirement.replace(/[^a-z0-9-]/giu, "-")}-${receipt.claim}.json`;
+async function writeFileReceipt({ directory, receipt, index }) {
+  // Canonical target name matches the release-evidence copier exactly
+  // (receipts/distribution/<index>-<digest>.json) so assembly copies the
+  // attested subject byte-identically: same bytes, same canonical path form.
+  const targetRelative = `receipts/distribution/${index}-${sha256(canonicalJson(receipt))}.json`;
   const target = path.join(path.resolve(directory), targetRelative);
   await mkdir(path.dirname(target), { recursive: true });
   await writeFile(target, canonicalJson(receipt), "utf8");
