@@ -177,8 +177,10 @@ export async function createReleaseEvidence({
   outputDirectory,
   mriDiscoveryPath,
   distributionEvidencePath,
+  distributionTrust = "untrusted-self-attested",
   repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
 }) {
+  if (!["untrusted-self-attested", "github-artifact-attestation"].includes(distributionTrust)) fail(`unsupported --distribution-trust value: ${distributionTrust}`);
   const candidate = assertCandidateShape(await readStrictJson(candidatePath, "candidate manifest"), "candidate manifest");
   await mkdir(outputDirectory, { recursive: true });
   const catalogDigest = sha256(await readFile(path.join(repositoryRoot, ".omp-plugin", "marketplace.json")));
@@ -219,7 +221,7 @@ export async function createReleaseEvidence({
     schema: "omp-spec-kit-release-evidence@3",
     ...identity(candidate, catalogDigest),
     mri: { schema: "omp-spec-kit-mri-evidence@1", checks, frReceipts, discovery: mriDiscovery },
-    distribution: { schema: "omp-spec-kit-distribution-evidence-input@1", trust: "untrusted-self-attested", receipt: untrustedDistributionEvidence },
+    distribution: { schema: "omp-spec-kit-distribution-evidence-input@1", trust: distributionTrust, receipt: untrustedDistributionEvidence },
   };
   const outputPath = path.join(outputDirectory, "evidence.json");
   await writeFile(outputPath, canonicalJson(evidence), "utf8");
@@ -227,10 +229,12 @@ export async function createReleaseEvidence({
 }
 
 async function main() {
-  const args = parseArgs(process.argv.slice(2), ["--candidate", "--public-safety", "--cucumber-messages", "--lifecycle-dir", "--output", "--mri-discovery", "--distribution-evidence"]);
+  const args = parseArgs(process.argv.slice(2), ["--candidate", "--public-safety", "--cucumber-messages", "--lifecycle-dir", "--output", "--mri-discovery", "--distribution-evidence", "--distribution-trust"]);
   for (const flag of ["--candidate", "--public-safety", "--cucumber-messages", "--lifecycle-dir", "--output", "--mri-discovery"]) {
     if (!args[flag]) fail(`${flag} is required`);
   }
+  const distributionTrust = args["--distribution-trust"] ?? "untrusted-self-attested";
+  if (!["untrusted-self-attested", "github-artifact-attestation"].includes(distributionTrust)) fail(`unsupported --distribution-trust value: ${distributionTrust}`);
   const { evidence } = await createReleaseEvidence({
     candidatePath: path.resolve(args["--candidate"]),
     publicSafetyPath: path.resolve(args["--public-safety"]),
@@ -239,6 +243,7 @@ async function main() {
     outputDirectory: path.resolve(args["--output"]),
     mriDiscoveryPath: path.resolve(args["--mri-discovery"]),
     distributionEvidencePath: args["--distribution-evidence"] ? path.resolve(args["--distribution-evidence"]) : undefined,
+    distributionTrust,
   });
   process.stdout.write(canonicalJson(evidence));
 }

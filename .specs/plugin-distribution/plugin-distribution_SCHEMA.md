@@ -203,14 +203,27 @@ artifact only through canonical containment: the evidence root, every parent, an
 the leaf must be non-symlinks; the leaf's realpath must remain under the root; and
 its SHA-256 must equal the record reference.
 
-`workflow`, `runId`, and `observations` are self-authored JSON metadata. No
-supported cryptographic or independently verifiable producer-attestation provider
-exists for this schema version. Therefore every supplied matrix is explicitly
-`untrusted-self-attested` and produces
-`distribution-producer-provenance-untrusted:no-independent-trust-root`; its
-structural fields remain useful diagnostics but cannot produce public eligibility.
-A future trusted path MUST be separately specified and implemented with an
-independent verifier; this schema does not reserve or simulate an attestation field.
+`workflow`, `runId`, and `observations` remain self-authored JSON metadata:
+their bytes are diagnostics, never attacker-proof authority. Two trust roots
+exist for the closed input `{ schema:
+omp-spec-kit-distribution-evidence-input@1, trust, receipt }`. With
+`trust: "untrusted-self-attested"` the evaluator always emits
+`distribution-producer-provenance-untrusted:no-independent-trust-root`.
+With `trust: "github-artifact-attestation"` the evaluator additionally spawns
+the independent verifier
+`gh attestation verify <evidence.json> --repo OWNER/REPO --signer-workflow
+OWNER/REPO/.github/workflows/distribution-evidence.yml --source-ref
+refs/tags/<candidate tag>` after full structural matrix validation; the
+signer-workflow path `.github/workflows/distribution-evidence.yml` is a fixed
+constant and the source ref is always the candidate tag. Any missing `gh`,
+spawn failure, non-zero exit, or timeout yields
+`distribution-producer-attestation-unverified:<short reason>` (fail closed).
+The certificate identity (Fulcio signer bound to that workflow) and its
+timestamps are the trustworthy parts of an attestation; predicate contents are
+not attacker-proof and are treated as bounded diagnostics. `gh` availability is
+a maintainer CI context obligation, never a plugin-payload dependency.
+No supplied JSON can select eligibility by itself; only a verifier-passing
+attestation over structurally complete evidence can.
 
 ### 9.1 Mandatory evidence matrix
 
@@ -239,12 +252,15 @@ unprovenanced, invalid-observation, or self-attested record is blocked.
 This is a closed computed result, never a receipt. `evidenceByRequirement` has
 every FR-1 through FR-12 and lists the unique digest of each matrix producer
 artifact. Structural validation checks the complete matrix, matching candidate and
-platform identity, and verified artifact digests. However, while the only producer
-metadata is self-attested, the current implementation always emits
-`outcome: "blocked"` with
-`distribution-producer-provenance-untrusted:no-independent-trust-root`. The
-`eligible` outcome is reserved for a future separately implemented independently
-verifiable producer-attestation path; a supplied JSON cannot select that outcome.
+platform identity, and verified artifact digests. While the input trust is
+`untrusted-self-attested`, or `github-artifact-attestation` without a
+verifier-passing attestation, the implementation emits `outcome: "blocked"`
+(with `distribution-producer-provenance-untrusted:no-independent-trust-root`
+or `distribution-producer-attestation-unverified:<reason>` respectively). The
+eligible outcome is reachable only when the input trust is
+`github-artifact-attestation`, the full FR-1..FR-12 structural matrix passes,
+and the Sigstore attestation from the fixed signer workflow at tag
+`refs/tags/<candidate>` verifies; a supplied JSON cannot select that outcome.
 
 ## 11. Pinned compatibility boundary
 
@@ -268,19 +284,27 @@ the pinned v17.3.7 manager connection and eight-tool handoff. MRI produces only
 `mri-release-eligibility@1`; it does not attest `plugin-distribution:FR-13`.
 
 `distribution` is the closed assembler input `{ schema:
-"omp-spec-kit-distribution-evidence-input@1", trust:
-"untrusted-self-attested", receipt }`, where `receipt` is either `{ status:
-"missing" }` or a content-addressed `omp-spec-kit-distribution-evidence@1`
-manifest. The assembler copies referenced producer receipts into
-`receipts/distribution/`, rewrites their references to copied paths, and preserves
-their digests only for inspection; copying does not attest them. The verifier
-rejects a symlinked root, parent, or leaf; a realpath escape; a non-regular file; a
-digest mismatch; or any missing matrix cell. Regardless of structural completeness,
-the self-attested input remains blocked with
-`distribution-producer-provenance-untrusted:no-independent-trust-root`.
+"omp-spec-kit-distribution-evidence-input@1", trust, receipt }`, where `trust`
+is exactly `untrusted-self-attested` or `github-artifact-attestation`, and
+`receipt` is either `{ status: "missing" }` or a content-addressed
+`omp-spec-kit-distribution-evidence@1` manifest. The assembler copies
+referenced producer receipts into `receipts/distribution/`, rewrites their
+references to copied paths, and preserves their digests only for inspection;
+copying does not attest them. The verifier rejects a symlinked root, parent,
+or leaf; a realpath escape; a non-regular file; a digest mismatch; or any
+missing matrix cell. With `untrusted-self-attested` the input remains blocked
+with `distribution-producer-provenance-untrusted:no-independent-trust-root`.
+With `github-artifact-attestation` and a structurally complete matrix, the
+verifier spawns `gh attestation verify` against the copied evidence subject,
+the fixed signer workflow `.github/workflows/distribution-evidence.yml`, and
+source ref `refs/tags/<candidate tag>`; any failure adds
+`distribution-producer-attestation-unverified:<short reason>` without echoing
+subject bytes. Certificate identity and timestamps are the trusted parts of
+the attestation; predicate bytes remain diagnostics.
 
 The composed evaluator result is `public-release-eligibility@1` with the candidate
-identity, `mri`, `distribution`, `eligible`, and namespaced `blocking`. It is
-currently always ineligible for a supplied distribution bundle; a future eligible
-result requires both an eligible MRI result and a separately implemented trusted
-distribution verifier.
+identity, `mri`, `distribution`, `eligible`, and namespaced `blocking`. A
+supplied distribution bundle alone never produces eligibility: an eligible
+result requires eligible MRI, a structurally complete FR-1..FR-12 matrix, and a
+verifier-passing `github-artifact-attestation` trust root over the exact
+evidence subject.

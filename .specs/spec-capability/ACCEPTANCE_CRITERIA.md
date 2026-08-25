@@ -14,7 +14,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 **EARS:** WHEN FR/NFR headings contain `**Capability:** [CAP-N.M]` fields OR spec README frontmatter contains `capabilities: [CAP-N]` THEN the builder SHALL produce DERIVES_FROM edges only for permitted endpoint pairs (FR→CAPABILITY, NFR→CAPABILITY, CAPABILITY→CAPABILITY nesting) AND forbidden endpoints SHALL produce unresolved references AND unknown targets SHALL produce CAPABILITY_DANGLING diagnostics.
 
-**Requirement:** [FR-2](FR.md#fr-2-derives-from-edge-and-declaration-grammar)
+**Requirement:** [FR-2](FR.md#fr-2-derivesfrom-edge-and-declaration-grammar)
 
 **Scenario:** `@feature2`, `@id:SCEN-derives-from-edge-resolution`
 
@@ -55,6 +55,14 @@ These criteria define future verification obligations. The linked Gherkin scenar
 **EARS:** WHEN equivalent capability inputs are supplied in different orders or line-ending forms THEN the serialized output SHALL be byte-identical; WHEN duplicate CAP IDs exist in CAPABILITIES.md THEN both candidates SHALL be preserved AND no canonical node SHALL be elected AND `DUPLICATE_DEFINITION` SHALL be emitted per spec-kernel:FR-4 discipline.
 
 **Requirement:** [FR-7](FR.md#fr-7-determinism-and-identity)
+
+**Scenario:** `@feature7`, `@id:SCEN-capability-determinism-and-identity`
+
+## AC-7.2 (FR-7): Canonical ID grammar and cross-reference resolution
+
+**Requirement:** [FR-7](FR.md#fr-7-determinism-and-identity)
+
+**EARS:** WHEN capability IDs are produced THEN they SHALL follow `spec-kernel:FR-3` normalization (NFC Unicode, LF line endings, `/` path separators) with the qualified cross-reference form `<slug>:CAP-N` / `<slug>:CAP-N.M`; AND bare CAP IDs SHALL resolve only within the declaring document while unknown or escaping targets SHALL produce unresolved-reference diagnostics.
 
 **Scenario:** `@feature7`, `@id:SCEN-capability-determinism-and-identity`
 

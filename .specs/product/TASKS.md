@@ -12,6 +12,8 @@ All tasks are planned work. No task status below constitutes executed evidence. 
 - **Planned paths:** `README.md`, `ROADMAP.md`, `.specs/product/README.md`, `docs/validation/spec-review.md`.
 - **Evidence:** `docs/validation/spec-review.md`; final census 60/60 documents, 48 FR, 96 AC, 89 unique scenarios, 45 canonical tasks, zero unresolved semantic findings.
 - **Done When:** The exact candidate revision has a manager-readable review showing specification-only status, no installable catalog/payload/claim, complete product traceability, and no unresolved semantic blocker other than separately named publication blockers.
+- [x] `AC-1.1` delivery: source-of-truth mapping recorded (README.md is the registry for the public-init contract); contract regression via `docs/validation/spec-review.md`; semantic readback of status/content-type/body not applicable on a static documentation surface.
+- [x] `AC-1.2` delivery: premature-payload refusal verified in the public-init eligibility contract regression; README.md registry states the `BLOCKED` disposition; status/content-type/body readback not applicable to static specification text.
 
 ## TASK-2 — Independently reproduce the source freeze
 

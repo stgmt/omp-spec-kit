@@ -73,6 +73,7 @@ All tasks are planned. No task status here is execution evidence.
 - **Status:** Planned
 - **Estimate:** 1.5 days
 - **Done When:** Immutable source/hash/license checks, secret scanning, forbidden path/state checks, public diff review, and package allowlist fail planted violations and produce bounded non-secret receipts.
+- [ ] `AC-9.1` redaction lane: the packaged-path allowlist and secret-redaction receipts are exercised by planted violations in the TASK-6 fixtures, with every receipt bounded to the non-secret public schema.
 
 ## TASK-10 — Implement evidence and aggregate eligibility evaluator
 

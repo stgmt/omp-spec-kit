@@ -36,15 +36,53 @@ jobs:
         run: |
           set -o pipefail
           OMP_SPEC_KIT_BDD_MESSAGE_STDOUT=1 bash scripts/docker-bdd.sh > release-candidate/cucumber.ndjson
-      - name: Assemble MRI evidence; absence of live distribution producer artifacts remains blocked
+      - name: Download cross-run attested distribution evidence when present
+        id: dist_evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
-          node scripts/create-release-evidence.mjs \
-            --candidate release-candidate/candidate.json \
-            --public-safety release-candidate/public-safety.json \
-            --cucumber-messages release-candidate/cucumber.ndjson \
-            --lifecycle-dir "docs/validation/releases/${GITHUB_REF_NAME}" \
-            --mri-discovery docs/validation/omp-discovery-v17.3.7.md \
-            --output release-candidate
+          set -euo pipefail
+          if gh run list --repo "$GITHUB_REPOSITORY" \
+              --workflow distribution-evidence.yml \
+              --branch "$TAG" \
+              --status success \
+              --limit 20 \
+              --json databaseId,headBranch \
+              --jq '.[].databaseId' | head -n 1 > /tmp/dist-run-id; then
+            run_id="$(cat /tmp/dist-run-id)"
+          else
+            run_id=""
+          fi
+          if [ -n "$run_id" ]; then
+            mkdir dist-evidence
+            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
+              --name "omp-spec-kit-distribution-evidence-$TAG" --dir dist-evidence
+            echo "path=dist-evidence/distribution-evidence.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "No successful distribution-evidence run for $TAG; staying on the blocked untrusted path." >&2
+          fi
+      - name: Assemble MRI evidence; trust root depends on downloaded attestation availability
+        run: |
+          if [ -f "${{ steps.dist_evidence.outputs.path || 'dist-evidence/absent' }}" ]; then
+            node scripts/create-release-evidence.mjs \
+              --candidate release-candidate/candidate.json \
+              --public-safety release-candidate/public-safety.json \
+              --cucumber-messages release-candidate/cucumber.ndjson \
+              --lifecycle-dir "docs/validation/releases/${GITHUB_REF_NAME}" \
+              --mri-discovery docs/validation/omp-discovery-v17.3.7.md \
+              --distribution-evidence dist-evidence/distribution-evidence.json \
+              --distribution-trust github-artifact-attestation \
+              --output release-candidate
+          else
+            node scripts/create-release-evidence.mjs \
+              --candidate release-candidate/candidate.json \
+              --public-safety release-candidate/public-safety.json \
+              --cucumber-messages release-candidate/cucumber.ndjson \
+              --lifecycle-dir "docs/validation/releases/${GITHUB_REF_NAME}" \
+              --mri-discovery docs/validation/omp-discovery-v17.3.7.md \
+              --output release-candidate
+          fi
       - name: Enforce producer-artifact claim matrix before notes or candidate upload
         run: node scripts/verify-release.mjs --candidate release-candidate/candidate.json --evidence release-candidate/evidence.json --tag "$GITHUB_REF_NAME"
       - name: Render evidence-bound release notes

@@ -16,7 +16,7 @@ Probe the pinned OMP runtime to confirm every cited LSP contract before implemen
 
 **Status:** Planned
 
-Implement the kernel-finding-to-LSP-diagnostic mapping pipeline. Map code, file, line, message, and severity. Verify 1:1 correspondence on shared fixtures. Produce CHK-FR3-01 evidence.
+Implement the kernel-finding-to-LSP-diagnostic mapping pipeline. Map code, file, line, message, and severity. Verify 1:1 correspondence on shared fixtures. Produce CHK-FR3-01 evidence for [FR-3](FR.md#fr-3-spec-layer-diagnostics-mapped-from-kernel-conformance-findings) and honor the read-only posture of [FR-2](FR.md#fr-2-read-only-posture-with-proposal-only-code-actions).
 
 **Depends on:** TASK-1, `spec-kernel:FR-6` accepted.
 

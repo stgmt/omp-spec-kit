@@ -1,3 +1,4 @@
+import { execFileSync, spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +9,8 @@ import { assertCandidateShape, canonicalJson, collectRegularFiles, isCommit, isS
 
 const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, i) => `mcp-release-integrity:FR-${i + 1}`));
 const DISTRIBUTION_REQUIREMENTS = Object.freeze(Array.from({ length: 12 }, (_, i) => `plugin-distribution:FR-${i + 1}`));
+const DISTRIBUTION_TRUST_VALUES = Object.freeze(["untrusted-self-attested", "github-artifact-attestation"]);
+const ATTESTATION_SIGNER_WORKFLOW_SUFFIX = ".github/workflows/distribution-evidence.yml";
 const REQUIRED_CHECKS = Object.freeze(["publicSafety", "dockerBdd", "priorV030", "upgradeFromV030", "rollbackToV030"]);
 const DISTRIBUTION_CLAIM_MATRIX = Object.freeze({
   "plugin-distribution:FR-1": Object.freeze(["marketplace-shape"]),
@@ -161,10 +164,82 @@ async function verifyDistributionRecord(record, requirement, claim, input, id, e
   return loaded.digest;
 }
 
-async function evaluateDistribution(evidence, evidenceDirectory, candidate, catalogDigest, id, discoveryDigest) {
-  const blocking = ["distribution-producer-provenance-untrusted:no-independent-trust-root"];
+function repositorySlugFromGitRemote(repositoryRoot) {
+  try {
+    const remote = execFileSync("git", ["-C", repositoryRoot, "remote", "get-url", "origin"], { encoding: "utf8" }).trim();
+    const https = remote.match(/^https:\/\/[^/]+\/([^/]+)\/([^/]+?)(?:\.git)?$/u);
+    if (https) return `${https[1]}/${https[2]}`;
+    const ssh = remote.match(/^git@[^:]+:([^/]+)\/([^/]+?)(?:\.git)?$/u);
+    if (ssh) return `${ssh[1]}/${ssh[2]}`;
+  } catch { /* fall through to fail-closed handling at the call site */ }
+  return null;
+}
+
+function ghAttestationVerify({ filePath, repository, signerWorkflow, sourceRef }) {
+  // Resolves only when the independent verifier completes; every other path
+  // (missing gh, spawn failure, non-zero exit, timeout) rejects.
+  return new Promise((resolve) => {
+    let child;
+    let settled = false;
+    const finish = (verified, reason) => {
+      if (settled) return;
+      settled = true;
+      resolve({ verified, reason });
+    };
+    const timer = setTimeout(() => {
+      try { child?.kill("SIGKILL"); } catch { /* already gone */ }
+      finish(false, "gh-timeout");
+    }, 120000);
+    timer.unref?.();
+    try {
+      child = spawn("gh", ["attestation", "verify", filePath, "--repo", repository, "--signer-workflow", signerWorkflow, "--source-ref", sourceRef], { stdio: ["ignore", "ignore", "ignore"] });
+    } catch {
+      clearTimeout(timer);
+      finish(false, "gh-spawn-failed");
+      return;
+    }
+    child.on("error", () => {
+      clearTimeout(timer);
+      finish(false, "gh-unavailable");
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code === 0) finish(true, null);
+      else finish(false, code === null ? "gh-exited-abnormally" : `gh-verify-failed:${code}`);
+    });
+  });
+}
+
+async function verifyAttestedTrustRoot({ receiptRelativePath, evidenceDirectory, candidate, repositoryRoot }) {
+  const reasons = [];
+  const repository = process.env.GITHUB_REPOSITORY ?? repositorySlugFromGitRemote(repositoryRoot);
+  if (!repository) return ["gh-repository-unresolved"];
+  if (!/^v\d+\.\d+\.\d+$/u.test(String(candidate?.tag ?? ""))) return ["attestation-source-ref-unresolved"];
+  let absoluteReceipt;
+  try {
+    // The attested subject must be exactly the copied evidence bytes already
+    // bound into this evidence bundle by digest.
+    absoluteReceipt = await resolveContainedRegularFile(evidenceDirectory, receiptRelativePath, "distribution evidence subject path");
+  } catch {
+    return ["attestation-subject-unresolvable"];
+  }
+
+  const signerWorkflow = `${repository}/${ATTESTATION_SIGNER_WORKFLOW_SUFFIX}`;
+  const { verified, reason } = await ghAttestationVerify({
+    filePath: absoluteReceipt,
+    repository,
+    signerWorkflow,
+    sourceRef: `refs/tags/${candidate.tag}`,
+  });
+  if (!verified) reasons.push(reason ?? "gh-verify-failed");
+  return reasons;
+}
+async function evaluateDistribution(evidence, evidenceDirectory, candidate, catalogDigest, id, discoveryDigest, repositoryRoot) {
+  const blocking = [];
   const distributionInput = asObject(evidence.distribution);
-  if (!distributionInput || !exact(distributionInput, ["receipt", "schema", "trust"]) || distributionInput.schema !== "omp-spec-kit-distribution-evidence-input@1" || distributionInput.trust !== "untrusted-self-attested") add(blocking, "distribution-evidence-trust-state-mismatch");
+  const trust = distributionInput?.trust;
+  if (trust === "untrusted-self-attested") add(blocking, "distribution-producer-provenance-untrusted:no-independent-trust-root");
+  if (!distributionInput || !exact(distributionInput, ["receipt", "schema", "trust"]) || distributionInput.schema !== "omp-spec-kit-distribution-evidence-input@1" || !DISTRIBUTION_TRUST_VALUES.includes(trust)) add(blocking, "distribution-evidence-trust-state-mismatch");
   const expectedProfile = profile(candidate.version);
   const ref = distributionInput?.receipt;
   const loaded = await readReceipt(ref, "distribution-evidence", evidenceDirectory, blocking);
@@ -201,6 +276,14 @@ async function evaluateDistribution(evidence, evidenceDirectory, candidate, cata
     }
     for (const record of rows) if (!claims.includes(record?.claim)) add(blocking, `unexpected-distribution-claim:${requirement}:${record?.claim ?? "missing"}`);
   }
+  if (trust === "github-artifact-attestation") {
+    for (const reason of await verifyAttestedTrustRoot({
+      receiptRelativePath: ref.path,
+      evidenceDirectory,
+      candidate,
+      repositoryRoot,
+    })) add(blocking, `distribution-producer-attestation-unverified:${reason}`);
+  }
   return distributionResult(candidate, catalogDigest, blocking, evidenceByRequirement, expectedProfile, input.ompRevision, input.platform);
 }
 
@@ -217,7 +300,7 @@ export async function evaluateRelease({ candidatePath, evidencePath, tag, reposi
   let evidence; try { evidence = await readStrictJson(evidencePath, "release evidence"); } catch (error) { const mri = mriResult(candidate, catalogDigest, ["release-evidence-unreadable"]); const distribution = distributionResult(candidate, catalogDigest, ["release-evidence-unreadable"]); return publicResult(candidate, catalogDigest, mri, distribution, [...preflight, `invalid-evidence:${error.message}`]); }
   const evidenceKeys = ["archiveSha256", "candidateDigest", "catalogDigest", "commit", "distribution", "mri", "packageTreeDigest", "schema", "tag", "version"];
   if (!exact(evidence, evidenceKeys) || evidence.schema !== "omp-spec-kit-release-evidence@3" || !matches(evidence, id)) add(preflight, "evidence-identity-mismatch");
-  const dir = path.dirname(evidencePath); const mriState = await evaluateMri(evidence, dir, id, repositoryRoot, resolveTagCommit); const mri = mriResult(candidate, catalogDigest, mriState.blocking, mriState.discoveryDigest); const distribution = await evaluateDistribution(evidence, dir, candidate, catalogDigest, id, mriState.discoveryDigest); return publicResult(candidate, catalogDigest, mri, distribution, preflight);
+  const dir = path.dirname(evidencePath); const mriState = await evaluateMri(evidence, dir, id, repositoryRoot, resolveTagCommit); const mri = mriResult(candidate, catalogDigest, mriState.blocking, mriState.discoveryDigest); const distribution = await evaluateDistribution(evidence, dir, candidate, catalogDigest, id, mriState.discoveryDigest, repositoryRoot); return publicResult(candidate, catalogDigest, mri, distribution, preflight);
 }
 async function main() { const args = parseArgs(process.argv.slice(2), ["--candidate", "--evidence", "--tag"]); const candidatePath = args["--candidate"] ?? process.env.RELEASE_CANDIDATE; const evidencePath = args["--evidence"] ?? process.env.RELEASE_EVIDENCE; const tag = args["--tag"] ?? process.env.RELEASE_TAG; if (!candidatePath || !evidencePath || !tag) throw new Error("--candidate, --evidence, and --tag are required"); const result = await evaluateRelease({ candidatePath: path.resolve(candidatePath), evidencePath: path.resolve(evidencePath), tag }); process.stdout.write(canonicalJson(result)); if (!result.eligible) process.exitCode = 1; }
 if (process.argv[1] === fileURLToPath(import.meta.url)) await main();

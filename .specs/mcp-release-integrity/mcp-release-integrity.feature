@@ -115,6 +115,12 @@ Feature: MRI001_Correct_MCP_root_and_release_identity
     When the distribution evidence is "structurally-complete-self-attested"
     Then the public release is blocked by "distribution-producer-provenance-untrusted:no-independent-trust-root" while MRI remains independently named
 
+  @FR-4 @AC-4 @id:SCEN-MRI-018
+  Scenario: Structurally complete attestation-trusted distribution evidence still fails closed without a verifying signer
+    Given a v0.3.1 candidate with complete MRI evidence but no distribution evidence
+    When the distribution evidence is "structurally-complete-attestation-trusted"
+    Then the public release is blocked by an attestation-unverified reason while MRI remains independently named
+
   @FR-4 @AC-4 @id:SCEN-MRI-016
   Scenario Outline: Symlinked evidence parents cannot redirect receipt reads
     Given a v0.3.1 candidate and complete evidence record
