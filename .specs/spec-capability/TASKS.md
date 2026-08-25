@@ -30,7 +30,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 **Depends On:** TASK-1
 
-**Requirements:** [FR-1](FR.md#fr-1-capability-node-and-document), [FR-2](FR.md#fr-2-derives-from-edge-and-declaration-grammar), [FR-7](FR.md#fr-7-determinism-and-identity)
+**Requirements:** [FR-1](FR.md#fr-1-capability-node-and-document), [FR-2](FR.md#fr-2-derivesfrom-edge-and-declaration-grammar), [FR-7](FR.md#fr-7-determinism-and-identity)
 
 **Done When:**
 - `.specs/CAPABILITIES.md` level-2/3 headings produce CAPABILITY definition occurrences with correct nesting.
@@ -49,7 +49,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 **Depends On:** TASK-2
 
-**Requirements:** [FR-2](FR.md#fr-2-derives-from-edge-and-declaration-grammar), [FR-3](FR.md#fr-3-conformance-findings)
+**Requirements:** [FR-2](FR.md#fr-2-derivesfrom-edge-and-declaration-grammar), [FR-3](FR.md#fr-3-conformance-findings)
 
 **Done When:**
 - DERIVES_FROM edges resolve against the closed endpoint matrix.

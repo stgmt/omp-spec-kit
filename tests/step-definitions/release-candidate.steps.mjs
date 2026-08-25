@@ -14,8 +14,9 @@ import {
   extractCandidate,
   readVerifiedCucumberFixture,
   replaceMessageWithMeta,
-  writeSyntheticDistributionClaims,
+  writeStructurallyCompleteAttestationTrustedDistributionEvidence,
   writeStructurallyCompleteSelfAttestedDistributionEvidence,
+  writeSyntheticDistributionClaims,
 } from "../helpers/release-candidate-world.mjs";
 
 function repositoryRoot() {
@@ -232,9 +233,22 @@ Given("a v0.3.1 candidate with complete MRI evidence but no distribution evidenc
 When("the distribution evidence is {string}", async function (fault) {
   if (fault === "placeholder-claims") await writeSyntheticDistributionClaims(this.release);
   else if (fault === "structurally-complete-self-attested") await writeStructurallyCompleteSelfAttestedDistributionEvidence(this.release);
+  else if (fault === "structurally-complete-attestation-trusted") await writeStructurallyCompleteAttestationTrustedDistributionEvidence(this.release);
   else assert.fail(`unexpected distribution evidence fixture: ${fault}`);
   this.distributionEvidenceFault = fault;
   this.releaseResult = await evaluateCandidate(this.release, repositoryRoot());
+});
+
+Then("the public release is blocked by an attestation-unverified reason while MRI remains independently named", function () {
+  assert.equal(this.releaseResult.mri.schema, "mri-release-eligibility@1");
+  assert.equal(this.releaseResult.mri.eligible, true, this.releaseResult.mri.blocking.join(", "));
+  assert.equal(this.releaseResult.distribution.schema, "distribution-release-eligibility@1");
+  assert.equal(this.releaseResult.eligible, false);
+  assert.equal(
+    this.releaseResult.distribution.blockingReasons.some((reason) => reason.startsWith("distribution-producer-attestation-unverified:")),
+    true,
+    this.releaseResult.distribution.blockingReasons.join(", "),
+  );
 });
 
 Then("the public release is blocked by {string} while MRI remains independently named", function (reason) {

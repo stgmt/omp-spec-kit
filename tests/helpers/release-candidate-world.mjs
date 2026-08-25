@@ -120,6 +120,48 @@ export async function writeStructurallyCompleteSelfAttestedDistributionEvidence(
   };
   await writeFile(world.evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
 }
+
+export async function writeStructurallyCompleteAttestationTrustedDistributionEvidence(world) {
+  const evidence = JSON.parse(await readFile(world.evidencePath, "utf8"));
+  const ompRevision = "@oh-my-pi/pi-coding-agent@17.3.7#8500092296621a6826b7136e840f8a59ea338958";
+  const records = [];
+  let index = 0;
+  for (const [requirement, claims] of Object.entries(DISTRIBUTION_CLAIMS)) {
+    for (const claim of claims) {
+      index += 1;
+      const producerReceipt = {
+        schema: "omp-spec-kit-distribution-producer-receipt@1",
+        status: "passed",
+        ...identity(world.candidate, world.catalogDigest),
+        requirement,
+        claim,
+        fixtureDigest: PLATFORM.fixtureDigest,
+        ompRevision,
+        platform: structuredClone(PLATFORM),
+        applicability: structuredClone(APPLICABILITY),
+        lifecycle: structuredClone(LIFECYCLE),
+        producer: { workflow: "distribution-lifecycle", runId: String(index) },
+        observations: [{ id: `attestation-trusted-${index}`, outcome: "passed", summary: "Fabricated structural observation", fixtureDigest: PLATFORM.fixtureDigest }],
+      };
+      records.push({ requirement, claim, receipt: await writeReceipt(world.candidateDirectory, `attestation-trusted-${index}`, producerReceipt) });
+    }
+  }
+  const input = {
+    schema: "omp-spec-kit-distribution-evidence@1",
+    ...identity(world.candidate, world.catalogDigest),
+    ompRevision,
+    platform: structuredClone(PLATFORM),
+    applicability: structuredClone(APPLICABILITY),
+    mriDiscoveryDigest: evidence.mri.discovery.digest,
+    records,
+  };
+  evidence.distribution = {
+    schema: "omp-spec-kit-distribution-evidence-input@1",
+    trust: "github-artifact-attestation",
+    receipt: await writeReceipt(world.candidateDirectory, "attestation-trusted-distribution-evidence", input),
+  };
+  await writeFile(world.evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
+}
 export async function evaluateCandidate(world, repositoryRoot) { return evaluateRelease({ candidatePath: world.manifestPath, evidencePath: world.evidencePath, tag: world.candidate.tag, repositoryRoot, resolveTagCommit: world.resolveTagCommit }); }
 export async function extractCandidate(world, destination) { await mkdir(destination, { recursive: true }); const result = spawnSync("tar", ["-xf", world.archivePath, "-C", destination], { encoding: "utf8" }); if (result.error) throw result.error; if (result.status !== 0) throw new Error(`tar extraction failed: ${result.stderr}`); const launcher = path.join(destination, "bin", "omp-spec-kit-mcp"); const mode = (await (await import("node:fs/promises")).lstat(launcher)).mode & 0o777; return { root: destination, launcher, mode }; }
 export async function appendArchiveByte(world) { const original = await readFile(world.archivePath); await writeFile(world.archivePath, Buffer.concat([original, Buffer.from([0])])); }

@@ -90,6 +90,14 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 **Scenario:** `@feature10`, `@id:SCEN-diagnostics-are-kernel-findings-only`
 
+## AC-10.2 (FR-10): No independent conformance path exists in the extension
+
+**Requirement:** [FR-10](FR.md#fr-10-diagnostics-are-spec-kernel-findings-only)
+
+**EARS:** WHEN the installed extension bundle is inspected THEN it SHALL contain no rule catalog, validator, or finding producer other than the `spec-kernel:FR-6` result consumer; AND every injected diagnostic SHALL be traceable to a kernel diagnostic record received at runtime, never to bundled or generated content.
+
+**Scenario:** `@feature10`, `@id:SCEN-diagnostics-are-kernel-findings-only`
+
 ## AC-11.1: Release gate is a closed conjunction
 
 **EARS:** WHEN the release evaluator processes `spec-enforcement-release@1` THEN eligibility SHALL require exactly one passing hash-bound record per mandatory check for FR-1 through FR-10 including TASK-1 probe records dependency-absent smoke budget evidence and adversarial review; AND missing extra duplicate failed stale mismatched or unbound records SHALL fail closed; AND structural specification text and unexecuted Gherkin SHALL NOT satisfy evidence; AND eligibility SHALL NOT imply authorization to ship.

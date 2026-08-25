@@ -1,0 +1,97 @@
+name: distribution-evidence
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attest (vX.Y.Z)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: distribution-evidence-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  attest-distribution-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Verify frozen corpus provenance before evidence capture
+        run: |
+          if command -v node >/dev/null 2>&1; then
+            NODE_BIN=node
+          elif command -v node.exe >/dev/null 2>&1; then
+            NODE_BIN=node.exe
+          else
+            echo "Node.js is required to verify the frozen corpus fixture." >&2
+            exit 2
+          fi
+          "$NODE_BIN" scripts/refresh-real-corpus-manifest.mjs --check
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - run: npm run build
+
+      - name: Verify marketplace and package
+        run: |
+          node scripts/verify-marketplace.mjs && touch .omp-spec-kit-marketplace-ok
+          node scripts/verify-package.mjs && touch .omp-spec-kit-package-ok
+
+      - name: Assemble release candidate from peeled tag checkout
+        run: node scripts/create-release-candidate.mjs --tag "$TAG" --output dist-candidate
+
+      - name: Verify candidate public safety
+        run: node scripts/verify-public-tree.mjs --candidate dist-candidate/candidate.json --output dist-candidate/public-safety.json
+
+      - name: Capture real corpus inventory through the kernel reader
+        run: node scripts/create-corpus-inventory.mjs --output dist-candidate/corpus-inventory.json
+
+      - name: Build attested distribution evidence bundle
+        env:
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          # Bound the MRI discovery artifact by digest, exactly as
+          # create-release-evidence copies it and verify-release checks it.
+          DISCOVERY_SHA="$(sha256sum docs/validation/omp-discovery-v17.3.7.md | cut -d ' ' -f1)"
+          node scripts/create-distribution-evidence.mjs \
+            --candidate dist-candidate/candidate.json \
+            --public-safety dist-candidate/public-safety.json \
+            --marketplace-marker .omp-spec-kit-marketplace-ok \
+            --package-marker .omp-spec-kit-package-ok \
+            --dist-manifest plugins/omp-spec-kit/dist/manifest.json \
+            --catalog .omp-plugin/marketplace.json \
+            --package-manifest plugins/omp-spec-kit/package.json \
+            --inventory-output dist-candidate/corpus-inventory.json \
+            --mri-discovery-digest "$DISCOVERY_SHA" \
+            --output dist-evidence
+
+      - name: Attest the distribution evidence bundle
+        uses: actions/attest@v4
+        with:
+          subject-path: dist-evidence/distribution-evidence.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: omp-spec-kit-distribution-evidence-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          path: |
+            dist-evidence/distribution-evidence.json
+            dist-evidence/receipts/
+          if-no-files-found: error
