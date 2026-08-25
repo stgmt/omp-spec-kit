@@ -10,6 +10,14 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 **Scenario:** `@feature1`, `@id:SCEN-approval-interception-and-plan-resolution`
 
+## AC-1.2 (FR-1): Session identity and slug normalization are pinned
+
+**Requirement:** [FR-1](FR.md#fr-1-approval-interception-and-deterministic-plan-resolution)
+
+**EARS:** WHEN the same propose write is observed across repeated invocations within one session THEN the resolved plan path SHALL be byte-identical, derived from the runner session identity and the documented slug normalization; AND a session identity that changes SHALL change only the directory, never the resolution algorithm.
+
+**Scenario:** `@feature1`, `@id:SCEN-approval-interception-and-plan-resolution`
+
 ## AC-2.1: Every gate fault path allows
 
 **EARS:** IF any of handler exception, absent plan file, over-budget bytes, malformed or unreadable prompt cache, subsystem failure, missing template, or deadline expiry occurs THEN the handler SHALL return no blocking result, append one bounded diagnostic record, and the approval flow SHALL continue; AND blocking SHALL be observed only after a complete successful validation returning one or more blocking errors.

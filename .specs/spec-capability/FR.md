@@ -16,7 +16,7 @@ The parser SHALL recognize `.specs/CAPABILITIES.md` as a canonical capability do
 
 The builder SHALL support a new typed edge `DERIVES_FROM` with the closed endpoint matrix: `FUNCTIONAL_REQUIREMENT → CAPABILITY`, `NON_FUNCTIONAL_REQUIREMENT → CAPABILITY`, and `CAPABILITY → CAPABILITY` (nesting only, child→parent). DERIVES_FROM edges SHALL be declared via two mechanisms: (a) structured field `**Capability:** [CAP-N.M]` on FR/NFR headings in `FR.md`, following the same parsing pattern as `**Requirement:**` fields the kernel already recognizes per `spec-kernel:FR-5`; (b) spec-level frontmatter `capabilities: [CAP-N, ...]` in spec README.md, which declares that all requirements in that spec derive from the listed capabilities. Each declaration SHALL produce one DERIVES_FROM reference occurrence resolved through the standard edge-resolution pipeline. Missing, malformed, ambiguous, or forbidden-endpoint targets SHALL produce typed unresolved references per `spec-kernel:FR-5`.
 
-**Acceptance:** [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-derives-from-edges-follow-closed-endpoint-matrix)
+**Acceptance:** [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-derivesfrom-edges-follow-closed-endpoint-matrix)
 
 **Scenario:** `@feature2` / `SCEN-derives-from-edge-resolution`
 
