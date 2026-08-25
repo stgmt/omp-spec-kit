@@ -213,10 +213,15 @@ With `trust: "github-artifact-attestation"` the evaluator additionally spawns
 the independent verifier
 `gh attestation verify <evidence.json> --repo OWNER/REPO --signer-workflow
 OWNER/REPO/.github/workflows/distribution-evidence.yml --source-ref
-refs/tags/<candidate tag>` after full structural matrix validation; the
+refs/tags/<candidate tag>` after full structural matrix validation. The
 signer-workflow path `.github/workflows/distribution-evidence.yml` is a fixed
-constant and the source ref is always the candidate tag. Any missing `gh`,
-spawn failure, non-zero exit, or timeout yields
+constant, the source ref is always the candidate tag, and the `OWNER/REPO`
+trust root is pinned: it comes from the GitHub Actions environment
+(`GITHUB_REPOSITORY`) or from an explicitly set strict `OWNER/REPO` variable
+(`OMP_SPEC_KIT_ATTESTATION_REPO`); it is never derived from local git config,
+and outside those sources the evaluator emits
+`distribution-producer-attestation-unverified:trust-root-unpinned`. Any missing
+`gh`, spawn failure, non-zero exit, or timeout yields
 `distribution-producer-attestation-unverified:<short reason>` (fail closed).
 The certificate identity (Fulcio signer bound to that workflow) and its
 timestamps are the trustworthy parts of an attestation; predicate contents are
@@ -242,10 +247,14 @@ attestation over structurally complete evidence can.
 | FR-11 | `evidence-honesty` | none |
 | FR-12 | `schema-containment` | none |
 
-For `0.1.0`, upgrade and rollback lifecycle values are `inapplicable`; later
-candidates require passed upgrade and rollback receipts. Reinstall is always
-passed. A missing, duplicate, foreign, unexpected, non-passed, fixture-mismatched,
-unprovenanced, invalid-observation, or self-attested record is blocked.
+Lifecycle axes on each receipt reflect honest per-receipt proof state: an axis
+is `passed` only when THIS receipt's own claim IS that lifecycle proof (claims
+`upgrade`, `rollback`, `reinstall`), `inapplicable` when the candidate profile
+makes the axis out of scope, and otherwise `not-run` because no lifecycle
+producer ran for that claim. The evaluator computes the same mapping from the
+claim and profile and blocks any deviation. A missing, duplicate, foreign,
+unexpected, non-passed, fixture-mismatched, unprovenanced, invalid-observation,
+or self-attested record is blocked.
 
 ## 10. `distribution-release-eligibility@1`
 
@@ -287,13 +296,17 @@ the pinned v17.3.7 manager connection and eight-tool handoff. MRI produces only
 "omp-spec-kit-distribution-evidence-input@1", trust, receipt }`, where `trust`
 is exactly `untrusted-self-attested` or `github-artifact-attestation`, and
 `receipt` is either `{ status: "missing" }` or a content-addressed
-`omp-spec-kit-distribution-evidence@1` manifest. The assembler copies
-referenced producer receipts into `receipts/distribution/`, rewrites their
-references to copied paths, and preserves their digests only for inspection;
-copying does not attest them. The verifier rejects a symlinked root, parent,
-or leaf; a realpath escape; a non-regular file; a digest mismatch; or any
-missing matrix cell. With `untrusted-self-attested` the input remains blocked
-with `distribution-producer-provenance-untrusted:no-independent-trust-root`.
+`omp-spec-kit-distribution-evidence@1` manifest. The producer names every
+receipt `receipts/distribution/<record index>-<digest>.json`, so the assembler
+copies each referenced producer receipt into the same canonical name and its
+reference is already final: copied bytes are byte-identical to the attested
+subject (same bytes written, same canonical form, digest re-verified at copy
+time). Only legacy bundles whose receipt paths use other schemes get their
+references rewritten to the canonical target; those were never attested.
+Copying does not attest anything. The verifier rejects a symlinked root,
+parent, or leaf; a realpath escape; a non-regular file; a digest mismatch; or
+any missing matrix cell. With `untrusted-self-attested` the input remains
+blocked with `distribution-producer-provenance-untrusted:no-independent-trust-root`.
 With `github-artifact-attestation` and a structurally complete matrix, the
 verifier spawns `gh attestation verify` against the copied evidence subject,
 the fixed signer workflow `.github/workflows/distribution-evidence.yml`, and

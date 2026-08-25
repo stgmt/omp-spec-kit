@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - "v*.*.*"
+  # workflow_dispatch works for (re)attesting any existing vX.Y.Z tag: the
+  # release workflow discovers runs by the peeled tag commit, not by branch
+  # name, so dispatched runs are picked up like tag-push runs.
   workflow_dispatch:
     inputs:
       tag:
