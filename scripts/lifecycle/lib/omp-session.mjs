@@ -7,6 +7,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+function fail(message) {
+	throw new Error(`lifecycle: ${message}`);
+}
 export const DEFAULT_PHASE_TIMEOUT_MS = 30000;
 export const MAX_PHASE_TIMEOUT_MS = 120000;
 
