@@ -4,7 +4,7 @@
 // release without rebuilding it. Asserts tag/version/manifest agreement and
 // verifies every extracted file against the tag's own dist manifest.
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -60,7 +60,7 @@ function sha256(bytes) {
 async function collectFiles(root) {
 	const files = [];
 	async function visit(absolute, relative) {
-		const entries = await readdir(absolute, { withFileTypes: true });
+		const entries = readdirSync(absolute, { withFileTypes: true });
 		entries.sort((a, b) => a.name.localeCompare(b.name));
 		for (const entry of entries) {
 			const childRelative = relative === "" ? entry.name : path.posix.join(relative, entry.name);
@@ -130,7 +130,7 @@ async function main() {
 	// Older tags (v0.3.0) run `node dist/mcp/server.js` directly; newer tags
 	// bind ./bin/omp-spec-kit-mcp. Either way the declared entrypoint must be
 	// present inside the extracted package, taken verbatim from the tag.
-	const mcpConfig = JSON.parse(await readFile(path.join(outputRoot, ".mcp.json"), "utf8"));
+	const mcpConfig = JSON.parse(readFileSync(path.join(outputRoot, ".mcp.json"), "utf8"));
 	const server = mcpConfig?.mcpServers?.[packageManifest.name];
 	if (!server || server.type !== "stdio") fail(`extracted .mcp.json does not declare a stdio server for ${packageManifest.name}`);
 	const declaredEntry = server.command === "./bin/omp-spec-kit-mcp"
@@ -139,7 +139,7 @@ async function main() {
 			? server.args[0].split("/")
 			: null;
 	if (!declaredEntry) fail(`extracted .mcp.json declares an unsupported command shape: ${JSON.stringify(server.command)}`);
-	const entryBytes = await readFile(path.join(outputRoot, ...declaredEntry));
+	const entryBytes = readFileSync(path.join(outputRoot, ...declaredEntry));
 	if (entryBytes.length === 0) {
 		// The declared entrypoint is not part of the committed payload (the
 		// bin/ launchers postdate v0.3.0): take its exact bytes from the tag.
