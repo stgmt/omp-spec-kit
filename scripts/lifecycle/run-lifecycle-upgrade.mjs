@@ -38,7 +38,7 @@ function parseArgs(argv) {
 		index += 1;
 	}
 	for (const flag of allowed) {
-		if (flag === "--observe" || ["--package-root", "--request-id", "--candidate-package-root", "--prior-package-root", "--receipts-out"].includes(flag)) continue;
+		if (flag === "--observe" || ["--package-root", "--request-id", "--candidate-package-root", "--prior-package-root", "--receipts-out", "--expected-version"].includes(flag)) continue;
 		if (!output[flag]) throw new Error(`${flag} is required`);
 	}
 	return output;
