@@ -76,8 +76,8 @@ async function main() {
 	const args = parseArgs(process.argv.slice(2));
 	const timeoutMs = Number(args["--phase-timeout-ms"]);
 	const cwd = path.resolve(args["--project-dir"]);
-	const receiptsOut = path.resolve(args["--receipts-out"]);
-	await mkdir(receiptsOut, { recursive: true });
+	const receiptsOut = args["--receipts-out"] ? path.resolve(args["--receipts-out"]) : null;
+	if (receiptsOut) await mkdir(receiptsOut, { recursive: true });
 
 	const observe = (packageRoot, requestId) => {
 		const child = spawnSync("bun", observeChildArgs(args, packageRoot, requestId), { cwd, env: process.env, encoding: "utf8" });
