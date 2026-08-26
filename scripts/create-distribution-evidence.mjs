@@ -262,9 +262,14 @@ async function main() {
       if (raw.status !== "passed") fail(`${spec.file} lifecycle record did not pass`);
       if (raw.requirement !== spec.requirement) fail(`${spec.file} declares ${raw.requirement}, expected ${spec.requirement}`);
       if (raw.claim !== claim) fail(`${spec.file} declares claim ${raw.claim}`);
+      // Rollback binds the version it ROLLED BACK TO (the prior release),
+      // not the candidate; every other claim observes the candidate itself.
       const boundVersion = raw[spec.versionField];
-      if (boundVersion !== candidate.version) {
-        fail(`${spec.file} does not bind candidate version ${candidate.version} via ${spec.versionField}: ${JSON.stringify(boundVersion)}`);
+      const expectedBound = spec.versionField === "expectedVersion" && raw.details?.toVersion !== undefined
+        ? raw.details.toVersion
+        : candidate.version;
+      if (boundVersion !== expectedBound) {
+        fail(`${spec.file} does not bind ${expectedBound} via ${spec.versionField}: ${JSON.stringify(boundVersion)}`);
       }
 
       // The runner's observations carry real proof text; install and
