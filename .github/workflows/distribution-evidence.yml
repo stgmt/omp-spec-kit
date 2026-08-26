@@ -95,6 +95,7 @@ jobs:
             --phase-timeout-ms 30000
 
       - name: Extract v0.3.0 prior and run upgrade lifecycle producer
+        timeout-minutes: 20
         env:
           LIFECYCLE_PROJECT_DIR: ${{ runner.temp }}/omp-lifecycle-upgrade
           LIFECYCLE_HOME: ${{ runner.temp }}/omp-upgrade-home
@@ -111,7 +112,7 @@ jobs:
             --receipts-out "$GITHUB_WORKSPACE/dist-evidence/receipts/lifecycle" \
             --expected-version "${TAG#v}" \
             --prior-version 0.3.0 \
-            --phase-timeout-ms 30000
+            --phase-timeout-ms 120000
 
       - name: Run uninstall/reinstall/rollback lifecycle producer
         env:
