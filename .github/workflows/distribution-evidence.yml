@@ -86,7 +86,7 @@ jobs:
           mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
           cp -r tests/fixtures/kernel/real-corpus/.specs/product "$LIFECYCLE_PROJECT_DIR/.specs/"
           HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
-            node scripts/lifecycle/run-lifecycle-install-reload-fresh-session.mjs \
+            bun scripts/lifecycle/run-lifecycle-install-reload-fresh-session.mjs \
             --runtime-root tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent \
             --candidate-package-root plugins/omp-spec-kit \
             --project-dir "$LIFECYCLE_PROJECT_DIR" \
@@ -103,7 +103,7 @@ jobs:
           # Reuse the single v0.3.0 extraction from dist-evidence/prior.
           mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
           HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
-            node scripts/lifecycle/run-lifecycle-upgrade.mjs \
+            bun scripts/lifecycle/run-lifecycle-upgrade.mjs \
             --runtime-root tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent \
             --candidate-package-root plugins/omp-spec-kit \
             --prior-package-root dist-evidence/prior \
@@ -122,7 +122,7 @@ jobs:
           mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
           cp -r tests/fixtures/kernel/real-corpus/.specs/product "$LIFECYCLE_PROJECT_DIR/.specs/"
           HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
-            node scripts/lifecycle/run-lifecycle-uninstall-reinstall.mjs \
+            bun scripts/lifecycle/run-lifecycle-uninstall-reinstall.mjs \
             --runtime-root tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent \
             --candidate-package-root plugins/omp-spec-kit \
             --project-dir "$LIFECYCLE_PROJECT_DIR" \
