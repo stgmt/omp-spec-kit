@@ -87,7 +87,7 @@ jobs:
           cp -r tests/fixtures/kernel/real-corpus/.specs/product "$LIFECYCLE_PROJECT_DIR/.specs/"
           cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
             bun "$GITHUB_WORKSPACE/scripts/lifecycle/run-lifecycle-install-reload-fresh-session.mjs" \
-            --runtime-root tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent \
+            --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
             --candidate-package-root plugins/omp-spec-kit \
             --project-dir "$LIFECYCLE_PROJECT_DIR" \
             --receipts-out dist-evidence/receipts/lifecycle \
@@ -104,7 +104,7 @@ jobs:
           mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
           cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
             bun "$GITHUB_WORKSPACE/scripts/lifecycle/run-lifecycle-upgrade.mjs" \
-            --runtime-root tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent \
+            --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
             --candidate-package-root plugins/omp-spec-kit \
             --prior-package-root dist-evidence/prior \
             --project-dir "$LIFECYCLE_PROJECT_DIR" \
@@ -123,7 +123,7 @@ jobs:
           cp -r tests/fixtures/kernel/real-corpus/.specs/product "$LIFECYCLE_PROJECT_DIR/.specs/"
           cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
             bun "$GITHUB_WORKSPACE/scripts/lifecycle/run-lifecycle-uninstall-reinstall.mjs" \
-            --runtime-root tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent \
+            --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
             --candidate-package-root plugins/omp-spec-kit \
             --project-dir "$LIFECYCLE_PROJECT_DIR" \
             --receipts-out dist-evidence/receipts/lifecycle \
