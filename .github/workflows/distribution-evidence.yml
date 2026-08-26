@@ -88,7 +88,7 @@ jobs:
           cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
             bun "$GITHUB_WORKSPACE/scripts/lifecycle/run-lifecycle-install-reload-fresh-session.mjs" \
             --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
-            --candidate-package-root plugins/omp-spec-kit \
+            --candidate-package-root "$GITHUB_WORKSPACE/plugins/omp-spec-kit" \
             --project-dir "$LIFECYCLE_PROJECT_DIR" \
             --receipts-out dist-evidence/receipts/lifecycle \
             --expected-version "${TAG#v}" \
@@ -105,7 +105,7 @@ jobs:
           cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
             bun "$GITHUB_WORKSPACE/scripts/lifecycle/run-lifecycle-upgrade.mjs" \
             --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
-            --candidate-package-root plugins/omp-spec-kit \
+            --candidate-package-root "$GITHUB_WORKSPACE/plugins/omp-spec-kit" \
             --prior-package-root dist-evidence/prior \
             --project-dir "$LIFECYCLE_PROJECT_DIR" \
             --receipts-out dist-evidence/receipts/lifecycle \
@@ -124,7 +124,7 @@ jobs:
           cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
             bun "$GITHUB_WORKSPACE/scripts/lifecycle/run-lifecycle-uninstall-reinstall.mjs" \
             --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
-            --candidate-package-root plugins/omp-spec-kit \
+            --candidate-package-root "$GITHUB_WORKSPACE/plugins/omp-spec-kit" \
             --project-dir "$LIFECYCLE_PROJECT_DIR" \
             --receipts-out dist-evidence/receipts/lifecycle \
             --expected-version "${TAG#v}" \
@@ -141,11 +141,11 @@ jobs:
           node scripts/create-distribution-evidence.mjs \
             --candidate dist-candidate/candidate.json \
             --public-safety dist-candidate/public-safety.json \
-            --marketplace-marker .omp-spec-kit-marketplace-ok \
-            --package-marker .omp-spec-kit-package-ok \
-            --dist-manifest plugins/omp-spec-kit/dist/manifest.json \
-            --catalog .omp-plugin/marketplace.json \
-            --package-manifest plugins/omp-spec-kit/package.json \
+            --marketplace-marker "$GITHUB_WORKSPACE/.omp-spec-kit-marketplace-ok" \
+            --package-marker "$GITHUB_WORKSPACE/.omp-spec-kit-package-ok" \
+            --dist-manifest "$GITHUB_WORKSPACE/plugins/omp-spec-kit/dist/manifest.json" \
+            --catalog "$GITHUB_WORKSPACE/.omp-plugin/marketplace.json" \
+            --package-manifest "$GITHUB_WORKSPACE/plugins/omp-spec-kit/package.json" \
             --inventory-output dist-candidate/corpus-inventory.json \
             --mri-discovery-digest "$DISCOVERY_SHA" \
             --lifecycle-receipts-dir dist-evidence/receipts/lifecycle \
