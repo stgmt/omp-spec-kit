@@ -78,7 +78,10 @@ async function main() {
 	const cwd = path.resolve(args["--project-dir"]);
 	const receiptsOut = args["--receipts-out"] ? path.resolve(args["--receipts-out"]) : null;
 	if (receiptsOut) await mkdir(receiptsOut, { recursive: true });
-
+	if (args["--observe"]) {
+		await observeMode(args, cwd, timeoutMs);
+		return;
+	}
 	const observe = (packageRoot, requestId) => {
 		const child = spawnSync("bun", observeChildArgs(args, packageRoot, requestId), { cwd, env: process.env, encoding: "utf8" });
 		if (child.error) throw new Error(`observation child failed to launch: ${child.error.message}`);
