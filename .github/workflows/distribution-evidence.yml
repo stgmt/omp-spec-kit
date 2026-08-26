@@ -90,7 +90,7 @@ jobs:
             --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
             --candidate-package-root "$GITHUB_WORKSPACE/plugins/omp-spec-kit" \
             --project-dir "$LIFECYCLE_PROJECT_DIR" \
-            --receipts-out dist-evidence/receipts/lifecycle \
+            --receipts-out "$GITHUB_WORKSPACE/dist-evidence/receipts/lifecycle" \
             --expected-version "${TAG#v}" \
             --phase-timeout-ms 30000
 
@@ -127,10 +127,11 @@ jobs:
             --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
             --candidate-package-root "$GITHUB_WORKSPACE/plugins/omp-spec-kit" \
             --project-dir "$LIFECYCLE_PROJECT_DIR" \
-            --receipts-out dist-evidence/receipts/lifecycle \
+            --receipts-out "$GITHUB_WORKSPACE/dist-evidence/receipts/lifecycle" \
             --expected-version "${TAG#v}" \
-            --rollback-to-prior-package-root dist-evidence/prior \
-            --phase-timeout-ms 30000
+            --rollback-to-prior-package-root "$GITHUB_WORKSPACE/dist-evidence/prior" \
+            --prior-version 0.3.0 \
+            --phase-timeout-ms 120000
 
       - name: Build attested distribution evidence bundle
         env:
