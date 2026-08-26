@@ -31,12 +31,14 @@ function parseArgs(argv) {
 	for (let index = 0; index < argv.length; index += 1) {
 		const flag = argv[index];
 		if (!allowed.includes(flag)) throw new Error(`unsupported argument ${JSON.stringify(flag)}`);
+		if (flag === "--observe") { output[flag] = true; continue; }
 		const value = argv[index + 1];
 		if (value === undefined || value.startsWith("--")) throw new Error(`argument ${flag} requires a value`);
 		output[flag] = value;
 		index += 1;
 	}
 	for (const flag of allowed) {
+		if (flag === "--observe") continue;
 		if (!output[flag]) throw new Error(`${flag} is required`);
 	}
 	return output;
