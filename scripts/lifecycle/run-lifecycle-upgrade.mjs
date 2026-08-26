@@ -122,9 +122,13 @@ async function main() {
 			upgradedObservation: { version: upgraded.version, inventoryText: upgraded.inventoryText, returnedSpecs: upgraded.returnedSpecs, observedSpecs: upgraded.observedSpecs },
 			eachObservationIsFreshProcess: true,
 		},
+		observations: [
+			{ id: "upgrade-prior-inventory", text: prior.inventoryText },
+			{ id: "upgrade-candidate-inventory", text: upgraded.inventoryText },
+		],
 	}));
+
 	process.stdout.write(`upgrade record written to ${receiptsOut}\n`);
 }
-
 
 await main();
