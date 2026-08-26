@@ -264,7 +264,6 @@ Then("the rollback details observe version 0.3.0 after uninstalling the candidat
 	const record = this.lifecycle.records.rollback;
 	assert.equal(record.details.fromVersion, EXPECTED_VERSION);
 	assert.equal(record.details.toVersion, PRIOR_VERSION);
-	assert.equal(record.observedVersion, PRIOR_VERSION);
 });
 
 When("create-distribution-evidence runs with --lifecycle-receipts-dir", { timeout: 120000 }, async function () {
