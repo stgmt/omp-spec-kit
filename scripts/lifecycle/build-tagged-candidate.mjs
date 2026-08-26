@@ -5,7 +5,7 @@
 // verifies every extracted file against the tag's own dist manifest.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import path from "node:path";
+import { mkdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
