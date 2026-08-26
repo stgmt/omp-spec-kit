@@ -27,7 +27,7 @@ function fail(message) {
 
 function parseArgs(argv) {
 	const output = Object.create(null);
-	const allowed = ["--runtime-root", "--candidate-package-root", "--prior-package-root", "--project-dir", "--receipts-out", "--expected-version", "--prior-version", "--phase-timeout-ms", "--observe"];
+	const allowed = ["--runtime-root", "--candidate-package-root", "--prior-package-root", "--project-dir", "--receipts-out", "--expected-version", "--prior-version", "--phase-timeout-ms", "--observe", "--package-root", "--request-id"];
 	for (let index = 0; index < argv.length; index += 1) {
 		const flag = argv[index];
 		if (!allowed.includes(flag)) throw new Error(`unsupported argument ${JSON.stringify(flag)}`);
@@ -38,7 +38,7 @@ function parseArgs(argv) {
 		index += 1;
 	}
 	for (const flag of allowed) {
-		if (flag === "--observe") continue;
+		if (flag === "--observe" || flag === "--package-root" || flag === "--request-id") continue;
 		if (!output[flag]) throw new Error(`${flag} is required`);
 	}
 	return output;
