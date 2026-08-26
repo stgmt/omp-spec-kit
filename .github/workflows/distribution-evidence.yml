@@ -26,6 +26,8 @@ concurrency:
 jobs:
   attest-distribution-evidence:
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -64,8 +66,64 @@ jobs:
       - name: Verify candidate public safety
         run: node scripts/verify-public-tree.mjs --candidate dist-candidate/candidate.json --output dist-candidate/public-safety.json
 
-      - name: Capture real corpus inventory through the kernel reader
+      - name: Capture the real corpus inventory via the kernel reader
         run: node scripts/create-corpus-inventory.mjs --output dist-candidate/corpus-inventory.json
+      - name: Extract the real v0.3.0 prior release for lifecycle producers
+        run: node scripts/lifecycle/build-tagged-candidate.mjs --tag v0.3.0 --output dist-evidence/prior
+
+      - name: Run install/reload/fresh-session/inventory lifecycle producer
+        env:
+          LIFECYCLE_PROJECT_DIR: ${{ runner.temp }}/omp-lifecycle-fr4
+          LIFECYCLE_HOME: ${{ runner.temp }}/omp-lifecycle-home
+          LIFECYCLE_AGENT_DIR: ${{ runner.temp }}/omp-lifecycle-agent
+        run: |
+          mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
+          cp -r tests/fixtures/kernel/real-corpus/.specs/product "$LIFECYCLE_PROJECT_DIR/.specs/"
+          HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
+            node scripts/lifecycle/run-lifecycle-install-reload-fresh-session.mjs \
+            --runtime-root tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent \
+            --candidate-package-root plugins/omp-spec-kit \
+            --project-dir "$LIFECYCLE_PROJECT_DIR" \
+            --receipts-out dist-evidence/receipts/lifecycle \
+            --expected-version "${TAG#v}" \
+            --phase-timeout-ms 30000
+
+      - name: Extract v0.3.0 prior and run upgrade lifecycle producer
+        env:
+          LIFECYCLE_PROJECT_DIR: ${{ runner.temp }}/omp-lifecycle-upgrade
+          LIFECYCLE_HOME: ${{ runner.temp }}/omp-upgrade-home
+          LIFECYCLE_AGENT_DIR: ${{ runner.temp }}/omp-upgrade-agent
+        run: |
+          # Reuse the single v0.3.0 extraction from dist-evidence/prior.
+          mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
+          HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
+            node scripts/lifecycle/run-lifecycle-upgrade.mjs \
+            --runtime-root tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent \
+            --candidate-package-root plugins/omp-spec-kit \
+            --prior-package-root dist-evidence/prior \
+            --project-dir "$LIFECYCLE_PROJECT_DIR" \
+            --receipts-out dist-evidence/receipts/lifecycle \
+            --expected-version "${TAG#v}" \
+            --prior-version 0.3.0 \
+            --phase-timeout-ms 30000
+
+      - name: Run uninstall/reinstall/rollback lifecycle producer
+        env:
+          LIFECYCLE_PROJECT_DIR: ${{ runner.temp }}/omp-lifecycle-fr8
+          LIFECYCLE_HOME: ${{ runner.temp }}/omp-fr8-home
+          LIFECYCLE_AGENT_DIR: ${{ runner.temp }}/omp-fr8-agent
+        run: |
+          mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
+          cp -r tests/fixtures/kernel/real-corpus/.specs/product "$LIFECYCLE_PROJECT_DIR/.specs/"
+          HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
+            node scripts/lifecycle/run-lifecycle-uninstall-reinstall.mjs \
+            --runtime-root tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent \
+            --candidate-package-root plugins/omp-spec-kit \
+            --project-dir "$LIFECYCLE_PROJECT_DIR" \
+            --receipts-out dist-evidence/receipts/lifecycle \
+            --expected-version "${TAG#v}" \
+            --rollback-to-prior-package-root dist-evidence/prior \
+            --phase-timeout-ms 30000
 
       - name: Build attested distribution evidence bundle
         env:
@@ -84,6 +142,7 @@ jobs:
             --package-manifest plugins/omp-spec-kit/package.json \
             --inventory-output dist-candidate/corpus-inventory.json \
             --mri-discovery-digest "$DISCOVERY_SHA" \
+            --lifecycle-receipts-dir dist-evidence/receipts/lifecycle \
             --output dist-evidence
 
       - name: Attest the distribution evidence bundle
