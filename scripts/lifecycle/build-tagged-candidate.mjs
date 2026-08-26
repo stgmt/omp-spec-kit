@@ -4,6 +4,7 @@
 // release without rebuilding it. Asserts tag/version/manifest agreement and
 // verifies every extracted file against the tag's own dist manifest.
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -35,6 +36,17 @@ function parseArgs(argv) {
 }
 
 function gitShow(tag, repoRelative, encoding = null) {
+	// Git-less BDD container fallback: the snapshot under
+	// tests/fixtures/kernel/<tag>/ mirrors the PACKAGE layout (package.json,
+	// .mcp.json, dist/**), while repoRelative is prefixed plugins/omp-spec-kit.
+	const fixtureRoot = path.join(repositoryRoot, "tests", "fixtures", "kernel", tag);
+	const relativeInsidePackage = repoRelative.startsWith("plugins/omp-spec-kit/")
+		? repoRelative.slice("plugins/omp-spec-kit/".length)
+		: repoRelative;
+	const fixtureFile = path.join(fixtureRoot, ...relativeInsidePackage.split("/"));
+	if (process.env.OMP_SPEC_KIT_BDD_CONTAINER === "1" && existsSync(fixtureFile)) {
+		return readFileSync(fixtureFile, encoding ?? undefined);
+	}
 	const args = ["-C", repositoryRoot, "show", `${tag}:${repoRelative}`];
 	const options = { maxBuffer: 64 * 1024 * 1024 };
 	if (encoding === null) return execFileSync("git", args, { ...options, encoding: "buffer" });
@@ -70,12 +82,25 @@ async function main() {
 	const packagePrefix = "plugins/omp-spec-kit";
 	const outputRoot = path.resolve(args["--output"]);
 
-	// Tag identity: peel to a commit and read the package manifest.
+	// Tag identity: peel to a commit and read the package manifest. The BDD
+	// image ships no .git (docker-no-git-repo rule); tests pin the commit via
+	// OMP_SPEC_KIT_TAGGED_COMMIT_<flattened tag>, honored ONLY in-container.
 	let commit;
-	try {
-		commit = execFileSync("git", ["-C", repositoryRoot, "rev-parse", `${tag}^{commit}`], { encoding: "utf8" }).trim();
-	} catch (error) {
-		fail(`cannot peel ${tag}: ${error.stderr?.toString("utf8").trim() || error.message}`);
+	const pinnedVar = "OMP_SPEC_KIT_TAGGED_COMMIT_" + tag.replaceAll(/[^\w]/gu, "_").toUpperCase();
+	const pinnedCommit = process.env[pinnedVar] ?? process.env.OMP_SPEC_KIT_TAGGED_COMMIT;
+	if (
+		process.env.OMP_SPEC_KIT_BDD_CONTAINER === "1" &&
+		typeof pinnedCommit === "string" &&
+		/^[0-9a-f]{40}$/u.test(pinnedCommit)
+	) {
+		process.stderr.write(`[build-tagged-candidate] using BDD-pinned commit ${pinnedCommit.slice(0, 12)} for ${tag}\n`);
+		commit = pinnedCommit;
+	} else {
+		try {
+			commit = execFileSync("git", ["-C", repositoryRoot, "rev-parse", `${tag}^{commit}`], { encoding: "utf8" }).trim();
+		} catch (error) {
+			fail(`cannot peel ${tag}: ${error.stderr?.toString("utf8").trim() || error.message}`);
+		}
 	}
 	const packageManifestText = gitShow(tag, path.posix.join(packagePrefix, "package.json"), "utf8");
 	const packageManifest = JSON.parse(packageManifestText);

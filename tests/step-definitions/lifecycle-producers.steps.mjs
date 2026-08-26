@@ -106,7 +106,7 @@ Given("the v0.3.0 prior release extracted by build-tagged-candidate", async func
 		path.join(RUNNER_DIR, "build-tagged-candidate.mjs"),
 		"--tag", `v${PRIOR_VERSION}`,
 		"--output", this.lifecycle.priorRoot,
-	], { cwd: REPOSITORY_ROOT, encoding: "utf8", timeout: 60000 });
+	], { cwd: REPOSITORY_ROOT, encoding: "utf8", timeout: 60000, env: { ...process.env, OMP_SPEC_KIT_TAGGED_COMMIT_V0_3_0: process.env.OMP_SPEC_KIT_V030_COMMIT ?? "382ce8850203303f42225ccdcf2966cc13fc80e4" } });
 	assert.equal(result.status, 0, `build-tagged-candidate failed: ${result.stderr}`);
 	const summary = JSON.parse(result.stdout);
 	assert.equal(summary.version, PRIOR_VERSION);

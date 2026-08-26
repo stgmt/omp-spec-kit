@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+  "mcpServers": {
+    "omp-spec-kit": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["dist/mcp/server.js"],
+      "cwd": ".",
+      "env": {
+        "OMP_SPEC_KIT_ROOT": "OMP_SPEC_KIT_ROOT"
+      }
+    }
+  }
+}
+
