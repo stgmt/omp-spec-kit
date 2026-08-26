@@ -5,7 +5,7 @@
 // verifies every extracted file against the tag's own dist manifest.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir } from "node:fs/promises";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -116,14 +116,14 @@ async function main() {
 	// Extract: fixed metadata files plus every dist manifest entry.
 	const fixedFiles = [".mcp.json", "package.json"].map((relative) => path.posix.join(packagePrefix, relative));
 	const treeFiles = [...fixedFiles, ...manifestEntries.map(([relative]) => path.posix.join(packagePrefix, "dist", ...relative.split("/")))];
-	await mkdir(outputRoot, { recursive: true });
+	mkdirSync(outputRoot, { recursive: true });
 	const written = [];
 	for (const repoPath of treeFiles) {
 		const bytes = gitShow(tag, repoPath);
 		const relativeInsidePackage = repoPath.slice(packagePrefix.length + 1).split("\\").join("/");
 		const target = path.join(outputRoot, ...relativeInsidePackage.split("/"));
-		await mkdir(path.dirname(target), { recursive: true });
-		await writeFile(target, bytes);
+		mkdirSync(path.dirname(target), { recursive: true });
+		writeFileSync(target, bytes);
 		written.push({ relative: relativeInsidePackage, bytes: bytes.length });
 	}
 	// Validate the extracted MCP declaration against the tree it ships with.
@@ -150,8 +150,8 @@ async function main() {
 		} catch {
 			fail(`extracted tree is missing its declared entrypoint ${declaredEntry.join("/")} and ${tag} does not provide it`);
 		}
-		await mkdir(path.dirname(path.join(outputRoot, ...declaredEntry)), { recursive: true });
-		await writeFile(path.join(outputRoot, ...declaredEntry), tagged);
+		mkdirSync(path.dirname(path.join(outputRoot, ...declaredEntry)), { recursive: true });
+		writeFileSync(path.join(outputRoot, ...declaredEntry), tagged);
 	}
 
 
@@ -166,7 +166,7 @@ async function main() {
 		distManifestSha256: sha256(distManifestText),
 		packageManifestSha256: sha256(Buffer.from(packageManifestText, "utf8")),
 	};
-	await writeFile(path.join(outputRoot, "extraction-summary.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8");
+	writeFileSync(path.join(outputRoot, "extraction-summary.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8");
 	process.stdout.write(JSON.stringify(summary));
 }
 
