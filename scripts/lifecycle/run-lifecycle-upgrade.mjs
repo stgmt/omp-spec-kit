@@ -136,7 +136,7 @@ async function main() {
 			{ id: "upgrade-candidate-inventory", text: upgraded.inventoryText },
 		],
 	});
-	record.observedProjectHashPreserved = observedProjectHashPreserved;
+	record.details.observedProjectHashPreserved = observedProjectHashPreserved;
 	await writeLifecycleRecord(receiptsOut, "upgrade.json", record);
 
 	process.stdout.write(`upgrade record written to ${receiptsOut}\n`);

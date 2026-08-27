@@ -154,7 +154,7 @@ async function main() {
 
 	// 4b. upgrade-from-v0.3.0.json — composed ONLY from the real FR-7 record.
 	const upgradeRaw = JSON.parse(await readFile(path.join(runnerDir, "upgrade.json"), "utf8"));
-	requireKeys(upgradeRaw, ["observedVersion", "observedProjectHashPreserved"], "upgrade.json record");
+	requireKeys(upgradeRaw, ["observedVersion"], "upgrade.json record");
 	if (upgradeRaw.requirement !== "plugin-distribution:FR-7" || upgradeRaw.claim !== "upgrade") fail("upgrade.json does not bind plugin-distribution:FR-7 to the upgrade claim");
 	const upgradedObservation = upgradeRaw.details?.upgradedObservation;
 	if (typeof upgradedObservation?.inventoryText !== "string" || !/^inventory ok/u.test(upgradedObservation.inventoryText)) {
@@ -164,7 +164,7 @@ async function main() {
 	if (upgradeRaw.details.toVersion !== identity.version || upgradeRaw.observedVersion !== identity.version || upgradedObservation.version !== identity.version) {
 		fail(`upgrade.json observes version(s) inconsistent with candidate ${identity.version}`);
 	}
-	if (upgradeRaw.observedProjectHashPreserved !== true || upgradeRaw.details.projectHashBefore !== upgradeRaw.details.projectHashAfter) {
+	if (upgradeRaw.details.observedProjectHashPreserved !== true || upgradeRaw.details.projectHashBefore !== upgradeRaw.details.projectHashAfter) {
 		fail("upgrade.json does not prove project hash preservation");
 	}
 	const upgradeReceipt = {
