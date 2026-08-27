@@ -85,7 +85,7 @@ BDD scenarios are authored before their runtime paths. A task changes state only
 - **files:** `scripts/render-release-notes.mjs`, `scripts/docker-bdd.sh`, `tests/distribution/Dockerfile`, `.github/workflows/verify.yml`, `.github/workflows/release.yml`
 - **refs:** [FR-5](FR.md#fr-5-artifact-only-publication), [FR-6](FR.md#fr-6-honest-release-communication), [AC-5](ACCEPTANCE_CRITERIA.md#ac-5-fr-5-publish-consumes-the-verified-artifact-only), [AC-6](ACCEPTANCE_CRITERIA.md#ac-6-fr-6-public-status-tells-users-the-truth)
 - **deps:** `MRI001_05`
-_blocked: Actual public publication requires a real v0.3.1 tag plus captured v0.3.0→v0.3.1 upgrade and rollback receipts; public release execution is outside the requested BDD endpoint._
+_blocked: Actual public publication requires a real v0.3.1 tag plus captured v0.3.0→v0.3.1 upgrade and rollback receipts; public release execution is outside the requested BDD endpoint. Receipts are captured pipeline-time by scripts/compose-mri-lifecycle-receipts.mjs from attested distribution-evidence runs, not pre-tag-committed._
 **Done When:**
   - [ ] Verify uploads one candidate bundle after gates pass.
   - [ ] Publish rechecks that bundle and does not run a build.
