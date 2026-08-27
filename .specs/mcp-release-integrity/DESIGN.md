@@ -85,7 +85,7 @@ candidate + evidence.json ──> eligibility.json ──> publish verified asse
 **Rationale:** One archive digest lets verification, receipts, and publication compare the same delivered bytes.
 **Требование:** [FR-4](FR.md#fr-4-candidate-bound-lifecycle-eligibility), [FR-5](FR.md#fr-5-artifact-only-publication), [FR-6](FR.md#fr-6-honest-release-communication).
 
-**Trade-off:** Missing lifecycle evidence blocks publication rather than allowing a convenience release.
+**Trade-off:** Missing lifecycle evidence blocks publication rather than allowing a convenience release; the receipts themselves are captured pipeline-time by scripts/compose-mri-lifecycle-receipts.mjs from attested distribution-evidence runs, not pre-tag-committed.
 
 **Alternatives considered:**
 - Rebuild in publish — rejected because publish may release unverified bytes.

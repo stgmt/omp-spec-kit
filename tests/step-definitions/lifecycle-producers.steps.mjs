@@ -452,3 +452,152 @@ Then("every ingested observation summary stays within 512 characters and quotes 
 	}
 });
 
+// SCEN-LC-006: the composer is driven against a synthetic candidate manifest
+// (exact shape enforced by assertCandidateShape) plus the real FR-7/FR-8
+// runner records produced in-scenario, mirroring LC-005's self-contained
+// approach. Cucumber messages come from the provenance-verified committed
+// fixture, which covers every @release-evidence MRI scenario id.
+const PRIOR_COMMIT_ENV = "OMP_SPEC_KIT_V030_COMMIT";
+const PRIOR_COMMIT_FALLBACK = "382ce8850203303f42225ccdcf2966cc13fc80e4";
+const COMPOSER_LIFECYCLE_KEYS = Object.freeze([
+	"archiveSha256", "candidateDigest", "catalogDigest", "commit", "freshSession",
+	"fromTag", "fromVersion", "observedVersion", "packageTreeDigest",
+	"projectHashPreserved", "schema", "status", "tag", "toTag", "toVersion", "version",
+]);
+const COMPOSER_FR_KEYS = Object.freeze([
+	"archiveSha256", "candidateDigest", "catalogDigest", "commit",
+	"packageTreeDigest", "requirement", "scenarioId", "schema", "status", "tag", "version",
+]);
+
+function exactKeySet(value, keys) {
+	assert.deepEqual(Object.keys(value).sort(), [...keys].sort());
+}
+
+When("the MRI lifecycle receipt composer runs against a synthetic candidate", { timeout: 300000 }, async function () {
+	const { tempRoot, projectDir, receiptsOut, candidateRoot, priorRoot } = this.lifecycle;
+	const home = path.join(tempRoot, "home");
+	const agentRoot = path.join(tempRoot, "agent");
+	await Promise.all([mkdir(home, { recursive: true }), mkdir(agentRoot, { recursive: true })]);
+	// Real FR-7 upgrade record over the extracted prior release.
+	const upgradeResult = await runRunner("run-lifecycle-upgrade.mjs", [
+		"--runtime-root", RUNTIME_PACKAGE_ROOT,
+		"--candidate-package-root", candidateRoot,
+		"--prior-package-root", priorRoot,
+		"--project-dir", projectDir,
+		"--receipts-out", receiptsOut,
+		"--expected-version", EXPECTED_VERSION,
+		"--prior-version", PRIOR_VERSION,
+		"--phase-timeout-ms", PHASE_TIMEOUT_MS,
+	], projectDir, home, agentRoot);
+	assert.equal(upgradeResult.status, 0, `upgrade producer failed: ${upgradeResult.stderr}\n${upgradeResult.stdout}`);
+	// Real FR-8 rollback record from the same runner family.
+	const rollbackResult = await runRunner("run-lifecycle-uninstall-reinstall.mjs", [
+		"--runtime-root", RUNTIME_PACKAGE_ROOT,
+		"--candidate-package-root", candidateRoot,
+		"--project-dir", projectDir,
+		"--receipts-out", receiptsOut,
+		"--expected-version", EXPECTED_VERSION,
+		"--rollback-to-prior-package-root", priorRoot,
+		"--prior-version", PRIOR_VERSION,
+		"--phase-timeout-ms", PHASE_TIMEOUT_MS,
+	], projectDir, home, agentRoot);
+	assert.equal(rollbackResult.status, 0, `rollback producer failed: ${rollbackResult.stderr}\n${rollbackResult.stdout}`);
+	const workDir = path.join(tempRoot, "composer");
+	await mkdir(workDir, { recursive: true });
+	// Synthetic candidate bound to the working tree; identical construction to
+	// LC-005 so assertCandidateShape accepts it without a release artifact.
+	const pluginVersion = (await readJson(path.join(candidateRoot, "package.json"))).version;
+	const tag = `v${pluginVersion}`;
+	const { createHash } = await import("node:crypto");
+	let headCommit = process.env.OMP_SPEC_KIT_HEAD_COMMIT ?? "";
+	if (!/^[0-9a-f]{40}$/u.test(headCommit)) headCommit = createHash("sha256").update(tag).digest("hex").slice(0, 40);
+	const files = [];
+	async function visit(absolute, relative) {
+		for (const entry of await readdir(absolute, { withFileTypes: true })) {
+			const childRelative = relative === "" ? entry.name : `${relative}/${entry.name}`;
+			if (entry.isDirectory()) await visit(path.join(absolute, entry.name), childRelative);
+			else if (entry.isFile()) {
+				const bytes = await readFile(path.join(absolute, entry.name));
+				files.push({ path: childRelative, mode: 0o644, bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") });
+			}
+		}
+	}
+	await visit(candidateRoot, "");
+	files.sort((left, right) => left.path.localeCompare(right.path));
+	const withoutDigest = {
+		schema: "omp-spec-kit-release-candidate@1",
+		version: pluginVersion,
+		tag,
+		commit: headCommit,
+		packageTreeDigest: createHash("sha256").update(Buffer.from(JSON.stringify(files.map(({ path: filePath, bytes, sha256: digest, mode }) => [filePath, mode, bytes, digest])))).digest("hex"),
+		archive: { file: "package-tree.tar", bytes: 0, sha256: createHash("sha256").update("lc006-archive-placeholder").digest("hex") },
+		files,
+	};
+	const candidateDigest = createHash("sha256").update(`${JSON.stringify(withoutDigest, null, 2)}\n`).digest("hex");
+	await writeFile(path.join(workDir, "candidate.json"), `${JSON.stringify({ ...withoutDigest, candidateDigest }, null, 2)}\n`);
+	const messages = await readVerifiedCucumberMessages();
+	await writeFile(path.join(workDir, "cucumber.ndjson"), messages);
+	let priorCommit = process.env[PRIOR_COMMIT_ENV] ?? "";
+	if (!/^[0-9a-f]{40}$/u.test(priorCommit)) priorCommit = PRIOR_COMMIT_FALLBACK;
+	const outputDir = path.join(workDir, "receipts");
+	const result = spawnSync(process.execPath, [
+		path.join(REPOSITORY_ROOT, "scripts", "compose-mri-lifecycle-receipts.mjs"),
+		"--candidate", path.join(workDir, "candidate.json"),
+		"--prior-commit", priorCommit,
+		"--runner-dir", receiptsOut,
+		"--cucumber-messages", path.join(workDir, "cucumber.ndjson"),
+		"--output", outputDir,
+	], { cwd: REPOSITORY_ROOT, encoding: "utf8", timeout: 60000, env: { ...process.env } });
+	assert.equal(result.status, 0, `compose-mri-lifecycle-receipts failed: ${result.stderr}\n${result.stdout}`);
+	this.lifecycle.composerOutput = JSON.parse(result.stdout);
+	this.lifecycle.composerReceiptsOut = outputDir;
+});
+
+async function readVerifiedCucumberMessages() {
+	const fixtureDirectory = path.join(REPOSITORY_ROOT, "tests", "fixtures", "release-candidate");
+	const provenance = JSON.parse(await readFile(path.join(fixtureDirectory, "cucumber-messages.provenance.json"), "utf8"));
+	const bytes = await readFile(path.join(fixtureDirectory, provenance.fixture));
+	const { createHash } = await import("node:crypto");
+	assert.equal(createHash("sha256").update(bytes).digest("hex"), provenance.sha256, "Cucumber fixture bytes must match documented SHA-256");
+	return bytes;
+}
+
+Then("it wrote exactly the nine closed receipt files", function () {
+	const summary = this.lifecycle.composerOutput;
+	assert.equal(summary.schema, "omp-spec-kit-mri-composer-summary@1");
+	assert.deepEqual(
+		[...summary.files].sort(),
+		["fr/FR-1.json", "fr/FR-2.json", "fr/FR-3.json", "fr/FR-4.json", "fr/FR-5.json", "fr/FR-6.json", "prior-v0.3.0.json", "rollback-to-v0.3.0.json", "upgrade-from-v0.3.0.json"].sort(),
+	);
+});
+
+Then("each prior, upgrade, and rollback receipt carries its exact contract key set", async function () {
+	const out = this.lifecycle.composerReceiptsOut;
+	const prior = JSON.parse(await readFile(path.join(out, "prior-v0.3.0.json"), "utf8"));
+	exactKeySet(prior, ["commit", "schema", "source", "status", "tag"]);
+	for (const name of ["upgrade-from-v0.3.0.json", "rollback-to-v0.3.0.json"]) {
+		const receipt = JSON.parse(await readFile(path.join(out, name), "utf8"));
+		exactKeySet(receipt, COMPOSER_LIFECYCLE_KEYS);
+		assert.equal(receipt.schema, "omp-spec-kit-lifecycle-receipt@1");
+		assert.equal(receipt.status, "passed");
+	}
+});
+
+Then("each FR receipt cites its own passing release-evidence scenario id", async function () {
+	const out = this.lifecycle.composerReceiptsOut;
+	for (let index = 1; index <= 6; index += 1) {
+		const receipt = JSON.parse(await readFile(path.join(out, "fr", `FR-${index}.json`), "utf8"));
+		exactKeySet(receipt, COMPOSER_FR_KEYS);
+		assert.equal(receipt.schema, "omp-spec-kit-fr-receipt@1");
+		assert.equal(receipt.requirement, `mcp-release-integrity:FR-${index}`);
+		assert.match(receipt.scenarioId, /^SCEN-MRI-\d{3}$/u, `FR-${index} scenario id must be an MRI scenario`);
+	}
+	assert.ok(this.lifecycle.composerOutput.scenarioIds.length > 0, "composer summary must cite passing scenario ids");
+});
+
+Then("the prior receipt proves the v0.3.0 public-tag source", async function () {
+	const prior = JSON.parse(await readFile(path.join(this.lifecycle.composerReceiptsOut, "prior-v0.3.0.json"), "utf8"));
+	assert.equal(prior.tag, "v0.3.0");
+	assert.equal(prior.source, "public-tag");
+	assert.match(prior.commit, /^[0-9a-f]{40}$/u);
+});

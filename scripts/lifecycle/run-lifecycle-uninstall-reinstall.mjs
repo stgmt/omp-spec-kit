@@ -4,8 +4,7 @@
 // over every regular file under the project dir (sorted relative paths);
 // any mutation after uninstall fails the run hard.
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { mkdir, readdir, readFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -19,13 +18,9 @@ import {
 	reloadCapability,
 	writeLifecycleRecord,
 } from "./lib/omp-session.mjs";
+import { projectHash } from "./lib/project-hash.mjs";
 
 const PLUGIN_NAME = "omp-spec-kit";
-
-function fail(message) {
-	process.stderr.write(`uninstall-reinstall: ${message}\n`);
-	process.exit(1);
-}
 
 function parseArgs(argv) {
 	const output = Object.create(null);
@@ -46,34 +41,6 @@ function parseArgs(argv) {
 		if (!output[flag]) throw new Error(`${flag} is required`);
 	}
 	return output;
-}
-
-async function projectHash(root, label) {
-	const files = [];
-	async function visit(absolute, relative) {
-		const entries = await readdir(absolute, { withFileTypes: true });
-		for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-			const childAbsolute = path.join(absolute, entry.name);
-			const childRelative = relative === "" ? entry.name : path.posix.join(relative, entry.name);
-			if (entry.isDirectory()) {
-				await visit(childAbsolute, childRelative);
-			} else if (entry.isFile()) {
-				files.push({ relative: childRelative.split("\\").join("/"), bytes: await readFile(childAbsolute) });
-			} else {
-				fail(`project tree contains a non-regular entry at ${childRelative}`);
-			}
-		}
-	}
-	await visit(root, "");
-	files.sort((a, b) => a.relative.localeCompare(b.relative));
-	const hash = createHash("sha256");
-	for (const file of files) {
-		hash.update(file.relative);
-		hash.update("\0");
-		hash.update(file.bytes);
-		hash.update("\0");
-	}
-	return { label, fileCount: files.length, digest: hash.digest("hex") };
 }
 
 // Fresh child process: enroll --package-root, connect, run spec_inventory,

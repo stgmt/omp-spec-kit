@@ -43,3 +43,6 @@
 | `plugins/omp-spec-kit/dist/` | edit | Generated package output is rebuilt from corrected sources. |
 | `.specs/mcp-release-integrity/` | edit | Remediation contract, BDD, task, and evidence records are maintained. |
 | `.specs/mcp-release-integrity/REVIEW_NOTES.md` | edit | Records semantic/reality review findings and evidence boundary. |
+| `scripts/compose-mri-lifecycle-receipts.mjs` | create | FR-4 composes the nine closed MRI lifecycle receipts (prior/upgrade/rollback/fr-FR-1..6) pipeline-time from real FR-7/FR-8 runner outputs, the peeled v0.3.0 commit, and semantic Cucumber messages; fail-closed with exact key-set self-checks. |
+| `.github/workflows/distribution-evidence.yml` | edit | FR-4 runs Docker BDD message capture, composes MRI receipts from runner outputs plus the prior-tag commit, and uploads them inside the attested evidence artifact. |
+| `.github/workflows/release.yml` | edit | FR-4 downloads the composed mri-receipts from the attested distribution-evidence artifact and passes that directory to the assembler instead of pre-tag-committed files, failing closed when absent. |

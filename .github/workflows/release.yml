@@ -69,6 +69,13 @@ jobs:
             mkdir dist-evidence
             gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
               --name "omp-spec-kit-distribution-evidence-$TAG" --dir dist-evidence
+            # The pipeline-time composed MRI receipts live beside the bundle;
+            # the assembler copies them instead of pre-tag-committed files.
+            if [ -d dist-evidence/mri-receipts ]; then
+              echo "lifecycle_dir=dist-evidence/mri-receipts" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::attested distribution evidence artifact is missing dist-evidence/mri-receipts; refusing pre-tag-committed receipts" >&2
+            fi
             # Positively bind the downloaded bundle to THIS candidate before
             # any trust is stamped: candidate digests must match.
             downloaded="$(node -p "JSON.parse(require('fs').readFileSync('dist-evidence/distribution-evidence.json','utf8')).candidateDigest")"
@@ -86,12 +93,20 @@ jobs:
           fi
       - name: Assemble MRI evidence; trust is stamped only on a digest-matched bundle from this commit
         run: |
+          # Receipts come from the attested distribution-evidence artifact
+          # (composed pipeline-time); a missing download fails closed below
+          # instead of falling back to pre-tag-committed files.
+          LIFECYCLE_DIR="${{ steps.dist_evidence.outputs.lifecycle_dir }}"
+          if [ -z "$LIFECYCLE_DIR" ] || [ ! -d "$LIFECYCLE_DIR" ]; then
+            echo "::error::no pipeline-time MRI lifecycle receipts available; evidence assembly refuses to proceed" >&2
+            exit 1
+          fi
           if [ -f "${{ steps.dist_evidence.outputs.path || 'dist-evidence/absent' }}" ]; then
             node scripts/create-release-evidence.mjs \
               --candidate release-candidate/candidate.json \
               --public-safety release-candidate/public-safety.json \
               --cucumber-messages release-candidate/cucumber.ndjson \
-              --lifecycle-dir "docs/validation/releases/${GITHUB_REF_NAME}" \
+              --lifecycle-dir "$LIFECYCLE_DIR" \
               --mri-discovery docs/validation/omp-discovery-v17.3.7.md \
               --distribution-evidence dist-evidence/distribution-evidence.json \
               --distribution-trust github-artifact-attestation \
@@ -101,10 +116,11 @@ jobs:
               --candidate release-candidate/candidate.json \
               --public-safety release-candidate/public-safety.json \
               --cucumber-messages release-candidate/cucumber.ndjson \
-              --lifecycle-dir "docs/validation/releases/${GITHUB_REF_NAME}" \
+              --lifecycle-dir "$LIFECYCLE_DIR" \
               --mri-discovery docs/validation/omp-discovery-v17.3.7.md \
               --output release-candidate
           fi
+
       - name: Enforce producer-artifact claim matrix before notes or candidate upload
         run: node scripts/verify-release.mjs --candidate release-candidate/candidate.json --evidence release-candidate/evidence.json --tag "$GITHUB_REF_NAME"
       - name: Render evidence-bound release notes

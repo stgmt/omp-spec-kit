@@ -5,6 +5,7 @@
 // each observation is a brand-new process, never a stale in-process view.
 import { spawnSync } from "node:child_process";
 import { mkdir } from "node:fs/promises";
+import { fail, projectHash } from "./lib/project-hash.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -19,11 +20,6 @@ import {
 } from "./lib/omp-session.mjs";
 
 const PLUGIN_NAME = "omp-spec-kit";
-
-function fail(message) {
-	process.stderr.write(`upgrade: ${message}\n`);
-	process.exit(1);
-}
 
 function parseArgs(argv) {
 	const output = Object.create(null);
@@ -99,7 +95,10 @@ async function main() {
 	const priorVersion = args["--prior-version"];
 	const expectedVersion = args["--expected-version"];
 
-	// Phase 1: install the real prior release and observe it fresh.
+	// Project-preservation gate (same algorithm as the FR-8 runner): observe
+	// the tree hash before the upgrade and again after the final observation;
+	// relinking a plugin must never mutate the active project.
+	const projectHashBefore = await projectHash(cwd, "before-upgrade");
 	const prior = observe(args["--prior-package-root"], "lifecycle-upgrade-prior");
 	if (prior.version !== priorVersion || !/^inventory ok/u.test(prior.inventoryText)) {
 		fail(`prior observation expected ${priorVersion}, saw ${JSON.stringify(prior)}`);
@@ -111,7 +110,14 @@ async function main() {
 		fail(`upgrade observation expected ${expectedVersion}, saw ${JSON.stringify(upgraded)}`);
 	}
 
-	await writeLifecycleRecord(receiptsOut, "upgrade.json", baseLifecycleRecord({
+	// Preservation gate: recompute after both fresh observations.
+	const projectHashAfter = await projectHash(cwd, "after-upgrade");
+	const observedProjectHashPreserved = projectHashAfter.digest === projectHashBefore.digest;
+	if (!observedProjectHashPreserved) {
+		fail(`project mutated during upgrade: before ${projectHashBefore.digest} vs after ${projectHashAfter.digest}`);
+	}
+
+	const record = baseLifecycleRecord({
 		requirement: "plugin-distribution:FR-7",
 		claim: "upgrade",
 		observedVersion: upgraded.version,
@@ -121,12 +127,17 @@ async function main() {
 			priorObservation: { version: prior.version, inventoryText: prior.inventoryText, returnedSpecs: prior.returnedSpecs },
 			upgradedObservation: { version: upgraded.version, inventoryText: upgraded.inventoryText, returnedSpecs: upgraded.returnedSpecs, observedSpecs: upgraded.observedSpecs },
 			eachObservationIsFreshProcess: true,
+			projectHashBefore: projectHashBefore.digest,
+			projectHashAfter: projectHashAfter.digest,
+			projectFileCount: projectHashAfter.fileCount,
 		},
 		observations: [
 			{ id: "upgrade-prior-inventory", text: prior.inventoryText },
 			{ id: "upgrade-candidate-inventory", text: upgraded.inventoryText },
 		],
-	}));
+	});
+	record.observedProjectHashPreserved = observedProjectHashPreserved;
+	await writeLifecycleRecord(receiptsOut, "upgrade.json", record);
 
 	process.stdout.write(`upgrade record written to ${receiptsOut}\n`);
 }
