@@ -42,6 +42,7 @@ jobs:
         run: node scripts/create-release-candidate.mjs --tag "$GITHUB_REF_NAME" --output release-candidate
       - name: Verify candidate public safety
         run: node scripts/verify-public-tree.mjs --candidate release-candidate/candidate.json --output release-candidate/public-safety.json
+      - run: mkdir -p .dev-pomogator/bdd-results
       - name: Run Docker BDD and preserve canonical Cucumber messages
         run: |
           set -o pipefail
@@ -49,7 +50,6 @@ jobs:
       - name: Download commit-bound attested distribution evidence when present
         id: dist_evidence
         env:
-          GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
