@@ -10,6 +10,8 @@ node_modules/
 dist/
 !plugins/omp-spec-kit/dist/
 !plugins/omp-spec-kit/dist/**
+!tests/fixtures/kernel/v0.3.0/
+!tests/fixtures/kernel/v0.3.0/**
 build/
 coverage/
 .tmp/
