@@ -33,7 +33,7 @@ else
   echo "[docker-bdd] Node.js is required to verify the frozen corpus fixture." >&2
   exit 2
 fi
-"$NODE_BIN" scripts/refresh-real-corpus-manifest.mjs --check
+"$NODE_BIN" scripts/refresh-real-corpus-manifest.mjs --check >&2
 
 is_unfiltered_run() {
   [[ "$#" -eq 0 ]]
@@ -50,7 +50,7 @@ IMAGE="omp-spec-kit-bdd:local"
 if [[ "${OMP_SPEC_KIT_BDD_MESSAGE_STDOUT:-}" == "1" ]]; then
   docker build --file tests/distribution/Dockerfile --tag "$IMAGE" . >&2
 else
-  docker build --file tests/distribution/Dockerfile --tag "$IMAGE" .
+  docker build --file tests/distribution/Dockerfile --tag "$IMAGE" . >&2
 fi
 
 if ! docker run --rm \
