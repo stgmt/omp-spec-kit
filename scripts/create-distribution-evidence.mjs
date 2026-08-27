@@ -430,6 +430,17 @@ async function main() {
     });
   }
 
+  // FR-2 / package-shape — the child manifest closed profile is verified by
+  // verify-package (marker) and the dist-manifest reconciliation above.
+  await emitRecord({
+    requirement: "plugin-distribution:FR-2",
+    claim: "package-shape",
+    observations: baseObservations(
+      "package-shape-child-manifest",
+      `Child package closed profile verified: one omp.extensions entry, version ${candidate.version} across catalog, package, dist manifest, and peeled tag.`,
+    ),
+  });
+
   // Claims whose real producers did not run in this invocation remain
   // deliberately omitted; the release verifier blocks their missing matrix
   // cells; nothing here fabricates them.
