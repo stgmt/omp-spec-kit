@@ -13,7 +13,8 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-2.1 (FR-2): No mutation and no codeAction capability in this stage
 
-**Requirement:** [FR-2](FR.md#fr-2-read-only-posture-no-codeaction-capability-in-this-stage)
+**Requirement:** [FR-2](FR.md#fr-2-read-only-posture-no-agent-visible-codeaction)
+
 
 **EARS:** WHILE this stage's server initializes **WHEN** `initialize` returns capabilities **THEN** `codeAction` SHALL be absent from `ServerCapabilities`; **AND WHEN** `textDocument/codeAction` is invoked **THEN** the result SHALL be an empty list; **AND** the server SHALL NOT return a `WorkspaceEdit`, invoke `workspace/applyEdit`, persist a proposal, or transition any status.
 
@@ -53,7 +54,8 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-7.1 (FR-7): This stage ships no step-binding diagnostics
 
-**Requirement:** [FR-7](FR.md#fr-7-this-stage-forbids-a-step-binding-layer)
+**Requirement:** [FR-7](FR.md#fr-7-step-diagnostics-only-after-kernel-step-bindings-exist)
+
 
 **EARS:** WHILE a `.feature` file is open **WHEN** diagnostics are published **THEN** no defined/undefined/ambiguous step diagnostic SHALL be emitted; **AND** the production plugin configuration SHALL NOT register `@cucumber/language-server`; **AND** the adapter SHALL NOT scan `tests/step-definitions/**` or any path outside `.specs/` for step bindings.
 

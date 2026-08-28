@@ -131,3 +131,13 @@ The evaluator SHALL produce `spec-evidence-release@1` evidence records that plug
 **Scenario:** `@feature13` / `SCEN-spec-evidence-release-contribution`
 
 **Sources:** `spec-kernel:FR-14` (conjunctive release eligibility as template); `product:FR-6` (cumulative gate); [README.md](README.md) release boundary.
+
+## FR-14: MCP projection of get_test_result and get_scenario_trace
+
+The evaluator SHALL remain a pure function of (kernel graph + immutable execution-artifact bytes + limits) per [FR-1](FR.md#fr-1-pure-evaluation-boundary). It SHALL NOT call MCP APIs internally. When this evidence layer exists, the agent-facing MCP door SHALL expose the two read-only tools `get_test_result` and `get_scenario_trace` as projections of evaluator output. These tools are census rows owned by this spec (`later-evidence`); they are not `spec-kernel:FR-8` operations and SHALL NOT appear on the v0.3 first-slice read registry. This FR is not a v0.2 or v0.3 kernel required check. `spec-kernel:FR-6` SHALL remain forbidden from converting structural parsing into readiness or passing-test claims. Until this MCP projection exists, `spec-lsp` hover SHALL NOT invent run results, provenance, or freshness.
+
+**Acceptance:** [AC-14.1](ACCEPTANCE_CRITERIA.md#ac-141-mcp-projection-of-get_test_result-and-get_scenario_trace)
+
+**Scenario:** `@feature14` / `SCEN-spec-evidence-mcp-projection-of-run-results`
+
+**Sources:** `docs/decisions/spec-generator-port.md` census rows 21–22 (`get_test_result`, `get_scenario_trace`); `spec-kernel:FR-6` (no pass/fail from parse); `spec-lsp:FR-6` (hover kernel-stored fields only).

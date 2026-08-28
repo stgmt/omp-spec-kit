@@ -31,11 +31,14 @@ The arrows are gates, not dates. A later node cannot become delivered while an e
 |---|---|---|
 | Imported bytes and provenance | `IMPORT_MANIFEST.yaml` | Decide whether the freeze is reproducible and which copied bytes are affected by license status. |
 | Migration/adoption decisions | `MIGRATION_MATRIX.md` | Explain which upstream ideas are adopted, rewritten, deferred, or dropped. |
-| Product/publication lifecycle | `product:FR-1` through `product:FR-8` | Decide public claims, identity, stage, blocker, and next gate. |
+| Product/publication lifecycle | `product:FR-1` through `product:FR-9` | Decide public claims, identity, stage, blocker, next gate, and generator-port MCP destination. |
 | Marketplace/package/activation/release | `plugin-distribution:FR-13` aggregate gate; member contracts remain internal to `plugin-distribution` | Accept or refuse v0.1.0 and remain a required cumulative gate for every later product stage; its evidence always binds to the current candidate artifact. |
-| Read-only kernel/query evolution | `spec-kernel:FR-14` stage-targeted aggregate gate; member contracts remain internal to `spec-kernel` | Bind the current target-stage result to the current candidate. For v0.3/authoring, retain the separately identified v0.2 result as predecessor evidence only through the later result's exact `v02ParentArtifactSha256` link, common revision/lineage, closed stage order, and active non-stale/non-revoked state. |
+| Read-only kernel/query evolution | `spec-kernel:FR-14` stage-targeted aggregate gate; member contracts remain internal to `spec-kernel` | Bind the current target-stage result to the current candidate. For v0.3/authoring, retain the separately identified v0.2 result as predecessor evidence only through the later result's exact `v02ParentArtifactSha256` link, common revision/lineage, closed stage order, and active non-stale/non-revoked state. Later generator-port reads are `spec-kernel:FR-16` and `spec-kernel:FR-17`. |
+| Editor/LSP diagnostics | `spec-lsp` | Sibling adapter for editor diagnostics/navigation; not the agent-facing spec API. |
+| Evidence evaluation | `spec-evidence` | Later evidence MCP after the evidence layer; not a v0.3 first-slice tool. |
 | Authoring and mutation | `spec-authoring-workflow:FR-13` aggregate gate; member contracts remain internal to `spec-authoring-workflow` | Keep product registration/release deferred and later accept only when authoring, distribution, and v0.3 kernel evidence bind to the current candidate and the linked v0.2 predecessor plus every mandatory aggregate remains accepted. |
-| Public roadmap | root `ROADMAP.md` constrained by `product:FR-6`–`FR-8` | Communicate delivered/planned/deferred/blocked state without redefining contracts. |
+| Agent-facing MCP destination | [spec-generator-port.md](../../docs/decisions/spec-generator-port.md) constrained by `product:FR-9` | Closed 46-name census; eight SCHEMA-11 names are the v0.3 first slice. |
+| Public roadmap | root `ROADMAP.md` constrained by `product:FR-6`–`FR-9` | Communicate delivered/planned/deferred/blocked state without redefining contracts. v0.3 is the first slice of the generator-port MCP door. |
 | Imported upstream corpus | `docs/upstream/dev-pomogator/spec-generator-v4/` | Reference and provenance only; never target truth or passing evidence. |
 
 ## Lifecycle states
@@ -76,8 +79,8 @@ The long-term architecture is one standalone OMP marketplace containing exactly 
 
 - v0.1.0: bounded read-only inventory/diagnostic path;
 - v0.2: read-only graph/query kernel in the same plugin;
-- v0.3: one read-only MCP adapter over the same query service;
-- later: authoring and mutation only after separate safety gates.
+- v0.3: one read-only MCP adapter over the same query service (first slice of the generator-port door);
+- later: generator-port reads, sibling LSP, evidence MCP, and authoring/mutation only after separate safety gates. Authoring is not delivered by naming those stages.
 
 This specification deliberately does not restate manifest fields, tool schemas, parser types, transport messages, or CAS algorithms. Their owners are linked in the authority model.
 

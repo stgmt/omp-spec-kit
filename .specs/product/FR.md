@@ -60,7 +60,7 @@ The repository SHALL represent one product named `omp-spec-kit`. When distributi
 
 ## FR-6 — Evidence-gated release stages
 
-The product SHALL advance only through these ordered stages: public init; v0.1.0 read-only inventory; v0.2 bounded graph/query kernel; v0.3 read-only MCP projection over the same query service; and later safe authoring/mutation. Each stage SHALL remain `PLANNED`, `DEFERRED`, or `BLOCKED` until its complete cumulative aggregate gate set has current mandatory evidence for one product revision and artifact lineage. Current distribution evidence and the current target-stage capability evidence SHALL bind to the current candidate artifact:
+The product SHALL advance only through these ordered stages: public init; v0.1.0 read-only inventory; v0.2 bounded graph/query kernel; v0.3 read-only MCP projection over the same query service as the first slice of the generator-port door; later generator-port reads owned by `spec-kernel:FR-16` and `spec-kernel:FR-17`; later evidence MCP owned by `spec-evidence`; a sibling LSP adapter owned by `spec-lsp` that is not the agent API; and later safe authoring/mutation MCP owned by `spec-authoring-workflow`. Authoring remains `DEFERRED` until its cumulative gate passes; naming these later stages SHALL NOT unlock authoring as delivered. Each stage SHALL remain `PLANNED`, `DEFERRED`, or `BLOCKED` until its complete cumulative aggregate gate set has current mandatory evidence for one product revision and artifact lineage. Current distribution evidence and the current target-stage capability evidence SHALL bind to the current candidate artifact:
 
 1. v0.1.0 claims require accepted `plugin-distribution:FR-13`, which aggregates the complete mandatory evidence for `plugin-distribution:FR-1` through `plugin-distribution:FR-12` and binds to the current candidate artifact.
 2. v0.2 claims require accepted `plugin-distribution:FR-13` and accepted `spec-kernel:FR-14` with `targetStage: "v0.2"`; both SHALL bind to the current v0.2 candidate artifact.
@@ -89,7 +89,7 @@ Every public status summary SHALL identify the product stage, conservative state
 
 ## FR-8 — Manager-readable roadmap and boundaries
 
-Public product documentation SHALL distinguish current delivery, planned stages, deferred scope, blockers, and stage exit evidence in manager-readable language. It SHALL link each delegated contract to its canonical owning spec rather than duplicating internals: distribution to `plugin-distribution`, read-only inventory/kernel/query to `spec-kernel`, and authoring/mutation to `spec-authoring-workflow`. The roadmap SHALL keep advisor, hooks, dashboards, backlog, persistence, repair, model judging, proxy, context/memory, auto-commit, and generic dev-pomogator harness machinery outside the public-init/v0.1.0 boundary.
+Public product documentation SHALL distinguish current delivery, planned stages, deferred scope, blockers, and stage exit evidence in manager-readable language. It SHALL link each delegated contract to its canonical owning spec rather than duplicating internals: distribution to `plugin-distribution`, read-only inventory/kernel/query to `spec-kernel`, editor/LSP diagnostics to `spec-lsp`, evidence evaluation to `spec-evidence`, and authoring/mutation to `spec-authoring-workflow`. The roadmap SHALL keep advisor, hooks, dashboards, backlog, persistence, repair, model judging, proxy, context/memory, auto-commit, and generic dev-pomogator harness machinery outside the public-init/v0.1.0 boundary. The roadmap SHALL NOT call v0.3 “not the 46-tool door”; v0.3 is the first slice of the generator-port MCP door.
 
 - **Stage:** All
 - **Priority:** Should
@@ -97,3 +97,15 @@ Public product documentation SHALL distinguish current delivery, planned stages,
 - **Acceptance:** [AC-8.1](ACCEPTANCE_CRITERIA.md#ac-81-roadmap-separates-state), [AC-8.2](ACCEPTANCE_CRITERIA.md#ac-82-canonical-boundary-links)
 - **Scenario trace:** `@feature8`; `SCEN-roadmap-separates-states`; `SCEN-canonical-owner-delegation`.
 - **Stories/use cases:** US-7; UC-4, UC-5.
+
+## FR-9 — Generator-port MCP destination
+
+The product destination SHALL be the generator-port MCP door. The agent-facing specification API SHALL be MCP only; host `lsp` is not a spec tool. The eight SCHEMA-11 MCP names proven in v0.3 SHALL remain the first slice of that door: growing MCP SHALL NOT delete them, and documents that mention the eight-tool registry SHALL call it the first slice or v0.3 candidate identity rather than the destination. Every row in the closed 46-name census SHALL have an owner spec and a stage; silent DROP of a census row is forbidden. Schema v1 of authoring omitting a name is later, not DROP. Distinguish the dropped dev-pomogator backlog dashboard from later MCP `add_backlog_task`. The canonical census table is [spec-generator-port.md](../../docs/decisions/spec-generator-port.md).
+
+- **Stage:** All
+- **Priority:** Must
+- **Status:** Specified
+- **Acceptance:** [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-census-owned-mcp-only-first-slice)
+- **Scenario trace:** `@feature9`; `SCEN-generator-port-destination`.
+- **Stories/use cases:** US-8; UC-7.
+- **Canonical dependency:** [spec-generator-port.md](../../docs/decisions/spec-generator-port.md); `spec-kernel:FR-16`; `spec-kernel:FR-17`; `spec-lsp:FR-1`; `spec-evidence`; `spec-authoring-workflow`.

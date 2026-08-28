@@ -14,6 +14,7 @@
 - Recorded MP-1 through MP-4 as explicit decision-required release blockers.
 - Defined FR-13 as the all-of registration/release eligibility gate over mandatory FR-1..FR-12 evidence, current `plugin-distribution:FR-13`, and separately qualified accepted `spec-kernel:FR-14` v0.2 and v0.3 results whose predecessor/current artifact hashes are cryptographically linked within one product revision/artifact lineage; schema/service/fixture/evaluator implementation may proceed while lifecycle remains `DEFERRED` and actions remain unregistered.
 - Added stable unique `@id:SCEN-*` and exact `@AC-N.M` trace tags to every specification scenario.
+- Named the 24 generator-port mutation census rows in FR-14: 18 schema-v1 MCP names map onto proposal-first operations; 6 schema-v2 names (`create_spec`, `archive_spec`, `delete_spec_doc`, `rename_spec_doc`, `add_backlog_task`, `register_incident_backlog`) are later, not DROP. None appear on the v0.3 read registry. The dropped advisor/dashboard/harness backlog UI is not `add_backlog_task`. Schema version 1 still has no `create_spec`/delete/archive request; those names are later schema versions of this product, not census DROP.
 
 ### Deferred
 
@@ -23,7 +24,7 @@
 
 ### Excluded
 
-- dev-pomogator advisor, backlog, dashboard, hooks, stop gates, repair loops, SQLite, watcher, judge, and runtime harness machinery.
+- dev-pomogator advisor, dashboard, harness backlog UI, hooks, stop gates, repair loops, SQLite, watcher, judge, and runtime harness machinery (that excluded backlog UI is not MCP `add_backlog_task`, which is later-authoring-v2, not DROP).
 - Direct or raw-edit writes, same-call preview-and-commit, cross-spec atomic transactions, automatic CAS rebase, linked-spec reads/mutation, retained recovery with replacement bytes, unauthenticated or unreviewed rebaseline, out-of-root/linked candidate sources, recovery-history erasure, `.progress.json`, and hidden repository workflow state.
 
 No runtime release, executed scenario, passing test, or implementation completion is claimed.

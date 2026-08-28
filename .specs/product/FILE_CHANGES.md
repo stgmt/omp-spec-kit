@@ -7,9 +7,12 @@ Every row is a **planned future path**, not evidence that the file exists or the
 | Planned path | Planned action | Externally observable purpose | Trace |
 |---|---|---|---|
 | `README.md` | Update before authorized publication | State specification-only/non-installable status, primary blocker, and next gate. | `product:FR-1`, `product:FR-7`, `product:FR-8` |
-| `ROADMAP.md` | Update at each stage decision | Separate current, planned, deferred, and blocked states with exit evidence. | `product:FR-6`, `product:FR-8` |
+| `ROADMAP.md` | Update at each stage decision | Separate current, planned, deferred, and blocked states with exit evidence; v0.3 is the first slice of the generator-port MCP door. | `product:FR-6`, `product:FR-8`, `product:FR-9` |
 | `IMPORT_MANIFEST.yaml` | Update only through reviewed provenance decision | Record exact immutable source paths/hashes and resolved license status. | `product:FR-2`, `product:FR-3` |
-| `MIGRATION_MATRIX.md` | Update when an adoption decision changes | Preserve rationale for standalone scope without editing upstream evidence. | `product:FR-2`, `product:FR-8` |
+| `MIGRATION_MATRIX.md` | Update when an adoption decision changes | Preserve rationale for standalone scope without editing upstream evidence. Deferred MCP rows remain later generator-port MCP. | `product:FR-2`, `product:FR-8`, `product:FR-9` |
+| `docs/decisions/spec-generator-port.md` | Maintain as census authority | Canonical 46-name owner/stage table; agent-facing MCP destination; eight SCHEMA-11 names are the v0.3 first slice. | `product:FR-9` |
+| `docs/decisions/omp-spec-kit-public-init.md` | Point at generator-port census | Public-init history unchanged; one sentence names the agent-facing MCP destination. | `product:FR-9` |
+| `plugins/omp-spec-kit/README.md` | Update first-slice wording | Eight-tool MCP surface is the current v0.3 first slice, not the destination door. | `product:FR-9` |
 | `docs/upstream/dev-pomogator/LICENSE`, `docs/upstream/dev-pomogator/LICENSE-ATTESTATION.md`, `docs/validation/provenance/dev-pomogator-license-attestation.yaml` | Preserve/update only from merged source evidence | Record exact license/attestation bytes, hashes, covered snapshot identity, and bounded resolved status. | `product:FR-2`, `product:FR-3` |
 | `docs/validation/source-freeze.md` | Create | Record independent reconstruction, per-file comparison, exclusions, and actual mismatch count for the candidate revision. | `product:FR-2` |
 | `docs/validation/public-safety.md` | Create | Record license decision, allowlist, secret scan, exceptions, and public-diff review for the candidate revision. | `product:FR-3`, `product:FR-4` |

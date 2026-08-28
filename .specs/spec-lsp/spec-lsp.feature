@@ -2,8 +2,10 @@
 Feature: Custom LSP adapter as second read-only projection of the kernel query service
   The LSP adapter serves navigation diagnostics hover completion and document symbols
   for .specs/** Markdown from the same kernel query service used by the extension
-  and MCP adapter. It does not remove the eight MCP query tools. This stage has
+  and MCP adapter. The eight v0.3 first-slice MCP query tools remain registered;
+  the destination grows MCP (kernel FR-16/FR-17, evidence, authoring). This stage has
   no step-binding layer because the kernel has no StepBinding nodes.
+
   These scenarios specify required behavior and have no executed status here.
   @feature1 @AC-1.1 @id:SCEN-spec-lsp-read-projection-only
   Scenario: Agent sees MCP only; LSP is consumed by MCP not by the agent

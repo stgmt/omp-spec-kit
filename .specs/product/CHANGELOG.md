@@ -2,6 +2,17 @@
 
 This changelog records changes to the product specification only. It is not the repository release changelog and does not claim that scenarios have run or capabilities are delivered.
 
+## Unreleased — generator-port destination correction
+
+### Added
+
+- `product:FR-9` / `product:AC-9.1` / `@feature9` / `CHK-FR9-01`: destination is the generator-port MCP door; agent inventory is MCP-only; the eight SCHEMA-11 names are the v0.3 first slice; silent DROP of a census row is forbidden.
+
+### Changed
+
+- `product:FR-6` later stages now name generator-port reads (`spec-kernel:FR-16`/`FR-17`), evidence MCP, sibling LSP (not the agent API), and authoring MCP without unlocking authoring as delivered.
+- `product:FR-8` owners now include `spec-lsp` and `spec-evidence`; ROADMAP describes v0.3 as the first slice of the generator-port MCP door.
+
 ## Unreleased — initial product specification
 
 ### Added

@@ -344,7 +344,7 @@ counts.markdownLinkOccurrences
 | `operation` | `QueryOperation` | yes | Discriminant |
 | `args` | operation-specific object | yes | Exact shape below |
 
-`QueryOperation` is `inventory | getNode | findNodes | getEdges | trace | diagnostics | overview | markdownInventory`.
+`QueryOperation` is `inventory | getNode | findNodes | getEdges | trace | diagnostics | overview | markdownInventory`. These eight are the **v0.2 first slice**. Later [FR-16](FR.md#fr-16-generator-port-read-operations-beyond-the-eight) query members are `listSpecs`, `findByTags`, `listTasks`, `listPhaseTasks`, `findOrphans`, `validateAnchor`, `policyQuery`, `validateRequirementMetadata`, `archivalProof`, `validateSpec`, and `specStatus`; they are not v0.2 required members. [FR-17](FR.md#fr-17-mcp-adapter-document-and-preflight-io-not-a-v02v03-release-member) `list_spec_docs`, `read_spec_doc`, `read_attachment`, and `mcp_preflight` are MCP adapter I/O, not `QueryOperation` values.
 
 ### Operation `args`
 
@@ -503,7 +503,7 @@ Error ordering precedence when multiple validations fail: schema version, reques
 | `spec_overview` | `overview` | exact `overview` args plus common fields |
 | `spec_markdown_inventory` | `markdownInventory` | exact `markdownInventory` args plus common fields |
 
-Each tool returns exactly one `QueryEnvelope` as structured content. MCP transport request IDs, protocol metadata, logs, and errors are not added to the canonical envelope. There are no mutation tools.
+Each tool returns exactly one `QueryEnvelope` as structured content. MCP transport request IDs, protocol metadata, logs, and errors are not added to the canonical envelope. There are no mutation tools. This table is the **v0.3 first-slice** eight-tool mapping. Later FR-16 query operations and FR-17 adapter I/O grow MCP; they SHALL NOT delete these eight names.
 
 ## SCHEMA-12: Stable ordering
 

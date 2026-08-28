@@ -86,7 +86,7 @@ v0.2 SHALL expose one shared pure query service with operations `inventory`, `ge
 
 ## FR-9: Read-only MCP projection in v0.3
 
-v0.3 MAY expose the v0.2 service through one bundled MCP server in the same `omp-spec-kit` child plugin. The first slice SHALL map `spec_inventory`, `spec_get_node`, `spec_find_nodes`, `spec_get_edges`, `spec_trace`, `spec_diagnostics`, `spec_overview`, and `spec_markdown_inventory` one-to-one. Additional FR-16 operations SHALL be projected onto MCP as they land so the **agent sees only MCP** (the spec-generator door). The v0.3 read registry SHALL contain no mutation, proposal, apply, repair, archive, status-transition, or write tool. MCP absence or failure SHALL not create a second graph. LSP SHALL NOT be an agent-visible spec tool.
+v0.3 MAY expose the v0.2 service through one bundled MCP server in the same `omp-spec-kit` child plugin. The **v0.3 first slice** SHALL map `spec_inventory`, `spec_get_node`, `spec_find_nodes`, `spec_get_edges`, `spec_trace`, `spec_diagnostics`, `spec_overview`, and `spec_markdown_inventory` one-to-one. Additional [FR-16](FR.md#fr-16-generator-port-read-operations-beyond-the-eight) query operations and [FR-17](FR.md#fr-17-mcp-adapter-document-and-preflight-io-not-a-v02v03-release-member) adapter I/O SHALL be projected onto MCP as they land so the **agent sees only MCP** (the spec-generator door); they are not `kernel-v0.3` required-check members. The v0.3 first-slice read registry SHALL contain no mutation, proposal, apply, repair, archive, status-transition, or write tool. MCP absence or failure SHALL not create a second graph. LSP SHALL NOT be an agent-visible spec tool.
 
 **Acceptance:** [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-mcp-is-a-semantic-free-read-projection)
 
@@ -168,7 +168,7 @@ For every step text on every `SCENARIO` node the kernel SHALL count matching bin
 - zero matches → WARNING diagnostic `STEP_UNDEFINED` (SHALL NOT set `graph.valid=false`);
 - two or more matches → WARNING diagnostic `STEP_AMBIGUOUS` listing candidate canonical IDs, and no `BINDS_STEP` edge.
 
-Callers SHALL query this index through existing operations `findNodes` (`kinds` includes `STEP_BINDING`), `getEdges` (`types` includes `BINDS_STEP`), and `diagnostics` (`codes` includes `STEP_UNDEFINED`/`STEP_AMBIGUOUS`). The MCP registry SHALL remain the eight read tools; this FR SHALL NOT add a ninth MCP tool.
+Callers SHALL query this index through existing operations `findNodes` (`kinds` includes `STEP_BINDING`), `getEdges` (`types` includes `BINDS_STEP`), and `diagnostics` (`codes` includes `STEP_UNDEFINED`/`STEP_AMBIGUOUS`). This FR SHALL NOT add an MCP tool.
 
 pytest-bdd and other runners are out of scope for this increment; they MAY later reuse the same node kind with another `patternKind` without a second index.
 
@@ -200,7 +200,7 @@ The kernel SHALL, as a later increment **not** in `kernel-v0.2` or `kernel-v0.3`
 | `validateSpec` | `validate_spec` | Read-only multilayer validation + verdict |
 | `specStatus` | `get_spec_status` | Status/coverage views beyond `overview` |
 
-`get_test_result` and `get_scenario_trace` SHALL wait for `spec-evidence`. `list_spec_docs`, `read_spec_doc`, `read_attachment`, and `mcp_preflight` SHALL be adapter I/O, not pure-kernel operations. Mutation tools SHALL stay in `spec-authoring-workflow` and SHALL NOT appear on the v0.3 read MCP registry.
+`get_test_result` and `get_scenario_trace` SHALL wait for `spec-evidence`. `list_spec_docs`, `read_spec_doc`, `read_attachment`, and `mcp_preflight` SHALL be [FR-17](FR.md#fr-17-mcp-adapter-document-and-preflight-io-not-a-v02v03-release-member) adapter I/O, not FR-16 query-service operations. Mutation tools SHALL stay in `spec-authoring-workflow` and SHALL NOT appear on the v0.3 read MCP registry.
 
 CHK-FR16-01 SHALL prove each named operation exists, is read-only, and is projected by MCP under the same name mapping. Until that check PASSes, MCP MAY keep the eight-tool first slice. Growing MCP SHALL NOT delete the eight.
 
@@ -209,5 +209,26 @@ CHK-FR16-01 SHALL prove each named operation exists, is read-only, and is projec
 **Scenario:** `@feature16` / `SCEN-generator-port-read-operations`
 
 **Sources:** `dev-pomogator` `tools/spec-mcp-server/tools.ts` name census (research, not a code import); `MIGRATION_MATRIX.md` FR-4, FR-30, FR-38, FR-39, FR-82 DEFER/REWRITE.
+
+## FR-17: MCP adapter document and preflight I/O (not a v0.2/v0.3 release member)
+
+The destination agent-facing spec API is MCP. Census rows 17–20 of [spec-generator-port](../../docs/decisions/spec-generator-port.md) name four **MCP adapter I/O** tools that are not FR-8/FR-16 query-service operations:
+
+| MCP name | Role |
+|---|---|
+| `list_spec_docs` | Enumerate readable documents of one spec |
+| `read_spec_doc` | Read one spec document by a name from that inventory |
+| `read_attachment` | Read one contained binary attachment |
+| `mcp_preflight` | Read-only MCP admission snapshot |
+
+These four SHALL be **read-only**. Containment SHALL be the same as [FR-7](FR.md#fr-7-bounded-repository-containment): one explicit repository root; refuse traversal, symlink, junction, reparse, absolute external path, and over-budget reads. They SHALL NOT be members of the pure query service `QueryOperation` set. MCP SHALL project them later so they are **agent-visible**. MCP absence or failure SHALL not create a second graph.
+
+This FR is **not** a member of `kernel-v0.2` or `kernel-v0.3` required-check sets. A v0.2/v0.3 candidate SHALL remain eligible without FR-17 evidence. `CHK-FR17-01` is evaluated as its own profile `kernel-adapter-io`. Until that check PASSes, MCP MAY keep the eight-tool first slice. Growing MCP SHALL NOT delete the eight.
+
+**Acceptance:** [AC-17.1](ACCEPTANCE_CRITERIA.md#ac-171-adapter-document-and-preflight-io-are-named-and-read-only)
+
+**Scenario:** `@feature17` / `SCEN-mcp-adapter-document-preflight-io`
+
+**Sources:** `docs/decisions/spec-generator-port.md` census rows 17–20 (`mcp_preflight`, `list_spec_docs`, `read_spec_doc`, `read_attachment`); `dev-pomogator` `tools/spec-mcp-server/tools.ts` name census (research, not a code import).
 
 

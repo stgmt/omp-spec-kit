@@ -99,7 +99,7 @@ House convention: repository-root `src/`, copied by `scripts/build-plugin.mjs`. 
 | Planned path | Responsibility |
 |---|---|
 | `plugins/omp-spec-kit/src/adapters/mcp/server.ts` | One bundled read-only server over shared service |
-| `plugins/omp-spec-kit/src/adapters/mcp/tools.ts` | Exact eight-tool mapping, including `spec_markdown_inventory`, no mutations |
+| `plugins/omp-spec-kit/src/adapters/mcp/tools.ts` | v0.3 first-slice eight-tool mapping, including `spec_markdown_inventory`, no mutations; later FR-16 query ops and FR-17 adapter I/O grow MCP |
 | `plugins/omp-spec-kit/.mcp.json` | Nested plugin-root MCP registration when v0.3 is released |
 
 The `.mcp.json` structure SHALL follow https://github.com/can1357/oh-my-pi/blob/main/docs/mcp-config.md and SHALL not be introduced before the v0.3 adapter is implemented and packaged.

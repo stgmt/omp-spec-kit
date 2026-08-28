@@ -447,3 +447,12 @@ Feature: Proposal-first safe specification authoring
       | an authorization proposal current journal or candidate hash mismatch | state remains RECOVERY_REQUIRED with no byte exposed or changed |
       | an escaping linked symlink junction mount or reparse candidate | state remains RECOVERY_REQUIRED with no candidate content leak |
       | an anchor link validator audit-chain or lease concurrency failure | state remains RECOVERY_REQUIRED and normal reads and writes remain blocked |
+
+  @id:SCEN-generator-port-mutation-names @feature14 @AC-14.1
+  Scenario: SPEC_AUTHORING_045 generator-port mutation names are v1 or later v2 not DROP
+    Given the agent-facing authoring API is MCP
+    When the generator-port mutation census is mapped onto this spec
+    Then the eighteen schema-v1 names map onto proposal-first operations
+    And the six schema-v2 names create_spec archive_spec delete_spec_doc rename_spec_doc add_backlog_task and register_incident_backlog remain later and are not DROP
+    And none of those twenty-four names appear on the v0.3 first-slice read registry
+    And the dropped advisor dashboard and harness backlog UI is not add_backlog_task

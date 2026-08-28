@@ -201,3 +201,7 @@ These are EARS-style specification criteria. They are not executed evidence.
 ## AC-13.3
 
 **IF** eligibility is derived from an any-of match, aggregate count, inherited green state, source-tree-only result, evidence for another artifact/snapshot/policy/host or artifact lineage, one unqualified kernel envelope, duplicate target stages, a v0.3 result substituted for the required v0.2 result, a stale or revoked v0.2 result, a non-eligible kernel result, or a v0.3 `v02ParentArtifactSha256` unequal to the accepted v0.2 `artifactSha256` **THEN** the aggregate gate SHALL refuse, report the deterministic evidence-set or lineage error, and SHALL not treat partial or cross-lineage proof as authoring eligibility.
+
+## AC-14.1
+
+**WHEN** the generator-port mutation census is projected through this spec **THEN** the eighteen schema-v1 MCP names SHALL map onto proposal-first operations, the six schema-v2 names (`create_spec`, `archive_spec`, `delete_spec_doc`, `rename_spec_doc`, `add_backlog_task`, `register_incident_backlog`) SHALL remain later and not DROP, none of the twenty-four names SHALL appear on the v0.3 first-slice read registry, and the dropped advisor/dashboard/harness backlog UI SHALL NOT be treated as `add_backlog_task`.

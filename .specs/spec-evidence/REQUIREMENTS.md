@@ -17,6 +17,7 @@
 | [FR-11](FR.md#fr-11-real-fixtures-per-spec-kernel-discipline) | Real fixtures | [AC-11.1](ACCEPTANCE_CRITERIA.md#ac-111-fixtures-are-real-hashed-and-reconciled) | `@feature11` | [US-5](USER_STORIES.md#us-5-multi-language-team-using-canonical-ndjson), [UC-5](USE_CASES.md#uc-5-ingest-artifacts-with-fail-closed-state) | Specified |
 | [FR-12](FR.md#fr-12-budgets) | Budgets | [AC-12.1](ACCEPTANCE_CRITERIA.md#ac-121-budgets-are-measured-and-enforced) | `@feature12` | [US-4](USER_STORIES.md#us-4-integrator-plugging-evidence-into-release-gates), [UC-6](USE_CASES.md#uc-6-contribute-to-release-eligibility) | Specified |
 | [FR-13](FR.md#fr-13-release-eligibility-contribution) | Release contribution | [AC-13.1](ACCEPTANCE_CRITERIA.md#ac-131-release-contribution-fails-closed) | `@feature13` | [US-4](USER_STORIES.md#us-4-integrator-plugging-evidence-into-release-gates), [UC-6](USE_CASES.md#uc-6-contribute-to-release-eligibility) | Specified |
+| [FR-14](FR.md#fr-14-mcp-projection-of-get_test_result-and-get_scenario_trace) | MCP projection of run-result tools | [AC-14.1](ACCEPTANCE_CRITERIA.md#ac-141-mcp-projection-of-get_test_result-and-get_scenario_trace) | `@feature14` | [US-3](USER_STORIES.md#us-3-engineer-diagnosing-unmatched-execution-results), [UC-1](USE_CASES.md#uc-1-evaluate-fresh-green-evidence-for-a-task) | Specified |
 
 ## Contract checks
 
@@ -35,6 +36,7 @@
 | CHK-FR11-01 | Fixture manifest hashes/sizes/ground truth reconcile; multi-language coverage ≥2 producers | FR-11, AC-11.1, `@feature11` | Fixture admission test with provenance validation | Not recorded |
 | CHK-FR12-01 | Latency/size/count/cap budgets met on reference corpus; exceeded limits refuse | FR-12, AC-12.1, `@feature12` | Budget measurement suite with raw observations | Not recorded |
 | CHK-FR13-01 | Release conjunction passes only on exact all-PASS profile; one-fault-at-a-time fails closed | FR-13, AC-13.1, `@feature13` | Evidence manifests plus negative matrix | Not recorded |
+| CHK-FR14-01 | MCP exposes get_test_result and get_scenario_trace as read-only projections of evaluator output; evaluator has zero MCP calls; tools absent from v0.3 read registry and from v0.2/v0.3 kernel required checks; hover invents no run results before this FR | FR-14, AC-14.1, `@feature14` | MCP projection contract plus purity/absence proofs | Not recorded |
 
 ## Non-functional traceability
 
@@ -61,3 +63,4 @@
 10. Fixtures are real producer bytes with full provenance; synthetic fixtures are labeled.
 11. Scenario text and structural parsing never imply executed/passing evidence.
 12. Release contribution is a closed conjunction member that does not loosen product:FR-6.
+13. MCP `get_test_result` and `get_scenario_trace` are later read-only projections of evaluator output; the evaluator never calls MCP; `spec-kernel:FR-6` never claims pass/fail; `spec-lsp` hover invents no run results before this FR.

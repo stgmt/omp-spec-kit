@@ -18,7 +18,8 @@ MCP is the generator door. LSP is not a second agent API and not a way to delete
 ## Provenance and evidence
 
 - OMP-side LSP contracts are cited from pinned documentation. Every cited runtime contract must be re-proven live by TASK-1 probes before implementation.
-- GitHub issue #7 and `.dev-pomogator/issue7-current.md` are research input. Their 46-tool table is not this product's MCP registry.
+- GitHub issue #7 and `.dev-pomogator/issue7-current.md` are research input. Their 46-tool table **is** the port map (research, not a code import). Eight SCHEMA-11 tools are the v0.3 first slice. Destination growth is kernel FR-16 / FR-17 plus evidence plus authoring, per [`docs/decisions/spec-generator-port.md`](../../docs/decisions/spec-generator-port.md).
+
 - `MIGRATION_MATRIX.md` DROP rows FR-7 and FR-27 (Marksman) stand.
 - `MIGRATION_MATRIX.md` DROP rows FR-5 and FR-6 (Claude hook families) stand; OMP `lsp.diagnosticsOnWrite` is the diagnostic path.
 

@@ -102,3 +102,20 @@
 4. Present the most conservative status when required evidence is missing, stale, revoked, contradictory, parent-mismatched, or failed.
 
 **Trace:** `product:FR-7`, `product:AC-7.1`, `product:AC-7.2`, `@feature7`.
+
+## UC-7 — Use the MCP spec door
+
+**Primary actor:** agent
+
+**Preconditions:** the canonical census in `docs/decisions/spec-generator-port.md` exists.
+
+**Main flow:**
+
+1. Treat the agent-facing specification API as MCP only.
+2. Treat the eight SCHEMA-11 names as the v0.3 first slice, not the destination registry.
+3. Resolve later generator-port reads, evidence MCP, sibling LSP, and authoring MCP to their owner specs without unlocking authoring as delivered.
+4. Refuse leftover freeze phrases that deny the 46-tool door unless they say first slice or v0.3 candidate.
+
+**Alternatives:** host `lsp` is not a spec tool; MCP MAY consume LSP internally for diagnostics/navigation.
+
+**Trace:** `product:FR-9`, `product:AC-9.1`, `@feature9`.

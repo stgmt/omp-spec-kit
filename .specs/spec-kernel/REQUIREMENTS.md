@@ -20,6 +20,7 @@
 | [FR-14](FR.md#fr-14-conjunctive-kernel-release-eligibility) | All-mandatory release gate | [AC-14.1](ACCEPTANCE_CRITERIA.md#ac-141-release-eligibility-requires-all-mandatory-evidence) | `@feature14` | [US-5](USER_STORIES.md#us-5-release-owner), [UC-10](USE_CASES.md#uc-10-evaluate-the-aggregate-kernel-release-gate) | Specified |
 | [FR-15](FR.md#fr-15-contained-step-binding-index-not-a-v02v03-release-member) | Contained step-binding index | [AC-15.1](ACCEPTANCE_CRITERIA.md#ac-151-step-bindings-are-contained-and-conserved) | `@feature15` | [US-4](USER_STORIES.md#us-4-bounded-query-user) | Specified; not a v0.2/v0.3 gate member |
 | [FR-16](FR.md#fr-16-generator-port-read-operations-beyond-the-eight) | Generator-port read ops | [AC-16.1](ACCEPTANCE_CRITERIA.md#ac-161-generator-port-reads-are-named-and-read-only) | `@feature16` | [US-4](USER_STORIES.md#us-4-bounded-query-user) | Specified; not a v0.2/v0.3 gate member |
+| [FR-17](FR.md#fr-17-mcp-adapter-document-and-preflight-io-not-a-v02v03-release-member) | MCP adapter document/preflight I/O | [AC-17.1](ACCEPTANCE_CRITERIA.md#ac-171-adapter-document-and-preflight-io-are-named-and-read-only) | `@feature17` | [US-4](USER_STORIES.md#us-4-bounded-query-user) | Specified; not a v0.2/v0.3 gate member |
 
 ## Contract checks
 
@@ -41,6 +42,7 @@
 | CHK-FR14-01 | `v0.2`/`kernel-v0.2` is the exact all-PASS FR-1..FR-8 plus FR-10..FR-13 profile with no FR-9/MCP dependency and extension-only FR-10 proof; `v0.3`/`kernel-v0.3` additionally requires a same-lineage accepted v0.2 input, FR-9, exact-v0.3 extension-plus-MCP FR-10 proof, and MCP-inclusive budgets; unknown or mismatched profiles/surfaces fail closed | FR-14, AC-14.1, `@feature14` | Per-profile evidence manifests, v0.2 extension-only positive proof, v0.3 exact-artifact MCP/lineage positive proof, and one-fault-at-a-time negative matrix | Not recorded |
 | CHK-FR15-01 | Allowlisted `tests/step-definitions/**/*.js|mjs` parse to `STEP_BINDING`; conservation of BINDS_STEP/STEP_UNDEFINED/STEP_AMBIGUOUS; symlink/escape refused; not a v0.2/v0.3 required check; unblocks spec-lsp step diagnostics | FR-15, AC-15.1, `@feature15` | Real cucumber-js step-def fixtures plus negative path/ambiguity cases | Not recorded |
 | CHK-FR16-01 | Each FR-16 operation is read-only on the query service and projected by MCP; mutations absent from v0.3 read registry; eight first-slice tools remain; not a v0.2/v0.3 required check | FR-16, AC-16.1, `@feature16` | Query+MCP registry contract plus negative mutation-name scan | Not recorded |
+| CHK-FR17-01 | Each FR-17 adapter I/O name is read-only, contained as FR-7, projected by MCP, not a query-service op; not a v0.2/v0.3 required check | FR-17, AC-17.1, `@feature17` | Adapter+MCP registry contract plus containment negatives | Not recorded |
 
 ## Non-functional traceability
 
@@ -49,7 +51,7 @@
 | [NFR-PERF-1](NFR.md#nfr-perf-1-build-and-query-latency) | FR-8, FR-12, FR-13, FR-14 | Pinned benchmark, p95 samples, raw observations, mandatory budget-gate evidence |
 | [NFR-SIZE-1](NFR.md#nfr-size-1-bundle-and-response-size) | FR-10, FR-12, FR-13, FR-14 | Installed artifact, Markdown inventory page, response byte measurement, mandatory package/budget evidence |
 | [NFR-MEM-1](NFR.md#nfr-mem-1-memory-bound) | FR-7, FR-12, FR-13 | Peak incremental RSS on benchmark corpus including heading/link occurrence arrays |
-| [NFR-SEC-1](NFR.md#nfr-sec-1-containment-and-data-minimization) | FR-1, FR-7, FR-9 | Traversal/link variants and absolute-path leak check |
+| [NFR-SEC-1](NFR.md#nfr-sec-1-containment-and-data-minimization) | FR-1, FR-7, FR-9, FR-17 | Traversal/link variants and absolute-path leak check |
 | [NFR-REL-1](NFR.md#nfr-rel-1-determinism-and-fail-closed-results) | FR-3, FR-4, FR-5, FR-6, FR-13, FR-14 | Repeated canonical snapshot, inventory cursor chain, invariant and aggregate-gate tests |
 | [NFR-PORT-1](NFR.md#nfr-port-1-portable-installed-runtime) | FR-10, FR-14 | Dependency-absent installed smoke and mandatory package-gate evidence on supported OMP platforms |
 | [NFR-USE-1](NFR.md#nfr-use-1-actionable-bounded-diagnostics) | FR-6, FR-8, FR-13, FR-14 | Error/diagnostic/inventory/blocker schema contracts and truncation evidence |

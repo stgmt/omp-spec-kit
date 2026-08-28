@@ -83,3 +83,15 @@
 **Independent test:** Follow every stage link to its canonical requirement owner and identify what remains non-public.
 
 **Acceptance scenarios:** `@feature8`.
+
+## US-8 — Agent: MCP spec door
+
+**Priority:** Must
+
+**As an** agent, **I want** to use the MCP spec door, **so that** I never treat host LSP as a spec tool or freeze the eight SCHEMA-11 names as the destination.
+
+**Why:** The v0.3 eight-tool registry is the first slice of the generator-port door; silent DROP of a census row would hide a ported capability.
+
+**Independent test:** Inspect `docs/decisions/spec-generator-port.md`, ROADMAP, and the agent-facing inventory; leftover phrases that deny the 46-tool door fail unless they say first slice or v0.3 candidate.
+
+**Acceptance scenarios:** `@feature9`.

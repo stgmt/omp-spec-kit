@@ -16,6 +16,7 @@ These requirements are approved specification intent, not implementation status.
 | [FR-6](FR.md#fr-6-evidence-gated-release-stages) | Evidence-gated release stages | Must | All | Specified | [AC-6.1–6.2](ACCEPTANCE_CRITERIA.md#ac-61-stage-cannot-advance-with-missing-evidence) | `@feature6` |
 | [FR-7](FR.md#fr-7-honest-public-status-and-claims) | Honest public status and claims | Must | All | Specified | [AC-7.1–7.2](ACCEPTANCE_CRITERIA.md#ac-71-fail-closed-status) | `@feature7` |
 | [FR-8](FR.md#fr-8-manager-readable-roadmap-and-boundaries) | Manager-readable roadmap and boundaries | Should | All | Specified | [AC-8.1–8.2](ACCEPTANCE_CRITERIA.md#ac-81-roadmap-separates-state) | `@feature8` |
+| [FR-9](FR.md#fr-9-generator-port-mcp-destination) | Generator-port MCP destination | Must | All | Specified | [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-census-owned-mcp-only-first-slice) | `@feature9` |
 
 ## Contract cards
 
@@ -99,6 +100,22 @@ These requirements are approved specification intent, not implementation status.
 - **Scenario:** `@feature8`.
 - **Task:** `product:TASK-8`.
 
+### product:FR-9
+
+- **Rationale:** the agent-facing destination is the generator-port MCP door; the eight SCHEMA-11 names are the v0.3 first slice, not a ceiling, and silent DROP of a census row would hide a ported capability.
+- **Risk if omitted:** public docs freeze eight tools as the destination or send the agent through host LSP.
+- **Verification mode:** census-row ownership review plus leftover freeze-phrase scan of ROADMAP, product, kernel, LSP, authoring, evidence, MRI README, and plugin README unless the nearby wording is first-slice or v0.3-candidate.
+- **Evidence demand:** canonical table `docs/decisions/spec-generator-port.md` with 46 owned rows; no silent DROP; MCP-only agent inventory.
+- **Acceptance:** `product:AC-9.1`.
+- **Scenario:** `@feature9`.
+- **Task:** `product:TASK-9`.
+
+## CHK traceability matrix
+
+| CHK ID | Check | FR | AC | Scenario/UC |
+|---|---|---|---|---|
+| CHK-FR9-01 | Forbidden destination phrases fail in `ROADMAP.md`, `.specs/product`, `.specs/spec-kernel`, `.specs/spec-lsp`, `.specs/spec-authoring-workflow`, `.specs/spec-evidence`, `.specs/mcp-release-integrity/README.md`, and `plugins/omp-spec-kit/README.md` unless nearby wording is first-slice or v0.3-candidate. Run `node scripts/check-spec-generator-port-freeze.mjs`. | FR-9 | AC-9.1 | `@feature9`, UC-7 |
+
 ## Cross-spec dependency matrix
 
 | Product requirement | Canonical dependency | Reason |
@@ -107,3 +124,9 @@ These requirements are approved specification intent, not implementation status.
 | `product:FR-6` | `plugin-distribution:FR-13` | Required for v0.1.0 and cumulatively for every later product stage; its aggregate evidence binds to the current candidate artifact. |
 | `product:FR-6` | `spec-kernel:FR-14` | v0.2 delivery uses a current-candidate `targetStage: "v0.2"` result. v0.3/authoring use a current-candidate `targetStage: "v0.3"` result plus a separately identified v0.2 predecessor whose artifact SHA-256 is named exactly by `v02ParentArtifactSha256`; both share revision/lineage, appear in strict stage/profile order, and remain active. |
 | `product:FR-6` | `spec-authoring-workflow:FR-13` | Additional current-candidate authoring/mutation gate; it cannot replace distribution or either separately identified kernel target-stage aggregate. |
+| `product:FR-9` | `docs/decisions/spec-generator-port.md` | Canonical 46-name census and destination invariants. |
+| `product:FR-9` | `spec-kernel:FR-16` | Later generator-port kernel reads beyond the eight first-slice names. |
+| `product:FR-9` | `spec-kernel:FR-17` | Later generator-port MCP adapter I/O reads. |
+| `product:FR-9` | `spec-lsp:FR-1` | Sibling LSP adapter; not the agent-facing spec API. |
+| `product:FR-9` | `spec-evidence` | Later evidence MCP names after the evidence layer. |
+| `product:FR-9` | `spec-authoring-workflow` | Later authoring MCP names; schema v1 omission is later, not DROP. |

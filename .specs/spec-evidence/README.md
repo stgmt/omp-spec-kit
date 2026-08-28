@@ -39,3 +39,5 @@ SPEC_ONLY. All tasks are `Planned`; every Gherkin scenario is specification text
 ## Release boundary
 
 This specification belongs to a stage after kernel v0.2. It requires an explicit release-stage decision recorded in `ROADMAP.md` before any implementation may ship. Its release-eligibility contribution (FR-13) plugs the future stage's all-not-any conjunction like `spec-kernel:FR-14` but SHALL NOT loosen the `product:FR-6` cumulative gate. Entry additionally requires: accepted kernel v0.2 graph as input, real-producer fixture corpus with reviewed ground truth, budget evidence per NFR, and an independent adversarial review record. Structural specification text and unexecuted Gherkin SHALL NOT satisfy evidence.
+
+When this layer exists, MCP SHALL expose `get_test_result` and `get_scenario_trace` as read-only projections of evaluator output ([FR-14](FR.md#fr-14-mcp-projection-of-get_test_result-and-get_scenario_trace)). That projection is not a v0.2/v0.3 kernel required check. `spec-kernel:FR-6` remains forbidden from pass/fail claims. Until this FR exists, `spec-lsp` hover SHALL NOT invent run results.

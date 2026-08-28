@@ -141,9 +141,20 @@ Feature: Honest public lifecycle for omp-spec-kit
 
   @feature8 @FR-8 @AC-8.2 @id:SCEN-canonical-owner-delegation
   Scenario: Product spec delegates internals to canonical owners
-    Given the product documents refer to distribution, kernel, and authoring behavior
+    Given the product documents refer to distribution, kernel, LSP, evidence, and authoring behavior
     When their boundary references are inspected
     Then distribution uses canonical plugin-distribution requirement IDs
     And kernel uses canonical spec-kernel requirement IDs
+    And LSP uses canonical spec-lsp requirement IDs
+    And evidence uses canonical spec-evidence requirement IDs
     And authoring uses canonical spec-authoring-workflow requirement IDs
     And product documents do not redefine their internal contracts
+
+  @feature9 @FR-9 @AC-9.1 @id:SCEN-generator-port-destination
+  Scenario: Generator-port destination is MCP with a 46-row census
+    Given the canonical census in docs/decisions/spec-generator-port.md exists
+    And every census row has an owner spec and a stage
+    When a manager reads the roadmap and agent-facing inventory
+    Then ROADMAP calls v0.3 the first slice of the generator-port MCP door
+    And the agent API is MCP only
+    And leftover freeze phrases that deny the 46-tool door fail

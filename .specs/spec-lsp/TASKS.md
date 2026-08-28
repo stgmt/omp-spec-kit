@@ -6,11 +6,13 @@ All tasks are `Planned` unless marked `Blocked`. No task has executed status in 
 
 **Status:** Planned
 
-Probe the pinned OMP runtime to confirm every cited LSP contract before implementation: `lsp.diagnosticsOnWrite` trigger semantics, `lspServers` → `.lsp.json` registration, `lsp.lazy` cold-start behavior, `lsp.shared` broker compatibility, `textDocument/didSave` timing, fileType routing for `.md` outside `.specs/**`, and whether the agent prompt still mandates `lsp` for code actions. Record probe results as gating evidence for FR-1, FR-2, FR-9, FR-10, FR-11.
+Probe the pinned OMP runtime to confirm every cited LSP contract before implementation: `lsp.diagnosticsOnWrite` trigger semantics, `lspServers` → `.lsp.json` registration, `lsp.lazy` cold-start behavior, `lsp.shared` broker compatibility, `textDocument/didSave` timing, fileType routing for `.md` outside `.specs/**`, and whether the host agent prompt still mandates `lsp` for **code** (not specs). Record that observation; spec work MUST still go through MCP. Do not treat "agent must use lsp for specs" as a desired outcome. Record probe results as gating evidence for FR-1, FR-2, FR-9, FR-10, FR-11.
 
 **Depends on:** Pinned OMP runtime version.
 
-**Refs:** [FR-1](FR.md#fr-1-one-server-semantic-free-read-projection-that-does-not-shrink-mcp), [FR-2](FR.md#fr-2-read-only-posture-no-codeaction-capability-in-this-stage), [FR-9](FR.md#fr-9-honest-rebuild-on-save-150-ms-incremental-is-not-this-stages-gate), [FR-10](FR.md#fr-10-scope-containment-out-of-scope-no-op-and-honest-absence), [FR-11](FR.md#fr-11-self-contained-dependency-safe-distribution)
+**Refs:** [FR-1](FR.md#fr-1-semantic-free-lsp-used-by-mcp-invisible-to-the-agent), [FR-2](FR.md#fr-2-read-only-posture-no-agent-visible-codeaction), [FR-9](FR.md#fr-9-honest-rebuild-on-save-150-ms-incremental-is-not-this-stages-gate), [FR-10](FR.md#fr-10-scope-containment-out-of-scope-no-op-and-honest-absence), [FR-11](FR.md#fr-11-self-contained-dependency-safe-distribution)
+
+
 
 ## TASK-2: Spec-layer diagnostic mapping implementation
 
@@ -60,7 +62,8 @@ CHK-FR7-01: production `lspServers` does not register `@cucumber/language-server
 
 **Depends on:** TASK-1.
 
-**Refs:** [FR-7](FR.md#fr-7-this-stage-forbids-a-step-binding-layer)
+**Refs:** [FR-7](FR.md#fr-7-step-diagnostics-only-after-kernel-step-bindings-exist)
+
 
 ## TASK-7: Adapter-to-service parity harness
 

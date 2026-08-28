@@ -42,11 +42,11 @@ As a specification author, I want duplicates, broken references, malformed docum
 
 As an OMP user, I want inventory, node, edge, trace, overview, diagnostics, and complete Markdown heading/link queries with stable pagination and explicit errors, so that large or malformed repositories and rename planning remain usable without writes.
 
-**Why:** The first graph release must provide useful, predictable reads rather than copying the upstream mixed registry.
+**Why:** Destination is the closed census in `docs/decisions/spec-generator-port.md`. v0.2/v0.3 ship the bounded first slice of useful, predictable reads; that first slice is not a forever refusal of later generator-port MCP names.
 
 **Independent Test:** Call every operation at boundary limits, enumerate an ordinary heading’s complete inbound/outbound link set, and compare the extension and MCP envelopes after removing transport metadata.
 
-**Acceptance Scenarios:** `@feature8`, `@feature9`, `@feature13`
+**Acceptance Scenarios:** `@feature8`, `@feature9`, `@feature13`, `@feature15`, `@feature16`, `@feature17`
 
 ## US-5: Release owner
 
