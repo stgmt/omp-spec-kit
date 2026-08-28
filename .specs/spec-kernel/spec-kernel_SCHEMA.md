@@ -8,7 +8,7 @@ This is the exhaustive public data contract for kernel schema `spec-kernel@1`. F
 |---|---|
 | `SpecSlug` | `[a-z0-9]+(?:-[a-z0-9]+)*` from the immediate directory under `.specs/` |
 | `AuthoredLocalId` | `US-[1-9][0-9]*`, `UC-[1-9][0-9]*`, `RF-[1-9][0-9]*`, `RISK-[1-9][0-9]*`, `FR-[1-9][0-9]*`, `NFR-[A-Z][A-Z0-9-]*-[1-9][0-9]*`, `AC-[1-9][0-9]*\.[1-9][0-9]*`, `DEC-[1-9][0-9]*`, `TASK-[1-9][0-9]*`, `FC-[1-9][0-9]*`, `FIXTURE-[1-9][0-9]*`, `SCHEMA-[1-9][0-9]*`, or `SCEN-[a-z0-9]+(?:-[a-z0-9]+)*` |
-| `GeneratedLocalId` | `DOC:<canonical-filename>` or `FILE:<normalized-repository-relative-path>` |
+| `GeneratedLocalId` | `DOC:<canonical-filename>` or `FILE:<normalized-repository-relative-path>` or `STEP:<64-hex of canonical JSON {path,startOffset,pattern}>` |
 | `LocalId` | `AuthoredLocalId | GeneratedLocalId` |
 | `CanonicalId` | `<SpecSlug>:<LocalId>`; split only on the first `:` |
 | `OccurrenceId` | lowercase hex SHA-256 of canonical JSON `{path,startOffset,ordinal,kind,rawIdOrTarget}` |
@@ -77,6 +77,17 @@ The em dash is literal U+2014 with one ASCII space on each side; the colon is fo
 | `documentKind` | `DocumentKind` | yes | Must agree with filename |
 | `bytesBase64` | string | yes | Exact source bytes supplied to pure kernel |
 | `sha256` | `GraphFingerprint` | yes | SHA-256 of exact bytes |
+
+
+### `StepDefinitionDocument`
+
+| Field | Type | Required | Meaning |
+|---|---|---:|---|
+| `path` | string | yes | Repository-relative path under `tests/step-definitions/` with `.js` or `.mjs` |
+| `bytesBase64` | string | yes | Exact source bytes |
+| `sha256` | `GraphFingerprint` | yes | SHA-256 of exact bytes |
+
+`STEP_BINDING` nodes use reserved slug `step-bindings` (not a `.specs/` directory) so canonical IDs are `step-bindings:STEP:<hex>`.
 
 ### `DefinitionOccurrence`
 
@@ -160,7 +171,7 @@ Internal path resolution uses the source document directory, NFC `/` normalizati
 
 `NodeKind` is the closed union:
 
-`DOCUMENT | USER_STORY | USE_CASE | RESEARCH_FINDING | RISK | FUNCTIONAL_REQUIREMENT | NON_FUNCTIONAL_REQUIREMENT | ACCEPTANCE_CRITERION | DECISION | TASK | FILE_CHANGE | FILE | SCENARIO | FIXTURE | SCHEMA_ENTITY`.
+`DOCUMENT | USER_STORY | USE_CASE | RESEARCH_FINDING | RISK | FUNCTIONAL_REQUIREMENT | NON_FUNCTIONAL_REQUIREMENT | ACCEPTANCE_CRITERION | DECISION | TASK | FILE_CHANGE | FILE | SCENARIO | FIXTURE | SCHEMA_ENTITY | STEP_BINDING`.
 
 ### `Node`
 
@@ -198,12 +209,13 @@ All listed fields are required for their kind; no additional fields are permitte
 | `SCENARIO` | `{ featureName: string, scenarioKeyword: "Scenario"|"Scenario Outline", tags: string[], steps: { keyword:string, text:string }[], examples: { headers:string[], rows:string[][] }[] }` |
 | `FIXTURE` | `{ fixtureType: "real"|"synthetic", provenanceRef: string|null, sha256: GraphFingerprint|null }` |
 | `SCHEMA_ENTITY` | `{ schemaName: string, schemaVersion: string|null }` |
+| `STEP_BINDING` | `{ runner: "cucumber-js", patternKind: "cucumber-expression" | "regex", pattern: string, language: "js" }` |
 
 The closed authored status spellings present in the canonical corpus normalize as `Planned` → `planned`, `todo` → `todo`, and `Completed` → `done`; already-canonical lowercase enum values are preserved and an unrecognized label becomes `unknown`. In particular, the kernel never coerces `planned` to `todo` or drops `todo`. The external authoring reducer may transition only `todo | ready | in-progress | blocked | done`; `planned` is a distinct non-mutable planning state until a future accepted proposal explicitly defines normalization, and `deferred | unknown` are not reducer inputs.
 
 ## SCHEMA-5: Edges and endpoint matrix
 
-`EdgeType` is `REFS | COVERS | TESTED_BY | IMPLEMENTS | DEPENDS_ON | DOCUMENTS | DECLARES`.
+`EdgeType` is `REFS | COVERS | TESTED_BY | IMPLEMENTS | DEPENDS_ON | DOCUMENTS | DECLARES | BINDS_STEP`.
 
 ### `ResolvedEdge`
 
@@ -230,6 +242,7 @@ The closed authored status spellings present in the canonical corpus normalize a
 | `DEPENDS_ON` | `TASK` | `TASK` |
 | `DOCUMENTS` | `RESEARCH_FINDING`, `DECISION`, `FILE_CHANGE`, `FIXTURE`, `SCHEMA_ENTITY` | any node except `DOCUMENT` |
 | `DECLARES` | `DOCUMENT` | any non-`DOCUMENT` node |
+| `BINDS_STEP` | `SCENARIO` | `STEP_BINDING` |
 
 An edge outside this table is unresolved as `FORBIDDEN_ENDPOINT`; it never enters `edges`.
 
@@ -239,7 +252,7 @@ An edge outside this table is unresolved as `FORBIDDEN_ENDPOINT`; it never enter
 
 `DiagnosticCode` is the closed union:
 
-`UNSUPPORTED_DOCUMENT | INVALID_UTF8 | HASH_MISMATCH | FILE_TOO_LARGE | CORPUS_LIMIT_EXCEEDED | INVALID_SPEC_SLUG | PATH_MISMATCH | PATH_ESCAPE | SYMLINK_REJECTED | NON_REGULAR_FILE | IO_READ_FAILED | UNSUPPORTED_GHERKIN_DIALECT | MALFORMED_GHERKIN | MISSING_SCENARIO_ID | DUPLICATE_SCENARIO_ID_TAG | MALFORMED_HEADING | INVALID_LOCAL_ID | ID_NOT_ALLOWED_IN_DOCUMENT | DUPLICATE_DEFINITION | MALFORMED_REFERENCE | UNQUALIFIED_CROSS_SPEC_REFERENCE | BROKEN_REFERENCE | AMBIGUOUS_REFERENCE | FORBIDDEN_EDGE_ENDPOINT | MALFORMED_MARKDOWN_LINK | BROKEN_MARKDOWN_LINK | INVALID_AC_PARENT | INVARIANT_VIOLATION | DIAGNOSTIC_LIMIT_REACHED`.
+`UNSUPPORTED_DOCUMENT | INVALID_UTF8 | HASH_MISMATCH | FILE_TOO_LARGE | CORPUS_LIMIT_EXCEEDED | INVALID_SPEC_SLUG | PATH_MISMATCH | PATH_ESCAPE | SYMLINK_REJECTED | NON_REGULAR_FILE | IO_READ_FAILED | UNSUPPORTED_GHERKIN_DIALECT | MALFORMED_GHERKIN | MISSING_SCENARIO_ID | DUPLICATE_SCENARIO_ID_TAG | MALFORMED_HEADING | INVALID_LOCAL_ID | ID_NOT_ALLOWED_IN_DOCUMENT | DUPLICATE_DEFINITION | MALFORMED_REFERENCE | UNQUALIFIED_CROSS_SPEC_REFERENCE | BROKEN_REFERENCE | AMBIGUOUS_REFERENCE | FORBIDDEN_EDGE_ENDPOINT | MALFORMED_MARKDOWN_LINK | BROKEN_MARKDOWN_LINK | INVALID_AC_PARENT | INVARIANT_VIOLATION | DIAGNOSTIC_LIMIT_REACHED | STEP_UNDEFINED | STEP_AMBIGUOUS | STEP_DEFINITION_UNPARSEABLE | STEP_DEFINITION_PATH_REJECTED`.
 
 ### `Diagnostic`
 

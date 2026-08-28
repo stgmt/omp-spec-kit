@@ -123,3 +123,18 @@ Feature: Standalone deterministic specification graph kernel
     And a v0.3 manifest is eligible only with a same-lineage accepted v0.2 input every v0.2-profile check FR-9 adapter parity and read-only registry evidence and MCP-inclusive package and budget evidence
     And removing duplicating failing staling mismatching waiving partializing or making unverifiable any one required record makes that stage ineligible
     And every ineligible result has deterministic blocking details and no publication or readiness side effect
+
+  @feature15 @AC-15.1 @id:SCEN-contained-step-binding-index
+  Scenario: Contained step-definition files become kernel bindings without a ninth MCP tool
+    Given canonical spec documents and cucumber-js step definitions under tests/step-definitions
+    And one Gherkin step has exactly one matching pattern one has none and one has two
+    When the kernel builds the graph
+    Then each parsed pattern is one STEP_BINDING node
+    And the uniquely matched step has one BINDS_STEP edge
+    And the unmatched step has WARNING STEP_UNDEFINED and the graph remains valid
+    And the doubly matched step has WARNING STEP_AMBIGUOUS and no BINDS_STEP edge
+    And a symlink or path outside tests/step-definitions is refused before read
+    And findNodes getEdges and diagnostics expose the index
+    And the MCP registry is still exactly eight read tools
+    And a v0.2 eligibility manifest without FR-15 evidence remains evaluable
+

@@ -17,9 +17,11 @@ GitHub issue #7 is owned here. Findings from adversarial review are now requirem
 
 ### Excluded (still)
 
-- Cutting MCP tools in this product.
-- Implementing step matching without a kernel `StepBinding` model.
+- Deleting the eight MCP query tools (route cursor work through LSP instead).
+- Adapter-side step matching before `spec-kernel:CHK-FR15-01`.
 - Claiming 150 ms incremental rebuild.
+
+
 
 ## 2026-08-23 — initial specification draft
 
