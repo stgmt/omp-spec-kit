@@ -76,7 +76,7 @@ The filesystem adapter SHALL accept one explicit repository root and SHALL inspe
 
 ## FR-8: Bounded read-only query service
 
-v0.2 SHALL expose one shared pure query service with operations `inventory`, `getNode`, `findNodes`, `getEdges`, `trace`, `diagnostics`, `overview`, and `markdownInventory`. Every request and response SHALL use the exhaustive versioned schema in `spec-kernel_SCHEMA.md`; validate operation-specific parameters; enforce default/hard limits, traversal depth, visited-node, text, diagnostic, heading/link-occurrence, and cursor bounds; return stable ordering and opaque fingerprint-bound cursors; and use one success/error envelope. The service SHALL query an immutable graph only and SHALL expose no operation whose name or effect mutates repository, graph, evidence, task status, or lifecycle state.
+v0.2 SHALL expose one shared pure query service with operations `inventory`, `getNode`, `findNodes`, `getEdges`, `trace`, `diagnostics`, `overview`, and `markdownInventory`. These eight are the **first slice**. Additional generator-port reads are [FR-16](FR.md#fr-16-generator-port-read-operations-beyond-the-eight) and are not v0.2 mandatory members. Every request and response SHALL use the exhaustive versioned schema in `spec-kernel_SCHEMA.md`; validate operation-specific parameters; enforce default/hard limits, traversal depth, visited-node, text, diagnostic, heading/link-occurrence, and cursor bounds; return stable ordering and opaque fingerprint-bound cursors; and use one success/error envelope. The service SHALL query an immutable graph only and SHALL expose no operation whose name or effect mutates repository, graph, evidence, task status, or lifecycle state.
 
 **Acceptance:** [AC-8.1](ACCEPTANCE_CRITERIA.md#ac-81-all-query-operations-are-bounded-and-stable)
 
@@ -86,7 +86,7 @@ v0.2 SHALL expose one shared pure query service with operations `inventory`, `ge
 
 ## FR-9: Read-only MCP projection in v0.3
 
-v0.3 MAY expose the v0.2 service through one bundled MCP server in the same `omp-spec-kit` child plugin. The MCP adapter SHALL map `spec_inventory`, `spec_get_node`, `spec_find_nodes`, `spec_get_edges`, `spec_trace`, `spec_diagnostics`, `spec_overview`, and `spec_markdown_inventory` one-to-one to shared operations, return the canonical envelope as structured content, and add no parsing, resolution, filtering, anchor, link, or verdict semantics. Its public registry SHALL contain no mutation, proposal, apply, repair, archive, status, transaction, or write tool. MCP absence or failure SHALL not create a second graph implementation or weaken extension behavior.
+v0.3 MAY expose the v0.2 service through one bundled MCP server in the same `omp-spec-kit` child plugin. The first slice SHALL map `spec_inventory`, `spec_get_node`, `spec_find_nodes`, `spec_get_edges`, `spec_trace`, `spec_diagnostics`, `spec_overview`, and `spec_markdown_inventory` one-to-one. Additional FR-16 operations SHALL be projected onto MCP as they land so the **agent sees only MCP** (the spec-generator door). The v0.3 read registry SHALL contain no mutation, proposal, apply, repair, archive, status-transition, or write tool. MCP absence or failure SHALL not create a second graph. LSP SHALL NOT be an agent-visible spec tool.
 
 **Acceptance:** [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-mcp-is-a-semantic-free-read-projection)
 
@@ -179,5 +179,35 @@ This FR is **not** a member of `kernel-v0.2` or `kernel-v0.3` required-check set
 
 **Scenario:** `@feature15` / `SCEN-contained-step-binding-index`
 
-**Sources:** `spec-lsp` adversarial review 2026-08-28; GitHub issue #7 step-layer centralization; this product's `tests/step-definitions/**/*.mjs` as the closed producer.
+
+## FR-16: Generator-port read operations beyond the eight
+
+This product is the OMP port of the `dev-pomogator` spec-generator MCP door. [FR-8](FR.md#fr-8-bounded-read-only-query-service) eight operations are the **v0.2 first slice**, not the destination query surface. The agent-facing API remains MCP ([spec-lsp FR-1](../spec-lsp/FR.md#fr-1-semantic-free-lsp-used-by-mcp-invisible-to-the-agent)); these operations exist so MCP can grow without a second graph.
+
+The kernel SHALL, as a later increment **not** in `kernel-v0.2` or `kernel-v0.3` required-check sets, expose these additional **read-only** operations (same envelope, limits, and fail-closed rules as FR-8):
+
+| Operation | Upstream MCP name | Meaning |
+|---|---|---|
+| `listSpecs` | `list_specs` | Enumerate spec slugs in the graph |
+| `findByTags` | `find_by_tags` | Scenarios whose tags contain every supplied tag |
+| `listTasks` | `list_tasks` | Tasks in one spec with status/phase/requirement filters |
+| `listPhaseTasks` | `list_phase_tasks` | Tasks under one canonical phase |
+| `findOrphans` | `find_orphans` | Orphan-class diagnostics only |
+| `validateAnchor` | `validate_anchor` | Compact-id/alias registry (not Marksman heading slugs) |
+| `policyQuery` | `policy_query_requirements` | Requirements by verification/safety/delivery fields |
+| `validateRequirementMetadata` | `validate_requirement_metadata` | Read-only metadata schema check |
+| `archivalProof` | `get_archival_proof` | Live inbound refs from other specs |
+| `validateSpec` | `validate_spec` | Read-only multilayer validation + verdict |
+| `specStatus` | `get_spec_status` | Status/coverage views beyond `overview` |
+
+`get_test_result` and `get_scenario_trace` SHALL wait for `spec-evidence`. `list_spec_docs`, `read_spec_doc`, `read_attachment`, and `mcp_preflight` SHALL be adapter I/O, not pure-kernel operations. Mutation tools SHALL stay in `spec-authoring-workflow` and SHALL NOT appear on the v0.3 read MCP registry.
+
+CHK-FR16-01 SHALL prove each named operation exists, is read-only, and is projected by MCP under the same name mapping. Until that check PASSes, MCP MAY keep the eight-tool first slice. Growing MCP SHALL NOT delete the eight.
+
+**Acceptance:** [AC-16.1](ACCEPTANCE_CRITERIA.md#ac-161-generator-port-reads-are-named-and-read-only)
+
+**Scenario:** `@feature16` / `SCEN-generator-port-read-operations`
+
+**Sources:** `dev-pomogator` `tools/spec-mcp-server/tools.ts` name census (research, not a code import); `MIGRATION_MATRIX.md` FR-4, FR-30, FR-38, FR-39, FR-82 DEFER/REWRITE.
+
 

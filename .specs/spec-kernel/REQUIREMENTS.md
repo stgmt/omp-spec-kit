@@ -19,6 +19,7 @@
 | [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory) | Complete safe-rename inventory | [AC-13.1](ACCEPTANCE_CRITERIA.md#ac-131-safe-rename-inventory-is-complete-and-conserved) | `@feature13` | [US-4](USER_STORIES.md#us-4-bounded-query-user), [UC-9](USE_CASES.md#uc-9-inventory-a-heading-before-safe-rename-planning) | Specified |
 | [FR-14](FR.md#fr-14-conjunctive-kernel-release-eligibility) | All-mandatory release gate | [AC-14.1](ACCEPTANCE_CRITERIA.md#ac-141-release-eligibility-requires-all-mandatory-evidence) | `@feature14` | [US-5](USER_STORIES.md#us-5-release-owner), [UC-10](USE_CASES.md#uc-10-evaluate-the-aggregate-kernel-release-gate) | Specified |
 | [FR-15](FR.md#fr-15-contained-step-binding-index-not-a-v02v03-release-member) | Contained step-binding index | [AC-15.1](ACCEPTANCE_CRITERIA.md#ac-151-step-bindings-are-contained-and-conserved) | `@feature15` | [US-4](USER_STORIES.md#us-4-bounded-query-user) | Specified; not a v0.2/v0.3 gate member |
+| [FR-16](FR.md#fr-16-generator-port-read-operations-beyond-the-eight) | Generator-port read ops | [AC-16.1](ACCEPTANCE_CRITERIA.md#ac-161-generator-port-reads-are-named-and-read-only) | `@feature16` | [US-4](USER_STORIES.md#us-4-bounded-query-user) | Specified; not a v0.2/v0.3 gate member |
 
 ## Contract checks
 
@@ -39,6 +40,7 @@
 | CHK-FR13-01 | Every GLFM heading/link occurrence, canonical anchor, rewrite site, outcome, and focused inbound/outbound relation is complete and conserved; anchor candidates are tested against the full previously emitted set, including `Foo`/`Foo`/`Foo-1` collisions | FR-13, AC-13.1, `@feature13` | Real Markdown inventory/query contract with adversarial anchor vectors and complete cursor-chain reconciliation | Not recorded |
 | CHK-FR14-01 | `v0.2`/`kernel-v0.2` is the exact all-PASS FR-1..FR-8 plus FR-10..FR-13 profile with no FR-9/MCP dependency and extension-only FR-10 proof; `v0.3`/`kernel-v0.3` additionally requires a same-lineage accepted v0.2 input, FR-9, exact-v0.3 extension-plus-MCP FR-10 proof, and MCP-inclusive budgets; unknown or mismatched profiles/surfaces fail closed | FR-14, AC-14.1, `@feature14` | Per-profile evidence manifests, v0.2 extension-only positive proof, v0.3 exact-artifact MCP/lineage positive proof, and one-fault-at-a-time negative matrix | Not recorded |
 | CHK-FR15-01 | Allowlisted `tests/step-definitions/**/*.js|mjs` parse to `STEP_BINDING`; conservation of BINDS_STEP/STEP_UNDEFINED/STEP_AMBIGUOUS; symlink/escape refused; not a v0.2/v0.3 required check; unblocks spec-lsp step diagnostics | FR-15, AC-15.1, `@feature15` | Real cucumber-js step-def fixtures plus negative path/ambiguity cases | Not recorded |
+| CHK-FR16-01 | Each FR-16 operation is read-only on the query service and projected by MCP; mutations absent from v0.3 read registry; eight first-slice tools remain; not a v0.2/v0.3 required check | FR-16, AC-16.1, `@feature16` | Query+MCP registry contract plus negative mutation-name scan | Not recorded |
 
 ## Non-functional traceability
 

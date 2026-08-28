@@ -4,11 +4,12 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-1.1 (FR-1): LSP is a semantic-free read projection
 
-**Requirement:** [FR-1](FR.md#fr-1-one-server-semantic-free-read-projection-that-does-not-shrink-mcp)
+**Requirement:** [FR-1](FR.md#fr-1-semantic-free-lsp-used-by-mcp-invisible-to-the-agent)
 
-**EARS:** WHILE the LSP adapter is active **WHEN** any navigation, diagnostic, hover, completion, or symbol request is served **THEN** every answer SHALL derive exclusively from `spec-kernel` query operations without introducing parsing, resolution, anchor, link, or verdict semantics of its own; **AND** the public capability set SHALL contain no mutation, proposal, apply, repair, archive, status-transition, or write operation; **AND** the eight MCP query tools SHALL remain registered and served.
+**EARS:** WHILE the plugin is installed **WHEN** the agent lists tools **THEN** the spec API SHALL be the MCP server and SHALL NOT include an LSP tool; **AND WHEN** MCP answers navigation or diagnostics **THEN** those answers SHALL derive from the kernel (MCP MAY call LSP internally); **AND** LSP SHALL add no graph semantics of its own.
 
 **Scenario:** `@feature1` / `SCEN-spec-lsp-read-projection-only`
+
 
 ## AC-2.1 (FR-2): No mutation and no codeAction capability in this stage
 

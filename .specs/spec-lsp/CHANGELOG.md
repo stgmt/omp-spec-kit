@@ -2,9 +2,12 @@
 
 ## 2026-08-28 — adversarial review folded into this spec
 
-GitHub issue #7 is owned here. Findings from adversarial review are now requirements, not a side note.
+GitHub issue #7 is owned here. Adversarial review is folded in.
 
 ### Changed
+
+- Agent-facing spec API is MCP only. LSP is not an agent tool; MCP may consume LSP internally.
+- Eight MCP tools are the v0.3 first slice. Destination reads are spec-kernel FR-16. Mutations stay in spec-authoring-workflow.
 
 - FR-1: LSP does not shrink the eight MCP query tools. The 46-tool door is upstream `dev-pomogator`, not this product.
 - FR-2: this stage does not advertise `codeAction`.

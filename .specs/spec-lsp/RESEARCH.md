@@ -45,23 +45,24 @@ OMP's `lsp.shared` broker manages one server per project across local sessions. 
 
 **Evidence obligation:** TASK-1 probes must verify shared-broker compatibility with the pinned OMP runtime.
 
-## RF-8: Agent prompt mandates LSP for symbol-aware work
+## RF-8: Agent-facing spec API is MCP; LSP is not an agent tool
 
-The OMP agent prompt (`packages/coding-agent/src/prompts/tools/lsp.md`) states: "Symbol-aware work (rename, references, definition, code actions) MUST use `lsp` whenever a server is available." This means the agent will naturally route spec navigation through this server once registered, without skill-level prompting.
+OMP's coding agent has a built-in `lsp` tool. That is a **host** capability. This product's spec-generator port SHALL NOT put spec work on that tool. The agent SHALL call the MCP server. LSP may run so MCP (and the editor) can consume kernel diagnostics/navigation. [VERIFIED] product intent 2026-08-28; the earlier "route the agent to lsp" note is withdrawn.
 
-**Implication:** Registration quality directly affects agent behavior. Incorrect or missing capabilities cause the agent to fall back to text tools, losing precision.
+**Decision:** Do not advertise spec LSP to the agent.
 
-## RF-9: This product's MCP surface is eight tools, not forty-six
+## RF-9: Eight MCP tools are the first slice, not the destination
 
-The live `omp-spec-kit` MCP adapter maps eight SCHEMA-11 tools one-to-one onto kernel query operations (`src/mcp/server.js`). `spec-kernel:FR-9` forbids additional mutation tools. GitHub issue #7's count of 46 tools and the "~25 tool cliff" describe upstream `dev-pomogator` `tools/spec-mcp-server/tools.ts`, not this repository. [VERIFIED]
+`src/mcp/server.js` maps eight SCHEMA-11 tools because `spec-kernel:FR-8` froze the first kernel slice so v0.2/v0.3 could ship. The destination is the spec-generator door ported to OMP. See RF-16 and spec-kernel FR-16. [VERIFIED]
 
-**Decision:** LSP is a sibling projection. It SHALL NOT be specified or marketed as a cut of MCP tools in this product. There is nothing in the eight-tool registry whose removal is required for an agent to stay under a 25-tool cliff.
+**Decision:** Do not freeze the registry at eight. Grow MCP as kernel FR-16 and authoring land. Do not delete the eight.
 
-## RF-10: Kernel cannot host a step-binding layer today
+## RF-10: Step bindings live in the kernel (FR-15), not in LSP
 
-`spec-kernel_SCHEMA.md` SCHEMA-4 `NodeKind` is a closed union with no `StepBinding`. SCHEMA-5 `EdgeType` has no `step-binding`. `spec-kernel:FR-7` inspects only `.specs/<valid-slug>/` canonical documents, so `tests/step-definitions/**` is out of reader scope. [VERIFIED]
+`spec-kernel:FR-15` adds `STEP_BINDING` / `BINDS_STEP` over allowlisted `tests/step-definitions`. Until `CHK-FR15-01` PASS, LSP emits no step diagnostics. After PASS, LSP/MCP map kernel diagnostics only. [VERIFIED]
 
-**Decision:** This stage forbids step diagnostics. A future step layer needs a separately accepted kernel change first. Implementing step matching inside the LSP adapter would create a second index — the dual-index failure already rejected for Marksman and for an external Cucumber language-server.
+**Decision:** Kernel first (TASK-12), then spec-lsp TASK-12.
+
 
 ## RF-11: Product gates and ROADMAP had no LSP stage
 
@@ -94,19 +95,28 @@ Plugin `fileTypes: [".md", ".feature"]` will deliver README and other project Ma
 **Decision:** Out-of-scope `.md` is an empty no-op: no diagnostics, no fake outline.
 
 
-## RF-16: Deleting MCP tools vs routing the agent
+## RF-16: Why "8 tools" was the wrong ceiling
 
-This product's MCP registry is eight query tools (`spec-kernel:FR-9`, `src/mcp/server.js`). Issue #7's 46 tools are upstream `dev-pomogator`. Neither set can be **deleted** without losing an ID-based or corpus-wide API that LSP does not provide.
+`src/mcp/server.js` currently exposes eight SCHEMA-11 tools because `spec-kernel:FR-8` froze the first kernel slice. That is an **implemented first slice**, not the product destination. The destination is the `dev-pomogator` spec-generator MCP door ported to OMP (`tools/spec-mcp-server/tools.ts`, 46 names). Eight is what v0.3 started with so the kernel could ship. It was a mistake to treat eight as "nothing to port."
 
-Options that do **not** regress:
+Upstream 46 names (research census, not an import of code):
 
-| Surface | Delete MCP tool? | What to do instead |
-|---|---|---|
-| Cursor navigation (definition, references, outline, completion) | No. `spec_get_node` / `spec_find_nodes` / `spec_get_edges` are ID queries without a buffer position. | After LSP works, the agent MUST use `lsp` for cursor work (OMP prompt already says so). Keep MCP for "look up `spec-kernel:FR-9` by id". |
-| Post-write diagnostics | No. `spec_diagnostics` is whole-corpus without opening files. | Host `lsp.diagnosticsOnWrite` covers the edit loop. Keep MCP for "diagnose the corpus now". |
-| Domain (`spec_trace`, `spec_overview`, `spec_inventory`, `spec_markdown_inventory`) | No. No LSP primitive. | Keep. |
-| Upstream mutations (~22 tools in the 46-tool door) | No. `workspace/applyEdit` would skip the authoring door. | Not in this product. |
-| Upstream extras that duplicate LSP (`find_refs`, symbol `search`) | Not in this product. If they existed here, hide from the default agent prompt after LSP proof; do not delete until an ID API remains. | N/A here. |
+**Already in the eight:** get_node, search≈findNodes, find_refs≈getEdges, get_trace≈trace, conformance_check≈diagnostics, get_spec_status≈overview (partial), list_specs≈inventory (partial).
 
-**Decision:** There is a path without regression: **route**, don't **delete**. This spec does not shrink the eight MCP tools. [VERIFIED] against `src/mcp/server.js` and `spec-kernel:FR-9`.
+**Need kernel FR-16 (still MCP, still agent-visible):** find_by_tags, list_tasks, list_phase_tasks, policy_query_requirements, find_orphans, validate_anchor, get_archival_proof, validate_spec, get_spec_status views beyond overview, validate_requirement_metadata (read).
+
+**Need spec-evidence then MCP:** get_test_result, get_scenario_trace.
+
+**Adapter I/O, not pure kernel:** list_spec_docs, read_spec_doc, read_attachment, mcp_preflight.
+
+**Authoring later (`spec-authoring-workflow`):** apply_*, propose_* that write, create_spec, archive_spec, set_entity_status, section edits, repairs.
+
+**Decision:** Do not delete MCP tools. Grow MCP as kernel FR-16 and authoring land. LSP never replaces MCP for the agent. [VERIFIED] against `tools.ts` names and `src/mcp/server.js`.
+
+## RF-17: MCP consumes LSP; the agent does not
+
+Issue #7 proposed moving navigation MCP tools into LSP so the **agent** would use `lsp`. That contradicts the generator port: the agent must keep one door (MCP). Navigation tools stay on MCP; their **implementation** may call LSP/kernel. [VERIFIED] user correction 2026-08-28.
+
+**Decision:** spec-lsp FR-1 — LSP invisible to the agent.
+
 
