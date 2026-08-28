@@ -24,17 +24,17 @@ As an OMP coding agent or human reader, I want a `documentSymbol` outline of a s
 
 **Independent test:** Request `documentSymbol` on a spec FR.md; verify the result lists every FR definition node with correct ranges and nesting.
 
-## US-5: Scenario consumer viewing run results and provenance through hover
+## US-5: Scenario consumer viewing kernel scenario fields through hover
 
-As a specification consumer reviewing scenario status, I want hover information on scenario references to surface result and provenance fields from the kernel graph so that I can assess freshness without leaving the editor.
+As a specification consumer reviewing a scenario tag, I want hover to show the kernel's stored scenario fields (name, keyword, tags, step texts) so that I do not confuse editor hover with a test-run dashboard.
 
-**Independent test:** Hover over a `@id:SCEN-*` tag in a `.feature` file; verify the hover content includes the scenario's current result status and evidence provenance from the graph.
+**Independent test:** Hover over a `@id:SCEN-*` tag; verify hover includes kernel `SCENARIO` attributes and does not include run result, provenance, or freshness.
 
-## US-6: Step author receiving defined/undefined/ambiguous step diagnostics
+## US-6: Release owner proving step-layer absence
 
-As a `.feature` file author using cucumber-runner or pytest-bdd conventions, I want step-line diagnostics indicating whether each step is defined, undefined, or ambiguous so that I can fix binding issues before running tests.
+As a release owner, I want this stage to refuse step defined/undefined/ambiguous diagnostics so that we do not invent a second step index while the kernel has no `StepBinding` nodes and cannot read `tests/step-definitions/**`.
 
-**Independent test:** Write a `.feature` file with one bound step, one unbound step, and one ambiguous step; verify three diagnostics appear with the correct severity and message, matching the oracle verdict on shared fixtures.
+**Independent test:** Open a `.feature` with unbound steps; verify zero step-binding diagnostics; verify production `lspServers` does not list `@cucumber/language-server`.
 
 ## US-7: Release owner verifying adapter-to-service parity
 
@@ -42,8 +42,8 @@ As a release owner evaluating the LSP adapter for release, I want a fingerprint-
 
 **Independent test:** Run the CHK-FR8-01 parity harness on the reference fixture set; verify all definition, references, and diagnostics responses match the kernel service byte-for-byte on the declared corpus fingerprint.
 
-## US-8: Fixture reviewer validating real-producer step fixtures
+## US-8: Release owner keeping oracle parity out of this stage
 
-As a fixture reviewer, I want step-layer fixtures to carry real-producer provenance and reviewed ground truth so that oracle-parity evidence is traceable and reproducible.
+As a release owner, I want oracle parity against `@cucumber/language-server` excluded from this stage's release conjunction so that we do not require an unsatisfiable comparison against a kernel graph that has no step bindings.
 
-**Independent test:** Inspect the fixture manifest for a step-binding fixture; verify producer, version, SHA-256, license disposition, and expected step-verdict ground truth are recorded per `spec-kernel:FR-11` posture.
+**Independent test:** Inspect the stage evidence manifest; verify CHK-FR12-01 is an absence proof, not an oracle-match proof.

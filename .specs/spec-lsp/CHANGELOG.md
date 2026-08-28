@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-08-28 — adversarial review folded into this spec
+
+GitHub issue #7 is owned here. Findings from adversarial review are now requirements, not a side note.
+
+### Changed
+
+- FR-1: LSP does not shrink the eight MCP query tools. The 46-tool door is upstream `dev-pomogator`, not this product.
+- FR-2: this stage does not advertise `codeAction`.
+- FR-6: hover uses only kernel-stored fields; run result/provenance/freshness are out of scope.
+- FR-7 and FR-12: this stage forbids a step-binding layer; CHK-FR7-01 and CHK-FR12-01 are absence proofs. Oracle parity is not a release member.
+- FR-9: didSave rebuilds through the existing kernel build; 150 ms p95 is not a pass/fail gate.
+- FR-10: Markdown outside `.specs/**` is an empty no-op.
+- FR-11: sources at `src/lsp/*.js`; no cucumber libraries in this stage.
+- ROADMAP: sibling stage "one LSP adapter" after v0.2, owning spec `.specs/spec-lsp/`.
+
+### Excluded (still)
+
+- Cutting MCP tools in this product.
+- Implementing step matching without a kernel `StepBinding` model.
+- Claiming 150 ms incremental rebuild.
+
 ## 2026-08-23 — initial specification draft
 
 ### Added

@@ -1,22 +1,22 @@
 # Tasks
 
-All tasks are `Planned`. No task has executed status in this specification-only state.
+All tasks are `Planned` unless marked `Blocked`. No task has executed status in this specification-only state.
 
 ## TASK-1: Live OMP LSP ABI probes
 
 **Status:** Planned
 
-Probe the pinned OMP runtime to confirm every cited LSP contract before implementation: `lsp.diagnosticsOnWrite` trigger semantics, `lspServers` → `.lsp.json` registration, `lsp.lazy` cold-start behavior, `lsp.shared` broker compatibility, `textDocument/didSave` → diagnostic publication timing, and agent prompt routing for symbol-aware work. Record probe results as gating evidence for FR-1, FR-9, FR-10, FR-11.
+Probe the pinned OMP runtime to confirm every cited LSP contract before implementation: `lsp.diagnosticsOnWrite` trigger semantics, `lspServers` → `.lsp.json` registration, `lsp.lazy` cold-start behavior, `lsp.shared` broker compatibility, `textDocument/didSave` timing, fileType routing for `.md` outside `.specs/**`, and whether the agent prompt still mandates `lsp` for code actions. Record probe results as gating evidence for FR-1, FR-2, FR-9, FR-10, FR-11.
 
 **Depends on:** Pinned OMP runtime version.
 
-**Refs:** [FR-1](FR.md#fr-1-one-server-semantic-free-read-projection), [FR-9](FR.md#fr-9-incremental-re-evaluation-budget-and-lazy-start), [FR-10](FR.md#fr-10-scope-containment-and-honest-absence), [FR-11](FR.md#fr-11-self-contained-dependency-safe-distribution)
+**Refs:** [FR-1](FR.md#fr-1-one-server-semantic-free-read-projection-that-does-not-shrink-mcp), [FR-2](FR.md#fr-2-read-only-posture-no-codeaction-capability-in-this-stage), [FR-9](FR.md#fr-9-honest-rebuild-on-save-150-ms-incremental-is-not-this-stages-gate), [FR-10](FR.md#fr-10-scope-containment-out-of-scope-no-op-and-honest-absence), [FR-11](FR.md#fr-11-self-contained-dependency-safe-distribution)
 
 ## TASK-2: Spec-layer diagnostic mapping implementation
 
 **Status:** Planned
 
-Implement the kernel-finding-to-LSP-diagnostic mapping pipeline. Map code, file, line, message, and severity. Verify 1:1 correspondence on shared fixtures. Produce CHK-FR3-01 evidence for [FR-3](FR.md#fr-3-spec-layer-diagnostics-mapped-from-kernel-conformance-findings) and honor the read-only posture of [FR-2](FR.md#fr-2-read-only-posture-with-proposal-only-code-actions).
+Implement the kernel-finding-to-LSP-diagnostic mapping pipeline. Map code, file, line, message, and severity. Verify 1:1 correspondence on shared fixtures. Produce CHK-FR3-01 evidence.
 
 **Depends on:** TASK-1, `spec-kernel:FR-6` accepted.
 
@@ -42,82 +42,82 @@ Implement `textDocument/completion` over registered aliases and `textDocument/do
 
 **Refs:** [FR-5](FR.md#fr-5-completion-over-registered-aliases-and-documentsymbol-outline)
 
-## TASK-5: Hover for node body and scenario provenance
+## TASK-5: Hover for kernel-stored fields only
 
 **Status:** Planned
 
-Implement `textDocument/hover` returning kernel node body/status for spec definitions and result/provenance/freshness for scenario tags. Handle absent-graph empty response. Produce CHK-FR6-01 evidence.
+Implement `textDocument/hover` returning kernel node title/kind/body/status and kernel `SCENARIO` attributes. Do not surface run result, provenance, or freshness. Produce CHK-FR6-01 evidence.
 
 **Depends on:** TASK-1, `spec-kernel:FR-8` accepted.
 
-**Refs:** [FR-6](FR.md#fr-6-hover-surfaces-node-body-and-scenario-provenance)
+**Refs:** [FR-6](FR.md#fr-6-hover-surfaces-only-fields-the-kernel-actually-stores)
 
-## TASK-6: Step layer with bundled libraries
+## TASK-6: Prove step-layer absence
 
 **Status:** Planned
 
-Integrate `@cucumber/gherkin` and `@cucumber/cucumber-expressions` as bundled dependencies. Implement step parsing, matching against kernel graph `StepBinding` nodes, and verdict emission (defined/undefined/ambiguous). Support pytest-bdd files. Produce CHK-FR7-01 evidence.
+CHK-FR7-01: production `lspServers` does not register `@cucumber/language-server`; a `.feature` with unbound steps produces no step-binding diagnostics; the adapter does not scan `tests/step-definitions/**`.
 
-**Depends on:** TASK-1, `spec-kernel:FR-2` (step-binding nodes) accepted.
+**Depends on:** TASK-1.
 
-**Refs:** [FR-7](FR.md#fr-7-step-layer-centralization-with-bundled-libraries)
+**Refs:** [FR-7](FR.md#fr-7-this-stage-forbids-a-step-binding-layer)
 
 ## TASK-7: Adapter-to-service parity harness
 
 **Status:** Planned
 
-Build the CHK-FR8-01 parity harness comparing LSP definition/references/diagnostics responses to kernel query service responses on fingerprint-bound shared fixtures. Produce pass/fail evidence record.
+Build the CHK-FR8-01 parity harness comparing LSP definition/references/diagnostics responses to kernel query service responses on fingerprint-bound shared fixtures.
 
 **Depends on:** TASK-2, TASK-3, TASK-4.
 
 **Refs:** [FR-8](FR.md#fr-8-adapter-to-service-parity-check)
 
-## TASK-8: Oracle parity harness for step verdicts
+## TASK-8: Prove oracle parity is not a release member
 
 **Status:** Planned
 
-Build the CHK-FR12-01 oracle harness running `@cucumber/language-server` in test infrastructure only. Compare step verdicts on shared cucumber-runner fixtures. Verify pytest-bdd equivalent quality. Produce evidence record.
+CHK-FR12-01: evidence manifest for this stage does not require oracle match; production config has no cucumber language-server; no step diagnostics.
 
 **Depends on:** TASK-6.
 
-**Refs:** [FR-12](FR.md#fr-12-oracle-parity-for-cucumber-runner-step-verdicts)
+**Refs:** [FR-12](FR.md#fr-12-this-stages-release-proves-step-layer-absence-not-oracle-parity)
 
 ## TASK-9: Self-contained bundle and distribution proof
 
 **Status:** Planned
 
-Produce the dependency-absent installed artifact smoke proving the server executes without source checkout, root `node_modules`, or third-party binaries. Verify Marksman DROP is honored. Register through `lspServers` manifest. Produce CHK-FR11-01 evidence.
+Produce the dependency-absent installed artifact smoke proving the server executes without source checkout, root `node_modules`, cucumber libraries, or third-party binaries. Register through `lspServers`. Sources at `src/lsp/*.js`. Produce CHK-FR11-01 evidence.
 
-**Depends on:** TASK-6 (step libraries bundled).
+**Depends on:** TASK-2.
 
 **Refs:** [FR-11](FR.md#fr-11-self-contained-dependency-safe-distribution)
 
-## TASK-10: Budget measurement and benchmark report
+## TASK-10: Measure didSave rebuild; do not gate on 150 ms
 
 **Status:** Planned
 
-Measure incremental re-evaluation latency (≤150ms p95), cold-start latency, navigation operation latency, and step-layer latency on the reference benchmark corpus. Produce NFR-PERF-1 evidence report with all required metadata.
+Measure didSave rebuild p95, cold-start, and navigation latency. Record 150 ms as informational only. CHK-FR9-01 proves lazy start and records the measurement.
 
-**Depends on:** TASK-2, TASK-3, TASK-4, TASK-5, TASK-6.
+**Depends on:** TASK-2, TASK-3, TASK-4, TASK-5.
 
-**Refs:** [FR-9](FR.md#fr-9-incremental-re-evaluation-budget-and-lazy-start)
+**Refs:** [FR-9](FR.md#fr-9-honest-rebuild-on-save-150-ms-incremental-is-not-this-stages-gate)
 
-## TASK-11: Scope containment and honest absence verification
+## TASK-11: Scope containment, out-of-scope no-op, honest absence
 
 **Status:** Planned
 
-Verify external root/symlink/traversal refusal. Verify absent-graph explanatory diagnostics. Produce CHK-FR10-01 evidence.
+Verify external root/symlink/traversal refusal. Verify `.md` outside `.specs/**` is an empty no-op. Verify absent-graph explanatory diagnostics. Produce CHK-FR10-01 evidence.
 
 **Depends on:** TASK-1.
 
-**Refs:** [FR-10](FR.md#fr-10-scope-containment-and-honest-absence)
+**Refs:** [FR-10](FR.md#fr-10-scope-containment-out-of-scope-no-op-and-honest-absence)
 
-## TASK-12: Real fixture capture and provenance for step layer
+## TASK-12: Step-binding layer after a kernel change
 
-**Status:** Planned
+**Status:** Blocked
 
-Capture real-producer `.feature` and step-definition fixtures with complete provenance per `spec-kernel:FR-11` posture. Review ground truth for step verdicts. Produce CHK-FR12-01 fixture manifest.
+Blocked on a separately accepted `spec-kernel` change that adds a `StepBinding` node kind and a contained reader for step-definition sources. Do not implement a second step index in this adapter.
 
-**Depends on:** Fixture producer identification.
+**Depends on:** Future `spec-kernel` FR (does not exist).
 
-**Refs:** [FR-12](FR.md#fr-12-oracle-parity-for-cucumber-runner-step-verdicts)
+**Refs:** [FR-7](FR.md#fr-7-this-stage-forbids-a-step-binding-layer)

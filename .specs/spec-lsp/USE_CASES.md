@@ -69,32 +69,33 @@
 
 **Postcondition:** Outline reflects the kernel's parsed node inventory for that document.
 
-## UC-6: Hover over a scenario tag to see run results
+## UC-6: Hover over a scenario tag to see kernel scenario fields
 
 **Actor:** Specification consumer.
 
-**Precondition:** A `.feature` file with scenario tags is open; the kernel graph contains scenario result data.
+**Precondition:** A `.feature` file with scenario tags is open; the kernel graph contains `SCENARIO` nodes.
 
 **Flow:**
 1. The actor hovers over an `@id:SCEN-*` tag.
 2. The server looks up the scenario node in the kernel graph.
-3. Result status, evidence provenance, and freshness fields are rendered in hover content.
+3. Kernel `SCENARIO` attributes (name, keyword, tags, step texts) are rendered. Run result, provenance, and freshness are not shown.
 
-**Postcondition:** Hover content reflects the kernel graph's current scenario state.
+**Postcondition:** Hover content matches stored kernel fields only.
 
-## UC-7: Diagnose step bindings in a .feature file
+## UC-7: Confirm this stage emits no step-binding diagnostics
 
-**Actor:** Feature file author.
+**Actor:** Release owner.
 
-**Precondition:** A `.feature` file is open; the kernel graph contains step-binding edges for supported runners.
+**Precondition:** A `.feature` file with unbound steps is open.
 
 **Flow:**
-1. The server parses the `.feature` file using bundled `@cucumber/gherkin`.
-2. Each step line is matched against step definitions using bundled `@cucumber/cucumber-expressions` and the graph's step-binding edges.
-3. Undefined steps produce diagnostics; ambiguous steps produce diagnostics with candidate list; defined steps produce no diagnostic.
-4. For pytest-bdd files, the same graph edges serve verdicts without silence.
+1. Diagnostics are published for the file.
+2. No defined/undefined/ambiguous step diagnostic appears.
+3. Production `lspServers` does not list `@cucumber/language-server`.
+4. The adapter does not scan `tests/step-definitions/**`.
 
-**Postcondition:** Step diagnostics match the oracle (`@cucumber/language-server`) verdicts on shared cucumber-runner fixtures.
+**Postcondition:** CHK-FR7-01 and CHK-FR12-01 absence proofs pass. A future step layer still requires a kernel `StepBinding` change.
+
 
 ## UC-8: Reject an out-of-scope root or symlink
 

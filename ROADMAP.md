@@ -43,6 +43,16 @@ Advisor, hooks, dashboards, backlogs, persistence, mutation, and copied dev-pomo
 
 For `v0.2`, `v0.3`, and later releases, stage eligibility also requires every earlier aggregate gate to remain accepted for the same lineage. The `v0.2` kernel profile excludes `v0.3`-only MCP-adapter evidence; the `v0.3` profile includes that evidence.
 
+The v0.3 MCP registry is exactly the eight read tools that map onto the kernel query service. It is not the upstream 46-tool spec-MCP door.
+
+## Later — one LSP adapter (sibling to v0.3)
+
+**Outcome:** one bundled LSP server projects kernel navigation and post-write diagnostics for `.specs/**`. It does not become a second graph. It does not remove the eight MCP query tools. It does not emit Gherkin step-binding diagnostics until a separately accepted kernel change adds `StepBinding` nodes and a contained reader for step-definition sources.
+
+**Entry:** accepted `spec-kernel:FR-14` for v0.2; live OMP LSP probes (spec-lsp TASK-1); adapter-to-service parity (spec-lsp FR-8); step-layer absence (spec-lsp FR-7 and FR-12); dependency-absent bundle (spec-lsp FR-11). This stage does not satisfy or replace v0.3 MCP evidence and does not unlock authoring.
+
+**Owning spec:** `.specs/spec-lsp/` (GitHub issue #7).
+
 ## Later — authoring and mutation
 
 **Possible scope:** authoring guidance, high-level proposals, CAS, atomic mutations, archival, backlog resolution, planners/conflict graphs, semantic judging, and persistence.
