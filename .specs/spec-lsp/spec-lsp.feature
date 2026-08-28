@@ -5,15 +5,16 @@ Feature: Custom LSP adapter as second read-only projection of the kernel query s
   and MCP adapter. It does not remove the eight MCP query tools. This stage has
   no step-binding layer because the kernel has no StepBinding nodes.
   These scenarios specify required behavior and have no executed status here.
-
   @feature1 @AC-1.1 @id:SCEN-spec-lsp-read-projection-only
-  Scenario: LSP adapter is a semantic-free read projection and does not shrink MCP
-    Given the spec-kernel query service is available with a built graph
-    When any navigation diagnostic hover completion or symbol request is served
-    Then every answer derives exclusively from kernel query operations
-    And no parsing resolution anchor link or verdict semantics are introduced by the adapter
-    And the public capability set contains no mutation proposal apply repair archive status-transition or write operation
-    And the eight MCP query tools remain registered and served
+  Scenario: Agent sees MCP only; LSP is consumed by MCP not by the agent
+    Given the plugin is installed in an OMP session
+    When the agent lists tools
+    Then the spec API is the MCP server
+    And no LSP tool is in the agent inventory
+    When MCP answers a navigation or diagnostic request
+    Then the answer derives from the kernel and MCP may call LSP internally
+    And LSP adds no graph semantics of its own
+
 
   @feature2 @AC-2.1 @id:SCEN-spec-lsp-read-only-code-actions
   Scenario: This stage advertises no codeAction capability

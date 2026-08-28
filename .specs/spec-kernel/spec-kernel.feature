@@ -138,3 +138,14 @@ Feature: Standalone deterministic specification graph kernel
     And the MCP registry is still exactly eight read tools
     And a v0.2 eligibility manifest without FR-15 evidence remains evaluable
 
+  @feature16 @AC-16.1 @id:SCEN-generator-port-read-operations
+  Scenario: Generator-port kernel reads grow MCP without a second graph
+    Given the v0.2 eight query operations exist
+    When FR-16 operations are implemented
+    Then listSpecs findByTags listTasks listPhaseTasks findOrphans validateAnchor policyQuery validateRequirementMetadata archivalProof validateSpec and specStatus are read-only query operations
+    And MCP projects them so the agent never needs an LSP tool
+    And get_test_result and get_scenario_trace remain absent until spec-evidence
+    And mutation tools remain absent from the v0.3 read registry
+    And a v0.2 eligibility manifest without FR-16 evidence remains evaluable
+
+

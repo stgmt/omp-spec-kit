@@ -122,3 +122,12 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 **Scenario:** `@feature15`, `@id:SCEN-contained-step-binding-index`
 
+## AC-16.1: Generator-port reads are named and read-only
+
+**EARS:** WHEN CHK-FR16-01 runs **THEN** each FR-16 operation SHALL be present on the query service, SHALL mutate nothing, and SHALL be exposed through MCP under the mapped name; **AND** `get_test_result`/`get_scenario_trace` SHALL be absent until `spec-evidence`; **AND** mutation names SHALL be absent from the v0.3 read registry; **AND** a v0.2/v0.3 eligibility manifest without FR-16 evidence SHALL remain evaluable.
+
+**Requirement:** [FR-16](FR.md#fr-16-generator-port-read-operations-beyond-the-eight)
+
+**Scenario:** `@feature16`, `@id:SCEN-generator-port-read-operations`
+
+

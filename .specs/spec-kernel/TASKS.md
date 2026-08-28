@@ -215,6 +215,26 @@ All tasks are future implementation work. Status `Planned` means not started and
 - `CHK-FR15-01` is recorded as profile `kernel-step-bindings` and is **not** inserted into `kernel-v0.2` or `kernel-v0.3` required-check sets.
 - This check is the unblocker for `spec-lsp` TASK-12 / FR-7 stage-2 mapping.
 
+## TASK-13: Generator-port read operations
+
+**Status:** Planned
+
+**Estimate:** 5 days
+
+**Owner:** Kernel + MCP maintainer
+
+**Depends On:** TASK-5, TASK-9
+
+**Requirements:** [FR-16](FR.md#fr-16-generator-port-read-operations-beyond-the-eight), [FR-9](FR.md#fr-9-read-only-mcp-projection-in-v03)
+
+**Done When:**
+- Each FR-16 operation exists on the query service and is read-only.
+- MCP projects them so the agent never needs an LSP tool for spec work.
+- `get_test_result` / `get_scenario_trace` are still absent (owned by `spec-evidence`).
+- Mutation names are absent from the v0.3 read registry.
+- The original eight tools remain.
+- `CHK-FR16-01` is recorded as profile `kernel-generator-port-reads`, not inserted into `kernel-v0.2`/`kernel-v0.3`.
+
 ## Task summary
 
 | Task | Status | Estimate | Owner | Primary output |
@@ -231,3 +251,4 @@ All tasks are future implementation work. Status `Planned` means not started and
 | TASK-10 | Planned | 2 days | Independent reviewer | Adversarial review evidence |
 | TASK-11 | Planned | 2 days | Release maintainer | Conjunctive kernel eligibility result |
 | TASK-12 | Planned | 4 days | Kernel maintainer | CHK-FR15-01 step-binding index; unblocks spec-lsp TASK-12 |
+| TASK-13 | Planned | 5 days | Kernel + MCP maintainer | CHK-FR16-01 generator-port reads on MCP |

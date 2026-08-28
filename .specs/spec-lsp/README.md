@@ -1,18 +1,19 @@
 # spec-lsp
 
-One standalone specification for a custom LSP adapter as a second read-only projection of the `spec-kernel` query service: a single bundled LSP server that consumes the same kernel graph and query operations used by the OMP extension and the v0.3 MCP adapter.
+LSP adapter for the OMP port of the spec-generator door. **The agent sees MCP only.** LSP is a bundled server the MCP adapter (and the editor) may consume. It is not an agent tool.
 
-This specification is the home for GitHub issue [#7](https://github.com/stgmt/omp-spec-kit/issues/7). Adversarial review (2026-08-28) is folded in: this product's MCP surface is eight query tools, not a 46-tool door to prune; this stage has no step-binding layer; 150 ms incremental is not a gate; hover shows only kernel-stored fields; `codeAction` is not advertised.
+The eight MCP tools in `src/mcp/server.js` are the v0.3 **first slice**. The destination read surface is [spec-kernel FR-16](../spec-kernel/FR.md#fr-16-generator-port-read-operations-beyond-the-eight). Mutations stay in `spec-authoring-workflow`.
+
+GitHub issue [#7](https://github.com/stgmt/omp-spec-kit/issues/7) is owned here, with the correction that navigation stays on MCP (implementation may use LSP/kernel). The agent never calls OMP `lsp` for spec work.
 
 ## Status
 
-SPEC_ONLY. Gherkin scenarios are specification text with no executed status. The capability is the ROADMAP sibling stage "one LSP adapter" after accepted kernel v0.2. It does not replace v0.3 MCP and does not unlock authoring.
+SPEC_ONLY. ROADMAP sibling stage "one LSP adapter" after kernel v0.2. Does not replace v0.3 MCP. Does not unlock authoring.
 
 ## Why a separate spec
 
-`spec-kernel:FR-9` defines the v0.3 MCP projection as a semantic-free read-only adapter over the shared query service (exactly eight tools). The LSP adapter is an analogous projection onto a different protocol surface: LSP navigation, diagnostics, hover, completion, and document symbols. It is not an MCP wrapper, not a second graph, not a replacement for those eight MCP tools, and not a cut of upstream `dev-pomogator` spec-MCP.
+MCP is the generator door. LSP is not a second agent API and not a way to delete MCP tools. Kernel owns graph semantics (including FR-15 step bindings). LSP/MCP project those answers.
 
-Marksman and an external `@cucumber/language-server` stay rejected. A Gherkin step-binding layer is **deferred**: the kernel has no `StepBinding` node kind and cannot read `tests/step-definitions/**`. Shipping step diagnostics here would be a second index.
 
 ## Provenance and evidence
 

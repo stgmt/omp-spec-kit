@@ -1,28 +1,31 @@
 # Functional Requirements
 
-All runtime identities in this specification use `spec-lsp:<local-id>`. The linked Gherkin scenarios are specifications only and have no executed status. This adapter is a sibling projection of the `spec-kernel` query service, analogous to `spec-kernel:FR-9` (MCP projection).
+All runtime identities in this specification use `spec-lsp:<local-id>`. The linked Gherkin scenarios are specifications only and have no executed status.
 
-This specification does **not** remove, hide, or replace the v0.3 MCP adapter. The installed MCP registry for `omp-spec-kit` is the eight read tools that map one-to-one onto kernel query operations (`spec_inventory`, `spec_get_node`, `spec_find_nodes`, `spec_get_edges`, `spec_trace`, `spec_diagnostics`, `spec_overview`, `spec_markdown_inventory`). Issue #7's "46-tool MCP door" and "tool cliff at ~25" describe upstream `dev-pomogator` spec-MCP, not this product. Shipping LSP here adds a host-native navigation/diagnostic surface; it SHALL NOT be claimed as a cut of those eight MCP tools.
+**Agent-facing API is MCP only.** This product is the OMP port of the `dev-pomogator` spec-generator door. The agent SHALL see and call the MCP server. The LSP server SHALL NOT appear in the agent's tool inventory. LSP exists so the MCP adapter and the host editor can consume kernel navigation/diagnostics; the agent never uses OMP `lsp` for spec work.
 
-## FR-1: One-server semantic-free read projection that does not shrink MCP
+The eight tools in `src/mcp/server.js` are the **current v0.3 first slice**, not the destination registry. Missing generator-door reads belong in [spec-kernel FR-16](../spec-kernel/FR.md#fr-16-generator-port-read-operations-beyond-the-eight). Mutations stay in `spec-authoring-workflow`.
 
-The LSP adapter SHALL be a single bundled server that consumes the same `spec-kernel` query service used by the OMP extension and the v0.3 MCP adapter. It SHALL add no parsing, resolution, anchor, link, or verdict semantics of its own. Every navigation, diagnostic, hover, completion, and symbol answer SHALL derive from kernel query operations. Its public capability set SHALL contain no mutation, proposal, apply, repair, archive, status-transition, or write operation. LSP absence or failure SHALL NOT create a second graph implementation or weaken extension or MCP behavior. Shipping this adapter SHALL NOT remove, rename, hide, or stop serving any of the eight MCP query tools.
+## FR-1: Semantic-free LSP used by MCP, invisible to the agent
+
+The LSP adapter SHALL be a single bundled server that consumes the same `spec-kernel` query service. It SHALL add no parsing, resolution, or verdict semantics. The MCP adapter SHALL be the only agent-visible spec API. Shipping LSP SHALL NOT add an `lsp` tool to the agent, SHALL NOT require the agent to call OMP `lsp` for spec navigation, and SHALL NOT shrink MCP. MCP MAY consume LSP answers internally (diagnostics, definition, references) so the agent still goes through MCP.
 
 **Acceptance:** [AC-1.1](ACCEPTANCE_CRITERIA.md#ac-11-fr-1-lsp-is-a-semantic-free-read-projection)
 
 **Scenario:** `@feature1` / `SCEN-spec-lsp-read-projection-only`
 
-**Sources:** `spec-kernel:FR-9` (MCP projection: exactly eight tools); `src/mcp/server.js` SCHEMA-11 registry; `MIGRATION_MATRIX.md` rows FR-4, FR-38, FR-82; GitHub issue #7 as research input, not as a 46-tool cutover plan for this product.
+**Sources:** product port of spec-generator; RESEARCH RF-8, RF-16, RF-17.
 
-## FR-2: Read-only posture; no codeAction capability in this stage
+## FR-2: Read-only posture; no agent-visible codeAction
 
-The server SHALL NOT use `workspace/applyEdit`. This stage SHALL NOT advertise `codeAction` in LSP `ServerCapabilities`. Code actions that return titles without an applicable `WorkspaceEdit` train the host agent (which MUST use `lsp` for code actions when advertised) on a dead path. Proposal-only code actions MAY return in a later authoring stage when the authoring door can apply edits with audit and validation. Until that stage is accepted, a `textDocument/codeAction` request SHALL return an empty list.
+The server SHALL NOT use `workspace/applyEdit`. This stage SHALL NOT advertise `codeAction` in `ServerCapabilities` (the agent does not call LSP; advertising codeAction would still leak a mutation-shaped host API). `textDocument/codeAction` SHALL return an empty list. Authoring remains the MCP door in `spec-authoring-workflow`.
 
 **Acceptance:** [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-fr-2-no-mutation-and-no-codeaction-capability-in-this-stage)
 
 **Scenario:** `@feature2` / `SCEN-spec-lsp-read-only-code-actions`
 
-**Sources:** `spec-kernel:FR-1` (read-only boundary); RESEARCH RF-4, RISK-1, RF-14.
+**Sources:** `spec-kernel:FR-1`; RESEARCH RF-4, RF-8.
+
 
 ## FR-3: Spec-layer diagnostics mapped from kernel conformance findings
 
