@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -149,6 +151,7 @@ jobs:
       - name: Reverify downloaded candidate without rebuilding
         run: node scripts/verify-release.mjs --candidate release-candidate/candidate.json --evidence release-candidate/evidence.json --tag "$GITHUB_REF_NAME"
       - name: Publish only matching candidate assets
+        id: publish
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
@@ -157,6 +160,7 @@ jobs:
           archive="$(node -p "require('./release-candidate/candidate.json').archive.file")"
           expected_sha="$(node -p "require('./release-candidate/candidate.json').archive.sha256")"
           expected_commit="$(node -p "require('./release-candidate/candidate.json').commit")"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             existing_commit="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish)"
             if [ "$existing_commit" != "$expected_commit" ]; then
@@ -170,6 +174,7 @@ jobs:
               echo "::error::existing release archive differs from verified candidate"
               exit 1
             fi
+            echo "created=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           gh release create "$TAG" \
@@ -179,4 +184,13 @@ jobs:
             --notes-file release-candidate/release-notes.md \
             "release-candidate/$archive" \
             release-candidate/candidate.json \
+            release-candidate/evidence.json
+          echo "created=1" >> "$GITHUB_OUTPUT"
+      - name: Attest published release assets
+        if: steps.publish.outputs.created == '1'
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            release-candidate/${{ steps.publish.outputs.archive }}
+            release-candidate/candidate.json
             release-candidate/evidence.json

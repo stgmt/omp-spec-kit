@@ -164,6 +164,7 @@ async function main() {
 	if (upgradeRaw.details.toVersion !== identity.version || upgradeRaw.observedVersion !== identity.version || upgradedObservation.version !== identity.version) {
 		fail(`upgrade.json observes version(s) inconsistent with candidate ${identity.version}`);
 	}
+	if (upgradeRaw.details.eachObservationIsFreshProcess !== true) fail("upgrade.json does not record fresh-process observations");
 	if (upgradeRaw.details.observedProjectHashPreserved !== true || upgradeRaw.details.projectHashBefore !== upgradeRaw.details.projectHashAfter) {
 		fail("upgrade.json does not prove project hash preservation");
 	}
@@ -171,8 +172,8 @@ async function main() {
 		schema: "omp-spec-kit-lifecycle-receipt@1",
 		status: "passed",
 		...identity,
-		freshSession: true,
-		projectHashPreserved: true,
+		freshSession: upgradeRaw.details.eachObservationIsFreshProcess === true,
+		projectHashPreserved: upgradeRaw.details.observedProjectHashPreserved === true,
 		fromTag: `v${PRIOR_VERSION}`,
 		toTag: identity.tag,
 		fromVersion: PRIOR_VERSION,
@@ -191,12 +192,16 @@ async function main() {
 	}
 	if (rollbackRaw.details.fromVersion !== identity.version) fail(`rollback.json fromVersion is ${rollbackRaw.details.fromVersion}, expected ${identity.version}`);
 	if (rollbackRaw.details.toVersion !== PRIOR_VERSION || rollbackRaw.expectedVersion !== PRIOR_VERSION) fail(`rollback.json toVersion is ${rollbackRaw.details.toVersion}, expected ${PRIOR_VERSION}`);
+	if (rollbackRaw.details.observedProjectHashPreserved !== true || rollbackRaw.details.projectHashBefore !== rollbackRaw.details.projectHashAfter) {
+		fail("rollback.json does not prove project-hash preservation (observedProjectHashPreserved must be true with matching before/after digests)");
+	}
+	if (rollbackRaw.details.freshProcessObservation !== true) fail("rollback.json does not record a fresh-process observation");
 	const rollbackReceipt = {
 		schema: "omp-spec-kit-lifecycle-receipt@1",
 		status: "passed",
 		...identity,
-		freshSession: true,
-		projectHashPreserved: true,
+		freshSession: rollbackRaw.details.freshProcessObservation === true,
+		projectHashPreserved: rollbackRaw.details.observedProjectHashPreserved === true,
 		fromTag: identity.tag,
 		toTag: `v${PRIOR_VERSION}`,
 		fromVersion: identity.version,

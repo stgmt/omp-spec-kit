@@ -171,6 +171,7 @@ jobs:
             --inventory-output dist-candidate/corpus-inventory.json \
             --mri-discovery-digest "$DISCOVERY_SHA" \
             --lifecycle-receipts-dir dist-evidence/receipts/lifecycle \
+            --cucumber-messages dist-candidate/cucumber.ndjson \
             --output dist-evidence
 
       - name: Attest the distribution evidence bundle

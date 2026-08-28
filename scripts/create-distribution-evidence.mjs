@@ -15,6 +15,7 @@ import {
   isSha256,
   sha256,
 } from "./release-candidate-utils.mjs";
+import { cucumberMessages } from "./create-release-evidence.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OMP_REVISION = "@oh-my-pi/pi-coding-agent@17.3.7#8500092296621a6826b7136e840f8a59ea338958";
@@ -149,6 +150,7 @@ async function main() {
     "--mri-discovery-digest",
     "--output",
     "--lifecycle-receipts-dir",
+    "--cucumber-messages",
   ]);
   for (const flag of ["--candidate", "--public-safety", "--marketplace-marker", "--package-marker", "--dist-manifest", "--catalog", "--package-manifest", "--inventory-output", "--mri-discovery-digest", "--output"]) {
     if (!args[flag]) fail(`${flag} is required`);
@@ -441,48 +443,93 @@ async function main() {
     ),
   });
 
-  // FR-10 / release-transaction — the distribution-evidence workflow itself
-  // (checkout at the peeled tag, dist-candidate assembly, public-safety gate,
-  // Docker BDD, bundle build) IS the GitHub Actions release transaction; its
-  // run id is stamped into every receipt's producer field.
-  await emitRecord({
-    requirement: "plugin-distribution:FR-10",
-    claim: "release-transaction",
-    observations: baseObservations(
-      "release-transaction-github-run",
-      `GitHub Actions run ${process.env.GITHUB_RUN_ID ?? "local"} executed the candidate assembly, public-safety gate, and Docker BDD from peeled tag ${candidate.tag} before this bundle was composed.`,
-    ),
-  });
+  // FR-10 / 11 / 12 — gated cells. Inside GitHub Actions the producer must
+  // exist or the builder fails closed. Outside Actions the cells stay
+  // omitted so local/BDD ingestion still produces the rest of the bundle;
+  // verify-release then blocks publication on the missing matrix cells.
+  const inActions = process.env.GITHUB_ACTIONS === "true";
+  async function emitGated({ requirement, claim, observations, ok, missingReason }) {
+    if (ok) {
+      await emitRecord({ requirement, claim, observations });
+      return;
+    }
+    if (inActions) fail(missingReason);
+    omitted.push(claim);
+  }
 
-  // FR-11 / evidence-honesty — every claim cell above is emitted only from a
-  // real verified producer output; omitted cells are listed in the summary.
-  await emitRecord({
-    requirement: "plugin-distribution:FR-11",
-    claim: "evidence-honesty",
-    observations: baseObservations(
-      "evidence-honesty-composition",
-      `Evidence bundle composed exclusively from verified producer outputs; claims without real producers are listed as omitted in the builder summary, never fabricated.`,
-    ),
-  });
+  {
+    const runId = process.env.GITHUB_RUN_ID;
+    const actionsRun = inActions && /^[1-9]\d*$/u.test(String(runId ?? ""));
+    let workspaceHead = null;
+    try {
+      workspaceHead = execFileSync("git", ["-C", repositoryRoot, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    } catch {
+      workspaceHead = null;
+    }
+    const headMatches = workspaceHead === candidate.commit;
+    await emitGated({
+      requirement: "plugin-distribution:FR-10",
+      claim: "release-transaction",
+      ok: actionsRun && headMatches,
+      missingReason: actionsRun
+        ? `FR-10 workspace HEAD ${workspaceHead} does not match candidate commit ${candidate.commit}`
+        : "FR-10 release-transaction evidence requires GitHub Actions (GITHUB_ACTIONS and GITHUB_RUN_ID)",
+      observations: baseObservations(
+        "release-transaction-github-run",
+        `GitHub Actions run ${runId} at HEAD ${String(workspaceHead).slice(0, 12)} executed the candidate assembly, public-safety gate, and Docker BDD from peeled tag ${candidate.tag} before this bundle was composed.`,
+      ),
+    });
+  }
 
-  // FR-12 / schema-containment — the public result schemas are enforced by
-  // verify-package's closed-import profile plus the schema-containment BDD
-  // scenario suite (SCEN-fail-closed-on-unsafe-contract-data).
-  await emitRecord({
-    requirement: "plugin-distribution:FR-12",
-    claim: "schema-containment",
-    observations: baseObservations(
-      "schema-containment-verified",
-      "Public inventory request/result/diagnostic schemas enforced closed; malformed requests fail with typed diagnostics in the spec-mcp BDD suite.",
-    ),
-  });
+  {
+    const dishonest = records.filter((record) => record.receipt?.status !== "present" || !isSha256(record.receipt.digest));
+    const emittedAndOmitted = records.filter((record) => omitted.includes(record.claim)).map((record) => record.claim);
+    await emitGated({
+      requirement: "plugin-distribution:FR-11",
+      claim: "evidence-honesty",
+      ok: dishonest.length === 0 && emittedAndOmitted.length === 0 && records.length > 0,
+      missingReason: `FR-11 evidence-honesty gate failed: missing-receipt=[${dishonest.map((record) => record.claim).join(", ")}] overlap=[${emittedAndOmitted.join(", ")}] count=${records.length}`,
+      observations: baseObservations(
+        "evidence-honesty-composition",
+        `Composition invariant verified: ${records.length} claim cells each carry a content-addressed receipt bound to this candidate and fixture; claims without producers are listed as omitted, never fabricated.`,
+      ),
+    });
+  }
+
+  {
+    const failClosedIds = ["SCEN-fail-closed-on-unsafe-contract-data", "SCEN-mcp-fail-closed"];
+    let passedIds = [];
+    if (args["--cucumber-messages"]) {
+      const messagesBytes = await readFile(path.resolve(args["--cucumber-messages"]));
+      passedIds = failClosedIds.filter((scenarioId) => {
+        try {
+          cucumberMessages(messagesBytes, [scenarioId]);
+          return true;
+        } catch {
+          return false;
+        }
+      });
+    }
+    await emitGated({
+      requirement: "plugin-distribution:FR-12",
+      claim: "schema-containment",
+      ok: passedIds.length > 0,
+      missingReason: args["--cucumber-messages"]
+        ? "FR-12 schema-containment evidence requires a passing SCEN-fail-closed / SCEN-mcp-fail-closed scenario in this invocation's cucumber messages"
+        : "FR-12 schema-containment evidence requires --cucumber-messages with this invocation's Docker BDD output",
+      observations: baseObservations(
+        "schema-containment-verified",
+        `Docker BDD for this invocation passed fail-closed scenario(s) ${passedIds.join(", ")}, proving malformed public requests are refused with typed diagnostics.`,
+      ),
+    });
+  }
 
   // Claims whose real producers did not run in this invocation remain
   // deliberately omitted; the release verifier blocks their missing matrix
   // cells; nothing here fabricates them.
   const emittedClaims = new Set(records.map((record) => record.claim));
-  for (const claim of ["install", "reload", "fresh-session-activation", "uninstall-preservation", "reinstall", "upgrade", "rollback"]) {
-    if (!emittedClaims.has(claim)) omitted.push(claim);
+  for (const claim of ["install", "reload", "fresh-session-activation", "uninstall-preservation", "reinstall", "upgrade", "rollback", "release-transaction", "evidence-honesty", "schema-containment"]) {
+    if (!emittedClaims.has(claim) && !omitted.includes(claim)) omitted.push(claim);
   }
 
   // --- Bundle assembly -----------------------------------------------------
