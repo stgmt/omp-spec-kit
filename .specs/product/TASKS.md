@@ -87,7 +87,17 @@ All tasks are planned work. No task status below constitutes executed evidence. 
 - **Traces:** `product:FR-8`; `product:AC-8.1`; `product:AC-8.2`; `@feature8`; `SCEN-roadmap-separates-states`; `SCEN-canonical-owner-delegation`.
 - **Planned paths:** `README.md`, `ROADMAP.md`, `.specs/product/README.md`, `docs/validation/spec-review.md`.
 - **Evidence:** `docs/validation/spec-review.md`; manager-readable state separation and all canonical cross-spec owners were independently reviewed.
-- **Done When:** A manager can distinguish current, planned, deferred, and blocked states; every delegated contract resolves to canonical `plugin-distribution`, `spec-kernel`, or `spec-authoring-workflow` IDs; excluded harness machinery is not implied as backlog or delivery.
+- **Done When:** A manager can distinguish current, planned, deferred, and blocked states; every delegated contract resolves to canonical `plugin-distribution`, `spec-kernel`, `spec-lsp`, `spec-evidence`, or `spec-authoring-workflow` IDs; excluded harness machinery is not implied as backlog or delivery; ROADMAP describes v0.3 as the first slice of the generator-port MCP door.
+
+## TASK-9 — Record the generator-port MCP destination
+
+- **Status:** Planned
+- **Estimate:** 0.5 day
+- **Owner:** Product owner
+- **Depends on:** Canonical census `docs/decisions/spec-generator-port.md`.
+- **Traces:** `product:FR-9`; `product:AC-9.1`; `@feature9`; `SCEN-generator-port-destination`; `CHK-FR9-01`.
+- **Planned paths:** `ROADMAP.md`, `.specs/product/`, `plugins/omp-spec-kit/README.md`, `MIGRATION_MATRIX.md`, `docs/decisions/spec-generator-port.md`, `docs/decisions/omp-spec-kit-public-init.md`.
+- **Done When:** FR-9, AC-9.1, `@feature9`, and CHK-FR9-01 exist; ROADMAP calls v0.3 the first slice; the agent API is MCP; leftover freeze phrases fail unless they say first slice or v0.3 candidate; authoring remains not delivered.
 
 ## Task summary
 
@@ -101,3 +111,4 @@ All tasks are planned work. No task status below constitutes executed evidence. 
 | `product:TASK-6` | Planned | 1 day/stage | Release owner | `product:FR-6` |
 | `product:TASK-7` | Completed | 0.5 day/candidate | Product owner | `product:FR-7` |
 | `product:TASK-8` | Completed | 0.5 day | Documentation reviewer | `product:FR-8` |
+| `product:TASK-9` | Planned | 0.5 day | Product owner | `product:FR-9` |

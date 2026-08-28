@@ -7,9 +7,12 @@ GitHub issue #7 is owned here. Adversarial review is folded in.
 ### Changed
 
 - Agent-facing spec API is MCP only. LSP is not an agent tool; MCP may consume LSP internally.
-- Eight MCP tools are the v0.3 first slice. Destination reads are spec-kernel FR-16. Mutations stay in spec-authoring-workflow.
+- Eight MCP tools are the v0.3 first slice. Destination reads are spec-kernel FR-16/FR-17 plus evidence plus authoring. Mutations stay in spec-authoring-workflow.
+- FR-1: LSP does not shrink the eight first-slice MCP query tools.
+- US-2/US-3/US-4 and UC-2/UC-3/UC-4: editor or MCP adapter uses LSP primitives; the agent calls first-slice MCP `spec_get_node` / `spec_get_edges` / `spec_find_nodes`.
+- RF-16 points at `docs/decisions/spec-generator-port.md` as the canonical census; `list_specs` and full `get_spec_status` are later FR-16, not the first-slice `spec_inventory` / `spec_overview`.
 
-- FR-1: LSP does not shrink the eight MCP query tools. The 46-tool door is upstream `dev-pomogator`, not this product.
+
 - FR-2: this stage does not advertise `codeAction`.
 - FR-6: hover uses only kernel-stored fields; run result/provenance/freshness are out of scope.
 - FR-7 and FR-12: this stage forbids a step-binding layer; CHK-FR7-01 and CHK-FR12-01 are absence proofs. Oracle parity is not a release member.
@@ -20,7 +23,8 @@ GitHub issue #7 is owned here. Adversarial review is folded in.
 
 ### Excluded (still)
 
-- Deleting the eight MCP query tools (route cursor work through LSP instead).
+- Deleting the eight first-slice MCP query tools (route cursor work through LSP instead).
+
 - Adapter-side step matching before `spec-kernel:CHK-FR15-01`.
 - Claiming 150 ms incremental rebuild.
 

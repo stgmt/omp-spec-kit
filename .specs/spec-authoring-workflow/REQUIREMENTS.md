@@ -21,6 +21,7 @@ All requirements are **planned** and the authoring lifecycle/registration is `DE
 | `spec-authoring-workflow:FR-11` | Mutation-resistance release gate | P0 | FR-1–FR-10 | [AC-11.1–11.4](ACCEPTANCE_CRITERIA.md#ac-111) | `@feature11` |
 | `spec-authoring-workflow:FR-12` | No bypass, hidden state, or dev-pomogator integration | P0 | FR-1, FR-2, FR-6 | [AC-12.1–12.3](ACCEPTANCE_CRITERIA.md#ac-121) | `@feature12` |
 | `spec-authoring-workflow:FR-13` | Aggregate registration/release eligibility with distinct linked v0.2/v0.3 kernel profiles | P0 | FR-1–FR-12, `spec-kernel:FR-14` `targetStage: "v0.2"`, `spec-kernel:FR-14` `targetStage: "v0.3"`, `plugin-distribution:FR-13` | [AC-13.1–13.3](ACCEPTANCE_CRITERIA.md#ac-131) | `@feature13` |
+| `spec-authoring-workflow:FR-14` | Generator-port mutation names as MCP v1 or later v2 | P0 | FR-10, FR-13, `docs/decisions/spec-generator-port.md` | [AC-14.1](ACCEPTANCE_CRITERIA.md#ac-141) | `@feature14` |
 
 ## Requirement invariants
 
@@ -38,6 +39,7 @@ All requirements are **planned** and the authoring lifecycle/registration is `DE
 12. Authoring eligibility does not independently authorize package publication; remaining public-init validation and fail-closed provenance/license checks for future or changed imports remain dependency-owned through `plugin-distribution:FR-13`.
 13. No scenario text in this specification is executed evidence.
 14. Runtime canonical identities are `<spec-slug>:<local-id>`; file-local anchors remain unqualified.
+15. The agent-facing authoring API is MCP. The 18 schema-v1 generator-port mutation names map onto proposal-first operations; the 6 schema-v2 names are later, not DROP; none appear on the v0.3 read registry; the dropped advisor/dashboard/harness backlog UI is not `add_backlog_task`.
 
 ## Verification matrix
 
@@ -56,6 +58,7 @@ All requirements are **planned** and the authoring lifecycle/registration is `DE
 | CHK-FR11-01 | FR-11 | All required critical mutants are present and killed; missing/timeout/error blocks |
 | CHK-FR12-01 | FR-12 | Package/runtime inventory contains one authoring authority, no raw-edit apply, and none of the excluded integrations |
 | CHK-FR13-01 | FR-13 | Removing any mandatory FR-1..FR-12 or distribution envelope, removing either separately qualified kernel target-stage envelope, duplicating a stage, substituting v0.3 for v0.2, revoking/staling the v0.2 parent, or breaking `v03.v02ParentArtifactSha256 == v02.artifactSha256` keeps actions unregistered; one accepted current same-lineage v0.2→v0.3 pair plus all current-stage evidence opens registration eligibility |
+| CHK-FR14-01 | FR-14 | Eighteen v1 MCP names map onto proposal-first operations; six v2 names remain later not DROP; none of the 24 appear on the v0.3 read registry; harness backlog UI is not `add_backlog_task` |
 
 ## Assumptions
 

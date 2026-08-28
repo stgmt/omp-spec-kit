@@ -17,13 +17,13 @@
 
 ## UC-2: Navigate from a cross-reference to its definition
 
-**Actor:** OMP coding agent or human reader.
+**Actor:** Editor user or MCP adapter. The OMP coding agent is not this actor; it calls MCP `spec_get_node` instead of `textDocument/definition`.
 
 **Precondition:** A spec document containing a qualified reference `.specs/spec-kernel:FR-9` is open.
 
 **Flow:**
-1. The actor positions the cursor on the reference text.
-2. The actor invokes `textDocument/definition`.
+1. The editor positions the cursor on the reference text, or the MCP adapter consumes definition internally.
+2. The editor or MCP adapter uses `textDocument/definition` (or the kernel query behind it). The coding agent does not use `textDocument/definition`.
 3. The server resolves the reference through the kernel anchor registry.
 4. If unambiguous, the response targets the exact heading span in the source document.
 5. If ambiguous, the response returns all candidates per `spec-kernel:FR-4` semantics.
@@ -32,12 +32,12 @@
 
 ## UC-3: Find all references to a spec definition
 
-**Actor:** OMP coding agent.
+**Actor:** Editor user or MCP adapter. The OMP coding agent is not this actor; it calls MCP `spec_get_edges` instead of `textDocument/references`.
 
-**Precondition:** A spec definition heading is selected.
+**Precondition:** A spec definition heading is selected in the editor, or the MCP adapter is resolving backlinks.
 
 **Flow:**
-1. The actor invokes `textDocument/references` with `includeDeclaration: true`.
+1. The editor or MCP adapter uses `textDocument/references` with `includeDeclaration: true` (or the kernel query behind it). The coding agent does not use `textDocument/references`.
 2. The server queries the kernel backlinks index for the canonical ID.
 3. All reference occurrences across `.specs/**` and `.feature` files are returned with locations.
 
@@ -45,12 +45,12 @@
 
 ## UC-4: Complete a partial alias in a Markdown link
 
-**Actor:** OMP coding agent composing a cross-reference.
+**Actor:** Editor user or MCP adapter composing a cross-reference. The OMP coding agent is not this actor; it calls MCP `spec_find_nodes` instead of `textDocument/completion`.
 
-**Precondition:** The cursor is inside a Markdown link destination in a spec document.
+**Precondition:** The cursor is inside a Markdown link destination in a spec document (editor), or the MCP adapter is offering alias completion internally.
 
 **Flow:**
-1. The actor invokes `textDocument/completion` with the partial prefix.
+1. The editor or MCP adapter uses `textDocument/completion` with the partial prefix (or the kernel query behind it). The coding agent does not use `textDocument/completion`.
 2. The server queries registered aliases from the kernel node index.
 3. Matching canonical IDs are returned as completion items.
 
@@ -58,16 +58,17 @@
 
 ## UC-5: View document outline of a spec file
 
-**Actor:** Human reader or agent.
+**Actor:** Editor user or MCP adapter. The OMP coding agent inspects structure through MCP, not `textDocument/documentSymbol`.
 
 **Precondition:** A canonical spec document is open.
 
 **Flow:**
-1. The actor invokes `textDocument/documentSymbol`.
+1. The editor or MCP adapter uses `textDocument/documentSymbol`.
 2. The server maps kernel spec nodes in that document to a hierarchical symbol tree.
 3. FR, AC, TASK, and other definition nodes appear with ranges and nesting.
 
 **Postcondition:** Outline reflects the kernel's parsed node inventory for that document.
+
 
 ## UC-6: Hover over a scenario tag to see kernel scenario fields
 

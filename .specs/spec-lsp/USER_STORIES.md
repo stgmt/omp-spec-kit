@@ -6,23 +6,24 @@ As a specification author editing `.specs/**` Markdown in an OMP session, I want
 
 **Independent test:** Open a spec document, introduce a malformed cross-reference, save; verify the diagnostic appears through OMP's native `lsp.diagnosticsOnWrite` path with the correct code, file, line, and message from the kernel finding.
 
-## US-2: Agent navigating spec definitions through LSP primitives
+## US-2: Editor or MCP adapter navigating spec definitions through LSP primitives
 
-As an OMP coding agent working on specifications, I want to use `textDocument/definition`, `textDocument/references`, and `textDocument/hover` on spec identifiers so that symbol-aware navigation follows the same kernel anchor registry used by the extension and MCP adapter, including ambiguity semantics on collision.
+As an editor user or the MCP adapter, I want `textDocument/definition`, `textDocument/references`, and `textDocument/hover` on spec identifiers so that symbol-aware navigation follows the same kernel anchor registry used by the extension, including ambiguity semantics on collision. The OMP coding agent does not use those LSP primitives; it calls MCP `spec_get_node` / `spec_get_edges`. Later FR-16 adds other read names; it does not replace those first-slice tools.
 
-**Independent test:** Position cursor on a qualified reference `spec-kernel:FR-9` in a spec document; invoke `definition`; verify the response targets the exact heading span in `spec-kernel/FR.md`. Repeat for an ambiguous bare ID and verify candidates are returned.
+**Independent test:** In the editor, or via the MCP adapter consuming LSP internally, position the cursor on a qualified reference `spec-kernel:FR-9`; the editor or MCP adapter uses `textDocument/definition`; verify the response targets the exact heading span in `spec-kernel/FR.md`. Repeat for an ambiguous bare ID and verify candidates are returned. Independently, the agent calls MCP `spec_get_node` for the same identifier and does not use `textDocument/definition`.
 
-## US-3: Agent completing spec aliases without typos
+## US-3: Editor or MCP adapter completing spec aliases without typos
 
-As an OMP coding agent composing cross-references, I want completion suggestions over registered aliases so that I can reference existing definitions without memorizing exact slug:local-id spellings.
+As an editor user or the MCP adapter composing a Markdown cross-reference, I want completion suggestions over registered aliases so that I can reference existing definitions without memorizing exact slug:local-id spellings. The OMP coding agent completes aliases through MCP `spec_find_nodes` (and later FR-16 `find_by_tags`), not `textDocument/completion`.
 
-**Independent test:** Type a partial alias prefix in a Markdown link destination; invoke `completion`; verify the list contains only registered canonical IDs matching the prefix.
+**Independent test:** In the editor, type a partial alias prefix in a Markdown link destination; the editor or MCP adapter uses `completion`; verify the list contains only registered canonical IDs matching the prefix. The agent does not use `textDocument/completion`; it calls MCP find/search.
 
-## US-4: Agent inspecting spec structure through document outline
+## US-4: Editor or MCP adapter inspecting spec structure through document outline
 
-As an OMP coding agent or human reader, I want a `documentSymbol` outline of a spec document so that I can see the hierarchical structure of FRs, ACs, tasks, and other spec nodes without parsing headings manually.
+As an editor user or the MCP adapter, I want a `documentSymbol` outline of a spec document so that I can see the hierarchical structure of FRs, ACs, tasks, and other spec nodes without parsing headings manually. The OMP coding agent inspects structure through MCP (`spec_find_nodes` / `spec_inventory`, later FR-16 `list_specs` / `get_spec_status`), not `documentSymbol`.
 
-**Independent test:** Request `documentSymbol` on a spec FR.md; verify the result lists every FR definition node with correct ranges and nesting.
+**Independent test:** In the editor, request `documentSymbol` on a spec FR.md; verify the result lists every FR definition node with correct ranges and nesting. The agent does not use `textDocument/documentSymbol`; it calls MCP.
+
 
 ## US-5: Scenario consumer viewing kernel scenario fields through hover
 

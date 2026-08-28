@@ -20,7 +20,7 @@ Counts: **ADOPT 27 · REWRITE 11 · DEFER 22 · DROP 26 · total 86**.
 | FR-1 | Cucumber-JS migration and canonical NDJSON | REWRITE | Keep portable evidence ingestion; remove dev-pomogator migration paths and test-runner installation side effects. |
 | FR-2 | In-memory SpecGraph and watcher | REWRITE | Keep the read-only graph model; exclude watcher startup and mutable runtime from the first kernel. |
 | FR-3 | Markdown parser, anchors, compatibility | REWRITE | Keep deterministic heading identity and aliases; define a fresh standalone schema instead of v3 compatibility. |
-| FR-4 | MCP `get_trace` surface | DEFER | Revisit as the bounded v0.3 MCP adapter after the shared query contract is stable. |
+| FR-4 | MCP `get_trace` surface | DEFER | Later generator-port MCP (`spec_trace` is the v0.3 first-slice mapping; destination growth remains this product). |
 | FR-5 | Claude PreToolUse hard hooks | DROP | Claude hook lifecycle is outside an OMP-only standalone plugin. |
 | FR-6 | Claude PostToolUse push/throttle | DROP | Prompt injection and hook throttling are harness behavior, not kernel behavior. |
 | FR-7 | Native Claude Marksman LSP plugin | DROP | Claude plugin/LSP installation and managed binaries are outside the OMP product boundary. |
@@ -54,8 +54,8 @@ Counts: **ADOPT 27 · REWRITE 11 · DEFER 22 · DROP 26 · total 86**.
 | FR-35 | Test-quality honesty gate | ADOPT | Passing plumbing alone must not count as requirement evidence. |
 | FR-36 | Spec-qualified graph identities | ADOPT | Composite identity is essential to prevent cross-spec collisions. |
 | FR-37 | Authoritative verdict and corpus-wide truth | REWRITE | Keep one fail-closed verdict; remove source-specific auditors and status implementations. |
-| FR-38 | Full lifecycle status through MCP | DEFER | Implement first in shared kernel/query contracts; expose through MCP only in v0.3. |
-| FR-39 | MCP-only spec access and audit log | DEFER | Central access and audit require a later adapter and privacy/state policy. |
+| FR-38 | Full lifecycle status through MCP | DEFER | Later generator-port MCP (`get_spec_status` via `spec-kernel:FR-16` beside `spec_overview`). |
+| FR-39 | MCP-only spec access and audit log | DEFER | Later generator-port MCP: agent-facing spec access is MCP only. |
 | FR-40 | Validated spec mutation through MCP | DEFER | Authoring writes wait for proposal, CAS, atomicity, and containment evidence. |
 | FR-41 | Phased creation with headless Claude agents | DROP | Claude subprocess orchestration is a source-harness assumption. |
 | FR-42 | Thin skill over thick MCP server | DEFER | Reconsider as an OMP-native UX layering rule after extension and MCP contracts exist. |

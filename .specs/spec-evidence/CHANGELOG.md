@@ -1,5 +1,10 @@
 # Changelog
 
+
+## Unreleased
+
+- Added FR-14 / AC-14.1 / CHK-FR14-01: MCP projection of read-only `get_test_result` and `get_scenario_trace` from evaluator output. The evaluator stays pure (FR-1; no MCP calls inside). This is not a v0.2/v0.3 kernel required check and is absent from the v0.3 first-slice read registry. `spec-kernel:FR-6` remains forbidden from pass/fail claims. `spec-lsp` hover still must not invent run results before this FR.
+
 ## 2026-08-23 — Specification init
 
 - Created the `spec-evidence` specification: 13 functional requirements, 13 acceptance criteria, 13 scenarios, 13 contract checks, 10 planned tasks.

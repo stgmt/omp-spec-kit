@@ -125,7 +125,7 @@ Feature: Standalone deterministic specification graph kernel
     And every ineligible result has deterministic blocking details and no publication or readiness side effect
 
   @feature15 @AC-15.1 @id:SCEN-contained-step-binding-index
-  Scenario: Contained step-definition files become kernel bindings without a ninth MCP tool
+  Scenario: Contained step-definition files become kernel bindings without adding an MCP tool
     Given canonical spec documents and cucumber-js step definitions under tests/step-definitions
     And one Gherkin step has exactly one matching pattern one has none and one has two
     When the kernel builds the graph
@@ -135,7 +135,7 @@ Feature: Standalone deterministic specification graph kernel
     And the doubly matched step has WARNING STEP_AMBIGUOUS and no BINDS_STEP edge
     And a symlink or path outside tests/step-definitions is refused before read
     And findNodes getEdges and diagnostics expose the index
-    And the MCP registry is still exactly eight read tools
+    And this FR does not add an MCP tool
     And a v0.2 eligibility manifest without FR-15 evidence remains evaluable
 
   @feature16 @AC-16.1 @id:SCEN-generator-port-read-operations
@@ -147,5 +147,15 @@ Feature: Standalone deterministic specification graph kernel
     And get_test_result and get_scenario_trace remain absent until spec-evidence
     And mutation tools remain absent from the v0.3 read registry
     And a v0.2 eligibility manifest without FR-16 evidence remains evaluable
+
+  @feature17 @AC-17.1 @id:SCEN-mcp-adapter-document-preflight-io
+  Scenario: Adapter document and preflight I/O grow MCP without a second graph
+    Given the v0.3 first-slice eight SCHEMA-11 tools exist
+    When FR-17 adapter I/O is implemented
+    Then list_spec_docs read_spec_doc read_attachment and mcp_preflight are read-only adapter operations
+    And they apply the same containment as FR-7
+    And they are not query-service operations
+    And MCP projects them so the agent never needs a second graph
+    And a v0.2 eligibility manifest without FR-17 evidence remains evaluable
 
 

@@ -105,3 +105,11 @@ These criteria define future verification obligations. The linked Gherkin scenar
 **Requirement:** [FR-13](FR.md#fr-13-release-eligibility-contribution)
 
 **Scenario:** `@feature13`, `@id:SCEN-spec-evidence-release-contribution`
+
+## AC-14.1: MCP projection of get_test_result and get_scenario_trace
+
+**EARS:** WHEN this evidence layer exists THEN MCP SHALL expose the two read-only tools `get_test_result` and `get_scenario_trace` as projections of evaluator output; AND the evaluator SHALL NOT call MCP internally (FR-1); AND these tools SHALL NOT be a v0.2 or v0.3 kernel required check and SHALL NOT appear on the v0.3 first-slice read registry; AND `spec-kernel:FR-6` SHALL remain forbidden from pass/fail claims; AND `spec-lsp` hover SHALL NOT invent run results, provenance, or freshness before this FR.
+
+**Requirement:** [FR-14](FR.md#fr-14-mcp-projection-of-get_test_result-and-get_scenario_trace)
+
+**Scenario:** `@feature14`, `@id:SCEN-spec-evidence-mcp-projection-of-run-results`

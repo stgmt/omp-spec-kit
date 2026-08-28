@@ -130,4 +130,12 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 **Scenario:** `@feature16`, `@id:SCEN-generator-port-read-operations`
 
+## AC-17.1: Adapter document and preflight I/O are named and read-only
+
+**EARS:** WHEN CHK-FR17-01 runs **THEN** `list_spec_docs`, `read_spec_doc`, `read_attachment`, and `mcp_preflight` SHALL be present as read-only MCP adapter I/O, SHALL apply the same containment as FR-7, SHALL NOT be query-service operations, and SHALL be exposed through MCP with no second graph; **AND** a v0.2/v0.3 eligibility manifest without FR-17 evidence SHALL remain evaluable.
+
+**Requirement:** [FR-17](FR.md#fr-17-mcp-adapter-document-and-preflight-io-not-a-v02v03-release-member)
+
+**Scenario:** `@feature17`, `@id:SCEN-mcp-adapter-document-preflight-io`
+
 

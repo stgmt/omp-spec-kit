@@ -1,6 +1,6 @@
 # omp-spec-kit
 
-`omp-spec-kit` v0.3.2 provides one bounded read-only OMP tool, `spec_inventory`, and an eight-tool read-only MCP surface over the active project specification corpus. It does not write, repair, or claim a specification is complete.
+`omp-spec-kit` v0.3.2 provides one bounded read-only OMP tool, `spec_inventory`, and an eight-tool read-only MCP surface over the active project specification corpus. That eight-tool MCP surface is the current v0.3 first slice, not the destination generator-port door. It does not write, repair, or claim a specification is complete.
 
 ## Use
 

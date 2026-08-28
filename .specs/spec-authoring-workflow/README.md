@@ -14,6 +14,8 @@ The lifecycle is `DEFERRED → ELIGIBLE → IMPLEMENTED → PROVEN`. While `DEFE
 
 The capability will live in the existing `plugins/omp-spec-kit` package and existing extension entry. It must not create another marketplace entry, plugin package, extension control plane, or direct writer. Read-only kernel access precedes mutation only for ordinary unlinked roots. Every write begins with a read-only validated proposal, requires a separate authenticated review of the complete proposal ID/hash, uses current expected-hash compare-and-swap (CAS), and commits a same-spec multi-document transaction atomically. `apply_transaction` cannot accept raw edits or preview and commit in one call.
 
+The agent-facing authoring API is MCP ([FR-14](FR.md#fr-14-generator-port-mutation-names)). Schema v1 names (census `later-authoring-v1`) map onto proposal-first operations: `propose_spec_change`, `apply_spec_change`, `propose_patch`, `apply_proposed_patch`, `apply_spec_transaction`, `append_to_section`, `insert_after_heading`, `insert_at_eof`, `replace_in_section`, `amend_requirement`, `add_acceptance_criterion`, `add_phase`, `set_entity_status`, `set_spec_status`, `set_requirement_metadata`, `propose_requirement_contract`, `propose_spec_repairs`, `apply_spec_repairs`. Schema v2 later (NOT DROP; census `later-authoring-v2`): `create_spec`, `archive_spec`, `delete_spec_doc`, `rename_spec_doc`, `add_backlog_task`, `register_incident_backlog`. None of these names appear on the v0.3 first-slice read registry. Schema version 1 omitting a name is later, not DROP.
+
 Included:
 
 - read-only proposal, complete diff preview, and explicit proposal review;
@@ -29,8 +31,8 @@ Included:
 
 Excluded:
 
-- dev-pomogator advisor, backlog, dashboard, hooks, stop gates, ledgers, repair loops, and local runtime machinery;
-- semantic auto-writing, backlog resolution, archival, planning, and cross-spec transactions;
+- dev-pomogator advisor, dashboard, harness backlog UI, hooks, stop gates, ledgers, repair loops, and local runtime machinery (that excluded backlog UI is not MCP `add_backlog_task`);
+- semantic auto-writing, planning, and cross-spec transactions;
 - `.progress.json` or any equivalent hidden workflow-state file;
 - direct filesystem mutation that bypasses the authoring transaction authority.
 - raw-edit apply or same-call preview-and-commit;

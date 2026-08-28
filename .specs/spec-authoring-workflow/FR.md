@@ -124,3 +124,18 @@ Evidence SHALL be enumerated per qualified requirement and, for `spec-kernel:FR-
 **Acceptance:** [AC-13.1](ACCEPTANCE_CRITERIA.md#ac-131), [AC-13.2](ACCEPTANCE_CRITERIA.md#ac-132), [AC-13.3](ACCEPTANCE_CRITERIA.md#ac-133)
 **Scenario:** `@feature13`
 **Story / use case:** [US-8](USER_STORIES.md#us-8-release-owner-trusts-the-safety-tests), [UC-1](USE_CASES.md#uc-1-inspect-authoring-readiness)
+
+## FR-14: Generator-port mutation names
+
+The agent-facing authoring API SHALL be MCP. After the [FR-13](FR.md#fr-13-aggregate-authoring-eligibility) authoring gate, MCP SHALL project the generator-port mutation census onto this spec's proposal-first operations. Schema version 1 of this product omitting a name is `later`, not DROP. None of these names SHALL appear on the v0.3 first-slice read registry. This FR SHALL NOT add a member to the FR-13 all-of eligibility conjunction and SHALL NOT be a v0.3 kernel required check.
+
+Schema v1 names (census `later-authoring-v1`) SHALL map onto proposal-first operations: `propose_spec_change`, `apply_spec_change`, `propose_patch`, `apply_proposed_patch`, `apply_spec_transaction`, `append_to_section`, `insert_after_heading`, `insert_at_eof`, `replace_in_section`, `amend_requirement`, `add_acceptance_criterion`, `add_phase`, `set_entity_status`, `set_spec_status`, `set_requirement_metadata`, `propose_requirement_contract`, `propose_spec_repairs`, `apply_spec_repairs`.
+
+Schema v2 later names (census `later-authoring-v2`, NOT DROP): `create_spec`, `archive_spec`, `delete_spec_doc`, `rename_spec_doc`, `add_backlog_task`, `register_incident_backlog`.
+
+The dropped `dev-pomogator` advisor, dashboard, and harness backlog UI SHALL remain excluded. That excluded backlog UI is not MCP `add_backlog_task`. Any future MCP adapter SHALL delegate these names to the same shared proposal-first service and SHALL NOT add a direct mutation path.
+
+**Contract card:** kind `api`; subject `generator-port-mutation-names`; observables: 18 v1 MCP names, 6 v2-later MCP names, absence from the v0.3 read registry, proposal-first delegation; negative cases: silent DROP, treating schema-v1 omission as DROP, registering mutation names on the v0.3 read registry, confusing harness backlog UI with `add_backlog_task`; verification: census-to-schema mapping and registry absence proofs, pending.
+**Acceptance:** [AC-14.1](ACCEPTANCE_CRITERIA.md#ac-141)
+**Scenario:** `@feature14`
+**Story / use case:** [US-1](USER_STORIES.md#us-1-review-before-mutation), [UC-1](USE_CASES.md#uc-1-inspect-authoring-readiness)

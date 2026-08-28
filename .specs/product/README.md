@@ -37,7 +37,10 @@ It delegates without duplicating internals:
 
 - marketplace/package/install/activation/release mechanics to `plugin-distribution`, whose `FR-13` supplies the distribution aggregate required cumulatively by `product:FR-6`;
 - read-only inventory and graph/query behavior to `spec-kernel`, whose stage-targeted `FR-14` results supply the cumulative kernel gates required by `product:FR-6`;
-- authoring guidance and later safe mutation to `spec-authoring-workflow`, whose `FR-13` is additional to every earlier cumulative gate required by `product:FR-6`.
+- editor/LSP diagnostics to `spec-lsp` as a sibling adapter, not the agent API;
+- evidence evaluation to `spec-evidence`;
+- authoring guidance and later safe mutation to `spec-authoring-workflow`, whose `FR-13` is additional to every earlier cumulative gate required by `product:FR-6`;
+- the agent-facing MCP destination and 46-name census to [spec-generator-port.md](../../docs/decisions/spec-generator-port.md), constrained by `product:FR-9`.
 
 ## Documents
 
@@ -60,6 +63,6 @@ It delegates without duplicating internals:
 
 - `IMPORT_MANIFEST.yaml` is the source-freeze and per-file provenance authority.
 - `MIGRATION_MATRIX.md` is the adoption/disposition authority.
-- `ROADMAP.md` is the repository-stage policy; this spec constrains its honesty.
+- `ROADMAP.md` is the repository-stage policy; this spec constrains its honesty. v0.3 is the first slice of the generator-port MCP door.
 - `docs/upstream/dev-pomogator/spec-generator-v4/` is immutable reference material only.
 - Executed, current gate artifacts are required before a status can move beyond planned/spec-only. Document presence or a structurally valid scenario never proves delivery.

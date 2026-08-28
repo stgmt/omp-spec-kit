@@ -110,9 +110,17 @@ These are specification criteria. Their matching Gherkin scenarios are unexecute
 
 ### AC-8.2 — Canonical boundary links
 
-**WHEN** product-scope documents refer to distribution, kernel, or authoring behavior **THEN** they SHALL use canonical cross-spec IDs and SHALL NOT duplicate the owning specification's internal contract.
+**WHEN** product-scope documents refer to distribution, kernel, LSP, evidence, or authoring behavior **THEN** they SHALL use canonical cross-spec IDs and SHALL NOT duplicate the owning specification's internal contract.
 
 **Scenario:** `@feature8`, `@id:SCEN-canonical-owner-delegation` — “Product spec delegates internals to canonical owners”.
+
+## FR-9 — Generator-port MCP destination
+
+### AC-9.1 — Census-owned MCP-only first slice
+
+**WHEN** the product destination is evaluated **THEN** the closed 46-name census SHALL exist with every row owned, the agent-facing inventory SHALL be MCP-only with no host `lsp` spec tool, and documents that mention the eight-tool registry SHALL call it the first slice or v0.3 candidate.
+
+**Scenario:** `@feature9`, `@id:SCEN-generator-port-destination` — “Generator-port destination is MCP with a 46-row census”.
 
 ## Trace summary
 
@@ -126,3 +134,4 @@ These are specification criteria. Their matching Gherkin scenarios are unexecute
 | `product:FR-6` | `product:AC-6.1`, `product:AC-6.2` | `@feature6` | `SCEN-incomplete-aggregate-remains-planned`, `SCEN-owning-aggregate-cannot-be-bypassed` | 2 |
 | `product:FR-7` | `product:AC-7.1`, `product:AC-7.2` | `@feature7` | `SCEN-status-fails-closed`, `SCEN-unexecuted-bdd-not-evidence` | 2 |
 | `product:FR-8` | `product:AC-8.1`, `product:AC-8.2` | `@feature8` | `SCEN-roadmap-separates-states`, `SCEN-canonical-owner-delegation` | 2 |
+| `product:FR-9` | `product:AC-9.1` | `@feature9` | `SCEN-generator-port-destination` | 1 |

@@ -61,9 +61,9 @@ Registering `@cucumber/language-server` alongside the custom spec server would c
 
 Marksman cannot serve typed spec nodes. `MIGRATION_MATRIX.md` FR-7 and FR-27 DROP. **Rejected.**
 
-### Alternative C: MCP-wraps-LSP (nested protocol)
+### Alternative C: Treat MCP consuming LSP as a nested agent API
 
-Wrapping LSP inside MCP would defeat `lsp.diagnosticsOnWrite`. **Rejected.**
+Editor diagnostics stay on `lsp.diagnosticsOnWrite`. MCP MAY consume LSP or the kernel internally for definition, references, and diagnostics. The agent never calls host `lsp`. That is not a nested agent API and does not defeat editor diagnostics. Forbidding MCP from consuming LSP would be the wrong cut. **The nested-agent-API reading is rejected; MCP consuming LSP internally is allowed.**
 
 ### Alternative D: LSP-only (no MCP adapter)
 
@@ -71,7 +71,8 @@ Domain queries (`spec_trace`, `spec_get_node`, …) have no LSP primitive. **Rej
 
 ### Alternative E: Cut MCP tools in this product to dodge a tool cliff
 
-This product's MCP registry is eight read tools. There is no 46-tool door to prune. Removing `spec_trace` or `spec_diagnostics` would lose domain queries that LSP does not replace. **Rejected.**
+There is a 46-name generator door to grow; the canonical census is [`docs/decisions/spec-generator-port.md`](../../docs/decisions/spec-generator-port.md). Eight SCHEMA-11 tools are the v0.3 first slice, not a ceiling. Do not cut MCP tools. LSP does not replace MCP. **Rejected.**
+
 
 
 ## Lifecycle and broker compatibility

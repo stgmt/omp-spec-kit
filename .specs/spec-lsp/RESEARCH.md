@@ -97,21 +97,27 @@ Plugin `fileTypes: [".md", ".feature"]` will deliver README and other project Ma
 
 ## RF-16: Why "8 tools" was the wrong ceiling
 
-`src/mcp/server.js` currently exposes eight SCHEMA-11 tools because `spec-kernel:FR-8` froze the first kernel slice. That is an **implemented first slice**, not the product destination. The destination is the `dev-pomogator` spec-generator MCP door ported to OMP (`tools/spec-mcp-server/tools.ts`, 46 names). Eight is what v0.3 started with so the kernel could ship. It was a mistake to treat eight as "nothing to port."
+`src/mcp/server.js` currently exposes eight SCHEMA-11 tools because `spec-kernel:FR-8` froze the first kernel slice. That is an **implemented first slice**, not the product destination. The destination is the `dev-pomogator` spec-generator MCP door ported to OMP.
 
-Upstream 46 names (research census, not an import of code):
+The canonical 46-name census (owners, stages, first-slice vs later, no silent DROP) is [`docs/decisions/spec-generator-port.md`](../../docs/decisions/spec-generator-port.md). Do not maintain a second mapping in this spec.
 
-**Already in the eight:** get_node, search≈findNodes, find_refs≈getEdges, get_trace≈trace, conformance_check≈diagnostics, get_spec_status≈overview (partial), list_specs≈inventory (partial).
+**v0.3 first slice (keep forever; these are not `list_specs` / full `get_spec_status`):**
 
-**Need kernel FR-16 (still MCP, still agent-visible):** find_by_tags, list_tasks, list_phase_tasks, policy_query_requirements, find_orphans, validate_anchor, get_archival_proof, validate_spec, get_spec_status views beyond overview, validate_requirement_metadata (read).
+| v0.3 MCP name | Closest upstream name | Note |
+|---|---|---|
+| `spec_inventory` | *(none of the 46)* | First-slice corpus inventory. `list_specs` is later FR-16, not this tool. |
+| `spec_get_node` | `get_node` | |
+| `spec_find_nodes` | `search` | |
+| `spec_get_edges` | `find_refs` | |
+| `spec_trace` | `get_trace` | |
+| `spec_diagnostics` | `conformance_check` | |
+| `spec_overview` | `get_spec_status` (partial) | Full status/coverage views are later FR-16 `get_spec_status` beside this tool. Do not delete `spec_overview`. |
+| `spec_markdown_inventory` | *(none of the 46)* | Kernel-only first slice. |
 
-**Need spec-evidence then MCP:** get_test_result, get_scenario_trace.
+Later growth (still MCP, still agent-visible) is owned by kernel FR-16, kernel FR-17, `spec-evidence`, and `spec-authoring-workflow` as tabulated in that decision. `create_spec` / `archive_spec` / backlog helpers are later-authoring-v2, not DROP.
 
-**Adapter I/O, not pure kernel:** list_spec_docs, read_spec_doc, read_attachment, mcp_preflight.
+**Decision:** Do not delete MCP tools. Grow MCP as kernel FR-16/FR-17, evidence, and authoring land. LSP never replaces MCP for the agent. [VERIFIED] against `docs/decisions/spec-generator-port.md`.
 
-**Authoring later (`spec-authoring-workflow`):** apply_*, propose_* that write, create_spec, archive_spec, set_entity_status, section edits, repairs.
-
-**Decision:** Do not delete MCP tools. Grow MCP as kernel FR-16 and authoring land. LSP never replaces MCP for the agent. [VERIFIED] against `tools.ts` names and `src/mcp/server.js`.
 
 ## RF-17: MCP consumes LSP; the agent does not
 

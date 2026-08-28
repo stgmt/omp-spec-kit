@@ -106,3 +106,13 @@ Feature: Evidence and honesty evaluation layer
     Then the conjunction fails closed with deterministic blockers naming the deficient check
     And structural specification text and unexecuted Gherkin do not satisfy evidence
     And eligibility does not loosen the product FR-6 cumulative gate
+
+  @feature14 @AC-14.1 @id:SCEN-spec-evidence-mcp-projection-of-run-results
+  Scenario: MCP projects get_test_result and get_scenario_trace from evaluator output
+    Given the evidence evaluator produces output from a kernel graph and immutable artifact bytes
+    And the evaluator itself makes no MCP calls
+    When this evidence layer exists
+    Then MCP exposes read-only get_test_result and get_scenario_trace as projections of that output
+    And those tools are not a v0.2 or v0.3 kernel required check and are absent from the v0.3 first-slice read registry
+    And spec-kernel FR-6 remains forbidden from pass or fail claims
+    And spec-lsp hover does not invent run results provenance or freshness before this projection exists

@@ -2,6 +2,10 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## Unreleased
+
+Specification note, not a release: product and public docs now treat the eight SCHEMA-11 MCP tools as the v0.3 first slice of the generator-port door, not the destination registry. Shipped 0.3.x eight-tool evidence is unchanged.
+
 ## 0.3.2 — 2026-08-28
 
 Honesty follow-up on the public v0.3.1 release. Upgrade from v0.3.0 and rollback to v0.3.0 remain required.

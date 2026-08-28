@@ -151,7 +151,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Requirements:** [FR-9](FR.md#fr-9-read-only-mcp-projection-in-v03), [FR-10](FR.md#fr-10-self-contained-runtime-distribution), [FR-12](FR.md#fr-12-performance-size-and-result-budgets), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory), [FR-14](FR.md#fr-14-conjunctive-kernel-release-eligibility)
 
 **Done When:**
-- One bundled MCP server in the same child plugin exposes exactly the eight named read tools.
+- One bundled MCP server in the same child plugin exposes exactly the eight named read tools as v0.3 first-slice evidence.
 - For a common graph/request, each structured canonical envelope equals the direct service result after transport metadata is removed.
 - Registry inspection proves no mutation-like tool; a dependency-absent installed smoke proves both extension and MCP server execute the shared kernel from the exact v0.3 artifact; every v0.3 MCP-inclusive size/performance budget remains satisfied.
 - Hash-bound v0.3 records for FR-9, stage-bound `CHK-FR10-01` with `packageSurface=OMP_EXTENSION_AND_MCP`, and the MCP-inclusive FR-12 budget gate are available for `kernel-v0.3`; extension-only, v0.2, wrong-profile, or foreign-artifact records are rejected.
@@ -211,7 +211,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 - cucumber-js patterns under `tests/step-definitions/**/*.js|mjs` become `STEP_BINDING` nodes with canonical IDs `step-bindings:STEP:<hex>`.
 - Every Gherkin step has exactly one of `BINDS_STEP` / `STEP_UNDEFINED` / `STEP_AMBIGUOUS`; warnings do not flip `graph.valid`.
 - Symlink and paths outside the allowlist are refused before read.
-- `findNodes` / `getEdges` / `diagnostics` expose the index; MCP remains eight tools.
+- `findNodes` / `getEdges` / `diagnostics` expose the index; this FR adds no MCP tool.
 - `CHK-FR15-01` is recorded as profile `kernel-step-bindings` and is **not** inserted into `kernel-v0.2` or `kernel-v0.3` required-check sets.
 - This check is the unblocker for `spec-lsp` TASK-12 / FR-7 stage-2 mapping.
 
@@ -235,6 +235,24 @@ All tasks are future implementation work. Status `Planned` means not started and
 - The original eight tools remain.
 - `CHK-FR16-01` is recorded as profile `kernel-generator-port-reads`, not inserted into `kernel-v0.2`/`kernel-v0.3`.
 
+## TASK-14: MCP adapter document and preflight I/O
+
+**Status:** Planned
+
+**Estimate:** 3 days
+
+**Owner:** MCP adapter maintainer
+
+**Depends On:** TASK-6, TASK-9
+
+**Requirements:** [FR-17](FR.md#fr-17-mcp-adapter-document-and-preflight-io-not-a-v02v03-release-member), [FR-7](FR.md#fr-7-bounded-repository-containment), [FR-9](FR.md#fr-9-read-only-mcp-projection-in-v03)
+
+**Done When:**
+- `list_spec_docs`, `read_spec_doc`, `read_attachment`, and `mcp_preflight` exist as read-only MCP adapter I/O.
+- Containment matches FR-7; they are not query-service operations.
+- MCP projects them; no second graph is created.
+- `CHK-FR17-01` is recorded as profile `kernel-adapter-io`, not inserted into `kernel-v0.2`/`kernel-v0.3`.
+
 ## Task summary
 
 | Task | Status | Estimate | Owner | Primary output |
@@ -252,3 +270,4 @@ All tasks are future implementation work. Status `Planned` means not started and
 | TASK-11 | Planned | 2 days | Release maintainer | Conjunctive kernel eligibility result |
 | TASK-12 | Planned | 4 days | Kernel maintainer | CHK-FR15-01 step-binding index; unblocks spec-lsp TASK-12 |
 | TASK-13 | Planned | 5 days | Kernel + MCP maintainer | CHK-FR16-01 generator-port reads on MCP |
+| TASK-14 | Planned | 3 days | MCP adapter maintainer | CHK-FR17-01 adapter document/preflight I/O on MCP |

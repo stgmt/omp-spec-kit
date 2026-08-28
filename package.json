@@ -9,6 +9,7 @@
   "scripts": {
     "build": "node scripts/build-plugin.mjs",
     "verify": "node scripts/verify-marketplace.mjs && node scripts/verify-package.mjs",
+    "check:spec-port": "node scripts/check-spec-generator-port-freeze.mjs",
     "bdd:container": "node scripts/run-bdd-container.mjs",
     "test:bdd": "bash scripts/docker-bdd.sh",
     "test:bdd:omp-discovery": "bash scripts/docker-bdd.sh --tags '@id:SCEN-MRI-012 or @id:SCEN-MRI-013'",
