@@ -64,19 +64,20 @@ LSP diagnostics for `.specs/**` Markdown documents SHALL be a 1:1 mapping of ker
 
 **Sources:** `spec-kernel:FR-8` (query service); `spec-kernel_SCHEMA.md` SCHEMA-4 `SCENARIO` attributes; RESEARCH RF-13.
 
-## FR-7: This stage forbids a step-binding layer
+## FR-7: Step diagnostics only after kernel step-bindings exist
 
-This stage SHALL NOT emit defined/undefined/ambiguous step diagnostics, SHALL NOT parse step-definition sources, and SHALL NOT bundle `@cucumber/gherkin` or `@cucumber/cucumber-expressions` for production matching. The production plugin configuration SHALL NOT register `@cucumber/language-server`.
+**Phase A (this stage, until `spec-kernel:CHK-FR15-01` is PASS):** the adapter SHALL NOT emit defined/undefined/ambiguous step diagnostics, SHALL NOT parse step-definition sources, and SHALL NOT bundle `@cucumber/gherkin` or `@cucumber/cucumber-expressions` for production matching. The production plugin configuration SHALL NOT register `@cucumber/language-server`. CHK-FR7-01 SHALL prove that absence.
 
-Reason: `spec-kernel` `NodeKind` is a closed union with no `StepBinding`; `EdgeType` has no `step-binding`; the filesystem adapter (`spec-kernel:FR-7`) inspects only `.specs/<slug>/` canonical documents, not `tests/step-definitions/**`. A step layer here would be a second index — the failure mode this specification rejects.
+**Phase B (after `spec-kernel:CHK-FR15-01` is PASS):** the adapter SHALL publish kernel `STEP_UNDEFINED` and `STEP_AMBIGUOUS` diagnostics one-to-one for in-scope `.feature` files (same mapping as FR-3). It SHALL NOT re-parse step-definition files or re-match patterns. Navigation from a step line to its `STEP_BINDING` SHALL use kernel `getEdges` `BINDS_STEP`. Production SHALL still not register `@cucumber/language-server`.
 
-A future step layer requires a **separately accepted** kernel change (new node kind and a contained reader for step-definition sources) before this spec may add it. Until that kernel change exists, CHK-FR7-01 SHALL prove absence: no step diagnostics, no cucumber language-server in production config, no step-definition scan outside `.specs/`.
+Implement kernel first (`spec-kernel` TASK-12), then this adapter's TASK-12. There is no adapter-side step index.
 
 **Acceptance:** [AC-7.1](ACCEPTANCE_CRITERIA.md#ac-71-fr-7-this-stage-ships-no-step-binding-diagnostics)
 
 **Scenario:** `@feature7` / `SCEN-spec-lsp-step-layer-centralized`
 
-**Sources:** `spec-kernel_SCHEMA.md` SCHEMA-4/SCHEMA-5; `spec-kernel:FR-7`; RESEARCH RF-10.
+**Sources:** [spec-kernel FR-15](../spec-kernel/FR.md#fr-15-contained-step-binding-index-not-a-v02v03-release-member); RESEARCH RF-10.
+
 
 ## FR-8: Adapter-to-service parity check
 

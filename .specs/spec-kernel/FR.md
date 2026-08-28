@@ -155,3 +155,29 @@ Graph validity, a structural specification pass, generated scaffold, historical 
 **Scenario:** `@feature14` / `SCEN-kernel-release-gate-is-all-not-any`
 
 **Sources:** [Public-init decision record](../../docs/decisions/omp-spec-kit-public-init.md), release and stage gates.
+
+## FR-15: Contained step-binding index (not a v0.2/v0.3 release member)
+
+The kernel SHALL accept an optional additional input set `StepDefinitionDocument[]` besides canonical spec `SourceDocument[]`. Each step-definition document SHALL have a repository-relative path under the closed prefix `tests/step-definitions/` and extension `.js` or `.mjs`. The filesystem adapter SHALL apply the same symlink, junction, reparse, traversal, and non-regular-file refusal as [FR-7](FR.md#fr-7-bounded-repository-containment). It SHALL NOT read arbitrary project source, `node_modules`, or paths outside that prefix.
+
+The pure kernel SHALL parse cucumber-js `Given`/`When`/`Then`/`And`/`But` string and `RegExp` patterns into `STEP_BINDING` nodes. Canonical ID is `step-bindings:STEP:` plus the SHA-256 hex of canonical JSON `{path,startOffset,pattern}` (`step-bindings` is a reserved slug, not a `.specs/` directory). Attributes SHALL be exactly `{ runner: "cucumber-js", patternKind: "cucumber-expression" | "regex", pattern: string, language: "js" }`. Matching libraries SHALL be fully bundled per [FR-10](FR.md#fr-10-self-contained-runtime-distribution).
+
+For every step text on every `SCENARIO` node the kernel SHALL count matching bindings and emit exactly one outcome:
+
+- one match → one `BINDS_STEP` edge from that `SCENARIO` to the `STEP_BINDING` (span = the step line);
+- zero matches → WARNING diagnostic `STEP_UNDEFINED` (SHALL NOT set `graph.valid=false`);
+- two or more matches → WARNING diagnostic `STEP_AMBIGUOUS` listing candidate canonical IDs, and no `BINDS_STEP` edge.
+
+Callers SHALL query this index through existing operations `findNodes` (`kinds` includes `STEP_BINDING`), `getEdges` (`types` includes `BINDS_STEP`), and `diagnostics` (`codes` includes `STEP_UNDEFINED`/`STEP_AMBIGUOUS`). The MCP registry SHALL remain the eight read tools; this FR SHALL NOT add a ninth MCP tool.
+
+pytest-bdd and other runners are out of scope for this increment; they MAY later reuse the same node kind with another `patternKind` without a second index.
+
+This FR is **not** a member of `kernel-v0.2` or `kernel-v0.3` required-check sets. A v0.2/v0.3 candidate SHALL remain eligible without FR-15 evidence. `CHK-FR15-01` is evaluated as its own profile `kernel-step-bindings`. [spec-lsp FR-7](../spec-lsp/FR.md#fr-7-step-diagnostics-only-after-kernel-step-bindings-exist) SHALL keep step diagnostics forbidden until that check is `PASS`; afterwards the LSP adapter SHALL map kernel `STEP_*` diagnostics one-to-one and SHALL NOT re-match patterns itself.
+
+
+**Acceptance:** [AC-15.1](ACCEPTANCE_CRITERIA.md#ac-151-step-bindings-are-contained-and-conserved)
+
+**Scenario:** `@feature15` / `SCEN-contained-step-binding-index`
+
+**Sources:** `spec-lsp` adversarial review 2026-08-28; GitHub issue #7 step-layer centralization; this product's `tests/step-definitions/**/*.mjs` as the closed producer.
+

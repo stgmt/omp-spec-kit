@@ -108,16 +108,15 @@ Measure didSave rebuild p95, cold-start, and navigation latency. Record 150 ms a
 
 Verify external root/symlink/traversal refusal. Verify `.md` outside `.specs/**` is an empty no-op. Verify absent-graph explanatory diagnostics. Produce CHK-FR10-01 evidence.
 
-**Depends on:** TASK-1.
-
-**Refs:** [FR-10](FR.md#fr-10-scope-containment-out-of-scope-no-op-and-honest-absence)
-
-## TASK-12: Step-binding layer after a kernel change
+## TASK-12: Map kernel step diagnostics after CHK-FR15-01
 
 **Status:** Blocked
 
-Blocked on a separately accepted `spec-kernel` change that adds a `StepBinding` node kind and a contained reader for step-definition sources. Do not implement a second step index in this adapter.
+Blocked on [spec-kernel TASK-12](../spec-kernel/TASKS.md#task-12-contained-step-binding-index) / [FR-15](../spec-kernel/FR.md#fr-15-contained-step-binding-index-not-a-v02v03-release-member) / `CHK-FR15-01` PASS.
 
-**Depends on:** Future `spec-kernel` FR (does not exist).
+When unblocked: publish kernel `STEP_UNDEFINED`/`STEP_AMBIGUOUS` one-to-one; `definition` on a bound step follows `BINDS_STEP`; do not parse `tests/step-definitions` in this adapter; do not register `@cucumber/language-server`.
 
-**Refs:** [FR-7](FR.md#fr-7-this-stage-forbids-a-step-binding-layer)
+**Depends on:** `spec-kernel:CHK-FR15-01` PASS, this spec TASK-2 (diagnostic mapping).
+
+**Refs:** [FR-7](FR.md#fr-7-step-diagnostics-only-after-kernel-step-bindings-exist)
+

@@ -194,6 +194,27 @@ All tasks are future implementation work. Status `Planned` means not started and
 - One-fault-at-a-time variants for unknown/mismatched stage/profile/package surface, wrong release line, missing lineage, missing, extra, duplicate, failed, stale, mismatched, waived, partial, unverifiable, empty, bad-hash, and cross-stage evidence each return deterministic blockers and `eligible=false`.
 - The result creates no readiness evidence, publication side effect, publication-validation override, or future-import license-gate override.
 
+
+## TASK-12: Contained step-binding index
+
+**Status:** Planned
+
+**Estimate:** 4 days
+
+**Owner:** Kernel maintainer
+
+**Depends On:** TASK-3 (Gherkin scenario steps exist), TASK-5 (query service)
+
+**Requirements:** [FR-15](FR.md#fr-15-contained-step-binding-index-not-a-v02v03-release-member)
+
+**Done When:**
+- cucumber-js patterns under `tests/step-definitions/**/*.js|mjs` become `STEP_BINDING` nodes with canonical IDs `step-bindings:STEP:<hex>`.
+- Every Gherkin step has exactly one of `BINDS_STEP` / `STEP_UNDEFINED` / `STEP_AMBIGUOUS`; warnings do not flip `graph.valid`.
+- Symlink and paths outside the allowlist are refused before read.
+- `findNodes` / `getEdges` / `diagnostics` expose the index; MCP remains eight tools.
+- `CHK-FR15-01` is recorded as profile `kernel-step-bindings` and is **not** inserted into `kernel-v0.2` or `kernel-v0.3` required-check sets.
+- This check is the unblocker for `spec-lsp` TASK-12 / FR-7 stage-2 mapping.
+
 ## Task summary
 
 | Task | Status | Estimate | Owner | Primary output |
@@ -209,3 +230,4 @@ All tasks are future implementation work. Status `Planned` means not started and
 | TASK-9 | Planned | 3 days | MCP adapter maintainer | v0.3 projection |
 | TASK-10 | Planned | 2 days | Independent reviewer | Adversarial review evidence |
 | TASK-11 | Planned | 2 days | Release maintainer | Conjunctive kernel eligibility result |
+| TASK-12 | Planned | 4 days | Kernel maintainer | CHK-FR15-01 step-binding index; unblocks spec-lsp TASK-12 |

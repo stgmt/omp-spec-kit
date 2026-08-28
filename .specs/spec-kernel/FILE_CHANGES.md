@@ -40,6 +40,21 @@ Every path below is a concrete future path and every action is **planned**, not 
 | `plugins/omp-spec-kit/src/kernel/graph/invariants.ts` | Cardinality, uniqueness, endpoint, heading/link, and conservation checks |
 | `plugins/omp-spec-kit/src/kernel/diagnostics.ts` | Closed diagnostic construction, redaction, ordering |
 
+## FC-8: Contained step-binding parser and matcher
+
+**Action:** create (planned)
+
+**Requirements:** [FR-15](FR.md#fr-15-contained-step-binding-index-not-a-v02v03-release-member)
+
+| Planned path | Responsibility |
+|---|---|
+| `src/kernel/parsers/step-definition.js` | Parse cucumber-js Given/When/Then/And/But patterns from allowlisted files |
+| `src/kernel/graph/bind-steps.js` | Count matches; emit BINDS_STEP or STEP_UNDEFINED / STEP_AMBIGUOUS |
+| `src/adapters/fs.js` | Optional second contained root `tests/step-definitions/` with FR-7 refusal rules |
+
+House convention: repository-root `src/`, copied by `scripts/build-plugin.mjs`. Not `plugins/omp-spec-kit/src/`.
+
+
 ## FC-4: Query service
 
 **Action:** create (planned)

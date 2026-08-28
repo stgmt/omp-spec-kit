@@ -93,3 +93,20 @@ Plugin `fileTypes: [".md", ".feature"]` will deliver README and other project Ma
 
 **Decision:** Out-of-scope `.md` is an empty no-op: no diagnostics, no fake outline.
 
+
+## RF-16: Deleting MCP tools vs routing the agent
+
+This product's MCP registry is eight query tools (`spec-kernel:FR-9`, `src/mcp/server.js`). Issue #7's 46 tools are upstream `dev-pomogator`. Neither set can be **deleted** without losing an ID-based or corpus-wide API that LSP does not provide.
+
+Options that do **not** regress:
+
+| Surface | Delete MCP tool? | What to do instead |
+|---|---|---|
+| Cursor navigation (definition, references, outline, completion) | No. `spec_get_node` / `spec_find_nodes` / `spec_get_edges` are ID queries without a buffer position. | After LSP works, the agent MUST use `lsp` for cursor work (OMP prompt already says so). Keep MCP for "look up `spec-kernel:FR-9` by id". |
+| Post-write diagnostics | No. `spec_diagnostics` is whole-corpus without opening files. | Host `lsp.diagnosticsOnWrite` covers the edit loop. Keep MCP for "diagnose the corpus now". |
+| Domain (`spec_trace`, `spec_overview`, `spec_inventory`, `spec_markdown_inventory`) | No. No LSP primitive. | Keep. |
+| Upstream mutations (~22 tools in the 46-tool door) | No. `workspace/applyEdit` would skip the authoring door. | Not in this product. |
+| Upstream extras that duplicate LSP (`find_refs`, symbol `search`) | Not in this product. If they existed here, hide from the default agent prompt after LSP proof; do not delete until an ID API remains. | N/A here. |
+
+**Decision:** There is a path without regression: **route**, don't **delete**. This spec does not shrink the eight MCP tools. [VERIFIED] against `src/mcp/server.js` and `spec-kernel:FR-9`.
+

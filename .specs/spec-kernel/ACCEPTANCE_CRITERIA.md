@@ -113,3 +113,12 @@ These criteria define future verification obligations. The linked Gherkin scenar
 **Requirement:** [FR-14](FR.md#fr-14-conjunctive-kernel-release-eligibility)
 
 **Scenario:** `@feature14`, `@id:SCEN-kernel-release-gate-is-all-not-any`
+
+## AC-15.1: Step bindings are contained and conserved
+
+**EARS:** WHEN the adapter is given canonical spec documents plus step-definition files under `tests/step-definitions/` with `.js`/`.mjs` extensions **THEN** the kernel SHALL emit one `STEP_BINDING` node per parsed cucumber-js pattern, refuse symlink/escape/non-allowlisted paths before read, and for every Gherkin step emit exactly one of `BINDS_STEP` / `STEP_UNDEFINED` / `STEP_AMBIGUOUS`; **AND** `STEP_UNDEFINED` and `STEP_AMBIGUOUS` SHALL be WARNING and SHALL NOT flip `graph.valid`; **AND** a v0.2 or v0.3 eligibility manifest SHALL remain evaluable without this check.
+
+**Requirement:** [FR-15](FR.md#fr-15-contained-step-binding-index-not-a-v02v03-release-member)
+
+**Scenario:** `@feature15`, `@id:SCEN-contained-step-binding-index`
+
