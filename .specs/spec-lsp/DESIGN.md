@@ -39,58 +39,48 @@ The LSP adapter is a single process communicating over stdio JSON-RPC using the 
 
 ### Hover
 
-- On spec definition nodes: query `getNode`, render body + status fields as markdown.
-- On scenario tags: query the scenario node, render result/provenance/freshness fields.
+- On spec definition nodes: query `getNode`, render title, kind, body, and status attributes as markdown.
+- On scenario tags: query the scenario node, render kernel `SCENARIO` attributes only (no run result, provenance, or freshness).
 - Truncate to NFR-USE-1 bounds with explicit truncation marker.
 
-## Step layer design
+## Step layer — not in this stage
 
-### Architecture
+Issue #7 proposed bundling `@cucumber/gherkin` and matching against kernel `StepBinding` nodes. The kernel has neither that node kind nor a reader for `tests/step-definitions/**`. This stage therefore emits **no** step defined/undefined/ambiguous diagnostics and does not bundle those libraries.
 
-The step layer uses `@cucumber/gherkin` to parse `.feature` files and `@cucumber/cucumber-expressions` to match step text against step definitions. Step definitions come from the kernel graph's `StepBinding` nodes and `step-binding` edges — the same data the builder extracted during graph construction. This avoids maintaining a second index.
+A later kernel spec may add a contained step-binding model. Only then may this adapter add a step layer without becoming a second index. Until that happens, CHK-FR7-01 and CHK-FR12-01 are **absence** proofs.
 
-### Step verdict algorithm
-
-For each step line in a parsed `.feature` file:
-1. Extract the step text and keyword.
-2. Query the kernel graph for `StepBinding` nodes matching the step's language and runner scope.
-3. Use `@cucumber/cucumber-expressions` to test each candidate expression against the step text.
-4. Zero matches → undefined diagnostic. One match → defined (no diagnostic). Two or more matches → ambiguous diagnostic with candidate list.
-5. For pytest-bdd files, the same graph edges serve verdicts; the algorithm does not depend on runner-specific glue-code discovery.
-
-### Oracle parity harness
-
-In the test infrastructure only:
-1. Start `@cucumber/language-server` as a separate process on the same fixture set.
-2. Send identical step-diagnostic requests to both servers.
-3. Compare verdicts (defined/undefined/ambiguous) per step line.
-4. Record pass/fail per fixture as CHK-FR12-01 evidence.
-
-The oracle process is never registered in production configuration.
+The official `@cucumber/language-server` remains forbidden in production configuration.
 
 ## Rejected alternatives
 
 ### Alternative A: Second external LSP server (dual-index divergence)
 
-Registering `@cucumber/language-server` alongside the custom spec server would create two indexes over the same `.feature` files. This repeats the upstream dual-anchor-registry lesson (graph aliases ≠ heading slugs) in a new domain. Configuration conflicts between the official server's glue-code discovery and the kernel builder's extraction would produce contradictory diagnostics. **Rejected.**
+Registering `@cucumber/language-server` alongside the custom spec server would create two indexes over the same `.feature` files. **Rejected.** This stage also rejects a homegrown second index inside the adapter.
 
 ### Alternative B: Marksman adoption (binary supply chain dropped)
 
-Marksman is an F# binary that understands only heading-slug wiki-links. It cannot serve typed spec nodes, composite IDs, or typed edges. Its binary supply chain was explicitly dropped in `MIGRATION_MATRIX.md` FR-7 and FR-27. Adopting it would reverse a settled migration decision and introduce a foreign-stack maintenance burden. **Rejected.**
+Marksman cannot serve typed spec nodes. `MIGRATION_MATRIX.md` FR-7 and FR-27 DROP. **Rejected.**
 
 ### Alternative C: MCP-wraps-LSP (nested protocol)
 
-Wrapping LSP operations inside MCP tool calls would add protocol overhead, defeat OMP's native `lsp.diagnosticsOnWrite` automatic diagnostic delivery, and prevent the agent from using its built-in `lsp` tool for spec navigation. The upstream DESIGN.md recorded "MCP and LSP as separate layers, not nested." **Rejected.**
+Wrapping LSP inside MCP would defeat `lsp.diagnosticsOnWrite`. **Rejected.**
 
 ### Alternative D: LSP-only (no MCP adapter)
 
-Eliminating the MCP adapter in favor of LSP-only access would lose domain-specific query operations (`get_trace`, `get_spec_status`, etc.) that have no LSP primitive equivalent. The MCP adapter serves the agent's domain-query surface; the LSP adapter serves navigation and diagnostics. Both are needed. **Rejected.**
+Domain queries (`spec_trace`, `spec_get_node`, …) have no LSP primitive. **Rejected.**
+
+### Alternative E: Cut MCP tools in this product to dodge a tool cliff
+
+This product's MCP registry is eight read tools. There is no 46-tool door to prune. Removing `spec_trace` or `spec_diagnostics` would lose domain queries that LSP does not replace. **Rejected.**
+
 
 ## Lifecycle and broker compatibility
 
 The server is compatible with OMP `lsp.lazy` (start on first use) and `lsp.shared` (broker-managed per-project sharing). It holds no exclusive locks. Concurrent clients receive answers from the same immutable kernel graph snapshot. Future mutation locks belong to the kernel, not this adapter.
 
 ## Distribution shape
+
+Runtime sources live at repository-root `src/lsp/*.js` and are copied into `plugins/omp-spec-kit/dist/` by `scripts/build-plugin.mjs`. They SHALL NOT live under `plugins/omp-spec-kit/src/`.
 
 Registered through the plugin manifest's `lspServers` field:
 
@@ -107,4 +97,4 @@ Registered through the plugin manifest's `lspServers` field:
 }
 ```
 
-This produces `.lsp.json` at install time per OMP marketplace conventions. All JS dependencies are bundled into `dist/lsp-server.js`. No binary, no post-install step, no native addon.
+Documents matching `.md` but outside `.specs/**` receive empty navigation/hover/completion/symbol results and no diagnostics. All JS dependencies for this stage (`vscode-languageserver` only) are bundled into `dist/lsp-server.js`. No cucumber libraries, no binary, no post-install step, no native addon.

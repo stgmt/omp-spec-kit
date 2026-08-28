@@ -1,24 +1,26 @@
 @spec-lsp @read-only
 Feature: Custom LSP adapter as second read-only projection of the kernel query service
   The LSP adapter serves navigation diagnostics hover completion and document symbols
-  for .specs/** Markdown and .feature Gherkin files from the same kernel query service
-  used by the extension and MCP adapter. Step layer is centralized with bundled libraries.
+  for .specs/** Markdown from the same kernel query service used by the extension
+  and MCP adapter. It does not remove the eight MCP query tools. This stage has
+  no step-binding layer because the kernel has no StepBinding nodes.
   These scenarios specify required behavior and have no executed status here.
 
   @feature1 @AC-1.1 @id:SCEN-spec-lsp-read-projection-only
-  Scenario: LSP adapter is a semantic-free read projection of the kernel
+  Scenario: LSP adapter is a semantic-free read projection and does not shrink MCP
     Given the spec-kernel query service is available with a built graph
     When any navigation diagnostic hover completion or symbol request is served
     Then every answer derives exclusively from kernel query operations
     And no parsing resolution anchor link or verdict semantics are introduced by the adapter
     And the public capability set contains no mutation proposal apply repair archive status-transition or write operation
+    And the eight MCP query tools remain registered and served
 
   @feature2 @AC-2.1 @id:SCEN-spec-lsp-read-only-code-actions
-  Scenario: Code actions propose repairs without mutation
-    Given a spec document has a conformance finding with a mechanical fix
-    When textDocument/codeAction is invoked on the finding range
-    Then the returned code action contains a descriptive title and optional edit preview
-    And no actionable WorkspaceEdit payload is returned
+  Scenario: This stage advertises no codeAction capability
+    Given the LSP server has completed initialize
+    Then ServerCapabilities do not include codeAction
+    When textDocument/codeAction is invoked on any range
+    Then the result is an empty list
     And workspace/applyEdit is not invoked
     And no proposal is persisted and no status is transitioned
 
@@ -49,26 +51,25 @@ Feature: Custom LSP adapter as second read-only projection of the kernel query s
     Then the symbol tree reflects the kernel parsed node inventory with correct ranges and nesting
 
   @feature6 @AC-6.1 @id:SCEN-spec-lsp-hover-node-and-scenario
-  Scenario: Hover returns kernel node body and scenario provenance
+  Scenario: Hover returns only kernel-stored fields
     Given a spec definition node exists in the kernel graph with body and status fields
     When textDocument/hover is invoked on that definition
-    Then the hover content includes the node body and status fields
-    Given a scenario tag exists in a .feature file with result and provenance in the graph
+    Then the hover content includes the node title kind body and status fields when present
+    Given a scenario tag exists in a .feature file
     When textDocument/hover is invoked on that scenario tag
-    Then the hover content includes result provenance and freshness fields
+    Then the hover content includes kernel SCENARIO attributes only
+    And the hover content does not include run result provenance or freshness
     Given a position with no corresponding kernel graph data
     When textDocument/hover is invoked on that position
     Then empty hover content is returned rather than fabricated information
 
   @feature7 @AC-7.1 @id:SCEN-spec-lsp-step-layer-centralized
-  Scenario: Step layer uses bundled libraries and graph edges not external server
+  Scenario: This stage emits no step-binding diagnostics
     Given a .feature file contains one defined one undefined and one ambiguous step
-    And the kernel graph contains step-binding edges for the defined and ambiguous steps
     When diagnostics are published for the .feature file
-    Then the undefined step produces a diagnostic
-    And the ambiguous step produces a diagnostic with candidate list
-    And the defined step produces no diagnostic
+    Then no defined undefined or ambiguous step diagnostic is emitted
     And the production plugin configuration does not register @cucumber/language-server
+    And the adapter does not scan tests/step-definitions or paths outside .specs for step bindings
 
   @feature8 @AC-8.1 @id:SCEN-spec-lsp-adapter-to-service-parity
   Scenario: Adapter-to-service parity check passes on fingerprint-bound fixtures
@@ -78,18 +79,22 @@ Feature: Custom LSP adapter as second read-only projection of the kernel query s
     And any divergence fails closed with deterministic blockers
 
   @feature9 @AC-9.1 @id:SCEN-spec-lsp-incremental-budget
-  Scenario: Incremental re-evaluation meets the 150ms p95 budget
-    Given the reference benchmark corpus is loaded and the graph is built
-    When a single spec document is modified and saved twenty times after warm-up
-    Then incremental re-evaluation completes in at most 150 ms p95
-    And full-corpus work occurs only at startup or explicit reload
-    And the server starts lazily per OMP lsp.lazy default
+  Scenario: didSave rebuilds through the kernel; 150 ms is not this stage's gate
+    Given the reference benchmark corpus is loaded
+    When the first in-scope document is used
+    Then the server starts lazily per OMP lsp.lazy default
+    When a single spec document is modified and saved
+    Then the adapter rebuilds through the kernel filesystem adapter and kernel build
+    And CHK-FR9-01 records measured didSave p95 without treating 150 ms as pass or fail
 
   @feature10 @AC-10.1 @id:SCEN-spec-lsp-scope-containment-and-honest-absence
-  Scenario: Scope containment refuses unsafe roots and honest absence explains missing graph
+  Scenario: Scope containment refuses unsafe roots and ignores Markdown outside specs
     Given a workspace root containing a symlink or traversal sequence
     When the server initializes with that root
     Then the root is refused before indexing occurs
+    Given a Markdown file outside .specs is opened
+    When navigation hover completion or diagnostics are requested
+    Then results are empty and no diagnostics are published for that file
     Given the kernel graph failed to build
     When a navigation or diagnostic request arrives
     Then diagnostics explain why the graph is unavailable
@@ -99,15 +104,14 @@ Feature: Custom LSP adapter as second read-only projection of the kernel query s
   Scenario: Installed server executes without ambient dependencies or third-party binaries
     Given the installed plugin artifact is deployed without source checkout or root node_modules
     When the LSP server starts
-    Then it executes using only bundled JS dependencies and Node/OMP builtins
-    And no third-party binary post-install download native addon or ambient dependency is required
+    Then it executes using only bundled vscode-languageserver and Node/OMP builtins
+    And no cucumber gherkin cucumber-expressions third-party binary post-install download native addon or ambient dependency is required
     And the Marksman binary supply chain DROP remains honored
 
   @feature12 @AC-12.1 @id:SCEN-spec-lsp-oracle-parity
-  Scenario: Oracle parity proves step verdict agreement on cucumber-runner fixtures
-    Given shared cucumber-runner fixtures with known step bindings
-    When the CHK-FR12-01 oracle harness compares custom server verdicts to @cucumber/language-server oracle verdicts
-    Then every step defined/undefined/ambiguous verdict matches
-    Given pytest-bdd fixtures with known step decorators
-    When the custom server produces step diagnostics
-    Then diagnostics are served without silence and with equivalent quality to cucumber-runner fixtures
+  Scenario: Release proves step-layer absence not oracle parity
+    Given the production plugin configuration and a .feature file with unbound steps
+    When CHK-FR12-01 inspects the adapter
+    Then @cucumber/language-server is absent from production lspServers
+    And no step defined undefined or ambiguous diagnostic is published
+    And oracle parity is not a required member of this stage's release conjunction

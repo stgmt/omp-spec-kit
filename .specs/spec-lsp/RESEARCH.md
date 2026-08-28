@@ -16,13 +16,12 @@ Candidates evaluated: Marksman (F#), zk (Go), markdown-oxide (Rust), Foam/Dendro
 
 **MIGRATION_MATRIX reference:** FR-7 DROP (Marksman plugin), FR-27 DROP (Marksman binary supply chain). These decisions stand and are not reversed by this specification.
 
-## RF-3: Step layer centralization avoids dual-index divergence
+## RF-3: Step layer centralization is blocked on the kernel
 
-The official `@cucumber/language-server` provides step-definition matching using `@cucumber/gherkin` (parser) and `@cucumber/cucumber-expressions` (matcher). Registering it as a second process alongside the custom spec server would create two indexes over the same `.feature` files with divergent answers — repeating the upstream dual-anchor-registry lesson in a new domain. Additional risks: configuration conflicts (the official server's glue-code discovery paths differ from the kernel builder's); multi-runner silence (the official server does not know pytest-bdd, producing either silence or incorrect "undefined" verdicts); and lifecycle duplication (two processes to race-test against real OMP).
+The official `@cucumber/language-server` would create a second index over `.feature` files. A homegrown matcher inside this adapter would do the same unless the kernel owns `StepBinding` nodes. See RF-10. [VERIFIED]
 
-**Decision:** Bundle `@cucumber/gherkin` and `@cucumber/cucumber-expressions` as JS libraries inside the custom server. Use the kernel's existing `StepBinding` nodes and `step-binding` edges for step decisions. Retain `@cucumber/language-server` only as a test-infrastructure oracle.
+**Decision (this stage):** Do not bundle cucumber libraries and do not emit step diagnostics. Keep `@cucumber/language-server` out of production. Revisit only after a kernel change.
 
-**Distribution note:** These are JS libraries, not binaries. No supply-chain concern analogous to the Marksman DROP applies. Standard bundle-with-dependency-check discipline per `spec-kernel:FR-10` posture suffices.
 
 ## RF-4: Read-only-first posture matches kernel release stages
 
@@ -51,3 +50,46 @@ OMP's `lsp.shared` broker manages one server per project across local sessions. 
 The OMP agent prompt (`packages/coding-agent/src/prompts/tools/lsp.md`) states: "Symbol-aware work (rename, references, definition, code actions) MUST use `lsp` whenever a server is available." This means the agent will naturally route spec navigation through this server once registered, without skill-level prompting.
 
 **Implication:** Registration quality directly affects agent behavior. Incorrect or missing capabilities cause the agent to fall back to text tools, losing precision.
+
+## RF-9: This product's MCP surface is eight tools, not forty-six
+
+The live `omp-spec-kit` MCP adapter maps eight SCHEMA-11 tools one-to-one onto kernel query operations (`src/mcp/server.js`). `spec-kernel:FR-9` forbids additional mutation tools. GitHub issue #7's count of 46 tools and the "~25 tool cliff" describe upstream `dev-pomogator` `tools/spec-mcp-server/tools.ts`, not this repository. [VERIFIED]
+
+**Decision:** LSP is a sibling projection. It SHALL NOT be specified or marketed as a cut of MCP tools in this product. There is nothing in the eight-tool registry whose removal is required for an agent to stay under a 25-tool cliff.
+
+## RF-10: Kernel cannot host a step-binding layer today
+
+`spec-kernel_SCHEMA.md` SCHEMA-4 `NodeKind` is a closed union with no `StepBinding`. SCHEMA-5 `EdgeType` has no `step-binding`. `spec-kernel:FR-7` inspects only `.specs/<valid-slug>/` canonical documents, so `tests/step-definitions/**` is out of reader scope. [VERIFIED]
+
+**Decision:** This stage forbids step diagnostics. A future step layer needs a separately accepted kernel change first. Implementing step matching inside the LSP adapter would create a second index — the dual-index failure already rejected for Marksman and for an external Cucumber language-server.
+
+## RF-11: Product gates and ROADMAP had no LSP stage
+
+`product:FR-6` ordered stages are public init, v0.1.0, v0.2 kernel, v0.3 MCP, then authoring. `ROADMAP.md` had the same list. Issue #7 asked for a sibling stage after a stable query service. [VERIFIED]
+
+**Decision:** ROADMAP gains an explicit "one LSP adapter" sibling stage after v0.2. It does not replace v0.3 MCP evidence and does not unlock authoring.
+
+## RF-12: 150 ms incremental rebuild has no kernel API
+
+The pure kernel (`spec-kernel:FR-1`) has no filesystem, clock, or watchers. v0.2 builds a full snapshot from caller-supplied documents. Issue #7's ≤150 ms p95 is upstream research, not a measured kernel check. [VERIFIED]
+
+**Decision:** This stage rebuilds through the existing kernel build on didSave and records measured p95. 150 ms is not a pass/fail member until `spec-kernel` accepts incremental rebuild evidence.
+
+## RF-13: Scenario hover cannot show run results
+
+Kernel `SCENARIO` attributes are `featureName`, `scenarioKeyword`, `tags`, `steps`, `examples`. Run result, provenance, and freshness belong to `spec-evidence`, which is not an input to this adapter. [VERIFIED]
+
+**Decision:** Hover returns only stored kernel fields.
+
+## RF-14: Advertising codeAction without apply is a dead agent path
+
+OMP's agent prompt requires symbol-aware work, including code actions, to use `lsp` when a server is available. Returning titles without `WorkspaceEdit` trains that path to do nothing. Authoring/mutation is a later product stage. [ASSUMED] pending TASK-1 live probe of the pinned agent prompt.
+
+**Decision:** This stage does not advertise `codeAction`. Empty list on `textDocument/codeAction`.
+
+## RF-15: Host fileTypes `.md` is wider than `.specs/**`
+
+Plugin `fileTypes: [".md", ".feature"]` will deliver README and other project Markdown to the server. Indexing them would violate `spec-kernel:FR-7` containment. [ASSUMED] pending TASK-1 probe of OMP fileType routing.
+
+**Decision:** Out-of-scope `.md` is an empty no-op: no diagnostics, no fake outline.
+

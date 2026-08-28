@@ -4,17 +4,17 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-1.1 (FR-1): LSP is a semantic-free read projection
 
-**Requirement:** [FR-1](FR.md#fr-1-one-server-semantic-free-read-projection)
+**Requirement:** [FR-1](FR.md#fr-1-one-server-semantic-free-read-projection-that-does-not-shrink-mcp)
 
-**EARS:** WHILE the LSP adapter is active **WHEN** any navigation, diagnostic, hover, completion, or symbol request is served **THEN** every answer SHALL derive exclusively from `spec-kernel` query operations without introducing parsing, resolution, anchor, link, or verdict semantics of its own; **AND** the public capability set SHALL contain no mutation, proposal, apply, repair, archive, status-transition, or write operation.
+**EARS:** WHILE the LSP adapter is active **WHEN** any navigation, diagnostic, hover, completion, or symbol request is served **THEN** every answer SHALL derive exclusively from `spec-kernel` query operations without introducing parsing, resolution, anchor, link, or verdict semantics of its own; **AND** the public capability set SHALL contain no mutation, proposal, apply, repair, archive, status-transition, or write operation; **AND** the eight MCP query tools SHALL remain registered and served.
 
 **Scenario:** `@feature1` / `SCEN-spec-lsp-read-projection-only`
 
-## AC-2.1 (FR-2): No mutation and code actions propose only
+## AC-2.1 (FR-2): No mutation and no codeAction capability in this stage
 
-**Requirement:** [FR-2](FR.md#fr-2-read-only-posture-with-proposal-only-code-actions)
+**Requirement:** [FR-2](FR.md#fr-2-read-only-posture-no-codeaction-capability-in-this-stage)
 
-**EARS:** WHILE the LSP adapter handles any request **WHEN** a code action is returned **THEN** it SHALL contain only a descriptive title and optional edit preview; **AND** the server SHALL NOT return an actionable `WorkspaceEdit` payload, invoke `workspace/applyEdit`, persist a proposal, or transition any status.
+**EARS:** WHILE this stage's server initializes **WHEN** `initialize` returns capabilities **THEN** `codeAction` SHALL be absent from `ServerCapabilities`; **AND WHEN** `textDocument/codeAction` is invoked **THEN** the result SHALL be an empty list; **AND** the server SHALL NOT return a `WorkspaceEdit`, invoke `workspace/applyEdit`, persist a proposal, or transition any status.
 
 **Scenario:** `@feature2` / `SCEN-spec-lsp-read-only-code-actions`
 
@@ -42,19 +42,19 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 **Scenario:** `@feature5` / `SCEN-spec-lsp-completion-and-document-symbol`
 
-## AC-6.1 (FR-6): Hover returns kernel node body and scenario provenance
+## AC-6.1 (FR-6): Hover returns only kernel-stored fields
 
-**Requirement:** [FR-6](FR.md#fr-6-hover-surfaces-node-body-and-scenario-provenance)
+**Requirement:** [FR-6](FR.md#fr-6-hover-surfaces-only-fields-the-kernel-actually-stores)
 
-**EARS:** WHILE hovering over a spec definition node **WHEN** `textDocument/hover` is invoked **THEN** the content SHALL include the node body and status fields from the kernel graph; **AND WHEN** hovering over a scenario `@id:SCEN-*` tag in a `.feature` file **THEN** the content SHALL include result, provenance, and freshness fields from the graph; **AND WHEN** the graph has no data for the position **THEN** hover SHALL return empty content rather than fabricated information.
+**EARS:** WHILE hovering over a spec definition node **WHEN** `textDocument/hover` is invoked **THEN** the content SHALL include only kernel-stored fields (title, kind, body, and status attributes when present); **AND WHEN** hovering over a scenario `@id:SCEN-*` tag **THEN** the content SHALL include kernel `SCENARIO` attributes only and SHALL NOT include run result, provenance, or freshness; **AND WHEN** the graph has no data for the position **THEN** hover SHALL return empty content rather than fabricated information.
 
 **Scenario:** `@feature6` / `SCEN-spec-lsp-hover-node-and-scenario`
 
-## AC-7.1 (FR-7): Step layer uses bundled libraries not external server
+## AC-7.1 (FR-7): This stage ships no step-binding diagnostics
 
-**Requirement:** [FR-7](FR.md#fr-7-step-layer-centralization-with-bundled-libraries)
+**Requirement:** [FR-7](FR.md#fr-7-this-stage-forbids-a-step-binding-layer)
 
-**EARS:** WHILE a `.feature` file is open **WHEN** step diagnostics are published **THEN** each step decision (defined, undefined, ambiguous) SHALL be derived from bundled `@cucumber/gherkin` and `@cucumber/cucumber-expressions` plus the kernel graph's step-binding edges; **AND** the production plugin configuration SHALL NOT register the external `@cucumber/language-server` process; **AND** pytest-bdd files SHALL receive step diagnostics without silence.
+**EARS:** WHILE a `.feature` file is open **WHEN** diagnostics are published **THEN** no defined/undefined/ambiguous step diagnostic SHALL be emitted; **AND** the production plugin configuration SHALL NOT register `@cucumber/language-server`; **AND** the adapter SHALL NOT scan `tests/step-definitions/**` or any path outside `.specs/` for step bindings.
 
 **Scenario:** `@feature7` / `SCEN-spec-lsp-step-layer-centralized`
 
@@ -66,19 +66,19 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 **Scenario:** `@feature8` / `SCEN-spec-lsp-adapter-to-service-parity`
 
-## AC-9.1 (FR-9): Incremental re-evaluation meets budget
+## AC-9.1 (FR-9): Lazy start and honest didSave rebuild; 150 ms is not a gate
 
-**Requirement:** [FR-9](FR.md#fr-9-incremental-re-evaluation-budget-and-lazy-start)
+**Requirement:** [FR-9](FR.md#fr-9-honest-rebuild-on-save-150-ms-incremental-is-not-this-stages-gate)
 
-**EARS:** WHILE a spec document is saved after modification **WHEN** incremental re-evaluation completes **THEN** the elapsed time SHALL be at most 150 ms p95 over 20 samples after warm-up on the reference benchmark corpus; **AND** full-corpus work SHALL occur only at startup or explicit reload; **AND** the server SHALL start lazily per OMP `lsp.lazy` default.
+**EARS:** WHILE the server is registered with OMP **WHEN** the first in-scope document is used **THEN** the server SHALL start lazily per `lsp.lazy`; **AND WHEN** an in-scope document is saved **THEN** the adapter SHALL rebuild through the kernel filesystem adapter and kernel build; **AND** CHK-FR9-01 SHALL record measured didSave p95 without treating 150 ms as pass/fail for this stage.
 
 **Scenario:** `@feature9` / `SCEN-spec-lsp-incremental-budget`
 
-## AC-10.1 (FR-10): Scope is contained and absence is honest
+## AC-10.1 (FR-10): Scope is contained, out-of-scope is a no-op, absence is honest
 
-**Requirement:** [FR-10](FR.md#fr-10-scope-containment-and-honest-absence)
+**Requirement:** [FR-10](FR.md#fr-10-scope-containment-out-of-scope-no-op-and-honest-absence)
 
-**EARS:** WHILE the server initializes **WHEN** a workspace root contains symlinks, junctions, reparse points, traversal sequences, or paths outside `.specs/**` and authored `.feature` files **THEN** the server SHALL refuse the root before indexing; **AND WHEN** the kernel graph is unavailable **THEN** diagnostics SHALL explain why and no degraded fake resolution SHALL be returned.
+**EARS:** WHILE the server initializes **WHEN** a workspace root contains symlinks, junctions, reparse points, or traversal sequences **THEN** the server SHALL refuse the root before indexing; **AND WHEN** a `.md` document outside `.specs/**` is opened **THEN** navigation, hover, completion, and symbols SHALL be empty and no diagnostics SHALL be published for that document; **AND WHEN** the kernel graph is unavailable **THEN** diagnostics SHALL explain why and no degraded fake resolution SHALL be returned.
 
 **Scenario:** `@feature10` / `SCEN-spec-lsp-scope-containment-and-honest-absence`
 
@@ -86,14 +86,14 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 **Requirement:** [FR-11](FR.md#fr-11-self-contained-dependency-safe-distribution)
 
-**EARS:** WHILE the installed plugin artifact is deployed without source checkout or root `node_modules` **WHEN** the LSP server starts **THEN** it SHALL execute using only bundled JS dependencies and Node/OMP builtins; **AND** no third-party binary, post-install download, native addon, or ambient dependency SHALL be required; **AND** the Marksman binary supply chain DROP SHALL remain honored.
+**EARS:** WHILE the installed plugin artifact is deployed without source checkout or root `node_modules` **WHEN** the LSP server starts **THEN** it SHALL execute using only bundled `vscode-languageserver` and Node/OMP builtins; **AND** no `@cucumber/gherkin`, `@cucumber/cucumber-expressions`, third-party binary, post-install download, native addon, or ambient dependency SHALL be required; **AND** the Marksman binary supply chain DROP SHALL remain honored.
 
 **Scenario:** `@feature11` / `SCEN-spec-lsp-self-contained-distribution`
 
-## AC-12.1 (FR-12): Oracle parity proves step verdict agreement
+## AC-12.1 (FR-12): Release proves step-layer absence
 
-**Requirement:** [FR-12](FR.md#fr-12-oracle-parity-for-cucumber-runner-step-verdicts)
+**Requirement:** [FR-12](FR.md#fr-12-this-stages-release-proves-step-layer-absence-not-oracle-parity)
 
-**EARS:** WHILE the CHK-FR12-01 oracle harness runs on shared cucumber-runner fixtures **WHEN** the custom server's step defined/undefined/ambiguous verdicts are compared to `@cucumber/language-server` oracle verdicts **THEN** every verdict SHALL match; **AND** pytest-bdd fixtures SHALL receive step diagnostics of equivalent quality without silence.
+**EARS:** WHILE CHK-FR12-01 runs against the production plugin configuration and a `.feature` file with unbound steps **WHEN** the adapter is inspected **THEN** `@cucumber/language-server` SHALL be absent from production `lspServers`; **AND** no step defined/undefined/ambiguous diagnostic SHALL be published; **AND** oracle parity SHALL NOT be a required member of this stage's release conjunction.
 
 **Scenario:** `@feature12` / `SCEN-spec-lsp-oracle-parity`
