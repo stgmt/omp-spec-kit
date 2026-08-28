@@ -7,7 +7,7 @@ import path from "node:path";
 import { inventorySpecs } from "../../src/v0.1/inventory.js";
 import { snapshotTree } from "../support/world.mjs";
 
-const PLUGIN_VERSION = "0.3.1";
+const PLUGIN_VERSION = "0.3.2";
 const SCHEMA_VERSION = "1";
 const TOOL_NAME = "spec_inventory";
 const CANONICAL_DOCUMENTS = Object.freeze([

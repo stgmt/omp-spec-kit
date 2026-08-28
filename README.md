@@ -2,11 +2,11 @@
 
 `omp-spec-kit` is a specification-first project for bringing trustworthy specification inventory, traceability, evidence, and authoring workflows to Oh My Pi (OMP).
 
-## Current status: v0.3.0 MCP advisory; v0.3.1 corrective work
+## Current status: v0.3.2 published; v0.3.0 MCP advisory remains
 
 v0.3.0 is publicly tagged, but its MCP server can read its package directory rather than the active OMP project. Do not rely on its MCP query results. See the [v0.3.0 MCP advisory](docs/advisories/v0.3.0-mcp-root.md).
 
-v0.3.1 is corrective work in this repository, not a released claim. It will publish only after its exact candidate archive, peeled tag, Docker BDD message artifact, public-safety record, v0.3.0 source proof, upgrade, rollback, and requirement receipts agree.
+v0.3.1 is the first corrective public release. v0.3.2 keeps that fix and publishes only after GitHub Actions proves install, upgrade, rollback, and the release receipts against the exact tagged bytes.
 
 ### Current published installation
 
@@ -15,7 +15,7 @@ omp plugin marketplace add stgmt/omp-spec-kit
 omp plugin install omp-spec-kit@omp-spec-kit --scope project
 ```
 
-After installation, reload plugin metadata and start a fresh OMP session. The v0.1 `spec_inventory` tool remains a separate bounded read-only OMP tool; MCP guidance is in the advisory until v0.3.1 evidence is public.
+After installation, reload plugin metadata and start a fresh OMP session. The v0.1 `spec_inventory` tool remains a separate bounded read-only OMP tool.
 
 
 
@@ -55,8 +55,9 @@ The roadmap deliberately keeps one product boundary:
 2. v0.1.0 — one installable OMP plugin with a bounded read-only inventory path (released);
 3. v0.2 — a standalone graph/query kernel;
 4. v0.3.0 — read-only MCP adapter, now superseded for its active-project-root defect;
-5. v0.3.1 — corrective launcher, protocol, all-tool BDD, and evidence-bound release candidate (unreleased);
-6. later — safe authoring and mutation, only after containment, CAS, concurrency, and evidence gates.
+5. v0.3.1 — corrective launcher and evidence-bound public release;
+6. v0.3.2 — honesty-gated release receipts and signed release assets;
+7. later — safe authoring and mutation, only after containment, CAS, concurrency, and evidence gates.
 
 ## Repository policy
 

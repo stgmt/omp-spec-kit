@@ -1,6 +1,6 @@
 {
   "schema": "omp-spec-kit-dist-manifest@1",
-  "pluginVersion": "0.3.1",
+  "pluginVersion": "0.3.2",
   "files": {
     "adapters/omp/register-spec-tools.js": {
       "sha256": "e9e70714cb5c8236e100df5f8056346f3aeaafa9a6ac92efe6aba85cec902109"
@@ -12,10 +12,10 @@
       "sha256": "ef4d30478a5db7165a36bf2b57a45168da38485c13da265ce0f1d9dd20a531af"
     },
     "extension.js": {
-      "sha256": "b8265427c18172e3b45c1e9206b5e9d4d7dd464b268449efd4ca838c7b748bdb"
+      "sha256": "bb66cd370ea155844406c80254c0929ab31f92bf1d7c3db02708086a118bef83"
     },
     "inventory.js": {
-      "sha256": "58e401a561af2eb0ae8c860ec5e5c366dcb431cdfc35bfe3f45021e27c9ee4a9"
+      "sha256": "c4244fd999af8cbeb2ca7b21b400de6e90eca86e72405f538f35bc37f9910afc"
     },
     "kernel/adapters/fs.js": {
       "sha256": "31e338483be6ebcea53588efd832fa0153febf8e098e55f614206f007abcc38e"

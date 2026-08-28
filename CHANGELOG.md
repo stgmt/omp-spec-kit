@@ -2,7 +2,19 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
-## Unreleased — v0.3.1 corrective candidate
+## 0.3.2 — 2026-08-28
+
+Honesty follow-up on the public v0.3.1 release. Upgrade from v0.3.0 and rollback to v0.3.0 remain required.
+
+### Fixed
+
+- Release receipts for the GitHub Actions transaction, evidence honesty, and schema containment now require real producers; local runs omit those cells instead of inventing a pass.
+- Rollback now proves the project tree hash is unchanged, the same way upgrade already did.
+- Published GitHub release files are attested: the archive, candidate manifest, and evidence record.
+
+## 0.3.1 — 2026-08-27
+
+First public corrective release after the v0.3.0 MCP project-root defect.
 
 ### Fixed
 
@@ -13,7 +25,7 @@ All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 ### Advisory
 
 - v0.3.0 MCP results are superseded for the active-project-root defect; see `docs/advisories/v0.3.0-mcp-root.md`.
-- This entry is not a release claim. v0.3.1 remains unpublished until real candidate evidence is complete.
+
 
 ## 0.2.0 — 2026-08-23
 

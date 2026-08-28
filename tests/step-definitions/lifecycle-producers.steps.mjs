@@ -11,7 +11,7 @@ const RUNTIME_ROOT = path.join(REPOSITORY_ROOT, "tests", "fixtures", "omp-discov
 const RUNNER_DIR = path.join(REPOSITORY_ROOT, "scripts", "lifecycle");
 const RUNTIME_PACKAGE_ROOT = path.join(RUNTIME_ROOT, "node_modules", "@oh-my-pi", "pi-coding-agent");
 const FROZEN_CORPUS_ROOT = path.join(REPOSITORY_ROOT, "tests", "fixtures", "kernel", "real-corpus");
-const EXPECTED_VERSION = "0.3.1";
+const EXPECTED_VERSION = "0.3.2";
 const PRIOR_VERSION = "0.3.0";
 const PHASE_TIMEOUT_MS = "30000";
 const CHILD_TIMEOUT_MS = 240000;
@@ -90,12 +90,12 @@ Given("an isolated temp project containing one valid spec corpus", async functio
 	}
 });
 
-Given("the built candidate package root and expected version 0.3.1", async function () {
+Given("the built candidate package root and expected version 0.3.2", async function () {
 	const packageManifest = await readJson(path.join(this.lifecycle.candidateRoot, "package.json"));
 	assert.equal(packageManifest.version, EXPECTED_VERSION);
 });
 
-Given("the candidate package root with expected version 0.3.1", async function () {
+Given("the candidate package root with expected version 0.3.2", async function () {
 	const packageManifest = await readJson(path.join(this.lifecycle.candidateRoot, "package.json"));
 	assert.equal(packageManifest.version, EXPECTED_VERSION);
 });
@@ -241,7 +241,7 @@ Then("the runner wrote a passing upgrade record binding plugin-distribution:FR-7
 	this.lifecycle.records.upgrade = record;
 });
 
-Then("the upgrade details observe version 0.3.0 in one fresh session and 0.3.1 in another", function () {
+Then("the upgrade details observe version 0.3.0 in one fresh session and 0.3.2 in another", function () {
 	const record = this.lifecycle.records.upgrade;
 	assert.equal(record.details.fromVersion, PRIOR_VERSION);
 	assert.equal(record.details.toVersion, EXPECTED_VERSION);

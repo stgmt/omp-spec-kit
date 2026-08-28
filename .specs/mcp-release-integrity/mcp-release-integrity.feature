@@ -1,11 +1,11 @@
 @mcp-release-integrity
 Feature: MRI001_Correct_MCP_root_and_release_identity
-  The v0.3.1 corrective patch preserves the read-only MCP surface while
+  The v0.3.2 corrective patch preserves the read-only MCP surface while
   ensuring installed users receive their active project data and releases
   ship only evidence-bound candidate bytes.
 
   Background:
-    Given an isolated v0.3.1 package and manifest-verified corpus exist
+    Given an isolated v0.3.2 package and manifest-verified corpus exist
 
   @FR-1 @AC-1 @release-evidence @id:SCEN-MRI-001
   Scenario: Installed launcher uses the active project root
@@ -37,13 +37,13 @@ Feature: MRI001_Correct_MCP_root_and_release_identity
 
   @FR-4 @AC-4 @release-evidence @id:SCEN-MRI-004
   Scenario: MRI eligibility is distinct from public distribution eligibility
-    Given a v0.3.1 candidate and complete evidence record
+    Given a v0.3.2 candidate and complete evidence record
     When the release evaluator checks the candidate
     Then the MRI gate is independently eligible while public release remains blocked without distribution evidence
 
   @FR-4 @AC-4 @id:SCEN-MRI-010
   Scenario: Meta-only Cucumber evidence cannot release a candidate
-    Given a v0.3.1 candidate and complete evidence record
+    Given a v0.3.2 candidate and complete evidence record
     When the candidate message artifact contains only meta
     Then the candidate is refused for nonsemantic Cucumber evidence
 
@@ -99,31 +99,31 @@ Feature: MRI001_Correct_MCP_root_and_release_identity
 
   @FR-1 @AC-1 @release-evidence @id:SCEN-MRI-007
   Scenario: Candidate archive preserves the executable launcher
-    Given a v0.3.1 candidate and complete evidence record
+    Given a v0.3.2 candidate and complete evidence record
     When the candidate archive is extracted into a clean project
     Then the extracted launcher is executable and serves the active project
 
   @FR-4 @AC-4 @id:SCEN-MRI-014
   Scenario: Synthetic distribution claims cannot create public eligibility
-    Given a v0.3.1 candidate with complete MRI evidence but no distribution evidence
+    Given a v0.3.2 candidate with complete MRI evidence but no distribution evidence
     When the distribution evidence is "placeholder-claims"
     Then the public release is blocked by "distribution-producer-provenance-untrusted:no-independent-trust-root" while MRI remains independently named
 
   @FR-4 @AC-4 @id:SCEN-MRI-017
   Scenario: Structurally complete self-attested distribution evidence cannot release a candidate
-    Given a v0.3.1 candidate with complete MRI evidence but no distribution evidence
+    Given a v0.3.2 candidate with complete MRI evidence but no distribution evidence
     When the distribution evidence is "structurally-complete-self-attested"
     Then the public release is blocked by "distribution-producer-provenance-untrusted:no-independent-trust-root" while MRI remains independently named
 
   @FR-4 @AC-4 @id:SCEN-MRI-018
   Scenario: Structurally complete attestation-trusted distribution evidence still fails closed without a verifying signer
-    Given a v0.3.1 candidate with complete MRI evidence but no distribution evidence
+    Given a v0.3.2 candidate with complete MRI evidence but no distribution evidence
     When the distribution evidence is "structurally-complete-attestation-trusted"
     Then the public release is blocked by an attestation-unverified reason while MRI remains independently named
 
   @FR-4 @AC-4 @id:SCEN-MRI-016
   Scenario Outline: Symlinked evidence parents cannot redirect receipt reads
-    Given a v0.3.1 candidate and complete evidence record
+    Given a v0.3.2 candidate and complete evidence record
     When the evidence "<directory>" directory has a symlinked parent
     Then the release evaluator reports "EVIDENCE_SYMLINK_COMPONENT" before reading evidence bytes
 

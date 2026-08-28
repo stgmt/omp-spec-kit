@@ -1,6 +1,6 @@
 # omp-spec-kit
 
-`omp-spec-kit` v0.3.1 provides one bounded read-only OMP tool, `spec_inventory`, and an eight-tool read-only MCP surface over the active project specification corpus. It does not write, repair, or claim a specification is complete.
+`omp-spec-kit` v0.3.2 provides one bounded read-only OMP tool, `spec_inventory`, and an eight-tool read-only MCP surface over the active project specification corpus. It does not write, repair, or claim a specification is complete.
 
 ## Use
 
@@ -12,7 +12,7 @@ The command `/spec-inventory` and skill `spec-inventory` provide guidance only. 
 
 ## v0.3.0 advisory
 
-v0.3.0 MCP results can use package cwd rather than active project cwd. See [the advisory](../../docs/advisories/v0.3.0-mcp-root.md). v0.3.1 remains unreleased until its candidate evidence is published.
+v0.3.0 MCP results can use package cwd rather than active project cwd. See [the advisory](../../docs/advisories/v0.3.0-mcp-root.md). Upgrade to v0.3.2, reload plugin metadata, and start a fresh OMP session.
 
 ## Compatibility
 

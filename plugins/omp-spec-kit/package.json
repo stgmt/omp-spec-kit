@@ -1,6 +1,6 @@
 {
   "name": "omp-spec-kit",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Read-only specification inventory for the active OMP project.",
   "homepage": "https://github.com/stgmt/omp-spec-kit",
   "repository": {

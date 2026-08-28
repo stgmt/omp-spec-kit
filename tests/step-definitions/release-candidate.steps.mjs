@@ -104,7 +104,7 @@ After({ tags: "@mcp-release-integrity" }, async function () {
   if (this.releaseTempRoot !== null) await rm(this.releaseTempRoot, { recursive: true, force: true, maxRetries: 3 });
 });
 
-Given(/^a v0\.3\.1 candidate and complete evidence record$/, async function () {
+Given(/^a v0\.3\.2 candidate and complete evidence record$/, async function () {
   await seedCandidate(this);
 });
 
@@ -223,7 +223,7 @@ Then("the extracted launcher is executable and serves the active project", funct
   assert.equal(this.extractedOverview.result.structuredContent.data.counts.acceptedDocuments > 0, true);
 });
 
-Given("a v0.3.1 candidate with complete MRI evidence but no distribution evidence", async function () {
+Given("a v0.3.2 candidate with complete MRI evidence but no distribution evidence", async function () {
   await seedCandidate(this);
   const result = await evaluateCandidate(this.release, repositoryRoot());
   assert.equal(result.mri.eligible, true, result.mri.blocking.join(", "));

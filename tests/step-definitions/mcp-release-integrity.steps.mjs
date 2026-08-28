@@ -74,7 +74,7 @@ After({ tags: "@mcp-release-integrity" }, async function () {
   }
 });
 
-Given("an isolated v0.3.1 package and manifest-verified corpus exist", async function () {
+Given("an isolated v0.3.2 package and manifest-verified corpus exist", async function () {
   const repositoryRoot = path.resolve(import.meta.dirname, "..", "..");
   const pinned = await loadPinnedCorpusGraph(repositoryRoot);
   const tempRoot = await mkdtemp(path.join(tmpdir(), "omp-spec-kit-mri-"));
@@ -300,16 +300,16 @@ Then("the bounded receipt proves the isolated target-only manager query and copi
   );
   assert.equal(receipt.enrollment.method, "new PluginManager(cwd).link(packageRoot)");
   assert.equal(receipt.enrollment.result.name, "omp-spec-kit");
-  assert.equal(receipt.enrollment.result.version, "0.3.1");
+  assert.equal(receipt.enrollment.result.version, "0.3.2");
   assert.equal(receipt.enrollment.result.path, "<package-copy>");
   assert.equal(receipt.enrollment.result.enabledFeatures, null);
   assert.equal(receipt.enrollment.result.enabled, true);
   assert.deepStrictEqual(receipt.enrollment.result.manifest, {
     extensions: ["./dist/extension.js"],
-    version: "0.3.1",
+    version: "0.3.2",
   });
   assert.deepStrictEqual(receipt.enrollment.lockfile.contents.plugins, {
-    "omp-spec-kit": { version: "0.3.1", enabledFeatures: null, enabled: true },
+    "omp-spec-kit": { version: "0.3.2", enabledFeatures: null, enabled: true },
   });
   assert.deepStrictEqual(receipt.capability.providers, ["omp-plugins"]);
   assert.deepStrictEqual(receipt.capability.items.map(({ name }) => name), ["omp-spec-kit"]);

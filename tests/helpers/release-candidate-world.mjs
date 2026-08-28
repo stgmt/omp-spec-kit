@@ -51,7 +51,7 @@ export async function readVerifiedCucumberFixture(repositoryRoot) {
   return bytes;
 }
 
-function resolveTagCommit(tag) { if (tag === "v0.3.1") return CANDIDATE_COMMIT; if (tag === "v0.3.0") return PRIOR_COMMIT; throw new Error(`unexpected test tag ${tag}`); }
+function resolveTagCommit(tag) { if (tag === "v0.3.2") return CANDIDATE_COMMIT; if (tag === "v0.3.0") return PRIOR_COMMIT; throw new Error(`unexpected test tag ${tag}`); }
 async function writeBytes(directory, name, bytes) { const relative = `receipts/${name}`; const absolute = path.join(directory, relative); await mkdir(path.dirname(absolute), { recursive: true }); await writeFile(absolute, bytes); return { status: "present", path: relative, digest: sha256(bytes) }; }
 async function writeReceipt(directory, name, value) { return writeBytes(directory, `${name}.json`, Buffer.from(`${JSON.stringify(value, null, 2)}\n`)); }
 function identity(candidate, catalogDigest) { return { version: candidate.version, tag: candidate.tag, commit: candidate.commit, candidateDigest: candidate.candidateDigest, packageTreeDigest: candidate.packageTreeDigest, archiveSha256: candidate.archive.sha256, catalogDigest }; }
@@ -59,7 +59,7 @@ function placeholderClaim(candidate, catalogDigest, requirement) { return { sche
 
 export async function createCandidateWorld(repositoryRoot, tempRoot) {
   const candidateDirectory = path.join(tempRoot, "candidate");
-  const { candidate, manifestPath, archivePath } = await createReleaseCandidate({ tag: "v0.3.1", outputDirectory: candidateDirectory, repositoryRoot, resolveTagCommit, verifyTaggedCheckout() {} });
+  const { candidate, manifestPath, archivePath } = await createReleaseCandidate({ tag: "v0.3.2", outputDirectory: candidateDirectory, repositoryRoot, resolveTagCommit, verifyTaggedCheckout() {} });
   const catalogDigest = sha256(await readFile(path.join(repositoryRoot, ".omp-plugin", "marketplace.json")));
   const safety = await verifyPublicTree(manifestPath);
   const messageRelativePath = "messages/cucumber.ndjson"; const messageBytes = await readVerifiedCucumberFixture(repositoryRoot); const messagePath = path.join(candidateDirectory, messageRelativePath); await mkdir(path.dirname(messagePath), { recursive: true }); await writeFile(messagePath, messageBytes);
@@ -68,8 +68,8 @@ export async function createCandidateWorld(repositoryRoot, tempRoot) {
     publicSafety: await writeReceipt(candidateDirectory, "public-safety", safety),
     dockerBdd: await writeReceipt(candidateDirectory, "docker-bdd", { schema: "omp-spec-kit-bdd-receipt@1", status: "passed", ...id, messagePath: messageRelativePath, messageDigest: sha256(messageBytes), scenarioIds: ["SCEN-MRI-001", "SCEN-MRI-002", "SCEN-MRI-003", "SCEN-MRI-004", "SCEN-MRI-005", "SCEN-MRI-006", "SCEN-MRI-007"] }),
     priorV030: await writeReceipt(candidateDirectory, "prior-v030", { schema: "omp-spec-kit-tagged-source-proof@1", status: "passed", tag: "v0.3.0", commit: PRIOR_COMMIT, source: "public-tag" }),
-    upgradeFromV030: await writeReceipt(candidateDirectory, "upgrade", { schema: "omp-spec-kit-lifecycle-receipt@1", status: "passed", ...id, fromVersion: "0.3.0", fromTag: "v0.3.0", toVersion: "0.3.1", toTag: "v0.3.1", observedVersion: "0.3.1", freshSession: true, projectHashPreserved: true }),
-    rollbackToV030: await writeReceipt(candidateDirectory, "rollback", { schema: "omp-spec-kit-lifecycle-receipt@1", status: "passed", ...id, fromVersion: "0.3.1", fromTag: "v0.3.1", toVersion: "0.3.0", toTag: "v0.3.0", observedVersion: "0.3.0", freshSession: true, projectHashPreserved: true }),
+    upgradeFromV030: await writeReceipt(candidateDirectory, "upgrade", { schema: "omp-spec-kit-lifecycle-receipt@1", status: "passed", ...id, fromVersion: "0.3.0", fromTag: "v0.3.0", toVersion: "0.3.2", toTag: "v0.3.2", observedVersion: "0.3.2", freshSession: true, projectHashPreserved: true }),
+    rollbackToV030: await writeReceipt(candidateDirectory, "rollback", { schema: "omp-spec-kit-lifecycle-receipt@1", status: "passed", ...id, fromVersion: "0.3.2", fromTag: "v0.3.2", toVersion: "0.3.0", toTag: "v0.3.0", observedVersion: "0.3.0", freshSession: true, projectHashPreserved: true }),
   };
   const frReceipts = Object.create(null);
   for (const [requirement, scenarioId] of Object.entries(MRI_SCENARIOS)) frReceipts[requirement] = await writeReceipt(candidateDirectory, `mri-${requirement.slice(-4)}`, { schema: "omp-spec-kit-fr-receipt@1", status: "passed", ...id, requirement, scenarioId });
