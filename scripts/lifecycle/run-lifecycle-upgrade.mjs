@@ -88,7 +88,9 @@ async function main() {
 		} catch (error) {
 			throw new Error(`observation child printed unusable JSON (${error.message}): ${child.stdout.slice(0, 200)}`);
 		}
-		if (parsed.version !== parsed.inventoryText.match(/^inventory ok/u) ? false : false) throw new Error("unreachable");
+		if (typeof parsed.version !== "string" || typeof parsed.inventoryText !== "string" || !/^inventory ok/u.test(parsed.inventoryText)) {
+			throw new Error(`observation child returned unusable observation: ${JSON.stringify(parsed)}`);
+		}
 		return parsed;
 	};
 

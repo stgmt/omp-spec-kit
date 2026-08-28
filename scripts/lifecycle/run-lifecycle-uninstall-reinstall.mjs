@@ -174,11 +174,17 @@ async function main() {
 	if (args["--rollback-to-prior-package-root"]) {
 		const priorVersion = args["--prior-version"];
 		if (!priorVersion) fail("--prior-version is required with --rollback-to-prior-package-root");
+		const rollbackBaseline = await projectHash(cwd, "rollback-baseline");
 		const attempt = await import("./lib/omp-session.mjs").then((lib) => lib.phase("uninstall-for-rollback", timeoutMs, async () => new modules.PluginManager(cwd).uninstall(PLUGIN_NAME)));
 		if (!attempt.ok) fail(`pre-rollback uninstall failed: ${attempt.error.message}`);
 		const rollbackObservation = observe(args, cwd, args["--rollback-to-prior-package-root"], "lifecycle-rollback");
 		if (rollbackObservation.version !== priorVersion || !/^inventory ok/u.test(rollbackObservation.inventoryText)) {
 			fail(`rollback observation expected ${priorVersion}, saw ${JSON.stringify(rollbackObservation)}`);
+		}
+		const rollbackAfter = await projectHash(cwd, "rollback-after");
+		const rollbackHashPreserved = rollbackAfter.digest === rollbackBaseline.digest;
+		if (!rollbackHashPreserved) {
+			fail(`project tree mutated during rollback: baseline ${rollbackBaseline.digest} vs after ${rollbackAfter.digest}`);
 		}
 		await writeLifecycleRecord(receiptsOut, "rollback.json", baseLifecycleRecord({
 			requirement: "plugin-distribution:FR-8",
@@ -189,6 +195,9 @@ async function main() {
 				toVersion: priorVersion,
 				priorInventoryText: rollbackObservation.inventoryText,
 				freshProcessObservation: true,
+				projectHashBefore: rollbackBaseline.digest,
+				projectHashAfter: rollbackAfter.digest,
+				observedProjectHashPreserved: rollbackHashPreserved,
 			},
 			observations: [{
 				id: "rollback-fresh-inventory",

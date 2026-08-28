@@ -12,11 +12,16 @@ export function fail(message) {
 
 // sha256 over every regular file under root (sorted relative POSIX paths,
 // relative path + NUL + bytes + NUL per entry). Any non-regular entry fails.
+// Path order is UTF-8 bytewise so the digest is locale-independent.
+function compareUtf8(left, right) {
+	return Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8"));
+}
+
 export async function projectHash(root, label) {
 	const files = [];
 	async function visit(absolute, relative) {
 		const entries = await readdir(absolute, { withFileTypes: true });
-		for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+		for (const entry of entries.sort((a, b) => compareUtf8(a.name, b.name))) {
 			const childAbsolute = path.join(absolute, entry.name);
 			const childRelative = relative === "" ? entry.name : path.posix.join(relative, entry.name);
 			if (entry.isDirectory()) {
@@ -29,7 +34,7 @@ export async function projectHash(root, label) {
 		}
 	}
 	await visit(root, "");
-	files.sort((a, b) => a.relative.localeCompare(b.relative));
+	files.sort((a, b) => compareUtf8(a.relative, b.relative));
 	const hash = createHash("sha256");
 	for (const file of files) {
 		hash.update(file.relative);
