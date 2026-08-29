@@ -18,15 +18,15 @@ The repository decision explicitly sequences a read-only kernel before mutation 
 
 **Status:** `[VERIFIED_OFFICIAL_SOURCE]`
 
-OMP's extension contract uses a default extension factory and registration APIs, and forbids performing runtime actions during factory load: https://github.com/can1357/oh-my-pi/blob/main/docs/extensions.md
+OMP's extension contract uses a default extension factory and registration APIs, and forbids performing runtime actions during factory load: https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/extensions.md
 
-**Decision:** authoring registers through the existing extension only after the release gate opens; proposal or mutation work occurs only on explicit runtime invocation. No second extension entry or load-time mutation is allowed.
+**Decision:** authoring registers only through the existing package's MCP server after the release gate opens; the existing OMP extension remains read-only. Proposal/review/commit work occurs only on explicit MCP facade invocation. No second extension entry, second authoring adapter, or load-time mutation is allowed.
 
 ### R-3 — Distribution proof is not inferred from source code
 
 **Status:** `[VERIFIED_OFFICIAL_AND_LOCAL_PLAN]`
 
-OMP marketplace installation, update, and plugin lifecycle are documented at https://github.com/can1357/oh-my-pi/blob/main/docs/marketplace.md. The validated plan requires clean project-scope install, reload, fresh-session activation, dependency isolation, uninstall preservation, and upgrade evidence.
+OMP marketplace installation, update, and plugin lifecycle are documented at https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/marketplace.md. The validated plan requires clean project-scope install, reload, fresh-session activation, dependency isolation, uninstall preservation, and upgrade evidence.
 
 **Decision:** eligibility consumes current accepted `plugin-distribution:FR-13` evidence for the current built release candidate in addition to, not instead of, the separately qualified linked v0.2 and v0.3 kernel aggregates. A source-tree test, subset, aggregate count, unqualified kernel singleton, duplicate target stage, stale/revoked predecessor, or cross-lineage parent/current pair cannot substitute for installed-artifact proof.
 
@@ -96,5 +96,5 @@ These are explicit `DECISION_REQUIRED` items, not implementation placeholders. T
 - `docs/upstream/dev-pomogator/spec-generator-v4/FR.md` — especially FR-34, FR-35, FR-40, FR-48, FR-53, FR-60, FR-62, FR-74, FR-77, FR-84, and FR-85
 - `docs/upstream/dev-pomogator/spec-generator-v4/ACCEPTANCE_CRITERIA.md`
 - `docs/upstream/dev-pomogator/spec-generator-v4/spec-generator-v4.feature`
-- https://github.com/can1357/oh-my-pi/blob/main/docs/extensions.md
-- https://github.com/can1357/oh-my-pi/blob/main/docs/marketplace.md
+- https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/extensions.md
+- https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/marketplace.md

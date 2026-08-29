@@ -6,7 +6,7 @@ COPY --from=pinned-bun /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /workspace
 ENV CI=1
 
-COPY package.json package-lock.json cucumber.mjs LICENSE ./
+COPY package.json package-lock.json cucumber.mjs LICENSE README.md CHANGELOG.md ./
 COPY tests/fixtures/omp-discovery-runtime/package.json tests/fixtures/omp-discovery-runtime/bun.lock ./tests/fixtures/omp-discovery-runtime/
 RUN npm ci --ignore-scripts --no-audit --no-fund \
  && cd tests/fixtures/omp-discovery-runtime \
@@ -15,6 +15,7 @@ RUN npm ci --ignore-scripts --no-audit --no-fund \
 COPY .omp-plugin/ .omp-plugin/
 COPY .specs/ .specs/
 COPY docs/validation/omp-discovery-v17.3.7.md docs/validation/omp-discovery-v17.3.7.md
+COPY docs/validation/release-status-v0.3.2.json docs/validation/release-status-v0.3.2.json
 COPY docs/advisories/v0.3.0-mcp-root.md docs/advisories/v0.3.0-mcp-root.md
 COPY plugins/ plugins/
 COPY scripts/ scripts/

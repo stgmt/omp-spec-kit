@@ -39,26 +39,55 @@ All requirements are **planned** and the authoring lifecycle/registration is `DE
 12. Authoring eligibility does not independently authorize package publication; remaining public-init validation and fail-closed provenance/license checks for future or changed imports remain dependency-owned through `plugin-distribution:FR-13`.
 13. No scenario text in this specification is executed evidence.
 14. Runtime canonical identities are `<spec-slug>:<local-id>`; file-local anchors remain unqualified.
-15. The agent-facing authoring API is MCP. The 18 schema-v1 generator-port mutation names map onto proposal-first operations; the 6 schema-v2 names are later, not DROP; none appear on the v0.3 read registry; the dropped advisor/dashboard/harness backlog UI is not `add_backlog_task`.
+15. The agent-facing authoring API is MCP. Seventeen v1 facade names compile to the exact mapping table; each apply facade has one review-only call before a later commit-only call; seven v2 names are absent from v1 dispatch and listed in `unsupportedLaterNames`; `authoring-mcp@1` requires accepted FR-13 plus CHK-FR14-01.
 
 ## Verification matrix
 
-| Check | Requirement | Observable proof |
+| Check | Requirement | Trace | Verification Method | Status | Notes |
+|---|---|---|---|---|---|
+| CHK-FR1-01 | FR-1 | FR-1, AC-1.1, AC-1.2, AC-1.3, AC-1.4, `SCEN-authoring-deferred-missing-proof`, `SCEN-authoring-all-of-eligibility`, `SCEN-authoring-second-authority-refused`, `SCEN-authoring-implementation-while-deferred` | Integration test | Draft | Owner: TASK-1; deferred state permits isolated implementation but keeps MCP authoring unregistered and user bytes unchanged. |
+| CHK-FR2-01 | FR-2 | FR-2, AC-2.1, AC-2.2, AC-2.3, AC-2.4, `SCEN-proposal-preview-no-write`, `SCEN-invalid-proposal-before-stage`, `SCEN-concurrent-proposals-read-only`, `SCEN-apply-reviewed-proposal`, `SCEN-apply-review-bypass-refused` | Integration test | Draft | Owner: TASK-4; deterministic complete proposal plus review-only and later commit-only apply calls. |
+| CHK-FR2-02 | FR-2 | FR-2, AC-2.1, `@feature2`, NFR-DETERMINISM-1 | Integration test | Draft | Owner: TASK-2; canonical requests yield identical proposal/full-preview hashes and ordering. |
+| CHK-FR2-03 | FR-2 | FR-2, AC-2.2, `@feature2`, NFR-PERFORMANCE-1 | Integration test | Draft | Owner: TASK-4; every document/operation/diff/finding bound reports exact excess and blocks review. |
+| CHK-FR3-01 | FR-3 | FR-3, AC-3.1, AC-3.2, AC-3.3, `SCEN-concurrent-fresh-applies`, `SCEN-second-cas-detects-change`, `SCEN-terminal-request-replay` | Integration test | Draft | Owner: TASK-6; racing reviewed commits yield one winner and one stale/busy refusal without loss. |
+| CHK-FR3-02 | FR-3 | FR-3, AC-3.2, `@feature3`, NFR-CONCURRENCY-1 | Integration test | Draft | Owner: TASK-6; lease timeout, liveness, reader visibility, replay and crash races are bounded. |
+| CHK-FR4-01 | FR-4 | FR-4, AC-4.1, AC-4.2, AC-4.3, `SCEN-invalid-proposal-before-stage`, `SCEN-second-cas-detects-change`, `SCEN-validator-unavailable-fails-closed` | Integration test | Draft | Owner: TASK-4; planted form/anchor/trace error refuses before stage creation. |
+| CHK-FR5-01 | FR-5 | FR-5, AC-5.1, AC-5.2, AC-5.3, AC-5.4, `SCEN-canonical-target-confined`, `SCEN-escaping-target-refused`, `SCEN-linked-spec-directory-unsupported`, `SCEN-path-component-switch-refused` | Integration test | Draft | Owner: TASK-3; traversal, absolute/UNC/device, collision and linked/reparse fixtures refuse before read. |
+| CHK-FR5-02 | FR-5 | FR-5, AC-5.4, `@feature5`, NFR-PORTABILITY-1 | Integration test | Draft | Owner: TASK-3; Windows and POSIX containment/durability support is explicit and fail-closed. |
+| CHK-FR6-01 | FR-6 | FR-6, AC-6.1, AC-6.2, AC-6.3, AC-6.4, AC-6.5, AC-6.6, AC-6.7, AC-6.8, `SCEN-apply-reviewed-proposal`, `SCEN-apply-review-bypass-refused`, `SCEN-atomic-visible-generation`, `SCEN-transaction-fault-complete-generation`, `SCEN-interrupted-commit-auto-recovery`, `SCEN-invalid-transaction-shape-refused`, `SCEN-manual-recovery-selects-complete-generation`, `SCEN-manual-recovery-invalid-selection-refused`, `SCEN-rebaseline-recovery-proposal-no-write`, `SCEN-rebaseline-recovery-atomic-or-refused` | Integration test | Draft | Owner: TASK-7; fault injection preserves one visible generation or blocks recovery/rebaseline without history erasure. |
+| CHK-FR6-02 | FR-6 | FR-6, AC-6.4, `@feature6`, NFR-SAFETY-1 | Integration test | Draft | Owner: TASK-7; every uncertain identity/authorization/validation branch refuses and conserves blocked bytes. |
+| CHK-FR6-03 | FR-6 | FR-6, AC-6.2, `@feature6`, NFR-DURABILITY-1 | Integration test | Draft | Owner: TASK-7; file/directory synchronization and generation visibility are proven per supported platform. |
+| CHK-FR7-01 | FR-7 | FR-7, AC-7.1, AC-7.2, AC-7.3, `SCEN-section-edit-preserves-bytes`, `SCEN-heading-rename-rewrites-inbound-links`, `SCEN-heading-rename-ambiguity-refused` | Integration test | Draft | Owner: TASK-5; all seven edit operations preserve bytes/EOL and complete anchor/link closure. |
+| CHK-FR7-02 | FR-7 | FR-7, AC-7.2, `@feature7`, NFR-COMPATIBILITY-1 | Integration test | Draft | Owner: TASK-5; untouched bytes, EOL/final-newline policy and incompatible-version refusals are exact. |
+| CHK-FR8-01 | FR-8 | FR-8, AC-8.1, AC-8.2, AC-8.3, AC-8.4, AC-8.5, `SCEN-legal-task-status-transitions`, `SCEN-illegal-status-transition-refused`, `SCEN-status-guard-failure-refused`, `SCEN-concurrent-status-change-refused`, `SCEN-done-task-explicit-reopen` | Integration test | Draft | Owner: TASK-8; exhaustive task transitions and evidence guards require proposal review before commit. |
+| CHK-FR9-01 | FR-9 | FR-9, AC-9.1, AC-9.2, AC-9.3, `SCEN-redacted-audit-every-outcome`, `SCEN-audit-digest-chain-order`, `SCEN-audit-sink-failure-boundary`, `SCEN-rebaseline-recovery-atomic-or-refused` | Integration test | Draft | Owner: TASK-9; audit envelopes reconcile hashes and contain no document body or secret. |
+| CHK-FR9-02 | FR-9 | FR-9, AC-9.2, `@feature9`, NFR-PRIVACY-1 | Integration test | Draft | Owner: TASK-9; responses/audits exclude every forbidden credential/content/path/recovery field. |
+| CHK-FR9-03 | FR-9 | FR-9, AC-9.3, `@feature9`, NFR-OBSERVABILITY-1 | Integration test | Draft | Owner: TASK-9; identifiers/hashes/next actions reconcile with no hidden repository state. |
+| CHK-FR10-01 | FR-10 | FR-10, AC-10.1, AC-10.2, AC-10.3, `SCEN-closed-contract-unknown-input`, `SCEN-internal-error-redaction`, `SCEN-adapters-share-authority` | Integration test | Draft | Owner: TASK-2; every request/result/error/state and apply-facade phase round-trips through the closed schema. |
+| CHK-FR11-01 | FR-11 | FR-11, AC-11.1, AC-11.2, AC-11.3, AC-11.4, `SCEN-critical-mutants-killed`, `SCEN-critical-mutant-or-policy-blocks` | Integration test | Draft | Owner: TASK-12; every critical mutant family is present and 100% killed; missing/timeout/error blocks. |
+| CHK-FR11-02 | FR-11 | FR-11, AC-11.3, `@feature11`, NFR-TESTING-1 | Integration test | Draft | Owner: TASK-11 and TASK-12; real behavioral fixtures reject source-text/mock/zero-scenario false proof. |
+| CHK-FR12-01 | FR-12 | FR-12, AC-12.1, AC-12.2, AC-12.3, `SCEN-authoring-all-of-eligibility`, `SCEN-excluded-integration-blocks`, `SCEN-deferred-uninstall-preserves-specs` | Integration test | Draft | Owner: TASK-10; package/runtime inventory has one MCP authoring authority, read-only extension and no excluded bypass. |
+| CHK-FR12-02 | FR-12 | FR-12, AC-12.2, `@feature12`, NFR-MAINTAINABILITY-1 | Manual review | Draft | Owner: TASK-10; one schema/validator/root/transaction/status implementation has no shim or duplicate adapter. |
+| CHK-FR13-01 | FR-13 | FR-13, AC-13.1, AC-13.2, AC-13.3, `SCEN-authoring-deferred-missing-proof`, `SCEN-authoring-all-of-eligibility`, `SCEN-aggregate-partial-proof-refused`, `SCEN-authoring-implementation-while-deferred` | Integration test | Draft | Owner: TASK-1; removing/substituting/staling any mandatory envelope keeps MCP authoring unregistered. |
+| CHK-FR13-02 | FR-13 | FR-13, AC-13.3, `@feature13`, NFR-READINESS-1 | Integration test | Draft | Owner: TASK-1 and TASK-13; status separates DEFERRED/ELIGIBLE/IMPLEMENTED/PROVEN and exact artifact/evidence identities. |
+| CHK-FR14-01 | FR-14 | FR-14, AC-14.1, `SCEN-generator-port-mutation-names` | Integration test | Draft | Owner: TASK-14; exact 17-name registry/mappings, two-call apply phases, seven manifest-only later names, build inclusion and no historical-v0.3 names. |
+
+## Non-functional ownership
+
+| NFR | Check | Task |
 |---|---|---|
-| CHK-FR1-01 | FR-1 | Deferred status keeps actions unregistered and user bytes unchanged while schema/service/fixture/evaluator implementation produces isolated candidate-bound evidence |
-| CHK-FR2-01 | FR-2 | Proposal returns deterministic preview and unchanged target hashes; apply accepts only a separately reviewed exact proposal |
-| CHK-FR3-01 | FR-3 | Racing reviewed applies yield one commit and one stale refusal without lost update |
-| CHK-FR4-01 | FR-4 | Planted form/anchor/trace error refuses before stage creation |
-| CHK-FR5-01 | FR-5 | Traversal, absolute/UNC/device, collision, and linked/reparse fixtures all refuse before content read with zero writes |
-| CHK-FR6-01 | FR-6 | Fault injection preserves one generation or blocks; complete retained bytes recover by authenticated selection; proven no-survivor state rebaselines only through authorized root-contained dry-run/review/apply with exact current/journal/candidate hashes, atomic pre/post proof, and no history erasure |
-| CHK-FR7-01 | FR-7 | Kernel FR-13 inventory drives complete same-spec rewrites; ambiguous, external, incomplete, or linked targets block |
-| CHK-FR8-01 | FR-8 | Exhaustive transition table and evidence guards match schema and require proposal review before apply |
-| CHK-FR9-01 | FR-9 | Audit envelopes reconcile hashes and contain no document body or secret value |
-| CHK-FR10-01 | FR-10 | Every operation and error code round-trips through the published schema |
-| CHK-FR11-01 | FR-11 | All required critical mutants are present and killed; missing/timeout/error blocks |
-| CHK-FR12-01 | FR-12 | Package/runtime inventory contains one authoring authority, no raw-edit apply, and none of the excluded integrations |
-| CHK-FR13-01 | FR-13 | Removing any mandatory FR-1..FR-12 or distribution envelope, removing either separately qualified kernel target-stage envelope, duplicating a stage, substituting v0.3 for v0.2, revoking/staling the v0.2 parent, or breaking `v03.v02ParentArtifactSha256 == v02.artifactSha256` keeps actions unregistered; one accepted current same-lineage v0.2→v0.3 pair plus all current-stage evidence opens registration eligibility |
-| CHK-FR14-01 | FR-14 | Eighteen v1 MCP names map onto proposal-first operations; six v2 names remain later not DROP; none of the 24 appear on the v0.3 read registry; harness backlog UI is not `add_backlog_task` |
+| [NFR-SAFETY-1](NFR.md#nfr-safety-1-safety-and-fail-closed-behavior) | CHK-FR6-02 | TASK-7 |
+| [NFR-DURABILITY-1](NFR.md#nfr-durability-1-atomicity-and-durability) | CHK-FR6-03 | TASK-7 |
+| [NFR-DETERMINISM-1](NFR.md#nfr-determinism-1-determinism) | CHK-FR2-02 | TASK-2 |
+| [NFR-CONCURRENCY-1](NFR.md#nfr-concurrency-1-concurrency-and-bounded-waiting) | CHK-FR3-02 | TASK-6 |
+| [NFR-PERFORMANCE-1](NFR.md#nfr-performance-1-performance-and-resource-bounds) | CHK-FR2-03 | TASK-4 |
+| [NFR-PORTABILITY-1](NFR.md#nfr-portability-1-portability) | CHK-FR5-02 | TASK-3 |
+| [NFR-PRIVACY-1](NFR.md#nfr-privacy-1-privacy-and-redaction) | CHK-FR9-02 | TASK-9 |
+| [NFR-COMPATIBILITY-1](NFR.md#nfr-compatibility-1-compatibility-and-byte-conservation) | CHK-FR7-02 | TASK-5 |
+| [NFR-OBSERVABILITY-1](NFR.md#nfr-observability-1-observability-without-hidden-state) | CHK-FR9-03 | TASK-9 |
+| [NFR-TESTING-1](NFR.md#nfr-testing-1-test-strength) | CHK-FR11-02 | TASK-11, TASK-12 |
+| [NFR-MAINTAINABILITY-1](NFR.md#nfr-maintainability-1-maintainability) | CHK-FR12-02 | TASK-10 |
+| [NFR-READINESS-1](NFR.md#nfr-readiness-1-honest-readiness) | CHK-FR13-02 | TASK-1, TASK-13 |
 
 ## Assumptions
 

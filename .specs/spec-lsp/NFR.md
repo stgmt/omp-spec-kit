@@ -30,8 +30,8 @@ Budgets are release gates for the installed child-plugin artifact. Measurements 
 
 ## NFR-REL-1: Determinism and honest absence
 
-- Equivalent normalized inputs SHALL produce identical diagnostic sets, definition/reference results, completion lists, and hover content across all supported platforms.
-- When the kernel graph is unavailable, the server SHALL return explicit absence diagnostics rather than fabricated results. No degraded fake resolution SHALL be returned.
+- Equivalent normalized inputs SHALL produce identical diagnostic sets (including related rows), definition/reference results, completion lists, and hover content across all supported platforms and negotiated UTF-32/UTF-16 encodings; non-BMP fixtures SHALL reconcile to one Unicode-scalar projection.
+- When the kernel graph is unavailable, the server SHALL return empty LSP results/diagnostics and a separate `SpecLspAvailabilityStatusV1` notification rather than fabricated results or adapter-specific diagnostics.
 - All arrays SHALL use deterministic ordering consistent with kernel query result ordering.
 
 ## NFR-PORT-1: Portable installed runtime

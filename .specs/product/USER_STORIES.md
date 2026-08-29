@@ -52,11 +52,11 @@
 
 **Priority:** Must
 
-**As an** OMP user, **I want** one product and one future installed identity, **so that** I never have to choose among competing marketplace entries, plugin packages, or extension control planes.
+**As an** OMP user, **I want** one delivered installed identity that future capabilities extend, **so that** I never choose among competing marketplaces, packages, servers, or extension control planes.
 
-**Why:** Product evolution should add capabilities without splitting identity.
+**Why:** v0.3.2 already establishes `omp-spec-kit@omp-spec-kit`; later capabilities must preserve it.
 
-**Independent test:** Compare repository identity and future distribution evidence against the single-product invariant.
+**Independent test:** Compare current catalog/package/release evidence and each future capability file map against the single-product invariant.
 
 **Acceptance scenarios:** `@feature5`.
 

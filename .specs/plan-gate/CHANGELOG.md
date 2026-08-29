@@ -1,5 +1,13 @@
 # Changelog
 
+
+## Unreleased — Contract repair
+
+- Versioned the contract as `plan-gate@2` with implementable `plan-gate-manual@1` and `plan-gate-automatic@1` in `DEFERRED_HOST_ABI`.
+- Removed title-only propose interception, guessed temp-root selection, and directory scanning from the automatic design; added the exact post-native-resolver host event contract.
+- Set the internal deadline to at most 20 seconds under the 30-second host fail-closed boundary; made unreadable/containment/partial-input branches explicit ALLOW diagnostics.
+- Closed explicit candidate, prompt, spec-index, paging, release-record, task, and CHK schemas; added separate host ABI delivery TASK-11 and `CHK-HOST-ABI-01`.
+
 ## 2026-08-23 — Specification init
 
 - Created the `plan-gate` specification: 13 functional requirements, 13 acceptance criteria, 13 scenarios, 13 contract checks, 10 planned tasks.

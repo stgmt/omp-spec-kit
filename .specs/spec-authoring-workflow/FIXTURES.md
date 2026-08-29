@@ -72,7 +72,7 @@ Fixtures listed here are planned evidence inputs. None exists or is claimed exec
 
 ### FX-9 — Installed OMP lifecycle
 
-**Producer:** exact released child plugin installed through documented OMP marketplace lifecycle from https://github.com/can1357/oh-my-pi/blob/main/docs/marketplace.md.
+**Producer:** exact released child plugin installed through documented OMP marketplace lifecycle from https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/marketplace.md.
 **Capture:** built release-candidate and installed artifact identities, product revision and artifact-lineage identity, internal deferred implementation evidence, FR-13 evaluation, registration state, install/reload/fresh-session invocation, ambient-dependency isolation, upgrade, uninstall, every FR-1..FR-12 envelope, current `plugin-distribution:FR-13`, separately identified `kernel-release-eligibility@1` v0.2 and v0.3 envelopes, both evidence fingerprints, v0.2 artifact hash, v0.3 artifact and declared-parent hashes, evaluated/valid/revoked times, and user-spec before/after hashes. Include one valid `A != B` linked predecessor/current pair and deterministic variants for one unqualified kernel envelope, duplicate stage, v0.3-for-v0.2 substitution, wrong parent hash, stale parent, and revoked parent.
 **Ground truth:** schema/service/fixture/evaluator evidence may exist while lifecycle remains `DEFERRED`, but authoring actions stay unavailable until exact all-of FR-13 evidence includes one current non-revoked accepted v0.2 result and one current non-revoked accepted v0.3 result with `v03.v02ParentArtifactSha256 == v02.artifactSha256`, the same product revision/artifact lineage, all FR-1..FR-12 evidence, and current distribution evidence. The valid linked pair becomes `ELIGIBLE` even when predecessor/current hashes differ; every one-fault variant remains `DEFERRED` with the exact target-stage blocker. Registration uses only the existing extension and installed proof advances `ELIGIBLE→IMPLEMENTED→PROVEN`; uninstall or evidence regression preserves user bytes and unregisters actions.
 **Used by:** FR-1, FR-12 and FR-13.
@@ -83,6 +83,13 @@ Fixtures listed here are planned evidence inputs. None exists or is claimed exec
 **Capture:** engine/version/config, full mutant inventory, critical-family mapping, baseline, per-mutant result, restoration run, duration, errors, and artifact hashes.
 **Ground truth:** producer totals reconcile with per-mutant rows; every critical family is represented; restoration hashes equal baseline.
 **Used by:** FR-11.
+
+### FX-11 — MCP facade compiler and registry
+
+**Producer:** real facade compiler over captured canonical spec documents plus the built MCP registry inventory.
+**Capture:** each of seventeen registered v1 facade requests, normalized proposal operations/hashes/findings, one review-only then one commit-only apply call, the exact tools/list registry, and the capability manifest's seven `unsupportedLaterNames`.
+**Ground truth:** every v1 name maps byte-for-byte to its schema table row; one apply call never both reviews and commits; semantic repair refuses; v2 names are absent from v1 tools/list/tools/call and remain explicitly listed as later; no authoring name appears in historical v0.3.
+**Used by:** FR-14.
 
 ## Prohibited fixtures
 

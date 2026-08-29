@@ -47,7 +47,7 @@
 2. Resolve only `<project-root>/.specs`.
 3. Enumerate direct spec directories in deterministic lexical order.
 4. Apply request bounds and hard safety caps.
-5. Return the public result schema with qualified IDs and diagnostics.
+5. Return the public result schema with bounded spec slugs, normalized project-relative paths, counts, truncation and diagnostics; no canonical node ID is invented by inventory.
 6. Confirm no filesystem mutation, model call, process spawn, network access, or secret read occurred.
 
 **Alternates:** Missing `.specs`, non-directory `.specs`, malformed spec, excessive entries, symlink escape, or aborted request returns a bounded typed result without crashing the session.
@@ -90,20 +90,20 @@
 
 **Trace:** FR-8; AC-8.1, AC-8.2; `@feature8`.
 
-## UC-6 — Publish v0.1.0
+## UC-6 — Publish an attested candidate
 
-**Actor:** Release owner and GitHub Actions
+**Actor:** Distribution release owner, product release owner, and GitHub Actions
 
-**Preconditions:** Immutable provenance and public-safety inputs are present.
+**Preconditions:** Immutable candidate, public-safety, lifecycle, complete producer matrix and fixed-workflow attestation inputs are present.
 
 **Main flow:**
-1. Run provenance, license, secret, public-path, schema, cardinality, build, package, dependency-absent, lifecycle, preservation, and evidence-honesty gates.
-2. Verify catalog version, child package version, built runtime version, installed tool version, and requested tag are all `0.1.0`/`v0.1.0` as applicable.
-3. Prove clean install, reload, fresh-session invocation, uninstall absence, and exact-artifact reinstall/reinvocation; mark prior-version upgrade/rollback inapplicable for `0.1.0`.
-4. Map current passed receipts to every FR-1 through FR-12 under one commit/OMP/platform/catalog/artifact/version identity.
-5. Upload only allowlisted clean-build artifacts and evidence receipts.
-6. Create the GitHub release only when a future independently verifiable producer-attestation path allows FR-13 to report `eligible`.
+1. Run topology, provenance, safety, build, dependency-absent, lifecycle, preservation, version and evidence-honesty gates.
+2. Bind every FR-1..FR-12 receipt to one candidate/OMP/platform/applicability identity.
+3. Build and attest the exact distribution evidence subject in `distribution-evidence.yml`.
+4. Verify repository `stgmt/omp-spec-kit`, fixed signer workflow, candidate tag ref and subject hash with `gh attestation verify`.
+5. Emit distribution-only eligibility; the product evaluator composes MRI/baseline/capability/public gates.
+6. Publish the already verified digest exactly once and attest the public assets.
 
-**Alternates:** Any self-attested, missing, stale, mismatched, failed, blocked, partial, or stage-summary-only evidence blocks release creation; current self-authored producer metadata returns `distribution-producer-provenance-untrusted:no-independent-trust-root`, and workflows never mark BDD specification text as executed evidence.
+**Alternates:** Self-attested-only, missing/stale/foreign/partial matrix, missing verifier, wrong repo/workflow/ref/subject, failed verification, product-gate refusal, or different existing release blocks publication. Predicate JSON and BDD text are not trust/evidence authority.
 
 **Trace:** FR-9, FR-10, FR-11, FR-13; AC-9.1, AC-10.1, AC-11.1, AC-13.1; `@feature9`, `@feature10`, `@feature11`, `@feature13`.

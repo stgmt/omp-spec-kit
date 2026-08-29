@@ -19,4 +19,4 @@
 ## Usability
 
 - Installation instructions SHALL state that a fresh OMP session is required after plugin install, upgrade, rollback, or reload.
-- Public material SHALL distinguish the v0.3.0 advisory from verified v0.3.1 behavior and link them directly.
+- Public material SHALL distinguish the v0.3.0 advisory from verified v0.3.2 behavior and link them directly.

@@ -2,7 +2,7 @@
 
 ## Status
 
-No executable fixture suite exists in public init. The Gherkin scenarios are specification text only. This document defines which real artifacts future verification must capture; it does not claim those artifacts have been produced or that any scenario passes.
+The published v0.3.2 release now has a bounded current-status evidence record at `docs/validation/release-status-v0.3.2.json`. Gherkin scenarios remain specification text unless separately tied to producer receipts; this document distinguishes captured real evidence from planned fixture families.
 
 ## Fixture policy
 
@@ -20,6 +20,7 @@ No executable fixture suite exists in public init. The Gherkin scenarios are spe
 | `IMPORT_MANIFEST.yaml` | Source-freeze inventory | Records commit `158cd5ccfe4d08625734fc1692d8916cc5838fd6`, 27 inventoried paths, 24 copied targets, 3 exclusions, and per-file hashes/status. It records expected state, not an executed verification result. |
 | `docs/upstream/dev-pomogator/spec-generator-v4/` | Byte-preserved reference input | Contains the 24 copied reference documents. It is not target requirements and its scenarios are not product evidence. |
 | `MIGRATION_MATRIX.md` | Disposition input | Records ADOPT/REWRITE/DEFER/DROP decisions. It is decision provenance, not delivery proof. |
+| `docs/validation/release-status-v0.3.2.json` | Current public-release status | Binds public tag `v0.3.2`, commit `2938389e34e2d06bdd497291ed01e0a2d89146c9`, candidate/package/archive digests, GitHub release workflow identity, attestation verification and bounded receipt digests. It contains identities and hashes, not copied release assets. |
 
 ## Planned source-freeze fixture capture
 
@@ -73,9 +74,9 @@ Use real stage evidence records, not handcrafted green summaries. Include:
 - eligible v0.1.0 with complete current-candidate distribution evidence;
 - eligible v0.2 with complete current-candidate distribution and `spec-kernel:FR-14` `targetStage: "v0.2"` evidence;
 - eligible v0.3 with current-candidate artifact B for distribution and `targetStage: "v0.3"`, distinct `PREDECESSOR_V0_2` artifact A, the v0.3 result naming exact `v02ParentArtifactSha256: A`, the same product revision and lineage on both kernel results, strict v0.2/v0.3 stage-profile pairs, and null revocation timestamps;
-- eligible authoring with current-candidate artifact B for distribution, v0.3 kernel, and `spec-authoring-workflow:FR-13`, plus the same linked active v0.2 predecessor A;
-- one-fault variants for a historical input, different lineage, absent/mismatched parent SHA-256, reversed/duplicate/wrong target stage/profile, stale predecessor, revoked predecessor, and current distribution/current-stage/current-authoring evidence bound to A instead of current candidate B;
-- a missing/member-subset aggregate variant proving the cumulative all-not-any gate still fails closed even when the artifact chain is otherwise valid;
+- eligible joint authoring/enforcement candidate B with evidence FR-13/14, authoring FR-13/14, enforcement FR-11, current distribution/v0.3 kernel, and the linked active v0.2 predecessor A;
+- one-fault variants for each of the seven capability maps, historical/different-lineage input, parent mismatch, wrong stage/profile, stale/revoked result, sibling substitution, or current evidence bound away from B;
+- missing/member-subset variants proving no capability—including authoring or enforcement—can deliver independently of its exact map.
 - Gherkin text with no executed result, contributing zero delivered evidence.
 
 ## Conservation assertions

@@ -47,17 +47,23 @@ The reference snapshot comes only from immutable dev-pomogator commit:
 
 The historical upstream root-license evidence gap is resolved by the merged source-owner MIT attestation at commit `a21d27ba08919cb5340493adac8dbbf2f8fec72a`, copied byte-for-byte under [`docs/upstream/dev-pomogator/`](docs/upstream/dev-pomogator/). Source-freeze, specification, anchor, secret/public-tree, and complete candidate review are recorded under [`docs/validation/`](docs/validation/). The reviewed initial commit `fe70b10caaed888daf7c48dfc8f1bad9caf45598` is public at [`stgmt/omp-spec-kit`](https://github.com/stgmt/omp-spec-kit); its SHA/tree/readback proof is in [`publication-receipt.md`](docs/validation/publication-receipt.md).
 
-## Planned delivery
+## Delivered baseline and capability map
 
-The roadmap deliberately keeps one product boundary:
+The public baseline is v0.3.2: one plugin, the v0.2 graph/query kernel, and the eight-tool v0.3 MCP first slice. Its tag, candidate/package/archive digests, lifecycle receipts and GitHub attestation identity are summarized in [`release-status-v0.3.2.json`](docs/validation/release-status-v0.3.2.json).
 
-1. public specification and provenance init;
-2. v0.1.0 — one installable OMP plugin with a bounded read-only inventory path (released);
-3. v0.2 — a standalone graph/query kernel;
-4. v0.3.0 — read-only MCP adapter, now superseded for its active-project-root defect;
-5. v0.3.1 — corrective launcher and evidence-bound public release;
-6. v0.3.2 — honesty-gated release receipts and signed release assets;
-7. later — safe authoring and mutation, only after containment, CAS, concurrency, and evidence gates.
+Post-v0.3 work is a dependency graph, not a linear promise:
+
+| Capability | Owner | Required baseline / gate | Current state |
+|---|---|---|---|
+| Generator-port reads and adapter I/O | `spec-kernel:FR-16`, `spec-kernel:FR-17` | v0.3 baseline + CHK-FR16-01/CHK-FR17-01 | `SPECIFIED` |
+| Editor/MCP-internal LSP | `spec-lsp:FR-1`, `spec-lsp:FR-12` | v0.3 baseline + complete LSP profile | `SPECIFIED` |
+| Evidence MCP (`get_test_result`, `get_scenario_trace`) | `spec-evidence:FR-13`, `spec-evidence:FR-14` | v0.3 baseline + evidence aggregate | `SPECIFIED` |
+| Capability graph/impact | `spec-capability:FR-6`, `spec-capability:FR-9` | v0.3 baseline + kernel@2/capability profile | `SPECIFIED` |
+| Authoring MCP | `spec-authoring-workflow:FR-13`, `spec-authoring-workflow:FR-14` | joint tuple + authenticated tool-call provider/server/schema ABI | `DEFERRED_HOST_ABI` |
+| Spec write enforcement | `spec-enforcement:FR-1`, `spec-enforcement:FR-11` | joint tuple + authenticated tool-call provider/server/schema ABI | `DEFERRED_HOST_ABI` |
+| Automatic plan approval gate | `plan-gate:FR-1`, `plan-gate:FR-13` | v0.3 baseline + plan-gate aggregate + selected-plan host ABI | `DEFERRED_HOST_ABI` |
+
+No capability row changes the historical v0.3 eight-tool evidence or implies delivery of a sibling capability.
 
 ## Repository policy
 

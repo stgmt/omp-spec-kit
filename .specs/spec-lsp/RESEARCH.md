@@ -2,7 +2,7 @@
 
 ## RF-1: OMP is an LSP-native host
 
-OMP's coding agent has a built-in `lsp` tool with 14 operations including diagnostics, navigation, symbols, rename, code actions, and raw requests (`docs/tools/lsp.md`). The default setting `lsp.diagnosticsOnWrite = true` triggers automatic diagnostic polling after every write/edit (`docs/settings.md`). Plugins register LSP servers through the `lspServers` manifest field, which produces `.lsp.json` at install time (`docs/marketplace.md`). Configuration uses `<project>/.omp/lsp.json` or `<project>/.lsp.json` with `{command, args, fileTypes, languageId, initOptions}` shape (`docs/lsp-config.md`). Lazy start (`lsp.lazy = true` default) and shared broker (`lsp.shared = true` default) are host-managed (`docs/settings.md`).
+OMP's coding agent has a built-in `lsp` tool whose operation enum and lifecycle are documented at the pinned [LSP tool guide](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/tools/lsp.md). The pinned [settings guide](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/settings.md), [marketplace guide](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/marketplace.md), and [LSP configuration guide](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/lsp-config.md) define diagnostics-on-write, plugin `lspServers`/`.lsp.json`, configuration fields, lazy start, and shared broker behavior for the v17.3.7 implementation pin. These immutable URLs replace non-reproducible local `docs/...` shorthand. [VERIFIED against pinned bytes; runtime behavior remains a TASK-1 probe obligation]
 
 **Implication:** The host provides the diagnostic-push, lifecycle, and multi-session machinery. The adapter need only implement the LSP protocol correctly; no custom hook, daemon, or push mechanism is required.
 
@@ -25,15 +25,15 @@ The official `@cucumber/language-server` would create a second index over `.feat
 
 ## RF-4: Read-only-first posture matches kernel release stages
 
-The kernel v0.2 and v0.3 are read-only. The LSP adapter is a sibling projection and inherits this constraint. `workspace/applyEdit` is available in OMP's LSP client (`docs/tools/lsp.md`) but its use constitutes mutation, which belongs to the future authoring door. Code actions may PROPOSE repairs (returning edit descriptions) but application requires the authoring door's audit and validation pipeline.
+The delivered baseline and current LSP profile are read-only. Advertising codeAction while returning no applicable WorkspaceEdit creates a dead host path; returning an edit would bypass the authoring MCP authority. [VERIFIED product boundary]
 
-**Risk:** RISK-1 — Premature mutation surface. If code actions return applicable edits without the authoring door, they bypass safety gates. Mitigation: code actions return proposal descriptions only; no `WorkspaceEdit` is returned until the authoring stage explicitly opens this path.
+**Decision:** current profile advertises no codeAction and direct requests return an empty list. Any future repair suggestion belongs to authoring MCP, not LSP.
 
 ## RF-5: Incremental re-evaluation budget
 
-Upstream `dev-pomogator` established a ≤150ms p95 budget for incremental re-evaluation of a touched spec. This budget is adopted as the target for this adapter. Full-corpus work occurs only at startup or explicit reload. The kernel's incremental graph rebuild capability (when available) is the enabler; the adapter does not implement its own incremental parsing beyond what the kernel provides.
+The current kernel exposes a bounded full snapshot build, not an accepted incremental API. The prior 150 ms value is retained only as informational research provenance.
 
-**Risk:** RISK-2 — Kernel incremental rebuild not yet available at spec-authoring time. If the kernel only supports cold builds, the adapter must defer to full rebuild on `didSave` until incremental support lands. This may exceed the 150ms budget on large corpora. Mitigation: document the dependency; gate the budget claim on kernel incremental support evidence.
+**Decision:** didSave uses the existing full rebuild and records p95 without a pass/fail threshold. Incremental behavior and a hard budget require a separate accepted kernel profile.
 
 ## RF-6: Honest absence over degraded fake resolution
 
@@ -53,9 +53,9 @@ OMP's coding agent has a built-in `lsp` tool. That is a **host** capability. Thi
 
 ## RF-9: Eight MCP tools are the first slice, not the destination
 
-`src/mcp/server.js` maps eight SCHEMA-11 tools because `spec-kernel:FR-8` froze the first kernel slice so v0.2/v0.3 could ship. The destination is the spec-generator door ported to OMP. See RF-16 and spec-kernel FR-16. [VERIFIED]
+`src/mcp/server.js` maps eight SCHEMA-11 tools because `spec-kernel:FR-8` froze the first kernel slice so v0.2/v0.3 could ship. The destination is the spec-generator door ported to OMP. See RF-16 and the exact ownership map: kernel FR-16 graph queries, kernel FR-17 document/preflight adapter I/O, `spec-evidence` result reads, and `spec-authoring-workflow` mutations. [VERIFIED]
 
-**Decision:** Do not freeze the registry at eight. Grow MCP as kernel FR-16 and authoring land. Do not delete the eight.
+**Decision:** Do not freeze the registry at eight. Grow MCP only through those owners. Do not delete the eight.
 
 ## RF-10: Step bindings live in the kernel (FR-15), not in LSP
 

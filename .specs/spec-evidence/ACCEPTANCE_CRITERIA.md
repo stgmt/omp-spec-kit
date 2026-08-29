@@ -12,7 +12,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-2.1: Closed versioned artifact kind set
 
-**EARS:** WHEN artifacts of kind Cucumber Messages NDJSON, pytest-bdd cucumber-json, scenario-result overlay, and an unrecognized kind are supplied THEN the evaluator SHALL accept exactly the three recognized kinds with their declared schema versions AND produce `NOT_INGESTED` with reason `MALFORMED_ARTIFACT` for the unrecognized kind.
+**EARS:** WHEN the three exact supported kind/version pairs and unknown/unsupported pairs are supplied THEN only `cucumber-messages-ndjson@33.0.4`, `pytest-bdd-cucumber-json@1`, and `scenario-result-overlay@1` SHALL be admitted; unsupported identity yields `NOT_INGESTED/UNSUPPORTED_ARTIFACT_IDENTITY`, while malformed admitted bytes yield `MALFORMED_ARTIFACT`.
 
 **Requirement:** [FR-2](FR.md#fr-2-supported-execution-artifacts)
 
@@ -20,7 +20,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-3.1: Ingestion state is closed and conserved
 
-**EARS:** WHEN an artifact is present and parseable, present but malformed, absent, parseable with no scenario results, or caller-skipped THEN it SHALL receive exactly one state from `INGESTED`, `NOT_INGESTED` (with `ARTIFACT_ABSENT` or `MALFORMED_ARTIFACT`), or `SKIPPED` (with `MISSING_SCENARIO_RESULTS` or `INGESTION_SKIPPED`); AND an `INGESTED` artifact SHALL report parsed/matched/unmatched/malformed counts satisfying parsed = matched + unmatched + malformed.
+**EARS:** WHEN PRESENT valid/malformed/unsupported/missing-results, ABSENT, or caller-SKIPPED input is evaluated THEN exactly one discriminated output state/reason from the schema SHALL result; callers SHALL NOT assert parse-derived missing-results; and INGESTED counts SHALL satisfy parsed = matched + unmatched + ambiguous + malformed.
 
 **Requirement:** [FR-3](FR.md#fr-3-artifact-level-ingestion-state)
 
@@ -28,7 +28,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-4.1: Every result is joined or counted unmatched
 
-**EARS:** WHEN valid producer results are evaluated against canonical scenarios THEN each result SHALL be either joined by qualified ID, joined by tag, joined by name fallback, or counted as unmatched (including ambiguous joins); AND no valid result SHALL be silently dropped.
+**EARS:** WHEN valid producer rows are evaluated THEN each SHALL have exactly one JOINED, UNMATCHED, or AMBIGUOUS_JOIN record using the priority order and bounded candidates; result/join collections and census memberships SHALL conserve exactly, with no silent drop or arbitrary election.
 
 **Requirement:** [FR-4](FR.md#fr-4-scenario-result-join)
 
@@ -44,7 +44,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-6.1: Stale results never satisfy readiness
 
-**EARS:** WHEN a once-passing result is older than the scenario or step-definition sources it claims THEN staleness SHALL be recorded as pass-through metadata on the result; AND the stale result SHALL NOT satisfy DONE/verified status; AND absent timestamps on either side SHALL produce an indeterminate freshness verdict that also fails to satisfy readiness.
+**EARS:** WHEN evidence hash bindings equal the current graph, scenario, step-binding set and implementation artifact THEN freshness SHALL be FRESH; WHEN any binding differs THEN it SHALL be STALE with exact reasons; WHEN any required binding is absent THEN it SHALL be INDETERMINATE; AND only FRESH canonical PASSED evidence may satisfy readiness.
 
 **Requirement:** [FR-6](FR.md#fr-6-freshness-and-staleness)
 
@@ -52,7 +52,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-7.1: DONE/verified requires fresh green evidence
 
-**EARS:** WHEN a task's status is derived THEN DONE/verified SHALL require fresh green evidence joined to every required scenario for that task; AND rollups SHALL use all-not-any semantics where one green among open siblings verifies nothing; AND DONE-but-unverified SHALL be a named state distinct from DONE/verified and not-DONE.
+**EARS:** WHEN status is derived THEN `done-verified` SHALL require one FRESH PASSED CANONICAL row per required scenario plus evidence hashes; overlay-only/stale/skipped/failed/unknown/ambiguous/absent rows fail; all-not-any applies; waived status remains `open-waived`.
 
 **Requirement:** [FR-7](FR.md#fr-7-fail-closed-status-truth)
 
@@ -68,7 +68,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-9.1: Census conservation equations hold
 
-**EARS:** WHEN a coverage census is produced THEN authored scenarios = joined + unmatched-author-side + waived-excluded; AND ingested valid results = joined + unmatched-producer-side; AND parsed records = matched + unmatched + malformed; AND equation violations SHALL produce a diagnostic and set census validity to false.
+**EARS:** WHEN census is produced THEN authored and producer equations, ambiguous rows, per-artifact/global sums, collection lengths, unique IDs and join-outcome partitions SHALL all match `spec-evidence_SCHEMA.md`; waivedTaskCount remains separate; any violation invalidates the census.
 
 **Requirement:** [FR-9](FR.md#fr-9-coverage-census-with-conservation-equations)
 
@@ -76,7 +76,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-10.1: No verdict without evidence bytes
 
-**EARS:** WHEN a status verdict is produced THEN it SHALL reference at least one evidence byte hash; AND no result SHALL be marked green without a corresponding parsed artifact record; AND freshness checks SHALL NOT be bypassable by configuration; AND overlay-only evidence SHALL NOT satisfy canonical readiness; AND invariant violations SHALL produce diagnostics naming the specific invariant breached.
+**EARS:** WHEN a status/result/trace verdict is produced THEN it SHALL reference parsed producer bytes and current bindings from a rehashed canonical sidecar bound to that artifact ID/hash; no green or fresh result may originate from flags, structural parsing, overlay-only data or missing evidence; invariant violations SHALL name the exact breached binding.
 
 **Requirement:** [FR-10](FR.md#fr-10-anti-false-green-invariants)
 
@@ -92,7 +92,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-12.1: Budgets are measured and enforced
 
-**EARS:** WHEN evaluation runs against the reference corpus THEN latency, artifact size, artifact count, census size, and diagnostic caps SHALL conform to the budgets in NFR.md; AND exceeded hard limits SHALL return `LIMIT_EXCEEDED` or refuse evaluation; AND measurements SHALL report runtime/OS/CPU, corpus fingerprint, warm-up, sample count, percentiles, artifact hash, and raw observations.
+**EARS:** WHEN evaluation runs THEN input count/bytes parsed-record diagnostic-byte census-byte and response-byte limits SHALL be enforced by `EvidenceLimitsV2`; exceeded hard limits SHALL return `LIMIT_EXCEEDED`; explicit totals/cursors SHALL accompany any permitted truncation; AND latency SHALL be measured by the caller without giving the pure evaluator clock access.
 
 **Requirement:** [FR-12](FR.md#fr-12-budgets)
 
@@ -100,7 +100,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-13.1: Release contribution fails closed
 
-**EARS:** WHEN release eligibility is evaluated for this spec's contribution THEN exactly one passing non-empty hash-valid artifact-bound record SHALL exist for every mandatory check mapped to FR-1 through FR-12; AND missing extra duplicate failed stale mismatched or unbound records SHALL fail closed with deterministic blockers; AND structural specification text and unexecuted Gherkin SHALL NOT satisfy evidence; AND eligibility SHALL NOT loosen the product:FR-6 cumulative gate.
+**EARS:** WHEN `spec-evidence-mcp@1` eligibility is evaluated THEN exactly one current PASS hash-valid candidate/graph-bound record SHALL exist for CHK-FR1-01 through CHK-FR14-01; missing extra duplicate failed stale mismatched unbound or structural-only records SHALL fail with deterministic blockers; AND the result SHALL contribute to, never replace, `product:FR-6`.
 
 **Requirement:** [FR-13](FR.md#fr-13-release-eligibility-contribution)
 
@@ -108,8 +108,8 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-14.1: MCP projection of get_test_result and get_scenario_trace
 
-**EARS:** WHEN this evidence layer exists THEN MCP SHALL expose the two read-only tools `get_test_result` and `get_scenario_trace` as projections of evaluator output; AND the evaluator SHALL NOT call MCP internally (FR-1); AND these tools SHALL NOT be a v0.2 or v0.3 kernel required check and SHALL NOT appear on the v0.3 first-slice read registry; AND `spec-kernel:FR-6` SHALL remain forbidden from pass/fail claims; AND `spec-lsp` hover SHALL NOT invent run results, provenance, or freshness before this FR.
+**EARS:** WHEN `get_test_result` or `get_scenario_trace` is called THEN the read-only MCP projection SHALL return the exact schema fields for selected layer, status, run/source, trace, failed step/error, freshness bindings, sidecar/evidence hashes and the deterministic fingerprint; missing evidence SHALL return explicit null result/trace; ambiguous candidates and trace pages SHALL expose consumable cursor/limit fields; the pure evaluator SHALL not call MCP; and neither tool belongs to historical kernel-v0.3.
 
-**Requirement:** [FR-14](FR.md#fr-14-mcp-projection-of-get_test_result-and-get_scenario_trace)
+**Requirement:** [FR-14](FR.md#fr-14-mcp-projection-of-gettestresult-and-getscenariotrace)
 
 **Scenario:** `@feature14`, `@id:SCEN-spec-evidence-mcp-projection-of-run-results`

@@ -3,113 +3,90 @@
 ## Architecture
 
 ```text
-repository root / marketplace root
-├── .omp-plugin/marketplace.json          (one catalog, one entry)
-├── src/v0.1/                             (repository-only runtime sources)
-├── scripts/                              (repository-only build and validators)
-└── plugins/omp-spec-kit/                 (complete recursively copied payload)
-    ├── package.json                      (one omp.extensions entry)
+repository / marketplace root
+├── .omp-plugin/marketplace.json          one catalog / one entry / v0.3.2
+├── src/v0.1/{extension,inventory}.js     preserved baseline entry sources
+├── src/{kernel,adapters,mcp}/            root source trees added by later baseline profiles
+├── scripts/                              build, verification, evidence, release
+└── plugins/omp-spec-kit/                 complete recursively copied child
+    ├── package.json                      one omp.extensions entry
+    ├── .mcp.json                         one MCP server identity (v0.3+ profiles)
+    ├── bin/omp-spec-kit-mcp{,.cmd}       cross-platform launchers
+    ├── dist/                             generated extension/kernel/adapters/mcp + manifest
+    ├── skills/spec-inventory/SKILL.md
+    ├── commands/spec-inventory.md
     ├── README.md
-    ├── LICENSE
-    ├── dist/
-    │   ├── extension.js                  (clean-built installed entry)
-    │   ├── inventory.js
-    │   └── manifest.json                 (deterministic source hashes)
-    ├── skills/spec-inventory/SKILL.md    (guidance only)
-    └── commands/spec-inventory.md        (guidance only)
-
-fresh OMP session
-  -> installed child manifest
-  -> dist/extension.js default factory
-  -> register spec_inventory
-  -> execute with ctx.cwd
-  -> bounded reads under <ctx.cwd>/.specs
-  -> typed redacted result; zero writes
+    └── LICENSE
 ```
 
-OMP v17.3.7 `cachePlugin` recursively copies the catalog source directory with `fs.cp`; it does not filter the copy through `package.json#files`. Therefore the child directory is the closed installable payload, not a workspace. There is no source, build script, test, evidence, nested marketplace, nested plugin, v0.1.0 MCP adapter, hook, watcher, writer, or alternate control plane beneath it.
+The topology invariant is one marketplace × one plugin package × one extension entry × one MCP server identity. Historical v0.1.0 had no MCP entry; delivered v0.3.2 extends the same child with its read-only kernel/MCP first slice. Later capabilities may add generated files only through accepted profile gates; they cannot add a second package, factory, server identity, writer control plane, or nested marketplace.
 
 ## Component responsibilities
 
 | Component | Owns | Does not own |
 |---|---|---|
-| Root catalog | Marketplace identity, child source, explicit version, public metadata | Runtime commands, extension duplication, install scripts |
-| Child manifest | Package identity, package allowlist, one built extension entry | Catalog discovery, nested plugins, user state |
-| Extension factory | Registration of one tool | Inventory execution during load, runtime actions, side effects |
-| Inventory executor | Root resolution, bounded enumeration, schema mapping, redaction | Graph semantics, authoring, repairs, claims of readiness |
-| Distribution verifier | Cardinality, clean build, package/dependency proof, lifecycle receipts, FR-1..FR-12 evidence aggregation | Product behavior invention or status laundering |
-| Release workflow | Candidate-aware aggregate eligibility and same-artifact gated GitHub release | Rebuilding after verification, publishing from PRs, inferring evidence from job summaries |
+| Root catalog | Product identity, child source, candidate version/public metadata | Runtime execution, second source/control plane |
+| Child manifest/tree | Candidate profile allowlist, one extension, optional profile-gated MCP launcher | Build/test/source/evidence workspace |
+| Existing extension factory | Candidate-declared OMP registrations | Product stage, public release, second factory |
+| MCP launcher/server | Candidate-declared MCP first slice and future gated names | Distribution/public eligibility or alternate product |
+| Root build | Clean generated dist tree and deterministic manifest | Runtime downloads or ambient dependencies |
+| Distribution producer | Real topology/package/lifecycle/safety observations and content-addressed FR-1..FR-12 receipts | Trusting its own metadata |
+| Distribution evaluator | Structural matrix + independent attestation -> distribution-only eligibility | MRI or product/public/capability composition |
+| Product evaluator | Baseline/capability/public delivery conjunction | Re-running producer checks |
 
 ## Root and filesystem containment
 
-The project root authority is the tool execution context `ctx.cwd`. The extension package path and process launch directory are not project-root authorities. The executor normalizes the `.specs` candidate, validates containment before and after link resolution, and reads only direct children required by the bounded profile. Unsafe links are diagnosed, never followed.
+Runtime project-root authority is OMP tool/MCP request context, never package location or process CWD. Inventory resolves `<project-root>/.specs`, checks lexical and link containment, and emits project-relative bounded data only. Packaging treats the entire child directory as public/installable because pinned OMP recursively copies relative marketplace sources.
 
-Read-only enforcement combines:
-
-1. a deliberately read-only code surface;
-2. package-boundary rejection of mutation/harness imports;
-3. fixture filesystem monitoring and before/after hashes;
-4. no network/process/model credentials in the runtime contract; and
-5. release receipts bound to the artifact digest.
-
-A returned `readOnly: true` field communicates contract intent but is not itself proof.
+Evidence containment is separate: root, every parent, and receipt leaf must be ordinary/non-linked; realpaths remain under the evidence root; byte digests match references. Copying evidence bytes does not attest them.
 
 ## Inventory algorithm
 
 1. Validate `spec-inventory-request@1` before I/O.
-2. Capture the OMP-provided project root and abort signal.
-3. Resolve `<root>/.specs`; enforce lexical and real-path containment.
-4. Return `absent` if missing and `invalid` if not a safe directory.
-5. Read direct entries only, sort names lexically, and process no more than hard caps.
-6. Accept canonical slug directories; diagnose unsafe/unreadable/invalid entries.
-7. Optionally count only the 15 canonical direct document names without reading contents.
-8. Construct bounded entries and diagnostics; set `truncated` when data was omitted.
-9. Redact unexpected errors to `INTERNAL_ERROR_REDACTED` and keep the session usable.
-10. Return both human text and schema-conformant structured details without absolute paths.
+2. Resolve project root from the request/tool context.
+3. Inspect only direct `.specs` children under caller/hard bounds.
+4. Reject lexical, symlink, reparse, realpath and root escapes.
+5. Sort slugs lexically and return only versioned entries/diagnostics.
+6. Preserve zero-write/network/process/model/credential behavior.
+
+The v0.3 eight-name read-only MCP/kernel set is a first-slice candidate identity, not a permanent distribution ceiling. Later names are owned by the generator-port capability contracts and stay inside the one server/package.
 
 ## Lifecycle state model
 
 ```text
-catalog-added
-  -> discovered
-  -> installed-project
-  -> reload-observed
-  -> pre-install-session-ended
-  -> fresh-session-started
-  -> extension-loaded
-  -> inventory-invoked
-  -> preservation-proven
-  -> uninstalled-project
-  -> fresh-session-capability-absent
-  -> reinstalled-candidate
-  -> fresh-session-inventory-reinvoked
-  -> aggregate-evidence-complete
-  -> release-eligible
-
-first subsequent release and later:
-  released-prior-installed -> upgraded-candidate -> fresh-session-candidate-invoked
-  candidate-installed -> rolled-back-prior -> fresh-session-prior-invoked
+catalog discovered
+  -> exact candidate installed project-scope
+  -> reload recorded (not activation)
+  -> pre-install session ended
+  -> fresh-session declared surface invoked
+  -> candidate uninstall + fresh-session absence
+  -> exact candidate reinstall + fresh-session invocation
+  -> post-first release: upgrade from and rollback to bound public predecessor
 ```
 
-Each transition has its own receipt. `reload-observed` cannot skip to `extension-loaded`; only a fresh session can supply that proof. For `0.1.0`, uninstall and reinstall of the same verified artifact are mandatory while upgrade and rollback are inapplicable because no prior release exists. Beginning with the first subsequent release, upgrade-from-prior and rollback-to-prior reuse the state model with explicit from/to versions and become mandatory. Removing a marketplace is not an uninstall or rollback transition.
+Every observation binds candidate/prior version, tag, commit, archive/package/candidate digests, OMP pin, platform fixture and project preservation hashes. Historical v0.1.0 legitimately had no predecessor. Current v0.3.2 binds the real v0.3.0 predecessor and receipt digests summarized in `docs/validation/release-status-v0.3.2.json`.
 
 ## Clean build and package boundary
 
-The build starts from absent/isolated `plugins/omp-spec-kit/dist/`, copies the two external repository sources `src/v0.1/extension.js` and `src/v0.1/inventory.js`, and emits a deterministic manifest of their output hashes. It rejects missing, unexpected, non-regular, or symlink output. Because OMP v17.3.7 recursively copies the whole catalog source directory, package assembly is enforced as an exact positive allowlist over `plugins/omp-spec-kit/`; `package.json#files` documents that boundary but does not create it. The dependency-absent experiment installs those assembled bytes, hides the checkout and root dependencies, and invokes the extension in a pinned clean OMP fixture. The exact bytes invoked are the bytes later uploaded, identified by digest.
+The build removes previous dist output, emits `src/v0.1/{extension,inventory}.js` plus closed root `src/{kernel,adapters,mcp}` trees for the v0.3.2 profile, and writes a deterministic file hash manifest. Candidate-profile verification checks the entire child tree, including `.mcp.json` and launchers only where allowed. It rejects missing/unexpected/non-regular/linked files, source/test/evidence/build content, undeclared imports, downloads, native addons, install scripts and ambient runtime dependencies.
+
+Dependency-absent proof exercises both the installed extension and MCP launcher with checkout/root/external `node_modules` unavailable. A successful build alone is not this proof.
 
 ## GitHub Actions workflow design
 
-Required jobs:
+1. Verification jobs produce topology, package, safety, dependency-absent, lifecycle, BDD and version receipts.
+2. `distribution-evidence.yml` builds the complete FR-1..FR-12 evidence subject for the peeled candidate tag commit and signs that exact file with `actions/attest`.
+3. `release.yml` finds only a successful distribution-evidence run whose `headSha` equals the peeled tag commit, downloads the subject/receipts, and rechecks candidate identity.
+4. The distribution evaluator structurally validates every receipt, then invokes `gh attestation verify` with:
+   - repository `stgmt/omp-spec-kit` or exact equal trusted `GITHUB_REPOSITORY`;
+   - signer workflow `stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml`;
+   - source ref `refs/tags/<candidate-tag>`;
+   - exact evidence subject hash.
+5. Only `distribution-release-eligibility@2` is emitted. Self-authored workflow/runId/observations, predicate bytes, passing job summaries, or supplied JSON cannot select eligibility.
+6. Product baseline/capability/public composition is evaluated by `product:FR-6`, not this evaluator.
+7. The publish job consumes the already verified candidate, creates the release once, refuses a different existing artifact, and attests published archive/candidate/evidence assets through `release.yml`.
 
-1. `public-safety`: provenance manifest, license disposition, secret scan, forbidden-path/public-diff checks.
-2. `schema-cardinality`: catalog/manifest public profile, one catalog/plugin/package/extension, matching identities/versions.
-3. `clean-build-package`: clean build, deterministic/allowlisted payload, artifact digest publication.
-4. `deps-absent-smoke`: consume the artifact with source/root dependencies unavailable.
-5. `distribution-lifecycle`: emits one content-addressed producer receipt per mandatory FR claim-matrix cell from the isolated fixture; every receipt carries the candidate and platform fixture identities plus passed observations. These self-authored artifacts are structurally diagnostic only. For `0.1.0`, upgrade and rollback are inapplicable; later releases prove both against a real prior artifact.
-6. `release-consistency`: copies only digest-verified regular producer receipts, rejects symlinked evidence paths and realpath escapes, validates the candidate-aware FR-1..FR-12 matrix, and labels all current inputs `untrusted-self-attested`.
-7. `release`: requires the FR-13 aggregate eligibility result, which remains blocked with `distribution-producer-provenance-untrusted:no-independent-trust-root` until an independently verifiable producer-attestation path is separately implemented; it emits neither notes nor publication and uploads no publishable candidate.
-
-Pull requests and pushes run verification only. A `v*` tag does not bypass jobs. Concurrency groups serialize a version's release; an existing release with a different artifact fails rather than being overwritten. Individual passing jobs are evidence producers, not release gates by themselves; structural matrix validation preserves diagnostics but cannot declare eligibility without an independent trust root.
+Missing `gh`, spawn/nonzero/timeout, unpinned/wrong repo, wrong workflow/ref, subject mismatch, incomplete matrix, stale/cross-candidate receipts, or containment failure blocks before notes/upload. PRs and untagged pushes remain verify-only.
 
 ## Key decisions
 
@@ -117,86 +94,78 @@ Pull requests and pushes run verification only. A `v*` tag does not bypass jobs.
 
 **Decision:** Use only `.omp-plugin/marketplace.json`.
 
-**Rationale:** OMP documents it as preferred for an OMP-only consumer and it eliminates fallback drift.
+**Rationale:** One product identity and no fallback marketplace ambiguity.
 
-**Trade-off:** No implicit Claude marketplace compatibility in v0.1.0.
-
-**Alternatives:** Dual catalogs were rejected because they create two public authorities.
+**Trade-off:** Other hosts need separate future adapters, not duplicate catalogs.
 
 ### D-2 — Relative child source without `pluginRoot`
 
 **Decision:** Use exact `./plugins/omp-spec-kit` and omit `metadata.pluginRoot`.
 
-**Rationale:** The fully explicit root-relative path is inspectable and avoids double-prefix ambiguity.
+**Rationale:** Matches the pinned OMP relative-source contract and containment.
 
-**Trade-off:** Catalog paths are slightly longer.
-
-**Alternatives:** A `pluginRoot` plus short source was rejected for the one-entry marketplace.
+**Trade-off:** The complete child tree is installable/public and needs a positive allowlist.
 
 ### D-3 — Built JavaScript entry only
 
-**Decision:** Manifest points to `./dist/extension.js`.
+**Decision:** Manifest points to `./dist/extension.js`; MCP uses generated dist plus fixed launchers.
 
-**Rationale:** Installed behavior must not depend on source transpilation or checkout dependencies.
+**Rationale:** Installed behavior cannot depend on source transpilation/checkouts.
 
-**Trade-off:** Build output must be regenerated and verified.
-
-**Alternatives:** Direct TypeScript entry was rejected for release packaging.
+**Trade-off:** Every root-source change requires deterministic rebuild/manifest proof.
 
 ### D-4 — Fresh-session activation as proof boundary
 
-**Decision:** Record reload and session restart separately; accept only fresh-session tool invocation as extension activation.
+**Decision:** Record install/reload separately; accept only fresh-session invocation as activation.
 
-**Rationale:** Official OMP guidance distinguishes reloadable surfaces from initialized tools/extensions.
+**Rationale:** Loader state can survive install/reload in an existing session.
 
-**Trade-off:** Lifecycle verification is slower and needs process/session orchestration.
+**Trade-off:** Lifecycle fixtures must manage distinct sessions.
 
-**Alternatives:** Treating install or `/reload-plugins` as sufficient was rejected as false-positive prone.
+### D-5 — Closed candidate profiles, immutable history
 
-### D-5 — Closed v0.1 public schemas
+**Decision:** Preserve historical v0.1.0 field/tree rules and add explicit later profiles such as delivered v0.3.2.
 
-**Decision:** Enumerate allowed fields and reject unknown properties at product gates.
+**Rationale:** Later MCP/kernel files cannot retroactively make v0.1 receipts false.
 
-**Rationale:** Upstream compatibility parsers may preserve fields that this product neither owns nor verifies.
+**Trade-off:** Validators select profile by exact candidate identity.
 
-**Trade-off:** Adding metadata requires an explicit schema/spec change.
+### D-6 — Distribution-only eligibility before product composition
 
-**Alternatives:** Passing through arbitrary metadata was rejected for auditability and secret safety.
+**Decision:** `distribution-release-eligibility@2` evaluates FR-1..FR-12 only; MRI and product/public status have separate owners.
 
-### D-6 — Complete aggregate evidence before claims
+**Rationale:** One evaluator cannot both produce a component result and self-authorize the product conjunction.
 
-**Decision:** Bind every claim to same-commit, same-version, same-artifact receipts and make FR-13 the sole distribution release-eligibility result.
-
-**Rationale:** Spec text, green structural checks, job summaries, and partial stage success do not prove the complete runtime and safety contract.
-
-**Trade-off:** Release automation requires an explicit FR-1..FR-12 evidence matrix and candidate-aware applicability rules.
-
-**Alternatives:** Trusting a tag, changelog, aggregate CI badge, or a subset of passing stages was rejected.
+**Trade-off:** Product release consumes multiple qualified aggregates.
 
 ### D-7 — First release proves reinstall, not fictional history
 
-**Decision:** Require `0.1.0` clean install, fresh-session invocation, uninstall, and exact-artifact reinstall; require upgrade-from-prior and rollback-to-prior only for subsequent releases.
+**Decision:** v0.1.0 has no upgrade/rollback prerequisite; every subsequent profile uses real public prior bytes.
 
-**Rationale:** A first release has no legitimate predecessor, so demanding one would either make release impossible or incentivize fabricated history.
+**Rationale:** Applicability is candidate-aware.
 
-**Trade-off:** Lifecycle automation has two explicit applicability profiles.
-
-**Alternatives:** Publishing an artificial `0.0.x` solely to satisfy the proof or silently skipping all removal/recovery evidence was rejected.
+**Trade-off:** Later release workflows preserve prior artifacts/receipts.
 
 ### D-8 — External sources, closed copied payload
 
-**Decision:** Keep runtime sources and build/verification programs at repository root, outside `plugins/omp-spec-kit/`; generate only `dist/` into the child and verify the complete child tree against an exact allowlist.
+**Decision:** Runtime source/build/test/evidence stay at root; only generated dist and closed runtime assets live in the child.
 
-**Rationale:** Pinned OMP v17.3.7 `cachePlugin` uses recursive `fs.cp` for relative marketplace sources, so any source, test, or build file beneath the child would be installed.
+**Rationale:** OMP recursively copies the child.
 
-**Trade-off:** The child cannot be treated as a self-building workspace; repository-root scripts own build and validation.
+**Trade-off:** Child cannot be a self-building workspace.
 
-**Alternatives:** Relying on `package.json#files` or keeping `src/`, `scripts/`, or compiler configuration in the child was rejected because OMP's copy path does not filter on that field.
+### D-9 — GitHub Artifact Attestations is the current trust root
+
+**Decision:** Trust certificate identity/timestamps and exact subject binding from the fixed repository/workflow/ref; treat predicate bytes as diagnostics.
+
+**Rationale:** Self-authored JSON cannot independently prove its producer.
+
+**Trade-off:** Maintainer CI needs `gh`/Sigstore verification; unavailable verifier fails closed.
 
 ## Security review boundaries
 
-Repository content is attacker-controlled input. Names/messages are escaped as data; nothing discovered is executed. Public results disclose no file content or host identity. Workflow scripts use pinned actions, explicit permissions, immutable artifact digests, and designated scanner-test fixtures so a real secret cannot be excused as test data.
+Repository and receipt content are untrusted data. Nothing discovered is executed. Public output contains no file contents/host identity. Actions use least permissions, pinned workflow identity, OIDC attestations, digest handoff and tag/commit equality. Designated secret-scanner fixtures cannot whitelist arbitrary files.
 
 ## Deferred decisions
 
-Graph/query services, MCP, authoring/mutation, compatibility catalogs, npm sources, multiple tools/extensions, telemetry, and central marketplace submission are excluded from v0.1.0. They require separate versioned specifications and may not weaken the one-package architecture.
+Generator-read growth, LSP, evidence, capability, authoring, enforcement and automatic plan-gate behavior use separate post-v0.3 capability gates. They may extend the same child/server only after acceptance and may not weaken one-product topology or reinterpret historical v0.3 first-slice receipts.

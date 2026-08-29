@@ -6,9 +6,8 @@ on:
       - "v*.*.*"
 
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  actions: read
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -134,6 +133,11 @@ jobs:
           if-no-files-found: error
 
   publish:
+    permissions:
+      actions: read
+      attestations: write
+      contents: write
+      id-token: write
     needs: verify
     runs-on: ubuntu-latest
     # Least privilege: the job token exists only so `gh` can reverify and

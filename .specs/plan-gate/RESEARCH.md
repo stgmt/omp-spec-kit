@@ -2,7 +2,7 @@
 
 ## Scope and method
 
-This research combines two evidence classes: (1) the installed OMP runtime source `pi-coding-agent@17.3.7` at `C:\Users\stigm\.omp\plugins\node_modules\@oh-my-pi\pi-coding-agent\src\` (pinned per the repository contract note `docs/omp-v17.3.7-contract.md`), and (2) the upstream `dev-pomogator` plan-gate working tree at `E:\repos\dev-pomogator\tools\plan-pomogator\` plus the 2026-08-23 design analysis in that repository's `audit-reports/`. OMP-side findings are stated with installed source paths and must be re-proven live by TASK-1 before implementation. Upstream facts are research evidence only; no upstream byte is imported without a manifest/hash/license decision.
+This research combines two evidence classes: (1) the installed OMP runtime source `pi-coding-agent@17.3.7` at `C:\Users\stigm\.omp\plugins\node_modules\@oh-my-pi\pi-coding-agent\src\` (pinned by `docs/omp-v17.3.7-contract.md`), and (2) the upstream `dev-pomogator` plan-gate working tree at `E:\repos\dev-pomogator\tools\plan-pomogator\` plus its design analyses. OMP-side bytes establish what the current pin does and does not expose. Upstream facts are provenance for validation semantics only; no upstream byte is imported without a manifest/hash/license decision.
 
 ## RF-1: Native OMP plan approval validates almost nothing
 
@@ -14,18 +14,18 @@ This research combines two evidence classes: (1) the installed OMP runtime sourc
 
 **Decision:** A content gate has a real gap to fill; it attaches at approval time, before the approval popup.
 
-## RF-2: `tool_call` on the model-issued `write` to `xd://propose` is the interception point
+## RF-2: The current propose tool call is not a selected-plan event
 
-**Finding:** Every tool execution emits `tool_call` with payload `{type, toolName, toolCallId, input}` before execution; a handler may return `{block?: boolean, reason?: string}` and blocking throws the reason back to the model. Extensions can subscribe to `tool_call` and `context` directly through the extension API overloads. The approval request travels through the ordinary `write` tool targeting `xd://propose`: the write CONTENT carries only the plan's `<slug>` title (matching `local://<slug>-plan.md`), while the full plan body was already written earlier to `local://<slug>-plan.md` — so validating at propose time reads the current plan file from disk. Model-issued calls emit the event; nested device dispatches do not.
+**Finding:** A model-issued propose write emits `tool_call` before execution and carries only a title. Native `resolveApprovedPlan` subsequently owns state/title/newest-plan fallback and reads the selected plan. The current extension event therefore cannot identify the exact post-resolution plan and is not a sound automatic approval gate.
 
 **Evidence:**
 - `src/extensibility/hooks/types.ts:306` — `ToolCallEvent` shape.
-- `src/extensibility/extensions/types.ts:1246–1247` — extension `on("context")` and `on("tool_call")` subscription overloads with `ToolCallEventResult`.
-- `src/extensibility/hooks/tool-wrapper.ts:42–74` — emission before execution, block/reason semantics, `input` rewrite rules including the nested-dispatch exception.
-- `src/extensibility/shared-events.ts:306–332` — `ToolCallEventResult` contract.
-- `src/tools/resolve.ts:33–63,86–89,294–307` — `PROPOSE_DEVICE_PATH = "xd://propose"`, `isProposeToolCall`, and the rule that propose accepts only the plan title while plan mode is active.
+- `src/extensibility/extensions/types.ts:1246–1247` — `context` and `tool_call` subscriptions.
+- `src/extensibility/hooks/tool-wrapper.ts:42–74` — pre-execution emission, blocking semantics, and nested-dispatch behavior.
+- `src/tools/resolve.ts:33–63,86–89,294–307` — `xd://propose` accepts the title, not selected plan content.
+- `src/plan-mode/approved-plan.ts:151–182` — native resolution owns candidate/fallback selection.
 
-**Decision:** FR-1 matches `toolName === "write"` with target prefix `xd://propose` and reads the plan file separately from the session-local directory. Remaining live probe obligations (TASK-1): exact emission for model-issued propose writes and the nested-dispatch negative, plus the session-identity-to-directory-name mapping.
+**Decision:** The current propose write is not used for automatic interception. `MANUAL` accepts exact explicit plan bytes. `AUTOMATIC` is `DEFERRED_HOST_ABI` until a pinned host emits the post-resolver `plan_approval_requested` event in `docs/omp-plan-approval-event-contract.md`.
 
 ## RF-3: OMP hook faults fail closed; the port must compensate in code
 
@@ -37,25 +37,26 @@ This research combines two evidence classes: (1) the installed OMP runtime sourc
 
 **Decision:** FR-2 defines the exhaustive fault inventory and the invariant: blocking only after a complete successful validation that returned errors.
 
-## RF-4: Session identity and plan-file location are derivable without heuristics
+## RF-4: Session artifact location is not native plan selection
 
-**Finding:** Extensions can read the session ID via the runner (`sessionId` getter delegating to `sessionManager.getSessionId()`), and `local://` artifacts live physically under `os.tmpdir()/omp-local/<safeSessionId>/`. A plan written as `local://<slug>-plan.md` is therefore an ordinary file at `%TEMP%/omp-local/<session-id>/<slug>-plan.md`.
-
-**Evidence:**
-- `src/extensibility/extensions/runner.ts:641` — `get sessionId()`.
-- `src/internal-urls/local-protocol.ts` — `shortLocalRoot` builds `…/omp-local/<safeSessionId>`.
-
-**Decision:** FR-1 resolves plans only from this deterministic directory; no guessing, no fallback search. Whether the directory name equals the runner session ID verbatim or transformed by `safeSessionId` is a TASK-1 probe obligation.
-
-## RF-5: Grounding needs a self-owned prompt cache fed by `context` events
-
-**Finding:** The upstream phases 2/2.5 consume a session prompt cache (`.plan-prompts-{sessionId}.json`, rolling 10 entries, 2h GC). OMP fires a `context` event before each LLM call carrying a deep copy of the outgoing messages, safe to read. Pulling prompts from `session_stop` transcripts would arrive too late (plan already at approval) and parse a foreign format.
+**Finding:** Session-local artifact roots are derivable, but native plan selection is not equivalent to `<session>/<slug>-plan.md`: the host can carry plan state across transitions and apply title/state/newest-plan fallback. Reconstructing only one local path would disagree with native selection.
 
 **Evidence:**
-- `src/extensibility/shared-events.ts:179–183` — `ContextEvent` with mutable deep copy.
-- Upstream `tools/plan-pomogator/prompt-store.ts` (rolling cache semantics), `plan-gate.ts:403–411` (relevance window + deny at score ≤ −20).
+- `src/extensibility/extensions/runner.ts:641` — runner session identity.
+- `src/internal-urls/local-protocol.ts:242–253` — local artifact-root precedence and safe session mapping.
+- `src/plan-mode/approved-plan.ts:151–182` — candidate/fallback order.
 
-**Decision:** FR-6 ports the relevance engine unchanged in semantics (deterministic, stop-word based, no LLM) and defines the OMP-side cache adapter. Cache absence degrades to skip, never block.
+**Decision:** Session/local path knowledge may support bounded MANUAL reads of explicitly supplied URLs, but it is never an automatic selection algorithm. The future host event carries the already selected URL/content/hash.
+
+## RF-5: Grounding needs an explicit bounded prompt input
+
+**Finding:** The upstream phases consume a prompt cache, while OMP `context` events expose a deep copy of outgoing messages. That surface can feed a separately tested manual adapter, but the pure validator does not need to own session storage or subscribe to the host.
+
+**Evidence:**
+- `src/extensibility/shared-events.ts:179–183` — `ContextEvent` deep copy.
+- Upstream `prompt-store.ts` and `plan-gate.ts:403–411` — relevance provenance and score `<= -20`.
+
+**Decision:** `PlanValidationInputV2` carries at most five prompt excerpts and 64 KiB. Exact threshold is `-20`. Empty input skips grounding; malformed/over-budget adapter input returns an allow diagnostic. Future automatic prompt context requires its own host-backed receipt and is not inferred from plan text or filesystem state.
 
 ## RF-6: The upstream validation core is portable as a pure function
 
@@ -66,7 +67,7 @@ This research combines two evidence classes: (1) the installed OMP runtime sourc
 - `tools/plan-pomogator/plan-gate.ts:105–128` — duplicate detection; `:279–281` — `formatDenyErrors`; `:210` — `scorePromptRelevance`.
 - Upstream registry `tools/hook-service/registry.json` — `PreToolUse/1/0`, matcher `ExitPlanMode`, timeout 60s (Claude-side trigger being replaced, not ported).
 
-**Decision:** FR-4/FR-5/FR-6/FR-7 re-specify these phases as pure target-owned validation. The upstream file itself is not imported; the port is a rewrite that preserves measured semantics (thresholds, section set) as research inputs.
+**Decision:** FR-4/FR-5/FR-6/FR-7 re-specify these phases as a pure validator over a closed explicit input. The upstream file itself is not imported; its section set and thresholds are provenance, while directory scanning and a 60-second Claude hook timeout are deliberately not ported.
 
 ## RF-7: Spec-reference enforcement is new and disk-checkable before the kernel exists
 
@@ -94,11 +95,11 @@ This research combines two evidence classes: (1) the installed OMP runtime sourc
 
 **Mitigation:** FR-2 exhaustive fault inventory; a single wrapping catch; fault-injection scenarios `@feature2`; independent review plants every fault class.
 
-## RISK-2: Contract drift between cited v17.3.7 source and a later runtime
+## RISK-2: Required automatic host ABI is absent
 
-**Likelihood:** Medium. **Impact:** High. Pin move or `input` shape change silently breaks matching.
+**Likelihood:** Certain on v17.3.7. **Impact:** High. Pretending a title-only pre-write event identifies the selected plan would validate the wrong bytes.
 
-**Mitigation:** Runtime pin documented; TASK-1 probes recorded as evidence; version mismatch fails the release conjunction.
+**Mitigation:** Automatic state is `DEFERRED_HOST_ABI`; `CHK-HOST-ABI-01` requires source and behavioral receipts for the exact future event before the automatic profile can pass.
 
 ## RISK-3: Injection spam degrades every LLM call
 
@@ -110,7 +111,7 @@ This research combines two evidence classes: (1) the installed OMP runtime sourc
 
 **Likelihood:** Low. **Impact:** High. Reference validation could be abused to read arbitrary paths.
 
-**Mitigation:** FR-9 restricts reads to `<project-root>/.specs/<slug>/` canonical documents reached only through referenced slugs; symlinks rejected; absolute paths never returned in diagnostics.
+**Mitigation:** Manual adapter reads only canonical documents needed for a complete index below `<project-root>/.specs/<slug>/`, with realpath/reparse/symlink refusal and bounded redacted diagnostics.
 
 ## RISK-5: Grounding false positives block legitimate plans
 
@@ -118,8 +119,8 @@ This research combines two evidence classes: (1) the installed OMP runtime sourc
 
 **Mitigation:** Keep the upstream-scored threshold as a research input but require fixture vectors for borderline cases; cache-empty degrades open; relevance block reason embeds the prompt window for human review.
 
-## Open decisions
+## Resolved and deferred decisions
 
-1. Exact deny channel budget split between error list, template excerpt, and prompt excerpt (bounded total per NFR-SIZE-1).
-2. Whether guarded-path detection ports the upstream list verbatim or a target-owned subset (decide with TASK-6 fixtures).
-3. Whether phase-4 advisory findings attach to a later `session_stop` continuation or remain diagnostic-only in the first release (deferred; first release is diagnostic-only).
+1. Resolved: target-owned `plan-gate-guarded-paths@1` contains exactly `.specs/**`, `MIGRATION_MATRIX.md`, `ROADMAP.md`, and `docs/decisions/**`; it is a bundled hash-inventoried resource.
+2. Deferred: an editor projection for actionability diagnostics; manual @1 returns them only in the structured result.
+3. Deferred: the exact future OMP version implementing `selected-plan-event@1`; no date or release is assumed.

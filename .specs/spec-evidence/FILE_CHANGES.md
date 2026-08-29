@@ -10,16 +10,17 @@ All paths are repository-relative. Status is planned; no file exists yet for thi
 | `src/evidence/ingest/pytest-bdd.js` | create | pytest-bdd cucumber-json parser (FR-2) |
 | `src/evidence/ingest/overlay.js` | create | Scenario-result overlay parser (FR-2, FR-5) |
 | `src/evidence/join.js` | create | Scenario result join by ID/tag/name (FR-4) |
-| `src/evidence/freshness.js` | create | Freshness/staleness comparison (FR-6) |
-| `src/evidence/status.js` | create | Fail-closed task status derivation (FR-7) |
+| `src/evidence/freshness.js` | create | Hash-bound freshness verdicts (FR-6) |
+| `src/evidence/status.js` | create | Evidence-hash task status derivation (FR-7) |
 | `src/evidence/waiver.js` | create | Waiver honesty enforcement (FR-8) |
-| `src/evidence/census.js` | create | Coverage census with conservation (FR-9) |
-| `src/evidence/invariants.js` | create | Anti-false-green invariant checks (FR-10) |
-| `src/evidence/release.js` | create | Release-eligibility contribution evaluator (FR-13) |
+| `src/evidence/census.js` | create | Split authored/producer conservation (FR-9) |
+| `src/evidence/invariants.js` | create | Anti-false-green binding checks (FR-10) |
+| `src/evidence/release.js` | create | FR-1..FR-14 release record evaluator (FR-13) |
+| `src/evidence/mcp-projection.js` | create | Result/trace MCP envelopes (FR-14) |
 | `src/evidence/adapter.js` | create | I/O adapter for artifact retrieval (FR-1) |
 | `scripts/build-plugin.mjs` | edit | At the evidence implementation stage only: extend the closed source/output allowlist with the evidence stage files; no change in v0.1/v0.2/v0.3 (FR-1) |
-| `.specs/spec-evidence/fixtures/` | create | Real fixture corpus with manifest (FR-11) |
-| `docs/validation/spec-evidence-release.md` | create | Release conjunction evidence receipts (FR-13) |
+| `tests/fixtures/spec-evidence/` | create | Real multi-producer fixture corpus and one-fault derivatives (FR-11) |
+| `docs/validation/spec-evidence-release.md` | create | Hash-bound FR-1..FR-14 release receipts (FR-13, FR-14) |
 
 ## Impact analysis
 

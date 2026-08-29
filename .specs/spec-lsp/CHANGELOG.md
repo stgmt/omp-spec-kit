@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-29 — corpus contract closure
+
+### Changed
+
+- Product capability state is `SPECIFIED`; runtime and release evidence remain absent.
+- Added AC-7.2 / SCEN-spec-lsp-future-step-profile / CHK-FR7-02 for the separately gated future step projection.
+- Added seven explicit NFR checks and TASK-13; the current read-profile gate now requires twelve FR checks plus seven NFR checks.
+- Closed hover, availability, normalized parity, release-record, blocker, containment and numeric-bound schemas.
+- Preserved related diagnostics in parity; closed severity and UTF-32/UTF-16 coordinate conversion; added rehashed baseline/current/step eligibility evidence with self-binding results and deterministic fingerprints.
+- Replaced synthetic parity input with a pending real current-corpus dual-producer capture; retained the 30/450 generator only for performance.
+- Pinned all OMP LSP citations to commit `8500092296621a6826b7136e840f8a59ea338958` and removed the nonexistent local issue-copy reference.
+
 ## 2026-08-28 — adversarial review folded into this spec
 
 GitHub issue #7 is owned here. Adversarial review is folded in.
@@ -30,7 +42,9 @@ GitHub issue #7 is owned here. Adversarial review is folded in.
 
 
 
-## 2026-08-23 — initial specification draft
+## 2026-08-23 — initial specification draft (historical, superseded)
+
+The bullets below record the original draft and are not current contract authority; the 2026-08-28 and 2026-08-29 entries supersede proposal code actions, scenario evidence hover, adapter-side step matching, oracle parity, and the 150 ms gate.
 
 ### Added
 
@@ -56,4 +70,4 @@ GitHub issue #7 is owned here. Adversarial review is folded in.
 
 ### Provenance
 
-The specification derives decisions from `MIGRATION_MATRIX.md`, `spec-kernel:FR-9` (MCP projection mirror), `spec-kernel:FR-14` (release gate model), `.dev-pomogator/issue7-current.md` (design brief), and OMP documentation (`docs/tools/lsp.md`, `docs/lsp-config.md`, `docs/settings.md`, `docs/marketplace.md`). It does not import implementation code.
+The initial design brief was GitHub issue [#7](https://github.com/stgmt/omp-spec-kit/issues/7). Current OMP authority is the immutable v17.3.7 pin: [LSP tool](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/tools/lsp.md), [LSP config](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/lsp-config.md), [settings](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/settings.md), and [marketplace](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/marketplace.md). The spec imports no implementation code.

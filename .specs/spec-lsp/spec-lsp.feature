@@ -8,11 +8,12 @@ Feature: Custom LSP adapter as second read-only projection of the kernel query s
 
   These scenarios specify required behavior and have no executed status here.
   @feature1 @AC-1.1 @id:SCEN-spec-lsp-read-projection-only
-  Scenario: Agent sees MCP only; LSP is consumed by MCP not by the agent
-    Given the plugin is installed in an OMP session
-    When the agent lists tools
+  Scenario: Product routes spec work through MCP while host LSP remains generic
+    Given the plugin is installed in an OMP session with the generic host lsp tool
+    When product-owned tools and guidance are inspected
     Then the spec API is the MCP server
-    And no LSP tool is in the agent inventory
+    And no spec-specific LSP agent tool is registered
+    And the generic host lsp tool is not advertised as a spec route
     When MCP answers a navigation or diagnostic request
     Then the answer derives from the kernel and MCP may call LSP internally
     And LSP adds no graph semantics of its own
@@ -74,11 +75,21 @@ Feature: Custom LSP adapter as second read-only projection of the kernel query s
     And the production plugin configuration does not register @cucumber/language-server
     And the adapter does not scan tests/step-definitions or paths outside .specs for step bindings
 
+  @feature7 @AC-7.2 @id:SCEN-spec-lsp-future-step-profile
+  Scenario: Future step projection has its own kernel and local gate
+    Given kernel-step-bindings@1 has not passed spec-kernel CHK-FR15-01
+    When spec-lsp-step@1 is evaluated
+    Then the future profile is ineligible
+    Given kernel-step-bindings@1 has passed and local CHK-FR7-02 runs
+    When kernel step diagnostics and BINDS_STEP targets are projected
+    Then every projection matches one-to-one
+    And the adapter performs no pattern parsing or matching
+
   @feature8 @AC-8.1 @id:SCEN-spec-lsp-adapter-to-service-parity
   Scenario: Adapter-to-service parity check passes on fingerprint-bound fixtures
     Given shared fixtures with known kernel query service answers and a declared corpus fingerprint
-    When the CHK-FR8-01 parity harness sends identical definition references and diagnostics requests to both the LSP adapter and kernel query service
-    Then every response matches byte-for-byte on the declared fingerprint
+    When the CHK-FR8-01 parity harness normalizes definition references and diagnostics responses from both the LSP adapter and kernel query service to LspKernelProjectionV1
+    Then every normalized semantic projection is byte-identical on the declared fingerprint
     And any divergence fails closed with deterministic blockers
 
   @feature9 @AC-9.1 @id:SCEN-spec-lsp-incremental-budget
@@ -100,7 +111,8 @@ Feature: Custom LSP adapter as second read-only projection of the kernel query s
     Then results are empty and no diagnostics are published for that file
     Given the kernel graph failed to build
     When a navigation or diagnostic request arrives
-    Then diagnostics explain why the graph is unavailable
+    Then LSP results and diagnostics are empty
+    And SpecLspAvailabilityStatusV1 explains why the graph is unavailable
     And no degraded fake resolution is returned
 
   @feature11 @AC-11.1 @id:SCEN-spec-lsp-self-contained-distribution
@@ -111,7 +123,7 @@ Feature: Custom LSP adapter as second read-only projection of the kernel query s
     And no cucumber gherkin cucumber-expressions third-party binary post-install download native addon or ambient dependency is required
     And the Marksman binary supply chain DROP remains honored
 
-  @feature12 @AC-12.1 @id:SCEN-spec-lsp-oracle-parity
+  @feature12 @AC-12.1 @id:SCEN-spec-lsp-step-layer-absence
   Scenario: Release proves step-layer absence not oracle parity
     Given the production plugin configuration and a .feature file with unbound steps
     When CHK-FR12-01 inspects the adapter

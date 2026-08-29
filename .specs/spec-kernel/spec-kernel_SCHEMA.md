@@ -1,6 +1,6 @@
 # Spec Kernel Schema
 
-This is the exhaustive public data contract for kernel schema `spec-kernel@1`. Fields not listed here are forbidden. JSON names are camelCase. Required fields are always present; unavailable values are represented by `null` only where the type explicitly permits it. Public paths are NFC, `/`-separated, repository-relative, and never absolute.
+This document preserves the exhaustive historical `spec-kernel@1` contract and defines the additive, separately gated `spec-kernel@2` capability contract in SCHEMA-14. Fields not listed here are forbidden. JSON names are camelCase. Required fields are always present; unavailable values are represented by `null` only where the type explicitly permits it. Public paths are NFC, `/`-separated, repository-relative, and never absolute.
 
 ## SCHEMA-1: Scalar identities
 
@@ -8,13 +8,13 @@ This is the exhaustive public data contract for kernel schema `spec-kernel@1`. F
 |---|---|
 | `SpecSlug` | `[a-z0-9]+(?:-[a-z0-9]+)*` from the immediate directory under `.specs/` |
 | `AuthoredLocalId` | `US-[1-9][0-9]*`, `UC-[1-9][0-9]*`, `RF-[1-9][0-9]*`, `RISK-[1-9][0-9]*`, `FR-[1-9][0-9]*`, `NFR-[A-Z][A-Z0-9-]*-[1-9][0-9]*`, `AC-[1-9][0-9]*\.[1-9][0-9]*`, `DEC-[1-9][0-9]*`, `TASK-[1-9][0-9]*`, `FC-[1-9][0-9]*`, `FIXTURE-[1-9][0-9]*`, `SCHEMA-[1-9][0-9]*`, or `SCEN-[a-z0-9]+(?:-[a-z0-9]+)*` |
-| `GeneratedLocalId` | `DOC:<canonical-filename>` or `FILE:<normalized-repository-relative-path>` or `STEP:<64-hex of canonical JSON {path,startOffset,pattern}>` |
+| `GeneratedLocalId` | `DOC:<canonical-filename>` or `FILE:<normalized-repository-relative-path>` |
 | `LocalId` | `AuthoredLocalId | GeneratedLocalId` |
 | `CanonicalId` | `<SpecSlug>:<LocalId>`; split only on the first `:` |
 | `OccurrenceId` | lowercase hex SHA-256 of canonical JSON `{path,startOffset,ordinal,kind,rawIdOrTarget}` |
 | `GraphFingerprint` | lowercase 64-character SHA-256 hex |
 | `Cursor` | opaque base64url ASCII, at most 512 bytes |
-| `AnchorAlgorithmVersion` | literal `glfm-anchor@1` |
+| `AnchorAlgorithmVersionV1` | literal `glfm-anchor@1` |
 | `RewriteKey` | lowercase hex SHA-256 of canonical JSON `{path,startOffset,endOffset}` for one authored destination span |
 | `ReleaseVersion` | canonical SemVer 2.0.0 string with no leading `v` |
 | `KernelReleaseStage` | closed union `"v0.2" | "v0.3"` |
@@ -79,16 +79,6 @@ The em dash is literal U+2014 with one ASCII space on each side; the colon is fo
 | `sha256` | `GraphFingerprint` | yes | SHA-256 of exact bytes |
 
 
-### `StepDefinitionDocument`
-
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| `path` | string | yes | Repository-relative path under `tests/step-definitions/` with `.js` or `.mjs` |
-| `bytesBase64` | string | yes | Exact source bytes |
-| `sha256` | `GraphFingerprint` | yes | SHA-256 of exact bytes |
-
-`STEP_BINDING` nodes use reserved slug `step-bindings` (not a `.specs/` directory) so canonical IDs are `step-bindings:STEP:<hex>`.
-
 ### `DefinitionOccurrence`
 
 | Field | Type | Required | Meaning |
@@ -132,14 +122,14 @@ This inventory is independent of definition recognition: every accepted canonica
 | `syntax` | `ATX | SETEXT` | yes | Authored heading form |
 | `rawText` | string | yes | Exact normalized source content of the heading label, before rendered-text extraction |
 | `plainText` | string | yes | GLFM-rendered heading text with inline markup removed and character references decoded |
-| `anchorAlgorithmVersion` | `AnchorAlgorithmVersion` | yes | Anchor contract used |
+| `anchorAlgorithmVersion` | `AnchorAlgorithmVersionV1` | yes | Anchor contract used |
 | `baseAnchor` | string | yes | Anchor candidate before document-local collision allocation |
 | `duplicateOrdinal` | integer ≥0 | yes | Smallest selected `N` whose candidate is absent from the complete previously emitted `canonicalAnchor` set |
 | `canonicalAnchor` | string | yes | `baseAnchor` when selected ordinal is 0, otherwise `baseAnchor + "-" + duplicateOrdinal` |
 | `span` | `SourceSpan` | yes | Exact heading source |
 | `sectionSpan` | `SourceSpan` | yes | From heading start through the byte before the next heading of equal/higher level, or document end |
 
-`glfm-anchor@1` derives `plainText` from the parsed GLFM inline tree, decodes character references, removes HTML tags and all Unicode punctuation except `_` and `-`, applies Unicode default lowercase independent of locale, replaces each Unicode whitespace scalar with `-`, and preserves all other scalars in order. It then processes headings in document order. For each heading it tests candidate `baseAnchor` for `N=0`, then `baseAnchor-N` for increasing integers, against the complete set of canonical anchors already emitted for that document; it selects the smallest unused candidate and immediately adds it to the set. `duplicateOrdinal` is that selected `N`, not merely the count of preceding headings with the same base. Conformance vectors SHALL include punctuation, entities, Unicode, empty rendered text, and collision sequences including `Foo`, `Foo`, `Foo-1` → `foo`, `foo-1`, `foo-1-1`; `Foo-1`, `Foo`, `Foo` → `foo-1`, `foo`, `foo-2`; and `Foo`, `Foo-1`, `Foo` → `foo`, `foo-1`, `foo-2`. Every emitted canonical anchor SHALL be pairwise unique. Changing any step requires a new `AnchorAlgorithmVersion`.
+`glfm-anchor@1` derives `plainText` from the parsed GLFM inline tree, decodes character references, removes HTML tags and all Unicode punctuation except `_` and `-`, applies Unicode default lowercase independent of locale, replaces each Unicode whitespace scalar with `-`, and preserves all other scalars in order. It then processes headings in document order. For each heading it tests candidate `baseAnchor` for `N=0`, then `baseAnchor-N` for increasing integers, against the complete set of canonical anchors already emitted for that document; it selects the smallest unused candidate and immediately adds it to the set. `duplicateOrdinal` is that selected `N`, not merely the count of preceding headings with the same base. Conformance vectors SHALL include punctuation, entities, Unicode, empty rendered text, and collision sequences including `Foo`, `Foo`, `Foo-1` → `foo`, `foo-1`, `foo-1-1`; `Foo-1`, `Foo`, `Foo` → `foo-1`, `foo`, `foo-2`; and `Foo`, `Foo-1`, `Foo` → `foo`, `foo-1`, `foo-2`. Every emitted canonical anchor SHALL be pairwise unique. Changing any step requires a new `AnchorAlgorithmVersionV1`.
 
 ### `MarkdownLinkOccurrence`
 
@@ -171,7 +161,7 @@ Internal path resolution uses the source document directory, NFC `/` normalizati
 
 `NodeKind` is the closed union:
 
-`DOCUMENT | USER_STORY | USE_CASE | RESEARCH_FINDING | RISK | FUNCTIONAL_REQUIREMENT | NON_FUNCTIONAL_REQUIREMENT | ACCEPTANCE_CRITERION | DECISION | TASK | FILE_CHANGE | FILE | SCENARIO | FIXTURE | SCHEMA_ENTITY | STEP_BINDING`.
+`DOCUMENT | USER_STORY | USE_CASE | RESEARCH_FINDING | RISK | FUNCTIONAL_REQUIREMENT | NON_FUNCTIONAL_REQUIREMENT | ACCEPTANCE_CRITERION | DECISION | TASK | FILE_CHANGE | FILE | SCENARIO | FIXTURE | SCHEMA_ENTITY`.
 
 ### `Node`
 
@@ -209,13 +199,12 @@ All listed fields are required for their kind; no additional fields are permitte
 | `SCENARIO` | `{ featureName: string, scenarioKeyword: "Scenario"|"Scenario Outline", tags: string[], steps: { keyword:string, text:string }[], examples: { headers:string[], rows:string[][] }[] }` |
 | `FIXTURE` | `{ fixtureType: "real"|"synthetic", provenanceRef: string|null, sha256: GraphFingerprint|null }` |
 | `SCHEMA_ENTITY` | `{ schemaName: string, schemaVersion: string|null }` |
-| `STEP_BINDING` | `{ runner: "cucumber-js", patternKind: "cucumber-expression" | "regex", pattern: string, language: "js" }` |
 
 The closed authored status spellings present in the canonical corpus normalize as `Planned` → `planned`, `todo` → `todo`, and `Completed` → `done`; already-canonical lowercase enum values are preserved and an unrecognized label becomes `unknown`. In particular, the kernel never coerces `planned` to `todo` or drops `todo`. The external authoring reducer may transition only `todo | ready | in-progress | blocked | done`; `planned` is a distinct non-mutable planning state until a future accepted proposal explicitly defines normalization, and `deferred | unknown` are not reducer inputs.
 
 ## SCHEMA-5: Edges and endpoint matrix
 
-`EdgeType` is `REFS | COVERS | TESTED_BY | IMPLEMENTS | DEPENDS_ON | DOCUMENTS | DECLARES | BINDS_STEP`.
+`EdgeType` is `REFS | COVERS | TESTED_BY | IMPLEMENTS | DEPENDS_ON | DOCUMENTS | DECLARES`.
 
 ### `ResolvedEdge`
 
@@ -242,7 +231,6 @@ The closed authored status spellings present in the canonical corpus normalize a
 | `DEPENDS_ON` | `TASK` | `TASK` |
 | `DOCUMENTS` | `RESEARCH_FINDING`, `DECISION`, `FILE_CHANGE`, `FIXTURE`, `SCHEMA_ENTITY` | any node except `DOCUMENT` |
 | `DECLARES` | `DOCUMENT` | any non-`DOCUMENT` node |
-| `BINDS_STEP` | `SCENARIO` | `STEP_BINDING` |
 
 An edge outside this table is unresolved as `FORBIDDEN_ENDPOINT`; it never enters `edges`.
 
@@ -252,7 +240,7 @@ An edge outside this table is unresolved as `FORBIDDEN_ENDPOINT`; it never enter
 
 `DiagnosticCode` is the closed union:
 
-`UNSUPPORTED_DOCUMENT | INVALID_UTF8 | HASH_MISMATCH | FILE_TOO_LARGE | CORPUS_LIMIT_EXCEEDED | INVALID_SPEC_SLUG | PATH_MISMATCH | PATH_ESCAPE | SYMLINK_REJECTED | NON_REGULAR_FILE | IO_READ_FAILED | UNSUPPORTED_GHERKIN_DIALECT | MALFORMED_GHERKIN | MISSING_SCENARIO_ID | DUPLICATE_SCENARIO_ID_TAG | MALFORMED_HEADING | INVALID_LOCAL_ID | ID_NOT_ALLOWED_IN_DOCUMENT | DUPLICATE_DEFINITION | MALFORMED_REFERENCE | UNQUALIFIED_CROSS_SPEC_REFERENCE | BROKEN_REFERENCE | AMBIGUOUS_REFERENCE | FORBIDDEN_EDGE_ENDPOINT | MALFORMED_MARKDOWN_LINK | BROKEN_MARKDOWN_LINK | INVALID_AC_PARENT | INVARIANT_VIOLATION | DIAGNOSTIC_LIMIT_REACHED | STEP_UNDEFINED | STEP_AMBIGUOUS | STEP_DEFINITION_UNPARSEABLE | STEP_DEFINITION_PATH_REJECTED`.
+`UNSUPPORTED_DOCUMENT | INVALID_UTF8 | HASH_MISMATCH | FILE_TOO_LARGE | CORPUS_LIMIT_EXCEEDED | INVALID_SPEC_SLUG | PATH_MISMATCH | PATH_ESCAPE | SYMLINK_REJECTED | NON_REGULAR_FILE | IO_READ_FAILED | UNSUPPORTED_GHERKIN_DIALECT | MALFORMED_GHERKIN | MISSING_SCENARIO_ID | DUPLICATE_SCENARIO_ID_TAG | MALFORMED_HEADING | INVALID_LOCAL_ID | ID_NOT_ALLOWED_IN_DOCUMENT | DUPLICATE_DEFINITION | MALFORMED_REFERENCE | UNQUALIFIED_CROSS_SPEC_REFERENCE | BROKEN_REFERENCE | AMBIGUOUS_REFERENCE | FORBIDDEN_EDGE_ENDPOINT | MALFORMED_MARKDOWN_LINK | BROKEN_MARKDOWN_LINK | INVALID_AC_PARENT | INVARIANT_VIOLATION | DIAGNOSTIC_LIMIT_REACHED`.
 
 ### `Diagnostic`
 
@@ -290,7 +278,7 @@ Required integer fields: `maxSpecs`, `maxDocuments`, `maxBytesPerDocument`, `max
 | Field | Type | Required | Meaning |
 |---|---|---:|---|
 | `schemaVersion` | literal `spec-kernel@1` | yes | Public schema |
-| `anchorAlgorithmVersion` | `AnchorAlgorithmVersion` | yes | Heading-anchor contract |
+| `anchorAlgorithmVersion` | `AnchorAlgorithmVersionV1` | yes | Heading-anchor contract |
 | `fingerprint` | `GraphFingerprint` | yes | Content/limits fingerprint |
 | `valid` | boolean | yes | False iff any ERROR or invariant failure |
 | `limits` | `GraphLimits` | yes | Effective limits |
@@ -422,7 +410,7 @@ Exactly one of `data` or `error` is non-null.
 
 `CandidateSummary` exact fields: `{ occurrenceId:OccurrenceId, canonicalId:CanonicalId|null, kind:NodeKind|null, title:string, source:SourceSummary, diagnosticIds:string[] }`.
 
-`MarkdownHeadingSummary` exact fields: `{ headingOccurrenceId:OccurrenceId, path:string, level:integer, syntax:"ATX"|"SETEXT", plainText:string, anchorAlgorithmVersion:AnchorAlgorithmVersion, baseAnchor:string, duplicateOrdinal:integer, canonicalAnchor:string, source:SourceSummary, section:SourceSummary }`.
+`MarkdownHeadingSummary` exact fields: `{ headingOccurrenceId:OccurrenceId, path:string, level:integer, syntax:"ATX"|"SETEXT", plainText:string, anchorAlgorithmVersion:AnchorAlgorithmVersionV1, baseAnchor:string, duplicateOrdinal:integer, canonicalAnchor:string, source:SourceSummary, section:SourceSummary }`.
 
 `MarkdownLinkSummary` exact fields: `{ linkOccurrenceId:OccurrenceId, path:string, syntax:"INLINE"|"FULL_REFERENCE"|"COLLAPSED_REFERENCE"|"SHORTCUT_REFERENCE"|"AUTOLINK", labelText:string, rawDestination:string, normalizedDestination:string, useSource:SourceSummary, destinationSource:SourceSummary, rewriteKey:RewriteKey, sourceHeadingOccurrenceId:OccurrenceId|null, outcome:"INTERNAL_HEADING"|"INTERNAL_DOCUMENT"|"EXTERNAL"|"UNRESOLVED", targetPath:string|null, targetAnchor:string|null, targetHeadingOccurrenceId:OccurrenceId|null, externalScheme:string|null, unresolvedReason:string|null, diagnosticIds:string[] }`.
 
@@ -445,7 +433,7 @@ Each success `data` is exactly one object below with matching `kind`.
 | `trace` | `{ kind:"trace", start:CanonicalId, nodes:(NodeSummary|Node)[], edges:EdgeSummary[], frontier:CanonicalId[], maxDepthReached:integer, visitedCount:integer, cycleEdges:OccurrenceId[] }` |
 | `diagnostics` | `{ kind:"diagnostics", items:Diagnostic[] }` |
 | `overview` | `{ kind:"overview", counts:GraphCounts, limits:GraphLimits, diagnosticCodes:{code:DiagnosticCode,severity:DiagnosticSeverity,count:integer}[], nodeKinds:{kind:NodeKind,count:integer}[], edgeTypes:{type:EdgeType,count:integer}[] }` |
-| `markdownInventory` | `{ kind:"markdownInventory", anchorAlgorithmVersion:AnchorAlgorithmVersion, focus:{path:string,canonicalAnchor:string,headingOccurrenceId:OccurrenceId}|null, items:MarkdownInventoryItem[], totals:MarkdownInventoryTotals }` |
+| `markdownInventory` | `{ kind:"markdownInventory", anchorAlgorithmVersion:AnchorAlgorithmVersionV1, focus:{path:string,canonicalAnchor:string,headingOccurrenceId:OccurrenceId}|null, items:MarkdownInventoryItem[], totals:MarkdownInventoryTotals }` |
 
 `SpecInventory` exact fields: `{ specSlug:SpecSlug, valid:boolean, documentCount:integer, missingCanonicalDocuments:DocumentKind[], nodeCount:integer, edgeOccurrenceCount:integer, unresolvedReferenceCount:integer, errorCount:integer, warningCount:integer, infoCount:integer, documents:{path:string,documentKind:DocumentKind,sha256:GraphFingerprint,byteLength:integer,accepted:boolean}[] }`.
 
@@ -597,3 +585,215 @@ Exact fields: `{ schemaVersion:"kernel-release-eligibility@1", targetStage:Kerne
 `eligible` is true iff the recognized stage/profile pair is exact; candidate/record versions match its release line; the multiset of `records[].checkId` equals that profile’s required set exactly; every record is bound to that stage and is `PASS`; every evidence array is non-empty; every referenced evidence document is present exactly once and hash-valid; every record matches the candidate artifact binding; applicable corpus bindings match; `CHK-FR10-01` has the exact stage-selected `packageSurface`; and the package/fixture/budget gate IDs name their required passing records. v0.3 additionally requires the accepted v0.2 input and parent-artifact lineage checks above, plus all `V03McpAdapterCheckId` obligations. v0.2 rejects `CHK-FR9-01`, MCP-inclusive `CHK-FR10-01` evidence, and every MCP dependency; it requires no MCP implementation or evidence.
 
 `requiredCheckIds` uses the selected profile’s declaration order; `passedCheckIds` is the declaration-ordered subset whose single record passes every validation. For an unknown or mismatched stage/profile, `requiredCheckIds` and `passedCheckIds` are empty and the corresponding recognized result field is null. `evidenceFingerprint` is SHA-256 of canonical JSON for the complete current manifest, the sorted current `{path,sha256}` evidence-document index, and for v0.3 the accepted v0.2 input’s evidence fingerprint. `blocking` is sorted by profile declaration order, then code, then evidence path; profile-level blockers with null check ID sort first. Duplicate records do not elect a winner. Eligibility evaluation is pure, creates no readiness evidence, and has no publication-authority field; it cannot clear pending public-init validation or the fail-closed license policy for future or changed imports.
+
+## SCHEMA-14: `spec-kernel@2` capability contract
+
+`spec-kernel@2` is additive and separately gated. It never changes `spec-kernel@1`, `glfm-anchor@1`, historical kernel-v0.2/v0.3 unions, cursors, fingerprints, checks, or receipts.
+
+### V2 identities, profiles, and limits
+
+```ts
+type PositiveIntV2=number; // integer >=1, canonical decimal
+type KernelSchemaVersionV2="spec-kernel@2";
+type AnchorAlgorithmVersionV2="marksman-anchor@2";
+type KernelCapabilityProfile="kernel-anchor-migration@1"|"kernel-step-bindings@1"|"kernel-generator-port-reads@1"|"kernel-adapter-io@1";
+type DocumentKindV2=DocumentKind|"CAPABILITIES";
+type CapabilityLocalIdV2=`CAP-${PositiveIntV2}`|`CAP-${PositiveIntV2}.${PositiveIntV2}`;
+type StepBindingLocalIdV2=`STEP:${GraphFingerprint}`;
+type AuthoredLocalIdV2=AuthoredLocalId|CapabilityLocalIdV2;
+type GeneratedLocalIdV2=GeneratedLocalId|StepBindingLocalIdV2;
+type LocalIdV2=AuthoredLocalIdV2|GeneratedLocalIdV2;
+type CanonicalIdV2=`${SpecSlug}:${LocalIdV2}`;
+type CapabilityCanonicalIdV2=`${SpecSlug}:${CapabilityLocalIdV2}`;
+type StepBindingCanonicalIdV2=`step-bindings:${StepBindingLocalIdV2}`;
+type NodeKindV2=NodeKind|"STEP_BINDING"|"CAPABILITY";
+type EdgeTypeV2=EdgeType|"BINDS_STEP"|"DERIVES_FROM";
+type DiagnosticCodeV2=DiagnosticCode|"STEP_UNDEFINED"|"STEP_AMBIGUOUS"|"STEP_PATTERN_UNSUPPORTED"|"STEP_SOURCE_REJECTED"|"CAPABILITY_DANGLING"|"CAPABILITY_ORPHAN"|"SPEC_WITHOUT_CAPABILITY"|"REQUIREMENT_METADATA_INVALID";
+interface ResolvedLimitsV2 extends GraphLimits {maxStepDefinitionDocuments:number;maxStepDefinitionBytes:number;maxCapabilityDocuments:number;maxCapabilityNodes:number;maxStepBindingNodes:number;maxAnchorMigrationRows:number}
+```
+
+`CAP-N[.M]` uses positive non-zero decimal components and the owning spec slug. A step binding ID hashes canonical `{path,startOffset,patternKind,pattern,regexFlags}`; `regexFlags` is the unique canonical `i?m?s?u?` subset. Distinct flags always produce distinct IDs.
+
+`marksman-anchor@2` lowercases Unicode, drops every scalar except Unicode letters/digits, whitespace and `-`, converts whitespace runs to `-`, collapses repeated `-`, trims ends, and allocates duplicate `base-N` using the smallest unused ordinal. V1/V2 anchors and cursors never mix.
+
+### V2 source documents, metadata, nodes, and occurrences
+
+```ts
+interface StepDefinitionDocumentV2 {path:string;bytesBase64:string;sha256:GraphFingerprint}
+interface CapabilityDocumentV2 {path:string;specSlug:SpecSlug;documentKind:"CAPABILITIES";bytesBase64:string;sha256:GraphFingerprint}
+type VerificationMethodV2="unit"|"integration"|"bdd"|"manual"|"formal"|"none";
+type SafetyClassV2="standard"|"safety-critical";
+type DeliveryStateV2="specified"|"implemented"|"verified"|"deferred";
+interface RequirementMetadataV2 {verificationMethod:VerificationMethodV2;safetyClass:SafetyClassV2;deliveryState:DeliveryStateV2}
+type NodeSourceV2=
+ | {kind:"CANONICAL_DOCUMENT";documentKind:DocumentKind;path:string;span:SourceSpan}
+ | {kind:"STEP_DEFINITION";documentKind:null;path:string;span:SourceSpan}
+ | {kind:"CAPABILITY_DOCUMENT";documentKind:"CAPABILITIES";path:string;span:SourceSpan};
+interface StepBindingAttributesV2 {runner:"cucumber-js";patternKind:"cucumber-expression"|"regex";pattern:string;regexFlags:string;language:"js"}
+interface CapabilityAttributesV2 {parentCapabilityId:CapabilityCanonicalIdV2|null;owners:CanonicalIdV2[];stage:string;archived:boolean}
+type V1Attributes<K extends NodeKind>=NodeAttributes; // constrained to the exact SCHEMA-4 row selected by K
+type AttributesForV2<K extends NodeKindV2>=
+ K extends "STEP_BINDING"?StepBindingAttributesV2:
+ K extends "CAPABILITY"?CapabilityAttributesV2:
+ K extends "FUNCTIONAL_REQUIREMENT"?V1Attributes<"FUNCTIONAL_REQUIREMENT">&{metadata:RequirementMetadataV2|null}:
+ K extends "NON_FUNCTIONAL_REQUIREMENT"?V1Attributes<"NON_FUNCTIONAL_REQUIREMENT">&{metadata:RequirementMetadataV2|null}:
+ K extends NodeKind?V1Attributes<K>:never;
+interface NodeV2<K extends NodeKindV2=NodeKindV2> {canonicalId:CanonicalIdV2;localId:LocalIdV2;specSlug:SpecSlug;kind:K;source:NodeSourceV2;title:string;body:string;attributes:AttributesForV2<K>;contentHash:GraphFingerprint}
+type AnyNodeV2={[K in NodeKindV2]:NodeV2<K>}[NodeKindV2];
+interface DefinitionOccurrenceV2<K extends NodeKindV2=NodeKindV2> {occurrenceId:OccurrenceId;specSlug:SpecSlug;localId:LocalIdV2|null;canonicalId:CanonicalIdV2|null;nodeKind:K|null;title:string;body:string;span:SourceSpan;attributes:AttributesForV2<K>;outcome:"UNIQUE"|"AMBIGUOUS"|"REJECTED";diagnosticIds:string[]}
+interface ReferenceOccurrenceV2 {occurrenceId:OccurrenceId;sourceCanonicalId:CanonicalIdV2;rawTarget:string;requestedEdgeType:EdgeTypeV2;span:SourceSpan;outcome:"RESOLVED"|"UNRESOLVED";resolvedEdgeId:OccurrenceId|null;unresolvedReason:UnresolvedReason|null;candidateCanonicalIds:CanonicalIdV2[];diagnosticIds:string[]}
+interface ResolvedEdgeV2 {edgeId:OccurrenceId;type:EdgeTypeV2;sourceCanonicalId:CanonicalIdV2;targetCanonicalId:CanonicalIdV2;span:SourceSpan}
+interface DiagnosticV2 {diagnosticId:OccurrenceId;code:DiagnosticCodeV2;severity:DiagnosticSeverity;message:string;remediation:string;span:SourceSpan|null;relatedSpans:SourceSpan[];specSlug:SpecSlug|null;localId:LocalIdV2|null;canonicalId:CanonicalIdV2|null;referenceOccurrenceId:OccurrenceId|null;details:{expected:string|null;actual:string|null;limitName:string|null;limitValue:number|null;observedValue:number|null}}
+```
+
+`V1Attributes<K>` means the exact closed SCHEMA-4 attribute row for that V1 kind, not an open object. Requirement metadata is optional and parsed only from a fenced `yaml metadata` block in the owning FR/NFR section with exact `schemaVersion:1`, `verificationMethod`, `safetyClass`, and `deliveryState` keys; absent block stores `metadata:null`, invalid/extra fields emit `REQUIREMENT_METADATA_INVALID`. Metadata/null participates in content/fingerprint bytes; policyQuery `missingMethod:true` selects null metadata and never reads a side channel.
+
+Step extraction accepts only statically analyzable cucumber-js `Given|When|Then|And|But` calls from contained `tests/step-definitions/**.{js,mjs}` files: first argument is one string literal Cucumber Expression or one JavaScript RegExp literal. Regex source and canonical flags are preserved; unsupported flags, constructors, variables, template expressions, callbacks without a pattern, or dynamic imports emit `STEP_PATTERN_UNSUPPORTED`/`STEP_SOURCE_REJECTED` and no node. Matching uses the closed cucumber-js expression/RegExp semantics for the stored kind/source/flags; the adapter adds no second matcher.
+
+V2 input is exact `{canonicalDocuments:SourceDocument[],stepDefinitionDocuments:StepDefinitionDocumentV2[],capabilityDocuments:CapabilityDocumentV2[]}`. `BINDS_STEP` permits only `SCENARIO -> STEP_BINDING`; `DERIVES_FROM` permits `FUNCTIONAL_REQUIREMENT|NON_FUNCTIONAL_REQUIREMENT -> CAPABILITY` and child `CAPABILITY -> CAPABILITY` parent.
+
+### Heading/link carriers and migration
+
+```ts
+interface MarkdownHeadingOccurrenceV2 {headingOccurrenceId:OccurrenceId;path:string;level:1|2|3|4|5|6;syntax:"ATX"|"SETEXT";rawText:string;plainText:string;anchorAlgorithmVersion:"marksman-anchor@2";baseAnchor:string;duplicateOrdinal:number;canonicalAnchor:string;span:SourceSpan;sectionSpan:SourceSpan}
+interface MarkdownHeadingSummaryV2 {path:string;headingOccurrenceId:OccurrenceId;level:1|2|3|4|5|6;plainText:string;canonicalAnchor:string;span:SourceSpan}
+interface MarkdownLinkOccurrenceV2 {linkOccurrenceId:OccurrenceId;path:string;syntax:"INLINE"|"FULL_REFERENCE"|"COLLAPSED_REFERENCE"|"SHORTCUT_REFERENCE"|"AUTOLINK";labelText:string;rawDestination:string;normalizedDestination:string;useSpan:SourceSpan;destinationSpan:SourceSpan;rewriteKey:RewriteKey;sourceHeadingOccurrenceId:OccurrenceId|null;outcome:"INTERNAL_HEADING"|"INTERNAL_DOCUMENT"|"EXTERNAL"|"UNRESOLVED";targetPath:string|null;targetAnchor:string|null;targetHeadingOccurrenceId:OccurrenceId|null;externalScheme:string|null;unresolvedReason:"MALFORMED_DESTINATION"|"TARGET_DOCUMENT_MISSING"|"TARGET_ANCHOR_MISSING"|"TARGET_OUTSIDE_CORPUS"|"AMBIGUOUS_PATH"|null;diagnosticIds:string[]}
+interface AnchorMigrationRecordV2 {path:string;headingOccurrenceId:OccurrenceId;legacyAnchor:string;currentAnchor:string}
+```
+
+Migration covers every V2 heading once, sorts by path/span, preserves duplicates, proves pinned Marksman golden cases and leaves the V1 fixture unchanged.
+
+### Closed `GraphSnapshotV2`
+
+```ts
+interface DocumentInventoryRowV2 {path:string;specSlug:SpecSlug;documentKind:DocumentKindV2;sha256:GraphFingerprint;byteLength:number;accepted:boolean;diagnosticIds:string[]}
+interface GraphCountsV2 {
+ discoveredDocuments:number;acceptedDocuments:number;rejectedDocuments:number;
+ stepDefinitionDocuments:number;acceptedStepDefinitionDocuments:number;rejectedStepDefinitionDocuments:number;
+ capabilityDocuments:number;acceptedCapabilityDocuments:number;rejectedCapabilityDocuments:number;
+ definitionOccurrences:number;uniqueDefinitionNodes:number;ambiguousDefinitionOccurrences:number;rejectedDefinitionOccurrences:number;
+ referenceOccurrences:number;resolvedEdgeOccurrences:number;unresolvedReferenceOccurrences:number;
+ markdownHeadingOccurrences:number;markdownLinkOccurrences:number;markdownInternalHeadingLinks:number;markdownInternalDocumentLinks:number;markdownExternalLinks:number;markdownUnresolvedLinks:number;markdownRewriteSites:number;
+ generatedDocumentNodes:number;generatedFileNodes:number;stepBindingNodes:number;capabilityNodes:number;bindsStepEdges:number;derivesFromEdges:number;anchorMigrationRecords:number;
+ diagnosticsError:number;diagnosticsWarning:number;diagnosticsInfo:number;
+}
+interface GraphSnapshotV2 {schemaVersion:"spec-kernel@2";anchorAlgorithmVersion:"marksman-anchor@2";enabledCapabilities:KernelCapabilityProfile[];fingerprint:GraphFingerprint;valid:boolean;limits:ResolvedLimitsV2;counts:GraphCountsV2;documents:DocumentInventoryRowV2[];definitionCandidates:DefinitionOccurrenceV2[];nodes:AnyNodeV2[];referenceOccurrences:ReferenceOccurrenceV2[];markdownHeadingOccurrences:MarkdownHeadingOccurrenceV2[];markdownLinkOccurrences:MarkdownLinkOccurrenceV2[];anchorMigrationRecords:AnchorMigrationRecordV2[];edges:ResolvedEdgeV2[];diagnostics:DiagnosticV2[]}
+```
+
+Canonical sort lifts SCHEMA-7 to V2 types. Conservation requires all three document partitions; definition and reference equations; heading/link collection lengths; link outcome sum; rewrite-site distinct-key count; step/capability node counts; BINDS_STEP/DERIVES_FROM edge counts; migration rows equal heading rows; diagnostic severity counts; and every edge endpoint/type allowed. Fingerprint canonical JSON includes schema/anchor versions, exact enabled profiles, limits, every input hash, occurrence/node/edge/migration/diagnostic and all counts.
+
+### V2 query request, data, and errors
+
+```ts
+type QueryOperationV2=QueryOperation|"listSpecs"|"findByTags"|"listTasks"|"listPhaseTasks"|"findOrphans"|"validateAnchor"|"policyQuery"|"validateRequirementMetadata"|"archivalProof"|"validateSpec"|"specStatus";
+type TaskStatusV2="planned"|"todo"|"ready"|"in-progress"|"blocked"|"done"|"deferred"|"unknown";
+type QueryRequestV2=
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"inventory";args:{specSlugs:SpecSlug[];includeDocuments:boolean;limit:number;cursor:Cursor|null}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"getNode";args:{canonicalId:CanonicalIdV2;projection:"summary"|"full";includeIncidentCounts:boolean}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"findNodes";args:{specSlugs:SpecSlug[];kinds:NodeKindV2[];canonicalIds:CanonicalIdV2[];text:string|null;projection:"summary"|"full";limit:number;cursor:Cursor|null}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"getEdges";args:{canonicalId:CanonicalIdV2;direction:"in"|"out"|"both";types:EdgeTypeV2[];aggregate:boolean;limit:number;cursor:Cursor|null}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"trace";args:{canonicalId:CanonicalIdV2;direction:"in"|"out"|"both";types:EdgeTypeV2[];maxDepth:number;maxVisited:number;projection:"summary"|"full";limit:number;cursor:Cursor|null}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"diagnostics";args:{severities:DiagnosticSeverity[];codes:DiagnosticCodeV2[];specSlugs:SpecSlug[];paths:string[];limit:number;cursor:Cursor|null}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"overview";args:{specSlugs:SpecSlug[]}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"markdownInventory";args:{specSlugs:SpecSlug[];mode:"all"|"focus";focusPath:string|null;focusAnchor:string|null;direction:"in"|"out"|"both";outcomes:("INTERNAL_HEADING"|"INTERNAL_DOCUMENT"|"EXTERNAL"|"UNRESOLVED")[];includeHeadings:boolean;includeLinks:boolean;limit:number;cursor:Cursor|null}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"listSpecs";args:{limit:number;cursor:Cursor|null}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"findByTags";args:{tags:string[];specSlugs:SpecSlug[];limit:number;cursor:Cursor|null}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"listTasks";args:{specSlug:SpecSlug;statuses:TaskStatusV2[];phase:string|null;requirementId:CanonicalIdV2|null;includeComments:boolean;limit:number;cursor:Cursor|null}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"listPhaseTasks";args:{specSlug:SpecSlug;phase:string;statuses:TaskStatusV2[];limit:number;cursor:Cursor|null}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"findOrphans";args:{specSlugs:SpecSlug[];codes:("UNCOVERED_FR"|"ORPHAN_TASK"|"SCENARIO_TAG_ORPHAN")[];limit:number;cursor:Cursor|null}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"validateAnchor";args:{specSlug:SpecSlug;input:string;domain:"GRAPH_ID"|"MARKDOWN";documentPath:string|null}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"policyQuery";args:{specSlugs:SpecSlug[];verificationMethods:VerificationMethodV2[];safetyClasses:SafetyClassV2[];deliveryStates:DeliveryStateV2[];missingMethod:boolean|null;limit:number;cursor:Cursor|null}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"validateRequirementMetadata";args:{metadata:unknown}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"archivalProof";args:{specSlug:SpecSlug}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"validateSpec";args:{specSlug:SpecSlug;strictContracts:boolean}}
+ | {schemaVersion:"spec-kernel@2";requestId:string|null;operation:"specStatus";args:{specSlug:SpecSlug;view:"status"|"counts"|"coverage"}};
+interface SourceSummaryV2 {path:string;startLine:number;startColumn:number;endLine:number;endColumn:number}
+interface NodeSummaryV2 {canonicalId:CanonicalIdV2;specSlug:SpecSlug;localId:LocalIdV2;kind:NodeKindV2;title:string;source:SourceSummaryV2;contentHash:GraphFingerprint;excerpt:string|null;incidentInCount:number|null;incidentOutCount:number|null}
+interface EdgeSummaryV2 {edgeId:OccurrenceId|null;from:CanonicalIdV2;to:CanonicalIdV2;type:EdgeTypeV2;source:SourceSummaryV2|null;occurrenceCount:number}
+interface DiagnosticSummaryV2 {diagnosticId:OccurrenceId;code:DiagnosticCodeV2;severity:DiagnosticSeverity;message:string;remediation:string;source:SourceSummaryV2|null;canonicalId:CanonicalIdV2|null}
+interface SpecInventoryV2 {specSlug:SpecSlug;valid:boolean;documentCount:number;missingCanonicalDocuments:DocumentKindV2[];nodeCount:number;edgeOccurrenceCount:number;unresolvedReferenceCount:number;errorCount:number;warningCount:number;infoCount:number;documents:{path:string;documentKind:DocumentKindV2;sha256:GraphFingerprint;byteLength:number;accepted:boolean}[]}
+interface InventoryTotalsV2 {specCount:number;validSpecCount:number;documentCount:number;nodeCount:number;edgeOccurrenceCount:number;unresolvedReferenceCount:number;errorCount:number;warningCount:number;infoCount:number}
+interface MarkdownHeadingSummaryForQueryV2 {headingOccurrenceId:OccurrenceId;path:string;level:number;syntax:"ATX"|"SETEXT";plainText:string;anchorAlgorithmVersion:"marksman-anchor@2";baseAnchor:string;duplicateOrdinal:number;canonicalAnchor:string;source:SourceSummaryV2;section:SourceSummaryV2}
+interface MarkdownLinkSummaryV2 {linkOccurrenceId:OccurrenceId;path:string;syntax:"INLINE"|"FULL_REFERENCE"|"COLLAPSED_REFERENCE"|"SHORTCUT_REFERENCE"|"AUTOLINK";labelText:string;rawDestination:string;normalizedDestination:string;useSource:SourceSummaryV2;destinationSource:SourceSummaryV2;rewriteKey:RewriteKey;sourceHeadingOccurrenceId:OccurrenceId|null;outcome:"INTERNAL_HEADING"|"INTERNAL_DOCUMENT"|"EXTERNAL"|"UNRESOLVED";targetPath:string|null;targetAnchor:string|null;targetHeadingOccurrenceId:OccurrenceId|null;externalScheme:string|null;unresolvedReason:string|null;diagnosticIds:string[]}
+type MarkdownInventoryItemV2={kind:"heading";heading:MarkdownHeadingSummaryForQueryV2}|{kind:"link";relation:"INBOUND"|"OUTBOUND"|"BOTH"|"UNSCOPED";link:MarkdownLinkSummaryV2};
+interface MarkdownInventoryTotalsV2 {allHeadings:number;allLinks:number;allInternalHeadingLinks:number;allInternalDocumentLinks:number;allExternalLinks:number;allUnresolvedLinks:number;allRewriteSites:number;matchedHeadings:number;matchedLinks:number;matchedRewriteSites:number}
+interface QueryGraphMetaV2 {schemaVersion:"spec-kernel@2";fingerprint:GraphFingerprint;valid:boolean;specCount:number;documentCount:number;nodeCount:number;edgeOccurrenceCount:number;unresolvedReferenceCount:number;markdownHeadingOccurrenceCount:number;markdownLinkOccurrenceCount:number;diagnosticCount:number}
+interface QueryPageV2 {limit:number;returned:number;totalMatched:number;cursor:Cursor|null;nextCursor:Cursor|null;truncated:boolean;responseBytes:number}
+type QueryDataV2=
+ | {kind:"inventory";specs:SpecInventoryV2[];totals:InventoryTotalsV2}
+ | {kind:"node";node:AnyNodeV2|NodeSummaryV2;incomingCount:number|null;outgoingCount:number|null}
+ | {kind:"nodes";nodes:(AnyNodeV2|NodeSummaryV2)[]}
+ | {kind:"edges";edges:EdgeSummaryV2[]}
+ | {kind:"trace";start:CanonicalIdV2;nodes:(AnyNodeV2|NodeSummaryV2)[];edges:EdgeSummaryV2[];frontier:CanonicalIdV2[];maxDepthReached:number;visitedCount:number;cycleEdges:OccurrenceId[]}
+ | {kind:"diagnostics";items:DiagnosticV2[]}
+ | {kind:"overview";counts:GraphCountsV2;limits:ResolvedLimitsV2;diagnosticCodes:{code:DiagnosticCodeV2;severity:DiagnosticSeverity;count:number}[];nodeKinds:{kind:NodeKindV2;count:number}[];edgeTypes:{type:EdgeTypeV2;count:number}[]}
+ | {kind:"markdownInventory";anchorAlgorithmVersion:"marksman-anchor@2";focus:{path:string;canonicalAnchor:string;headingOccurrenceId:OccurrenceId}|null;items:MarkdownInventoryItemV2[];totals:MarkdownInventoryTotalsV2}
+ | {kind:"spec-list";specs:{specSlug:SpecSlug;valid:boolean;documentCount:number;nodeCount:number;errorCount:number;warningCount:number}[];total:number;returned:number;truncated:boolean;nextCursor:Cursor|null}
+ | {kind:"scenario-list";scenarios:{canonicalId:CanonicalIdV2;title:string;tags:string[];source:NodeSourceV2}[];total:number;returned:number;truncated:boolean;nextCursor:Cursor|null}
+ | {kind:"task-list";tasks:{canonicalId:CanonicalIdV2;status:TaskStatusV2;phase:string|null;requirementIds:CanonicalIdV2[];owner:string|null;estimate:string|null;doneWhen:string[];comments:string[]}[];total:number;returned:number;truncated:boolean;nextCursor:Cursor|null}
+ | {kind:"orphan-list";findings:DiagnosticSummaryV2[];total:number;returned:number;truncated:boolean;nextCursor:Cursor|null}
+ | {kind:"anchor-validation";valid:boolean;domain:"GRAPH_ID"|"MARKDOWN";resolvedCanonicalId:CanonicalIdV2|null;targetPath:string|null;targetAnchor:string|null;candidates:CanonicalIdV2[]}
+ | {kind:"requirement-list";requirements:{canonicalId:CanonicalIdV2;metadata:RequirementMetadataV2|null;source:NodeSourceV2}[];total:number;returned:number;truncated:boolean;nextCursor:Cursor|null}
+ | {kind:"metadata-validation";valid:boolean;normalized:RequirementMetadataV2|null;findings:DiagnosticSummaryV2[]}
+ | {kind:"archival-proof";specSlug:SpecSlug;verdict:"ARCHIVE"|"KEEP_FALSE_POSITIVE"|"ARCHIVE_BLOCKED";inboundRefs:EdgeSummaryV2[]}
+ | {kind:"spec-validation";specSlug:SpecSlug;valid:boolean;verdict:"PASS"|"FAIL";findings:DiagnosticSummaryV2[];snapshotHashes:{path:string;sha256:GraphFingerprint}[]}
+ | {kind:"spec-status";specSlug:SpecSlug;view:"status";status:{state:"VALID"|"INVALID";blockers:DiagnosticSummaryV2[]};counts:null;coverage:null}
+ | {kind:"spec-status";specSlug:SpecSlug;view:"counts";status:null;counts:{fr:number;ac:number;scenario:number;task:number};coverage:null}
+ | {kind:"spec-status";specSlug:SpecSlug;view:"coverage";status:null;counts:null;coverage:{requirementCount:number;withAcceptanceCount:number;withScenarioCount:number;withTaskCount:number;structuralRatio:number}};
+interface QueryErrorV2 {code:QueryErrorCodeV2;message:string;operation:QueryOperationV2|string|null;parameter:string|null;receivedType:string|null;receivedSummary:string|null;expected:string|null;limitName:string|null;limitValue:number|null;observedValue:number|null;specSlug:SpecSlug|null;localId:LocalIdV2|null;canonicalId:CanonicalIdV2|null;path:string|null;anchor:string|null;headingOccurrenceId:OccurrenceId|null;linkOccurrenceId:OccurrenceId|null;rewriteKey:RewriteKey|null;candidates:NodeSummaryV2[];diagnosticIds:string[];retryable:boolean;causeCode:DiagnosticCodeV2|null}
+type QueryErrorCodeV2=QueryErrorCode|"SPEC_NOT_FOUND"|"PHASE_NOT_FOUND"|"EMPTY_PHASE"|"INVALID_METADATA"|"ARCHIVE_BLOCKED"|"VALIDATION_FAILED";
+type QueryEnvelopeV2=
+ | {ok:true;schemaVersion:"spec-kernel@2";requestId:string|null;operation:QueryOperationV2;graph:QueryGraphMetaV2;page:QueryPageV2|null;data:QueryDataV2;error:null;diagnostics:DiagnosticSummaryV2[]}
+ | {ok:false;schemaVersion:"spec-kernel@2";requestId:string|null;operation:QueryOperationV2|string|null;graph:QueryGraphMetaV2|null;page:null;data:null;error:QueryErrorV2;diagnostics:DiagnosticSummaryV2[]};
+```
+
+Existing operations preserve every SCHEMA-8/9 observable with V2 carriers, so STEP_BINDING/BINDS_STEP/step diagnostics are queryable. Common page limit is 1..200 (default 50); tags 1..20, each 1..200 scalars; specSlugs 0..100; statuses 0..8; phase/input/comment/owner/estimate strings <=200/200/1024/200/200 scalars; doneWhen/comments/findings each <=1,000 rows; archive inbound refs <=5,000; snapshotHashes <=15; response <=1 MiB. V1 error precedence remains. `specStatus.coverage` is structural traceability only; test run/freshness/verified coverage belongs to `spec-evidence` and is absent.
+
+### FR-17 adapter I/O envelope
+
+```ts
+type AdapterOperationV2="mcpPreflight"|"listSpecDocs"|"readSpecDoc"|"readAttachment";
+type AdapterRequestV2=
+ | {schemaVersion:"kernel-adapter-io@1";requestId:string|null;operation:"mcpPreflight";args:{declaredWorktree:string|null}}
+ | {schemaVersion:"kernel-adapter-io@1";requestId:string|null;operation:"listSpecDocs";args:{specSlug:SpecSlug}}
+ | {schemaVersion:"kernel-adapter-io@1";requestId:string|null;operation:"readSpecDoc";args:{specSlug:SpecSlug;name:string;offsetLine:number;limitLines:number}}
+ | {schemaVersion:"kernel-adapter-io@1";requestId:string|null;operation:"readAttachment";args:{specSlug:SpecSlug;subpath:string;maxBytes:number}};
+type AdapterErrorCodeV2="INVALID_PARAMETER"|"ROOT_MISMATCH"|"SPEC_NOT_FOUND"|"DOC_NOT_FOUND"|"ATTACHMENT_NOT_FOUND"|"PATH_ESCAPE"|"SYMLINK_REJECTED"|"NON_REGULAR_FILE"|"MIME_MISMATCH"|"BYTE_LIMIT_EXCEEDED"|"LINE_LIMIT_EXCEEDED"|"IO_READ_FAILED";
+interface AdapterErrorV2 {code:AdapterErrorCodeV2;message:string;parameter:string|null;expected:string|null;path:string|null;retryable:boolean;diagnosticIds:string[]}
+type AdapterEnvelopeV2=
+ | {ok:true;schemaVersion:"kernel-adapter-io@1";requestId:string|null;operation:"mcpPreflight";data:{resolvedRootFingerprint:GraphFingerprint;declaredWorktreeMatch:boolean|null;lockMode:"exclusive"|"readonly";shortWriteMode:"enabled"|"disabled";pluginVersion:string;mcpVersion:string;dependenciesReady:boolean}}
+ | {ok:true;schemaVersion:"kernel-adapter-io@1";requestId:string|null;operation:"listSpecDocs";data:{specSlug:SpecSlug;documents:{name:string;kind:DocumentKindV2;bytes:number;sha256:GraphFingerprint}[];attachments:{subpath:string;mime:string;bytes:number;sha256:GraphFingerprint}[]}}
+ | {ok:true;schemaVersion:"kernel-adapter-io@1";requestId:string|null;operation:"readSpecDoc";data:{name:string;startLine:number;endLine:number;totalLines:number;text:string;sha256:GraphFingerprint;truncated:boolean;nextOffsetLine:number|null}}
+ | {ok:true;schemaVersion:"kernel-adapter-io@1";requestId:string|null;operation:"readAttachment";data:{subpath:string;mime:string;bytes:number;sha256:GraphFingerprint;base64:string}}
+ | {ok:false;schemaVersion:"kernel-adapter-io@1";requestId:string|null;operation:AdapterOperationV2;error:AdapterErrorV2};
+```
+
+Document names come only from listSpecDocs; offsets are >=1, limitLines 1..500, maxBytes 1..8 MiB. Error precedence is invalid args, root, spec, lexical/link containment, existence/regularity, MIME, byte/line limit, read.
+
+### Standalone profile evidence, pre-registration candidate, and eligibility
+
+```ts
+type KernelCapabilityCheckId="CHK-FR13-02"|"CHK-FR15-01"|"CHK-FR16-01"|"CHK-FR17-01";
+type KernelCapabilityEvidenceRole="DELIVERED_V03_BASELINE"|"CHECK_RECEIPT"|"CANDIDATE_PACKAGE"|"INDEPENDENT_REVIEW";
+interface KernelCapabilityEvidenceDocumentV2 {role:KernelCapabilityEvidenceRole;path:string;bytes:Uint8Array;sha256:GraphFingerprint;candidateArtifactSha256:GraphFingerprint|null}
+interface DeliveredV03BaselineProjectionV2 {statusProfile:"historical-v0.3.2@1";stage:"V0_3_READONLY_MCP";state:"DELIVERED";productRevision:string;candidateArtifactSha256:GraphFingerprint;publicVisibility:"PUBLIC";installable:true;blockers:[]}
+interface KernelCapabilityBaselineV2 {documentPath:string;documentSha256:GraphFingerprint;parsed:DeliveredV03BaselineProjectionV2}
+interface KernelCapabilityEvidenceRecordV2 {checkId:KernelCapabilityCheckId;requirementId:"spec-kernel:FR-13"|"spec-kernel:FR-15"|"spec-kernel:FR-16"|"spec-kernel:FR-17";status:EvidenceStatus;evidence:EvidenceReference[];candidateArtifactSha256:GraphFingerprint;corpusFingerprint:GraphFingerprint;details:string[]}
+interface KernelCapabilityEvidenceManifestV2 {schemaVersion:"kernel-capability-evidence@2";profile:KernelCapabilityProfile;candidateMode:"pre-registration";targetKernelSchemaVersion:"spec-kernel@2";anchorAlgorithmVersion:"marksman-anchor@2";enabledCapabilities:KernelCapabilityProfile[];baseline:KernelCapabilityBaselineV2;candidateRevision:string;candidateArtifactSha256:GraphFingerprint;records:KernelCapabilityEvidenceRecordV2[]}
+interface KernelCapabilityEvaluationInputV2 {schemaVersion:"kernel-capability-evaluation-input@2";manifest:KernelCapabilityEvidenceManifestV2;evidenceDocuments:KernelCapabilityEvidenceDocumentV2[]}
+type KernelCapabilityBlockerCode="UNKNOWN_PROFILE"|"PROFILE_CAPABILITY_MISMATCH"|"BASELINE_MISSING"|"BASELINE_UNBOUND"|"BASELINE_INELIGIBLE"|"CHECK_MISSING"|"CHECK_EXTRA"|"CHECK_DUPLICATE"|"CHECK_FAILED"|"CHECK_STALE"|"CHECK_MISMATCH"|"CHECK_UNVERIFIABLE"|"EVIDENCE_EMPTY"|"EVIDENCE_DOCUMENT_MISSING"|"EVIDENCE_HASH_MISMATCH"|"ARTIFACT_BINDING_MISMATCH"|"CORPUS_BINDING_MISMATCH"|"CANDIDATE_MODE_INVALID";
+interface KernelCapabilityEligibilityV2 {schemaVersion:"kernel-capability-eligibility@2";profile:KernelCapabilityProfile|null;eligible:boolean;candidateRevision:string;candidateArtifactSha256:GraphFingerprint;baselineArtifactSha256:GraphFingerprint|null;requiredCheckIds:KernelCapabilityCheckId[];passedCheckIds:KernelCapabilityCheckId[];blockers:{checkId:KernelCapabilityCheckId|null;code:KernelCapabilityBlockerCode;evidencePath:string|null}[];evidenceFingerprint:GraphFingerprint}
+```
+
+Exact profile membership and enabledCapabilities are:
+
+| Profile | Enabled capabilities exact order | Required checks exact order |
+|---|---|---|
+| `kernel-anchor-migration@1` | `kernel-anchor-migration@1` | `CHK-FR13-02` |
+| `kernel-step-bindings@1` | `kernel-anchor-migration@1`, `kernel-step-bindings@1` | `CHK-FR13-02`, `CHK-FR15-01` |
+| `kernel-generator-port-reads@1` | `kernel-anchor-migration@1`, `kernel-generator-port-reads@1` | `CHK-FR13-02`, `CHK-FR16-01` |
+| `kernel-adapter-io@1` | `kernel-anchor-migration@1`, `kernel-adapter-io@1` | `CHK-FR13-02`, `CHK-FR17-01` |
+
+The candidate artifact contains dormant profile code and exact MCP mappings before acceptance, but public tools/list excludes them while `candidateMode:"pre-registration"`. Evidence drives the internal candidate dispatcher/installed smoke directly against that same artifact. After eligibility, product capability state activates the already-built registry without rebuilding or changing its SHA-256; no circular post-acceptance build exists.
+
+The evaluator re-hashes role-typed documents, parses the bounded historical ProductStatus baseline bytes, requires profile membership above, exact candidate/corpus/check/evidence bindings, and returns the self-binding result. Evidence fingerprint is SHA-256 over canonical manifest identities plus role/path/document hashes and ordered records, excluding raw bytes/result. No capability check enters historical kernel-v0.2/v0.3 membership.

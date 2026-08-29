@@ -4,23 +4,23 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-1.1: Interception and resolution are deterministic
 
-**EARS:** WHEN the model issues `write` targeting an `xd://propose` URL THEN the gate SHALL match exactly that model-issued `tool_call` event, resolve the plan file from `os.tmpdir()/omp-local/<session-identity>/<slug>-plan.md` using runner session identity and documented slug normalization, and proceed to validation; AND nested device dispatches, other tools, other `xd://` targets, absent files, unreadable files, and over-budget files SHALL NOT match or SHALL take the allow path without location guessing.
+**EARS:** WHEN MANUAL input is supplied THEN the validator SHALL use exactly its URL/content/hash/title/slug; WHEN AUTOMATIC input is supplied THEN it SHALL come only from the selected-plan host event after native resolution; AND no mode SHALL scan directories or guess fallback files; pinned v17.3.7 automatic admission SHALL return HOST_ABI_UNSUPPORTED.
 
-**Requirement:** [FR-1](FR.md#fr-1-approval-interception-and-deterministic-plan-resolution)
-
-**Scenario:** `@feature1`, `@id:SCEN-approval-interception-and-plan-resolution`
-
-## AC-1.2 (FR-1): Session identity and slug normalization are pinned
-
-**Requirement:** [FR-1](FR.md#fr-1-approval-interception-and-deterministic-plan-resolution)
-
-**EARS:** WHEN the same propose write is observed across repeated invocations within one session THEN the resolved plan path SHALL be byte-identical, derived from the runner session identity and the documented slug normalization; AND a session identity that changes SHALL change only the directory, never the resolution algorithm.
+**Requirement:** [FR-1](FR.md#fr-1-exact-plan-input-and-future-automatic-approval-event)
 
 **Scenario:** `@feature1`, `@id:SCEN-approval-interception-and-plan-resolution`
+
+## AC-1.2: Session identity and slug normalization are pinned
+
+**Requirement:** [FR-1](FR.md#fr-1-exact-plan-input-and-future-automatic-approval-event)
+
+**EARS:** WHEN selected plan input crosses a host approval-session transition THEN `selectionSessionId`, `approvalSessionId`, `transitionKind`, and `transitionPlanSha256` SHALL form the closed SAME_SESSION or HOST_APPROVAL_FORK relation and bind the exact plan hash; inconsistent/foreign IDs or copied-plan hash SHALL produce `PLAN_IDENTITY_MISMATCH` without fallback scanning.
+
+**Scenario:** `@feature1`, `@id:SCEN-session-transition-plan-resolution`
 
 ## AC-2.1: Every gate fault path allows
 
-**EARS:** IF any of handler exception, absent plan file, over-budget bytes, malformed or unreadable prompt cache, subsystem failure, missing template, or deadline expiry occurs THEN the handler SHALL return no blocking result, append one bounded diagnostic record, and the approval flow SHALL continue; AND blocking SHALL be observed only after a complete successful validation returning one or more blocking errors.
+**EARS:** IF validator exception subsystem/resource/containment failure or the ≤20-second internal deadline occurs THEN the adapter SHALL return allow plus one bounded diagnostic; AND a complete successful pipeline with ERROR findings SHALL block; AND an outer host timeout remains fail-closed and is reported as an implementation defect.
 
 **Requirement:** [FR-2](FR.md#fr-2-fail-open-bridge-policy)
 
@@ -28,9 +28,9 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-3.1: Injection is plan-mode scoped and bounded
 
-**EARS:** WHILE plan mode is active THEN each `context` event SHALL receive at most one injection message ≤2 KiB containing skeleton names in order, spec-reference obligation, and template pointer, applied only to the event's deep copy; AND outside plan mode, on duplicate injection within one event, on injection failure, or on repository/session-stored message modification the gate SHALL inject nothing or take the non-fatal skip path.
+**EARS:** WHEN MANUAL mode is used THEN the contract SHALL be returned as advisory output; WHEN future AUTOMATIC input carries `planMode:true` THEN at most one bounded deep-copy context injection MAY occur; AND no prompt-text/filesystem inference, stored-message mutation, duplicate injection, or blocking-on-injection-failure is permitted.
 
-**Requirement:** [FR-3](FR.md#fr-3-preventive-contract-injection)
+**Requirement:** [FR-3](FR.md#fr-3-mode-scoped-preventive-contract)
 
 **Scenario:** `@feature3`, `@id:SCEN-plan-mode-contract-injection`
 
@@ -44,7 +44,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-5.1: Byte-duplicate plans are detected deterministically
 
-**EARS:** WHEN the submitted plan's SHA-256 equals another `*-plan.md` in the same session directory whose size differs by at most 10 bytes THEN validation SHALL block naming the duplicate by session-relative name; AND size-differing candidates SHALL not be read, unreadable candidates SHALL be skipped, and identical content submitted twice in one directory SHALL always block while re-submission after the original's removal SHALL NOT.
+**EARS:** WHEN a submitted plan's SHA-256 equals one of at most 20 explicitly supplied candidates within 8 MiB THEN validation SHALL block naming its URL; a candidate over the ±10-byte size window SHALL not be hashed; the validator SHALL perform no directory scan; and a manual adapter unable to read any declared candidate before complete input construction SHALL return ALLOW plus `DUPLICATE_INPUT_UNAVAILABLE`.
 
 **Requirement:** [FR-5](FR.md#fr-5-duplicate-plan-detection)
 
@@ -52,7 +52,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-6.1: Grounding is deterministic and cache degrades open
 
-**EARS:** WHEN the relevance score of the plan against the cached prompt window is at or below the deny threshold THEN validation SHALL block with the prompt window excerpt embedded in the reason; AND the same plan/cache pair SHALL yield identical score and decision on every run; AND an empty, absent, or malformed cache SHALL skip grounding without blocking.
+**EARS:** WHEN the relevance score of the plan against the explicitly supplied prompt excerpts is at or below the exact default threshold `-20` THEN validation SHALL block with the selected excerpt embedded in the reason; AND the same plan/cache pair SHALL yield identical score and decision on every run; AND an empty cache SHALL skip grounding; AND malformed or over-budget cache input SHALL return ALLOW plus a bounded bridge diagnostic.
 
 **Requirement:** [FR-6](FR.md#fr-6-prompt-cache-and-deterministic-grounding)
 
@@ -76,7 +76,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-9.1: Spec-touching plans require existing qualified references
 
-**EARS:** IF File Changes or guarded detection touches `.specs/**` or guarded paths THEN the plan SHALL cite at least one `.specs/<slug>:FR-N` or `.specs/<slug>:AC-N.M` reference whose slug directory exists under `<project-root>/.specs/` and whose ID exists as a canonical heading in `FR.md`/`ACCEPTANCE_CRITERIA.md`; AND missing slug, missing ID, zero references, symlinked spec directories, and traversal attempts SHALL block or take the containment-refusal path; AND plans not touching spec/guarded paths SHALL skip the phase entirely.
+**EARS:** IF File Changes or guarded detection touches `.specs/**` or guarded paths THEN the plan SHALL cite at least one `.specs/<slug>:FR-N` or `.specs/<slug>:AC-N.M` reference present in the complete supplied index; AND invalid syntax, missing slug, missing ID, or zero references SHALL block; AND a manual adapter's unreadable document, realpath/reparse/symlink containment refusal, absent index, or byte-budget exhaustion SHALL return ALLOW plus `SPEC_INDEX_UNAVAILABLE` without validating a partial index; AND plans not touching spec/guarded paths SHALL skip the phase.
 
 **Requirement:** [FR-9](FR.md#fr-9-spec-reference-enforcement)
 
@@ -84,7 +84,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-10.1: Deny reason is actionable and bounded
 
-**EARS:** WHEN validation blocks with N errors THEN the reason SHALL render N complete `line N: message` + hint entries, then a template excerpt ≤8 KiB, then the last five prompt excerpts, within 16 KiB total with explicit truncation preserving error completeness first; AND advisory-phase findings SHALL appear only in diagnostic state, never in the blocking decision.
+**EARS:** WHEN validation blocks with N errors THEN the result SHALL expose total count and cursor-paged complete findings; the ≤16 KiB host reason SHALL contain only complete error+hint rows that fit, exact omitted count/cursor, then bounded template/prompt excerpts; AND warnings SHALL never block.
 
 **Requirement:** [FR-10](FR.md#fr-10-bounded-deny-format-and-diagnostics)
 
@@ -92,7 +92,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-11.1: Installed gate executes dependency-absent
 
-**EARS:** WHEN the exact candidate artifact is installed outside the source checkout with root and external `node_modules` unavailable THEN the extension SHALL match a simulated propose event and run the complete validation pipeline using only bundled code and resources, with zero daemon/network/subprocess/credential activity; AND the child tree SHALL contain no undeclared runtime dependency, and template/section-model resources SHALL match their shipped hash inventory.
+**EARS:** WHEN the exact candidate artifact is installed outside the source checkout with root and external `node_modules` unavailable THEN MANUAL validation SHALL run from one explicit request through the complete pipeline using only bundled code and resources, with zero daemon/network/subprocess/credential activity; AND an AUTOMATIC smoke SHALL use a captured `selected-plan-event@1` receipt rather than a simulated propose write; AND the child tree SHALL contain no undeclared runtime dependency, and template/section-model resources SHALL match their shipped hash inventory.
 
 **Requirement:** [FR-11](FR.md#fr-11-self-contained-in-process-runtime)
 
@@ -108,7 +108,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-13.1: Release gate is a closed conjunction
 
-**EARS:** WHEN the release evaluator receives one candidate manifest THEN it SHALL fail closed unless stage/profile values are a known matching pair and SHALL return `eligible=true` only with exactly one passing hash-bound record per mandatory check FR-1 through FR-12 including live ABI probe records, dependency-absent smoke, budget evidence, and the adversarial review record, all bound to the same artifact; AND missing, extra, duplicate, failed, stale, mismatched, or unbound records, structural-only claims, and unexecuted scenarios SHALL each yield deterministic blockers and `eligible=false`; AND eligibility SHALL NOT authorize release in v0.1.0/v0.2/v0.3.
+**EARS:** WHEN the release evaluator receives one candidate manifest THEN it SHALL fail closed unless profile and host contract form a known pair; `plan-gate-manual@1` SHALL require exactly one passing hash-bound record for every manual FR-1..FR-12 branch including unreadable/containment fail-open, dependency-absent, budget, fixture, and adversarial checks; `plan-gate-automatic@1` SHALL additionally require all automatic FR-1/FR-3 branches and a source-and-behavior receipt proving `selected-plan-event@1` on the exact host pin; AND missing, extra, duplicate, failed, stale, mismatched, or unbound records, structural-only claims, and unexecuted scenarios SHALL yield deterministic blockers and `eligible=false`.
 
 **Requirement:** [FR-13](FR.md#fr-13-release-eligibility-conjunction)
 

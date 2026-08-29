@@ -6,7 +6,7 @@
       "sha256": "e9e70714cb5c8236e100df5f8056346f3aeaafa9a6ac92efe6aba85cec902109"
     },
     "adapters/query-service.js": {
-      "sha256": "b148e5b0a909d80b75f12cdf8549dbdc99af001cd1007c6e403c1daa73adc53b"
+      "sha256": "c34dcaf5d923b5b39b86e156c48cb3128a5a069a085540440e007c894b38c723"
     },
     "adapters/tool-contracts.js": {
       "sha256": "ef4d30478a5db7165a36bf2b57a45168da38485c13da265ce0f1d9dd20a531af"

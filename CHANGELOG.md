@@ -4,7 +4,11 @@ All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
 ## Unreleased
 
-Specification note, not a release: product and public docs now treat the eight SCHEMA-11 MCP tools as the v0.3 first slice of the generator-port door, not the destination registry. Shipped 0.3.x eight-tool evidence is unchanged.
+Specification-only corpus repair, not a runtime release:
+
+- Product/distribution/kernel/MRI status is reconciled to public v0.3.2 evidence.
+- The eight SCHEMA-11 MCP names are the v0.3 first slice / candidate identity, not the destination registry; shipped 0.3.x receipts are unchanged.
+- Post-v0.3 schemas use independent capability gates, and normal verification now ratchets the 46-name census, shipped graph, canonical IDs, Marksman anchors, status identity and release wording.
 
 ## 0.3.2 — 2026-08-28
 

@@ -80,11 +80,11 @@ These are specification criteria. Their matching Gherkin scenarios are unexecute
 
 **Scenario:** `@feature6`, `@id:SCEN-incomplete-aggregate-remains-planned` — “A stage with missing evidence remains planned”.
 
-### AC-6.2 — Ordered cross-spec stage gates
+### AC-6.2 — Baseline and capability gates cannot be bypassed
 
-**WHEN** a stage advancement is proposed **THEN** v0.1.0 SHALL require accepted current-candidate `plugin-distribution:FR-13`; v0.2 SHALL require that distribution aggregate plus accepted current-candidate `spec-kernel:FR-14` for `targetStage: "v0.2"`; v0.3 SHALL require current-candidate distribution and accepted current-candidate `spec-kernel:FR-14` for `targetStage: "v0.3"`, plus a separately identified accepted v0.2 predecessor result; and authoring/mutation SHALL require current-candidate distribution, v0.3 kernel, and `spec-authoring-workflow:FR-13` results plus that v0.2 predecessor. The v0.2 result MAY name an artifact SHA-256 different from the current candidate only when the later v0.3 `spec-kernel:FR-14` result declares exactly that SHA-256 in `v02ParentArtifactSha256`, both kernel results share the status product revision and `artifactLineageId`, their closed target-stage order is strictly v0.2 before v0.3, and neither is stale or revoked. Every other aggregate SHALL bind to the current candidate artifact. The product gate SHALL NOT substitute the latest aggregate, a historical or different-lineage result, an unlinked predecessor, another target-stage profile, or evidence from any member subset.
+**WHEN** delivery is evaluated **THEN** baseline v0.1/v0.2/v0.3 SHALL require the exact aggregates in `product:FR-6`; each post-v0.3 capability SHALL additionally require only its closed `CapabilityDelivery.requiredAggregateIds`; accepting the baseline or one sibling capability SHALL NOT imply another capability; automatic plan gate SHALL remain `DEFERRED_HOST_ABI` until the selected-plan host event is accepted; spec enforcement SHALL remain `DEFERRED_HOST_ABI` until `spec-enforcement:CHK-FR1-01` proves authenticated tool-call provider/server/schema identity; AND every current record SHALL bind to the evaluated candidate except the explicitly admitted active v0.2 predecessor.
 
-**Scenario:** `@feature6`, `@id:SCEN-owning-aggregate-cannot-be-bypassed` — “A later stage cannot bypass its cumulative aggregate gate set”.
+**Scenario:** `@feature6`, `@id:SCEN-owning-aggregate-cannot-be-bypassed` — “A baseline or capability cannot bypass its exact aggregate set”.
 
 ## FR-7 — Honest public status and claims
 
@@ -104,13 +104,13 @@ These are specification criteria. Their matching Gherkin scenarios are unexecute
 
 ### AC-8.1 — Roadmap separates state
 
-**WHEN** a manager reads the README and roadmap **THEN** delivered/current, planned, deferred, blocked, exit evidence, and excluded scope SHALL be visibly distinct, and the current legal/product blocker SHALL be stated without euphemism.
+**WHEN** README/ROADMAP/current status are read **THEN** v0.3.2 baseline and exactly seven capability rows SHALL use the closed state enum, exact owner/aggregate tuples, evidence/blockers/next gates, and excluded scope consistently.
 
 **Scenario:** `@feature8`, `@id:SCEN-roadmap-separates-states` — “Roadmap separates delivered planned deferred and blocked”.
 
 ### AC-8.2 — Canonical boundary links
 
-**WHEN** product-scope documents refer to distribution, kernel, LSP, evidence, or authoring behavior **THEN** they SHALL use canonical cross-spec IDs and SHALL NOT duplicate the owning specification's internal contract.
+**WHEN** product documents refer to any of the seven sibling capabilities or baseline owners **THEN** qualified canonical IDs and the exact product_SCHEMA aggregate maps SHALL be used without duplicating sibling internals.
 
 **Scenario:** `@feature8`, `@id:SCEN-canonical-owner-delegation` — “Product spec delegates internals to canonical owners”.
 

@@ -12,7 +12,7 @@ The repository SHALL expose exactly one OMP marketplace catalog at `.omp-plugin/
 
 ## FR-2 — Single child package and extension entry
 
-The only installable plugin package SHALL be `plugins/omp-spec-kit`. Its `package.json` SHALL conform to the closed public profile in `plugin-distribution_SCHEMA.md`, identify version `0.1.0`, and contain exactly one `omp.extensions` entry: `./dist/extension.js`. Because pinned OMP v17.3.7 recursively copies the complete relative source directory, the child tree SHALL contain only `package.json`, `README.md`, `LICENSE`, generated `dist/`, one guidance skill, and one guidance command. It SHALL NOT contain or declare legacy `pi.extensions`, nested plugin packages, another manifest, a second extension, source/build/test/evidence files, lifecycle install scripts, runtime dependencies, or an MCP server in v0.1.0.
+The only installable plugin package SHALL be `plugins/omp-spec-kit`, with one `omp.extensions` entry `./dist/extension.js` and a version equal to the evaluated candidate. The immutable v0.1.0 profile contained package/README/LICENSE/generated dist/one skill/one command and no MCP entry. The delivered v0.3.2 profile additionally contains exactly one `.mcp.json`, the cross-platform `bin/omp-spec-kit-mcp{,.cmd}` launchers, and generated `dist/{kernel,adapters,mcp}` trees inside the same child. Future capabilities MAY extend only this package through their accepted gates; they SHALL NOT add another package, marketplace, extension entry, MCP server identity, nested manifest/control plane, source/test/evidence files, install scripts, ambient runtime dependencies, or root escape.
 
 **Acceptance:** [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-single-child-package-and-extension)
 
@@ -20,7 +20,7 @@ The only installable plugin package SHALL be `plugins/omp-spec-kit`. Its `packag
 
 ## FR-3 — Root-relative bounded inventory
 
-The installed extension SHALL register exactly one v0.1.0 tool, `spec_inventory`. On execution, the tool SHALL derive the active project root from OMP's tool context, resolve only `<project-root>/.specs`, reject root escape including symlink escape, enumerate direct spec directories in deterministic lexical order, apply both caller bounds and hard safety caps, and return the public schema defined in `plugin-distribution_SCHEMA.md`. It SHALL NOT infer the project from package location or process launch directory.
+For historical v0.1.0, the installed extension registered only bounded read-only `spec_inventory`. Each later baseline profile SHALL preserve that contract and declare its additional read-only first-slice surface through the exact kernel/MRI manifest; distribution validates the candidate's declared surface and SHALL NOT turn the v0.3 eight-name first slice into a permanent ceiling. Every inventory execution derives the project root from OMP context, resolves only `<project-root>/.specs`, rejects lexical/link escape, orders deterministically, enforces caller/hard bounds, and returns the versioned public schema without inferring root from package/CWD.
 
 **Acceptance:** [AC-3.1](ACCEPTANCE_CRITERIA.md#ac-31-bounded-root-relative-inventory)
 
@@ -28,7 +28,7 @@ The installed extension SHALL register exactly one v0.1.0 tool, `spec_inventory`
 
 ## FR-4 — Install, reload, and fresh-session activation
 
-The documented v0.1.0 lifecycle SHALL separately prove marketplace add/discovery, project-scope install, installed-version observation, `/reload-plugins`, termination of the pre-install session, fresh-session startup, and successful `spec_inventory` invocation from the installed child package. Install success or reload success SHALL NOT be treated as extension/tool activation proof.
+Each release lifecycle SHALL separately prove marketplace discovery, project-scope install of the exact candidate, installed-version observation, `/reload-plugins`, termination of the pre-install session, fresh-session startup, and invocation of the declared candidate surface from the installed child. Install/reload alone is never activation proof. Current v0.3.2 status additionally binds these receipts to `docs/validation/release-status-v0.3.2.json`.
 
 **Acceptance:** [AC-4.1](ACCEPTANCE_CRITERIA.md#ac-41-fresh-session-activation), [AC-4.2](ACCEPTANCE_CRITERIA.md#ac-42-reload-is-not-activation-proof)
 
@@ -36,7 +36,7 @@ The documented v0.1.0 lifecycle SHALL separately prove marketplace add/discovery
 
 ## FR-5 — Clean-build dependency-independent package
 
-Release packaging SHALL delete prior `plugins/omp-spec-kit/dist/` output, copy the exact external sources `src/v0.1/extension.js` and `src/v0.1/inventory.js` into it, emit a deterministic hash manifest, and reject missing, unexpected, non-regular, or symlink output. Since OMP copies the entire child source recursively rather than honoring `package.json#files` as an assembler, validation SHALL enforce the complete child tree as a positive allowlist. The installed `dist/extension.js` SHALL load and execute with repository-root and source-checkout dependencies absent; ambient root `node_modules`, source/build/test/evidence files, bare non-`node:` external imports, absolute paths, runtime dependencies, and dev-pomogator modules are forbidden.
+Release packaging SHALL delete prior `plugins/omp-spec-kit/dist/`, copy/rebase the exact root sources `src/v0.1/{extension,inventory}.js` plus closed `src/{kernel,adapters,mcp}` trees, emit a deterministic hash manifest, and reject missing, unexpected, non-regular, or symlink output. Because OMP recursively copies the child source, verification SHALL enforce the complete candidate-profile allowlist including `.mcp.json`/`bin` only for MCP-enabled profiles. Installed extension and MCP launcher SHALL execute with source checkout/root `node_modules` absent; ambient imports, absolute paths, source/build/test/evidence files, native addons, downloads, and undeclared dependencies are forbidden.
 
 **Acceptance:** [AC-5.1](ACCEPTANCE_CRITERIA.md#ac-51-dependency-absent-execution)
 
@@ -52,7 +52,7 @@ Release packaging SHALL delete prior `plugins/omp-spec-kit/dist/` output, copy t
 
 ## FR-7 — Version authority and release-aware upgrade
 
-The catalog plugin-entry version, child package version, embedded runtime version, installed tool version, artifact metadata, and GitHub tag SHALL agree (`0.1.0` and `v0.1.0` for the first release). Release `0.1.0` SHALL prove that consistency without requiring a nonexistent prior version. Beginning with the first subsequent release, upgrade proof SHALL start from an actually released lower version, refresh the catalog separately from plugin upgrade, install a strictly newer explicit semver at project scope, then start a fresh session and observe that exact version from the installed tool. Partial, mismatched, or stale-session observations SHALL fail the applicable proof.
+Catalog entry version, child package version, embedded runtime version, installed observation, artifact metadata, evidence candidate, and GitHub tag SHALL agree. v0.1.0 requires no prior version; every subsequent profile SHALL prove upgrade from an actual public lower version after separate catalog refresh, exact explicit install, and fresh-session observation. Current v0.3.2 receipts SHALL identify v0.3.0 as the public predecessor and bind upgrade observations to the exact candidate/prior digests. Partial, mismatched, or stale-session observations fail.
 
 **Acceptance:** [AC-7.1](ACCEPTANCE_CRITERIA.md#ac-71-version-consistency), [AC-7.2](ACCEPTANCE_CRITERIA.md#ac-72-subsequent-release-upgrade)
 
@@ -60,7 +60,7 @@ The catalog plugin-entry version, child package version, embedded runtime versio
 
 ## FR-8 — Release-aware uninstall, reinstall, and rollback preservation
 
-Every release lifecycle SHALL prove project-scope uninstall followed by a fresh session in which the capability is absent, then explicit reinstall of the same verified candidate artifact followed by reload, a new fresh session, and successful invocation reporting that candidate version. This is the removal/recovery proof required for `0.1.0` without any prior-release dependency. Beginning with the first subsequent release, the lifecycle SHALL additionally prove rollback by reinstalling an explicitly selected prior released catalog version, reloading, starting a fresh session, and observing that prior version. Marketplace removal alone, cache deletion alone, or use of an old session SHALL NOT count. Every applicable transition SHALL preserve project and `.specs` hashes outside OMP-managed plugin state.
+Every candidate SHALL prove project-scope uninstall plus fresh-session absence, then exact-candidate reinstall/reload/fresh-session invocation with project and `.specs` preservation. Every post-first release SHALL additionally prove rollback to an explicit public prior artifact and fresh-session observation. Current v0.3.2 uses the real v0.3.0 predecessor and the upgrade/rollback receipt digests recorded in `docs/validation/release-status-v0.3.2.json`. Marketplace removal, cache deletion, old-session observation, or unbound prior bytes do not count.
 
 **Acceptance:** [AC-8.1](ACCEPTANCE_CRITERIA.md#ac-81-candidate-uninstall-and-reinstall), [AC-8.2](ACCEPTANCE_CRITERIA.md#ac-82-subsequent-release-rollback)
 
@@ -76,7 +76,7 @@ Before a public artifact or release is created, automation SHALL verify imported
 
 ## FR-10 — GitHub Actions release transaction
 
-GitHub Actions SHALL run independent verification jobs for public safety/provenance, schema/cardinality, clean build/package, dependency-absent load, lifecycle BDD, and version/release consistency. The release job SHALL require all jobs, build from the tagged immutable commit, download the verified artifact by digest, reject version/tag mismatch, and create the GitHub release exactly once. Pull requests and untagged pushes SHALL verify but SHALL NOT publish. Reruns SHALL not overwrite a different release artifact.
+GitHub Actions SHALL verify public safety/provenance, schema/cardinality, clean package/dependency-absent execution, lifecycle BDD, version consistency, and the complete distribution evidence matrix. `distribution-evidence.yml` SHALL build and attest the exact evidence subject; `release.yml` SHALL download only a successful run for the peeled tag commit, revalidate candidate identity, verify the fixed GitHub Artifact Attestations trust contract before notes/upload, publish the already verified digest exactly once, and attest published assets. PRs/untagged pushes SHALL not publish; reruns SHALL not overwrite a different release artifact.
 
 **Acceptance:** [AC-10.1](ACCEPTANCE_CRITERIA.md#ac-101-github-actions-release-transaction)
 
@@ -100,7 +100,7 @@ The request, result, entry, diagnostic, and evidence receipt schemas SHALL be ve
 
 ## FR-13 — Aggregate release eligibility
 
-The release evaluator SHALL compute three distinct closed results: `mri-release-eligibility@1` from exactly `mcp-release-integrity:FR-1` through `mcp-release-integrity:FR-6` plus the pinned manager discovery receipt; `distribution-release-eligibility@1` from the exact per-FR claim matrix for `plugin-distribution:FR-1` through `plugin-distribution:FR-12`; and `public-release-eligibility@1`. Each matrix cell SHALL be a content-addressed producer receipt artifact whose candidate identity, OMP revision, platform, fixture digest, applicability, lifecycle, and passed producer observations match the exact candidate and platform fixture. MRI evidence SHALL NOT claim or satisfy `plugin-distribution:FR-13`. Current distribution `workflow`/`runId` fields and observations are self-authored JSON, not an independent trust root: while no supported cryptographic or otherwise independently verifiable producer attestation exists, every supplied distribution bundle SHALL remain blocked with `distribution-producer-provenance-untrusted:no-independent-trust-root`, before notes or publication. A future trusted-producer verifier may enable eligibility only through a separately specified and implemented trust-root contract.
+The distribution evaluator SHALL compute only `distribution-release-eligibility@2` for the exact FR-1..FR-12 claim matrix. Every cell SHALL bind a canonical-contained producer receipt to candidate version/tag/commit/digests, OMP pin, platform fixture, applicability, lifecycle and observations. Self-authored metadata alone SHALL remain blocked. The current normative independent trust root is GitHub Artifact Attestations over the exact evidence subject, verified with repository `stgmt/omp-spec-kit` (or exact trusted `GITHUB_REPOSITORY`), fixed signer workflow `stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml`, and source ref `refs/tags/<candidate-tag>`; missing `gh`, unpinned repo, wrong signer workflow, wrong source ref, subject/hash mismatch, verifier timeout/nonzero/spawn error, or incomplete matrix SHALL fail closed. Predicate JSON is diagnostic, not trust authority. MRI eligibility remains owned by `mcp-release-integrity`; baseline/capability/public delivery conjunction remains owned by `product:FR-6`. Historical v0.3.2 `public-release-eligibility@1` receipts remain evidence but SHALL NOT define the forward distribution evaluator.
 
 **Acceptance:** [AC-13.1](ACCEPTANCE_CRITERIA.md#ac-131-complete-candidate-aware-release-evidence)
 

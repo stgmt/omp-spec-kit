@@ -1,14 +1,14 @@
 # plan-gate
 
-One standalone specification for a native OMP plan-approval content gate: the planned port of the upstream `dev-pomogator` plan discipline (`tools/plan-pomogator/plan-gate.ts` + `validate-plan.ts`) onto OMP v17.3.7 extension surfaces, redesigned without Claude hooks, without the upstream hook-service daemon, and without any external process or network dependency.
+This specification defines deterministic plan-content validation plus a future automatic approval gate. Manual/advisory validation can consume an explicitly supplied plan today; automatic blocking requires the exact post-native-resolver host event in `docs/omp-plan-approval-event-contract.md`.
 
 ## Status
 
-SPEC_ONLY. All tasks are `Planned`; every Gherkin scenario is specification text with no executed status. The capability belongs to the roadmap "Later — authoring and mutation" stage class: it intercepts and can block plan approval, so it requires the separate safety review and evidence gates that class demands before any release.
+SPEC_ONLY. Automatic mode is `DEFERRED_HOST_ABI` on pinned OMP v17.3.7 because that runtime exposes no selected-plan approval event. Scenario text is not execution evidence; the spec must not simulate automatic support with guessed paths.
 
 ## Why a separate spec
 
-`MIGRATION_MATRIX.md` drops the upstream Claude hook families (source FR-5, FR-6, FR-19, FR-22, FR-24, FR-25, FR-28) because Claude hook lifecycle is outside the OMP-only product boundary. The plan-approval content gate is nevertheless a portable *validation concept*: deterministic structure, duplicate, grounding, cross-reference, and spec-reference checks over a plan document. This specification rewrites that concept as OMP-native behavior on pinned v17.3.7 surfaces: the `tool_call` hook event on the model-issued `write` targeting `xd://propose`, the session-local plan directory, and the `context` event. No Claude surface, daemon dispatch, or harness state is carried over.
+The portable capability is deterministic plan validation. Native OMP currently owns plan fallback selection and local/session transitions. The future automatic adapter receives the already selected plan URL/content/hash through a new host event; it does not intercept a model write and reimplement resolution. Claude hooks, daemon dispatch and harness state remain excluded.
 
 ## Provenance and evidence
 
@@ -37,4 +37,4 @@ SPEC_ONLY. All tasks are `Planned`; every Gherkin scenario is specification text
 
 ## Release boundary
 
-The gate may not ship in v0.1.0/v0.2/v0.3. It belongs to the "Later — authoring and mutation" stage class, whose cumulative gate per `product:FR-6` requires accepted current-candidate `plugin-distribution:FR-13`, `spec-kernel:FR-14` for both `v0.2` and `v0.3` with the typed predecessor linkage, and `spec-authoring-workflow:FR-13` before any authoring/mutation capability registers; this spec adds its own release conjunction (FR-13) on top of that cumulative gate and SHALL NOT be read as loosening it. Entry additionally requires: accepted TASK-1 live ABI probes, the dependency-absent self-contained runtime proof of this spec, an independent adversarial review, and an explicit release-stage decision recorded in `ROADMAP.md`. Spec-reference enforcement uses the repository `.specs` tree directly (slug directories and GLFM headings) and does not depend on the spec-kernel query service; it may be strengthened by the kernel only after v0.2 exists.
+Manual/advisory validation is an independent specified capability. Automatic plan approval remains `DEFERRED_HOST_ABI` until a pinned OMP release satisfies `docs/omp-plan-approval-event-contract.md`; then it additionally requires the complete `plan-gate:FR-13` aggregate. It neither depends on authoring mutation delivery nor loosens another product gate.

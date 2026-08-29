@@ -1,6 +1,6 @@
 # OMP v17.3.7 plugin contract
 
-`omp-spec-kit` v0.1.0 targets **Oh My Pi v17.3.7** at immutable commit [`8500092296621a6826b7136e840f8a59ea338958`](https://github.com/can1357/oh-my-pi/commit/8500092296621a6826b7136e840f8a59ea338958). Mutable `main` documentation is not the release authority.
+Historical v0.1.0 and the current public v0.3.2 baseline target **Oh My Pi v17.3.7** at immutable commit [`8500092296621a6826b7136e840f8a59ea338958`](https://github.com/can1357/oh-my-pi/commit/8500092296621a6826b7136e840f8a59ea338958). Mutable `main` documentation is not authority.
 
 ## Pinned upstream sources
 
@@ -11,7 +11,7 @@
 
 The marketplace implementation copies a relative catalog source directory recursively with `fs.cp`. It does not assemble the child package from `package.json#files`. Consequently `plugins/omp-spec-kit/` is itself the complete installable payload. Source, build scripts, tests, evidence, nested manifests, and repository-only files must remain outside that directory. The generated `dist/` directory is the only runtime-code subtree copied into the payload.
 
-The pinned loader discovers installed extension entries from the child manifest's `omp.extensions`. This package declares exactly `./dist/extension.js`; legacy `pi.extensions`, MCP configuration, hooks, and additional extension entries are outside v0.1.0.
+The pinned loader discovers one extension entry `./dist/extension.js`. Historical v0.1.0 had no MCP config; delivered v0.3.2 additionally has one `.mcp.json` server identity and two contained launchers while preserving one child package/extension. Legacy `pi.extensions`, a second server/factory, hooks and nested control planes remain forbidden.
 
 ## Repository build and validation
 
@@ -23,7 +23,7 @@ node scripts/verify-marketplace.mjs
 node scripts/verify-package.mjs
 ```
 
-`build-plugin.mjs` deletes and recreates `plugins/omp-spec-kit/dist/` from the external `src/v0.1/` sources. It emits only `extension.js`, `inventory.js`, and deterministic `manifest.json` hashes. The validators reject catalog or package cardinality drift, source escape, symlinks, unexpected payload files, runtime dependencies, non-`node:` external imports, and version disagreement.
+`build-plugin.mjs` recreates `plugins/omp-spec-kit/dist/` from `src/v0.1/{extension,inventory}.js` plus closed root `src/{kernel,adapters,mcp}` trees and emits deterministic `manifest.json` hashes. Validators reject profile/cardinality drift, escape/links, unexpected child files, runtime dependencies, non-`node:` ambient imports and version disagreement.
 
 ## Marketplace lifecycle commands
 
@@ -45,6 +45,12 @@ Use `/marketplace update omp-spec-kit` to refresh catalog metadata. A catalog up
 2. run `/reload-plugins` only as its own observation;
 3. terminate the pre-install OMP session;
 4. start a fresh OMP v17.3.7 session in the target project; and
-5. invoke `spec_inventory` there.
+5. invoke the declared candidate surface there (`spec_inventory` for the original profile; extension/MCP first-slice checks for v0.3.2).
 
-Only the fresh-session invocation proves that `dist/extension.js` loaded and registered the tool. Neither marketplace discovery, successful installation, nor `/reload-plugins` alone is activation evidence.
+Only fresh-session invocation proves the installed extension/MCP profile activated. Discovery, install and reload alone are insufficient.
+
+## Plan-approval ABI limit
+
+Pinned v17.3.7 resolves `local://` under the session artifacts directory before its temp fallback, and native approval searches the supplied-title path, state path and scanned plan candidates. It exposes no extension event carrying the exact plan selected after that resolver. Automatic plan-gate interception is therefore `DEFERRED_HOST_ABI` on this pin; guessed temp paths or duplicate fallback search are unsupported.
+
+The required future ABI is specified in [`omp-plan-approval-event-contract.md`](omp-plan-approval-event-contract.md). Manual/advisory validation of an explicitly supplied plan may be implemented independently and must not be presented as automatic approval interception.

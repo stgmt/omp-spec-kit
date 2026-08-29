@@ -1,12 +1,18 @@
 {
-  "schema": "omp-spec-kit-cucumber-fixture-provenance@1",
+  "schema": "omp-spec-kit-cucumber-fixture-provenance@2",
   "fixture": "cucumber-messages.ndjson",
-  "sha256": "3f748539baa884a29b3c99e94d98087a1e8876257d924719238e89ab64f44335",
-  "repositoryCommit": "86a80f59d600d6c6f2c581c93d55fd3981a92989",
-  "dockerImageDigest": "sha256:75680db26398fa5250cbb349f523d8d481ed50aa91fa758c8b6e1c7298f6daab",
+  "sha256": "9bcaa12544ad81dca1fb72915a38afb26e8e0ba890ece243783bfd54063600d2",
+  "repositoryCommit": "86525eaf6f411757e001474f69d38447bafd0d28",
+  "sourceState": "working-tree-content-addressed",
+  "parentFixtureSha256": "398711c01ad40d86edece475b1313a15ab7f9f01cca0a164be1f97296b47428f",
+  "sourceManifest": "cucumber-messages.inputs.json",
+  "sourceManifestSha256": "194c85494af9a0380202ae665894fbd40783b1198babfb367020cb258dbfae15",
+  "sourceInputsSha256": "cca0e38e47581e776e61eaf72cdea1dfcf9d63f317abadf29c5a1700fd9963ea",
+  "sourceInputCount": 174,
+  "dockerImageDigest": "sha256:1143a064082310cc43132ce8562b233a413a8e0c625969675143c17f686647c8",
   "cucumberVersion": "13.2.1",
-  "captureCommand": "wsl.exe -e bash -lc \"docker run --rm --env OMP_SPEC_KIT_BDD_MESSAGE_STDOUT=1 omp-spec-kit-bdd:local\"",
-  "capturedAt": "2026-08-24",
-  "scenarioCount": 38,
-  "stepCount": 302
+  "captureCommand": "bash scripts/docker-bdd.sh",
+  "capturedAt": "2026-08-29",
+  "scenarioCount": 77,
+  "stepCount": 720
 }

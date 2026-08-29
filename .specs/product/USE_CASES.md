@@ -78,11 +78,11 @@
 
 1. Derive the proposed stage's complete cumulative canonical cross-spec gate set; do not caller-select a subset.
 2. Require `plugin-distribution:FR-1` separately for the one marketplace/plugin/extension identity invariant.
-3. Require accepted `plugin-distribution:FR-13` bound to the current candidate before claiming v0.1.0.
-4. Require accepted current-candidate `plugin-distribution:FR-13` plus accepted current-candidate `spec-kernel:FR-14` with `targetStage: "v0.2"` before claiming v0.2 graph/query capability.
+3. For v0.1.0, require accepted historical `distribution-release-eligibility@1` owned by `plugin-distribution:FR-13`.
+4. For v0.2, require the candidate-applicable distribution profile plus accepted `spec-kernel:FR-14` `targetStage: "v0.2"`; new candidates after the repair use distribution @2.
 5. For v0.3, require accepted current-candidate distribution and accepted current-candidate `spec-kernel:FR-14` with `targetStage: "v0.3"`. Separately identify the required accepted `targetStage: "v0.2"` result as the predecessor; permit its artifact SHA-256 to differ only when the v0.3 result's `v02ParentArtifactSha256` equals it, both kernel results share the status product revision and lineage, their stage/profile pair is ordered v0.2 before v0.3, and neither is stale or revoked.
-6. For authoring/mutation, require current-candidate distribution, current-candidate v0.3 kernel, and current-candidate `spec-authoring-workflow:FR-13`, plus the same linked, accepted v0.2 predecessor. Do not collapse the two kernel target-stage results into one unqualified reference.
-7. Confirm every cumulative aggregate accepted its complete mandatory member/dependency set. Only then publish `DELIVERED`.
+6. For authoring/mutation delivery, require the joint evidence FR-13/14 + authoring FR-13/14 + enforcement FR-11 tuple for the same current candidate; implementation may exist while deferred but no row delivers alone.
+7. Confirm every baseline/capability aggregate and typed predecessor link; only then publish the applicable DELIVERED rows.
 
 **Alternatives:** any missing or member-subset aggregate, current distribution/current-stage/current-authoring result bound away from the current candidate, historical or different-lineage v0.2 result, missing or mismatched `v02ParentArtifactSha256`, reversed/duplicate/wrong target-stage pair, or stale/revoked result retains the last proven stage. A second product/control plane fails the identity gate.
 
@@ -96,10 +96,10 @@
 
 **Main flow:**
 
-1. Read the current status, evidence timestamp/source, blockers, and next gate.
-2. Distinguish `DELIVERED`, `PLANNED`, `DEFERRED`, and `BLOCKED` claims.
-3. Treat specification text, imported scenarios, structural validity, and roadmap entries as intent—not executed proof.
-4. Present the most conservative status when required evidence is missing, stale, revoked, contradictory, parent-mismatched, or failed.
+1. Read baseline plus all seven capability rows, evidence source, blockers and next gates.
+2. Distinguish `SPEC_ONLY`, `PLANNED`, `SPECIFIED`, `DEFERRED`, `DEFERRED_HOST_ABI`, `BLOCKED`, and `DELIVERED`.
+3. Treat specification/Gherkin/roadmap/task labels as intent, never execution evidence.
+4. Project the most conservative schema-valid state when evidence is missing, stale, revoked, contradictory, parent-mismatched or failed.
 
 **Trace:** `product:FR-7`, `product:AC-7.1`, `product:AC-7.2`, `@feature7`.
 

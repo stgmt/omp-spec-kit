@@ -4,11 +4,11 @@
 
 **Priority:** Must
 
-As a release owner, I want task status derived only from fresh execution-artifact bytes joined to canonical scenarios, so that a "DONE" label always means verified-green evidence exists and no stale or fabricated result can launder itself into completion.
+As a release owner, I want the exact derived status `done-verified` to require fresh execution bytes joined to canonical scenarios, so stale/fabricated results remain `done-unverified` or `not-done`.
 
 **Why:** Upstream incident class "526 stale results reported as passed while execution lane claimed GREEN" demonstrates that without an explicit honesty boundary, stale or misjoined results silently satisfy completion.
 
-**Independent Test:** Supply a kernel graph with three tasks (one with fresh green evidence, one with stale green evidence, one with no evidence); observe exactly one verified-DONE, one DONE-but-unverified-stale, and one not-DONE.
+**Independent Test:** Supply three tasks with fresh green, stale green, and absent evidence; observe exactly one `done-verified`, one `done-unverified`, and one `not-done`.
 
 **Acceptance Scenarios:** `@feature1`, `@feature6`, `@feature7`
 
@@ -28,11 +28,11 @@ As a specification author, I want a waived open task to remain visibly open and 
 
 **Priority:** Must
 
-As an engineer reviewing a coverage census, I want every producer result accounted for as joined, unmatched, or malformed with conservation equations, so that missing or extra results are immediately visible rather than silently dropped.
+As an engineer reviewing a coverage census, I want every producer row accounted for as joined, unmatched, ambiguous, or malformed while authored scenarios conserve separately, so no result is silently dropped or mixed across cardinality domains.
 
-**Why:** Silent drops hide broken traceability between authored scenarios and executed tests.
+**Why:** Silent drops and authored/producer count mixing hide broken traceability.
 
-**Independent Test:** Supply artifacts with two results matching canonical scenarios, one result matching no scenario, and one malformed record; observe census totals satisfying authored = joined + unmatched + malformed.
+**Independent Test:** Supply two joined rows, one unmatched row, one ambiguous row and one malformed source record; observe producer collection/membership equations and the independent authored-scenario equation both hold exactly.
 
 **Acceptance Scenarios:** `@feature4`, `@feature9`
 

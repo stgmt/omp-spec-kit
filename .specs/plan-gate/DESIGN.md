@@ -2,129 +2,142 @@
 
 ## Context
 
-Native OMP v17.3.7 validates plan approval mechanically only for file existence and title normalization (`preparePlanForReview`); content quality is prompt-only. The upstream `dev-pomogator` plan gate proves the missing layer as a phased deterministic validator. This design ports that layer onto pinned OMP extension surfaces without Claude hooks, without the upstream daemon/registry dispatch, and without any external dependency, per `MIGRATION_MATRIX.md` DROP decisions and the repository single-plugin boundary.
+Pinned OMP v17.3.7 resolves a plan natively before approval but exposes no extension event carrying that selected plan. A pre-write hook sees only the title and runs before native title/state/newest-plan fallback selection; reconstructing the selected file from temp paths would duplicate host logic incorrectly. Therefore `plan-gate@2` has two explicit profiles:
+
+- `plan-gate-manual@1` — implementable now; validates one exact caller-supplied plan request.
+- `plan-gate-automatic@1` — `DEFERRED_HOST_ABI`; requires the future post-resolver event in `docs/omp-plan-approval-event-contract.md`.
+
+The deterministic validation core is shared. Neither profile uses Claude hooks, the upstream daemon/registry, guessed temp roots, or an additional agent-facing tool surface.
 
 ## Component boundary
 
 ```mermaid
 flowchart LR
-  Model[Agent issues write to xd://propose] --> TC[tool_call hook event]
-  TC --> Match[Match predicate]
-  Match -->|non-match| Pass[No-op return]
-  Match -->|propose| Resolve[Session-local plan resolution]
-  Resolve --> Cache[Prompt cache adapter]
-  Cache --> Val[Pure validator phases 0 to 3 plus spec refs]
-  Val --> Render[Deny renderer]
-  Render --> Block[block true reason]
-  Val -->|no errors| Allow[No-op return]
-  Ctx[context event] --> Inj[Plan-mode injection]
-  Ctx --> Cache
+  Manual[Explicit manual request] --> MIO[Manual I/O adapter]
+  MIO --> Input[Closed PlanValidationInputV2]
+  Host[Future plan_approval_requested event] --> AIO[Automatic adapter]
+  AIO --> Input
+  Input --> Val[Pure validator]
+  Val --> Render[Bounded result and reason]
+  Render --> Allow[ALLOW]
+  Render --> Block[BLOCK after complete validation]
+  MIO -->|read/containment/deadline fault| Diag[ALLOW plus diagnostic]
+  AIO -->|unsupported/fault/deadline| Diag
 ```
 
-### Planned layout under repository-root `src/gate/`
+Host owns selection and transition copying. The automatic event arrives after `resolveApprovedPlan`, carrying selected content plus selection/approval session IDs, transition kind, and copied-plan hash. The adapter checks the complete identity one-to-one and performs no fallback scan.
 
-Sources follow the house build convention (`docs/omp-v17.3.7-contract.md`, `scripts/build-plugin.mjs`): plain JavaScript with JSDoc types at the repository root, copied by the build script into the child `dist/`; the child package tree itself never holds gate sources.
+## Planned root-source layout
 
-- `match.js` — pure predicate over `toolName` + write target; no I/O.
-- `resolve.js` — session identity + slug normalization + session-local plan path; containment checks.
-- `cache.js` — prompt cache read/write adapter (session-local directory only).
-- `validator/index.js` — pure phased validator entry (`validatePlan(input): PlanValidationResult`).
-- `validator/structure.js` — sections, order, human summary, inventory subsections, requirements subsections, todos, verification, file changes, impact analysis (phase 1).
-- `validator/duplicate.js` — SHA-256 duplicate scan with size short-circuit (phase 0).
-- `validator/grounding.js` — relevance window + score (phases 2/2.5).
-- `validator/crossref.js` — file-change body mentions (phase 3).
-- `validator/specref.js` — guarded detection + qualified reference extraction + disk existence checks (FR-9).
-- `deny.js` — bounded reason rendering and truncation policy.
-- `inject.js` — context-event injection builder.
-- `diagnostics.js` — bounded session-local diagnostic ring.
-- `resources/plan-template.md` — bundled template with hash inventory.
-- `resources/section-model.json` — bundled skeleton/subsection/action model with hash inventory.
+Sources follow the repository build convention: root JavaScript with JSDoc types is copied/bundled by `scripts/build-plugin.mjs` into the single child package's `dist/`; `plugins/omp-spec-kit/src/**` is not a supported source tree.
 
-The pure validator receives plan text, cache entries, project root handle, and limits only; it never imports OMP, reads a clock directly, or writes. OMP-facing glue (event subscription, result translation, fault wrapping) lives in the extension adapter and is the only code allowed to touch hook APIs.
+- `src/gate/manual-adapter.js` — explicit request admission and I/O construction.
+- `src/gate/automatic-adapter.js` — future `selected-plan-event@1` translation; gated by host pin.
+- `src/gate/io-resolver.js` — bounded explicit reads and realpath/reparse/symlink containment for manual mode.
+- `src/gate/validator/index.js` — pure `validatePlan(input)` entry.
+- `src/gate/validator/identity.js` — schema/hash/mode/host-contract checks.
+- `src/gate/validator/duplicate.js` — explicit-candidate duplicate checks.
+- `src/gate/validator/structure.js` — section/form checks.
+- `src/gate/validator/grounding.js` — deterministic prompt relevance.
+- `src/gate/validator/crossref.js` — File Changes/body consistency.
+- `src/gate/validator/specref.js` — qualified references against a complete supplied index.
+- `src/gate/deny.js` — paged findings and bounded host reason.
+- `src/gate/resources/{plan-template.md,section-model.json,guarded-paths.json}` — exact hash-inventoried resources; guarded policy has only `.specs/**`, `MIGRATION_MATRIX.md`, `ROADMAP.md`, and `docs/decisions/**`.
+- `src/gate/release.js` — closed manual/automatic release-profile evaluator.
 
-## Matching and resolution algorithm
+The pure validator imports no OMP, filesystem, clock, network, process, or MCP API. Only adapters perform I/O. Every adapter exit either supplies a complete valid input to the validator or returns ALLOW with exactly one bounded bridge diagnostic.
 
-1. `tool_call` arrives: if `toolName !== "write"`, return.
-2. Inspect the write target string; match only the `xd://propose` device (native predicate semantics per `src/tools/resolve.ts` `isProposeToolCall`). Non-match returns before any I/O.
-3. Read session identity from the runner; compute the session-local plan directory per the `local://` root contract (probe-verified name transformation).
-4. The propose write CONTENT is the plan's `<slug>` title; expected file `<slug>-plan.md` in that directory (the model already wrote the plan body to `local://<slug>-plan.md` earlier). Absent/over-budget → allow + diagnostic.
-5. Read plan bytes within budget; wrap the whole handler in one fault barrier translating every exception to allow + diagnostic.
+## Manual admission
 
-Probe obligations (TASK-1): confirm model-issued propose writes emit `tool_call` with the title in `content`; confirm nested device dispatches do not emit; record the session-identity-to-directory-name transformation.
+1. Receive `ManualPlanValidationRequestV1` containing exact plan URL/content/hash/title/slug, explicit duplicate candidate URLs, prompt excerpts, project root, and limits.
+2. Verify plan bytes and hash before any validation.
+3. Resolve only the declared duplicate candidate URLs. Maximum 20 candidates and 8 MiB aggregate bytes. An unreadable candidate is not silently skipped: the adapter returns `DUPLICATE_INPUT_UNAVAILABLE` so validation cannot prove non-duplication from a partial set.
+4. Load the exact hash-inventoried resource set and build a complete `SpecReferenceIndexV2` only when `.specs/**` or one of the three other guarded patterns is touched; apply containment and 512 KiB/2 MiB budgets.
+5. Supply one closed `PlanValidationInputV2` with SAME_SESSION binding. No directory scan, temp-root inference, or fallback reconstruction occurs.
+
+Manual output is advisory unless a caller explicitly adopts the decision. This profile does not claim automatic plan interception.
+
+## Automatic admission
+
+The future host emits `plan_approval_requested` after native resolution and before approval. It carries request ID, selection/approval session IDs, transition kind/copied-plan hash, planMode, selected URL/content/hash, supplied title and normalized slug. The adapter:
+
+1. refuses a pin without `selected-plan-event@1`;
+2. validates the ID/kind/copied-hash relation and selected plan identity;
+3. maps the event one-to-one to AUTOMATIC input;
+4. returns the exact host result before the outer timeout.
+
+It does not subscribe to model-issued `write` calls as a substitute. OMP v17.3.7 therefore remains `DEFERRED_HOST_ABI` for automatic mode.
 
 ## Validation pipeline
 
-Phases run in fixed order; a phase failure is a fault (allow), a phase error is a finding.
+Phases run in fixed order. A validation error is a finding; an internal failure is a bridge fault and returns ALLOW.
 
-- **Phase 0 duplicate:** SHA-256 of plan bytes; sibling `*-plan.md` scan with ±10-byte size gate; hash equality blocks.
-- **Phase 1 structure:** ten mandatory sections in order; non-empty human summary; Existing-Spec Inventory four subsections; Requirements FR/EARS-AC/NFR/Assumptions; Todos block grammar; Verification Plan commands; File Changes table (relative paths, closed action set, non-empty Reason); Impact Analysis on destructive actions. One bounded error per violation with line and hint.
-- **Phase 2 extracted requirements:** Context `Extracted Requirements` block with ≥2 numbered items.
-- **Phase 2.5 grounding:** deterministic relevance of plan against cached prompt window; deny at/below threshold with window excerpt.
-- **Phase 3 cross-reference:** File Changes paths mentioned in body; unmentioned ratio > 0.5 blocks with first five paths.
-- **Spec-reference phase:** guarded/spec touch detection → qualified reference extraction → slug directory + canonical heading existence on disk; containment-checked reads; blocks on missing/absent.
+1. **IDENTITY:** closed schema, all hashes, transition binding, mode/host pair, complete index/resources, and limits.
+2. **DUPLICATE:** SHA-256 against explicit bounded candidates, with ±10-byte size short-circuit.
+3. **STRUCTURE:** ten mandatory sections, ordered/non-empty forms, inventory/requirements/todo/verification/file-change/impact obligations.
+4. **GROUNDING:** deterministic lexical relevance against explicit prompt excerpts; exact deny threshold `-20`.
+5. **CROSS_REFERENCE:** File Changes paths mentioned outside the table; block above 0.5 unmentioned ratio.
+6. **SPEC_REFERENCE:** required qualified IDs exist in the complete supplied index.
+7. **ACTIONABILITY:** diagnostics only; never participates in BLOCK.
 
-Advisory phase (anti-generic, detail floors, evidence tags, test-spec-sync, bugfix-BDD) is parsed and recorded to diagnostics only; it never blocks in this release.
+## Deadline and fault policy
+
+The adapter installs one internal deadline no greater than 20 seconds. All loops and I/O observe the remaining budget. Validator exception, resource failure, unreadable input, containment refusal, partial index, or internal deadline expiry returns ALLOW plus one bounded diagnostic. The handler must return before the pinned host's default 30-second outer timeout; an outer timeout/error is host fail-closed and an implementation defect.
+
+Invariant: only a complete successful validation returning one or more ERROR findings may produce BLOCK.
 
 ## Deny rendering
 
-Reason = concatenation of: (1) one `line N: message` + `💡 hint` per blocking error ordered by phase/line/code; (2) template excerpt ≤8 KiB; (3) last five prompt excerpts; total ≤16 KiB with explicit `…[truncated]` marker; truncation drops prompt excerpts first, then template, never error entries.
+The structured result carries total counts and cursor-paged complete findings. The host reason is at most 16 KiB: complete error+hint rows first, then exact omitted count/cursor, then template/prompt excerpts in remaining space. Truncation never cuts a finding row or claims completeness.
 
-## Injection model
+## Release profiles
 
-`context` handler: if plan mode is active (probe-determined signal), append exactly one message ≤2 KiB: skeleton names in order, spec-reference obligation sentence, template pointer. Deep-copy-only mutation; idempotent per event; failure is a non-fatal skip with diagnostic.
+`plan-gate-manual@1` requires the exact manual check-ID set in the schema, including explicit identity, manual guidance, dependency-absent execution, unreadable/containment/resource fail-open variants, budgets, fixtures and adversarial review.
 
-## Fault policy
+`plan-gate-automatic@1` requires that entire set plus the separately identified automatic transition, context, installed-event and host-ABI checks. `PlanGateEligibilityResultV2` returns candidate-bound eligibility, capability state and closed blockers; a manual candidate cannot be relabeled automatic.
 
-One wrapping catch around the handler. Fault classes per FR-2 are closed. Each fault appends `{code, message ≤1024 chars, sessionRelativePath?, at}` to a ring buffer (≤100 records/256 KiB) inside the session-local directory. The invariant "block only after complete successful validation with errors" is asserted by the fault-injection suite.
+## Decisions
 
-## DEC-1: In-process validator, no daemon port
+### DEC-1: Host-selected plan, never reconstructed selection
 
-**Rationale:** The upstream gate dispatches through an authenticated loopback daemon and registry; those are Claude-harness machinery dropped by `MIGRATION_MATRIX.md`, and a daemon violates the dependency-absent single-artifact rule.
+**Rationale:** Native resolution includes state/title/newest-plan fallback and session transitions. A title-only pre-write event cannot identify the final plan.
 
-**Trade-off:** Validation logic must be bundled into the child artifact rather than shared with the upstream checkout.
+**Trade-off:** Automatic blocking waits for a host ABI addition.
 
-**Alternatives:** Port the daemon (rejected: network/credential/process surface); shell out to upstream CLI (rejected: source-checkout dependency).
+**Alternatives:** scan temp/session directories or replay native fallback (rejected: divergent selection and containment risk); treat a propose write as approval (rejected: wrong lifecycle point).
 
-## DEC-2: Fail-open implemented as code, not policy
+### DEC-2: Explicit manual profile remains independently useful
 
-**Rationale:** OMP blocks on hook errors by default; there is no policy knob. The only honest port of upstream fail-open is a fault barrier that never throws.
+**Rationale:** The validation core can be exercised and consumed with exact caller-supplied bytes today without claiming interception.
 
-**Trade-off:** A crashed gate is silent except for diagnostics; diagnostic ring + adversarial review compensate.
+**Trade-off:** Manual callers decide how to act on the result.
 
-**Alternatives:** Let faults block (rejected: inverts upstream doctrine, wedges sessions); try to reconfigure the wrapper (rejected: no such surface).
+**Alternatives:** defer the entire validator (rejected: needless coupling); call manual validation automatic (rejected: false runtime claim).
 
-## DEC-3: Self-owned prompt cache from context events
+### DEC-3: Adapter I/O, pure validator
 
-**Rationale:** Grounding needs prompts before approval; `session_stop` transcripts arrive after; OMP `context` events expose outgoing message copies cheaply.
+**Rationale:** Filesystem containment and unreadable-input handling require I/O; placing them in a pure matcher makes the contract impossible.
 
-**Trade-off:** Cache fidelity depends on `context` semantics (TASK-1 probe); user messages delivered only through exotic paths may be missed — degrade-open covers it.
+**Trade-off:** Adapter fixtures and validator fixtures are separate evidence sets.
 
-**Alternatives:** Parse session JSONL on demand (rejected: format coupling + cost at approval time); skip grounding (rejected: loses the anti-copypaste phase).
+**Alternatives:** let the validator read disk (rejected: non-deterministic and untestable purity claim); infer absence from partial reads (rejected: false allow/block evidence).
 
-## DEC-4: Disk-checked spec references without the kernel
+### DEC-4: Internal fail-open, outer fail-closed acknowledged
 
-**Rationale:** The gate must be usable before/without v0.2 kernel; slug directory + canonical heading scan is sufficient and auditable.
+**Rationale:** OMP's wrapper fails closed on handler error/timeout. A bounded internal barrier can preserve gate fail-open semantics only if it returns before that boundary.
 
-**Trade-off:** No edge-level semantics (covers/tested-by) until a kernel exists.
+**Trade-off:** deadline instrumentation is release-critical.
 
-**Alternatives:** Depend on spec-kernel v0.2 (rejected: couples releases); skip reference existence checks (rejected: fabricated references would pass).
+**Alternatives:** 60-second inherited timeout (rejected: exceeds host boundary); claim outer fail-open (rejected: contradicted by pinned source).
 
-## DEC-5: Keep upstream thresholds and section set as research inputs
+### DEC-5: Capability release is independent of historical v0.3
 
-**Rationale:** The ten-section skeleton, 0.5 cross-reference threshold, ±10-byte size gate, relevance deny threshold, rolling-10/2h cache, and deny format are battle-tested in the upstream harness.
+**Rationale:** Plan gating is a post-v0.3 capability, not part of the eight-tool read-only first slice.
 
-**Trade-off:** Target corpora may eventually need tuned values; changes require fixture evidence.
+**Trade-off:** separate profile receipts and product capability state.
 
-**Alternatives:** Redesign thresholds from scratch (rejected: untested); copy upstream file verbatim (rejected: license/provenance gate + harness coupling).
+**Alternatives:** reinterpret v0.3 receipts (rejected: destroys historical evidence).
 
-## DEC-6: Release-stage separation from read-only releases
+## Repository mutation boundary
 
-**Rationale:** The gate blocks user actions; it belongs to the authoring/mutation stage class with its own safety gates, not to v0.1/v0.2/v0.3.
-
-**Trade-off:** Later availability.
-
-**Alternatives:** Ship alongside v0.2 (rejected: mixes read-only evidence profile with a blocking capability).
-
-## No runtime mutation design
-
-The gate never edits plans, specs, or repository files. The only writes are session-local cache/diagnostic state inside the OMP temp directory. Plan repair remains the agent's job, guided by the deny reason.
+The validator never edits plans, specs, or repository files. Manual adapter reads are bounded and contained. Repair remains the caller's responsibility. Any future automatic context message is optional, bounded, and permitted only by a host event carrying `planMode:true`; failure to emit it never changes validation.

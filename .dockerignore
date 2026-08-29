@@ -6,6 +6,7 @@ tmp
 coverage
 *.log
 *.ndjson
+!tests/fixtures/release-candidate/cucumber-messages.ndjson
 *.sqlite
 *.sqlite3
 .dev-pomogator

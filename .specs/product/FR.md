@@ -30,7 +30,7 @@ Before public publication, every copied upstream item SHALL have an accepted red
 
 - **Stage:** Public init
 - **Priority:** Must
-- **Status:** Specified; public specification-init published with source, license, specification, anchor, candidate safety, and SHA/tree readback evidence; runtime stages remain planned
+- **Status:** Delivered baseline evidence exists through v0.3.2; future/changed imports still fail closed on license/provenance.
 - **Acceptance:** [AC-3.1](ACCEPTANCE_CRITERIA.md#ac-31-unresolved-license-blocks-publication), [AC-3.2](ACCEPTANCE_CRITERIA.md#ac-32-root-license-does-not-cure-import-gap)
 - **Scenario trace:** `@feature3`; `SCEN-unresolved-import-license`; `SCEN-root-license-import-separation`.
 - **Stories/use cases:** US-3; UC-2.
@@ -52,7 +52,7 @@ The repository SHALL represent one product named `omp-spec-kit`. When distributi
 
 - **Stage:** All
 - **Priority:** Must
-- **Status:** Specified; distribution not delivered
+- **Status:** Delivered one-product distribution at v0.3.2; sibling capabilities remain independently gated.
 - **Acceptance:** [AC-5.1](ACCEPTANCE_CRITERIA.md#ac-51-single-product-cardinality), [AC-5.2](ACCEPTANCE_CRITERIA.md#ac-52-identity-continuity-across-stages)
 - **Scenario trace:** `@feature5`; `SCEN-single-product-identity`; `SCEN-second-control-plane-refusal`.
 - **Stories/use cases:** US-5; UC-5.
@@ -60,25 +60,42 @@ The repository SHALL represent one product named `omp-spec-kit`. When distributi
 
 ## FR-6 — Evidence-gated release stages
 
-The product SHALL advance only through these ordered stages: public init; v0.1.0 read-only inventory; v0.2 bounded graph/query kernel; v0.3 read-only MCP projection over the same query service as the first slice of the generator-port door; later generator-port reads owned by `spec-kernel:FR-16` and `spec-kernel:FR-17`; later evidence MCP owned by `spec-evidence`; a sibling LSP adapter owned by `spec-lsp` that is not the agent API; and later safe authoring/mutation MCP owned by `spec-authoring-workflow`. Authoring remains `DEFERRED` until its cumulative gate passes; naming these later stages SHALL NOT unlock authoring as delivered. Each stage SHALL remain `PLANNED`, `DEFERRED`, or `BLOCKED` until its complete cumulative aggregate gate set has current mandatory evidence for one product revision and artifact lineage. Current distribution evidence and the current target-stage capability evidence SHALL bind to the current candidate artifact:
+The product baseline SHALL advance only through `PUBLIC_INIT → V0_1_READONLY_INVENTORY → V0_2_READONLY_KERNEL → V0_3_READONLY_MCP`. Post-v0.3 capabilities are a dependency DAG, not additional positions in one linear sequence. Each capability has its own state and exact aggregate; accepting one capability SHALL NOT imply a sibling capability.
 
-1. v0.1.0 claims require accepted `plugin-distribution:FR-13`, which aggregates the complete mandatory evidence for `plugin-distribution:FR-1` through `plugin-distribution:FR-12` and binds to the current candidate artifact.
-2. v0.2 claims require accepted `plugin-distribution:FR-13` and accepted `spec-kernel:FR-14` with `targetStage: "v0.2"`; both SHALL bind to the current v0.2 candidate artifact.
-3. v0.3 claims require accepted `plugin-distribution:FR-13` and accepted `spec-kernel:FR-14` with `targetStage: "v0.3"` bound to the current v0.3 candidate artifact. The required accepted `spec-kernel:FR-14` result with `targetStage: "v0.2"` MAY bind to a distinct predecessor artifact only when the v0.3 result's `v02ParentArtifactSha256` equals that v0.2 artifact SHA-256, both results have the same product revision and `artifactLineageId`, the closed target-stage order is strictly v0.2 before v0.3, and neither result is stale or revoked.
-4. authoring/mutation claims require accepted current-candidate `plugin-distribution:FR-13`, accepted current-candidate `spec-kernel:FR-14` with `targetStage: "v0.3"`, accepted current-candidate `spec-authoring-workflow:FR-13`, and the separately identified accepted v0.2 predecessor result linked by the v0.3 result under the rule above.
+Baseline gates remain:
 
-Evidence for a subset of member requirements SHALL NOT satisfy an aggregate gate. A later aggregate SHALL NOT replace, inherit, or imply an earlier aggregate. The typed, cryptographically linked v0.2 predecessor exception does not permit historical, different-lineage, unlinked, stale, or revoked evidence, and no other aggregate may bind away from the current candidate artifact. No stage SHALL inherit `DELIVERED` status from a roadmap entry, tag, document, structural validation, historical stage result, or green subset.
+1. v0.1.0: accepted historical `distribution-release-eligibility@1` governed by the then-current `plugin-distribution:FR-13` profile.
+2. v0.2: accepted candidate-applicable distribution profile plus `spec-kernel:FR-14` `targetStage:"v0.2"` bound to the v0.2 candidate.
+3. v0.3: accepted candidate-applicable distribution profile plus current-candidate `targetStage:"v0.3"` kernel result and its exact linked, active v0.2 predecessor.
+
+Historical v0.1–v0.3.2 receipts retain their recorded @1 identities. Any new
+candidate evaluated after the contract repair SHALL use
+`distribution-release-eligibility@2`; the product evaluator, not the
+distribution evaluator, composes that result with baseline/capability/MRI
+aggregates. The unversioned qualified owner remains `plugin-distribution:FR-13`,
+but every evidence reference also carries its schema/profile version.
+
+Capability gates are:
+
+- generator reads: delivered v0.3 baseline plus `spec-kernel:CHK-FR16-01` and `spec-kernel:CHK-FR17-01`;
+- LSP: delivered v0.3 baseline plus complete `spec-lsp:FR-12`; editor/MCP-internal only;
+- evidence MCP: delivered v0.3 baseline plus `spec-evidence:FR-13` and `spec-evidence:FR-14`;
+- capability graph/impact: delivered v0.3 baseline plus `spec-capability:FR-9`; overlay additionally binds evidence as that profile defines;
+- authoring MCP and spec enforcement: one joint boundary requiring delivered v0.3, evidence FR-13/14, authoring FR-13/14, `spec-enforcement:FR-1`/`FR-11`, and host-authority check `spec-enforcement:CHK-FR1-01`; neither row may deliver alone;
+- automatic plan gate: delivered v0.3 plus `plan-gate:FR-13` and `plan-gate:CHK-HOST-ABI-01`.
+
+Every current aggregate SHALL bind to the evaluated candidate. Historical, different-lineage, unlinked, stale, revoked, member-subset or structural-only evidence SHALL NOT satisfy any baseline or capability gate.
 
 - **Stage:** All
 - **Priority:** Must
 - **Status:** Specified
-- **Acceptance:** [AC-6.1](ACCEPTANCE_CRITERIA.md#ac-61-stage-cannot-advance-with-missing-evidence), [AC-6.2](ACCEPTANCE_CRITERIA.md#ac-62-ordered-cross-spec-stage-gates)
+- **Acceptance:** [AC-6.1](ACCEPTANCE_CRITERIA.md#ac-61-stage-cannot-advance-with-missing-evidence), [AC-6.2](ACCEPTANCE_CRITERIA.md#ac-62-baseline-and-capability-gates-cannot-be-bypassed)
 - **Scenario trace:** `@feature6`; `SCEN-incomplete-aggregate-remains-planned`; `SCEN-owning-aggregate-cannot-be-bypassed`.
 - **Stories/use cases:** US-6; UC-5.
 
 ## FR-7 — Honest public status and claims
 
-Every public status summary SHALL identify the product stage, conservative state, product revision, current candidate artifact, artifact lineage, typed current-versus-predecessor evidence bindings, evidence timestamp, unresolved blockers, and next gate. Allowed capability states are `SPEC_ONLY`, `PLANNED`, `DEFERRED`, `BLOCKED`, and `DELIVERED`. For non-public-init stages, `DELIVERED` SHALL require accepted results for every aggregate in the stage's cumulative gate set. Current distribution, current target-stage kernel capability, and current authoring evidence SHALL bind to the status candidate artifact. A v0.2 kernel predecessor MAY bind to another artifact only through the exact `v02ParentArtifactSha256` link, common lineage/revision, strict v0.2-before-v0.3 order, and non-stale/non-revoked conditions in FR-6; selected member evidence, only the latest aggregate, or an untyped artifact reference is insufficient. Missing, stale, revoked, failed, contradictory, claimed-only, wrong-target-stage, parent-mismatched, or cross-lineage evidence SHALL produce the most conservative non-delivered state. Imported scenarios, specification text, task completion marks, and structural validation SHALL NOT be represented as executed evidence.
+Every public status SHALL identify baseline/capability, conservative state, revision/current artifact/lineage, typed evidence roles, timestamp, blockers and next gates. Allowed states are `SPEC_ONLY`, `PLANNED`, `SPECIFIED`, `DEFERRED`, `DEFERRED_HOST_ABI`, `BLOCKED`, and `DELIVERED`; only the exact complete aggregate may produce DELIVERED.
 
 - **Stage:** All
 - **Priority:** Must

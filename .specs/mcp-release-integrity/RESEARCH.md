@@ -1,92 +1,55 @@
 # Research
 
-## Контекст
+## Scope and evidence classes
 
-v0.3.0 добавил восьмиинструментный read-only MCP adapter, но package `.mcp.json` фиксирует `cwd: "."`. Пиненный OMP provider перепривязывает относительный `cwd` к package directory, поэтому нормальный installed launch читает package folder вместо активного проекта. Одновременно release evidence не связывает publish с exact artifact/tag/lifecycle, а текущая MCP BDD проверяет только два из восьми tool calls. [VERIFIED]
+This record separates the historical v0.3.0 defect, delivered v0.3.2 implementation, published-release evidence, and current contract revalidation. Source inspection proves code shape; Docker Cucumber Messages prove executed behavior; GitHub release/attestation receipts prove public identity. No one class substitutes for another.
 
-## Источники
+## Pinned OMP launch contract
 
-- OMP v17.3.7 `omp-plugins` discovery source: relative `command` and `cwd` resolve against the extension package root; raw `args`/`env` are preserved. [src:https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/discovery/omp-plugins.ts#L274-L344]
-- OMP v17.3.7 `StdioTransport`: process cwd is `config.cwd ?? getProjectDir()`. [src:https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/mcp/transports/stdio.ts#L578-L609]
-- OMP MCP configuration guide: unresolved env indirection remains literal; a bare env-name is copied only when that variable is non-empty. [src:https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/mcp-config.md#L377-L425]
-- Current package configuration and server resolver. [ref:plugins/omp-spec-kit/.mcp.json:4-11] [ref:src/adapters/query-service.js:15-31] [ref:src/mcp/server.js:89-149]
-- Current release evaluator and real Docker BDD harness. [ref:scripts/verify-release.mjs:42-80] [ref:scripts/docker-bdd.sh:1-31]
+- OMP v17.3.7 `omp-plugins` resolves path-like `command` relative to the package root and preserves raw `args`/`env`: [pinned source](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/discovery/omp-plugins.ts#L274-L344).
+- `StdioTransport` uses `config.cwd ?? getProjectDir()`: [pinned source](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/mcp/transports/stdio.ts#L578-L609).
+- MCP environment indirection behavior is pinned in [mcp-config.md](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/mcp-config.md#L377-L425).
 
-## Технические находки
+**Verified conclusion:** v0.3.0's package `cwd` selected package data. v0.3.2 omits `cwd`, uses a package-relative launcher, and lets OMP supply the active project root. Only an explicitly validated absolute `OMP_SPEC_KIT_ROOT` may override it. Current bytes: `plugins/omp-spec-kit/.mcp.json`, launchers, and `src/adapters/query-service.js`.
 
-### OMP root selection
+## Delivered protocol and package behavior
 
-[VERIFIED] `cwd: "."` in `plugins/omp-spec-kit/.mcp.json` becomes the installed package directory. The documented active-project mechanism is to omit `cwd`, because `StdioTransport` then uses `getProjectDir()`. A static relative `node` argument cannot both locate the packaged server and retain active project cwd, because the provider roots `command` but preserves `args`; a package-relative launcher command solves that split. [src:https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/discovery/omp-plugins.ts#L274-L344] [src:https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/mcp/transports/stdio.ts#L578-L609]
+`src/mcp/server.js` implements one terminal JSON-RPC frame for invalid request, parse error, unknown method, and unknown tool (`-32600`, `-32700`, `-32601`, `-32602`). The copied-package tests execute all eight historical SCHEMA-11 tools against the real frozen corpus and direct service oracle without source checkout or ambient dependency ancestry. The eight names are v0.3.2 release identity, not the destination registry ceiling.
 
-### Environment override behavior
+## Delivered release architecture
 
-[VERIFIED] Current `OMP_SPEC_KIT_ROOT` uses the documented name-indirection spelling. If the variable is absent, OMP passes the literal string `OMP_SPEC_KIT_ROOT`; current service code recognizes it as a sentinel and falls back to process cwd. v0.3.1 keeps only an explicit validated override; ordinary correctness must not depend on this variable. [src:https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/mcp-config.md#L377-L425] [ref:src/adapters/query-service.js:15-31]
+- `scripts/create-release-candidate.mjs` emits `omp-spec-kit-<version>.tar` and `omp-spec-kit-release-candidate@1` from one clean peeled-tag package tree.
+- `scripts/create-release-evidence.mjs` emits `omp-spec-kit-release-evidence@3` with nested `omp-spec-kit-mri-evidence@1` and `omp-spec-kit-distribution-evidence-input@1`; MRI FR receipt keys are qualified `mcp-release-integrity:FR-1` through `FR-6`.
+- `scripts/verify-release.mjs` emits separate `mri-release-eligibility@1`, `distribution-release-eligibility@1`, and `public-release-eligibility@1` results. Forward `distribution-release-eligibility@2` belongs to `plugin-distribution:FR-13` and is not redefined here.
+- Cucumber evidence is a real Message NDJSON stream. The evaluator requires semantic pickle/test-case/attempt/step/final-run chains and rejects malformed, meta-only, duplicate-terminal, retry-only, incomplete, or non-passing evidence.
 
-### Protocol and test gaps
+## Distribution trust root
 
-[VERIFIED] The server currently returns without a response when `message.jsonrpc !== "2.0"`. The existing BDD parity scenario calls only `spec_get_node` and `spec_trace`, compares a fixture graph without per-file manifest hash assertion, and starts `dist/mcp/server.js` from the repository rather than the installed package launcher. [ref:src/mcp/server.js:89-149] [ref:tests/features/spec-mcp.feature:14-49] [ref:tests/helpers/mcp-world.mjs:50-153]
+Self-attested distribution matrices are always blocked. The trusted path verifies the exact copied subject bytes with GitHub Artifact Attestations and fixes all verifier identities:
 
-### Release evidence gap
+- repository: `stgmt/omp-spec-kit`;
+- signer workflow: `stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml`;
+- source ref: `refs/tags/<candidate-tag>`;
+- command: `gh attestation verify <subject> --repo ... --signer-workflow ... --source-ref ...`;
+- timeout: 120 seconds; missing/unavailable/nonzero verifier fails closed.
 
-[VERIFIED] `verify-release.mjs` currently accepts a 40-hex receipt commit without comparing it to the supplied `RELEASE_COMMIT`, and v0.3 lifecycle evidence defers mandatory 0.2→0.3 upgrade/rollback proof. Existing FR-13 already makes post-0.1 upgrade and rollback mandatory, so v0.3.1 must implement—not weaken—that contract. [ref:scripts/verify-release.mjs:70-79] [ref:.specs/plugin-distribution/FR.md:101-107]
+Environment may confirm only that exact repository; it cannot select another trust root. Evidence: `scripts/verify-release.mjs` trust-root constants and `attestationTrustRootRepository()`.
 
-## Где лежит реализация
+## Current public instance
 
-- Package MCP config: `plugins/omp-spec-kit/.mcp.json`
-- Package launchers: `plugins/omp-spec-kit/bin/omp-spec-kit-mcp` and `plugins/omp-spec-kit/bin/omp-spec-kit-mcp.cmd` (new)
-- MCP transport: `src/mcp/server.js`
-- Shared root/service composition: `src/adapters/query-service.js`
-- Package build/validation: `scripts/build-plugin.mjs`, `scripts/verify-package.mjs`
-- Candidate/release evaluation: `scripts/create-release-candidate.mjs`, `scripts/verify-public-tree.mjs`, `scripts/verify-release.mjs`, `.github/workflows/verify.yml`, `.github/workflows/release.yml`
-- Behavioral proof: `tests/features/spec-mcp.feature`, `tests/step-definitions/spec-mcp.steps.mjs`, `tests/helpers/mcp-world.mjs`, `tests/helpers/extension-probe.mjs`
+`docs/validation/release-status-v0.3.2.json` records public/installable v0.3.2, tag commit, candidate/package/archive digests, release assets, release-workflow attestation, independently verified distribution subject/workflow/ref, Rekor index, and provenance commands. The public archive is `omp-spec-kit-0.3.2.tar`; evidence schema is @3. This bounded record supersedes the pre-release claim that no live producer provenance exists.
 
-## Выводы
+## Current revalidation obligation
 
-v0.3.1 is a corrective patch that preserves the read-only scope. The safe path is one package-relative launcher with OMP-selected active-project cwd, one shared service/root decision, all-eight installed-artifact parity BDD, and one candidate archive consumed by publish. The release workflow must fail closed; it must never infer proof from a stage name, stale receipt, static note, or unbound tag. [VERIFIED]
+The original release gate selected scenario headings by `@release-evidence`; leaving eleven MRI scenarios untagged allowed their execution to be omitted from the mandatory set. The repaired contract marks all eighteen headings mandatory while retaining six qualified FR receipts. Because feature/step bytes changed, a fresh unfiltered Docker stream must be captured and committed before amended CHKs can become Verified. Scenario text alone remains non-evidence.
 
-## Project Context & Constraints
+## Risks
 
-### Relevant Rules
-
-| Rule | Path | Summary | Triggered By | Impacts |
-|------|------|---------|--------------|---------|
-| Docker-only BDD harness | `scripts/docker-bdd.sh` | BDD builds and runs in the image; host fallbacks re-exec into WSL where available. | Any Cucumber verification | FR-3, FR-4, NFR-Reliability |
-| Package allowlist | `scripts/verify-package.mjs` | Child package must contain only declared distributable paths and work without source/ambient dependencies. | Launcher/package change | FR-1, FR-3, NFR-Security |
-| Existing release eligibility | `scripts/verify-release.mjs` | Release evidence is evaluated before publication and must be extended, not bypassed. | Release workflow change | FR-4, FR-5 |
-
-### Existing Patterns & Extensions
-
-| Source | Path | What It Provides | Relevance |
-|--------|------|-------------------|-----------|
-| Shared query service | `src/adapters/query-service.js` | One root and one lazy graph per service, returning canonical query envelopes. | Both OMP extension and MCP server must use it. |
-| Tool contract registry | `src/adapters/tool-contracts.js` | Exact eight-name SCHEMA-11 mapping and input schema projection. | Tests derive cardinality and valid operation coverage from it. |
-| MCP world helper | `tests/helpers/mcp-world.mjs` | Spawned JSON-RPC client, real fixture corpus, extension probe. | Extend rather than replace for installed-package proof. |
-| Docker BDD harness | `tests/distribution/Dockerfile` | Builds plugin and runs Cucumber in an isolated image. | Required final behavior gate. |
-
-### Architectural Constraints Summary
-
-The package remains dependency-free and read-only. There is one marketplace, one child package, one extension, and one MCP server. The launcher may resolve only its own packaged server; the server may read only the active project or an explicit validated root. Candidate publication must consume a verified archive and must not rebuild in the publishing job.
-
-## Proof of Concept
-
-**PoC Required:** no
-
-This is a corrective use of the existing Node, OMP, Docker, package, MCP and GitHub Actions mechanisms. The actual installed-package Docker BDD scenario is the release-blocking proof rather than a separate throwaway PoC.
-
-## Cost Estimate
-
-**Runtime/CI:** Docker BDD already builds an image; added installed-package and candidate-negative scenarios add bounded Node subprocesses and archive hashing, not a service dependency.
-**Maintenance:** New launcher variants and candidate receipt schema must stay aligned with the pinned OMP v17.3.7 launch contract and exact package allowlist.
-
-## Risk Assessment
-
-| Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
-| OMP differs across POSIX and Windows when launching a package-relative command | Medium | High | Ship POSIX and `.cmd` launchers, run the installed-artifact Docker path, and retain a manual Windows fresh-session receipt before public release. |
-| Candidate receipt logic marks an incomplete lifecycle as eligible | Medium | High | Require closed v2 fields, explicit mandatory FR matrix, exact tag/archive digest comparison, and one negative BDD case per missing identity. |
-| Tests still bypass the installed package and validate the repository tree | Medium | High | Launch only a copied allowlisted package for root-discovery scenarios; remove source checkout and ambient node_modules ancestry. |
-| v0.3.0 users do not learn that its MCP root is broken | Medium | Medium | Add a reversible v0.3.0 advisory and v0.3.1 migration link before promoting the patch. |
-
-## Reality Review Note
-
-`0eccfb81044827b8f358954801bfc1520a7e8972` introduced the original v0.3 MCP surface, so a git pickaxe associates it with FR-1 terminology. It is not evidence that FR-1 is satisfied: the released configuration still sets package `cwd`, which is the defect this v0.3.1 remediation corrects. [ref:plugins/omp-spec-kit/.mcp.json:4-11]
+| Risk | Control |
+|---|---|
+| Wrong project root returns plausible empty data | Installed manager + copied-package active-root scenarios |
+| Protocol client hangs or receives mixed stdout | Exact four-code raw-frame tests and no-extra-stdout assertion |
+| Synthetic Cucumber fixture hides parser drift | Real Docker stream, immutable provenance, semantic one-fault mutations |
+| Self-attested producer authorizes release | Fixed GitHub attestation repository/workflow/ref and fail-closed verifier |
+| Publish rebuilds or substitutes bytes | One candidate archive; download/re-hash; existing asset identity check |
+| Published status and amended spec diverge | Bounded status record plus current all-scenario Docker revalidation |

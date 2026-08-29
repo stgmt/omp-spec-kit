@@ -20,7 +20,7 @@ A real fixture manifest SHALL record all of:
 - `licenseDisposition`
 - `trimmed` and exact `trimProcedure`
 - `groundTruthReviewer`
-- `groundTruth` counts for capability nodes, DERIVES_FROM edges, conformance findings by code/severity, and query result shapes
+- `groundTruth` counts for qualified capability nodes/DERIVES_FROM edges, diagnostics, closed query envelopes, graph impact, evidence-overlay paged rows/bindings plus source EvidenceEvaluationOutputV2 byte/hash/fingerprint reconciliation, and profile eligibility
 - `allowedClaims`
 - `forbiddenClaims`
 
@@ -57,11 +57,12 @@ A stored fixture is immutable. A byte change requires a new fixture ID or explic
 **Type:** synthetic, planned; not yet created
 
 **Planned variants:**
-- Valid nested capabilities (CAP-1, CAP-1.1, CAP-1.2, CAP-2) with correct nesting.
-- Dangling declaration (`**Capability:** [CAP-99]`) targeting unknown ID.
-- Orphan capability (CAP-3 with zero deriving requirements).
-- Spec without any capability declarations.
-- Duplicate CAP-1 definitions in same CAPABILITIES.md.
-- Malformed heading grammar (wrong level, missing title, invalid ID format).
+- Valid `.specs/product/CAPABILITIES.md` nested nodes (`product:CAP-1`, `product:CAP-1.1`, `product:CAP-2`).
+- Dangling qualified `**Covers:** [product:CAP-99](...)`.
+- Orphan capability with zero incoming deriving requirements.
+- Spec without its own CAPABILITIES document.
+- Duplicate `product:CAP-1` definitions preserving both candidates and emitting `DUPLICATE_DEFINITION`.
+- Root singleton, README frontmatter, `**Capability:**`, bare CAP, wrong-level/missing-title/invalid-ID negatives.
+- Graph-only impact fixture with no producer IDs and overlay fixture containing exact complete `spec-evidence@2` output bytes, expected SHA-256/recomputed deterministic fingerprint, and stale/unaffected/indeterminate four-dimension rows, including one hash/fingerprint fault each.
 
 **Admission criteria:** Each synthetic fixture SHALL be labeled synthetic, record its generation method, and include reviewed ground truth for expected nodes, edges, diagnostics, and query results.

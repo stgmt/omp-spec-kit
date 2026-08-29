@@ -6,13 +6,13 @@
 | ID | Title | Status | Depends | Phase | Est. |
 |----|-------|--------|---------|-------|------|
 | MRI001_01 | Extend installed MCP scenarios | IN_PROGRESS | — | Phase 0 | 90m |
-| MRI001_02 | Add candidate release BDD | TODO | MRI001_01 | Phase 0 | 90m |
-| MRI001_03 | Repair launcher and root resolver | TODO | MRI001_01 | Phase 1 | 60m |
-| MRI001_04 | Repair MCP protocol response path | TODO | MRI001_01 | Phase 1 | 60m |
-| MRI001_05 | Build and verify immutable candidate | TODO | MRI001_02 | Phase 2 | 120m |
-| MRI001_06 | Publish only the candidate bundle | TODO | MRI001_05 | Phase 2 | 90m |
-| MRI001_07 | Publish accurate local guidance | TODO | MRI001_05 | Phase 3 | 45m |
-| MRI001_08 | Verify complete remediation | TODO | MRI001_03, MRI001_04, MRI001_05, MRI001_06, MRI001_07 | Phase 3 | 60m |
+| MRI001_02 | Add candidate release BDD | IN_PROGRESS | MRI001_01 | Phase 0 | 90m |
+| MRI001_03 | Repair launcher and root resolver | IN_PROGRESS | MRI001_01 | Phase 1 | 60m |
+| MRI001_04 | Repair MCP protocol response path | IN_PROGRESS | MRI001_01 | Phase 1 | 60m |
+| MRI001_05 | Build and verify immutable candidate | IN_PROGRESS | MRI001_02 | Phase 2 | 120m |
+| MRI001_06 | Publish only the candidate bundle | IN_PROGRESS | MRI001_05 | Phase 2 | 90m |
+| MRI001_07 | Publish accurate local guidance | IN_PROGRESS | MRI001_05 | Phase 3 | 45m |
+| MRI001_08 | Verify complete remediation | IN_PROGRESS | MRI001_03, MRI001_04, MRI001_05, MRI001_06, MRI001_07 | Phase 3 | 60m |
 <!-- end auto-generated -->
 
 ## TDD Workflow
@@ -24,26 +24,28 @@ BDD scenarios are authored before their runtime paths. A task changes state only
 ### 📋 `MRI001_01`
 > Extend installed MCP scenarios — Status: IN_PROGRESS | Est: 90m
 - **files:** `package.json`, `scripts/probe-omp-discovery-v17.3.7.mjs`, `scripts/docker-bdd.sh`, `scripts/run-bdd-container.mjs`, `.dockerignore`, `.specs/mcp-release-integrity/mcp-release-integrity.feature`, `tests/helpers/mcp-world.mjs`, `tests/helpers/omp-discovery-world.mjs`, `tests/fixtures/omp-discovery-runtime/`, `tests/distribution/Dockerfile`, `tests/step-definitions/mcp-release-integrity.steps.mjs`
-- **refs:** [FR-1](FR.md#fr-1-active-project-mcp-root), [FR-2](FR.md#fr-2-terminal-json-rpc-protocol-responses), [FR-3](FR.md#fr-3-installed-package-all-tool-parity), [AC-1](ACCEPTANCE_CRITERIA.md#ac-1-fr-1-active-project-wins-over-package-cwd), [AC-2](ACCEPTANCE_CRITERIA.md#ac-2-fr-2-invalid-frames-are-terminal-and-framed), [AC-3](ACCEPTANCE_CRITERIA.md#ac-3-fr-3-the-packaged-mcp-surface-is-complete-and-immutable)
+- **refs:** [FR-1](FR.md#fr-1-active-project-mcp-root), [FR-2](FR.md#fr-2-terminal-json-rpc-protocol-responses), [FR-3](FR.md#fr-3-installed-package-all-tool-parity), [AC-1.1](ACCEPTANCE_CRITERIA.md#ac-11-active-project-wins-over-package-cwd), [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-invalid-frames-are-terminal-and-framed), [AC-3.1](ACCEPTANCE_CRITERIA.md#ac-31-the-packaged-mcp-surface-is-complete-and-immutable); CHK-FR1-01, CHK-FR1-02, CHK-FR2-01, CHK-FR2-02, CHK-FR3-01, CHK-FR3-02
 - **deps:** *none*
 **Done When:**
-  - [ ] `SCEN-MRI-012` runs the built package copy from project-a in an isolated pinned-Bun `@oh-my-pi/pi-coding-agent@17.3.7` host and records bounded `PluginManager.link` → `omp-plugins` → target-only `MCPManager.connectServers` → actual manager-owned `spec_inventory`.
+  - [ ] `SCEN-mri-active-project-manager-receipt` runs the built package copy from project-a in an isolated pinned-Bun `@oh-my-pi/pi-coding-agent@17.3.7` host and records bounded `PluginManager.link` → `omp-plugins` → target-only `MCPManager.connectServers` → actual manager-owned `spec_inventory`.
   - [ ] Its receipt reports exactly `omp-spec-kit`, one target config/source, the `omp-plugins` provider, an omitted target `cwd`, process and `pi-utils` roots at project-a, a connected manager with eight tools, and the bridge-projected `spec_inventory` text plus returned/observed counts exactly matching the direct project-a oracle. The package-decoy fixture must retain a distinct inventory cardinality, making that exact count match evidence of decoy exclusion; no timing value is asserted.
-  - [ ] Before enrollment, the copied package's `dist/manifest.json`, all manifest-listed files, and POSIX launcher match external hashes from the repository-built package.
+  - [ ] Before enrollment, the copied package's `plugins/omp-spec-kit/dist/manifest.json`, all manifest-listed files, and POSIX launcher match external hashes from the repository-built package.
   - [ ] The Docker build uses the committed frozen Bun fixture lock, digest-pinned Bun/Node bases, a source/test/package allowlist, and secret/tool-config exclusions.
-  - [ ] `SCEN-MRI-013` proves a missing `.mcp.json` fails the payload phase before enrollment.
-  - [ ] Raw malformed JSON receives `-32700` and a valid follow-up succeeds.
+  - [ ] `SCEN-mri-missing-payload-refusal` proves a missing `.mcp.json` fails the payload phase before enrollment.
+  - [ ] Raw JSON-RPC 1.0, malformed JSON, unknown method, and unknown tool receive exact `-32600`, `-32700`, `-32601`, and `-32602` terminal responses; a valid follow-up succeeds.
   - [ ] All eight SCHEMA-11 tools return direct-service-equal envelopes from the copied package.
 
 ### 📋 `MRI001_02`
 > Add candidate release BDD — Status: IN_PROGRESS | Est: 90m
 - **files:** `.specs/mcp-release-integrity/mcp-release-integrity.feature`, `tests/helpers/release-candidate-world.mjs`, `tests/step-definitions/release-candidate.steps.mjs`, `tests/fixtures/release-candidate/`, `scripts/create-release-evidence.mjs`
-- **refs:** [FR-4](FR.md#fr-4-candidate-bound-lifecycle-eligibility), [FR-5](FR.md#fr-5-artifact-only-publication), [FR-6](FR.md#fr-6-honest-release-communication), [AC-4](ACCEPTANCE_CRITERIA.md#ac-4-fr-4-candidate-evidence-is-complete-and-bound), [AC-5](ACCEPTANCE_CRITERIA.md#ac-5-fr-5-publish-consumes-the-verified-artifact-only), [AC-6](ACCEPTANCE_CRITERIA.md#ac-6-fr-6-public-status-tells-users-the-truth)
+- **refs:** [FR-4](FR.md#fr-4-candidate-bound-lifecycle-eligibility), [FR-5](FR.md#fr-5-artifact-only-publication), [FR-6](FR.md#fr-6-honest-release-communication), [AC-4.1](ACCEPTANCE_CRITERIA.md#ac-41-candidate-evidence-is-complete-and-bound), [AC-5.1](ACCEPTANCE_CRITERIA.md#ac-51-publish-consumes-the-verified-artifact-only), [AC-6.1](ACCEPTANCE_CRITERIA.md#ac-61-public-status-tells-users-the-truth); CHK-FR4-01, CHK-FR4-02, CHK-FR5-01, CHK-FR5-02, CHK-FR6-01
 - **deps:** `MRI001_01`
 **Done When:**
   - [ ] A complete candidate/evidence record is eligible only with semantic Cucumber messages.
-  - [ ] `SCEN-MRI-011` verifies provenance before oracle use and rejects the real-fixture mutations for missing `pickle`, `testCase`, `testCaseStarted`, `testStepFinished`, or `testCaseFinished`; a failed terminal step; retry-only path; duplicate `testCaseFinished`; duplicate `testRunFinished`; corrupt NDJSON; and a meta-only stream by exact `CucumberEvidenceError` code and message.
+  - [ ] `SCEN-mri-semantic-cucumber-mutations` verifies provenance before oracle use and rejects the real-fixture mutations for missing `pickle`, `testCase`, `testCaseStarted`, `testStepFinished`, or `testCaseFinished`; a failed terminal step; retry-only path; duplicate `testCaseFinished`; duplicate `testRunFinished`; corrupt NDJSON; and a meta-only stream by exact `CucumberEvidenceError` code and message.
   - [ ] Every one-fault identity or lifecycle variant is ineligible.
+  - [ ] All eighteen MRI IDs and all forty source-derived pickle executions are present in the semantic Cucumber receipt; removing a non-first outline expansion fails multiplicity.
+  - [ ] The bounded historical public status record binds its distribution subject to the evidence receipt and captured release-note hash while negative local evaluator candidates remain blocked; no Docker trusted-verifier execution is claimed.
   - [ ] Note rendering requires eligible candidate evidence.
 
 ## Phase 1: Runtime Green
@@ -51,17 +53,17 @@ BDD scenarios are authored before their runtime paths. A task changes state only
 ### 📋 `MRI001_03`
 > Repair launcher and root resolver — Status: IN_PROGRESS | Est: 60m
 - **files:** `plugins/omp-spec-kit/.mcp.json`, `plugins/omp-spec-kit/package.json`, `plugins/omp-spec-kit/bin/omp-spec-kit-mcp`, `plugins/omp-spec-kit/bin/omp-spec-kit-mcp.cmd`, `src/adapters/query-service.js`
-- **refs:** [FR-1](FR.md#fr-1-active-project-mcp-root), [AC-1](ACCEPTANCE_CRITERIA.md#ac-1-fr-1-active-project-wins-over-package-cwd)
+- **refs:** [FR-1](FR.md#fr-1-active-project-mcp-root), [AC-1.1](ACCEPTANCE_CRITERIA.md#ac-11-active-project-wins-over-package-cwd); CHK-FR1-01, CHK-FR1-02
 - **deps:** `MRI001_01`
 **Done When:**
   - [ ] Pinned OMP v17.3.7 discovers `omp-spec-kit` through its package path.
-  - [ ] Only an absolute override changes the default project root.
+  - [ ] A valid absolute non-package override selects its project; relative/unresolved/package-root overrides retain active project and package cwd refuses.
   - [ ] The discovered-root BDD scenario passes in Docker.
 
 ### 📋 `MRI001_04`
 > Repair MCP protocol response path — Status: IN_PROGRESS | Est: 60m
 - **files:** `src/mcp/server.js`, `src/kernel/query/service.js`, `src/kernel/graph/build.js`, `tests/helpers/mcp-world.mjs`, `tests/step-definitions/mcp-release-integrity.steps.mjs`
-- **refs:** [FR-2](FR.md#fr-2-terminal-json-rpc-protocol-responses), [FR-3](FR.md#fr-3-installed-package-all-tool-parity), [AC-2](ACCEPTANCE_CRITERIA.md#ac-2-fr-2-invalid-frames-are-terminal-and-framed), [AC-3](ACCEPTANCE_CRITERIA.md#ac-3-fr-3-the-packaged-mcp-surface-is-complete-and-immutable)
+- **refs:** [FR-2](FR.md#fr-2-terminal-json-rpc-protocol-responses), [FR-3](FR.md#fr-3-installed-package-all-tool-parity), [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-invalid-frames-are-terminal-and-framed), [AC-3.1](ACCEPTANCE_CRITERIA.md#ac-31-the-packaged-mcp-surface-is-complete-and-immutable); CHK-FR2-01, CHK-FR2-02, CHK-FR3-01, CHK-FR3-02
 - **deps:** `MRI001_01`
 **Done When:**
   - [ ] JSON-RPC 1.0 with id receives one `-32600` response.
@@ -73,7 +75,7 @@ BDD scenarios are authored before their runtime paths. A task changes state only
 ### 📋 `MRI001_05`
 > Build and verify immutable candidate — Status: IN_PROGRESS | Est: 120m
 - **files:** `.omp-plugin/marketplace.json`, `package.json`, `src/v0.1/extension.js`, `src/v0.1/inventory.js`, `scripts/build-plugin.mjs`, `scripts/verify-marketplace.mjs`, `scripts/verify-package.mjs`, `scripts/release-candidate-utils.mjs`, `scripts/create-release-candidate.mjs`, `scripts/verify-public-tree.mjs`, `scripts/create-release-evidence.mjs`, `scripts/verify-release.mjs`
-- **refs:** [FR-4](FR.md#fr-4-candidate-bound-lifecycle-eligibility), [FR-5](FR.md#fr-5-artifact-only-publication), [AC-4](ACCEPTANCE_CRITERIA.md#ac-4-fr-4-candidate-evidence-is-complete-and-bound), [AC-5](ACCEPTANCE_CRITERIA.md#ac-5-fr-5-publish-consumes-the-verified-artifact-only)
+- **refs:** [FR-4](FR.md#fr-4-candidate-bound-lifecycle-eligibility), [FR-5](FR.md#fr-5-artifact-only-publication), [AC-4.1](ACCEPTANCE_CRITERIA.md#ac-41-candidate-evidence-is-complete-and-bound), [AC-5.1](ACCEPTANCE_CRITERIA.md#ac-51-publish-consumes-the-verified-artifact-only); CHK-FR4-01, CHK-FR4-02, CHK-FR5-01
 - **deps:** `MRI001_02`
 **Done When:**
   - [ ] Candidate tar and manifest are deterministic and identity-bound.
@@ -81,14 +83,14 @@ BDD scenarios are authored before their runtime paths. A task changes state only
   - [ ] Candidate BDD scenarios pass in Docker.
 
 ### 📋 `MRI001_06`
-> Publish only the candidate bundle — Status: BLOCKED | Est: 90m
+> Publish only the candidate bundle — Status: IN_PROGRESS | Est: 90m
 - **files:** `scripts/render-release-notes.mjs`, `scripts/docker-bdd.sh`, `tests/distribution/Dockerfile`, `.github/workflows/verify.yml`, `.github/workflows/release.yml`
-- **refs:** [FR-5](FR.md#fr-5-artifact-only-publication), [FR-6](FR.md#fr-6-honest-release-communication), [AC-5](ACCEPTANCE_CRITERIA.md#ac-5-fr-5-publish-consumes-the-verified-artifact-only), [AC-6](ACCEPTANCE_CRITERIA.md#ac-6-fr-6-public-status-tells-users-the-truth)
+- **refs:** [FR-5](FR.md#fr-5-artifact-only-publication), [FR-6](FR.md#fr-6-honest-release-communication), [AC-5.1](ACCEPTANCE_CRITERIA.md#ac-51-publish-consumes-the-verified-artifact-only), [AC-6.1](ACCEPTANCE_CRITERIA.md#ac-61-public-status-tells-users-the-truth); CHK-FR5-01, CHK-FR5-02, CHK-FR6-01
 - **deps:** `MRI001_05`
-_blocked: Actual public publication requires a real v0.3.1 tag plus captured v0.3.0→v0.3.1 upgrade and rollback receipts; public release execution is outside the requested BDD endpoint. Receipts are captured pipeline-time by scripts/compose-mri-lifecycle-receipts.mjs from attested distribution-evidence runs, not pre-tag-committed._
+_Evidence available: public v0.3.2 exists; exact negative-path/check receipts remain required before this task can be marked done._
 **Done When:**
   - [ ] Verify uploads one candidate bundle after gates pass.
-  - [ ] Publish rechecks that bundle and does not run a build.
+  - [ ] Future publish rechecks the downloaded bundle and does not build; bounded v0.3.2 readback reconciles one exact archive asset/workflow commit without claiming a new execution.
   - [ ] Mismatched existing assets fail before release mutation.
 
 ## Phase 3: Documentation and Verification
@@ -96,18 +98,18 @@ _blocked: Actual public publication requires a real v0.3.1 tag plus captured v0.
 ### 📋 `MRI001_07`
 > Publish accurate local guidance — Status: IN_PROGRESS | Est: 45m
 - **files:** `docs/advisories/v0.3.0-mcp-root.md`, `README.md`, `CHANGELOG.md`, `plugins/omp-spec-kit/README.md`
-- **refs:** [FR-6](FR.md#fr-6-honest-release-communication), [AC-6](ACCEPTANCE_CRITERIA.md#ac-6-fr-6-public-status-tells-users-the-truth)
+- **refs:** [FR-6](FR.md#fr-6-honest-release-communication), [AC-6.1](ACCEPTANCE_CRITERIA.md#ac-61-public-status-tells-users-the-truth); CHK-FR6-01
 - **deps:** `MRI001_05`
 **Done When:**
   - [x] v0.3.0 is described as superseded for the MCP root defect.
-  - [ ] v0.3.1 remains described as unreleased until actual candidate evidence exists.
-  - [ ] Generated v0.3.1 notes require semantic candidate evidence.
+  - [ ] v0.3.2 is described as published with captured candidate/attestation evidence and a hash-bound captured GitHub release-note body.
+  - [ ] Generated v0.3.2 notes require semantic candidate evidence.
 
 ### 📋 `MRI001_08`
 > Verify complete remediation — Status: IN_PROGRESS | Est: 60m
 - **files:** `.specs/mcp-release-integrity/`, `plugins/omp-spec-kit/dist/`
-- **refs:** [FR-1](FR.md#fr-1-active-project-mcp-root), [FR-2](FR.md#fr-2-terminal-json-rpc-protocol-responses), [FR-3](FR.md#fr-3-installed-package-all-tool-parity), [FR-4](FR.md#fr-4-candidate-bound-lifecycle-eligibility), [FR-5](FR.md#fr-5-artifact-only-publication), [FR-6](FR.md#fr-6-honest-release-communication)
-- **deps:** `MRI001_01`, `MRI001_02`, `MRI001_03`, `MRI001_04`, `MRI001_05`, `MRI001_07`
+- **refs:** [FR-1](FR.md#fr-1-active-project-mcp-root), [FR-2](FR.md#fr-2-terminal-json-rpc-protocol-responses), [FR-3](FR.md#fr-3-installed-package-all-tool-parity), [FR-4](FR.md#fr-4-candidate-bound-lifecycle-eligibility), [FR-5](FR.md#fr-5-artifact-only-publication), [FR-6](FR.md#fr-6-honest-release-communication); CHK-FR1-01, CHK-FR1-02, CHK-FR2-01, CHK-FR2-02, CHK-FR3-01, CHK-FR3-02, CHK-FR4-01, CHK-FR4-02, CHK-FR5-01, CHK-FR5-02, CHK-FR6-01
+- **deps:** `MRI001_01`, `MRI001_02`, `MRI001_03`, `MRI001_04`, `MRI001_05`, `MRI001_06`, `MRI001_07`
 **Done When:**
   - [ ] Build and package verifier pass after corrective changes.
   - [ ] Full Docker BDD suite passes after actual OMP and malformed-frame coverage.

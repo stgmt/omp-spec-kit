@@ -34,17 +34,17 @@
 
 ## UC-3: Block a direct spec write in enforcement mode
 
-**Primary actor:** Agent attempting to write a spec file.
+**Primary actor:** Agent invoking a raw or indirect writer.
 
-**Precondition:** Enforcement mode is active; the authoring door (`spec-authoring-workflow`) is accepted.
+**Precondition:** Same-candidate `SPEC_ENFORCEMENT` mode is active.
 
 **Flow:**
-1. The agent issues a `write`, `edit`, or `bash` tool call whose target touches `.specs/**`.
-2. The `tool_call` handler matches the write target against the `.specs/` prefix.
-3. The handler returns `{block: true, reason}` directing the agent to the authoring door.
-4. The tool does not execute; the model receives the block reason.
+1. Every tool call enters the closed effect classifier.
+2. A raw writer's exhaustive extractor emits targets; the I/O resolver proves one target is under `.specs/**`.
+3. The decision returns BLOCK `RAW_SPEC_WRITE` with the repository-relative target and qualified `omp-spec-kit:spec-authoring-workflow` redirect.
+4. The raw tool does not execute.
 
-**Postcondition:** The spec file is not modified; the agent receives an actionable redirect message.
+**Postcondition:** The spec is unchanged; mutation is possible only through the accepted authoring MCP authority.
 
 **Related:** [FR-3](FR.md#fr-3-enforcement-mode-write-interception), [AC-3.1](ACCEPTANCE_CRITERIA.md#ac-31-spec-writes-are-blocked-or-redirected-in-enforcement-mode), `@feature3`
 
@@ -55,59 +55,59 @@
 **Precondition:** Enforcement mode is active.
 
 **Flow:**
-1. The agent issues a `write` targeting `src/index.ts` (outside `.specs/**`).
-2. The `tool_call` handler inspects the target and determines it does not match `.specs/`.
-3. The handler returns nothing; the tool executes normally.
+1. A registered raw writer supplies an input whose exhaustive extractor returns all targets.
+2. The filesystem resolver proves every target is inside the project and outside `.specs/**`.
+3. The decision returns ALLOW `PROVEN_NON_SPEC_TARGETS`.
 
-**Postcondition:** The file is written without interference.
+**Postcondition:** The non-spec write executes without interference; target safety is proven rather than inferred from the tool name.
 
 **Related:** [FR-3](FR.md#fr-3-enforcement-mode-write-interception), [AC-3.1](ACCEPTANCE_CRITERIA.md#ac-31-spec-writes-are-blocked-or-redirected-in-enforcement-mode), `@feature3`
 
 ## UC-5: Surface explicit failure on kernel absence
 
-**Primary actor:** OMP runtime with enforcement hooks loaded but kernel unavailable.
+**Primary actor:** OMP runtime with enforcement handlers loaded but kernel unavailable.
 
-**Precondition:** Informational or enforcement mode is nominally active; `spec-kernel` module is missing or fails to initialize.
+**Precondition:** Product/authority evidence and effect registry may still be available.
 
 **Flow:**
-1. A hook handler attempts to query the kernel.
-2. The kernel is absent or throws during initialization.
-3. The handler produces an explicit visible diagnostic message stating kernel unavailability with reason.
-4. No silent pass-through occurs; no fake success is reported.
+1. Kernel initialization/query fails.
+2. The handler emits a separate `KERNEL_UNAVAILABLE` policy diagnostic and no fake conformance result.
+3. Informational kernel summaries are absent.
+4. If enforcement capability is otherwise accepted, write-effect enforcement remains active; a non-safety kernel failure does not open a bypass.
 
-**Postcondition:** The user sees an honest degradation message; informational summaries are absent with stated reason; enforcement mode disables by stage, not by error.
+**Postcondition:** Kernel diagnostics degrade honestly while access enforcement follows its own accepted inputs.
 
 **Related:** [FR-4](FR.md#fr-4-fail-honest-policy), [FR-8](FR.md#fr-8-degradation-ladder), [AC-4.1](ACCEPTANCE_CRITERIA.md#ac-41-hook-errors-produce-explicit-visible-messages), `@feature4`, `@feature8`
 
 ## UC-6: Degrade honestly when authoring door is absent
 
-**Primary actor:** OMP runtime before authoring-stage acceptance.
+**Primary actor:** OMP runtime before product enforcement acceptance.
 
-**Precondition:** Enforcement mode is nominally configured but `spec-authoring-workflow:FR-13` is not yet accepted.
+**Precondition:** `SPEC_ENFORCEMENT` or its same-candidate `AUTHORING_MCP` prerequisite is absent.
 
 **Flow:**
-1. An agent issues a `write` to `.specs/**`.
-2. The `tool_call` handler checks the cumulative gate status.
-3. The authoring door is not accepted; enforcement mode is inert.
-4. The write proceeds without interception; a diagnostic note MAY be injected indicating enforcement is pending gate acceptance.
+1. `session_start` evaluates product/candidate/authority evidence.
+2. Missing or mismatched input refuses enforcement activation regardless of local configuration.
+3. Behavior remains informational/degraded and states the missing capability.
+4. No product or release document may claim enforcement is delivered.
 
-**Postcondition:** No block occurs; the write is not silently intercepted; the degradation reason is visible.
+**Postcondition:** Pre-gate behavior is honest non-enforcement, not a locally overrideable partial security mode.
 
 **Related:** [FR-8](FR.md#fr-8-degradation-ladder), [FR-9](FR.md#fr-9-stage-gated-activation), [AC-8.1](ACCEPTANCE_CRITERIA.md#ac-81-enforcement-is-inert-before-cumulative-gate-acceptance), `@feature8`, `@feature9`
 
 ## UC-7: Verify no bypass paths exist
 
-**Primary actor:** Adversarial reviewer.
+**Primary actor:** Independent adversarial reviewer.
 
-**Precondition:** Enforcement mode is active.
+**Precondition:** Enforcement mode is active with a pinned registry manifest.
 
 **Flow:**
-1. Attempt spec writes through every available tool surface: `write`, `edit`, `bash` with file redirection, `apply_patch`.
-2. Each attempt is matched by the `tool_call` handler.
-3. All matching attempts are blocked or redirected.
-4. No alternate write route circumvents the enforcement surface.
+1. Drive every live built-in, MCP, and extension tool from the TASK-1 census.
+2. Attempt raw spec targets, a qualified authoring call, a name-only authority spoof, a newly registered/renamed tool, dynamic command targets, outside-root/traversal, POSIX symlink, Windows reparse point, and missing-ancestor variants.
+3. Verify qualified authority/read-only/proven non-spec controls pass.
+4. Verify every raw spec, unknown, incomplete, spoofed, or indeterminate variant blocks with the expected closed code.
 
-**Postcondition:** Every write path to `.specs/**` is intercepted; no bypass exists.
+**Postcondition:** Registry drift and new write surfaces fail conservatively; no alternate raw route circumvents the authority.
 
 **Related:** [FR-7](FR.md#fr-7-no-bypass-paths), [AC-7.1](ACCEPTANCE_CRITERIA.md#ac-71-all-write-surfaces-to-specs-are-intercepted), `@feature7`
 
@@ -115,15 +115,15 @@
 
 **Primary actor:** Release owner.
 
-**Precondition:** All mandatory evidence records exist for the release conjunction.
+**Precondition:** Candidate-bound baseline, authoring capability/authority, registry, CHK, installed, containment, budget, and adversarial records exist.
 
 **Flow:**
-1. Build the candidate plugin artifact with enforcement hooks bundled.
-2. Hide source checkout and root `node_modules`.
-3. Execute informational-mode smoke from the installed extension.
-4. Evaluate the `spec-enforcement-release@1` conjunction.
-5. Missing, failed, or mismatched records fail closed.
+1. Build the candidate through the existing extension factory and closed dist manifest.
+2. Hide source checkout and root/external `node_modules`; exercise informational and enforcement decisions.
+3. Evaluate `spec-enforcement-release@2`.
+4. Present eligibility to the product evaluator for the same `SPEC_ENFORCEMENT` candidate.
+5. Missing, extra, duplicate, failed, stale, mismatched, cross-candidate, or unbound input fails closed.
 
-**Postcondition:** Eligibility is all-not-any; structural specification alone does not satisfy evidence.
+**Postcondition:** Capability eligibility is all-not-any and does not by itself claim product/public delivery.
 
 **Related:** [FR-11](FR.md#fr-11-release-eligibility-conjunction), [AC-11.1](ACCEPTANCE_CRITERIA.md#ac-111-release-gate-is-a-closed-conjunction), `@feature11`

@@ -45,38 +45,20 @@ For `v0.2`, `v0.3`, and later releases, stage eligibility also requires every ea
 
 The v0.3 MCP registry is the first slice of the generator-port door: the eight SCHEMA-11 names that map onto the kernel query service. Growing MCP SHALL NOT delete them. They are not the destination registry.
 
-## Later — one LSP adapter (sibling to v0.3)
+## Post-v0.3 capability DAG
 
-**Outcome:** one bundled LSP server projects kernel navigation and post-write diagnostics for `.specs/**`. It does not become a second graph. It does not remove the eight first-slice MCP query tools. The agent never calls host `lsp` as a spec tool; MCP MAY consume LSP internally for definition, references, or diagnostics. It does not emit Gherkin step-binding diagnostics until a separately accepted kernel change adds `StepBinding` nodes and a contained reader for step-definition sources.
+The following capabilities are siblings. Their order in this document is not a delivery order. Every row requires the delivered v0.3.2 baseline plus its own aggregate; accepting one row never accepts another.
 
-**Entry:** accepted `spec-kernel:FR-14` for v0.2; live OMP LSP probes (spec-lsp TASK-1); adapter-to-service parity (spec-lsp FR-8); step-layer absence (spec-lsp FR-7 and FR-12); dependency-absent bundle (spec-lsp FR-11). This stage does not satisfy or replace v0.3 MCP evidence and does not unlock authoring.
+| Capability | Outcome | Exact owner | Additional entry gate |
+|---|---|---|---|
+| Generator-port reads | Add FR-16 query and FR-17 adapter I/O names while preserving the first slice | `spec-kernel:FR-16`, `spec-kernel:FR-17` | `spec-kernel:CHK-FR16-01`, `spec-kernel:CHK-FR17-01` |
+| LSP adapter | Editor/MCP-internal navigation/diagnostics; never an agent spec API | `spec-lsp:FR-1`, `spec-lsp:FR-12` | complete `spec-lsp:FR-12` profile over v0.3 |
+| Evidence MCP | Hash-bound evaluation plus result/trace tools | `spec-evidence:FR-13`, `spec-evidence:FR-14` | both defining evidence aggregates |
+| Capability graph/impact | Per-owner CAP nodes, graph impact, optional evidence overlay | `spec-capability:FR-6`, `spec-capability:FR-9` | complete profile-specific `spec-capability:FR-9` result |
+| Authoring MCP | Proposal-first mutation facade | `spec-authoring-workflow:FR-13`, `spec-authoring-workflow:FR-14` | joint evidence FR-13/14 + authoring FR-13/14 + enforcement FR-11 tuple |
+| Spec enforcement | Refuse raw bypasses and route exact authority | `spec-enforcement:FR-1`, `spec-enforcement:FR-11` | the same joint tuple plus accepted `tool-call-authority-abi@1`; neither row ships alone |
+| Automatic plan gate | Validate host-selected plan before approval | `plan-gate:FR-1`, `plan-gate:FR-13` | `plan-gate:FR-13` plus `plan-gate:CHK-HOST-ABI-01` |
 
-**Owning spec:** `.specs/spec-lsp/` (GitHub issue #7).
+The automatic plan-gate and spec-enforcement rows are `DEFERRED_HOST_ABI` on pinned OMP v17.3.7. Manual/advisory plan validation can be specified now; automatic interception and trusted authoring-call classification must not be simulated from missing host identity fields.
 
-## Later — generator-port reads
-
-**Outcome:** additional read-only MCP names owned by `spec-kernel:FR-16` and `spec-kernel:FR-17` grow the agent-facing door beyond the eight first-slice tools. The eight SCHEMA-11 names remain registered.
-
-**Entry:** accepted current-candidate kernel and distribution gates for the implementing stage. This stage does not unlock authoring.
-
-**Owning spec:** `.specs/spec-kernel/` FR-16 / FR-17.
-
-## Later — evidence MCP
-
-**Outcome:** evidence evaluation projected through MCP (`get_test_result`, `get_scenario_trace`) after the evidence layer exists.
-
-**Entry:** accepted `spec-evidence` contracts. This stage does not unlock authoring.
-
-**Owning spec:** `.specs/spec-evidence/`.
-
-## Later — authoring and mutation
-
-**Possible scope:** authoring MCP names (propose/apply/section edit, and later schema v2 `create_spec` / `archive_spec` / backlog helpers), high-level proposals, CAS, atomic mutations, archival, backlog resolution, planners/conflict graphs, semantic judging, and persistence. Schema v1 omission of a census name is later, not DROP.
-
-**Entry gates:** separately reviewed requirements; path/symlink containment; authorization; dry-run and explicit apply; expected-hash/CAS refusal; atomic rollback; concurrency and stale-write tests; audit/privacy policy; failure recovery; no execution of document text. Authoring remains not delivered until those gates pass.
-
-## Later — mutation verification and advanced evidence
-
-**Possible scope:** mutation testing, deterministic kill verification, independent operational-proof review, and richer cross-spec reconciliation.
-
-**Entry gates:** real producer fixtures, cost/runtime bounds, provenance and freshness, independent evidence quality review, and an explicit decision that the capability belongs inside the same plugin.
+Mutation verification, deterministic kill evidence, semantic judging and richer cross-spec reconciliation are evidence techniques inside the owning capability gates, not additional product control planes.

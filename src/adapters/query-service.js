@@ -7,6 +7,7 @@
 
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { realpathSync } from "node:fs";
 import { KERNEL_SCHEMA_VERSION, buildKernelGraph, query } from "../kernel/index.js";
 import { readRepositorySpecs } from "../kernel/adapters/fs.js";
 
@@ -16,8 +17,30 @@ export { KERNEL_SCHEMA_VERSION };
 // Normal installed MCP execution relies on OMP's active project cwd. An absent
 // legacy name-indirection literal, a placeholder, or a relative value must not
 // redirect a server toward package-local data.
+function canonicalPhysicalPath(value) {
+  const resolved = path.resolve(value);
+  try {
+    return realpathSync.native(resolved);
+  } catch {
+    return resolved;
+  }
+}
+
+function physicalPathKey(value) {
+  const canonical = canonicalPhysicalPath(value);
+  return process.platform === "win32" ? canonical.toLowerCase() : canonical;
+}
+
 export function resolveRepositoryRoot(env = process.env, cwd = process.cwd()) {
-  const fallback = path.resolve(cwd);
+  const fallback = canonicalPhysicalPath(cwd);
+  const packageRoot =
+    typeof env?.OMP_SPEC_KIT_PACKAGE_ROOT === "string" &&
+    path.isAbsolute(env.OMP_SPEC_KIT_PACKAGE_ROOT)
+      ? canonicalPhysicalPath(env.OMP_SPEC_KIT_PACKAGE_ROOT)
+      : null;
+  if (packageRoot !== null && physicalPathKey(fallback) === physicalPathKey(packageRoot)) {
+    throw new Error("PACKAGE_ROOT_REFUSED");
+  }
   const raw = env?.OMP_SPEC_KIT_ROOT;
   if (
     typeof raw === "string" &&
@@ -26,7 +49,10 @@ export function resolveRepositoryRoot(env = process.env, cwd = process.cwd()) {
     raw !== "OMP_SPEC_KIT_ROOT" &&
     path.isAbsolute(raw)
   ) {
-    return path.resolve(raw);
+    const candidate = canonicalPhysicalPath(raw);
+    return packageRoot !== null && physicalPathKey(candidate) === physicalPathKey(packageRoot)
+      ? fallback
+      : candidate;
   }
   return fallback;
 }

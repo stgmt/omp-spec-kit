@@ -21,8 +21,8 @@ Feature: Proposal-first safe specification authoring
     And the linked predecessor artifact hash A may differ from current artifact hash B
     When the release-candidate inventory is evaluated for registration eligibility
     Then the lifecycle may advance from DEFERRED to ELIGIBLE with both kernel profile results and every other qualified evidence identity
-    And only existing-extension registration then exact installed-artifact proof may advance ELIGIBLE to IMPLEMENTED to PROVEN
-    And exactly one plugin package one extension entry one shared authoring authority and zero direct writers are present
+    And only gated MCP authoring registration then exact installed-artifact proof may advance ELIGIBLE to IMPLEMENTED to PROVEN
+    And exactly one plugin package one read-only extension entry one MCP authoring authority and zero direct writers are present
     And authoring eligibility does not authorize publication or override pending public-init validation or future-import license gates
 
   @id:SCEN-authoring-second-authority-refused @feature1 @AC-1.3
@@ -55,10 +55,12 @@ Feature: Proposal-first safe specification authoring
     And neither proposal writes repository or transaction material before a later reviewed apply is governed by CAS
 
   @id:SCEN-apply-reviewed-proposal @feature2 @AC-2.4 @feature6 @AC-6.1
-  Scenario: SPEC_AUTHORING_007 apply transaction consumes a separately reviewed proposal
-    Given an authenticated caller reviewed the complete untruncated proposal ID and hash before this call
-    And its unexpired proposal and current expected document and base hashes still match
-    When apply_transaction is requested without raw edits
+  Scenario: SPEC_AUTHORING_007 apply facade separates review and commit calls
+    Given a complete untruncated validated proposal ID hash and full preview hash
+    When an apply facade is called with phase review
+    Then only the authenticated VALIDATED to REVIEWED transition occurs and repository bytes remain unchanged
+    Given the reviewed proposal is unexpired and current document and base hashes still match
+    When the apply facade is called later with phase commit and no raw edits
     Then the reviewed proposal enters APPLYING and commits one complete result generation
     And the committed hashes equal the separately reviewed proposal hashes
 
@@ -356,11 +358,11 @@ Feature: Proposal-first safe specification authoring
     And it exposes no stack trace sensitive path or secret
 
   @id:SCEN-adapters-share-authority @feature10 @AC-10.3
-  Scenario: SPEC_AUTHORING_036 extension and future adapter share one service contract
-    Given the existing extension and a later MCP adapter receive equivalent requests
-    When each delegates the request
-    Then their results are contract-equivalent
-    And neither adapter adds a direct mutation path or adapter-specific mutation semantic
+  Scenario: SPEC_AUTHORING_036 MCP is the sole authoring adapter
+    Given the MCP server receives an authoring request
+    When its facade delegates to the shared service
+    Then the result matches the closed service contract
+    And the existing OMP extension remains read-only with no authoring facade or direct writer
 
   @id:SCEN-critical-mutants-killed @feature11 @AC-11.1 @AC-11.3 @mutation
   Scenario: SPEC_AUTHORING_037 every safety-critical mutant family is present killed and restored
@@ -449,10 +451,12 @@ Feature: Proposal-first safe specification authoring
       | an anchor link validator audit-chain or lease concurrency failure | state remains RECOVERY_REQUIRED and normal reads and writes remain blocked |
 
   @id:SCEN-generator-port-mutation-names @feature14 @AC-14.1
-  Scenario: SPEC_AUTHORING_045 generator-port mutation names are v1 or later v2 not DROP
-    Given the agent-facing authoring API is MCP
+  Scenario: SPEC_AUTHORING_045 generator-port mutation facades map exactly or remain later
+    Given the agent-facing authoring API is MCP and FR-13 baseline eligibility is accepted
     When the generator-port mutation census is mapped onto this spec
-    Then the eighteen schema-v1 names map onto proposal-first operations
-    And the six schema-v2 names create_spec archive_spec delete_spec_doc rename_spec_doc add_backlog_task and register_incident_backlog remain later and are not DROP
-    And none of those twenty-four names appear on the v0.3 first-slice read registry
-    And the dropped advisor dashboard and harness backlog UI is not add_backlog_task
+    Then each of seventeen v1 facades compiles to the exact proposal-first mapping
+    And every normal or rebaseline commit uses one review-only call before a later matching commit-only call
+    And propose_patch status patch and rebaseline-recovery modes reach status normal proposal and recovery proposal requests
+    And apply_spec_transaction cancel recover-retained and commit-rebaseline phases reach the remaining closed control and recovery requests
+    And set_spec_status create_spec archive_spec delete_spec_doc rename_spec_doc add_backlog_task and register_incident_backlog are absent from the v1 registry and listed as unsupported later names not DROP
+    And authoring-mcp at 1 requires CHK-FR14-01 and none of those names appears in historical v0.3

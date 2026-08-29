@@ -89,32 +89,33 @@ Feature: Honest public lifecycle for omp-spec-kit
   @feature6 @FR-6 @AC-6.1 @id:SCEN-incomplete-aggregate-remains-planned
   Scenario: A stage with missing evidence remains planned
     Given the proposed v0.1.0 stage has evidence for only some mandatory distribution requirements
-    And plugin-distribution:FR-13 has not accepted complete mandatory evidence for plugin-distribution:FR-1 through plugin-distribution:FR-12
+    And historical distribution-release-eligibility at 1 owned by plugin-distribution:FR-13 has not accepted the complete FR-1 through FR-12 matrix
     When the product stage is evaluated
     Then v0.1.0 remains "PLANNED" or "BLOCKED"
     And the last proven stage remains authoritative
-    And plugin-distribution:FR-13 is the next gate
+    And the versioned plugin-distribution:FR-13 profile is the next gate
 
   @feature6 @FR-6 @AC-6.2 @id:SCEN-owning-aggregate-cannot-be-bypassed
-  Scenario Outline: A later stage cannot bypass its cumulative aggregate gate set
-    Given the <stage> stage is proposed for product revision R, current candidate artifact B, and artifact lineage L
+  Scenario Outline: A baseline or capability cannot bypass its exact aggregate set
+    Given the delivered v0.3.2 baseline and proposed <capability> state
     And <aggregate_state>
-    And <artifact_binding>
-    When ordered stage gates are evaluated
-    Then the <stage> delivered claim is <decision>
+    When baseline and capability gates are evaluated
+    Then the <capability> delivered claim is <decision>
     And <reason>
 
     Examples:
-      | stage     | aggregate_state                                                                                         | artifact_binding                                                                                                                                | decision | reason                                                  |
-      | v0.2      | every mandatory distribution and targetStage v0.2 aggregate is accepted                               | distribution and v0.2 kernel evidence both use CURRENT_CANDIDATE artifact B and lineage L                                                       | accepted | the complete all-not-any v0.2 gate set is satisfied       |
-      | v0.2      | targetStage v0.2 is accepted but plugin-distribution:FR-13 is missing                                  | the v0.2 kernel evidence uses CURRENT_CANDIDATE artifact B and lineage L                                                                         | refused  | plugin-distribution:FR-13 is a cumulative blocker          |
-      | v0.3      | distribution plus separate targetStage v0.2 and targetStage v0.3 results are complete and accepted    | distribution and v0.3 use CURRENT_CANDIDATE B; v0.2 uses PREDECESSOR_V0_2 A; v0.3 names parent A; both kernel results use revision R and lineage L | accepted | the distinct-artifact A-to-B parent chain is valid         |
-      | v0.3      | the complete cumulative aggregate set is accepted                                                     | v0.2 uses predecessor A but v0.3 names parent C                                                                                                  | refused  | the exact parent artifact SHA-256 does not match           |
-      | v0.3      | the complete cumulative aggregate set is accepted                                                     | v0.2 uses predecessor A in lineage X while the current v0.3 candidate uses lineage L                                                             | refused  | predecessor evidence belongs to another lineage            |
-      | v0.3      | the complete cumulative aggregate set is otherwise accepted                                           | v0.2 predecessor A is stale or revoked                                                                                                           | refused  | predecessor evidence is not active                         |
-      | v0.3      | the complete cumulative aggregate set is accepted                                                     | distribution or targetStage v0.3 evidence binds to predecessor A instead of current candidate B                                                  | refused  | current evidence does not bind to the current candidate    |
-      | authoring | distribution, both kernel target stages, and spec-authoring-workflow:FR-13 are complete and accepted | distribution, v0.3, and authoring use CURRENT_CANDIDATE B; linked active v0.2 predecessor A uses revision R and lineage L                        | accepted | every cumulative gate and artifact-binding rule is satisfied |
-      | authoring | distribution and spec-authoring-workflow:FR-13 are accepted but either kernel target result is absent | current evidence uses candidate B and lineage L                                                                                                  | refused  | the missing kernel target result is a cumulative blocker   |
+      | capability          | aggregate_state                                                                 | decision | reason                                              |
+      | V0_2_BASELINE       | candidate distribution and targetStage v0.2 kernel aggregates are accepted      | accepted | the exact historical baseline gate is satisfied     |
+      | V0_3_BASELINE       | candidate distribution current-v0.3 and linked active v0.2 predecessor accepted | accepted | the exact baseline and parent chain are satisfied   |
+      | GENERATOR_READS     | either CHK-FR16-01 or CHK-FR17-01 is missing                                     | refused  | exact generator profiles are incomplete             |
+      | LSP_ADAPTER         | v0.3 baseline and complete spec-lsp FR-12 profile are accepted                   | accepted | the exact LSP map is satisfied                      |
+      | EVIDENCE_MCP        | evidence aggregate omits spec-evidence FR-14                                     | refused  | defining MCP projection aggregate is missing        |
+      | CAPABILITY_GRAPH    | v0.3 baseline and spec-capability FR-9 are accepted                              | accepted | exact capability graph map is satisfied             |
+      | AUTHORING_MCP       | evidence and authoring pass but spec-enforcement FR-11 is missing                | refused  | joint authoring-enforcement tuple is incomplete     |
+      | AUTHORING_MCP       | evidence authoring and enforcement joint tuple is accepted                       | accepted | joint mutation boundary is satisfied                |
+      | SPEC_ENFORCEMENT    | joint tuple passes but spec-enforcement CHK-FR1-01 host authority is absent      | refused  | state remains DEFERRED_HOST_ABI                         |
+      | SPEC_ENFORCEMENT    | evidence authoring enforcement and authenticated tool-call host ABI are accepted | accepted | joint enforcement boundary and host authority are satisfied             |
+      | AUTOMATIC_PLAN_GATE | plan-gate FR-13 passes but CHK-HOST-ABI-01 is absent                              | refused  | state remains DEFERRED_HOST_ABI                     |
 
   @feature7 @FR-7 @AC-7.1 @id:SCEN-status-fails-closed
   Scenario: Status fails closed when evidence is missing
@@ -133,22 +134,19 @@ Feature: Honest public lifecycle for omp-spec-kit
 
   @feature8 @FR-8 @AC-8.1 @id:SCEN-roadmap-separates-states
   Scenario: Roadmap separates delivered planned deferred and blocked
-    Given the public-init candidate has resolved license evidence, completed validation gates, and later planned stages
-    When a manager reads the README and roadmap
-    Then current, planned, deferred, and blocked states are visibly distinct
-    And the validated non-public state and remaining publication action are stated explicitly
+    Given public v0.3.2 baseline and exactly seven capability rows with schema-valid states blockers and next gates
+    When a manager reads README ROADMAP and the bounded status record
+    Then delivered baseline SPECIFIED DEFERRED and DEFERRED_HOST_ABI states are visibly distinct
+    And every capability names exact owner and aggregate tuple
     And excluded harness machinery is not presented as delivered
 
   @feature8 @FR-8 @AC-8.2 @id:SCEN-canonical-owner-delegation
   Scenario: Product spec delegates internals to canonical owners
-    Given the product documents refer to distribution, kernel, LSP, evidence, and authoring behavior
-    When their boundary references are inspected
-    Then distribution uses canonical plugin-distribution requirement IDs
-    And kernel uses canonical spec-kernel requirement IDs
-    And LSP uses canonical spec-lsp requirement IDs
-    And evidence uses canonical spec-evidence requirement IDs
-    And authoring uses canonical spec-authoring-workflow requirement IDs
-    And product documents do not redefine their internal contracts
+    Given product documents refer to distribution kernel LSP evidence capability authoring enforcement and plan-gate behavior
+    When qualified boundary references are inspected
+    Then each sibling uses its canonical FR and release check identities
+    And the seven aggregate maps equal product_SCHEMA and release-status rows
+    And product documents do not redefine sibling internals
 
   @feature9 @FR-9 @AC-9.1 @id:SCEN-generator-port-destination
   Scenario: Generator-port destination is MCP with a 46-row census

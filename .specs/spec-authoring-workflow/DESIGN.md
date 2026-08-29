@@ -2,14 +2,15 @@
 
 ## Status and dependency boundary
 
-This is a future architecture, not an implemented surface. Maintainers may build and internally verify its schema, shared service, real fixtures, recovery authority, and pure evaluator while lifecycle and action registration remain `DEFERRED`; FR-13 gates registration/release eligibility, not implementation start. The design extends only the single `omp-spec-kit` extension after the immutable read-only kernel and distribution gates are proven. It does not introduce another marketplace entry, plugin package, extension, or MCP mutation implementation.
+This is a future architecture, not an implemented surface. Maintainers may build and internally verify its schema, shared service, real fixtures, recovery authority, and pure evaluator while lifecycle and action registration remain `DEFERRED`; FR-13 gates registration/release eligibility, not implementation start. The design extends the single `omp-spec-kit` package and its existing MCP server after the immutable read-only kernel and distribution gates are proven. MCP is the sole agent-facing authoring adapter; the existing OMP extension stays read-only. No second marketplace entry, plugin package, extension, or writer is introduced.
 
 ```mermaid
 flowchart LR
   Build[Internal implementation + isolated evidence] --> Service[Shared authoring service]
   Evidence[FR-1..FR-12 + distribution + linked v0.2/v0.3 kernel evidence] --> Gate[FR-13 registration/release gate]
-  Gate --> Adapter[Existing extension adapter]
+  Gate --> Adapter[MCP authoring facades]
   Adapter --> Service
+  ReadOnly[Existing read-only OMP extension]
   Service --> Proposal[Read-only proposal service]
   Proposal --> Kernel[Immutable spec-kernel snapshot and FR-13 inventory]
   Proposal --> Validator[Validator composition]
@@ -35,7 +36,7 @@ Authoring actions stay unregistered in `DEFERRED`, but the schema, shared servic
 
 ### D-2 — Proposal is a value, not hidden state
 
-A proposal is a content-addressed result returned to its caller. The authenticated caller reviews its complete untruncated ID/hash in a separate `review_proposal` transition. `apply_transaction` accepts only the resulting unexpired `REVIEWED` proposal plus current expected hashes; it never accepts raw edits or creates and commits a preview in one call. The service may retain bounded in-memory/idempotency state during one process lifetime and does not write proposal state into the target repository.
+A proposal is a content-addressed result returned to its caller. Each normal apply facade exposes two mutually exclusive calls: `phase: "review"` maps to `review_proposal`, records the authenticated complete-preview review, returns `REVIEWED`, and writes nothing; a later `phase: "commit"` maps to `apply_transaction` and accepts only that unexpired reviewed proposal plus current expected hashes. The `propose_patch` mode and `apply_spec_transaction` phase discriminators also route status, cancellation, retained recovery, rebaseline proposal and rebaseline commit to the same authority; every call performs one transition. It never accepts raw edits or reviews and commits in one call. The service may retain bounded in-memory/idempotency state during one process lifetime and does not write proposal state into the target repository.
 
 **Trade-off:** callers may need to resend a content-addressed proposal and review attestation after restart; the review boundary remains observable and user repositories remain free of opaque control state.
 

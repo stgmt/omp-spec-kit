@@ -3,4 +3,6 @@
 set -eu
 
 launcher_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+OMP_SPEC_KIT_PACKAGE_ROOT=$(CDPATH= cd -- "$launcher_dir/.." && pwd -P)
+export OMP_SPEC_KIT_PACKAGE_ROOT
 exec node "$launcher_dir/../dist/mcp/server.js" "$@"

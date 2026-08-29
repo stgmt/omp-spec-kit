@@ -4,14 +4,16 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { After, Before, Given, Then, When } from "@cucumber/cucumber";
 import { renderReleaseNotes } from "../../scripts/render-release-notes.mjs";
-import { CucumberEvidenceError, cucumberMessages } from "../../scripts/create-release-evidence.mjs";
+import { CucumberEvidenceError, cucumberMessages, requiredScenarioMultiplicity } from "../../scripts/create-release-evidence.mjs";
 import { verifyPublicTree } from "../../scripts/verify-public-tree.mjs";
+import { sha256 } from "../../scripts/release-candidate-utils.mjs";
 import { loadPinnedCorpusGraph, spawnMcpServer, writeCorpus } from "../helpers/mcp-world.mjs";
 import {
   appendArchiveByte,
   createCandidateWorld,
   evaluateCandidate,
   extractCandidate,
+  MRI_RELEASE_SCENARIOS,
   readVerifiedCucumberFixture,
   replaceMessageWithMeta,
   writeStructurallyCompleteAttestationTrustedDistributionEvidence,
@@ -23,15 +25,6 @@ function repositoryRoot() {
   return path.resolve(import.meta.dirname, "..", "..");
 }
 
-const REQUIRED_CUCUMBER_SCENARIOS = Object.freeze([
-  "SCEN-MRI-001",
-  "SCEN-MRI-002",
-  "SCEN-MRI-003",
-  "SCEN-MRI-004",
-  "SCEN-MRI-005",
-  "SCEN-MRI-006",
-  "SCEN-MRI-007",
-]);
 
 function parseFixtureFrames(bytes) {
   return bytes
@@ -46,24 +39,27 @@ function serializeFixtureFrames(frames) {
 }
 
 function releaseEvidenceChain(frames) {
-  const pickleIndex = frames.findIndex((frame) => frame.pickle?.tags?.some((tag) => tag.name === "@id:SCEN-MRI-001"));
-  assert.notEqual(pickleIndex, -1, "real fixture must contain SCEN-MRI-001 pickle");
+  const pickleIndex = frames.findIndex((frame) => frame.pickle?.tags?.some((tag) => tag.name === "@id:SCEN-mri-active-project-root"));
+  assert.notEqual(pickleIndex, -1, "real fixture must contain SCEN-mri-active-project-root pickle");
   const pickleId = frames[pickleIndex].pickle.id;
   const testCaseIndex = frames.findIndex((frame) => frame.testCase?.pickleId === pickleId);
-  assert.notEqual(testCaseIndex, -1, "real fixture must contain SCEN-MRI-001 testCase");
+  assert.notEqual(testCaseIndex, -1, "real fixture must contain SCEN-mri-active-project-root testCase");
   const testCaseId = frames[testCaseIndex].testCase.id;
   const startIndex = frames.findIndex((frame) => frame.testCaseStarted?.testCaseId === testCaseId);
-  assert.notEqual(startIndex, -1, "real fixture must contain SCEN-MRI-001 testCaseStarted");
+  assert.notEqual(startIndex, -1, "real fixture must contain SCEN-mri-active-project-root testCaseStarted");
   const startId = frames[startIndex].testCaseStarted.id;
   const stepIndexes = frames.flatMap((frame, index) => (frame.testStepFinished?.testCaseStartedId === startId ? [index] : []));
-  assert.notEqual(stepIndexes.length, 0, "real fixture must contain SCEN-MRI-001 testStepFinished");
+  assert.notEqual(stepIndexes.length, 0, "real fixture must contain SCEN-mri-active-project-root testStepFinished");
   const finishIndex = frames.findIndex((frame) => frame.testCaseFinished?.testCaseStartedId === startId);
-  assert.notEqual(finishIndex, -1, "real fixture must contain SCEN-MRI-001 testCaseFinished");
+  assert.notEqual(finishIndex, -1, "real fixture must contain SCEN-mri-active-project-root testCaseFinished");
   return { pickleIndex, testCaseIndex, startIndex, startId, stepIndexes, finishIndex };
 }
 
 function mutateCucumberEvidence(bytes, fault) {
-  if (fault === "corrupt-line") return { bytes: Buffer.from(`${bytes.toString("utf8")}not-json\n`) };
+  if (fault === "corrupt-line") {
+    const corruptLine = bytes.toString("utf8").split(/\r?\n/u).length;
+    return { bytes: Buffer.from(`${bytes.toString("utf8")}not-json\n`), corruptLine };
+  }
   if (fault === "meta-only") return { bytes: Buffer.from('{"meta":{"protocolVersion":"33.0.4"}}\n') };
 
   const frames = parseFixtureFrames(bytes);
@@ -76,7 +72,29 @@ function mutateCucumberEvidence(bytes, fault) {
   } else if (fault === "missing-test-case-finished") frames.splice(chain.finishIndex, 1);
   else if (fault === "failed-final-step") frames[chain.stepIndexes.at(-1)].testStepFinished.testStepResult.status = "FAILED";
   else if (fault === "retry-only") frames[chain.finishIndex].testCaseFinished.willBeRetried = true;
-  else if (fault === "duplicate-terminal-frame") frames.splice(chain.finishIndex + 1, 0, structuredClone(frames[chain.finishIndex]));
+  else if (fault === "missing-outline-expansion") {
+    const outlinePickles = frames.filter((frame) =>
+      frame.pickle?.tags?.some((tag) => tag.name === "@id:SCEN-mri-semantic-cucumber-mutations"),
+    );
+    assert.equal(outlinePickles.length, 12, "real fixture must contain all semantic-mutation outline pickles");
+    const removedPickleId = outlinePickles[1].pickle.id;
+    const removedTestCaseIds = new Set(
+      frames.flatMap((frame) => frame.testCase?.pickleId === removedPickleId ? [frame.testCase.id] : []),
+    );
+    const removedStartIds = new Set(
+      frames.flatMap((frame) => removedTestCaseIds.has(frame.testCaseStarted?.testCaseId) ? [frame.testCaseStarted.id] : []),
+    );
+    return {
+      bytes: serializeFixtureFrames(frames.filter((frame) =>
+        frame.pickle?.id !== removedPickleId &&
+        !removedTestCaseIds.has(frame.testCase?.id) &&
+        !removedStartIds.has(frame.testCaseStarted?.id) &&
+        !removedStartIds.has(frame.testStepStarted?.testCaseStartedId) &&
+        !removedStartIds.has(frame.testStepFinished?.testCaseStartedId) &&
+        !removedStartIds.has(frame.testCaseFinished?.testCaseStartedId)
+      )),
+    };
+  } else if (fault === "duplicate-terminal-frame") frames.splice(chain.finishIndex + 1, 0, structuredClone(frames[chain.finishIndex]));
   else if (fault === "duplicate-test-run-finished") {
     const runFinish = frames.find((frame) => frame.testRunFinished !== undefined);
     assert.notEqual(runFinish, undefined, "real fixture must contain testRunFinished");
@@ -86,13 +104,13 @@ function mutateCucumberEvidence(bytes, fault) {
   }
   return { bytes: serializeFixtureFrames(frames), startId: chain.startId };
 }
-
 async function seedCandidate(world) {
-  world.release = await createCandidateWorld(repositoryRoot(), world.releaseTempRoot);
+  world.release = await createCandidateWorld(repositoryRoot(), world.releaseTempRoot, world.verifiedCucumberFixture);
 }
 
 Before({ tags: "@mcp-release-integrity" }, async function () {
   this.releaseTempRoot = await mkdtemp(path.join(tmpdir(), "omp-spec-kit-release-bdd-"));
+  this.verifiedCucumberFixture = await readVerifiedCucumberFixture(repositoryRoot());
   this.release = null;
   this.releaseServer = null;
   this.publicTreeOriginal = null;
@@ -120,6 +138,111 @@ Then("the MRI gate is independently eligible while public release remains blocke
   assert.equal(this.releaseResult.blocking.includes("distribution:distribution-evidence-missing"), true);
 });
 
+Given("the bounded current v0.3.2 public release status record", async function () {
+  const root = repositoryRoot();
+  this.currentReleaseStatus = JSON.parse(
+    await readFile(path.join(root, "docs", "validation", "release-status-v0.3.2.json"), "utf8"),
+  );
+  this.currentReleaseGuidance = {
+    rootReadme: await readFile(path.join(root, "README.md"), "utf8"),
+    packageReadme: await readFile(path.join(root, "plugins", "omp-spec-kit", "README.md"), "utf8"),
+    changelog: await readFile(path.join(root, "CHANGELOG.md"), "utf8"),
+    advisory: await readFile(path.join(root, "docs", "advisories", "v0.3.0-mcp-root.md"), "utf8"),
+  };
+});
+
+When("the recorded publication identities are reconciled", function () {
+  const status = this.currentReleaseStatus;
+  assert.equal(status.schema, "omp-spec-kit-public-release-status@1");
+  assert.equal(status.version, "0.3.2");
+  assert.equal(status.tag, "v0.3.2");
+  assert.equal(status.status.public, true);
+  assert.equal(status.status.installable, true);
+  assert.match(status.candidateDigest, /^[0-9a-f]{64}$/u);
+  assert.match(status.packageTreeDigest, /^[0-9a-f]{64}$/u);
+  assert.match(status.archive.sha256, /^[0-9a-f]{64}$/u);
+  assert.equal(status.evidence.schema, "omp-spec-kit-release-evidence@3");
+  assert.equal(status.attestation.workflowCommit, status.tagCommit);
+  assert.equal(status.distributionAttestation.workflowCommit, status.tagCommit);
+  assert.equal(status.distributionAttestation.subjectSha256, status.evidence.distributionReceiptDigest);
+  this.currentReleaseArchiveAssets = status.releaseAssets.filter((asset) => asset.name.endsWith(".tar"));
+});
+
+Then("the bounded record proves a trusted public release for the exact candidate", function () {
+  const status = this.currentReleaseStatus;
+  assert.equal(status.attestation.verified, true);
+  assert.equal(status.distributionAttestation.verified, true);
+  assert.equal(status.distributionAttestation.subject, "distribution-evidence.json");
+  assert.equal(status.distributionAttestation.repository, "stgmt/omp-spec-kit");
+  assert.equal(
+    status.distributionAttestation.signerWorkflow,
+    "https://github.com/stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml@refs/tags/v0.3.2",
+  );
+  assert.equal(status.distributionAttestation.sourceRef, "refs/tags/v0.3.2");
+  assert.equal(status.releaseUrl, "https://github.com/stgmt/omp-spec-kit/releases/tag/v0.3.2");
+});
+
+Then("the bounded record contains one exact published archive identity without a rebuild claim", function () {
+  const status = this.currentReleaseStatus;
+  assert.equal(this.currentReleaseArchiveAssets.length, 1);
+  assert.deepStrictEqual(this.currentReleaseArchiveAssets[0], {
+    name: status.archive.name,
+    bytes: status.archive.bytes,
+    sha256: status.archive.sha256,
+  });
+  assert.equal(status.archive.name, "omp-spec-kit-0.3.2.tar");
+  assert.equal(status.attestation.workflowCommit, status.tagCommit);
+});
+
+Then("current public guidance and captured release notes match v0.3.2 and retain the v0.3.0 advisory", function () {
+  const guidance = this.currentReleaseGuidance;
+  const releaseNotes = this.currentReleaseStatus.releaseNotes;
+  assert.equal(sha256(Buffer.from(releaseNotes.body, "utf8")), releaseNotes.bodySha256);
+  assert.equal(releaseNotes.source, this.currentReleaseStatus.releaseUrl);
+  assert.match(releaseNotes.body, /# omp-spec-kit v0\.3\.2/u);
+  assert.match(releaseNotes.body, /Archive SHA-256: `26a2ebadd7d1888c10dc9bdbdc25e11fecf5a7dcc7515b15c7e3bb363a0cbea9`/u);
+  assert.match(guidance.rootReadme, /Current status: v0\.3\.2 published; v0\.3\.0 MCP advisory remains/u);
+  assert.match(guidance.packageReadme, /omp-spec-kit` v0\.3\.2/u);
+  assert.match(guidance.changelog, /## 0\.3\.2 — 2026-08-28/u);
+  assert.match(guidance.advisory, /# v0\.3\.0 MCP advisory/u);
+  assert.match(guidance.advisory, /current public release is v0\.3\.2/u);
+});
+
+When("the lifecycle evidence is {string}", async function (fault) {
+  const evidence = JSON.parse(await readFile(this.release.evidencePath, "utf8"));
+  const refs = evidence.mri.checks;
+  if (fault === "missing-upgrade") {
+    refs.upgradeFromV030 = { status: "missing" };
+    this.expectedLifecycleBlocker = "missing-receipt:upgradeFromV030";
+  } else if (fault === "missing-rollback") {
+    refs.rollbackToV030 = { status: "missing" };
+    this.expectedLifecycleBlocker = "missing-receipt:rollbackToV030";
+  } else if (fault === "foreign-candidate") {
+    const receiptPath = path.join(this.release.candidateDirectory, refs.upgradeFromV030.path);
+    const receipt = JSON.parse(await readFile(receiptPath, "utf8"));
+    receipt.candidateDigest = "f".repeat(64);
+    const bytes = Buffer.from(`${JSON.stringify(receipt, null, 2)}\n`);
+    await writeFile(receiptPath, bytes);
+    refs.upgradeFromV030.digest = sha256(bytes);
+    this.expectedLifecycleBlocker = "invalid-lifecycle-receipt:upgradeFromV030";
+  } else {
+    assert.fail(`unknown lifecycle evidence fault: ${fault}`);
+  }
+  await writeFile(this.release.evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
+  this.releaseResult = await evaluateCandidate(this.release, repositoryRoot());
+});
+
+Then("MRI eligibility is false with {string}", function (code) {
+  const codeToBlocker = {
+    LIFECYCLE_RECEIPT_MISSING: this.expectedLifecycleBlocker,
+    CANDIDATE_IDENTITY_MISMATCH: "invalid-lifecycle-receipt:upgradeFromV030",
+  };
+  const expected = codeToBlocker[code];
+  assert.equal(typeof expected, "string", `unknown lifecycle assertion code: ${code}`);
+  assert.equal(this.releaseResult.mri.eligible, false, "MRI must fail for incomplete or foreign lifecycle evidence");
+  assert.equal(this.releaseResult.mri.blocking.includes(expected), true, this.releaseResult.mri.blocking.join(", "));
+});
+
 When("the candidate message artifact contains only meta", async function () {
   await replaceMessageWithMeta(this.release);
   this.releaseResult = await evaluateCandidate(this.release, repositoryRoot());
@@ -132,21 +255,27 @@ Then("the candidate is refused for nonsemantic Cucumber evidence", function () {
 });
 
 Given("the captured real Cucumber message fixture", async function () {
-  this.cucumberFixture = await readVerifiedCucumberFixture(repositoryRoot());
+  this.cucumberFixture = this.verifiedCucumberFixture;
+  this.mriScenarioMultiplicities = requiredScenarioMultiplicity(
+    await readFile(path.join(repositoryRoot(), ".specs", "mcp-release-integrity", "mcp-release-integrity.feature"), "utf8"),
+  );
 });
 
 When("the Cucumber evidence stream is {string}", function (fault) {
   const mutation = mutateCucumberEvidence(this.cucumberFixture, fault);
   this.cucumberEvidence = mutation.bytes;
   this.cucumberEvidenceStartId = mutation.startId;
+  this.cucumberEvidenceCorruptLine = mutation.corruptLine;
 });
 
 Then(
   "the semantic Cucumber evidence parser rejects it as {string} with {string}",
   async function (code, expectedMessage) {
-    const message = expectedMessage.replace("{startId}", this.cucumberEvidenceStartId ?? "{startId}");
+    const message = expectedMessage
+      .replace("{startId}", this.cucumberEvidenceStartId ?? "{startId}")
+      .replace("{line}", String(this.cucumberEvidenceCorruptLine ?? "{line}"));
     assert.throws(
-      () => cucumberMessages(this.cucumberEvidence, REQUIRED_CUCUMBER_SCENARIOS),
+      () => cucumberMessages(this.cucumberEvidence, this.mriScenarioMultiplicities),
       (error) => {
         assert.equal(error instanceof CucumberEvidenceError, true, "semantic evidence errors must have the CucumberEvidenceError class");
         assert.equal(error.code, code, "semantic evidence error code must identify the rejected contract");

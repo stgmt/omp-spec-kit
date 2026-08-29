@@ -4,6 +4,8 @@
 - **Implementation status:** `SPEC_ONLY` for growth beyond the v0.3 first slice
 - **Decision scope:** what the agent calls, what v0.3 proved, and who owns each upstream MCP name
 - **Upstream census:** `dev-pomogator` `tools/spec-mcp-server/tools.ts` `name:` fields (research, not a code import)
+- **Source registry SHA-256:** `200cd8cf44bd9b1059ec8942cbf74104e1dab7f7e66a3f8fc44a682821f3c3e8` (`tools/spec-mcp-server/tools.ts` at the audited repair baseline)
+- **Ratchet:** `npm run check:spec-port` requires 46 unique source/decision names, numbering 1..46, non-empty owners/stages, and all eight historical v0.3 first-slice names.
 
 ## Invariants
 
@@ -32,7 +34,7 @@ These eight MCP names are the current v0.3 proof (`spec-kernel:AC-9.1`, `mcp-rel
 
 Stage values: `v0.3-first-slice` (already mapped onto a SCHEMA-11 name), `later-kernel-fr16`, `later-kernel-fr17`, `later-evidence`, `later-authoring-v1`, `later-authoring-v2`.
 
-`later-authoring-v1` = already in `spec-authoring-workflow` schema v1 (proposal/apply/status/section edit). `later-authoring-v2` = named generator-door mutations **not** in schema v1 (`create_spec`, `archive_spec`, backlog helpers, some CRUD). They remain product destination, not DROP.
+`later-authoring-v1` = seventeen MCP facades with exact proposal-first mappings. `later-authoring-v2` = seven named mutations not representable in v1 (`set_spec_status`, create/archive/doc CRUD/backlog helpers). Both remain product destination, never DROP.
 
 | # | Upstream name | Owner | Stage | Agent-visible MCP later? | Kernel vs adapter |
 |---:|---|---|---|---|---|
@@ -71,7 +73,7 @@ Stage values: `v0.3-first-slice` (already mapped onto a SCHEMA-11 name), `later-
 | 33 | `add_acceptance_criterion` | `spec-authoring-workflow` | later-authoring-v1 | yes, after authoring gate | mutation |
 | 34 | `add_phase` | `spec-authoring-workflow` | later-authoring-v1 | yes, after authoring gate | mutation |
 | 35 | `set_entity_status` | `spec-authoring-workflow` | later-authoring-v1 | yes, after authoring gate | mutation |
-| 36 | `set_spec_status` | `spec-authoring-workflow` | later-authoring-v1 | yes, after authoring gate | mutation |
+| 36 | `set_spec_status` | `spec-authoring-workflow` | later-authoring-v2 | yes, later schema | mutation |
 | 37 | `set_requirement_metadata` | `spec-authoring-workflow` | later-authoring-v1 | yes, after authoring gate | mutation helper |
 | 38 | `propose_requirement_contract` | `spec-authoring-workflow` | later-authoring-v1 | yes, after authoring gate | mutation (dry-run) |
 | 39 | `propose_spec_repairs` | `spec-authoring-workflow` | later-authoring-v1 | yes, after authoring gate | mutation (dry-run) |

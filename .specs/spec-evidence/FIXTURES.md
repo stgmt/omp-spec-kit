@@ -10,21 +10,21 @@ Fixture admission follows the repository real-producer policy (`spec-kernel:FR-1
 | Valid NDJSON (Reqnroll) | Reqnroll runner emitting Cucumber Messages NDJSON | Multi-language positive ingestion + join | Real; full manifest |
 | Valid NDJSON (behave) | behave runner emitting Cucumber Messages NDJSON | Third producer for multi-language coverage | Real; full manifest |
 | pytest-bdd cucumber-json | pytest-bdd runner emitting cucumber-json | Legacy format positive ingestion | Real; full manifest |
-| Overlay artifact | Hand-crafted scenario-result overlay | Canonical vs overlay separation (FR-5) | Real-derived with documented origin |
-| Malformed artifact | Corrupted NDJSON bytes | NOT_INGESTED/MALFORMED_ARTIFACT path | Synthetic (labeled) |
-| Absent artifact | No file supplied | NOT_INGESTED/ARTIFACT_ABSENT path | Synthetic (labeled) |
-| Empty results container | Valid NDJSON with zero scenario results | SKIPPED/MISSING_SCENARIO_RESULTS path | Synthetic (labeled) |
-| Stale evidence | Real NDJSON with timestamps predating kernel sources | Freshness STALE verdict; fails readiness | Real-derived with timestamp manipulation documented |
-| Ambiguous join | NDJSON with results matching multiple canonical scenarios | AMBIGUOUS_JOIN outcome | Real-derived |
-| Unmatched results | NDJSON with results matching no canonical scenario | UNMATCHED count in census | Real-derived |
-| Waived task corpus | Kernel graph with waived tasks + matching green evidence | Waiver honesty: remains open-waived | Real-derived from spec corpus |
-| Scale fixtures | Generated large NDJSON for budget/latency measurements | NFR evidence | Synthetic (labeled) |
+| Overlay artifact | Real scenario-result overlay emitted by an identified adapter/producer | Canonical vs overlay separation (FR-5) | Real capture; trimming documented |
+| Malformed artifact | One corrupted copy of a captured NDJSON frame | NOT_INGESTED/MALFORMED_ARTIFACT | Minimal synthetic negative; provenance points to source capture |
+| Absent artifact | No bytes plus explicit ABSENT input record | ABSENT/ARTIFACT_ABSENT | Minimal synthetic negative |
+| Empty results container | Captured valid container trimmed to zero result records without breaking format | NOT_INGESTED/MISSING_SCENARIO_RESULTS | Real-derived; trimming documented |
+| Stale evidence | Real passing artifact plus canonical binding sidecar whose sidecar record is changed one dimension at a time and re-hashed | STALE reasons; fails readiness | Real-derived one-fault variants |
+| Ambiguous join | Real result copied into a fixture with two planted same-priority canonical candidates | AMBIGUOUS_JOIN | Real-derived minimal negative |
+| Unmatched results | Real result paired with a corpus that contains no target scenario | UNMATCHED producer count | Real-derived |
+| Waived task corpus | Captured target spec corpus plus its real passing evidence | Waiver honesty: remains open-waived | Real target-owned capture |
+| Scale fixtures | Generated large NDJSON after semantic fixtures pass | NFR count/byte/latency evidence | Synthetic scale-only |
 
 ## Manifest fields
 
 Each fixture record carries: fixture ID, category, capture command or method, producer and version/commit, source path or URL, capture date, SHA-256, byte count, license disposition, permitted trimming note, and ground truth.
 
-Ground truth for evaluation fixtures lists expected ingestion state, join outcomes (per result), freshness verdicts, task status derivations, and census counts so every conservation equation can be reconciled. Admission reconciliation compares observed evaluation output element-for-element against ground truth.
+Ground truth lists exact kind/version admission, recomputed artifact and sidecar hashes with exact artifactId/artifactSha256 binding, discriminated ingestion record, per-row JOINED/UNMATCHED/AMBIGUOUS outcome, four binding dimensions/applicability, freshness, exact derived status, collection memberships and all conservation counts/equations.
 
 ## Provenance boundary
 

@@ -149,6 +149,20 @@ Heading selector must contain either one `canonicalId` or both exact `text` and 
 
 `rewriteInbound` must be `true` when the generated slug changes. The service expands inbound rewrites; callers may not provide a partial link list.
 
+### insert_at_eof
+
+```json
+{"kind":"insert_at_eof","opId":"op-6","doc":"TASKS.md","expectedHash":"<sha256>","content":"<UTF-8 append>"}
+```
+
+### replace_in_section
+
+```json
+{"kind":"replace_in_section","opId":"op-7","doc":"FR.md","expectedHash":"<sha256>","heading":{"canonicalId":"sample:FR-2"},"expectedSectionHash":"<sha256>","oldString":"<literal>","newString":"<literal>"}
+```
+
+`oldString` must occur exactly once inside the selected section; zero or multiple occurrences fail before proposal creation.
+
 ## Closed request union
 
 ### GetAuthoringStatusRequest
@@ -173,7 +187,7 @@ All limit values are positive integers and may only reduce server maxima.
 {"operation":"review_proposal","context":"AuthoringContext","proposalId":"...","proposalHash":"<sha256>","fullPreviewHash":"<sha256>","completePreviewReviewed":true}
 ```
 
-The authenticated caller explicitly attests that it reviewed the complete untruncated proposal identified by `proposalId`, `proposalHash`, and `fullPreviewHash`. The request transitions only `VALIDATED→REVIEWED`; it writes no repository or transaction material. It accepts either a normal patch proposal or a `rebaseline_recovery_proposal` whose kind and bound transaction/hash identities are part of `proposalHash`. A truncated/bound-exceeded, expired, cancelled, rejected, stale, hash-mismatched, or already applying proposal refuses. There is no review override for truncation; the caller must create a fresh complete proposal.
+The authenticated caller explicitly attests that it reviewed the complete untruncated proposal identified by `proposalId`, `proposalHash`, and `fullPreviewHash`. This service request is reachable from each v1 apply facade only through a discriminated `phase: "review"` call; that call returns `ReviewResult` and cannot carry commit fields. The request transitions only `VALIDATED→REVIEWED`; it writes no repository or transaction material. It accepts either a normal patch proposal or a `rebaseline_recovery_proposal` whose kind and bound transaction/hash identities are part of `proposalHash`. A truncated/bound-exceeded, expired, cancelled, rejected, stale, hash-mismatched, or already applying proposal refuses. There is no review override for truncation; the caller must create a fresh complete proposal.
 
 ### ApplyTransactionRequest
 
@@ -223,7 +237,71 @@ This is the only request that may propose replacement of a `RECOVERY_REQUIRED` t
 
 `apply_rebaseline_recovery` accepts neither document bytes nor an unreviewed/synthesized proposal. It resolves a separately `REVIEWED`, unexpired `rebaseline_recovery_proposal`, reacquires the exclusive lease, and rechecks authorization, proposal/full-preview identity, blocked-current snapshot/documents, journal or missing-marker hash, no-survivor assessment, candidate snapshot/documents, root containment, symlink/reparse absence, link closure, every validator, audit-chain head, and transaction ownership. Only an exact match may transition the proposal `REVIEWED→APPLYING→COMMITTED` while atomically installing the proposed candidate generation through transaction states `RECOVERY_REQUIRED→REBASELINING→REBASELINED`. A pre-apply drift marks the proposal `STALE`; a failure after `APPLYING` marks it `ROLLED_BACK` while the transaction returns to `RECOVERY_REQUIRED`. Every mismatch, leak/link, validation, audit, or concurrency failure exposes no candidate bytes, preserves all target/journal/recovery/candidate/history bytes, and appends only a redacted refusal event.
 
-No `create_spec`, delete, archive, repair, backlog, phase/progress, arbitrary path, arbitrary command, raw-edit apply, same-call preview-and-commit, cross-spec request, direct recovery-byte upload, or history-erasure request exists in version 1. Those names are later schema versions of this product, not dropped from the generator-port census. The fixed root-contained rebaseline candidate locator is not an arbitrary filesystem surface.
+Version 1 has no direct `create_spec`, delete, archive, backlog, spec-status, arbitrary path/command, raw-edit apply, same-call preview-and-commit, cross-spec request, recovery-byte upload, or history-erasure request. Phase and deterministic-repair MCP facades exist only as compilers to `propose_patch`, `review_proposal`, or `apply_transaction`; they do not widen the closed service request union. `set_spec_status`, `create_spec`, `archive_spec`, `delete_spec_doc`, `rename_spec_doc`, `add_backlog_task`, and `register_incident_backlog` are consistently unregistered v2 names.
+
+## MCP facade mapping (schema v1)
+
+```ts
+interface AuthoringMcpCapabilityManifestV1 {
+  schemaVersion: "authoring-mcp-capabilities@1";
+  profile: "authoring-mcp@1";
+  registeredV1Names: [
+    "propose_spec_change", "apply_spec_change", "propose_patch", "apply_proposed_patch",
+    "apply_spec_transaction", "append_to_section", "insert_after_heading", "insert_at_eof",
+    "replace_in_section", "amend_requirement", "add_acceptance_criterion", "add_phase",
+    "set_entity_status", "set_requirement_metadata", "propose_requirement_contract",
+    "propose_spec_repairs", "apply_spec_repairs"
+  ];
+  unsupportedLaterNames: [
+    "set_spec_status", "create_spec", "archive_spec", "delete_spec_doc",
+    "rename_spec_doc", "add_backlog_task", "register_incident_backlog"
+  ];
+}
+```
+
+The seven `unsupportedLaterNames` are absent from tools/list and tools/call dispatch in v1. Calling an unregistered name receives the host's standard unknown-tool response; v1 does not fabricate a service-level `UNSUPPORTED_LATER` result for a tool that does not exist. The manifest proves these names are deferred rather than silently dropped.
+
+The `propose_patch` facade has a closed `mode` discriminator:
+
+```text
+{ mode:"status", ...GetAuthoringStatusRequest fields } -> GetAuthoringStatusRequest
+{ mode:"patch", ...ProposePatchRequest fields } -> ProposePatchRequest
+{ mode:"rebaseline-recovery", ...ProposeRebaselineRecoveryRequest fields } -> ProposeRebaselineRecoveryRequest
+```
+
+Every apply facade accepts `phase:"review"` or `phase:"commit"` as already defined. The general `apply_spec_transaction` facade additionally owns the closed control/recovery phases required by the service:
+
+```text
+{ phase:"cancel", ...CancelProposalRequest fields } -> CancelProposalRequest
+{ phase:"recover-retained", ...RecoverTransactionRequest fields } -> RecoverTransactionRequest
+{ phase:"commit-rebaseline", ...ApplyRebaselineRecoveryRequest fields } -> ApplyRebaselineRecoveryRequest
+```
+
+`phase:"review"` reviews either a normal or rebaseline proposal and writes no repository/transaction bytes. `phase:"commit"` accepts only a reviewed normal proposal; `phase:"commit-rebaseline"` accepts only a reviewed rebaseline proposal. Fields from every other mode/phase are forbidden. One call performs exactly one transition and can never review plus commit, propose plus apply, cancel plus apply, or recover through two branches.
+
+Every v1 MCP tool compiles to the exact service request/edit operations below. Proposal compilation is pure and returns normalized operations; an apply facade performs exactly one review or commit phase per call.
+
+| MCP name | Exact v1 mapping |
+|---|---|
+| `propose_spec_change` | `propose_patch` with one normalized EditOperation |
+| `apply_spec_change` | `phase:review` → `review_proposal`; later `phase:commit` → `apply_transaction` for that REVIEWED single-change proposal |
+| `propose_patch` | `mode:status` → `get_authoring_status`; `mode:patch` → `propose_patch`; `mode:rebaseline-recovery` → `propose_rebaseline_recovery` |
+| `apply_proposed_patch` | `phase:review` → `review_proposal`; later `phase:commit` → `apply_transaction` for that REVIEWED patch proposal |
+| `apply_spec_transaction` | `phase:review` → `review_proposal`; `phase:commit` → `apply_transaction`; `phase:cancel` → `cancel_proposal`; `phase:recover-retained` → `recover_transaction`; `phase:commit-rebaseline` → `apply_rebaseline_recovery`; phases are mutually exclusive calls |
+| `append_to_section` | `propose_patch` + `append_to_section` |
+| `insert_after_heading` | `propose_patch` + `insert_after_heading` |
+| `insert_at_eof` | `propose_patch` + `insert_at_eof` |
+| `replace_in_section` | `propose_patch` + `replace_in_section` |
+| `amend_requirement` | deterministic compiler to `append_to_section` and/or `replace_in_section` on one FR section |
+| `add_acceptance_criterion` | one atomic `propose_patch`: `insert_at_eof` in ACCEPTANCE_CRITERIA.md plus `replace_in_section` in the owning FR section to maintain the reciprocal AC link; full trace validation runs before review |
+| `add_phase` | deterministic compiler to `insert_at_eof` in TASKS.md |
+| `set_entity_status` | `propose_task_status`; apply still requires review + `apply_transaction` |
+| `set_requirement_metadata` | metadata validator/renderer followed by `propose_patch` + `replace_in_section` |
+| `propose_requirement_contract` | read-only contract analysis followed by `propose_patch` only when a complete valid card can be rendered |
+| `propose_spec_repairs` | bounded deterministic repair compiler to `propose_patch`; semantic repairs refuse |
+| `apply_spec_repairs` | `phase:review` → `review_proposal`; later `phase:commit` → `apply_transaction` for that REVIEWED repair proposal |
+
+These mappings make every closed service request reachable without adding an 18th/25th tool name. Each compiler requires exact current document/section hashes, returns no target bytes outside the proposal, and fails closed on unknown/ambiguous headings, incomplete trace, invalid metadata, semantic choice, or bound overflow.
 
 ## Result union
 
@@ -380,7 +458,7 @@ Forbidden audit fields: document `content`, unified `diff`, recovery authorizati
 
 - While `DEFERRED`, implementation and isolated evidence production are permitted, but registration, exposed authoring actions, user-spec mutation, and release claims are forbidden.
 - `DEFERRED → ELIGIBLE`: all fifteen mandatory envelopes are current and accepted: FR-1..FR-12, current `plugin-distribution:FR-13`, one `spec-kernel:FR-14` v0.2/kernel-v0.2 result, and one v0.3/kernel-v0.3 result. The kernel results are separately identified and non-revoked, share product revision/artifact lineage, and satisfy `v03.v02ParentArtifactSha256 == v02.artifactSha256`; the linked predecessor/current hashes may differ. Current-stage evidence is bound to the exact built release-candidate artifact/snapshot/policy/host, and MP-1–MP-4 are resolved.
-- `ELIGIBLE → IMPLEMENTED`: the existing extension registers only the gated shared service for that same eligible artifact; no second authority exists.
+- `ELIGIBLE → IMPLEMENTED`: the existing MCP server registers exactly the seventeen gated v1 authoring facades over the shared service for that same eligible artifact; the existing OMP extension remains read-only and no second authority exists.
 - `IMPLEMENTED → PROVEN`: installed lifecycle, concurrency, rollback/recovery/rebaseline, security, and mutation gates are green for the exact artifact.
 - `ELIGIBLE|IMPLEMENTED|PROVEN → DEFERRED`: any mandatory envelope becomes absent, stale, revoked, ambiguous, mismatched, red, unqualified, duplicated, wrong-target-stage, or cross-lineage; a v0.3 result never substitutes for v0.2. Actions unregister while implementation artifacts and honest evidence may remain.
 - No other transition is legal.

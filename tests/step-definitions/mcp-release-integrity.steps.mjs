@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { After, Before, Given, Then, When } from "@cucumber/cucumber";
@@ -58,7 +58,12 @@ function toolArguments(tool) {
 
 async function startInstalledServer(state, env = {}) {
   if (state.server !== null) await state.server.close();
-  state.server = spawnMcpServer({ command: state.launcher, cwd: state.projectA, env });
+  state.server = spawnMcpServer({
+    command: state.launcher,
+    cwd: state.projectA,
+    env,
+    root: env.OMP_SPEC_KIT_ROOT,
+  });
   state.initialize = await state.server.request("initialize", INITIALIZE_PARAMS);
   assert.equal(state.initialize.result.serverInfo.name, "omp-spec-kit");
 }
@@ -87,13 +92,17 @@ Given("an isolated v0.3.2 package and manifest-verified corpus exist", async fun
   await copyPluginPackage(repositoryRoot, packageRoot);
   await mkdir(path.join(packageRoot, ".specs", "package-decoy"), { recursive: true });
   await writeFile(path.join(packageRoot, ".specs", "package-decoy", "README.md"), "# Package Decoy\n");
+  const packageAlias = path.join(tempRoot, "package-decoy-alias");
+  await symlink(packageRoot, packageAlias, "dir");
   this.mri = {
     tempRoot,
     projectA,
     projectB,
     packageRoot,
+    packageAlias,
     launcher: path.join(packageRoot, "bin", "omp-spec-kit-mcp"),
     directService: createSpecService(projectA),
+    directServiceB: createSpecService(projectB),
     specsBefore: await snapshotTree(path.join(projectA, ".specs")),
     server: null,
   };
@@ -122,7 +131,7 @@ Then("the MCP overview contains only project-a specifications", function () {
   assert.equal(this.mri.overview.result.structuredContent.data.counts.acceptedDocuments, this.mri.specsBefore.entries.filter((entry) => entry.type === "file").length);
 });
 
-Then("a relative or unresolved root override cannot select package-decoy", async function () {
+Then("relative unresolved or package-root overrides cannot select package-decoy", async function () {
   await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: "package-decoy" });
   const relative = await this.mri.server.request("tools/call", {
     name: "spec_overview",
@@ -135,6 +144,56 @@ Then("a relative or unresolved root override cannot select package-decoy", async
     arguments: toolArguments("spec_overview"),
   });
   assert.deepStrictEqual(unresolved.result.structuredContent, this.mri.overviewOracle);
+  await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: this.mri.packageRoot });
+  const packageOverride = await this.mri.server.request("tools/call", {
+    name: "spec_overview",
+    arguments: toolArguments("spec_overview"),
+  });
+  assert.deepStrictEqual(packageOverride.result.structuredContent, this.mri.overviewOracle);
+  await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: this.mri.packageAlias });
+  const packageAliasOverride = await this.mri.server.request("tools/call", {
+    name: "spec_overview",
+    arguments: toolArguments("spec_overview"),
+  });
+  assert.deepStrictEqual(packageAliasOverride.result.structuredContent, this.mri.overviewOracle);
+});
+
+When("an explicit validated absolute override selects project-b", async function () {
+  await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: this.mri.projectB });
+  this.mri.projectBInventory = await this.mri.server.request("tools/call", {
+    name: "spec_inventory",
+    arguments: {
+      schemaVersion: "spec-kernel@1",
+      requestId: "mri-project-b-inventory",
+      specSlugs: ["project-b"],
+      includeDocuments: true,
+      limit: 50,
+      cursor: null,
+    },
+  });
+  this.mri.projectBInventoryOracle = await this.mri.directServiceB.runQuery(
+    "inventory",
+    { specSlugs: ["project-b"], includeDocuments: true, limit: 50, cursor: null },
+    { requestId: "mri-project-b-inventory", schemaVersion: "spec-kernel@1" },
+  );
+});
+
+Then("the MCP inventory contains only project-b specifications", function () {
+  assert.equal(this.mri.projectBInventory.result.isError, false);
+  assert.deepStrictEqual(this.mri.projectBInventory.result.structuredContent, this.mri.projectBInventoryOracle);
+  assert.deepStrictEqual(
+    this.mri.projectBInventory.result.structuredContent.data.specs.map((item) => item.specSlug),
+    ["project-b"],
+  );
+});
+
+Then("launcher startup from package cwd is refused before serving", async function () {
+  const server = spawnMcpServer({ command: this.mri.launcher, cwd: this.mri.packageRoot });
+  await assert.rejects(
+    server.request("initialize", INITIALIZE_PARAMS, 1000),
+    /PACKAGE_ROOT_REFUSED/u,
+  );
+  await server.close();
 });
 
 Given("an installed MCP server is running", async function () {
@@ -155,6 +214,30 @@ Then("the first response is -32600 for id 7", function () {
     jsonrpc: "2.0",
     id: 7,
     error: { code: -32600, message: "Invalid Request" },
+  });
+});
+
+When("the client sends an unknown method with id 8 and an unknown tool with id 9", async function () {
+  this.mri.unknownMethodResponse = await this.mri.server.sendFrame(
+    { jsonrpc: "2.0", id: 8, method: "unknown/method", params: {} },
+    1000,
+  );
+  this.mri.unknownToolResponse = await this.mri.server.sendFrame(
+    { jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "missing-tool", arguments: {} } },
+    1000,
+  );
+});
+
+Then("the responses are -32601 for id 8 and -32602 for id 9", function () {
+  assert.deepStrictEqual(this.mri.unknownMethodResponse, {
+    jsonrpc: "2.0",
+    id: 8,
+    error: { code: -32601, message: "Method not found: unknown/method" },
+  });
+  assert.deepStrictEqual(this.mri.unknownToolResponse, {
+    jsonrpc: "2.0",
+    id: 9,
+    error: { code: -32602, message: "Unknown tool: missing-tool" },
   });
 });
 

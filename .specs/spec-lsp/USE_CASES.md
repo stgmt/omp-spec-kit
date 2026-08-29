@@ -2,14 +2,14 @@
 
 ## UC-1: Automatic post-write conformance diagnostics on a spec document
 
-**Actor:** Specification author or OMP coding agent.
+**Actor:** Specification author using the editor, or MCP adapter consuming diagnostics internally.
 
 **Precondition:** The LSP server is registered through the plugin's `lspServers` manifest and started (lazily or eagerly). A `.specs/<slug>/FR.md` file is open in the OMP session.
 
 **Flow:**
 1. The actor edits and saves the file.
 2. OMP's `lsp.diagnosticsOnWrite` triggers `textDocument/didSave`.
-3. The server re-evaluates the touched spec incrementally against the kernel graph.
+3. The server performs the existing bounded full kernel snapshot rebuild; incremental behavior requires a separate kernel profile.
 4. Kernel conformance findings are mapped 1:1 to LSP diagnostics with code, file, line, and message.
 5. OMP displays the diagnostics in the editor surface.
 
@@ -102,14 +102,15 @@
 
 **Actor:** System boundary.
 
-**Precondition:** An LSP initialization request arrives with a workspace root outside `.specs/**` or containing symlinks.
+**Precondition:** An LSP initialization request supplies an explicit repository root expected to contain `.specs/`; the root or a candidate indexed descendant may be external or escape through symlink, junction, reparse point, or traversal.
 
 **Flow:**
-1. The server validates the root against `spec-kernel:FR-7` containment posture.
-2. External roots, symlinks, junctions, and reparse points are refused.
-3. An error diagnostic explains the refusal.
+1. The server canonicalizes the explicit repository root and validates that it contains `.specs/`.
+2. The server canonicalizes every indexed descendant before read.
+3. An external root or escaping symlink, junction, reparse point, or traversal is refused.
+4. `SpecLspAvailabilityStatusV1` reports the refusal outside the LSP diagnostic stream.
 
-**Postcondition:** No indexing occurs outside the permitted scope.
+**Postcondition:** A normal repository root containing `.specs/` is accepted; no indexing occurs outside its contained `.specs/**` descendants.
 
 ## UC-9: Honest absence when kernel graph is unavailable
 
@@ -120,9 +121,10 @@
 **Flow:**
 1. A navigation or diagnostic request arrives.
 2. The server detects the absent graph state.
-3. Diagnostics explain why the graph is unavailable rather than returning degraded fake resolution.
+3. The requested LSP result and published diagnostics remain empty.
+4. A separate `SpecLspAvailabilityStatusV1` notification reports the exact unavailable state/reason.
 
-**Postcondition:** No fabricated answers; the client receives an actionable explanation.
+**Postcondition:** No fabricated answer and no adapter-specific LSP diagnostic; the client receives an actionable status notification.
 
 ## UC-10: Verify adapter-to-service parity on shared fixtures
 
@@ -131,8 +133,9 @@
 **Precondition:** Shared fixture corpus with known kernel answers.
 
 **Flow:**
-1. The parity harness sends identical requests to both the LSP adapter and the kernel query service.
-2. Responses are compared byte-for-byte on the declared corpus fingerprint.
-3. Any divergence fails the CHK-FR8-01 check.
+1. The parity harness sends semantically identical requests to both the LSP adapter and the kernel query service.
+2. Both answers are normalized to `LspKernelProjectionV1`; only JSON-RPC ID, server name, request timing and URI syntax are removed.
+3. Canonical normalized bytes are compared on the declared corpus fingerprint.
+4. Any divergence fails the CHK-FR8-01 check.
 
 **Postcondition:** Parity evidence record is produced for the release gate.

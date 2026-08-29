@@ -19,7 +19,7 @@ import {
 	isCommit,
 	readStrictJson,
 } from "./release-candidate-utils.mjs";
-import { cucumberMessages } from "./create-release-evidence.mjs";
+import { cucumberMessages, requiredScenarioMultiplicity } from "./create-release-evidence.mjs";
 
 const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, index) => `mcp-release-integrity:FR-${index + 1}`));
 const PRIOR_TAG = "v0.3.0";
@@ -60,12 +60,12 @@ function parseArgs(argv) {
 	return output;
 }
 
-// Parses the FR ↔ scenario-id map from the MRI feature exactly like
-// verify-release.mjs scenarioRequirements(): only @release-evidence scenarios
-// with one @id and one @FR tag map to mcp-release-integrity:FR-N.
+// Parses the FR ↔ scenario-id map and exact Scenario Outline multiplicities
+// from the same source bytes consumed by release assembly.
 async function scenarioRequirements(repositoryRoot) {
 	const text = await readFile(path.join(repositoryRoot, ".specs", "mcp-release-integrity", "mcp-release-integrity.feature"), "utf8");
-	const map = new Map();
+	const multiplicities = requiredScenarioMultiplicity(text);
+	const requirements = new Map();
 	let tags = [];
 	for (const line of text.split(/\r?\n/u)) {
 		const trimmed = line.trim();
@@ -77,13 +77,18 @@ async function scenarioRequirements(repositoryRoot) {
 		if (tags.includes("@release-evidence")) {
 			const scenarioId = tags.find((tag) => tag.startsWith("@id:"))?.slice(4);
 			const local = tags.find((tag) => /^@FR-\d+$/u.test(tag))?.slice(1);
-			if (!scenarioId || !local || map.has(scenarioId)) throw new Error(`invalid MRI scenario tags near ${trimmed}`);
-			map.set(scenarioId, `mcp-release-integrity:${local}`);
+			if (!scenarioId || !local || requirements.has(scenarioId)) throw new Error(`invalid MRI scenario tags near ${trimmed}`);
+			requirements.set(scenarioId, `mcp-release-integrity:${local}`);
 		}
 		tags = [];
 	}
-	if (map.size === 0) throw new Error("no MRI release-evidence scenarios");
-	return map;
+	if (
+		requirements.size === 0 ||
+		JSON.stringify([...requirements.keys()].sort()) !== JSON.stringify([...multiplicities.keys()].sort())
+	) {
+		throw new Error("MRI requirement and release-evidence multiplicity sets differ");
+	}
+	return { requirements, multiplicities };
 }
 
 function requireKeys(value, keys, label) {
@@ -142,7 +147,7 @@ async function main() {
 	const messageBytes = await readFile(path.resolve(args["--cucumber-messages"]));
 	let scenarioIds;
 	try {
-		scenarioIds = cucumberMessages(messageBytes, [...required.keys()].sort());
+		scenarioIds = cucumberMessages(messageBytes, required.multiplicities);
 	} catch (error) {
 		fail(`cucumber messages are not release-grade evidence: ${error.message}`);
 	}
@@ -212,14 +217,14 @@ async function main() {
 
 	// 4d. fr/FR-{1..6}.json — each requirement bound to ITS OWN passing id.
 	const byRequirement = new Map();
-	for (const [scenarioId, requirement] of required.entries()) {
+	for (const [scenarioId, requirement] of required.requirements.entries()) {
 		if (!byRequirement.has(requirement)) byRequirement.set(requirement, scenarioId);
 	}
 	const frWrites = [];
 	for (const requirement of MRI_REQUIREMENTS) {
 		const scenarioId = byRequirement.get(requirement);
 		if (!scenarioId || !scenarioIds.includes(scenarioId)) {
-			fail(`${requirement} has no matching passing scenario among ${JSON.stringify(scenarioIds)} (mapped ids: ${[...required.keys()].join(", ")})`);
+			fail(`${requirement} has no matching passing scenario among ${JSON.stringify(scenarioIds)} (mapped ids: ${[...required.requirements.keys()].join(", ")})`);
 		}
 		const localRequirement = requirement.slice(requirement.lastIndexOf(":") + 1);
 		const frReceipt = {

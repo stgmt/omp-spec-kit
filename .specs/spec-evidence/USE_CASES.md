@@ -9,8 +9,8 @@
 **Flow:**
 1. The evaluator ingests the artifact, producing `INGESTED` state with parsed/matched/unmatched/malformed counts.
 2. Scenario results are joined to canonical scenarios by qualified scenario ID, tag, or name fallback.
-3. Freshness is computed: the result timestamp is compared against the scenario and step-definition source timestamps.
-4. The task's status is derived: fresh green evidence yields DONE/verified; stale green yields DONE-but-unverified; absent or red yields not-DONE.
+3. Freshness compares graph, scenario-content, applicable step-binding-set, and applicable implementation-artifact hashes.
+4. Fresh PASSED canonical evidence yields `done-verified`; stale/indeterminate green yields `done-unverified`; absent/red yields `not-done`.
 
 **Postcondition:** The evaluation output contains ingestion state, join outcomes, freshness verdicts, and task status truth with conservation equations satisfied.
 
@@ -20,12 +20,12 @@
 
 **Primary actor:** Release evaluator.
 
-**Precondition:** A once-passing result exists whose timestamp predates the scenario or step-definition sources it claims.
+**Precondition:** A once-passing result carries one hash binding that differs from the current kernel scenario binding.
 
 **Flow:**
-1. The evaluator compares result timestamp against source timestamps from the kernel graph.
-2. Staleness is recorded as pass-through metadata on the result; the result is never stripped.
-3. The stale result does not satisfy DONE/verified status; the task remains DONE-but-unverified or not-DONE.
+1. The evaluator compares the four hash dimensions and applicability bits; timestamps remain display-only.
+2. The original result stays observable with `STALE` and an exact `staleBecause` dimension.
+3. The stale result does not satisfy `done-verified`; task status is `done-unverified` or `not-done`.
 
 **Postcondition:** Stale evidence is visible in diagnostics and census but never satisfies readiness.
 
@@ -51,10 +51,11 @@
 **Primary actor:** Coverage reporter.
 
 **Flow:**
-1. The evaluator counts authored scenarios from the kernel graph.
-2. It counts joined, unmatched, and malformed results from artifact ingestion.
-3. Conservation equations verify: authored = joined + unmatched-author-side; ingested-results = joined + unmatched-producer-side + malformed.
-4. The census is emitted with all counts and equation satisfaction flags.
+1. The evaluator counts unique authored scenarios from the kernel graph.
+2. It counts unique joined scenarios separately from canonical/overlay producer rows.
+3. Authored conservation verifies `authoredScenarioCount = joinedScenarioCount + unmatchedAuthorScenarioCount`.
+4. Producer conservation verifies `ingestedProducerResultCount = joinedProducerResultCount + unmatchedProducerResultCount + ambiguousProducerResultCount`; collection lengths/membership and per-artifact parse counts reconcile independently.
+5. The census emits waivedTaskCount separately and reports every equation result.
 
 **Postcondition:** Every result is accounted for; no silent drops or fabrications.
 
@@ -64,14 +65,14 @@
 
 **Primary actor:** Artifact ingester.
 
-**Precondition:** An execution artifact is supplied (present, absent, or malformed).
+**Precondition:** An artifact input is PRESENT, ABSENT, or explicitly caller-skipped.
 
 **Flow:**
-1. The ingester attempts to parse the artifact bytes according to the declared kind and version.
-2. Success produces `INGESTED` with counts; absence produces `NOT_INGESTED` with reason `ARTIFACT_ABSENT`; parse failure produces `NOT_INGESTED` with reason `MALFORMED_ARTIFACT`; missing scenario results within a parseable artifact produces `SKIPPED` with reason `MISSING_SCENARIO_RESULTS`.
-3. Artifact-level state is distinct from individual scenario results.
+1. PRESENT bytes are re-hashed and their exact kind/version admitted against the closed registry before parsing.
+2. Success produces `INGESTED`; unsupported/malformed/missing-results produce the exact `NOT_INGESTED` reason; absent and caller-skipped inputs produce their distinct closed states.
+3. Caller input cannot assert parse-derived `MISSING_SCENARIO_RESULTS`, and artifact state remains distinct from scenario result status.
 
-**Postcondition:** Every artifact has exactly one ingestion state with a closed reason.
+**Postcondition:** Every artifact has one schema-valid discriminated record; no state/reason cross-product is possible.
 
 **Related:** [FR-3](FR.md#fr-3-artifact-level-ingestion-state), `@feature3`
 
@@ -82,9 +83,9 @@
 **Precondition:** This spec's evaluation output exists for a candidate release.
 
 **Flow:**
-1. The release evaluator consumes this spec's mandatory-check evidence records.
-2. Each record is validated for hash binding, non-emptiness, and PASS status.
-3. Missing, failed, or mismatched records cause the conjunction to fail closed.
+1. The release evaluator receives the complete check records plus caller-supplied evidence-document bytes.
+2. It re-hashes each document and validates exact check/requirement/candidate/graph bindings.
+3. Missing, extra, duplicate, failed, stale, mismatched, unverified or unbound records fail with closed blockers.
 
 **Postcondition:** This spec's contribution either passes as a complete conjunction member or blocks release with deterministic reasons.
 

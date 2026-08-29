@@ -17,24 +17,24 @@ Feature: Evidence and honesty evaluation layer
 
   @feature2 @AC-2.1 @id:SCEN-spec-evidence-supported-artifact-kinds
   Scenario: Closed versioned artifact kind set
-    Given artifacts of kind Cucumber Messages NDJSON pytest-bdd cucumber-json scenario-result overlay and an unrecognized kind are supplied
-    When the evaluator ingests each artifact
-    Then the three recognized kinds are accepted with their declared schema versions
-    And the unrecognized kind produces NOT_INGESTED with reason MALFORMED_ARTIFACT
+    Given exact supported pairs cucumber-messages-ndjson at 33.0.4 pytest-bdd-cucumber-json at 1 scenario-result-overlay at 1 and unknown identities
+    When admission and ingestion run
+    Then only the three exact pairs are accepted
+    And unsupported identity yields UNSUPPORTED_ARTIFACT_IDENTITY while malformed admitted bytes yield MALFORMED_ARTIFACT
 
   @feature3 @AC-3.1 @id:SCEN-spec-evidence-artifact-ingestion-state
   Scenario: Artifact ingestion state is closed and conserved
-    Given artifacts that are present-and-parseable present-but-malformed absent parseable-with-no-scenario-results and caller-skipped
+    Given PRESENT valid malformed unsupported and missing-results artifacts plus ABSENT and caller-SKIPPED inputs
     When the evaluator ingests each artifact
-    Then each receives exactly one state from INGESTED NOT_INGESTED with ARTIFACT_ABSENT or MALFORMED_ARTIFACT or SKIPPED with MISSING_SCENARIO_RESULTS or INGESTION_SKIPPED
-    And an INGESTED artifact reports parsed matched unmatched and malformed counts satisfying parsed equals matched plus unmatched plus malformed
+    Then each receives the exact discriminated state and reason from spec-evidence at 2
+    And INGESTED parsed count equals matched plus unmatched plus ambiguous plus malformed counts
 
   @feature4 @AC-4.1 @id:SCEN-spec-evidence-scenario-result-join
   Scenario: Every result is joined or counted unmatched
     Given valid producer results and canonical scenarios where some match by qualified ID some by tag some by name fallback some match multiple candidates and some match none
     When the join phase runs
-    Then each result is either joined by ID joined by tag joined by name fallback counted as AMBIGUOUS_JOIN or counted as UNMATCHED
-    And no valid result is silently dropped
+    Then each result has exactly one JOINED UNMATCHED or AMBIGUOUS_JOIN record with full bounded candidates
+    And producer result join collection and census memberships conserve without silent drops
 
   @feature5 @AC-5.1 @id:SCEN-spec-evidence-canonical-overlay-separation
   Scenario: Canonical and overlay are retained separately
@@ -45,19 +45,25 @@ Feature: Evidence and honesty evaluation layer
     And freshness verdicts apply independently to each
 
   @feature6 @AC-6.1 @id:SCEN-spec-evidence-freshness-staleness
-  Scenario: Stale results never satisfy readiness
-    Given a once-passing result older than the scenario sources it claims and a result with absent timestamps
-    When freshness comparison runs
-    Then the stale result is marked STALE with pass-through metadata retained and does not satisfy DONE verified status
-    And the absent-timestamp result is marked INDETERMINATE and also fails to satisfy readiness
+  Scenario Outline: Hash bindings determine freshness without clock authority
+    Given evidence and current inputs bind graph scenario step-binding and implementation dimensions with "<condition>"
+    When freshness comparison runs without clock authority
+    Then the result is "<verdict>" and readiness is "<readiness>"
+
+    Examples:
+      | condition                        | verdict       | readiness |
+      | all applicable hashes equal      | FRESH         | eligible  |
+      | one applicable hash differs      | STALE         | refused   |
+      | applicable hash is missing       | INDETERMINATE | refused   |
+      | both sides mark dimension not applicable | FRESH      | eligible  |
 
   @feature7 @AC-7.1 @id:SCEN-spec-evidence-fail-closed-status-truth
-  Scenario: DONE verified requires fresh green evidence for all required scenarios
-    Given tasks where one has fresh green evidence for every required scenario one has one green among open siblings and one has stale green evidence
+  Scenario: Done verified requires fresh passed canonical evidence for every scenario
+    Given one task has fresh PASSED canonical rows for every required scenario and evidence hashes
+    And other tasks have overlay-only stale skipped failed ambiguous or missing rows
     When status derivation runs
-    Then only the first task is DONE verified
-    And the second task is not DONE verified because rollups are all-not-any
-    And the third task is DONE-but-unverified as a named state distinct from DONE verified and not-DONE
+    Then only the first task is done-verified
+    And every other task has an explicit evidence blocker
 
   @feature8 @AC-8.1 @id:SCEN-spec-evidence-waiver-honesty
   Scenario: Waived tasks remain open and unsatisfied
@@ -68,20 +74,21 @@ Feature: Evidence and honesty evaluation layer
     And the waiver state is explicitly named and distinguishable from all other states
 
   @feature9 @AC-9.1 @id:SCEN-spec-evidence-coverage-census-conservation
-  Scenario: Census conservation equations hold
-    Given a kernel graph with authored scenarios and artifacts with joined unmatched and malformed results
+  Scenario: Authored and producer conservation equations hold independently
+    Given authored scenarios and canonical overlay unmatched ambiguous and malformed producer rows
     When the coverage census is computed
-    Then authored scenarios equals joined plus unmatched-author-side plus waived-excluded
-    And ingested valid results equals joined plus unmatched-producer-side
-    And parsed records equals matched plus unmatched plus malformed
-    And planting an equation violation produces a diagnostic and sets census validity to false
+    Then authored scenario conservation holds independently
+    And producer joined unmatched and ambiguous counts equal producerResults and joinRecords membership
+    And per-artifact and global parsed equations include malformed rows exactly
+    And waivedTaskCount does not alter scenario cardinality
+    And an equation violation invalidates the census with an exact diagnostic
 
   @feature10 @AC-10.1 @id:SCEN-spec-evidence-anti-false-green-invariants
-  Scenario: No verdict without evidence bytes
-    Given evaluation outputs where a DONE verified claim lacks an evidence hash reference a result is marked green without a parsed record and overlay-only evidence claims canonical readiness
-    When invariant checks run
-    Then each breach produces a diagnostic naming the specific invariant violated
-    And no false-green verdict survives the invariant checks
+  Scenario: No result status or trace exists without evidence bytes and bindings
+    Given task result and trace outputs with missing producer bytes hash bindings or parsed rows
+    When anti-false-green invariants run
+    Then every unsupported status freshness and trace claim is refused with its exact diagnostic
+    And overlay-only evidence never satisfies canonical readiness
 
   @feature11 @AC-11.1 @id:SCEN-spec-evidence-real-fixture-provenance
   Scenario: Fixtures are real hashed and reconciled
@@ -92,27 +99,26 @@ Feature: Evidence and honesty evaluation layer
     And ground truth includes expected ingestion join freshness and census outcomes
 
   @feature12 @AC-12.1 @id:SCEN-spec-evidence-budget-enforcement
-  Scenario: Budgets are measured and enforced
-    Given evaluation runs against the reference corpus with latency size count and cap measurements
-    When budget enforcement runs
-    Then all budgets conform to NFR specifications
-    And exceeded hard limits return LIMIT_EXCEEDED or refuse evaluation
-    And measurements report runtime OS CPU corpus fingerprint warm-up sample count percentiles artifact hash and raw observations
+  Scenario: Pure evaluator budgets are enforced and latency is measured externally
+    Given artifact count bytes parsed-record diagnostic census and response limits
+    When the pure evaluator processes an over-limit input
+    Then it returns LIMIT_EXCEEDED or an explicitly paged bounded result
+    And it never reads a clock
+    And the caller records latency observations separately
 
   @feature13 @AC-13.1 @id:SCEN-spec-evidence-release-contribution
-  Scenario: Release contribution fails closed
-    Given release eligibility evaluation for this spec contribution with mandatory checks mapped to FR-1 through FR-12
-    When one check record is missing failed stale or mismatched
-    Then the conjunction fails closed with deterministic blockers naming the deficient check
-    And structural specification text and unexecuted Gherkin do not satisfy evidence
-    And eligibility does not loosen the product FR-6 cumulative gate
+  Scenario: Evidence MCP release contribution requires all fourteen checks
+    Given a spec-evidence-mcp@1 manifest with one candidate graph fingerprint and caller-supplied evidence-document bytes
+    When one CHK-FR1-01 through CHK-FR14-01 record or evidence document is missing extra duplicate failed stale mismatched unverifiable or unbound
+    Then eligibility is false with a closed deterministic blocker
+    And every evidence document is re-hashed while prose and unexecuted Gherkin satisfy nothing
+    And the result contributes to but never replaces product FR-6
 
   @feature14 @AC-14.1 @id:SCEN-spec-evidence-mcp-projection-of-run-results
-  Scenario: MCP projects get_test_result and get_scenario_trace from evaluator output
-    Given the evidence evaluator produces output from a kernel graph and immutable artifact bytes
+  Scenario: MCP projects complete result and trace contracts from evaluator output
+    Given evaluator output contains canonical and overlay rows run ordinals trace pages freshness bindings and evidence hashes
     And the evaluator itself makes no MCP calls
-    When this evidence layer exists
-    Then MCP exposes read-only get_test_result and get_scenario_trace as projections of that output
-    And those tools are not a v0.2 or v0.3 kernel required check and are absent from the v0.3 first-slice read registry
-    And spec-kernel FR-6 remains forbidden from pass or fail claims
-    And spec-lsp hover does not invent run results provenance or freshness before this projection exists
+    When get_test_result and get_scenario_trace are invoked with qualified IDs layers and cursors
+    Then deterministic LATEST selection status run source trace failed step error freshness evidence and paging follow the exact schema
+    And missing evidence returns success with null while missing/ambiguous IDs and overflow return closed errors
+    And neither tool belongs to historical kernel-v0.3 or its eight-tool first slice

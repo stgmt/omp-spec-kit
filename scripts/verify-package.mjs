@@ -182,7 +182,7 @@ async function verifyMcpJson() {
   assertExactKeys(mcpJson, ["$schema", "mcpServers"], ".mcp.json", fail);
   if (
     mcpJson.$schema !==
-    "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json"
+    "https://raw.githubusercontent.com/can1357/oh-my-pi/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/config/mcp-schema.json"
   ) {
     fail(".mcp.json $schema must reference the pinned OMP mcp-schema.json");
   }

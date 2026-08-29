@@ -1,43 +1,40 @@
 # Fixture Contract
 
-Fixtures described here are planned inputs, not present execution evidence.
+The v0.3.2 producer suite is delivered. Fixture presence is not execution evidence; only current producer receipts and the independent attestation over their exact evidence subject support distribution eligibility.
 
 ## Provenance requirements
 
-Every fixture SHALL record producer/source, immutable version or commit, capture command/process, retained bytes, trimming rationale, expected ground truth, SHA-256, license disposition, and safety review. Real OMP output is captured from the pinned release; it is not hand-invented to fit a parser. Secret-scanner canaries are synthetic, clearly designated, never packaged, and cannot whitelist arbitrary matching files.
+Every committed or captured fixture records producer/source, immutable version/commit, capture command, retained-byte SHA-256/counts, trimming rationale, expected ground truth, license disposition and safety review. Synthetic variants are labeled and derive from a real admitted base. Real OMP/Cucumber output is never reconstructed from memory.
 
-## Fixture matrix
+## Delivered fixture and producer matrix
 
-| Fixture | Planned path | Ground truth |
+| Surface | Current path / producer | Ground truth |
 |---|---|---|
-| Valid minimal project | `tests/fixtures/distribution/valid-project/` | One safe `.specs/sample` directory; lexical result; no semantic-ready claim. |
-| No specs | `tests/fixtures/distribution/absent-project/` | `.specs` absent; `status=absent`, `SPECS_ABSENT`, zero writes. |
-| Non-directory specs | `tests/fixtures/distribution/not-directory-project/.specs` | Regular file; `status=invalid`, `SPECS_NOT_DIRECTORY`. |
-| Malformed spec | `tests/fixtures/distribution/malformed-project/` | Direct spec directory with malformed/incomplete canonical documents; bounded invalid/incomplete result. |
-| Excess corpus | `tests/fixtures/distribution/excess-project/` | More than 200 eligible entries and 100 diagnostics; deterministic truncation. |
-| Unsafe link | `tests/fixtures/distribution/link-escape-project/` | Link from `.specs` to outside fixture root; no traversal, `SYMLINK_ESCAPE_BLOCKED`. |
-| Unreadable entry | `tests/fixtures/distribution/unreadable-project/` | Platform-supported access denial; typed permission/unreadable diagnostic and session continuity. |
-| Preservation sentinel | `tests/fixtures/distribution/preservation-project/` | Recorded hashes for all non-OMP-managed project files before/after every lifecycle step. |
-| Prior release | CI-downloaded immutable public `v<previous>` asset | Required only beginning with the first subsequent release; actual lower release, not a locally relabeled candidate; upgrade/rollback authority. |
-| OMP lifecycle output | CI evidence workspace | Real add/discover/install/list/reload/fresh-session/invoke/uninstall/reinstall outputs for `0.1.0`; subsequent releases also capture upgrade/rollback; all redacted and bound to OMP pin. |
-| Secret canary | `tests/fixtures/distribution/secret-scan-canary.txt` | Designated fake token trips the scanner while remaining excluded from artifact. |
-| Duplicate topology variants | Generated in isolated copy | Second catalog/plugin/extension/nested package variants each fail the intended gate. |
+| Pinned Docker runtime | `tests/distribution/Dockerfile` | Digest-pinned Node/Bun plus OMP v17.3.7; no user credentials/state. |
+| Distribution behavior | `tests/features/plugin-distribution.feature`, `tests/step-definitions/plugin-distribution.steps.mjs` | Real package/topology/inventory/dependency/negative decisions. |
+| Lifecycle behavior | `tests/features/lifecycle-producers.feature`, `tests/step-definitions/lifecycle-producers.steps.mjs` | Install/reload/fresh session/uninstall/reinstall and real v0.3.0↔v0.3.2 upgrade/rollback observations. |
+| Candidate world | `tests/helpers/release-candidate-world.mjs` | Exact candidate/digest/evidence identities and one-fault mutations. |
+| Real Cucumber messages | `tests/fixtures/release-candidate/cucumber-messages.ndjson` plus provenance JSON | Real full Docker Cucumber stream; scenario/step counts and required passing scenario chains reconcile. |
+| Frozen real corpus | `tests/fixtures/kernel/real-corpus/` plus manifest | Byte/hash/count ground truth independent of mutable `.specs`. |
+| Pinned OMP discovery | `tests/fixtures/omp-discovery-runtime/`, `tests/helpers/omp-discovery-world.mjs` | Target-only manager connection and active-project query. |
+| Distribution evidence subject | `create-distribution-evidence.mjs` output in `distribution-evidence.yml` | Complete FR-1..FR-12 content-addressed matrix for one candidate/platform/applicability profile. |
+| Public safety | candidate `public-safety.json`/release evidence asset | Provenance/license/secret/state/path/package violations block without leaking sentinel values. |
+| Generated negative variants | disposable temp roots derived by step definitions | Missing/non-directory/excess/unreadable/link escape, duplicate topology, malformed requests, identity/trust/receipt faults each change one observable dimension. |
 
 ## Isolation contract
 
-The distribution fixture SHALL:
+The producer SHALL:
 
-- pin the exact OMP version plus image/commit digest;
-- create disposable project and OMP user data roots;
-- start without user plugins, credentials, profiles, caches, or host marketplace state;
-- deny or observe network/process/model/write behavior for inventory execution;
-- make repository-root `node_modules` and source checkout unavailable for dependency proof;
-- install the exact assembled artifact by digest;
-- capture separate session identifiers for pre-install/reload and every fresh-session observation;
-- hash non-OMP-managed project files before install and after invoke, uninstall, reinstall, and each applicable upgrade/rollback;
-- for `0.1.0`, require uninstall plus exact-artifact reinstall without a prior-release fixture; beginning with the first subsequent release, download and use a real immutable prior release for upgrade/rollback;
-- clean only disposable roots it created.
+- pin OMP/runtime/container identities;
+- use disposable project and OMP user roots without host plugins, credentials, caches or marketplace state;
+- observe zero inventory writes/network/process/model/credential access;
+- hide source checkout/root/external `node_modules` for installed dependency proof;
+- install the exact candidate by digest;
+- use separate pre-install/reload/fresh sessions;
+- hash non-OMP-managed project files before/after every lifecycle transition;
+- use real public predecessor bytes after the first release;
+- clean only roots it created.
 
 ## Evidence distinction
 
-The source `plugin-distribution.feature` specifies behavior. Future `tests/features/plugin-distribution.feature` plus real step definitions may execute it. Neither file, a skipped/pending scenario, nor a structural parser report is a passing receipt. Only `distribution-evidence-receipt@1` bound to real producer output can support a claim.
+Spec Gherkin and executable feature files state behavior; skipped/pending/undefined scenarios and parser reports are not passing evidence. Each distribution claim binds one regular canonical-contained `omp-spec-kit-distribution-producer-receipt@1` through `omp-spec-kit-distribution-evidence@1`. Self-authored producer fields remain diagnostic. Forward eligibility additionally requires a verifier-passing GitHub Artifact Attestation over the exact matrix subject under the fixed repository/workflow/tag trust tuple.

@@ -2,13 +2,13 @@
 
 LSP adapter for the OMP port of the spec-generator door. **The agent sees MCP only.** LSP is a bundled server the MCP adapter (and the editor) may consume. It is not an agent tool.
 
-The eight MCP tools in `src/mcp/server.js` are the v0.3 **first slice**. The destination read surface is [spec-kernel FR-16](../spec-kernel/FR.md#fr-16-generator-port-read-operations-beyond-the-eight). Mutations stay in `spec-authoring-workflow`.
+The eight MCP tools in `src/mcp/server.js` are the v0.3 **first slice**. Destination query reads belong to [spec-kernel FR-16](../spec-kernel/FR.md#fr-16-generator-port-read-operations-beyond-the-eight), document/preflight adapter I/O belongs to [spec-kernel FR-17](../spec-kernel/FR.md#fr-17-mcp-adapter-document-and-preflight-io-not-a-v02v03-release-member), scenario-result reads belong to `spec-evidence`, and mutations stay in `spec-authoring-workflow`.
 
 GitHub issue [#7](https://github.com/stgmt/omp-spec-kit/issues/7) is owned here, with the correction that navigation stays on MCP (implementation may use LSP/kernel). The agent never calls OMP `lsp` for spec work.
 
 ## Status
 
-SPEC_ONLY. ROADMAP sibling stage "one LSP adapter" after kernel v0.2. Does not replace v0.3 MCP. Does not unlock authoring.
+SPECIFIED. Product capability `LSP_ADAPTER` is contract-complete but not implemented or release-evidenced. It remains a ROADMAP sibling stage after the delivered kernel baseline, does not replace v0.3 MCP, and does not unlock authoring.
 
 ## Why a separate spec
 
@@ -17,8 +17,8 @@ MCP is the generator door. LSP is not a second agent API and not a way to delete
 
 ## Provenance and evidence
 
-- OMP-side LSP contracts are cited from pinned documentation. Every cited runtime contract must be re-proven live by TASK-1 probes before implementation.
-- GitHub issue #7 and `.dev-pomogator/issue7-current.md` are research input. Their 46-tool table **is** the port map (research, not a code import). Eight SCHEMA-11 tools are the v0.3 first slice. Destination growth is kernel FR-16 / FR-17 plus evidence plus authoring, per [`docs/decisions/spec-generator-port.md`](../../docs/decisions/spec-generator-port.md).
+- OMP-side LSP contracts are cited from immutable commit `8500092296621a6826b7136e840f8a59ea338958` (the v17.3.7 implementation pin). Every cited runtime contract must be re-proven live by TASK-1 probes before implementation.
+- GitHub issue [#7](https://github.com/stgmt/omp-spec-kit/issues/7) is research input. The canonical 46-name port census is [`docs/decisions/spec-generator-port.md`](../../docs/decisions/spec-generator-port.md), not an absent local issue copy. Eight SCHEMA-11 tools are the v0.3 first slice; destination growth is kernel FR-16/FR-17, evidence, and authoring.
 
 - `MIGRATION_MATRIX.md` DROP rows FR-7 and FR-27 (Marksman) stand.
 - `MIGRATION_MATRIX.md` DROP rows FR-5 and FR-6 (Claude hook families) stand; OMP `lsp.diagnosticsOnWrite` is the diagnostic path.

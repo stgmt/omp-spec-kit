@@ -3,14 +3,15 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { peelTagCommit } from "./create-release-candidate.mjs";
-import { cucumberMessages } from "./create-release-evidence.mjs";
+import { cucumberMessages, requiredScenarioMultiplicity } from "./create-release-evidence.mjs";
 import { PLUGIN_VERSION, repositoryRoot as defaultRepositoryRoot } from "./verify-marketplace.mjs";
 import { assertCandidateShape, canonicalJson, collectRegularFiles, isCommit, isSha256, packageTreeDigest, parseArgs, readStrictJson, resolveContainedRegularFile, sha256, toPublicFileRows } from "./release-candidate-utils.mjs";
 
 const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, i) => `mcp-release-integrity:FR-${i + 1}`));
 const DISTRIBUTION_REQUIREMENTS = Object.freeze(Array.from({ length: 12 }, (_, i) => `plugin-distribution:FR-${i + 1}`));
 const DISTRIBUTION_TRUST_VALUES = Object.freeze(["untrusted-self-attested", "github-artifact-attestation"]);
-const ATTESTATION_SIGNER_WORKFLOW_SUFFIX = ".github/workflows/distribution-evidence.yml";
+const ATTESTATION_REPOSITORY = "stgmt/omp-spec-kit";
+const ATTESTATION_SIGNER_WORKFLOW = `${ATTESTATION_REPOSITORY}/.github/workflows/distribution-evidence.yml`;
 const REQUIRED_CHECKS = Object.freeze(["publicSafety", "dockerBdd", "priorV030", "upgradeFromV030", "rollbackToV030"]);
 const DISTRIBUTION_CLAIM_MATRIX = Object.freeze({
   "plugin-distribution:FR-1": Object.freeze(["marketplace-shape"]),
@@ -66,7 +67,9 @@ function verifyMriFr(receipt, requirement, id, scenarioIds, requirementsByScenar
 }
 async function scenarioRequirements(repositoryRoot) {
   const text = await readFile(path.join(repositoryRoot, ".specs", "mcp-release-integrity", "mcp-release-integrity.feature"), "utf8");
-  const map = new Map(); let tags = [];
+  const multiplicities = requiredScenarioMultiplicity(text);
+  const requirements = new Map();
+  let tags = [];
   for (const line of text.split(/\r?\n/u)) {
     const trimmed = line.trim();
     if (trimmed.startsWith("@")) { tags = trimmed.split(/\s+/u).filter((tag) => tag.startsWith("@")); continue; }
@@ -74,13 +77,18 @@ async function scenarioRequirements(repositoryRoot) {
     if (tags.includes("@release-evidence")) {
       const scenarioId = tags.find((tag) => tag.startsWith("@id:"))?.slice(4);
       const local = tags.find((tag) => /^@FR-\d+$/u.test(tag))?.slice(1);
-      if (!scenarioId || !local || map.has(scenarioId)) throw new Error(`invalid MRI scenario tags near ${trimmed}`);
-      map.set(scenarioId, `mcp-release-integrity:${local}`);
+      if (!scenarioId || !local || requirements.has(scenarioId)) throw new Error(`invalid MRI scenario tags near ${trimmed}`);
+      requirements.set(scenarioId, `mcp-release-integrity:${local}`);
     }
     tags = [];
   }
-  if (map.size === 0) throw new Error("no MRI release-evidence scenarios");
-  return map;
+  if (
+    requirements.size === 0 ||
+    JSON.stringify([...requirements.keys()].sort()) !== JSON.stringify([...multiplicities.keys()].sort())
+  ) {
+    throw new Error("MRI requirement and release-evidence multiplicity sets differ");
+  }
+  return { requirements, multiplicities };
 }
 function validDiscovery(bytes, blocking) {
   const match = bytes.toString("utf8").match(/```json\s*\n([\s\S]*?)\n```/u);
@@ -97,15 +105,15 @@ async function evaluateMri(evidence, evidenceDirectory, id, repositoryRoot, reso
   if (!mri || !exact(mri, ["schema", "checks", "frReceipts", "discovery"]) || mri.schema !== "omp-spec-kit-mri-evidence@1") return { blocking: ["mri-evidence-shape-mismatch"], discoveryDigest: null };
   const discovery = await readReceipt(mri.discovery, "mri-discovery", evidenceDirectory, blocking, false);
   const discoveryDigest = discovery?.digest ?? null; if (discovery) validDiscovery(discovery.bytes, blocking);
-  let required = new Map(); try { required = await scenarioRequirements(repositoryRoot); } catch (error) { add(blocking, `invalid-mri-scenario-map:${error.message}`); }
+  let required = { requirements: new Map(), multiplicities: new Map() }; try { required = await scenarioRequirements(repositoryRoot); } catch (error) { add(blocking, `invalid-mri-scenario-map:${error.message}`); }
   const checks = asObject(mri.checks); let dockerBdd = null;
   if (!checks || !exact(checks, REQUIRED_CHECKS)) add(blocking, "mri-check-set-mismatch");
   else {
     const publicSafety = (await readReceipt(checks.publicSafety, "publicSafety", evidenceDirectory, blocking))?.value;
     if (!exact(publicSafety, ["candidateDigest", "digest", "findings", "packageTreeDigest", "schema", "status"]) || publicSafety.schema !== "omp-spec-kit-public-safety@1" || publicSafety.status !== "passed" || publicSafety.candidateDigest !== id.candidateDigest || publicSafety.packageTreeDigest !== id.packageTreeDigest) add(blocking, "invalid-public-safety-receipt");
     dockerBdd = (await readReceipt(checks.dockerBdd, "dockerBdd", evidenceDirectory, blocking))?.value;
-    const expectedScenarioIds = [...required.keys()].sort(); const messageArtifact = dockerBdd && isSha256(dockerBdd.messageDigest) ? await readMessage(dockerBdd, evidenceDirectory) : { bytes: null, error: "EVIDENCE_MESSAGE_RECEIPT_INVALID" }; let observed = [];
-    try { if (!messageArtifact.bytes) throw new Error(messageArtifact.error); observed = cucumberMessages(messageArtifact.bytes, expectedScenarioIds); } catch (error) { add(blocking, `invalid-cucumber-messages:${error.message}`); }
+    const expectedScenarioIds = [...required.requirements.keys()].sort(); const messageArtifact = dockerBdd && isSha256(dockerBdd.messageDigest) ? await readMessage(dockerBdd, evidenceDirectory) : { bytes: null, error: "EVIDENCE_MESSAGE_RECEIPT_INVALID" }; let observed = [];
+    try { if (!messageArtifact.bytes) throw new Error(messageArtifact.error); observed = cucumberMessages(messageArtifact.bytes, required.multiplicities); } catch (error) { add(blocking, `invalid-cucumber-messages:${error.message}`); }
     const declared = Array.isArray(dockerBdd?.scenarioIds) ? [...new Set(dockerBdd.scenarioIds)].sort() : [];
     if (!exact(dockerBdd, ["archiveSha256", "candidateDigest", "catalogDigest", "commit", "messageDigest", "messagePath", "packageTreeDigest", "scenarioIds", "schema", "status", "tag", "version"]) || dockerBdd.schema !== "omp-spec-kit-bdd-receipt@1" || dockerBdd.status !== "passed" || !matches(dockerBdd, id) || JSON.stringify(declared) !== JSON.stringify(expectedScenarioIds) || JSON.stringify(observed) !== JSON.stringify(expectedScenarioIds)) add(blocking, "invalid-docker-bdd-receipt");
     const prior = (await readReceipt(checks.priorV030, "priorV030", evidenceDirectory, blocking))?.value;
@@ -115,7 +123,7 @@ async function evaluateMri(evidence, evidenceDirectory, id, repositoryRoot, reso
   }
   const frs = asObject(mri.frReceipts);
   if (!frs || !exact(frs, MRI_REQUIREMENTS)) add(blocking, "mri-fr-receipt-set-mismatch");
-  else for (const requirement of MRI_REQUIREMENTS) verifyMriFr((await readReceipt(frs[requirement], requirement, evidenceDirectory, blocking))?.value, requirement, id, dockerBdd?.scenarioIds ?? [], required, blocking);
+  else for (const requirement of MRI_REQUIREMENTS) verifyMriFr((await readReceipt(frs[requirement], requirement, evidenceDirectory, blocking))?.value, requirement, id, dockerBdd?.scenarioIds ?? [], required.requirements, blocking);
   return { blocking, discoveryDigest };
 }
 function expectedClaims(requirement, expectedProfile) {
@@ -165,16 +173,12 @@ async function verifyDistributionRecord(record, requirement, claim, input, id, e
 }
 
 
-const ATTESTATION_REPO_OVERRIDE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9_.-]+$/u;
-
 function attestationTrustRootRepository() {
-  // The trust root is pinned: it comes from the GitHub Actions environment or
-  // from an explicitly set override variable. It is never derived from local
-  // git config, so a workstation remote cannot select the verification target.
-  const fromCi = process.env.GITHUB_REPOSITORY;
-  if (typeof fromCi === "string" && ATTESTATION_REPO_OVERRIDE_PATTERN.test(fromCi)) return fromCi;
-  const override = process.env.OMP_SPEC_KIT_ATTESTATION_REPO;
-  if (typeof override === "string" && ATTESTATION_REPO_OVERRIDE_PATTERN.test(override)) return override;
+  // Project-specific trust root: environment can confirm this exact repository,
+  // but no caller, receipt, local git remote, or arbitrary OWNER/REPO override
+  // may select a different verifier identity.
+  if (process.env.GITHUB_REPOSITORY === ATTESTATION_REPOSITORY) return ATTESTATION_REPOSITORY;
+  if (process.env.OMP_SPEC_KIT_ATTESTATION_REPO === ATTESTATION_REPOSITORY) return ATTESTATION_REPOSITORY;
   return null;
 }
 
@@ -226,7 +230,7 @@ async function verifyAttestedTrustRoot({ receiptRelativePath, evidenceDirectory,
     return ["attestation-subject-unresolvable"];
   }
 
-  const signerWorkflow = `${repository}/${ATTESTATION_SIGNER_WORKFLOW_SUFFIX}`;
+  const signerWorkflow = ATTESTATION_SIGNER_WORKFLOW;
   const { verified, reason } = await ghAttestationVerify({
     filePath: absoluteReceipt,
     repository,

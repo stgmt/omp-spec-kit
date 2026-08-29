@@ -33,12 +33,12 @@ This report supports the product/publication lifecycle only. It does not specify
 
 | H# | Status | Finding and implication |
 |---|---|---|
-| H1 | `[NEEDS_CONFIRMATION: S4 + S5; target payload absent]` | Official docs distinguish catalog installation, reload, and restart for extension activation. The current tree has no payload evidence, so the only honest current claim is specification-only/non-installable. A real installed invocation is still required before v0.1.0. |
+| H1 | `[HISTORICAL public-init finding; superseded by v0.3.2 status]` | At public init the target had no payload evidence. The current tree is public/installable v0.3.2 with bounded candidate, lifecycle, manager and attestation receipts in `docs/validation/release-status-v0.3.2.json`; this row remains provenance for the initial stage only. |
 | H2 | `[VERIFIED: S1 + docs/validation/source-freeze.md]` | Independent immutable Git-object reconstruction reconciles all 27 manifest rows, 24 byte-identical copies, three exclusions, and zero mismatches. |
 | H3 | `[VERIFIED: S1 + S9]` | The later merged source-owner attestation expressly covers the frozen subtree and exact snapshot commit under MIT. The historical license-evidence gap is resolved without changing byte provenance; future or changed imports still require their own sufficient evidence. |
 | H4 | `[NEEDS_CONFIRMATION: S4 + S5]` | OMP supports marketplace identity and relative child packages, and the example demonstrates one plugin. “Exactly one” is this product's deliberate architecture invariant, not a universal OMP rule. Delegate enforcement to `plugin-distribution:FR-1`. |
 | H5 | `[VERIFIED: docs/validation/publication-receipt.md + public GitHub API readback]` | The reviewed initial commit is publicly visible at `stgmt/omp-spec-kit`; local HEAD, `origin/main`, committed tree, and public recursive tree agree. |
-| H6 | `[NEEDS_CONFIRMATION: S2 + S8; target execution evidence absent]` | The migration decisions adopt/rewrite upstream honesty and bounded-read intent while rejecting source-harness status machinery. The target therefore adopts fail-closed evidence-derived status: prose and unexecuted BDD are intent; only current stage-specific execution/artifact evidence supports a delivered claim. Target execution proof does not yet exist. |
+| H6 | `[HISTORICAL public-init finding; current baseline verified separately]` | Public init had no execution proof. The rule remains: prose/Gherkin is not evidence. The current v0.3.2 baseline is supported only by the bounded external status record; post-v0.3 capabilities still have no accepted execution evidence. |
 
 ## Risk register
 
@@ -47,7 +47,7 @@ This report supports the product/publication lifecycle only. It does not specify
 | A future or changed import lacks sufficient redistribution evidence | Low / Critical | S1 and S9 resolve the current snapshot; the manifest retains a fail-closed future-import policy. | Reject the affected bytes until an authorized decision covers their exact identity, or remove/replace them; never use the repository root license alone to relabel unknown imports. |
 | Dirty-source contamination or unverifiable copies | Medium / Critical | S1 defines immutable Git-object extraction; S3 is the copied target. | Re-run independent byte/hash comparison from the pinned commit; reject worktree-derived or unmanifested bytes. |
 | Secret, credential, state, log, cache, or mutable evidence enters public history | Medium / Critical | The initial publication receipt records a zero-finding full-tree scan and exact reviewed tree. | Re-run the allowlist, complete secret scan, and public diff review for every later candidate; any finding blocks the next push/release. |
-| Readers infer installability from the repository name or roadmap | High / High | No catalog or payload evidence exists; S4 requires distinct install/activation lifecycle. | Keep the prominent “no installable plugin” statement and forbid install commands/release badges until distribution proof exists. |
+| Readers infer future capability delivery from the installable baseline | High / High | Catalog/payload/lifecycle evidence proves only public v0.3.2; seven post-v0.3 capability rows remain separately blocked. | Keep current installation guidance, but require each future capability to cite its own accepted aggregate and never inherit baseline delivery. |
 | One product fragments into multiple plugins/control planes | Medium / High | S4 supports explicit marketplace/plugin identity; S5 demonstrates a simple child layout. | Enforce product decision via `plugin-distribution:FR-1`; later capabilities stay inside the same plugin and shared service. |
 | Mutable OMP documentation drifts before release | Medium / High | S4 and S5 were read from `main`. | Pin the exact OMP release/commit during implementation and re-verify commands, schema, reload, and restart behavior. |
 | Roadmap laundering turns planned text into delivered status | High / High | No implementation evidence exists at public init. | Require dated evidence references and the most conservative state; structural passes and scenarios are never execution proof. |
@@ -55,15 +55,15 @@ This report supports the product/publication lifecycle only. It does not specify
 
 ## Product implications
 
-1. Public-init status is `SPEC_ONLY / LICENSE_RESOLVED / PUBLIC_INIT_VALIDATED / PUBLIC_SPECIFICATION_INIT`, not “released,” “available,” or “installable.”
-2. Reviewed initial commit `fe70b10caaed888daf7c48dfc8f1bad9caf45598` is public with matching local/remote/tree evidence; every runtime and release capability remains unimplemented and separately gated.
-3. Public eligibility requires two distinct safety results: clean immutable export and zero unresolved secret/prohibited-state findings.
-4. The one-plugin rule is a chosen product invariant. Its packaging/lifecycle acceptance belongs to `plugin-distribution`, not this specification.
-5. Stage completion uses the complete cumulative aggregate set for one exact product revision and lineage. v0.1.0 requires current-candidate `plugin-distribution:FR-13`; v0.2 adds current-candidate `spec-kernel:FR-14` `targetStage: "v0.2"`; v0.3 uses current-candidate distribution and `targetStage: "v0.3"` evidence plus a separately identified active v0.2 predecessor whose artifact SHA-256 is named exactly by the v0.3 result's `v02ParentArtifactSha256`; authoring adds current-candidate `spec-authoring-workflow:FR-13`. The predecessor and current artifact may differ, but the kernel results must share revision/lineage in strict target-stage order and remain non-stale/non-revoked. A current aggregate, smaller member subset, historical/different-lineage/unlinked predecessor, or current evidence bound to the predecessor cannot produce `DELIVERED`.
-6. Re-research is mandatory when the OMP revision changes, imported bytes change, the license decision changes, or a release-stage claim is proposed.
+1. Historical public init was `SPEC_ONLY / LICENSE_RESOLVED / PUBLIC_INIT_VALIDATED / PUBLIC_SPECIFICATION_INIT`; it is not the current status.
+2. The initial public commit remains provenance evidence. The current delivered baseline is public/installable v0.3.2 and is bound by `docs/validation/release-status-v0.3.2.json`; sibling post-v0.3 capabilities remain separately gated.
+3. Public eligibility requires immutable export and zero unresolved secret/prohibited-state findings bound to the candidate.
+4. The one-plugin rule is a chosen product invariant. Packaging/lifecycle/distribution-only eligibility belongs to `plugin-distribution`; product composition remains here.
+5. Every distribution evidence reference is versioned: historical `distribution-release-eligibility@1` remains authoritative for v0.1–v0.3.2 receipts, while new candidates use @2. Kernel/current/predecessor and capability results retain their typed stage/profile/hash/lineage rules; member subsets, unlinked history, stale/revoked or sibling aggregates cannot substitute.
+6. Re-research is mandatory when the OMP revision, imported bytes, license decision, trust-root workflow/repository, or release-stage claim changes.
 
-## Open questions requiring owner decisions
+## Resolved owner decisions
 
-- Resolved provenance decision: the source-owner attestation merged at commit `a21d27ba08919cb5340493adac8dbbf2f8fec72a` is the durable authority for the 24 copied snapshot files; exact copies and hashes are recorded locally.
-- Who signs the final public-safety review and is accountable for scanner exceptions?
-- Which exact OMP release/commit becomes the first distribution compatibility baseline?
+- Resolved provenance owner: source-owner attestation commit `a21d27ba08919cb5340493adac8dbbf2f8fec72a` covers the 24 copied snapshot files.
+- Resolved distribution trust owner: GitHub Artifact Attestations from `stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml` at the candidate tag, verified before publication; the publish workflow separately attests release assets.
+- Resolved compatibility baseline: OMP v17.3.7 commit `8500092296621a6826b7136e840f8a59ea338958`.

@@ -4,11 +4,11 @@
 
 **Priority:** Must
 
-As an owner of `.specs/`, I want agent writes to specification documents intercepted and either redirected through the authoring door or blocked with a reason, so that spec mutations follow the accepted workflow and no write bypasses the door.
+As an owner of `.specs/`, I want every host-visible tool classified and raw spec mutation blocked unless it is the exact accepted `omp-spec-kit` authoring MCP authority, so that new, indirect, or dynamically targeted tools cannot bypass proposal/review/CAS enforcement.
 
-**Why:** Without enforcement, any agent tool call can create, edit, or delete spec files directly, circumventing the authoring workflow's validation, traceability, and approval contracts.
+**Why:** A write/edit/bash shortlist and name-only redirect leave future tools, shell indirection, and authority spoofing uncontrolled.
 
-**Independent Test:** Attempt a direct `write` to `.specs/product/FR.md` while enforcement mode is active; observe block with redirect reason. Attempt the same write through the authoring door; observe allowance.
+**Independent Test:** Drive the full live tool census plus a new tool, dynamic shell target, raw spec write, non-spec write, and exact authoring facade; only read-only/non-spec/qualified-authority controls pass.
 
 **Acceptance Scenarios:** `@feature3`, `@feature7`
 
@@ -28,11 +28,11 @@ As an agent working in a repository with specs, I want kernel diagnostics and co
 
 **Priority:** Must
 
-As an OMP user, I want every hook-internal fault (kernel unavailable, unparseable artifact, missing door, handler exception) to produce an explicit visible message rather than silent pass-through or fake success, so that I always know the enforcement state.
+As an OMP user, I want every internal fault visible and safety-critical uncertainty conservative, so that informational failures never fake health and classification/containment failures never become raw-write bypasses.
 
-**Why:** Silent failures create false confidence; fake-green indicators are worse than no indicator at all (anti-fake-green lineage from `spec-kernel:FR-6`).
+**Why:** Uniform silent allow undermines enforcement; unhandled outer errors produce opaque host fail-closed behavior.
 
-**Independent Test:** Remove the kernel module and start a session; observe an explicit diagnostic message stating kernel absence. Inject a handler exception; observe a visible error message, not silence.
+**Independent Test:** Inject kernel/render faults and observe visible non-blocking diagnostics; inject registry/extractor/authority/resolver faults in enforcement mode and observe `TARGET_INDETERMINATE` BLOCK.
 
 **Acceptance Scenarios:** `@feature4`, `@feature8`
 
@@ -40,11 +40,11 @@ As an OMP user, I want every hook-internal fault (kernel unavailable, unparseabl
 
 **Priority:** Must
 
-As a release owner, I want the enforcement hooks shipped inside the bundled plugin artifact with no ambient dependencies, no dynamic downloads, and honest degradation when components are absent, so that the installed artifact behaves predictably in isolation.
+As a release owner, I want enforcement integrated into the existing bundled extension with exact registry/authority manifests, no ambient dependencies, and no private conformance producer, so that installed behavior matches the reviewed candidate.
 
-**Why:** A hook module inside a marketplace plugin is a security surface; it must satisfy the same dependency-absent, evidence-first discipline as the read-only stages (`spec-kernel:FR-10`, `plan-gate:FR-11`).
+**Why:** A standalone factory can be unreachable or form a second control plane; an ambient parser can silently diverge from the kernel.
 
-**Independent Test:** Build the candidate artifact, hide root/source dependencies, load the extension from the installed artifact, and verify informational-mode diagnostics execute; remove the kernel and verify honest degradation.
+**Independent Test:** Hide source/root modules, run the installed extension, verify registry/authority/dist hashes, and audit exports/dependencies for any second factory, private spec validator, network, subprocess, or credential access.
 
 **Acceptance Scenarios:** `@feature6`, `@feature11`
 
@@ -64,10 +64,10 @@ As an operator concerned with data minimization, I want enforcement hooks to kee
 
 **Priority:** Must
 
-As a product integrator, I want enforcement mode inert until the authoring stage's cumulative gate is accepted, so that pre-authoring releases carry only informational behavior and cannot accidentally block legitimate work.
+As a product integrator, I want enforcement active only after the same-candidate `SPEC_ENFORCEMENT` capability is accepted, so that local settings cannot claim or activate a partial security feature.
 
-**Why:** Enforcement before the authoring door exists would block all spec writes with no valid redirect target, breaking workflows that predate the door.
+**Why:** The valid redirect exists only after accepted `AUTHORING_MCP`, and enforcement itself needs its independent aggregate; live registry drift must block unknown tools rather than disable the gate.
 
-**Independent Test:** Load the plugin before `spec-authoring-workflow:FR-13` acceptance; attempt a spec write; observe no block. Accept the cumulative gate; repeat; observe enforcement active.
+**Independent Test:** Exercise absent, mismatched, and accepted product/authority evidence plus one new live tool; only the accepted candidate activates, and the new tool remains `UNKNOWN`/blocked.
 
 **Acceptance Scenarios:** `@feature9`
