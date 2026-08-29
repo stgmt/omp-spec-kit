@@ -1,0 +1,100 @@
+{
+  "schema": "omp-spec-kit-mcp-runtime-census@1",
+  "capturedAt": "2026-08-29",
+  "target": {
+    "repositoryRoot": "E:/repos/omp-spec-kit",
+    "pluginVersion": "0.3.2",
+    "server": "plugins/omp-spec-kit/dist/mcp/server.js"
+  },
+  "registryCount": 8,
+  "rows": [
+    {
+      "tool": "spec_inventory",
+      "input": { "specSlugs": [], "includeDocuments": true, "limit": 100, "cursor": null },
+      "ok": true,
+      "dataPresent": true,
+      "size": 10,
+      "total": 10,
+      "truncated": false,
+      "errorCode": null,
+      "note": "inventory ok, returned=10/10"
+    },
+    {
+      "tool": "spec_get_node",
+      "input": { "canonicalId": "product:FR-1", "projection": "full", "includeIncidentCounts": true },
+      "ok": true,
+      "dataPresent": true,
+      "size": 1,
+      "total": 1,
+      "truncated": false,
+      "errorCode": null,
+      "note": "getNode ok"
+    },
+    {
+      "tool": "spec_find_nodes",
+      "input": { "specSlugs": ["product"], "kinds": [], "canonicalIds": [], "text": null, "projection": "summary", "limit": 100, "cursor": null },
+      "ok": true,
+      "dataPresent": true,
+      "size": 89,
+      "total": 89,
+      "truncated": false,
+      "errorCode": null,
+      "note": "findNodes ok, returned=89/89"
+    },
+    {
+      "tool": "spec_get_edges",
+      "input": { "canonicalId": "product:FR-1", "direction": "both", "types": [], "aggregate": false, "limit": 100, "cursor": null },
+      "ok": true,
+      "dataPresent": true,
+      "size": 6,
+      "total": 6,
+      "truncated": false,
+      "errorCode": null,
+      "note": "getEdges ok, returned=6/6"
+    },
+    {
+      "tool": "spec_trace",
+      "input": { "canonicalId": "product:FR-1", "direction": "both", "types": [], "maxDepth": 3, "maxVisited": 1000, "projection": "summary", "limit": 100, "cursor": null },
+      "ok": true,
+      "dataPresent": true,
+      "size": 46,
+      "total": 46,
+      "truncated": false,
+      "errorCode": null,
+      "note": "trace ok, returned=46/46"
+    },
+    {
+      "tool": "spec_diagnostics",
+      "input": { "severities": [], "codes": [], "specSlugs": [], "paths": [], "limit": 100, "cursor": null },
+      "ok": true,
+      "dataPresent": true,
+      "size": 100,
+      "total": 194,
+      "truncated": true,
+      "errorCode": null,
+      "note": "diagnostics ok, returned=100/194"
+    },
+    {
+      "tool": "spec_overview",
+      "input": { "specSlugs": [] },
+      "ok": true,
+      "dataPresent": true,
+      "size": 1,
+      "total": 1,
+      "truncated": false,
+      "errorCode": null,
+      "note": "overview ok"
+    },
+    {
+      "tool": "spec_markdown_inventory",
+      "input": { "specSlugs": ["product"], "mode": "all", "focusPath": null, "focusAnchor": null, "direction": "both", "outcomes": [], "includeHeadings": true, "includeLinks": true, "limit": 100, "cursor": null },
+      "ok": true,
+      "dataPresent": true,
+      "size": 100,
+      "total": 223,
+      "truncated": true,
+      "errorCode": null,
+      "note": "markdownInventory ok, returned=100/223"
+    }
+  ]
+}
