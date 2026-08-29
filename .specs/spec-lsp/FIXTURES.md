@@ -20,7 +20,7 @@ A real fixture manifest SHALL record all of:
 - `licenseDisposition`
 - `trimmed` and exact `trimProcedure`
 - `groundTruthReviewer`
-- `groundTruth` counts for step verdicts (defined/undefined/ambiguous), diagnostic mappings, definition/reference results, and completion items
+- `groundTruth` for diagnostic mappings, definition/reference results, completion items and coordinate/severity conversion; step-verdict counts are required only when `fixtureProfile: "spec-lsp-step@1"` and are forbidden for current `spec-lsp-read@1` parity fixtures
 - `allowedClaims`
 - `forbiddenClaims`
 
@@ -44,42 +44,52 @@ A stored fixture is immutable. A byte change requires a new fixture ID or explic
 
 **Forbidden claims:** Step-verdict parity, executable-fixture admission by license alone, or passing behavior.
 
-## FIXTURE-2: Shared kernel corpus for adapter-to-service parity
+## FIXTURE-2: Real omp-spec-kit corpus for adapter-to-service parity
 
-**Type:** real producer corpus, capture candidate; not yet admitted
+**Type:** real authored project corpus and future real producer-output capture; not yet admitted
 
-**Source:** The `spec-kernel` reference benchmark corpus (30 specs, 450 canonical documents) defined in `spec-kernel:NFR-PERF-1`.
+**Source input:** The candidate commit's actual repository `.specs/**` corpus (currently ten specs and 150 canonical documents), captured by exact git commit/tree identity. This is not the synthetic 30-spec performance benchmark.
 
-**Intended use:** CHK-FR8-01 parity harness input. Both the LSP adapter and kernel query service are queried on this corpus; responses must match byte-for-byte on the declared fingerprint.
+**Producer:** The delivered kernel query service and the candidate LSP adapter, both invoked against the identical admitted corpus fingerprint.
 
-**Ground truth required:** Expected definition locations, reference sets, and diagnostic findings per document, reviewed against kernel query service output.
+**Intended use:** CHK-FR8-01 parity. Definition, references and diagnostics outputs from both real producer paths are normalized to `LspKernelProjectionV1`; only the schema-listed transport metadata is removed before canonical-byte comparison.
 
-**Status:** Pending capture and provenance recording.
+**Ground truth required:** Exact source commit/tree, corpus and kernel fingerprints, capture commands, raw kernel/LSP outputs, normalized outputs, expected definition locations/reference sets/diagnostics, independent reviewer, and every general manifest field in Policy.
 
-## FIXTURE-3: Cucumber-runner step-binding fixtures for oracle parity
+**Status:** Pending implementation and real dual-producer capture. The current corpus text alone is input, not parity evidence.
 
-**Type:** real producer `.feature` + step-definition files, capture candidate; not yet admitted
+## FIXTURE-3: Future kernel step-profile projection
 
-**Source:** To be captured from a real cucumber-runner project with known step bindings.
+**Type:** real cucumber-js `.feature` plus allowlisted step-definition files; future-profile capture
 
-**Intended use:** CHK-FR12-01 oracle parity harness input. Both the custom server and `@cucumber/language-server` oracle produce step verdicts on these fixtures; verdicts must match.
+**Source:** captured only after `kernel-step-bindings@1` has a real producer fixture and accepted ground truth.
 
-**Ground truth required:** Per-step-line expected verdict (defined/undefined/ambiguous) with matching step-definition expression or absence reason.
+**Intended use:** dedicated `spec-lsp-step@1` projection parity: kernel STEP diagnostics and BINDS_STEP navigation equal LSP responses. It is not CHK-FR12-01 and uses no external cucumber language-server oracle.
 
-**Status:** Pending producer identification, capture, and provenance recording.
+**Status:** Future profile; excluded from `spec-lsp-read@1`.
 
-## FIXTURE-4: pytest-bdd step-binding fixtures
+## FIXTURE-4: Additional runner step sources
 
-**Type:** real producer `.feature` + Python step-definition files, capture candidate; not yet admitted
+**Type:** future kernel step-source extension input
 
-**Source:** To be captured from a real pytest-bdd project with known step bindings.
+**Source:** a real pytest-bdd producer may be admitted only after the kernel defines a Python step-source kind and matcher contract.
 
-**Intended use:** Verify that step diagnostics for pytest-bdd files are served without silence and with equivalent quality to cucumber-runner fixtures.
+**Intended use:** future kernel/profile work, never current LSP behavior or “equivalent quality” prose.
 
-**Ground truth required:** Per-step-line expected verdict with matching Python step decorator or absence reason.
-
-**Status:** Pending producer identification, capture, and provenance recording.
+**Status:** Deferred; excluded from both current read profile and initial cucumber-js step profile.
 
 ## Synthetic fixture policy
 
 Synthetic fixtures MAY be used only for scale testing or minimal negative variants (e.g., a `.feature` file with exactly one undefined step). They SHALL be labeled synthetic and SHALL NOT serve as primary parity or oracle evidence.
+
+## FIXTURE-5: Synthetic scale benchmark
+
+**Type:** synthetic benchmark only
+
+**Source:** The deterministic 30-spec / 450-canonical-document generator defined by `spec-kernel:NFR-PERF-1`, with generator version, seed and output fingerprint recorded at capture.
+
+**Intended use:** CHK-FR9-02 cold-build, warm-query and cancellation measurements only.
+
+**Forbidden claims:** semantic parity, real-corpus compatibility, producer correctness, or oracle evidence.
+
+**Status:** Pending generation and benchmark capture.

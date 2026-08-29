@@ -58,7 +58,7 @@ Implication: the one factory may register `spec_inventory` and labels only. It m
 
 No separate OMP-owned JSON Schema for child `package.json#omp` was established from the cited documentation. The catalog example references an Anthropic marketplace schema, while OMP documents extra runtime behavior. The exact structured tool-result `details` stability across OMP versions is also not declared as a compatibility guarantee in these sources.
 
-Implication: implementation must pin an exact OMP release/commit, validate the documented fields against that implementation, and keep `details` additive while treating textual content as human-facing. Release is blocked until this compatibility experiment is captured.
+Implication: every profile pins an exact OMP release/commit and validates loader/result behavior at runtime. That experiment is delivered for v0.3.2; a future OMP pin requires re-capture rather than inheriting compatibility.
 
 ### R-7 — Relative marketplace sources are copied recursively
 
@@ -66,11 +66,11 @@ Implication: implementation must pin an exact OMP release/commit, validate the d
 
 For a relative catalog source, the pinned marketplace cache resolves the child directory and copies it recursively with `fs.cp`. The copy path does not consult `package.json#files` to assemble or filter the installed tree.
 
-Implication: `plugins/omp-spec-kit/` is the complete installable payload. Runtime sources live at `src/v0.1/`, build and validation programs live in repository-root `scripts/`, and the build generates only `dist/{extension.js,inventory.js,manifest.json}` into the child. A closed-tree validator rejects source, build, test, evidence, nested manifest, dependency, unexpected, non-regular, and symlink payload entries.
+Implication: `plugins/omp-spec-kit/` is the complete installable payload. v0.1 generated only `dist/{extension.js,inventory.js,manifest.json}`; delivered v0.3.2 additionally copies the closed root `src/{kernel,adapters,mcp}` trees into matching dist subtrees and ships one `.mcp.json` plus two launchers. Source/build/test/evidence remain outside the child; the closed-tree/manifest validator rejects every unexpected, linked, non-regular or dependency entry.
 
 ## Exhaustive researched surfaces
 
-The complete product profiles, including every documented catalog plugin-entry field and every public inventory request/result field, are enumerated in [plugin-distribution_SCHEMA.md](plugin-distribution_SCHEMA.md). No omitted field is implicitly accepted by this specification.
+Historical v0.1.0 and delivered v0.3.2 product profiles, documented catalog fields, child/MCP overlay and public inventory fields are enumerated in [plugin-distribution_SCHEMA.md](plugin-distribution_SCHEMA.md). Later capability overlays require their own accepted versioned schema; no omitted field is implicitly accepted.
 
 ## Sources and provenance
 

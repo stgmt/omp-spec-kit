@@ -8,15 +8,15 @@ The spec-kernel produces an immutable graph of definitions, references, headings
 
 ```mermaid
 flowchart LR
-  KG[Kernel Graph] --> Eval[Pure Evaluator]
-  AB[Artifact Bytes] --> Adapter[I/O Adapter]
-  Adapter -->|immutable bytes| Eval
-  L[Limits] --> Eval
-  Eval --> Out[Evaluation Output]
-  Out --> Census[Coverage Census]
-  Out --> Status[Task Status Truth]
-  Out --> Diag[Diagnostics]
-  Rel[Release Stage] -->|consumes| Out
+  KG[Kernel graph + definition hashes] --> Eval[Pure evidence evaluator]
+  AB[Immutable producer bytes] --> Adapter[I/O containment adapter]
+  Adapter --> Eval
+  L[Count/byte limits] --> Eval
+  Eval --> Results[Producer result + join + freshness records]
+  Results --> Census[Split authored/producer census]
+  Results --> Status[Hash-bound task status]
+  Results --> MCP[MCP result/trace projection]
+  Eval --> Release[Evidence capability aggregate]
 ```
 
 ### Planned layout under repository-root `src/evidence/`
@@ -29,12 +29,13 @@ Sources follow the house build convention: plain JavaScript with JSDoc types at 
 - `ingest/pytest-bdd.js` — pytest-bdd cucumber-json parser.
 - `ingest/overlay.js` — scenario-result overlay parser.
 - `join.js` — scenario result join by ID, tag, name fallback.
-- `freshness.js` — freshness/staleness comparison against kernel source timestamps.
-- `status.js` — fail-closed task status derivation with all-not-any rollups.
+- `freshness.js` — compare graph/scenario/step-binding/implementation hashes; timestamps display only.
+- `status.js` — all-not-any task evidence derivation with explicit evidence hashes.
 - `waiver.js` — waiver honesty enforcement.
-- `census.js` — coverage census with conservation equations.
-- `invariants.js` — anti-false-green invariant checks.
-- `release.js` — release-eligibility contribution evaluator.
+- `census.js` — separate authored-scenario and producer-row conservation.
+- `invariants.js` — anti-false-green binding checks.
+- `release.js` — exact FR-1..FR-14 manifest/record evaluator.
+- `mcp-projection.js` — read-only `get_test_result` / `get_scenario_trace` envelopes.
 - `adapter.js` — I/O adapter for artifact retrieval and containment.
 
 The pure evaluator receives kernel graph, artifact bytes, and limits only; it never imports OMP, reads a clock directly, or writes. Adapters handle all I/O and are the only code allowed to touch filesystem or external APIs.
@@ -43,32 +44,33 @@ The pure evaluator receives kernel graph, artifact bytes, and limits only; it ne
 
 Phases run in fixed order; each phase is a pure function of its inputs.
 
-1. **Ingestion:** Parse each artifact according to its declared kind/version. Produce ingestion state (INGESTED/NOT_INGESTED/SKIPPED) with closed reasons and counts.
-2. **Join:** Match producer results to canonical scenarios by qualified ID → tag → name fallback. Record join outcome (JOINED/UNMATCHED/AMBIGUOUS_JOIN) for every result.
-3. **Freshness:** Compare result timestamps against kernel source timestamps. Record freshness verdict (FRESH/STALE/INDETERMINATE) per joined result.
-4. **Waiver:** Identify waived tasks from kernel graph. Mark them open-waived regardless of evidence.
-5. **Status:** Derive task status using all-not-any semantics over fresh green evidence. Produce DONE/verified, DONE-but-unverified, open-waived, or not-DONE.
-6. **Census:** Compute coverage census with conservation equations. Flag violations.
-7. **Invariants:** Check anti-false-green invariants. Produce diagnostics for breaches.
-8. **Output:** Assemble evaluation output with all phases' results, diagnostics, and deterministic fingerprint.
+1. **Admission:** Re-hash PRESENT bytes, admit exact kind/version pairs, and map PRESENT/ABSENT/caller-SKIPPED to the discriminated records; unsupported identity and malformed/missing-results remain distinct.
+2. **Ingestion:** Parse supported producer bytes and preserve every producer row, status, layer, run and trace identity.
+3. **Join:** Match by qualified ID → tag → name fallback; every producer row has one outcome.
+4. **Freshness:** Compare evidence graph/scenario/step-binding/implementation hashes with current bindings.
+5. **Waiver/status:** Derive explicit task states from fresh PASSED canonical rows and evidence hashes.
+6. **Census:** Reconcile unique authored scenarios separately from producer result rows.
+7. **Invariants:** Reject unsupported status/freshness/trace claims and enforce byte/count bounds.
+8. **Output:** Assemble deterministic evaluator, MCP projection and release-record inputs without I/O.
 
 ## Join algorithm
 
 1. For each valid producer result, attempt join by qualified scenario ID (exact match against kernel graph scenario nodes).
 2. If no ID match, attempt join by tag (producer result tags matched against canonical scenario identifiers).
 3. If no tag match, attempt join by name (normalized scenario name comparison when executed feature paths differ from canonical mirrors).
-4. If multiple candidates match at the same priority level, record AMBIGUOUS_JOIN rather than arbitrary selection.
-5. If no candidate matches at any level, record UNMATCHED.
-6. Conservation: every valid result has exactly one join outcome.
+4. Multiple same-priority candidates record AMBIGUOUS_JOIN with candidates.
+5. No candidate records UNMATCHED.
+6. Result/join collection lengths, unique IDs and joined/unmatched/ambiguous membership conserve exactly.
 
 ## Freshness algorithm
 
-1. For each joined result, extract the result timestamp from the artifact.
-2. Extract the scenario definition timestamp and step-definition timestamps from the kernel graph's heading/span metadata.
-3. If the result timestamp is older than any source timestamp it claims, mark STALE.
-4. If either timestamp is absent, mark INDETERMINATE.
-5. Otherwise mark FRESH.
-6. STALE and INDETERMINATE results do not satisfy DONE/verified.
+1. Resolve current graph, scenario content, step-binding applicability/hash and implementation applicability/hash from the kernel snapshot.
+2. Read the same four dimensions from each producer result binding.
+3. Applicability mismatch or unequal applicable hash yields STALE with exact dimensions.
+4. Applicable-but-missing binding yields INDETERMINATE.
+5. Equal hashes for every applicable dimension (and matching not-applicable bits) yield FRESH.
+6. Timestamps remain display-only.
+7. Only FRESH PASSED CANONICAL rows satisfy `done-verified`.
 
 ## Decisions
 

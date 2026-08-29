@@ -12,12 +12,13 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 **Depends On:** none
 
-**Requirements:** [FR-1](FR.md#fr-1-pure-evaluation-boundary), [FR-3](FR.md#fr-3-artifact-level-ingestion-state), [FR-9](FR.md#fr-9-coverage-census-with-conservation-equations)
+**Requirements:** FR-1 through FR-14 schema surfaces, with detailed implementation ownership split across TASK-2 through TASK-11.
+**Checks:** CHK-FR1-01, CHK-FR2-01, CHK-FR3-01, CHK-FR4-01, CHK-FR5-01, CHK-FR6-01, CHK-FR7-01, CHK-FR9-01, CHK-FR12-01, CHK-FR13-01, CHK-FR14-01
 
 **Done When:**
-- `spec-evidence@1` types (evaluation input, evaluation output, ingestion state, join outcome, freshness verdict, task status, census, diagnostic, release evidence manifest) are represented in `spec-evidence_SCHEMA.md` without widening.
-- Every enum (ingestion state, artifact kind, join outcome, freshness verdict, task status, diagnostic code) is closed and documented.
-- Conservation equations are expressed as schema-level constraints or documented invariants.
+- `spec-evidence@2` input/output, artifact union, result/trace, hash freshness, split census, diagnostic, MCP and release-record types are closed.
+- Every enum and union has constructible positive/negative variants.
+- Conservation and candidate/graph binding rules are explicit schema invariants.
 
 ## TASK-2: Implement artifact ingestion adapters
 
@@ -29,15 +30,17 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 **Depends On:** TASK-1
 
-**Requirements:** [FR-2](FR.md#fr-2-supported-execution-artifacts), [FR-3](FR.md#fr-3-artifact-level-ingestion-state), [FR-11](FR.md#fr-11-real-fixtures-per-spec-kernel-discipline)
+**Requirements:** [FR-2](FR.md#fr-2-supported-execution-artifacts), [FR-3](FR.md#fr-3-artifact-level-ingestion-state), [FR-5](FR.md#fr-5-canonical-vs-overlay-separation), [FR-11](FR.md#fr-11-real-fixtures-per-spec-kernel-discipline)
+**Checks:** CHK-FR2-01, CHK-FR3-01, CHK-FR5-01, CHK-FR11-01
 
 **Done When:**
 - Cucumber Messages NDJSON parser produces INGESTED with parsed/matched/unmatched/malformed counts on valid input.
 - pytest-bdd cucumber-json parser produces INGESTED with the same count shape.
 - Scenario-result overlay parser produces INGESTED with overlay metadata.
-- Unrecognized kinds produce NOT_INGESTED/MALFORMED_ARTIFACT.
-- Absent artifacts produce NOT_INGESTED/ARTIFACT_ABSENT.
-- Parseable containers with no scenario results produce SKIPPED/MISSING_SCENARIO_RESULTS.
+- Unrecognized kinds produce `NOT_INGESTED/UNSUPPORTED_ARTIFACT_IDENTITY`.
+- Absent artifacts produce `ABSENT/ARTIFACT_ABSENT`.
+- Parseable containers with no scenario results produce `NOT_INGESTED/MISSING_SCENARIO_RESULTS`.
+- Every producer binding comes from a hash-bound canonical sidecar whose artifact ID/hash match the admitted bytes; caller-supplied out-of-band binding rows are impossible.
 - All parsers are pure functions of artifact bytes and limits.
 
 ## TASK-3: Implement scenario result join
@@ -51,6 +54,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-1, TASK-2
 
 **Requirements:** [FR-4](FR.md#fr-4-scenario-result-join)
+**Checks:** CHK-FR4-01
 
 **Done When:**
 - Join by qualified scenario ID succeeds on exact match.
@@ -72,13 +76,14 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-1, TASK-3
 
 **Requirements:** [FR-6](FR.md#fr-6-freshness-and-staleness), [FR-10](FR.md#fr-10-anti-false-green-invariants)
+**Checks:** CHK-FR6-01, CHK-FR10-01
 
 **Done When:**
-- Freshness comparison uses result timestamps and kernel source timestamps.
-- Stale results are marked STALE with pass-through metadata retained.
-- Absent timestamps produce INDETERMINATE.
-- STALE and INDETERMINATE results do not satisfy DONE/verified.
-- Freshness checks cannot be bypassed by configuration.
+- Equal graph/scenario/step/implementation hashes yield FRESH.
+- One unequal binding yields STALE with the changed dimension.
+- One missing binding yields INDETERMINATE.
+- Timestamps are display-only and the evaluator reads no clock.
+- Only FRESH PASSED canonical rows can satisfy readiness.
 
 ## TASK-5: Implement fail-closed status derivation and waiver honesty
 
@@ -91,11 +96,12 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-3, TASK-4
 
 **Requirements:** [FR-7](FR.md#fr-7-fail-closed-status-truth), [FR-8](FR.md#fr-8-waiver-honesty)
+**Checks:** CHK-FR7-01, CHK-FR8-01, CHK-FR10-01
 
 **Done When:**
-- DONE/verified requires fresh green evidence for every required scenario (all-not-any).
+- `done-verified` requires fresh PASSED canonical evidence for every required scenario.
 - One green among open siblings does not verify.
-- DONE-but-unverified is a named state for stale/ambiguous/incomplete evidence.
+- `done-unverified` is the exact state for stale/ambiguous/incomplete green evidence.
 - Waived tasks remain open-waived regardless of evidence.
 - Waived tasks are excluded from satisfied counts but retained in authored totals.
 - Status derivation uses only evidence bytes, never flags alone.
@@ -111,6 +117,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-2
 
 **Requirements:** [FR-11](FR.md#fr-11-real-fixtures-per-spec-kernel-discipline)
+**Checks:** CHK-FR11-01
 
 **Done When:**
 - At least two distinct NDJSON producers captured (e.g., Cucumber-JS and Reqnroll or behave).
@@ -130,13 +137,14 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-3, TASK-5
 
 **Requirements:** [FR-9](FR.md#fr-9-coverage-census-with-conservation-equations)
+**Checks:** CHK-FR9-01
 
 **Done When:**
-- Census computes authored/joined/unmatched-author/unmatched-producer/malformed/waived counts.
-- All three conservation equations are checked.
-- Equation violations produce diagnostics naming the failed equation and observed vs expected counts.
-- Census validity flag is false when any equation fails.
-- Census is deterministic from the same inputs.
+- Census reports unique authored/joined scenarios separately from producer rows.
+- Authored, producer and parse conservation equations are checked independently.
+- Canonical plus overlay rows increment producer counts but not joinedScenarioCount twice.
+- WaivedTaskCount remains separate from scenario equations.
+- Every violation returns exact expected/actual counts and invalidates the census.
 
 ## TASK-8: Implement anti-false-green invariant checks
 
@@ -149,10 +157,11 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-4, TASK-5
 
 **Requirements:** [FR-10](FR.md#fr-10-anti-false-green-invariants)
+**Checks:** CHK-FR10-01
 
 **Done When:**
-- Every DONE/verified claim references at least one evidence byte hash.
-- No result is marked green without a corresponding parsed artifact record.
+- Every `done-verified` claim references at least one evidence byte hash.
+- No result is marked green without a corresponding parsed artifact record and rehashed artifact-bound canonical binding sidecar.
 - Overlay-only evidence does not satisfy canonical readiness.
 - Invariant breaches produce diagnostics naming the specific invariant.
 
@@ -167,13 +176,16 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-1 through TASK-8
 
 **Requirements:** [FR-13](FR.md#fr-13-release-eligibility-contribution)
+**Checks:** CHK-FR13-01
 
 **Done When:**
-- Evaluator produces `spec-evidence-release@1` evidence records.
-- Mandatory checks cover FR-1 through FR-12.
-- Missing/extra/duplicate/failed/stale/mismatched records fail closed.
-- Structural specification text and unexecuted Gherkin do not satisfy evidence.
-- Output does not loosen product:FR-6 cumulative gate.
+- Evaluator consumes `SpecEvidenceReleaseManifestV2`.
+- Mandatory records cover exactly CHK-FR1-01 through CHK-FR14-01.
+- Every PASS record has non-empty hash-valid candidate/graph-bound evidence.
+- Missing/extra/duplicate/failed/stale/mismatched/unbound records fail deterministically.
+- Structural text and unexecuted Gherkin satisfy no record.
+- Canonical `evidenceFingerprint` bytes are recomputed exactly and the result repeats candidate/profile/graph identity.
+- Output contributes to but never replaces product:FR-6.
 
 ## TASK-10: Budget measurement and enforcement
 
@@ -186,9 +198,29 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-2 through TASK-8
 
 **Requirements:** [FR-12](FR.md#fr-12-budgets)
+**Checks:** CHK-FR12-01
 
 **Done When:**
-- Evaluation latency, artifact size, artifact count, census size, and diagnostic caps are measured on the reference corpus.
-- Exceeded hard limits return LIMIT_EXCEEDED or refuse evaluation.
-- Measurements report runtime/OS/CPU, corpus fingerprint, warm-up, sample count, percentiles, artifact hash, and raw observations.
-- Results are recorded as evidence for CHK-FR12-01.
+- Input count/byte, parsed-row, diagnostic-byte, census-byte and response-byte limits are enforced.
+- Exceeded hard limits return LIMIT_EXCEEDED; pageable overflow returns totals/cursor.
+- Evaluator reads no clock; the caller records runtime/OS/CPU, graph fingerprint, warm-up, samples and percentiles.
+
+## TASK-11: Project evidence result and trace tools through MCP
+
+**Status:** Planned
+
+**Estimate:** 3 days
+
+**Owner:** Evidence + MCP maintainer
+
+**Depends On:** TASK-1 through TASK-10
+
+**Requirements:** [FR-14](FR.md#fr-14-mcp-projection-of-gettestresult-and-getscenariotrace), [FR-5](FR.md#fr-5-canonical-vs-overlay-separation), [FR-6](FR.md#fr-6-freshness-and-staleness)
+**Checks:** CHK-FR14-01, CHK-FR5-01, CHK-FR6-01
+
+**Done When:**
+- `get_test_result` and `get_scenario_trace` implement the exact request/result/error schemas.
+- Selected layer, status, run/source, trace, failed step/error, freshness, binding-sidecar hash, evidence hashes and deterministic fingerprint are preserved.
+- Missing evidence returns explicit null result/trace; ambiguous IDs and trace pages return bounded candidates/steps with consumable fingerprint-bound cursors.
+- The evaluator imports no MCP code and the historical v0.3 registry remains unchanged.
+- `spec-evidence-mcp@1` release profile requires CHK-FR1-01 through CHK-FR14-01.

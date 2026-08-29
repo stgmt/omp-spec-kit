@@ -2,7 +2,7 @@
 
 ## Status
 
-This document set specifies the standalone, read-only parsing, graph, complete Markdown heading/link inventory, and bounded query kernel planned for `omp-spec-kit` v0.2, its conjunctive release-evidence gate, and its read-only MCP projection planned for v0.3. The scenarios in `spec-kernel.feature` are specification text; none is represented here as executed evidence.
+The `spec-kernel@1` v0.2 graph/query runtime and eight-name v0.3 MCP first slice are delivered in public v0.3.2; tag/artifact identities are in `release-status-v0.3.2.json`. The local task/check board conservatively remains `in-progress` until exact per-CHK evidence documents are indexed; generic release status is not substituted. FR-15/16/17 and `spec-kernel@2`/`marksman-anchor@2` are separate planned profiles.
 
 ## Product boundary
 
@@ -48,9 +48,9 @@ These requirements are newly authored for the standalone product. The immutable 
 
 - `MIGRATION_MATRIX.md` at source commit `158cd5ccfe4d08625734fc1692d8916cc5838fd6`, especially rows FR-2, FR-3, FR-9, FR-13, FR-29, FR-31, FR-36, FR-44, FR-47, FR-61, FR-62, FR-64, FR-67, FR-68, FR-69, FR-70, FR-72, FR-73, FR-74, FR-77, FR-82, and the staged release boundary.
 - `IMPORT_MANIFEST.yaml` and `docs/upstream/dev-pomogator/spec-generator-v4/` for pinned local provenance.
-- [Public-init decision record](../../docs/decisions/omp-spec-kit-public-init.md) for the repository-owned product boundary, safe-rename prerequisite, phase sequence, resolved snapshot-license evidence, and still-pending publication validation gates.
-- OMP extension guidance: https://github.com/can1357/oh-my-pi/blob/main/docs/extensions.md
-- OMP MCP plugin configuration: https://github.com/can1357/oh-my-pi/blob/main/docs/mcp-config.md
+- [Public-init decision record](../../docs/decisions/omp-spec-kit-public-init.md) for the original repository-owned boundary and phase sequence; current public-release status is bound separately by `docs/validation/release-status-v0.3.2.json`.
+- OMP extension guidance at the implementation pin: https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/extensions.md
+- OMP MCP configuration at the implementation pin: https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/mcp-config.md
 
 ## Explicit exclusions
 

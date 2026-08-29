@@ -132,6 +132,8 @@ The kernel SHALL also preserve every parsed GLFM link occurrence—inline, full/
 
 The `markdownInventory` query SHALL expose the exhaustive versioned request, result, pagination, focus/direction, summary, total, and error fields in `spec-kernel_SCHEMA.md`. An unscoped query SHALL enumerate every heading and link occurrence; a focused `{path, canonicalAnchor}` query SHALL return the exact ordinary-or-ID heading plus every inbound link to it and every outbound link in its section, without converting headings into domain nodes. Results SHALL be fingerprint-bound, stably ordered, and complete across the returned cursor chain. Response limits MAY split the inventory into explicit pages but SHALL NOT silently omit, coalesce, or deduplicate occurrences. Heading/link counts and link-outcome counts SHALL satisfy the schema conservation equations before any rename plan may claim completeness. This requirement is read-only and authorizes no rename or mutation.
 
+Historical `spec-kernel@1` SHALL retain `glfm-anchor@1`, its exact carriers/cursors and mandatory `CHK-FR13-01`. Future `spec-kernel@2` SHALL use `marksman-anchor@2`, emit the complete legacy→current migration table, and release only through `kernel-anchor-migration@1` / `CHK-FR13-02`. The two checks, graphs, cursors and fingerprints SHALL never substitute for one another.
+
 **Acceptance:** [AC-13.1](ACCEPTANCE_CRITERIA.md#ac-131-safe-rename-inventory-is-complete-and-conserved)
 
 **Scenario:** `@feature13` / `SCEN-complete-markdown-rename-inventory`
@@ -158,9 +160,9 @@ Graph validity, a structural specification pass, generated scaffold, historical 
 
 ## FR-15: Contained step-binding index (not a v0.2/v0.3 release member)
 
-The kernel SHALL accept an optional additional input set `StepDefinitionDocument[]` besides canonical spec `SourceDocument[]`. Each step-definition document SHALL have a repository-relative path under the closed prefix `tests/step-definitions/` and extension `.js` or `.mjs`. The filesystem adapter SHALL apply the same symlink, junction, reparse, traversal, and non-regular-file refusal as [FR-7](FR.md#fr-7-bounded-repository-containment). It SHALL NOT read arbitrary project source, `node_modules`, or paths outside that prefix.
+The @2 kernel SHALL accept an optional `StepDefinitionDocumentV2[]` input set besides canonical `SourceDocument[]`. Each step-definition source uses `NodeSourceV2.kind="STEP_DEFINITION"`, not a canonical `DocumentKind`; its path is under `tests/step-definitions/` with `.js` or `.mjs`. The filesystem adapter SHALL apply the same symlink, junction, reparse, traversal, and non-regular-file refusal as [FR-7](FR.md#fr-7-bounded-repository-containment).
 
-The pure kernel SHALL parse cucumber-js `Given`/`When`/`Then`/`And`/`But` string and `RegExp` patterns into `STEP_BINDING` nodes. Canonical ID is `step-bindings:STEP:` plus the SHA-256 hex of canonical JSON `{path,startOffset,pattern}` (`step-bindings` is a reserved slug, not a `.specs/` directory). Attributes SHALL be exactly `{ runner: "cucumber-js", patternKind: "cucumber-expression" | "regex", pattern: string, language: "js" }`. Matching libraries SHALL be fully bundled per [FR-10](FR.md#fr-10-self-contained-runtime-distribution).
+The pure kernel SHALL parse cucumber-js `Given`/`When`/`Then`/`And`/`But` string and `RegExp` patterns into `STEP_BINDING` nodes. Canonical ID is `step-bindings:STEP:` plus the SHA-256 hex of canonical JSON `{path,startOffset,patternKind,pattern,regexFlags}`; RegExp source and canonical flags are preserved and dynamic/unsupported patterns are rejected. Attributes and source fields SHALL match SCHEMA-14 exactly.
 
 For every step text on every `SCENARIO` node the kernel SHALL count matching bindings and emit exactly one outcome:
 
@@ -172,7 +174,7 @@ Callers SHALL query this index through existing operations `findNodes` (`kinds` 
 
 pytest-bdd and other runners are out of scope for this increment; they MAY later reuse the same node kind with another `patternKind` without a second index.
 
-This FR is **not** a member of `kernel-v0.2` or `kernel-v0.3` required-check sets. A v0.2/v0.3 candidate SHALL remain eligible without FR-15 evidence. `CHK-FR15-01` is evaluated as its own profile `kernel-step-bindings`. [spec-lsp FR-7](../spec-lsp/FR.md#fr-7-step-diagnostics-only-after-kernel-step-bindings-exist) SHALL keep step diagnostics forbidden until that check is `PASS`; afterwards the LSP adapter SHALL map kernel `STEP_*` diagnostics one-to-one and SHALL NOT re-match patterns itself.
+This FR is **not** a member of `kernel-v0.2` or `kernel-v0.3`. A historical candidate remains evaluable without FR-15 evidence. `kernel-step-bindings@1` requires prerequisite anchor migration `CHK-FR13-02` plus its own `CHK-FR15-01`, both bound to one pre-registration candidate and delivered v0.3 baseline. [spec-lsp:FR-7](../spec-lsp/FR.md#fr-7-current-step-absence-and-future-step-profile) SHALL keep current-profile step diagnostics absent until this profile passes.
 
 
 **Acceptance:** [AC-15.1](ACCEPTANCE_CRITERIA.md#ac-151-step-bindings-are-contained-and-conserved)
@@ -182,9 +184,9 @@ This FR is **not** a member of `kernel-v0.2` or `kernel-v0.3` required-check set
 
 ## FR-16: Generator-port read operations beyond the eight
 
-This product is the OMP port of the `dev-pomogator` spec-generator MCP door. [FR-8](FR.md#fr-8-bounded-read-only-query-service) eight operations are the **v0.2 first slice**, not the destination query surface. The agent-facing API remains MCP ([spec-lsp FR-1](../spec-lsp/FR.md#fr-1-semantic-free-lsp-used-by-mcp-invisible-to-the-agent)); these operations exist so MCP can grow without a second graph.
+This product is the OMP port of the `dev-pomogator` spec-generator MCP door. [FR-8](FR.md#fr-8-bounded-read-only-query-service) defines the historical eight-operation first slice. The agent-facing API remains MCP ([spec-lsp:FR-1](../spec-lsp/FR.md#fr-1-semantic-free-lsp-used-by-mcp-invisible-to-the-agent)).
 
-The kernel SHALL, as a later increment **not** in `kernel-v0.2` or `kernel-v0.3` required-check sets, expose these additional **read-only** operations (same envelope, limits, and fail-closed rules as FR-8):
+The @2 kernel SHALL expose the following additional read-only operations using the exact args/results/errors/cursor contracts in SCHEMA-14:
 
 | Operation | Upstream MCP name | Meaning |
 |---|---|---|
@@ -198,11 +200,11 @@ The kernel SHALL, as a later increment **not** in `kernel-v0.2` or `kernel-v0.3`
 | `validateRequirementMetadata` | `validate_requirement_metadata` | Read-only metadata schema check |
 | `archivalProof` | `get_archival_proof` | Live inbound refs from other specs |
 | `validateSpec` | `validate_spec` | Read-only multilayer validation + verdict |
-| `specStatus` | `get_spec_status` | Status/coverage views beyond `overview` |
+| `specStatus` | `get_spec_status` | Graph-validity, counts and structural traceability coverage only; no run/verified evidence |
 
 `get_test_result` and `get_scenario_trace` SHALL wait for `spec-evidence`. `list_spec_docs`, `read_spec_doc`, `read_attachment`, and `mcp_preflight` SHALL be [FR-17](FR.md#fr-17-mcp-adapter-document-and-preflight-io-not-a-v02v03-release-member) adapter I/O, not FR-16 query-service operations. Mutation tools SHALL stay in `spec-authoring-workflow` and SHALL NOT appear on the v0.3 read MCP registry.
 
-CHK-FR16-01 SHALL prove each named operation exists, is read-only, and is projected by MCP under the same name mapping. Until that check PASSes, MCP MAY keep the eight-tool first slice. Growing MCP SHALL NOT delete the eight.
+`kernel-generator-port-reads@1` requires prerequisite anchor migration `CHK-FR13-02` plus its own `CHK-FR16-01`, bound to the delivered v0.3 baseline and same pre-registration candidate. It SHALL prove every named operation, one-to-one MCP mapping, bounds, errors and absence of mutation names. The same built artifact contains dormant mappings during proof and activates them only after eligibility, without rebuild; passing grows MCP without deleting the eight first-slice names and without changing historical `kernel-v0.3`.
 
 **Acceptance:** [AC-16.1](ACCEPTANCE_CRITERIA.md#ac-161-generator-port-reads-are-named-and-read-only)
 
@@ -221,9 +223,9 @@ The destination agent-facing spec API is MCP. Census rows 17–20 of [spec-gener
 | `read_attachment` | Read one contained binary attachment |
 | `mcp_preflight` | Read-only MCP admission snapshot |
 
-These four SHALL be **read-only**. Containment SHALL be the same as [FR-7](FR.md#fr-7-bounded-repository-containment): one explicit repository root; refuse traversal, symlink, junction, reparse, absolute external path, and over-budget reads. They SHALL NOT be members of the pure query service `QueryOperation` set. MCP SHALL project them later so they are **agent-visible**. MCP absence or failure SHALL not create a second graph.
+These four operations SHALL be read-only and use the exact request/result/error contracts in SCHEMA-14. FR-7 containment applies before bytes leave the adapter. They are not `QueryOperationV2` values, do not create a second graph, and become agent-visible only through MCP.
 
-This FR is **not** a member of `kernel-v0.2` or `kernel-v0.3` required-check sets. A v0.2/v0.3 candidate SHALL remain eligible without FR-17 evidence. `CHK-FR17-01` is evaluated as its own profile `kernel-adapter-io`. Until that check PASSes, MCP MAY keep the eight-tool first slice. Growing MCP SHALL NOT delete the eight.
+`kernel-adapter-io@1` requires prerequisite anchor migration `CHK-FR13-02` plus its own `CHK-FR17-01`, bound to the delivered v0.3 baseline and same pre-registration candidate. Historical v0.2/v0.3 eligibility remains evaluable without FR-17 evidence.
 
 **Acceptance:** [AC-17.1](ACCEPTANCE_CRITERIA.md#ac-171-adapter-document-and-preflight-io-are-named-and-read-only)
 

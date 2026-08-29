@@ -1,14 +1,14 @@
 # User Stories
 
-## US-1: Product-meaning anchor above specs
+## US-1: Product meaning owned by each specification
 
 **Priority:** Must
 
-As a specification maintainer, I want stable product-wording capability nodes that outlive individual specs, so that when a spec is absorbed, archived, or restructured the product meaning survives as a typed graph anchor rather than a human-readable marker.
+As a maintainer, I want each behavior-owning spec to define qualified capability nodes in its own optional `CAPABILITIES.md`, so product meaning survives restructuring without a repository singleton or bare ID.
 
-**Why:** Upstream dogfood shows that ABSORBED specs lose requirement destinations because absorption targets are prose, not graph edges. New agents face flat spec lists with no semantic grouping. Capabilities provide the missing product-level anchor.
+**Why:** Typed owning-spec anchors preserve meaning while keeping identity/authority local and collision-safe.
 
-**Independent Test:** Parse a corpus with capabilities declared in `.specs/CAPABILITIES.md`, derive requirements via `**Capability:**` fields and spec-level frontmatter, then verify CAPABILITY nodes and DERIVES_FROM edges exist in the graph with correct endpoints.
+**Independent Test:** Parse `.specs/product/CAPABILITIES.md` with `product:CAP-1`/child nodes and qualified `**Covers:**` fields; verify CAPABILITY nodes and permitted DERIVES_FROM edges, while root singleton/frontmatter/bare forms reject.
 
 **Acceptance Scenarios:** `@feature1`, `@feature2`
 
@@ -20,7 +20,7 @@ As a specification author, I want dangling capability declarations and orphan ca
 
 **Why:** Silent acceptance of broken capability references creates false readiness. Orphan capabilities signal product meaning that has lost all live requirements — the archival mirror of upstream FR-45 proof-gated archival.
 
-**Independent Test:** Plant a `**Capability:** [CAP-99]` referencing a nonexistent ID and verify `CAPABILITY_DANGLING`. Remove all deriving requirements from a capability and verify `CAPABILITY_ORPHAN`. Verify specs without capability declarations produce an advisory hint, not an error.
+**Independent Test:** Plant `**Covers:** [product:CAP-99](...)` and verify `CAPABILITY_DANGLING`; remove all deriving requirements and verify `CAPABILITY_ORPHAN`; a spec lacking its owning capability document receives the bounded advisory hint.
 
 **Acceptance Scenarios:** `@feature3`
 
@@ -28,11 +28,11 @@ As a specification author, I want dangling capability declarations and orphan ca
 
 **Priority:** Must
 
-As an OMP user or agent, I want a read-only impact query that returns structural dependents, semantic-recheck candidates, and invalidation sets for any node, so that I can assess what breaks or goes stale when a requirement changes without reimplementing evidence freshness logic.
+As an OMP user, I want graph-only `get_impact` plus a separately invoked evidence overlay, so I can distinguish structural dependents from stale result records without reimplementing freshness.
 
-**Why:** The kernel's `trace` provides one-hop star queries but does not traverse AC→scenario two-hop paths, enumerate backlink-driven structural impact, or define an invalidation contract. Agents need a bounded, deterministic impact envelope.
+**Why:** Graph impact is computable without evidence; producer invalidation requires the evidence snapshot and current kernel bindings.
 
-**Independent Test:** Call `get_impact` on an FR node with known ACs, scenarios (direct and via AC), tasks, code files, dependent FRs, and parent capabilities; verify the response envelope contains all three sections with deterministic ordering.
+**Independent Test:** Call graph impact on a requirement and assert typed structural/semantic IDs with no producer IDs; then call `invalidate_evidence` with complete current/evidence bindings and assert stale/unaffected/indeterminate partitions.
 
 **Acceptance Scenarios:** `@feature6`
 
@@ -44,7 +44,7 @@ As an OMP user, I want to query which live requirements derive from a capability
 
 **Why:** Flat spec lists give agents no semantic entry point. Derivation queries enable capability-first navigation and spec-to-capability mapping.
 
-**Independent Test:** Call `requirements_of(CAP-N)` and verify deterministic ordering, bounded results, and exclusion of archived/non-live requirements. Call `capabilities_of(spec-slug)` and verify declared capabilities match frontmatter and field declarations.
+**Independent Test:** Call `requirements_of(product:CAP-1)` and verify bounded deterministic requirement summaries. Call `capabilities_of(product)` with lifecycle filters and verify declarations from the owning CAPABILITIES document; no frontmatter/bare ID is consulted.
 
 **Acceptance Scenarios:** `@feature4`, `@feature5`
 
@@ -52,11 +52,11 @@ As an OMP user, I want to query which live requirements derive from a capability
 
 **Priority:** Must
 
-As a release owner, I want every future projection (extension, MCP, LSP) that exposes capability or impact data to map one-to-one onto this spec's operations with no added semantics, so that no projection forks product behavior.
+As a release owner, I want graph and optional evidence-overlay operations exposed only through MCP and mapped one-to-one, so no second agent surface forks behavior.
 
-**Why:** The kernel enforces parity between extension and MCP adapters via `spec-kernel:FR-9` / `FR-14` CHK-FR9-01. This spec extends that discipline to its own operations.
+**Why:** The single projection follows `spec-kernel:FR-9`, `spec-kernel:FR-14`, and `spec-kernel:CHK-FR9-01`; OMP/LSP capability tools are forbidden.
 
-**Independent Test:** Compare structured responses from extension and MCP projections of `requirements_of`, `capabilities_of`, and `get_impact` after removing transport metadata; verify byte-identical canonical envelopes.
+**Independent Test:** Verify graph profile exposes exactly three MCP names, overlay profile adds `invalidate_evidence`, canonical envelopes survive transport stripping, and no capability `pi.registerTool`/agent LSP surface exists.
 
 **Acceptance Scenarios:** `@feature8`
 
@@ -68,6 +68,6 @@ As a release owner, I want capability-layer release eligibility to be a closed c
 
 **Why:** The kernel's conjunctive release gate (`spec-kernel:FR-14`) is the house standard. This spec plugs into that pattern with its own check set.
 
-**Independent Test:** Submit eligibility evaluations with missing, extra, duplicate, failed, stale, and wrong-profile records; verify each produces a deterministic blocker.
+**Independent Test:** Evaluate graph and overlay manifests with real evidence bytes, all profile FR/NFR checks and baseline bindings; every missing/extra/duplicate/failed/stale/wrong-profile/unbound variant returns the exact closed blocker.
 
 **Acceptance Scenarios:** `@feature9`

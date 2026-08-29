@@ -34,17 +34,17 @@ This research uses the repository-owned design brief (`E:\repos\.dev-pomogator\i
 - Upstream `tools/spec-graph/types.ts` (backlinks model exists but get_trace does not exploit it for impact).
 - Design brief section "Проблема 2: нет явного change-impact".
 
-**Decision:** `get_impact` extends the trace concept with: (1) backlink-driven structural enumeration including two-hop AC→scenario; (2) semantic-recheck list as input for future semantic judge (DEFER FR-8); (3) invalidation set defining the CONTRACT for evidence freshness consumption. The actual freshness model is consumed by reference from the future evidence layer, never reimplemented here.
+**Decision:** `get_impact` provides bounded backlink/two-hop structural and semantic-recheck IDs only. Producer invalidation is a separate evidence-overlay operation requiring the evidence evaluation snapshot and current kernel bindings; freshness is consumed from `spec-evidence@2`, not reimplemented in graph query code.
 
 ## RF-4: Capability declaration grammar mirrors existing structured fields
 
-**Finding:** The kernel already parses `**Requirement:** [FR-N]` structured fields on Decision/Story headings. The same pattern applies to `**Capability:** [CAP-N]` on FR/NFR headings, reusing proven parsing infrastructure.
+**Finding:** Kernel reference parsing already recognizes structured `Covers` fields. A qualified `**Covers:** [product:CAP-N](...)` on FR/NFR can therefore reuse the same occurrence/resolution pipeline without inventing frontmatter or a second parser.
 
 **Evidence:**
-- `spec-kernel:FR-5` — structured fields (`Refs`, `Related`, `Covers`, `Implements`, `Depends On`) MAY create references.
-- Design brief section "Предложение 1" item 3: "паттерн уже отработан на `**Требование:** [FR-N]` у Decision/Story-узлов upstream".
+- `spec-kernel:FR-5` — structured fields may create typed references.
+- `spec-kernel@2` — CAPABILITY_DOCUMENT/CAP identity and DERIVES_FROM endpoints.
 
-**Decision:** Capability declarations use the same structured-field pattern. Spec-level frontmatter `capabilities: [CAP-N]` provides bulk declaration. Both produce DERIVES_FROM edges through the existing reference-resolution pipeline.
+**Decision:** Capability derivation uses qualified Covers only. `**Requirement:**` remains REFS; bare IDs, `**Capability:**`, README frontmatter and repository-root CAPABILITIES are forbidden.
 
 ## RF-5: Capabilities belong to a kernel-family extension, not the kernel itself
 
@@ -56,13 +56,13 @@ This research uses the repository-owned design brief (`E:\repos\.dev-pomogator\i
 - `spec-kernel_SCHEMA.md` SCHEMA-4 — closed NodeKind union.
 - ROADMAP.md — v0.2 delivers the standalone kernel; extensions follow.
 
-**Decision:** This spec declares its own schema version `spec-capability@1` that depends on `spec-kernel@1`. The kernel schema remains unchanged. Release requires an explicit ROADMAP stage decision after v0.2.
+**Decision:** Capability is `spec-capability@2` over separately gated `spec-kernel@2`; historical kernel@1 stays unchanged. Graph and optional evidence-overlay profiles release independently after their exact product gates.
 
 ## RISK-1: Premature coupling to evidence freshness model
 
-**Risk:** The `get_impact` invalidation set could be misinterpreted as implementing evidence freshness rather than defining a contract that consumes the future evidence layer's freshness model by reference.
+**Risk:** Callers may confuse graph impact with producer freshness or use an incomplete evidence snapshot.
 
-**Mitigation:** FR-6 explicitly states the invalidation set defines the CONTRACT only; actual invalidation semantics consume the future evidence layer's freshness model by reference and are never reimplemented. The read-only v0.2–v0.3 scope returns computed lists without mutation.
+**Mitigation:** Graph response contains no producer IDs. Overlay requires the exact evidence deterministic fingerprint plus graph/scenario/step/implementation bindings and returns stale/unaffected/indeterminate partitions with proof.
 
 ## RISK-2: Capability proliferation masking requirements
 

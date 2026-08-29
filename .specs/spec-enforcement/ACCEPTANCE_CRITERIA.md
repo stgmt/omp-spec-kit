@@ -4,7 +4,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-1.1: Event subscriptions match the pinned claim set
 
-**EARS:** WHEN the enforcement hooks are loaded THEN the extension SHALL subscribe to exactly `tool_call`, `tool_result`, `context`, and `session_start` events; AND no other event subscriptions SHALL exist; AND every cited event contract SHALL have a corresponding TASK-1 probe receipt bound to the pinned v17.3.7 runtime.
+**EARS:** WHEN the enforcement capability loads THEN it SHALL subscribe only to `tool_call`, `tool_result`, `context`, and `session_start`; every `tool_call` SHALL enter the effect classifier rather than a write/edit/bash-only filter; pinned v17.3.7 calls lacking provider/server/schema identity SHALL keep enforcement `DEFERRED_HOST_ABI`; AND a future activation SHALL have a TASK-1 source/behavior receipt for `tool-call-authority-abi@1`.
 
 **Requirement:** [FR-1](FR.md#fr-1-event-surface-selection-and-pinning)
 
@@ -28,7 +28,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-3.1: Spec writes are blocked or redirected in enforcement mode
 
-**EARS:** WHILE enforcement mode is active AND a `write`, `edit`, or `bash` tool call targets a path resolving under `.specs/**` THEN the `tool_call` handler SHALL return `{block: true, reason}` with an actionable redirect to the authoring door; AND non-matching tool calls SHALL return nothing; AND path matching SHALL normalize separators reject traversal and symlinks and stay inside the project root.
+**EARS:** WHILE enforcement mode is active WHEN any tool is called THEN exact accepted `SPEC_AUTHORING_AUTHORITY` and known `READ_ONLY` calls SHALL pass; a raw writer SHALL pass only if exhaustive extraction plus the filesystem resolver prove every target non-spec; any `.specs/**` target SHALL block with a qualified authoring MCP redirect; AND unknown/incomplete/dynamic/authority-mismatched/containment-indeterminate inputs SHALL block visibly; AND a pure classifier SHALL make no symlink/reparse/realpath claim.
 
 **Requirement:** [FR-3](FR.md#fr-3-enforcement-mode-write-interception)
 
@@ -36,7 +36,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-4.1: Hook errors produce explicit visible messages
 
-**EARS:** IF any of handler exception, missing kernel, unparseable artifact, or internal fault occurs THEN the handler SHALL produce an explicit visible diagnostic message through `tool_result` content addition or `context` message injection; AND silent pass-through SHALL NOT occur; AND fake success indicators SHALL NOT be reported; AND handler exceptions SHALL be caught within the handler and SHALL NOT propagate to the OMP tool wrapper.
+**EARS:** IF an informational kernel/render fault occurs THEN one bounded visible diagnostic SHALL be emitted without blocking; IF enforcement safety classification, authority, extraction, containment, or resolver fails THEN the call SHALL block visibly with `TARGET_INDETERMINATE`; AND handler exceptions SHALL be caught before the OMP wrapper; silent pass-through, fake success, and fake conformance SHALL not occur.
 
 **Requirement:** [FR-4](FR.md#fr-4-fail-honest-policy)
 
@@ -44,7 +44,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-5.1: No state exists outside event-visible records
 
-**EARS:** WHEN the enforcement hooks execute across multiple sessions THEN no files SHALL be created outside the session-local temporary directory; AND no persistent logs counters or audit trails SHALL exist; AND all observable state SHALL surface through `tool_result` content `context` messages or session-local diagnostic records; AND no network calls or credential access SHALL occur.
+**EARS:** WHEN handlers execute across sessions THEN no files outside session temp, persistent logs/counters/audit, network, subprocess, credential access, or alternate query/agent tool SHALL exist; every observable record SHALL surface only through declared event output/session diagnostics.
 
 **Requirement:** [FR-5](FR.md#fr-5-no-hidden-state)
 
@@ -60,7 +60,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-7.1: All write surfaces to specs are intercepted
 
-**EARS:** WHILE enforcement mode is active AND a tool capable of writing to `.specs/**` is invoked (at minimum `write` `edit` `bash` with file redirection and any extension-registered tool targeting `.specs/`) THEN the `tool_call` handler SHALL match and block or redirect; AND no configuration option environment variable or API SHALL disable interception for specific callers or paths.
+**EARS:** WHILE enforcement mode is active WHEN each live built-in MCP or extension tool is invoked THEN it SHALL resolve through one closed `ToolEffectRegistryEntry`; exact accepted authoring authority may pass, raw writers require exhaustive targets and I/O containment, and absent renamed changed dynamically targeted or incompletely extracted tools SHALL be `UNKNOWN` and block; AND no config environment caller exception raw endpoint or alternate tool SHALL disable interception.
 
 **Requirement:** [FR-7](FR.md#fr-7-no-bypass-paths)
 
@@ -68,7 +68,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-8.1: Enforcement is inert before cumulative gate acceptance
 
-**EARS:** WHEN the kernel is unavailable THEN informational summaries SHALL be absent with an explicit stated reason AND enforcement mode SHALL NOT activate; AND WHEN the authoring door is absent THEN enforcement mode SHALL be disabled by stage not by error AND informational mode SHALL continue if the kernel is available; AND each degradation step SHALL produce one bounded diagnostic record.
+**EARS:** WHEN product/authoring acceptance is absent THEN enforcement SHALL remain inactive with explicit degraded/informational state; WHEN accepted enforcement later loses the kernel THEN kernel finding/census projection SHALL report unavailable but registry/authority/resolver write enforcement SHALL remain active; every behavior change SHALL be visible.
 
 **Requirement:** [FR-8](FR.md#fr-8-degradation-ladder)
 
@@ -76,7 +76,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-9.1: Enforcement activates only after cumulative gate
 
-**EARS:** WHEN the authoring stage cumulative gate (`product:FR-6` plus `spec-authoring-workflow:FR-13`) is accepted THEN enforcement mode SHALL activate automatically at `session_start`; AND before acceptance the hooks SHALL operate in informational mode only regardless of configuration; AND gate status SHALL be cached for the session duration and SHALL NOT be re-evaluated mid-session.
+**EARS:** WHEN the product evaluator accepts `SPEC_ENFORCEMENT` for the same candidate after the v0.3 baseline and `AUTHORING_MCP` capability AND an accepted `tool-call-authority-abi@1` receipt exists THEN enforcement mode SHALL activate at `session_start`; before acceptance it SHALL remain informational/degraded regardless of configuration; product/candidate/authority mismatch SHALL prevent activation; AND installed-registry/host-envelope mismatch SHALL remain visible while new/changed tools block as `UNKNOWN` rather than downgrading enforcement.
 
 **Requirement:** [FR-9](FR.md#fr-9-stage-gated-activation)
 
@@ -84,23 +84,23 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-10.1: Diagnostics originate from spec-kernel only
 
-**EARS:** WHEN diagnostic content is injected THEN every finding SHALL originate from `spec-kernel:FR-6`; AND no private rule set custom validation or independent conformance check SHALL appear; AND when the kernel produces no findings the injection SHALL state "no findings"; AND diagnostic format SHALL follow the kernel bounded diagnostic record contract.
+**EARS:** WHEN spec-conformance content is injected THEN every finding SHALL originate from `spec-kernel:FR-6`; enforcement registry/authority/containment/mode faults SHALL use a separate policy-diagnostic kind and SHALL never be labeled kernel findings; AND no private rule set parser validator or independent conformance producer SHALL appear; a successful empty kernel result SHALL state `no findings`, while unavailability SHALL state unavailable.
 
 **Requirement:** [FR-10](FR.md#fr-10-diagnostics-are-spec-kernel-findings-only)
 
 **Scenario:** `@feature10`, `@id:SCEN-diagnostics-are-kernel-findings-only`
 
-## AC-10.2 (FR-10): No independent conformance path exists in the extension
+## AC-10.2: No independent conformance path exists in the extension
 
 **Requirement:** [FR-10](FR.md#fr-10-diagnostics-are-spec-kernel-findings-only)
 
-**EARS:** WHEN the installed extension bundle is inspected THEN it SHALL contain no rule catalog, validator, or finding producer other than the `spec-kernel:FR-6` result consumer; AND every injected diagnostic SHALL be traceable to a kernel diagnostic record received at runtime, never to bundled or generated content.
+**EARS:** WHEN the installed extension bundle is inspected THEN it SHALL contain no private rule catalog, spec parser, validator, or finding producer beyond the `spec-kernel:FR-6` consumer; the tool-effect classifier and containment resolver MAY enforce access policy but SHALL NOT emit spec-conformance findings; AND every injected conformance finding SHALL trace to a runtime kernel record.
 
 **Scenario:** `@feature10`, `@id:SCEN-diagnostics-are-kernel-findings-only`
 
 ## AC-11.1: Release gate is a closed conjunction
 
-**EARS:** WHEN the release evaluator processes `spec-enforcement-release@1` THEN eligibility SHALL require exactly one passing hash-bound record per mandatory check for FR-1 through FR-10 including TASK-1 probe records dependency-absent smoke budget evidence and adversarial review; AND missing extra duplicate failed stale mismatched or unbound records SHALL fail closed; AND structural specification text and unexecuted Gherkin SHALL NOT satisfy evidence; AND eligibility SHALL NOT imply authorization to ship.
+**EARS:** WHEN `spec-enforcement-release@2` is evaluated THEN exact candidate baseline/authoring authority, installed registry, host-authority ABI, role-typed producer bytes and an offline-verified Sigstore DSSE/Fulcio/Rekor bundle under the exact repository/workflow/ref/subject trust policy and the 12 FR-1..FR-10 candidate checks SHALL be re-hashed and required; `CHK-FR11-01` SHALL be excluded from candidate input and test the evaluator separately; every missing extra duplicate failed stale revoked mismatched unverifiable unbound self-attested ABI or registry-drift variant SHALL return a closed blocker; eligibility SHALL NOT mark product delivery.
 
 **Requirement:** [FR-11](FR.md#fr-11-release-eligibility-conjunction)
 

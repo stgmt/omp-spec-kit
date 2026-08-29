@@ -14,7 +14,7 @@ The evaluator SHALL be a pure function of (kernel graph + immutable execution-ar
 
 ## FR-2: Supported execution artifacts
 
-The evaluator SHALL accept exactly these execution-artifact kinds: Cucumber Messages NDJSON (canonical, language-neutral), pytest-bdd cucumber-json (legacy compatibility), and scenario-result overlays (supplementary metadata). The set SHALL be closed and versioned; unrecognized kinds SHALL produce `NOT_INGESTED` with reason `MALFORMED_ARTIFACT`. Each kind SHALL declare its supported schema versions; unsupported versions SHALL produce `NOT_INGESTED` with reason `MALFORMED_ARTIFACT`. Cucumber Messages NDJSON SHALL be the preferred canonical format per upstream FR-9 adoption.
+The evaluator SHALL admit only `cucumber-messages-ndjson@33.0.4`, `pytest-bdd-cucumber-json@1`, and `scenario-result-overlay@1`. Unknown kind/version yields `NOT_INGESTED/UNSUPPORTED_ARTIFACT_IDENTITY`; malformed bytes yield `NOT_INGESTED/MALFORMED_ARTIFACT`. Cucumber Messages remains canonical.
 
 **Acceptance:** [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-closed-versioned-artifact-kind-set)
 
@@ -24,7 +24,7 @@ The evaluator SHALL accept exactly these execution-artifact kinds: Cucumber Mess
 
 ## FR-3: Artifact-level ingestion state
 
-Each supplied artifact SHALL receive exactly one ingestion state: `INGESTED`, `NOT_INGESTED`, or `SKIPPED`. `NOT_INGESTED` SHALL carry one closed reason from: `ARTIFACT_ABSENT`, `MALFORMED_ARTIFACT`. `SKIPPED` SHALL carry the closed reason `MISSING_SCENARIO_RESULTS` (parseable container with no scenario results) or `INGESTION_SKIPPED` (caller-directed skip). Artifact-level truth SHALL be distinct from individual scenario results. An `INGESTED` artifact SHALL report counts: parsed (total records), matched (joined to canonical scenarios), unmatched (no canonical join), and malformed (unparseable records within the artifact). Conservation SHALL hold: parsed = matched + unmatched + malformed.
+Input state is exactly PRESENT, ABSENT, or caller SKIPPED. Output is the discriminated `INGESTED`, `NOT_INGESTED`, `ABSENT`, or `SKIPPED` record in the schema. Missing scenario results is parse-derived `NOT_INGESTED/MISSING_SCENARIO_RESULTS`; callers cannot assert it. INGESTED counts satisfy parsed = matched + unmatched + ambiguous + malformed; no other state/reason pairing is valid.
 
 **Acceptance:** [AC-3.1](ACCEPTANCE_CRITERIA.md#ac-31-ingestion-state-is-closed-and-conserved)
 
@@ -34,7 +34,7 @@ Each supplied artifact SHALL receive exactly one ingestion state: `INGESTED`, `N
 
 ## FR-4: Scenario result join
 
-Every valid producer result SHALL be joined to a canonical scenario or counted as unmatched (conservation). Join SHALL proceed by: (1) qualified scenario ID match (preferred); (2) tag-based match when the producer tags a result with a canonical scenario identifier; (3) name-based fallback when executed feature paths differ from canonical mirrors. When multiple canonical candidates match at the same priority level, the result SHALL be counted as unmatched with reason `AMBIGUOUS_JOIN` rather than arbitrarily assigned. Every join outcome SHALL be recorded: `JOINED`, `UNMATCHED`, or `AMBIGUOUS_JOIN`.
+Every valid producer result SHALL be JOINED, UNMATCHED, or AMBIGUOUS_JOIN. Priority is qualified ID, canonical tag, then name fallback. Multiple same-priority candidates produce AMBIGUOUS_JOIN with the full bounded candidate set and are counted in `ambiguousProducerResultCount`, never silently folded into unmatched or arbitrarily elected.
 
 **Acceptance:** [AC-4.1](ACCEPTANCE_CRITERIA.md#ac-41-every-result-is-joined-or-counted-unmatched)
 
@@ -54,7 +54,7 @@ The evaluator SHALL retain the canonical full-run result separately from any new
 
 ## FR-6: Freshness and staleness
 
-A once-passing result SHALL be stale when its timestamp is older than the scenario definition or step-definition sources it claims, as recorded in the kernel graph. Staleness SHALL be recorded as pass-through metadata on the result; it SHALL NOT be stripped, hidden, or silently corrected. Stale results SHALL NOT satisfy DONE/verified readiness. Freshness comparison SHALL use source timestamps from the kernel graph's heading/span metadata and artifact-embedded timestamps; absent timestamps on either side SHALL produce an indeterminate freshness verdict that also fails to satisfy readiness.
+Freshness SHALL be hash-bound, not clock-derived. A result is `FRESH` only when its evidence graph fingerprint, scenario content hash, applicable step-binding-set hash and implementation artifact hash equal the current kernel/evidence inputs. Any unequal binding is `STALE`; any missing required binding is `INDETERMINATE`. Wall-clock timestamps MAY be retained as display metadata but SHALL NOT establish readiness.
 
 **Acceptance:** [AC-6.1](ACCEPTANCE_CRITERIA.md#ac-61-stale-results-never-satisfy-readiness)
 
@@ -64,9 +64,9 @@ A once-passing result SHALL be stale when its timestamp is older than the scenar
 
 ## FR-7: Fail-closed status truth
 
-DONE/verified status SHALL require fresh green evidence joined to the task's own scenarios. Rollups SHALL use all-not-any semantics: one green result among open siblings verifies nothing; every required scenario for a task MUST have fresh green evidence for the task to be DONE/verified. DONE-but-unverified SHALL be a named state distinct from DONE/verified and not-DONE, produced when evidence exists but is stale, ambiguous, or incomplete. Status derivation SHALL NOT use flags, labels, or structural parsing alone; it SHALL require evidence bytes.
+`done-verified` SHALL require one FRESH PASSED canonical result for every scenario required by the task and a non-empty set of evidence hashes. Overlay-only, stale, skipped, failed, unknown, ambiguous or absent results SHALL NOT satisfy it. `done-unverified`, `open-waived`, and `not-done` remain explicit, deterministic states derived from evidence bytes rather than flags or structural parsing.
 
-**Acceptance:** [AC-7.1](ACCEPTANCE_CRITERIA.md#ac-71-done-verified-requires-fresh-green-evidence)
+**Acceptance:** [AC-7.1](ACCEPTANCE_CRITERIA.md#ac-71-doneverified-requires-fresh-green-evidence)
 
 **Scenario:** `@feature7` / `SCEN-spec-evidence-fail-closed-status-truth`
 
@@ -74,7 +74,7 @@ DONE/verified status SHALL require fresh green evidence joined to the task's own
 
 ## FR-8: Waiver honesty
 
-A waived open task SHALL NOT be closed or counted as satisfied by evidence. The waiver flag SHALL be read from the kernel graph's task node metadata. When a task is waived, its status SHALL remain open-waived regardless of any matching green evidence. Coverage census SHALL retain waived tasks in authored totals but exclude them from satisfied counts. The waiver state SHALL be explicitly named in the evaluation output and distinguishable from DONE/verified, DONE-but-unverified, and not-DONE.
+A waived task SHALL remain exact status `open-waived` regardless of green evidence and never count satisfied. The other derived states are exactly `done-verified`, `done-unverified`, and `not-done`; prose aliases such as “DONE/verified” are not public values.
 
 **Acceptance:** [AC-8.1](ACCEPTANCE_CRITERIA.md#ac-81-waived-tasks-remain-open-and-unsatisfied)
 
@@ -84,7 +84,7 @@ A waived open task SHALL NOT be closed or counted as satisfied by evidence. The 
 
 ## FR-9: Coverage census with conservation equations
 
-The evaluator SHALL produce a coverage census containing: authored scenario count (from kernel graph), joined result count, unmatched result count (producer-side and author-side separately), malformed record count, and waived task count. Conservation equations SHALL hold: (a) authored scenarios = joined + unmatched-author-side + waived-excluded; (b) ingested valid results = joined + unmatched-producer-side; (c) parsed records = matched + unmatched + malformed. Equation violations SHALL produce a diagnostic and set the census validity flag to false. All counts SHALL be deterministic and reproducible from the same inputs.
+The evaluator SHALL report authored counts separately from producer-row counts, including `ambiguousProducerResultCount`. Every equation, collection length, unique result membership, join outcome partition, and per-artifact/global sum in `spec-evidence_SCHEMA.md` SHALL hold; overlay rows may increase producer counts without increasing unique authored scenarios.
 
 **Acceptance:** [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-census-conservation-equations-hold)
 
@@ -94,7 +94,7 @@ The evaluator SHALL produce a coverage census containing: authored scenario coun
 
 ## FR-10: Anti-false-green invariants
 
-No verdict SHALL be produced without evidence bytes; no status SHALL be derived from flags, labels, or structural parsing alone. The evaluator SHALL enforce: (a) every DONE/verified claim references at least one evidence byte hash; (b) no result is marked green without a corresponding parsed artifact record; (c) freshness checks cannot be bypassed by configuration; (d) overlay-only evidence cannot satisfy canonical readiness. These invariants are motivated by upstream incident class "526 stale results reported as passed while execution lane claimed GREEN." Violations SHALL produce diagnostics with the specific invariant breached.
+No verdict SHALL be produced without parsed evidence bytes and bindings parsed from a separately hash-verified canonical sidecar whose artifact ID/hash match those bytes. Every `done-verified` claim SHALL cite evidence hashes; every green result SHALL correspond to a parsed producer row; freshness configuration cannot bypass required bindings; overlay-only evidence cannot satisfy canonical readiness; and every task/result/trace projection SHALL retain its candidate/graph/evidence identities.
 
 **Acceptance:** [AC-10.1](ACCEPTANCE_CRITERIA.md#ac-101-no-verdict-without-evidence-bytes)
 
@@ -114,7 +114,7 @@ Every executable evaluation fixture SHALL originate from actual bytes emitted by
 
 ## FR-12: Budgets
 
-The evaluator SHALL enforce concrete budgets defined in [NFR.md](NFR.md): evaluation latency, maximum artifact size, maximum artifact count per evaluation, maximum census size, and diagnostic caps. Measurements SHALL report runtime/OS/CPU, corpus fingerprint, warm-up, sample count, percentiles, artifact hash, and raw observations. An exceeded hard limit SHALL return `LIMIT_EXCEEDED` or refuse evaluation; it SHALL NOT silently truncate except where the schema explicitly returns `truncated=true` with conservation-visible totals.
+The pure evaluator SHALL enforce input count/byte, parsed-record, diagnostic-byte, census-byte and response-byte limits from `EvidenceLimitsV2`. The caller SHALL measure latency externally because the evaluator observes no clock. Exceeded hard limits return `LIMIT_EXCEEDED`; truncation is permitted only with explicit totals and cursor/overflow fields defined by the public schema.
 
 **Acceptance:** [AC-12.1](ACCEPTANCE_CRITERIA.md#ac-121-budgets-are-measured-and-enforced)
 
@@ -124,7 +124,7 @@ The evaluator SHALL enforce concrete budgets defined in [NFR.md](NFR.md): evalua
 
 ## FR-13: Release-eligibility contribution
 
-The evaluator SHALL produce `spec-evidence-release@1` evidence records that plug a future release stage's all-not-any conjunction like `spec-kernel:FR-14`. Mandatory checks SHALL cover FR-1 through FR-12: each check requires exactly one passing, non-empty, hash-valid, artifact-bound record. Missing, extra, duplicate, failed, stale, mismatched, or unbound records SHALL fail closed with deterministic blockers. Structural specification text and unexecuted Gherkin SHALL NOT satisfy evidence. Eligibility SHALL NOT imply authorization to ship; the release stage decision is recorded separately in `ROADMAP.md`. This spec's contribution SHALL NOT loosen the `product:FR-6` cumulative gate.
+The release evaluator SHALL consume `SpecEvidenceReleaseManifestV2` and require exactly one current PASS record for every CHK-FR1-01 through CHK-FR14-01. Every record SHALL carry non-empty rehashed evidence and matching candidate/graph bindings; the aggregate evidence fingerprint SHALL follow the canonical byte formula in the schema. Missing, extra, duplicate, failed, stale, mismatched, unbound or structural-only records SHALL fail closed with deterministic blockers. This evidence aggregate contributes to, but never replaces, `product:FR-6`.
 
 **Acceptance:** [AC-13.1](ACCEPTANCE_CRITERIA.md#ac-131-release-contribution-fails-closed)
 
@@ -134,9 +134,9 @@ The evaluator SHALL produce `spec-evidence-release@1` evidence records that plug
 
 ## FR-14: MCP projection of get_test_result and get_scenario_trace
 
-The evaluator SHALL remain a pure function of (kernel graph + immutable execution-artifact bytes + limits) per [FR-1](FR.md#fr-1-pure-evaluation-boundary). It SHALL NOT call MCP APIs internally. When this evidence layer exists, the agent-facing MCP door SHALL expose the two read-only tools `get_test_result` and `get_scenario_trace` as projections of evaluator output. These tools are census rows owned by this spec (`later-evidence`); they are not `spec-kernel:FR-8` operations and SHALL NOT appear on the v0.3 first-slice read registry. This FR is not a v0.2 or v0.3 kernel required check. `spec-kernel:FR-6` SHALL remain forbidden from converting structural parsing into readiness or passing-test claims. Until this MCP projection exists, `spec-lsp` hover SHALL NOT invent run results, provenance, or freshness.
+The pure evaluator SHALL expose sufficient fingerprint-bound output for the two read-only MCP projections defined in `spec-evidence_SCHEMA.md`: `get_test_result` returns the selected canonical/overlay result, freshness bindings and evidence hashes; `get_scenario_trace` additionally returns run identity/source, trace identity/source hash, failed step and bounded error. Missing evidence returns explicit nulls, never fabricated status; ambiguous candidates and trace steps use consumable fingerprint-bound cursors. These tools are not historical `spec-kernel:FR-8` operations and do not appear in the v0.3 first-slice registry.
 
-**Acceptance:** [AC-14.1](ACCEPTANCE_CRITERIA.md#ac-141-mcp-projection-of-get_test_result-and-get_scenario_trace)
+**Acceptance:** [AC-14.1](ACCEPTANCE_CRITERIA.md#ac-141-mcp-projection-of-gettestresult-and-getscenariotrace)
 
 **Scenario:** `@feature14` / `SCEN-spec-evidence-mcp-projection-of-run-results`
 

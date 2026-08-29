@@ -19,7 +19,7 @@
                                             eight canonical MCP envelopes
 
 package tree ──> deterministic candidate tar + candidate.json
-candidate + evidence.json ──> eligibility.json ──> publish verified asset
+candidate + evidence@3 ──> MRI result + distribution result ──> public result ──> publish exact verified assets
 ```
 
 ## Components
@@ -38,13 +38,13 @@ candidate + evidence.json ──> eligibility.json ──> publish verified asse
 
 1. OMP roots the path-like launcher command at the plugin package but chooses active project cwd because `.mcp.json` omits `cwd`.
 2. Launcher derives its own directory, `exec`s `plugins/omp-spec-kit/dist/mcp/server.js`, and never changes cwd.
-3. Server selects a validated absolute root override or inherited cwd once, then creates one service.
-4. Parse errors yield `-32700`; invalid request objects yield `-32600`; valid notifications have no reply; other identified requests have one reply.
+3. Launcher exports its canonical package root. Server selects a validated absolute non-package override or inherited active-project cwd; package override retains active project and package cwd refuses.
+4. Parse errors yield `-32700`; invalid request objects yield `-32600`; unknown methods yield `-32601`; unknown tools yield `-32602`; valid notifications have no reply; every identified request has exactly one reply.
 5. The host wrapper creates a unique result file under its ignored dedicated results directory, passes only its container-visible path as `OMP_SPEC_KIT_BDD_MESSAGE_PATH`, and bind-mounts no source workspace.
 6. Cucumber writes progress plus Messages NDJSON for an ordinary run; release capture mode writes Messages to stdout and the per-run file without mixing progress into stdout.
 7. A successful no-argument Docker run must produce nonempty parseable Cucumber envelopes containing the complete feature/pickle/test-run/test-case lifecycle before the host atomically renames that per-run file to `.dev-pomogator/.last-test-run.ndjson`.
 8. Any failed, malformed, or argument-scoped run—including `--tags` or `--name`—retains the previous canonical file; a scoped run may leave its unique result artifact for inspection but cannot make `spec-verdict` appear fresh.
-9. Verify builds once; candidate assembly checks peeled tag and clean package tree, hashes a lexical mode-preserving tar, copies canonical Cucumber messages plus lifecycle receipts, and publish rechecks the same candidate before asset mutation.
+9. Verify builds once; candidate assembly checks peeled tag and clean package tree, hashes a lexical mode-preserving tar, copies semantic Cucumber messages plus lifecycle receipts, emits evidence@3, and evaluates separate MRI/distribution/public results. Publish rechecks the same candidate before asset mutation.
 
 ## API
 
@@ -55,6 +55,8 @@ candidate + evidence.json ──> eligibility.json ──> publish verified asse
 | Relative or legacy literal override | rejected as override | inherited cwd remains root |
 | JSON-RPC 1.0 object with id | request object | one `-32600` response with same id |
 | malformed JSON | raw invalid frame | one `-32700` response with null id |
+| unknown method | identified request | one `-32601` response with original id |
+| unknown tool | identified `tools/call` request | one `-32602` response with original id |
 
 ## Key Decisions
 
@@ -85,7 +87,7 @@ candidate + evidence.json ──> eligibility.json ──> publish verified asse
 **Rationale:** One archive digest lets verification, receipts, and publication compare the same delivered bytes.
 **Требование:** [FR-4](FR.md#fr-4-candidate-bound-lifecycle-eligibility), [FR-5](FR.md#fr-5-artifact-only-publication), [FR-6](FR.md#fr-6-honest-release-communication).
 
-**Trade-off:** Missing lifecycle evidence blocks publication rather than allowing a convenience release; the receipts themselves are captured pipeline-time by scripts/compose-mri-lifecycle-receipts.mjs from attested distribution-evidence runs, not pre-tag-committed.
+**Trade-off:** Missing lifecycle or attestation evidence blocks a future candidate rather than allowing a convenience release. The published v0.3.2 receipts and release notes were captured pipeline-time by `scripts/compose-mri-lifecycle-receipts.mjs` from attested distribution-evidence runs and are bounded in the current release-status record.
 
 **Alternatives considered:**
 - Rebuild in publish — rejected because publish may release unverified bytes.
@@ -117,11 +119,11 @@ candidate + evidence.json ──> eligibility.json ──> publish verified asse
 
 ### Decision: Generate release communication only after eligibility
 
-**Rationale:** Notes receive candidate digests from the evaluator and cannot make a v0.3.1 readiness claim before all evidence exists.
+**Rationale:** Notes receive candidate digests from the evaluator and cannot make a v0.3.2 readiness claim before all evidence exists.
 
 **Требование:** [FR-6](FR.md#fr-6-honest-release-communication).
 
-**Trade-off:** A release remains blocked when external lifecycle receipts have not been captured.
+**Trade-off:** A future release remains blocked until its own external lifecycle and attestation receipts are captured; the bounded v0.3.2 instance is already public and is not reclassified by this spec-only repair.
 
 **Alternatives considered:**
 - Keep static notes per release workflow — rejected because they had remained on v0.1 wording.

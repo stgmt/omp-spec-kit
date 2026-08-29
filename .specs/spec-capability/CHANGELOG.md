@@ -1,21 +1,21 @@
 # Changelog
 
-## Unreleased — specification-only
+## Unreleased
+
+- Closed explicit requirement lifecycle/includeArchived semantics, evidence-output byte revalidation, paged overlay envelopes/budgets, and role-typed baseline/check release evidence with exact 16/18 memberships. — specification-only
 
 ### Added
 
-- Defined the capability layer extension schema `spec-capability@1` depending on `spec-kernel@1`.
-- Defined CAPABILITY node kind with CAP-N / CAP-N.M ID grammar and nesting attributes.
-- Defined DERIVES_FROM typed edge with closed endpoint matrix (FR/NFR → CAPABILITY, CAPABILITY → CAPABILITY nesting).
-- Defined two declaration mechanisms: `**Capability:** [CAP-N.M]` structured fields on FR/NFR headings and `capabilities: [CAP-N]` spec README frontmatter.
-- Defined conformance findings: CAPABILITY_DANGLING (ERROR), CAPABILITY_ORPHAN (WARNING), SPEC_WITHOUT_CAPABILITY (INFO).
-- Defined three bounded read-only queries: `requirements_of`, `capabilities_of`, `get_impact`.
-- Defined `get_impact` response envelope with structural, semantic_recheck, and invalidates sections under `spec-capability-impact@1`.
-- Defined determinism and identity rules following spec-kernel:FR-3 normalization and spec-kernel:FR-4 duplicate discipline.
-- Defined projection parity discipline mirroring spec-kernel:FR-9 / FR-14 CHK-FR9-01.
-- Defined release eligibility conjunction `spec-capability-release@1` for a ROADMAP-decided kernel-family extension stage after v0.2.
-- Defined explicit non-goals: no ontology vocabulary, semantic contracts, capability versioning beyond ID stability, or multi-repo federation.
-- Added traceability from 10 functional requirements to 10 acceptance criteria and 10 stable-ID Gherkin scenarios.
+- Defined `spec-capability@2` over separately gated `spec-kernel@2`; historical kernel@1 remains unchanged.
+- Defined per-owning-spec CAPABILITIES documents and qualified `<slug>:CAP-N[.M]`; root singleton/frontmatter/bare IDs reject.
+- Defined qualified `Covers` requirement→capability and child→parent DERIVES_FROM endpoints; `Requirement` remains REFS.
+- Reused kernel `DUPLICATE_DEFINITION` and closed capability-specific diagnostics.
+- Closed `requirements_of`, `capabilities_of`, and requirement-only `get_impact` args/data/errors/bounds/cursors.
+- Separated graph impact from an evidence overlay carrying current/evidence graph/scenario/step/implementation bindings and deterministic evidence snapshot identity.
+- Defined graph MCP profile with three names and overlay profile adding `invalidate_evidence`; no OMP/LSP agent surface.
+- Defined graph/overlay release manifests, caller-supplied evidence bytes, closed eligibility/blockers, delivered baseline binding and six mandatory NFR checks.
+- Added 10 FR, 11 AC, 10 stable scenarios, 18 CHK rows and 8 planned tasks with bidirectional ownership.
+- Preserved ontology/federation/mutation/status/control-plane non-goals and specification-only status.
 
 ### Excluded
 

@@ -2,52 +2,57 @@
 
 ## Context
 
-The target is a new standalone kernel, not an extraction-by-copy of the upstream server. The migration matrix keeps portable graph ideas and rejects or defers watcher, database, hook, repair, backlog, status, and mutation machinery. The implementation remains inside the single `plugins/omp-spec-kit` child package required by the product architecture.
+The delivered `spec-kernel@1` baseline is implemented as repository-root JavaScript copied into the single plugin payload. The future `spec-kernel@2` capability contract adds Marksman-compatible anchors, step-definition sources, generator reads and contained MCP adapter I/O without rewriting @1 receipts or creating a second graph.
 
 ## Component boundary
 
 ```mermaid
 flowchart LR
   Root[Explicit repository root] --> FS[Bounded filesystem adapter]
-  FS -->|SourceDocument[]| Parse[Pure parsers]
-  Parse --> Occ[Definition reference heading and link occurrences]
+  FS -->|SourceDocument[]| Parse[Canonical parsers]
+  FS -->|StepDefinitionDocumentV2[]| Step[Step source parser]
+  FS -->|Optional owning-spec CAPABILITIES.md| Cap[Capability extension parser]
+  Parse --> Occ[Definitions references headings links]
+  Step --> Occ
+  Cap --> Occ
   Occ --> Build[Pure graph builder and invariants]
   Build --> Snap[Immutable GraphSnapshot]
-  Snap --> Query[Pure QueryService]
-  Query --> OMP[OMP extension adapter v0.2]
-  Query --> MCP[MCP adapter v0.3]
+  Snap --> Q1[Historical QueryService @1]
+  Snap --> Q2[Capability QueryService @2]
+  Q1 --> OMP[Delivered OMP adapter]
+  Q1 --> MCP1[Delivered eight-tool MCP first slice]
+  Q2 --> MCP2[Later generator-read MCP projection]
+  FS --> IO[Later contained document/preflight MCP I/O]
 ```
 
 ### Pure kernel
 
-Planned under `plugins/omp-spec-kit/src/kernel/`:
+Repository-root sources under `src/kernel/` own schemas, normalization, parsers, graph construction, diagnostics, queries and cursor handling; `scripts/build-plugin.mjs` copies generated runtime files into the child `dist/`. The child package never owns hand-edited `src/`.
 
-- `types.ts` — closed schemas and discriminants.
-- `identity.ts` — slug/local/canonical ID validation and reference qualification.
-- `normalize.ts` — content/path normalization and canonical serialization.
-- `parsers/markdown.ts` — canonical definitions/references plus complete GLFM heading, anchor, and semantic link occurrences.
-- `parsers/gherkin.ts` — English Gherkin declarations, explicit scenario IDs, tags, steps, and examples.
-- `graph/build.ts` — occurrence grouping, unique-node election, edge resolution, indexes, fingerprint.
-- `graph/invariants.ts` — endpoint, cardinality, uniqueness, containment, and conservation checks.
-- `diagnostics.ts` — stable closed diagnostic construction/sorting.
-- `query/service.ts` — eight bounded read operations.
-- `query/cursor.ts` — fingerprint-bound opaque cursor encode/decode.
+The @1 path keeps its eight query operations and `glfm-anchor@1`. The @2 path adds:
 
-The pure kernel receives data and explicit limits/cancellation only. It has no filesystem imports and no adapter callbacks other than a caller-supplied cancellation predicate.
+- `marksman-anchor@2` plus explicit legacy-anchor migration rows;
+- `NodeSourceV2` variants for canonical documents, step definitions and optional per-owning-spec capability documents;
+- the eleven FR-16 query operations with exact SCHEMA-14 envelopes;
+- three standalone capability evidence profiles.
+
+The pure kernel receives bytes, hashes, explicit limits and cancellation only. It has no filesystem, clock, process, network or adapter imports.
 
 ### Adapters
 
-- `adapters/fs/repository-reader.ts` owns `realpath`/`lstat`, link/reparse rejection, canonical file discovery, byte reading, input budgets, and sanitized repository-relative failures.
-- `adapters/omp/register-spec-tools.ts` registers v0.2 read tools and projects canonical envelopes.
-- `adapters/mcp/server.ts` is a v0.3 transport adapter over the same service and same graph factory.
+- `src/kernel/adapters/fs.js` owns canonical file discovery and FR-7 containment.
+- the optional step source reader applies the same containment to `tests/step-definitions/**/*.js|mjs`;
+- `src/adapters/omp/register-spec-tools.js` projects delivered read-only extension behavior;
+- `src/mcp/server.js` projects the eight historical MCP names;
+- later MCP adapters project FR-16 query operations and FR-17 document/preflight I/O without re-parsing or maintaining another graph.
 
-Adapters SHALL NOT parse headings, resolve identities/edges, invent diagnostics, filter semantic results, or maintain a second cache/schema.
+Adapters SHALL NOT parse headings, resolve identities/edges, invent diagnostics, reinterpret results, or maintain a second cache/schema.
 
 ## Input model
 
-`SourceDocument` contains `path`, `specSlug`, `documentKind`, raw `bytes`, and `sha256`. The filesystem adapter constructs it only after containment and budget checks. A non-filesystem caller may supply it directly, but the pure kernel revalidates public path, slug, document-kind/name agreement, byte hash, encoding, per-file limits, and aggregate limits.
+`SourceDocument` is the historical canonical-spec input. Kernel@2 adds `StepDefinitionDocument` and optional per-owning-spec `CAPABILITIES.md`; graph nodes carry the discriminated `NodeSourceV2` union rather than pretending those sources have a canonical @1 `DocumentKind`.
 
-A build never discovers paths on its own. It accepts a complete snapshot marker from the adapter; absent canonical documents are inventory facts, not a request to create scaffolding.
+A build never discovers paths on its own. It accepts a complete snapshot marker from the adapter; absent canonical or optional capability documents are inventory facts, never a request to create scaffolding.
 
 ## Parsing grammar
 
@@ -168,7 +173,7 @@ The cursor encodes schema version, graph fingerprint, operation, normalized filt
 
 ## Release eligibility model
 
-The release evaluator is a pure consumer of `kernel-release-evaluation-input@1`, which contains a `kernel-release-evidence@1` manifest, exact caller-supplied evidence bytes, and for v0.3 a bounded v0.2 baseline input. Release evidence is separate from graph validity and queries. The manifest’s `targetStage` and `evidenceProfile` form a closed discriminant: `v0.2`/`kernel-v0.2` or `v0.3`/`kernel-v0.3`. Unknown, missing, or mismatched values fail closed; the candidate and every record must match the selected `0.2.x` or `0.3.x` release line and stage.
+The historical v0.2/v0.3 release evaluator is a pure consumer of `kernel-release-evaluation-input@1`, which contains a `kernel-release-evidence@1` manifest, exact caller-supplied evidence bytes, and for v0.3 a bounded v0.2 baseline input. Release evidence is separate from graph validity and queries. The manifest’s `targetStage` and `evidenceProfile` form a closed discriminant: `v0.2`/`kernel-v0.2` or `v0.3`/`kernel-v0.3`. Unknown, missing, or mismatched values fail closed; the candidate and every record must match the selected `0.2.x` or `0.3.x` release line and stage.
 
 The v0.2 profile derives exactly FR-1 through FR-8 and FR-10 through FR-13 checks. It rejects FR-9 evidence as wrong-profile, so the kernel/OMP artifact can pass without any MCP implementation or evidence. Its `CHK-FR10-01` record is bound to `targetStage=v0.2`, `packageSurface=OMP_EXTENSION_ONLY`, and the exact v0.2 artifact; it proves only that the installed dependency-absent extension package builds a graph and executes a query. FR-11 real-fixture admission and FR-12 v0.2 budget proof remain the other named mandatory records in that conjunction.
 
@@ -239,3 +244,7 @@ Parsing is recovery-oriented only when source occurrence conservation remains po
 ## No mutation design
 
 There is intentionally no writer interface, repository lock, CAS token, transaction, rollback, status engine, persistence schema, repair action, or audit log in this design. Such surfaces require a separate authoring safety specification and cannot be added as optional methods to the read contract.
+
+## V2 pre-registration delivery
+
+Each V2 candidate contains dormant profile code and MCP mappings. Internal dispatch/installed smokes prove the exact candidate while public registration stays disabled. Capability eligibility activates that same artifact through product state; no post-acceptance rebuild or digest change occurs. Every non-anchor profile inherits CHK-FR13-02.

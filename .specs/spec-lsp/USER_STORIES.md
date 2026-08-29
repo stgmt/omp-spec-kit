@@ -41,7 +41,7 @@ As a release owner, I want this stage to refuse step defined/undefined/ambiguous
 
 As a release owner evaluating the LSP adapter for release, I want a fingerprint-bound parity check proving that LSP definition, references, and diagnostics answers equal kernel query service answers on shared fixtures so that I can trust the projection does not reinterpret results.
 
-**Independent test:** Run the CHK-FR8-01 parity harness on the reference fixture set; verify all definition, references, and diagnostics responses match the kernel service byte-for-byte on the declared corpus fingerprint.
+**Independent test:** Run the CHK-FR8-01 parity harness on the reference fixture set; verify all definition, references, and diagnostics semantics normalize to byte-identical `LspKernelProjectionV1` bytes on the declared real-corpus fingerprint, with only transport metadata removed.
 
 ## US-8: Release owner keeping oracle parity out of this stage
 

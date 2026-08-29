@@ -1,10 +1,10 @@
 # Tasks
 
-All tasks are future implementation work. Status `Planned` means not started and does not imply runtime evidence; no current status is changed here. The shared kernel model preserves both `planned` and `todo`, but the external authoring reducer operates only on `todo | ready | in-progress | blocked | done`; `planned` is non-mutable until a future accepted proposal defines normalization. Mutation/authoring work is not a task in this specification.
+TASK-1 through TASK-10 describe delivered runtime work whose exact per-CHK evidence is not yet locally indexed, so they remain `in-progress` rather than claiming Done When from a generic release receipt. TASK-11 is planned release-evaluator work. TASK-12 through TASK-15 are future independently gated kernel@2 capabilities.
 
 ## TASK-1: Freeze schema and canonical fixtures
 
-**Status:** Planned
+**Status:** in-progress
 
 **Estimate:** 2 days
 
@@ -13,6 +13,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** none
 
 **Requirements:** [FR-2](FR.md#fr-2-supported-documents-and-entity-ids), [FR-11](FR.md#fr-11-real-fixtures-and-provenance), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory), [FR-14](FR.md#fr-14-conjunctive-kernel-release-eligibility)
+**Checks:** CHK-FR2-01, CHK-FR11-01, CHK-FR13-01, CHK-FR14-01
 
 **Done When:**
 - `spec-kernel@1`, `glfm-anchor@1`, and `kernel-release-evidence@1` types, document-role heading productions, shared `TASK.status` including distinct `planned`/`todo`, closed stage/profile/package-surface enums, per-stage check sets, v0.2 baseline binding, inventory/release records, and canonical serialization rules are represented in runtime types without widening.
@@ -21,7 +22,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 ## TASK-2: Implement pure normalization and identity
 
-**Status:** Planned
+**Status:** in-progress
 
 **Estimate:** 2 days
 
@@ -30,6 +31,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-1
 
 **Requirements:** [FR-1](FR.md#fr-1-pure-read-only-kernel-and-adapter-boundary), [FR-3](FR.md#fr-3-canonical-identity-and-deterministic-parsing)
+**Checks:** CHK-FR1-01, CHK-FR3-01
 
 **Done When:**
 - Slug, local ID, canonical ID, public path, UTF-8/BOM/line-ending, and content-hash rules match the schema.
@@ -38,7 +40,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 ## TASK-3: Implement occurrence-first Markdown and Gherkin parsers
 
-**Status:** Planned
+**Status:** in-progress
 
 **Estimate:** 4 days
 
@@ -47,6 +49,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-1, TASK-2
 
 **Requirements:** [FR-2](FR.md#fr-2-supported-documents-and-entity-ids), [FR-3](FR.md#fr-3-canonical-identity-and-deterministic-parsing), [FR-11](FR.md#fr-11-real-fixtures-and-provenance), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory)
+**Checks:** CHK-FR2-01, CHK-FR3-01, CHK-FR11-01, CHK-FR13-01
 
 **Done When:**
 - The parser selects canonical document role before heading shape, emits every current FR/AC/TASK definition exactly once only from its owning document, preserves `planned` and `todo` distinctly, and retains every ordinary-or-ID GLFM heading plus every inline/reference/autolink use with exact spans.
@@ -55,7 +58,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 ## TASK-4: Build lossless graph and invariants
 
-**Status:** Planned
+**Status:** in-progress
 
 **Estimate:** 4 days
 
@@ -64,6 +67,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-3
 
 **Requirements:** [FR-4](FR.md#fr-4-lossless-duplicate-handling), [FR-5](FR.md#fr-5-typed-edge-resolution), [FR-6](FR.md#fr-6-invariants-and-diagnostics), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory)
+**Checks:** CHK-FR4-01, CHK-FR5-01, CHK-FR6-01, CHK-FR13-01
 
 **Done When:**
 - Duplicate groups preserve every candidate, elect no winner, and make incoming references ambiguous.
@@ -72,7 +76,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 ## TASK-5: Implement bounded query service
 
-**Status:** Planned
+**Status:** in-progress
 
 **Estimate:** 4 days
 
@@ -81,6 +85,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-4
 
 **Requirements:** [FR-8](FR.md#fr-8-bounded-read-only-query-service), [FR-12](FR.md#fr-12-performance-size-and-result-budgets), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory)
+**Checks:** CHK-FR8-01, CHK-FR12-01, CHK-FR13-01
 
 **Done When:**
 - All eight operations implement their exhaustive inputs, results, errors, ordering, projections, pagination, and limits.
@@ -89,7 +94,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 ## TASK-6: Implement contained filesystem adapter
 
-**Status:** Planned
+**Status:** in-progress
 
 **Estimate:** 3 days
 
@@ -98,6 +103,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-1, TASK-2
 
 **Requirements:** [FR-7](FR.md#fr-7-bounded-repository-containment), [FR-12](FR.md#fr-12-performance-size-and-result-budgets)
+**Checks:** CHK-FR7-01, CHK-FR12-01
 
 **Done When:**
 - One explicit root and only canonical documents are read within every hard input budget.
@@ -106,7 +112,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 ## TASK-7: Register the v0.2 OMP query surface
 
-**Status:** Planned
+**Status:** in-progress
 
 **Estimate:** 2 days
 
@@ -115,6 +121,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-5, TASK-6
 
 **Requirements:** [FR-1](FR.md#fr-1-pure-read-only-kernel-and-adapter-boundary), [FR-8](FR.md#fr-8-bounded-read-only-query-service), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory)
+**Checks:** CHK-FR1-01, CHK-FR8-01, CHK-FR13-01
 
 **Done When:**
 - The single child-plugin extension registers only the specified read operations and uses the shared reader, graph builder, and query service.
@@ -123,7 +130,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 ## TASK-8: Bundle and prove the installed v0.2 artifact
 
-**Status:** Planned
+**Status:** in-progress
 
 **Estimate:** 3 days
 
@@ -132,6 +139,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-7
 
 **Requirements:** [FR-10](FR.md#fr-10-self-contained-runtime-distribution), [FR-12](FR.md#fr-12-performance-size-and-result-budgets), [FR-14](FR.md#fr-14-conjunctive-kernel-release-eligibility)
+**Checks:** CHK-FR10-01, CHK-FR12-01, CHK-FR14-01
 
 **Done When:**
 - The exact v0.2 artifact contains no undeclared external/runtime dependency and its extension builds a graph and executes a query with source/root dependencies unavailable.
@@ -140,7 +148,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 ## TASK-9: Add the v0.3 MCP read projection
 
-**Status:** Planned
+**Status:** in-progress
 
 **Estimate:** 3 days
 
@@ -149,6 +157,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-8
 
 **Requirements:** [FR-9](FR.md#fr-9-read-only-mcp-projection-in-v03), [FR-10](FR.md#fr-10-self-contained-runtime-distribution), [FR-12](FR.md#fr-12-performance-size-and-result-budgets), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory), [FR-14](FR.md#fr-14-conjunctive-kernel-release-eligibility)
+**Checks:** CHK-FR9-01, CHK-FR10-01, CHK-FR12-01
 
 **Done When:**
 - One bundled MCP server in the same child plugin exposes exactly the eight named read tools as v0.3 first-slice evidence.
@@ -158,7 +167,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 ## TASK-10: Run adversarial conservation and packaging review
 
-**Status:** Planned
+**Status:** in-progress
 
 **Estimate:** 2 days
 
@@ -167,6 +176,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-8
 
 **Requirements:** [FR-4](FR.md#fr-4-lossless-duplicate-handling), [FR-6](FR.md#fr-6-invariants-and-diagnostics), [FR-7](FR.md#fr-7-bounded-repository-containment), [FR-10](FR.md#fr-10-self-contained-runtime-distribution), [FR-11](FR.md#fr-11-real-fixtures-and-provenance), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory), [FR-14](FR.md#fr-14-conjunctive-kernel-release-eligibility)
+**Checks:** CHK-FR4-01, CHK-FR6-01, CHK-FR7-01, CHK-FR10-01, CHK-FR11-01, CHK-FR13-01, CHK-FR14-01
 
 **Done When:**
 - An independent review plants last-writer duplicate, dangling edge, lost domain reference, missing ordinary heading/link occurrence, shared rewrite-site loss, `Foo`/`Foo`/`Foo-1` anchor collision, wrong-document/grouping definition harvest, dropped `todo`, path escape, link, over-budget, ambient dependency, fixture-hash, stage/profile/package-surface, and mandatory-evidence faults and observes explicit failures.
@@ -185,6 +195,7 @@ All tasks are future implementation work. Status `Planned` means not started and
 **Depends On:** TASK-8
 
 **Requirements:** [FR-14](FR.md#fr-14-conjunctive-kernel-release-eligibility)
+**Checks:** CHK-FR14-01
 
 **Done When:**
 - The evaluator validates the closed `targetStage`/`evidenceProfile` pairs, candidate release line, per-record stage/artifact binding, and the stage-selected `CHK-FR10-01.packageSurface`, and fails closed for every unknown or mismatched value.
@@ -203,17 +214,18 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 **Owner:** Kernel maintainer
 
-**Depends On:** TASK-3 (Gherkin scenario steps exist), TASK-5 (query service)
+**Depends On:** TASK-3 (Gherkin scenario steps exist), TASK-5 (query service), TASK-15 (anchor migration prerequisite)
 
 **Requirements:** [FR-15](FR.md#fr-15-contained-step-binding-index-not-a-v02v03-release-member)
+**Checks:** CHK-FR13-02, CHK-FR15-01
 
 **Done When:**
-- cucumber-js patterns under `tests/step-definitions/**/*.js|mjs` become `STEP_BINDING` nodes with canonical IDs `step-bindings:STEP:<hex>`.
-- Every Gherkin step has exactly one of `BINDS_STEP` / `STEP_UNDEFINED` / `STEP_AMBIGUOUS`; warnings do not flip `graph.valid`.
-- Symlink and paths outside the allowlist are refused before read.
-- `findNodes` / `getEdges` / `diagnostics` expose the index; this FR adds no MCP tool.
-- `CHK-FR15-01` is recorded as profile `kernel-step-bindings` and is **not** inserted into `kernel-v0.2` or `kernel-v0.3` required-check sets.
-- This check is the unblocker for `spec-lsp` TASK-12 / FR-7 stage-2 mapping.
+- `StepDefinitionDocumentV2` uses `NodeSourceV2.kind="STEP_DEFINITION"` and produces constructible STEP_BINDING nodes.
+- Every Gherkin step has exactly one conserved binding outcome; warnings do not flip graph validity.
+- Symlink, reparse, traversal and non-allowlisted sources refuse before read.
+- `kernel-step-bindings@1` requires CHK-FR13-02 plus CHK-FR15-01 for the same pre-registration candidate and delivered-v0.3 baseline.
+- Historical kernel-v0.2/kernel-v0.3 profiles remain unchanged.
+- Passing this profile unblocks [spec-lsp:TASK-12](../spec-lsp/TASKS.md#task-12-implement-the-separately-gated-step-projection); it adds no MCP tool.
 
 ## TASK-13: Generator-port read operations
 
@@ -223,17 +235,18 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 **Owner:** Kernel + MCP maintainer
 
-**Depends On:** TASK-5, TASK-9
+**Depends On:** TASK-5, TASK-9, TASK-15
 
 **Requirements:** [FR-16](FR.md#fr-16-generator-port-read-operations-beyond-the-eight), [FR-9](FR.md#fr-9-read-only-mcp-projection-in-v03)
+**Checks:** CHK-FR13-02, CHK-FR16-01
 
 **Done When:**
-- Each FR-16 operation exists on the query service and is read-only.
-- MCP projects them so the agent never needs an LSP tool for spec work.
-- `get_test_result` / `get_scenario_trace` are still absent (owned by `spec-evidence`).
-- Mutation names are absent from the v0.3 read registry.
-- The original eight tools remain.
-- `CHK-FR16-01` is recorded as profile `kernel-generator-port-reads`, not inserted into `kernel-v0.2`/`kernel-v0.3`.
+- Every FR-16 operation implements its exact SCHEMA-14 args/result/error/limit/cursor contract.
+- MCP maps each one-to-one; the agent still sees only MCP and the original eight names remain.
+- Evidence and mutation names remain absent.
+- `kernel-generator-port-reads@1` requires CHK-FR13-02 plus CHK-FR16-01 for the same dormant pre-registration artifact and delivered-v0.3 baseline.
+- Eligibility activates the same artifact without rebuilding or changing its digest.
+- Historical kernel-v0.2/kernel-v0.3 profiles remain unchanged.
 
 ## TASK-14: MCP adapter document and preflight I/O
 
@@ -243,31 +256,52 @@ All tasks are future implementation work. Status `Planned` means not started and
 
 **Owner:** MCP adapter maintainer
 
-**Depends On:** TASK-6, TASK-9
+**Depends On:** TASK-6, TASK-9, TASK-15
 
 **Requirements:** [FR-17](FR.md#fr-17-mcp-adapter-document-and-preflight-io-not-a-v02v03-release-member), [FR-7](FR.md#fr-7-bounded-repository-containment), [FR-9](FR.md#fr-9-read-only-mcp-projection-in-v03)
+**Checks:** CHK-FR13-02, CHK-FR17-01
 
 **Done When:**
-- `list_spec_docs`, `read_spec_doc`, `read_attachment`, and `mcp_preflight` exist as read-only MCP adapter I/O.
-- Containment matches FR-7; they are not query-service operations.
-- MCP projects them; no second graph is created.
-- `CHK-FR17-01` is recorded as profile `kernel-adapter-io`, not inserted into `kernel-v0.2`/`kernel-v0.3`.
+- The four FR-17 operations implement exact SCHEMA-14 request/result/error contracts.
+- FR-7 containment applies before bytes leave the adapter; these operations are not QueryOperationV2 values.
+- MCP maps each one-to-one without creating a second graph.
+- `kernel-adapter-io@1` requires CHK-FR13-02 plus CHK-FR17-01 for the same dormant pre-registration artifact and delivered-v0.3 baseline.
+
+## TASK-15: Marksman anchor migration profile
+
+**Status:** Planned
+
+**Estimate:** 3 days
+
+**Owner:** Kernel + editor integration maintainer
+
+**Depends On:** delivered v0.3 baseline
+
+**Requirements:** [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory)
+**Checks:** CHK-FR13-02
+
+**Done When:**
+- `GraphSnapshotV2`, heading summaries and migration rows carry only `marksman-anchor@2`; V1 bytes/fingerprints remain unchanged.
+- Pinned Marksman golden cases and the complete 150-document migration corpus reconcile with zero lost/duplicate occurrence.
+- V1/V2 cursors are mutually rejected.
+- `kernel-anchor-migration@1` requires exactly CHK-FR13-02 plus the delivered-v0.3 baseline and returns the closed capability eligibility result.
 
 ## Task summary
 
 | Task | Status | Estimate | Owner | Primary output |
 |---|---|---:|---|---|
-| TASK-1 | Planned | 2 days | Kernel maintainer | Schema and admitted real fixtures |
-| TASK-2 | Planned | 2 days | Kernel maintainer | Pure identity/normalization |
-| TASK-3 | Planned | 4 days | Parser maintainer | Markdown/Gherkin occurrences |
-| TASK-4 | Planned | 4 days | Graph maintainer | Graph, duplicates, invariants |
-| TASK-5 | Planned | 4 days | Query maintainer | Eight-operation service and complete Markdown inventory |
-| TASK-6 | Planned | 3 days | Platform security maintainer | Contained repository reader |
-| TASK-7 | Planned | 2 days | OMP adapter maintainer | v0.2 read surface |
-| TASK-8 | Planned | 3 days | Release maintainer | Self-contained v0.2 artifact proof |
-| TASK-9 | Planned | 3 days | MCP adapter maintainer | v0.3 projection |
-| TASK-10 | Planned | 2 days | Independent reviewer | Adversarial review evidence |
-| TASK-11 | Planned | 2 days | Release maintainer | Conjunctive kernel eligibility result |
-| TASK-12 | Planned | 4 days | Kernel maintainer | CHK-FR15-01 step-binding index; unblocks spec-lsp TASK-12 |
+| TASK-1 | in-progress | 2 days | Kernel maintainer | Schema and admitted real fixtures; exact CHKs pending |
+| TASK-2 | in-progress | 2 days | Kernel maintainer | Pure identity/normalization; exact CHKs pending |
+| TASK-3 | in-progress | 4 days | Parser maintainer | Markdown/Gherkin occurrences; exact CHKs pending |
+| TASK-4 | in-progress | 4 days | Graph maintainer | Graph, duplicates, invariants; exact CHKs pending |
+| TASK-5 | in-progress | 4 days | Query maintainer | Eight-operation service/inventory; exact CHKs pending |
+| TASK-6 | in-progress | 3 days | Platform security maintainer | Contained reader; exact CHKs pending |
+| TASK-7 | in-progress | 2 days | OMP adapter maintainer | v0.2 read surface; exact CHKs pending |
+| TASK-8 | in-progress | 3 days | Release maintainer | v0.2 artifact proof; exact CHKs pending |
+| TASK-9 | in-progress | 3 days | MCP adapter maintainer | v0.3 first-slice projection; exact CHKs pending |
+| TASK-10 | in-progress | 2 days | Independent reviewer | Adversarial evidence indexing pending |
+| TASK-11 | Planned | 2 days | Release maintainer | Conjunctive kernel eligibility evaluator |
+| TASK-12 | Planned | 4 days | Kernel maintainer | CHK-FR15-01 step-binding index; unblocks `spec-lsp:TASK-12` |
 | TASK-13 | Planned | 5 days | Kernel + MCP maintainer | CHK-FR16-01 generator-port reads on MCP |
 | TASK-14 | Planned | 3 days | MCP adapter maintainer | CHK-FR17-01 adapter document/preflight I/O on MCP |
+| TASK-15 | Planned | 3 days | Kernel + editor integration maintainer | CHK-FR13-02 Marksman migration profile |

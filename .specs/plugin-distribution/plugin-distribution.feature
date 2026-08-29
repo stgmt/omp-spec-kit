@@ -1,8 +1,8 @@
 # Specification text only. No scenario in this file is claimed to have executed or passed.
 @plugin-distribution @specification-only
 Feature: Distribute omp-spec-kit as one proven OMP plugin
-  The first release is published only after one marketplace, one child package,
-  one extension entry, one bounded read-only tool, and the complete lifecycle are proven.
+  Historical v0.1 established one marketplace, child package, extension and bounded inventory.
+  Delivered v0.3.2 preserves that topology and adds one profile-gated read-only MCP/kernel first slice.
 
   Background:
     Given release evidence applicability is determined from the candidate version
@@ -27,21 +27,20 @@ Feature: Distribute omp-spec-kit as one proven OMP plugin
       | a relative source escaping the repository root            | rejected |
 
   @id:SCEN-reject-child-package-topology @feature2 @FR-2 @AC-2.1
-  Scenario Outline: Reject child package and extension cardinality violations
-    Given the child package variant is "<variant>"
-    When the child manifest and resolved extension paths are validated
+  Scenario Outline: Reject child package and candidate-profile violations
+    Given candidate profile "<profile>" has child variant "<variant>"
+    When the child manifest tree and extension paths are validated
     Then the package outcome is "<outcome>"
 
     Examples:
-      | variant                                      | outcome  |
-      | one package with ./dist/extension.js         | accepted |
-      | a second omp.extensions entry                | rejected |
-      | a nested plugin package                      | rejected |
-      | a legacy pi.extensions entry                 | rejected |
-      | an extension path into src                   | rejected |
-      | an install lifecycle script                  | rejected |
-      | an MCP declaration in v0.1.0                 | rejected |
-      | an extension symlink escaping the package    | rejected |
+      | profile | variant                                                       | outcome  |
+      | v0.1.0  | one package one extension and no MCP                           | accepted |
+      | v0.3.2  | one package one extension one MCP config and two launchers      | accepted |
+      | any     | a second extension package marketplace or MCP server identity   | rejected |
+      | any     | nested package legacy entry source test evidence or install script | rejected |
+      | v0.1.0  | an MCP declaration                                              | rejected |
+      | v0.3.2  | missing MCP launcher or generated kernel adapters mcp tree       | rejected |
+      | any     | an extension or launcher link escaping the package              | rejected |
 
   @id:SCEN-bound-inventory-to-project-root @feature3 @FR-3 @AC-3.1
   Scenario Outline: Bound inventory to the active project root
@@ -63,29 +62,32 @@ Feature: Distribute omp-spec-kit as one proven OMP plugin
       | defaults                        | a child link escapes project root  | partial |
 
   @id:SCEN-distinguish-reload-from-activation @feature4 @FR-4 @AC-4.1 @AC-4.2
-  Scenario: Distinguish reload from fresh-session extension activation
-    Given the candidate version is "0.1.0"
-    And the marketplace is added and the plugin is discovered
-    When the plugin is installed at project scope
-    And the installed version is recorded
-    And /reload-plugins completes in the pre-install session
-    Then reload completion is recorded without an extension activation claim
-    When the pre-install session ends
-    And a fresh OMP session starts in the fixture project
-    And spec_inventory is invoked from the installed extension
-    Then fresh-session activation is eligible for a passed receipt
-    And the installed tool reports plugin version "0.1.0"
+  Scenario Outline: Distinguish reload from fresh-session candidate activation
+    Given exact candidate version "<candidate>" is discovered and installed project-scope
+    When installed version and reload completion are recorded in the pre-install session
+    Then no activation claim exists yet
+    When the pre-install session ends and a fresh OMP session starts
+    And the declared installed surface is invoked
+    Then activation is eligible for a receipt bound to "<candidate>"
+
+    Examples:
+      | candidate |
+      | 0.1.0     |
+      | 0.3.2     |
 
   @id:SCEN-run-clean-payload-without-ambient-dependencies @feature5 @FR-5 @AC-5.1
-  Scenario: Execute the clean-built payload without ambient dependencies
-    Given previous dist output is absent
-    And a clean build assembles the allowlisted child payload
-    And the artifact digest is recorded
-    And repository-root node_modules and the source checkout are unavailable
+  Scenario Outline: Execute the clean-built candidate without ambient dependencies
+    Given previous dist output is absent and profile "<profile>" is clean-built
+    And candidate artifact and dist manifest digests are recorded
+    And repository-root and external node_modules plus source checkout are unavailable
     When the exact artifact is installed project-scope
-    And a fresh OMP session invokes spec_inventory
-    Then no undeclared or ambient dependency is resolved
-    And the invoked extension bytes match the recorded artifact digest
+    Then "<surface>" executes without undeclared or ambient dependency
+    And invoked bytes match the recorded artifact digest
+
+    Examples:
+      | profile | surface                              |
+      | v0.1.0  | spec_inventory extension tool        |
+      | v0.3.2  | extension and read-only MCP first slice |
 
   @id:SCEN-contain-read-only-inventory-failures @feature6 @FR-6 @AC-6.1
   Scenario Outline: Contain read-only inventory failures
@@ -118,6 +120,7 @@ Feature: Distribute omp-spec-kit as one proven OMP plugin
       | 0.1.0     | 0.1.0 and tag v0.1.0     | accepted |
       | 0.1.0     | one authority mismatches | rejected |
       | 0.1.1     | 0.1.1 and tag v0.1.1     | accepted |
+      | 0.3.2     | 0.3.2 and tag v0.3.2     | accepted |
 
   @id:SCEN-upgrade-from-prior-release-after-first-release @feature7 @FR-7 @AC-7.2
   Scenario Outline: Require upgrade from a real prior release only after v0.1.0
@@ -135,6 +138,7 @@ Feature: Distribute omp-spec-kit as one proven OMP plugin
       | 0.1.1     | subsequent | locally relabeled 0.1.0 candidate | rejected      |
       | 0.1.1     | subsequent | released 0.1.1 installed          | rejected      |
       | 0.1.1     | subsequent | stale-session-only observation    | rejected      |
+      | 0.3.2     | subsequent | released 0.3.0 installed          | accepted      |
 
   @id:SCEN-uninstall-and-reinstall-candidate @feature8 @FR-8 @AC-8.1
   Scenario Outline: Prove candidate uninstall and reinstall without a prior-release dependency
@@ -152,22 +156,21 @@ Feature: Distribute omp-spec-kit as one proven OMP plugin
       | candidate |
       | 0.1.0     |
       | 0.1.1     |
+      | 0.3.2     |
 
   @id:SCEN-rollback-to-prior-release-after-first-release @feature8 @FR-8 @AC-8.2
-  Scenario Outline: Require rollback to a real prior release only after v0.1.0
-    Given candidate version "0.1.1" is installed project-scope
+  Scenario Outline: Require rollback to an exact public prior release
+    Given candidate "<candidate>" and prior "<prior>" are digest-bound public artifacts
     And project preservation hashes exist before lifecycle mutation
-    When the operator performs "<operation>"
-    And plugin metadata is reloaded
-    And a fresh session checks capability and version state
+    When the operator performs "<operation>" and starts a fresh session
     Then the lifecycle observation is "<observation>"
     And every non-OMP-managed project hash equals baseline
 
     Examples:
-      | operation                                  | observation               |
-      | explicit install of released version 0.1.0 | prior version 0.1.0 invoked |
-      | marketplace removal only                   | insufficient as rollback  |
-      | cache deletion only                        | insufficient as rollback  |
+      | candidate | prior | operation                                  | observation               |
+      | 0.1.1     | 0.1.0 | explicit install of bound prior artifact   | prior version 0.1.0 invoked |
+      | 0.3.2     | 0.3.0 | explicit install of bound prior artifact   | prior version 0.3.0 invoked |
+      | 0.3.2     | 0.3.0 | marketplace removal or cache deletion only | insufficient as rollback  |
 
   @id:SCEN-block-unsafe-public-artifacts @feature9 @FR-9 @AC-9.1
   Scenario Outline: Block unsafe public artifacts
@@ -190,24 +193,21 @@ Feature: Distribute omp-spec-kit as one proven OMP plugin
       | the package exceeds its positive allowlist     |
 
   @id:SCEN-enforce-github-release-transaction @feature10 @FR-10 @AC-10.1
-  Scenario Outline: Publish only through the GitHub Actions release transaction
-    Given the workflow event is "<event>"
-    And required verification jobs are "<jobs>"
-    And release artifact identity is "<identity>"
-    And FR-13 aggregate eligibility is "<eligibility>"
+  Scenario Outline: Publish only the attested immutable candidate
+    Given event "<event>" has verification "<jobs>" and candidate identity "<identity>"
+    And distribution trust is "<trust>"
     When the release workflow evaluates publication
     Then the publication outcome is "<outcome>"
 
     Examples:
-      | event          | jobs         | identity                          | eligibility | outcome     |
-      | pull_request   | all passed   | matching                          | blocked  | verify-only |
-      | push           | all passed   | matching                          | blocked  | verify-only |
-      | tag v0.1.0     | one failed   | matching                          | blocked     | blocked     |
-      | tag v0.1.0     | all passed   | version mismatch                  | blocked     | blocked     |
-      | tag v0.1.0     | all passed   | digest differs from verified      | blocked     | blocked     |
-      | tag v0.1.0     | all passed   | existing release different digest | blocked  | blocked     |
-      | tag v0.1.0     | all passed   | matching verified digest          | blocked  | blocked     |
-      | tag v0.1.0     | all passed   | structurally complete self-attested matrix | blocked  | blocked     |
+      | event      | jobs       | identity                         | trust                                      | outcome     |
+      | pull_request | all passed | matching                        | verifier-passing attestation               | verify-only |
+      | push       | all passed | matching                          | verifier-passing attestation               | verify-only |
+      | tag v0.3.2 | one failed | matching                          | verifier-passing attestation               | blocked     |
+      | tag v0.3.2 | all passed | mismatched commit or digest       | verifier-passing attestation               | blocked     |
+      | tag v0.3.2 | all passed | matching                          | self-authored matrix only                  | blocked     |
+      | tag v0.3.2 | all passed | matching                          | wrong repo workflow ref or subject         | blocked     |
+      | tag v0.3.2 | all passed | matching verified digest          | verifier-passing fixed-workflow attestation| published   |
 
   @id:SCEN-refuse-readiness-without-evidence @feature11 @FR-11 @AC-11.1
   Scenario Outline: Refuse readiness claims without current evidence
@@ -223,6 +223,7 @@ Feature: Distribute omp-spec-kit as one proven OMP plugin
       | dependency independent   | receipt from another commit           | SPEC_ONLY/NOT_READY |
       | upgradeable              | first subsequent release lacks prior-upgrade observation | SPEC_ONLY/NOT_READY |
       | releasable               | structurally complete self-attested FR-13 aggregate | SPEC_ONLY/NOT_READY |
+      | delivered v0.3.2        | release-status receipt plus verified attestation | DELIVERED            |
 
   @id:SCEN-fail-closed-on-unsafe-contract-data @feature12 @FR-12 @AC-12.1
   Scenario Outline: Fail closed on unsafe request or public result data
@@ -242,17 +243,18 @@ Feature: Distribute omp-spec-kit as one proven OMP plugin
       | raw exception contains host path   | INTERNAL_ERROR_REDACTED    |
 
   @id:SCEN-require-complete-release-evidence @feature13 @FR-13 @AC-13.1
-  Scenario Outline: Require complete candidate-aware evidence for release eligibility
-    Given release candidate "<candidate>" has mandatory evidence "<evidence>"
-    When aggregate release eligibility is evaluated
-    Then release eligibility is "<outcome>"
+  Scenario Outline: Distribution eligibility uses one current trust-root contract
+    Given one candidate has complete FR-1 through FR-12 producer receipts
+    And trust condition is "<trust>"
+    When distribution-release-eligibility at 2 is evaluated
+    Then distribution outcome is "<outcome>"
+    And no MRI public or product delivery result is emitted
 
     Examples:
-      | candidate | evidence                                                                       | outcome  |
-      | 0.1.0     | complete self-attested producer receipt matrix with matching platform fixture and inapplicable upgrade/rollback | blocked |
-      | 0.1.0     | arbitrary `claims` placeholders without producer artifacts                         | blocked  |
-      | 0.1.0     | every receipt except FR-5 dependency-absent producer proof                          | blocked  |
-      | 0.1.1     | complete self-attested producer receipt matrix including upgrade and rollback       | blocked |
-      | 0.1.1     | receipt fixture digest differs from platform fixture                                | blocked  |
-      | 0.1.1     | symlinked producer receipt or realpath escape                                       | blocked  |
-      | 0.1.1     | passing stage summaries without producer receipts                                   | blocked  |
+      | trust                                                     | outcome  |
+      | self-authored workflow runId and observations             | blocked  |
+      | GitHub attestation from fixed repo workflow ref and subject| eligible |
+      | repository trust root is absent or derived from local git | blocked  |
+      | signer workflow or source ref differs                     | blocked  |
+      | gh verifier is missing times out exits nonzero or cannot spawn | blocked |
+      | subject digest differs or a matrix receipt is incomplete  | blocked  |

@@ -26,15 +26,15 @@ This changelog records changes to the product specification only. It is not the 
 - Honest public status vocabulary and refusal to treat BDD/specification text as executed evidence.
 - Manager-readable roadmap and canonical cross-spec ownership links.
 
-### Current blockers
+### Current delivered baseline
 
-- Imported upstream specification redistribution rights are covered by the merged source-owner MIT attestation at commit `a21d27ba08919cb5340493adac8dbbf2f8fec72a`; `IMPORT_MANIFEST.yaml` records `MIT_ATTESTED_SOURCE_OWNER`.
-- Independent source-freeze, complete specification review, secret/public-tree, and public-diff evidence for an authorized publication candidate are not yet recorded.
-- No marketplace catalog, plugin package, release, or runtime capability exists; installability remains planned.
+- Public repository and source/license/public-safety evidence are recorded.
+- `omp-spec-kit@omp-spec-kit` v0.3.2 is public and project-installable.
+- The delivered baseline contains the v0.2 graph/query kernel and the eight-tool v0.3 MCP first slice.
+- Tag commit, candidate/package/archive digests, lifecycle receipt identities and GitHub release attestation are bound by `docs/validation/release-status-v0.3.2.json`.
 
 ### Explicitly not delivered
 
-- Public GitHub publication.
-- An installable `omp-spec-kit@omp-spec-kit` plugin.
-- Read-only inventory, graph/query kernel, or MCP adapter.
-- Authoring, proposal, CAS, mutation, repair, backlog, judging, or persistence.
+- Generator-port reads beyond the eight first-slice tools.
+- LSP, evidence MCP, capability graph/impact, authoring, enforcement and automatic plan-gate capabilities.
+- Automatic plan-gate remains `DEFERRED_HOST_ABI` on pinned OMP v17.3.7.

@@ -2,7 +2,7 @@
 
 ## Policy
 
-No executable target fixture is claimed present or passing in this specification-only state. The pinned upstream files below are real provenance references and capture candidates, not admitted target test fixtures. `IMPORT_MANIFEST.yaml` records `MIT_ATTESTED_SOURCE_OWNER` for the copied snapshot; fixture admission still requires a complete fixture manifest, exact bytes, reviewed ground truth, and the remaining kernel evidence.
+The delivered V1 suite includes admitted FIXTURE-5 under `tests/fixtures/kernel/**` and Docker BDD producers; their presence is not per-CHK execution evidence by itself. FIXTURE-1..4 remain provenance-only references. FIXTURE-6..8 and V2 capability fixtures are planned until their exact manifests/ground truth are captured.
 
 A real fixture manifest SHALL record all of:
 
@@ -130,7 +130,7 @@ The reviewer SHALL enumerate every current FR, AC, and TASK ID per owning docume
 
 **Type:** planned real fixture
 
-**Future path:** `plugins/omp-spec-kit/test/fixtures/real/target-spec-corpus/.specs/sample/sample.feature`
+**Future path:** `tests/fixtures/kernel/v2/gherkin-sample.feature`
 
 **Capture method:** Exact committed target feature bytes, including Feature, Background, Scenario, Scenario Outline, Examples, explicit `@id`, `@featureN`, and `@AC-N.M` tags.
 
@@ -142,7 +142,7 @@ The reviewer SHALL enumerate every current FR, AC, and TASK ID per owning docume
 
 **Type:** planned synthetic scale fixture
 
-**Future path:** `plugins/omp-spec-kit/test/fixtures/generated/benchmark-30-specs.json`
+**Future path:** `tests/fixtures/kernel/generated/benchmark-30-specs.json`
 
 **Generator contract:** A versioned deterministic generator with recorded seed SHALL produce exactly 30 specs, 450 canonical documents, 6,000 definitions, 18,000 domain references, 7,500 Markdown headings, 24,000 semantic Markdown link occurrences, and 10 MiB total UTF-8 bytes. The generated corpus is synthetic and is not used to prove real parser-shape fidelity.
 
@@ -152,7 +152,7 @@ The reviewer SHALL enumerate every current FR, AC, and TASK ID per owning docume
 
 **Type:** planned synthetic stage-profile contract fixture derived from admitted real artifact/fixture/benchmark evidence sets
 
-**Future path:** `plugins/omp-spec-kit/test/release/evidence/`
+**Future path:** `tests/fixtures/kernel/release/evidence/`
 
 **Generator contract:** Create two hash-valid `kernel-release-evidence@1` bases. The v0.2 base SHALL declare `targetStage=v0.2`, `evidenceProfile=kernel-v0.2`, and exactly one passing record for FR-1..FR-8 and FR-10..FR-13 checks, with no FR-9 or MCP evidence; its `CHK-FR10-01` record SHALL declare `packageSurface=OMP_EXTENSION_ONLY` and bind the dependency-absent extension smoke to the exact v0.2 artifact. The v0.3 base SHALL declare `targetStage=v0.3`, `evidenceProfile=kernel-v0.3`, contain exactly one passing record for the complete v0.2 check set plus FR-9, bind fresh MCP-inclusive FR-10 and FR-12 evidence, and embed the complete re-evaluable v0.2 base as its declared parent artifact; its `CHK-FR10-01` record SHALL declare `packageSurface=OMP_EXTENSION_AND_MCP` and bind extension plus server execution to the exact v0.3 artifact.
 

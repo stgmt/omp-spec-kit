@@ -100,7 +100,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-13.1: Safe rename inventory is complete and conserved
 
-**EARS:** WHEN accepted Markdown contains ID and ordinary ATX/Setext headings, the adversarial rendered-heading sequences `Foo`/`Foo`/`Foo-1` and `Foo-1`/`Foo`/`Foo`, inline/reference/autolink destinations, multiple reference uses sharing one destination, internal document/heading links, external links, and unresolved links THEN the snapshot and complete `markdownInventory` cursor chain SHALL return each heading and semantic link occurrence exactly once with pairwise-unique `glfm-anchor@1` canonical anchors allocated against the complete previously emitted anchor set, exact use/rewrite spans, stable rewrite keys, enclosing heading, normalized outcome, and inbound/outbound focus relation; AND heading totals and `links = internal-heading + internal-document + external + unresolved` SHALL reconcile without silent truncation or deduplication.
+**EARS:** WHEN historical kernel@1 is evaluated THEN `glfm-anchor@1` carriers/cursors and `CHK-FR13-01` SHALL remain exact; WHEN kernel@2 anchor migration is evaluated THEN `GraphSnapshotV2`/heading/migration carriers SHALL use `marksman-anchor@2`, conserve every occurrence, reject cross-version cursors, and require `kernel-anchor-migration@1` with exactly `CHK-FR13-02`; neither check/profile SHALL substitute for the other.
 
 **Requirement:** [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory)
 
@@ -116,7 +116,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-15.1: Step bindings are contained and conserved
 
-**EARS:** WHEN the adapter is given canonical spec documents plus step-definition files under `tests/step-definitions/` with `.js`/`.mjs` extensions **THEN** the kernel SHALL emit one `STEP_BINDING` node per parsed cucumber-js pattern, refuse symlink/escape/non-allowlisted paths before read, and for every Gherkin step emit exactly one of `BINDS_STEP` / `STEP_UNDEFINED` / `STEP_AMBIGUOUS`; **AND** `STEP_UNDEFINED` and `STEP_AMBIGUOUS` SHALL be WARNING and SHALL NOT flip `graph.valid`; **AND** a v0.2 or v0.3 eligibility manifest SHALL remain evaluable without this check.
+**EARS:** WHEN pre-registration `kernel-step-bindings@1` runs against one delivered v0.3 baseline and contained `StepDefinitionDocumentV2` sources **THEN** static string and RegExp source+flags SHALL produce distinct closed STEP_BINDING nodes, matching SHALL conserve BINDS_STEP/STEP_UNDEFINED/STEP_AMBIGUOUS, unsafe/dynamic patterns SHALL refuse, and exact `CHK-FR13-02` plus `CHK-FR15-01` records SHALL be required for the same candidate; **AND** historical v0.2/v0.3 manifests remain evaluable.
 
 **Requirement:** [FR-15](FR.md#fr-15-contained-step-binding-index-not-a-v02v03-release-member)
 
@@ -124,7 +124,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-16.1: Generator-port reads are named and read-only
 
-**EARS:** WHEN CHK-FR16-01 runs **THEN** each FR-16 operation SHALL be present on the query service, SHALL mutate nothing, and SHALL be exposed through MCP under the mapped name; **AND** `get_test_result`/`get_scenario_trace` SHALL be absent until `spec-evidence`; **AND** mutation names SHALL be absent from the v0.3 read registry; **AND** a v0.2/v0.3 eligibility manifest without FR-16 evidence SHALL remain evaluable.
+**EARS:** WHEN pre-registration `kernel-generator-port-reads@1` runs **THEN** every FR-16 operation (including V2 STEP/CAP carriers where applicable) SHALL satisfy exact args/data/full-error/bounds/cursor contracts, `specStatus` SHALL expose structural coverage only, and dormant MCP mappings SHALL execute against the same candidate; exact `CHK-FR13-02` plus `CHK-FR16-01` SHALL be required; activation SHALL not rebuild; historical v0.2/v0.3 manifests remain evaluable.
 
 **Requirement:** [FR-16](FR.md#fr-16-generator-port-read-operations-beyond-the-eight)
 
@@ -132,7 +132,7 @@ These criteria define future verification obligations. The linked Gherkin scenar
 
 ## AC-17.1: Adapter document and preflight I/O are named and read-only
 
-**EARS:** WHEN CHK-FR17-01 runs **THEN** `list_spec_docs`, `read_spec_doc`, `read_attachment`, and `mcp_preflight` SHALL be present as read-only MCP adapter I/O, SHALL apply the same containment as FR-7, SHALL NOT be query-service operations, and SHALL be exposed through MCP with no second graph; **AND** a v0.2/v0.3 eligibility manifest without FR-17 evidence SHALL remain evaluable.
+**EARS:** WHEN pre-registration `kernel-adapter-io@1` runs **THEN** the four adapter operations SHALL satisfy exact request/success/full-error and containment contracts, remain outside QueryOperationV2, and execute dormant MCP mappings from the same candidate; exact `CHK-FR13-02` plus `CHK-FR17-01` SHALL be required; activation SHALL not rebuild; historical v0.2/v0.3 manifests remain evaluable.
 
 **Requirement:** [FR-17](FR.md#fr-17-mcp-adapter-document-and-preflight-io-not-a-v02v03-release-member)
 

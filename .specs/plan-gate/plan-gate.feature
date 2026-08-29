@@ -1,34 +1,59 @@
 @plan-gate @authoring-gated
-Feature: Native OMP plan approval content gate
-  The gate intercepts plan approval at the model-issued write to xd://propose,
-  validates plan content deterministically, and blocks with actionable reasons.
-  Every internal fault allows. These scenarios specify required behavior and
-  have no executed status here.
+Feature: Deterministic manual validation and future automatic plan approval gate
+  Manual mode validates explicit plan bytes. Automatic mode consumes only a future
+  post-native-resolver OMP event and is deferred on v17.3.7. Scenario text is not evidence.
 
   @feature1 @AC-1.1 @id:SCEN-approval-interception-and-plan-resolution
-  Scenario: Approval interception and deterministic plan resolution
-    Given plan mode is active and a session-local plan directory exists
-    And the model issues a write whose target is an xd URL of kind propose carrying a plan title
-    When the gate observes the tool_call event stream
-    Then exactly the model-issued propose write matches and the plan file resolves from the session-local directory by normalized slug
-    And nested device dispatches other tools and other xd targets do not match
-    And an absent unreadable or over-budget resolved plan takes the allow path without location guessing
+  Scenario Outline: Exact plan input is validated without fallback guessing
+    Given mode is "<mode>" with one exact plan URL content hash title and slug
+    When validation admission runs under host contract "<host>"
+    Then the admission result is "<result>" and no directory scan occurs
+
+    Examples:
+      | mode      | host                    | result               |
+      | MANUAL    | explicit-plan-input@1 | accepted             |
+      | AUTOMATIC | selected-plan-event@1 | accepted             |
+      | AUTOMATIC | OMP v17.3.7              | HOST_ABI_UNSUPPORTED |
+
+  @feature1 @AC-1.2 @id:SCEN-session-transition-plan-resolution
+  Scenario: Session transitions preserve the selected plan identity
+    Given native selection session A chose one exact plan URL content and hash
+    And approval session B carries HOST_APPROVAL_FORK with the same transition plan hash
+    When the gate receives the selected-plan-event@1 input
+    Then it validates the exact A to B transition without scanning fallback plans
+    And inconsistent IDs kind or copied-plan hash yields PLAN_IDENTITY_MISMATCH
 
   @feature2 @AC-2.1 @id:SCEN-every-gate-fault-allows
-  Scenario: Every gate fault path allows
-    Given a matched propose event and a fault planted one at a time among handler exception absent plan file over-budget bytes malformed prompt cache subsystem failure missing template and deadline expiry
-    When the gate handler executes
-    Then no blocking result is returned and the approval flow continues
-    And one bounded diagnostic record with closed code and no absolute path is appended
-    And blocking is observed only after a complete successful validation returning blocking errors
+  Scenario Outline: Internal gate faults allow before the outer host timeout
+    Given one exact plan request has adapter fault "<fault>"
+    When the gate returns within twenty seconds
+    Then decision is ALLOW with diagnostic "<diagnostic>" and zero validation errors
+    And a complete successful validation with ERROR findings is the only BLOCK path
+    And an outer host timeout is reported as a fail-closed implementation defect
+
+    Examples:
+      | fault                                  | diagnostic                    |
+      | manual plan source unreadable before exact input construction | PLAN_INPUT_UNAVAILABLE      |
+      | declared duplicate unreadable                                 | DUPLICATE_INPUT_UNAVAILABLE |
+      | prompt cache malformed or over budget                         | PROMPT_CACHE_UNAVAILABLE    |
+      | spec document unreadable or index partial                     | SPEC_INDEX_UNAVAILABLE      |
+      | realpath or reparse containment refusal                       | SPEC_INDEX_UNAVAILABLE      |
+      | bundled resource hash mismatch                                | RESOURCE_HASH_MISMATCH      |
+      | validator exception                                           | VALIDATOR_EXCEPTION         |
+      | internal deadline expiry                                      | VALIDATOR_TIMEOUT           |
 
   @feature3 @AC-3.1 @id:SCEN-plan-mode-contract-injection
-  Scenario: Plan-mode contract injection is scoped and bounded
-    Given plan mode is active and the context event supplies a deep copy of outgoing messages
-    When the injection handler runs for each LLM call
-    Then at most one injection message of at most two kilobytes is appended containing skeleton names in order the spec-reference obligation and the template pointer
-    And session-stored messages and repository bytes are unchanged
-    And outside plan mode or on a second injection within one event nothing is injected
+  Scenario Outline: Preventive contract output is mode scoped
+    Given validation mode is "<mode>" under host contract "<host>" with planMode "<plan_mode>"
+    When preventive contract handling runs
+    Then "<outcome>"
+
+    Examples:
+      | mode      | host                    | plan_mode | outcome                                      |
+      | MANUAL    | explicit-plan-input@1 | false     | advisory output is returned                  |
+      | MANUAL    | explicit-plan-input@1 | true      | advisory output is returned                  |
+      | AUTOMATIC | selected-plan-event@1 | true      | one bounded deep-copy context message may exist |
+      | AUTOMATIC | OMP v17.3.7              | false     | HOST_ABI_UNSUPPORTED is returned             |
 
   @feature4 @AC-4.1 @id:SCEN-skeleton-structure-validation-blocks
   Scenario: Mandatory skeleton failures block with line hints
@@ -38,20 +63,20 @@ Feature: Native OMP plan approval content gate
     And the run blocks with every planted violation named and a structurally complete fixture passes every structure phase
 
   @feature5 @AC-5.1 @id:SCEN-duplicate-plan-blocked
-  Scenario: Duplicate plans are detected by content hash
-    Given the session directory contains an existing plan file
-    And a submitted plan has identical bytes and a sibling candidate differs in size by more than ten bytes
-    When duplicate detection runs before structure validation
-    Then the identical plan blocks naming the duplicate by session-relative name and the size-differing sibling is never read
-    And an unreadable sibling is skipped and resubmission after the original removal does not block
+  Scenario: Duplicate plans use an explicit bounded candidate set
+    Given a request supplies exact plan bytes and no more than twenty candidate URLs within eight mebibytes
+    And one candidate has identical bytes and another differs in size by more than ten bytes
+    When duplicate validation runs without scanning a directory
+    Then the identical candidate blocks naming its URL and the size-differing candidate is not hashed
+    And an unreadable declared candidate returns ALLOW with DUPLICATE_INPUT_UNAVAILABLE
 
   @feature6 @AC-6.1 @id:SCEN-grounding-blocks-and-cache-degrades-open
   Scenario: Grounding is deterministic and an empty cache degrades open
-    Given a prompt cache with ten entries and a plan authored for a different recorded task
+    Given a prompt cache with five entries and a plan authored for a different recorded task
     When the relevance score is computed against the selected window
-    Then a score at or below the deny threshold blocks with the prompt window excerpt embedded in the reason
+    Then a score at or below exact threshold negative twenty blocks with the selected excerpt
     And repeated runs over the same plan and cache produce identical scores and decisions
-    And an empty absent or malformed cache skips grounding without blocking
+    And an empty cache skips grounding while malformed or over-budget input ALLOWs with PROMPT_CACHE_UNAVAILABLE
 
   @feature7 @AC-7.1 @id:SCEN-file-change-cross-reference-blocks
   Scenario: File changes must be discussed in the plan body
@@ -67,28 +92,41 @@ Feature: Native OMP plan approval content gate
     Then the absent and one-item variants block with the prompt excerpt embedded and the two-item variant passes the phase
 
   @feature9 @AC-9.1 @id:SCEN-spec-references-enforced-against-disk
-  Scenario: Spec-touching plans require existing qualified references
-    Given a project root containing specs with canonical FR and AC headings
-    And plan file changes touch a specs document or a guarded path
-    When spec-reference enforcement runs
-    Then a plan citing an existing qualified slug and ID passes and a plan with a fabricated slug a fabricated ID or no reference blocks
-    And slug and ID existence are verified against disk bytes with symlink and traversal attempts refused
-    And a plan touching no spec or guarded path skips the phase entirely
+  Scenario Outline: Spec references distinguish validation errors from adapter faults
+    Given a spec-touching plan and spec-index condition "<condition>"
+    When manual admission and spec-reference validation run
+    Then "<outcome>"
+
+    Examples:
+      | condition                         | outcome                                                   |
+      | complete index with existing ID   | the phase passes                                          |
+      | complete index missing slug or ID | validation BLOCKS                                         |
+      | no qualified reference            | validation BLOCKS                                         |
+      | unreadable canonical document     | ALLOW with SPEC_INDEX_UNAVAILABLE and no partial index     |
+      | absent or partial index            | ALLOW with SPEC_INDEX_UNAVAILABLE and no validation         |
+      | spec index byte budget exhausted   | ALLOW with SPEC_INDEX_UNAVAILABLE and no partial index       |
+      | symlink or reparse escapes root    | ALLOW with SPEC_INDEX_UNAVAILABLE and contained diagnostic |
+      | plan touches no guarded path       | the phase is skipped                                      |
 
   @feature10 @AC-10.1 @id:SCEN-deny-format-is-actionable
-  Scenario: Deny reason is actionable and bounded
-    Given a plan with two planted blocking errors in different phases and a cache with five prompts
+  Scenario: Deny output is complete through paging and bounded in the host reason
+    Given a plan has more blocking errors than fit in sixteen kilobytes
     When validation blocks
-    Then the reason contains one line-N entry with hint per error then the template excerpt within eight kilobytes then the five prompt excerpts within sixteen kilobytes total
-    And truncation preserves complete error entries first and marks itself explicitly
-    And advisory findings appear only in diagnostic state and never in the blocking decision
+    Then total error count and cursor-paged complete findings are returned
+    And the host reason contains only complete rows plus exact omitted count and cursor
+    And warnings remain diagnostics and never block
 
   @feature11 @AC-11.1 @id:SCEN-self-contained-gate-artifact
-  Scenario: Installed gate executes dependency-absent
-    Given the exact candidate artifact is installed outside the source checkout with root and external module trees unavailable
-    When a simulated propose event drives the complete pipeline
-    Then validation runs to a decision using only bundled code and resources with zero daemon network subprocess and credential activity
-    And bundled template and section-model resources match their shipped hash inventory
+  Scenario Outline: Installed gate executes dependency-absent by profile
+    Given the exact candidate artifact is installed without source checkout or external module trees
+    When "<profile>" input drives the complete pipeline
+    Then validation runs using only bundled code and resources with zero daemon network subprocess and credential activity
+    And bundled resources match their shipped hash inventory
+
+    Examples:
+      | profile                                                  |
+      | plan-gate-manual@1 explicit request             |
+      | plan-gate-automatic@1 captured selected-plan event |
 
   @feature12 @AC-12.1 @id:SCEN-plan-gate-real-fixture-provenance
   Scenario: Real fixture bytes reconcile with ground truth
@@ -98,9 +136,14 @@ Feature: Native OMP plan approval content gate
     And synthetic-labeled fixtures do not satisfy the real-fixture obligation
 
   @feature13 @AC-13.1 @id:SCEN-plan-gate-release-conjunction-fails-closed
-  Scenario: Release eligibility is a closed conjunction
-    Given a candidate manifest declaring a known stage and profile pair with one passing hash-bound record per mandatory check FR-1 through FR-12 including live ABI probe dependency-absent budget and adversarial-review records bound to one artifact
+  Scenario Outline: Release eligibility is profile-specific and closed
+    Given candidate profile "<profile>" has its exact mandatory hash-bound records
     When release eligibility is evaluated
-    Then eligibility is true for the exact complete profile
-    But removing duplicating failing staling mismatching or unbinding any one record yields deterministic blockers and eligibility false
-    And structural specification text unexecuted scenarios and v0.1 through v0.3 stage claims are each rejected
+    Then "<outcome>"
+    And removing duplicating failing staling mismatching or unbinding any mandatory record yields deterministic blockers
+    And structural specification text and unexecuted scenarios are rejected as evidence
+
+    Examples:
+      | profile               | outcome                                                        |
+      | plan-gate-manual@1 | eligibility may pass without a host ABI receipt                 |
+      | plan-gate-automatic@1 | eligibility also requires CHK-HOST-ABI-01 for the exact host pin |

@@ -4,20 +4,28 @@ This specification defines the public product boundary and repository lifecycle 
 
 ## Current product status
 
-**The current public-init candidate is local, specification-only, and has no installable plugin, marketplace catalog, package, release, public remote, or runtime capability.** The Gherkin scenarios in this directory are specification text only. They have not been executed and are not evidence that any capability is delivered.
+**Status authority:** `DELIVERED / CURRENT_BASELINE` (public v0.3.2).
 
-| Stage | State | Public claim permitted now |
+**The current public baseline is v0.3.2.** It is a public, project-installable `omp-spec-kit@omp-spec-kit` plugin containing the v0.2 read-only kernel and the eight-tool v0.3 MCP first slice. Its tag, release assets, digests, lifecycle receipts and GitHub attestation identity are bound by [`release-status-v0.3.2.json`](../../docs/validation/release-status-v0.3.2.json). Gherkin scenarios remain specification text unless a cited producer receipt proves execution.
+
+| Stage / capability | Exact state | Role / next gate |
 |---|---|---|
-| Public init | `SPEC_ONLY / LICENSE_RESOLVED / PUBLIC_INIT_VALIDATED / PUBLIC_SPECIFICATION_INIT` | Reviewed initial commit `fe70b10caaed888daf7c48dfc8f1bad9caf45598` is public with matching local/remote/tree evidence. No marketplace, plugin payload, runtime, tag, or release exists. |
-| v0.1.0 | `PLANNED` | No install or runtime claim is permitted until `plugin-distribution:FR-13` accepts complete mandatory evidence bound to the current candidate revision, artifact, and lineage. |
-| v0.2 | `PLANNED` | No graph/query claim is permitted until distribution and `spec-kernel:FR-14` `targetStage: "v0.2"` are accepted and both bind to the current v0.2 candidate artifact/revision/lineage. |
-| v0.3 | `PLANNED` | No MCP claim is permitted until distribution and `spec-kernel:FR-14` `targetStage: "v0.3"` bind to current candidate B and a separate active v0.2 result is linked as predecessor A by the v0.3 result's exact `v02ParentArtifactSha256`; both kernel results must share revision/lineage in strict stage order. A and B may differ. |
-| Later authoring/mutation | `DEFERRED` | No write, proposal, CAS, repair, backlog, or mutation claim is permitted until current-candidate distribution, v0.3 kernel, and `spec-authoring-workflow:FR-13` plus the same linked non-stale/non-revoked v0.2 predecessor satisfy every cumulative gate. |
+| Public specification init | `DELIVERED` | Historical provenance/publication baseline. |
+| v0.1.0 inventory | `DELIVERED` | Historical bounded inventory baseline. |
+| v0.2 kernel | `DELIVERED` | Historical read-only graph/query baseline. |
+| v0.3.2 MCP first slice | `DELIVERED` | Current baseline; eight SCHEMA-11 names are not a ceiling. |
+| `GENERATOR_READS` | `SPECIFIED` | Requires `spec-kernel:CHK-FR16-01` and `spec-kernel:CHK-FR17-01` over the v0.3 baseline. |
+| `LSP_ADAPTER` | `SPECIFIED` | Requires complete `spec-lsp:FR-12` profile over the v0.3 baseline. |
+| `EVIDENCE_MCP` | `SPECIFIED` | Requires `spec-evidence:FR-13` and `spec-evidence:FR-14`. |
+| `CAPABILITY_GRAPH` | `SPECIFIED` | Requires `spec-capability:FR-9`. |
+| `AUTHORING_MCP` | `DEFERRED_HOST_ABI` | Joint tuple includes authenticated tool-call provider/server/schema ABI; no mutation ships independently. |
+| `SPEC_ENFORCEMENT` | `DEFERRED_HOST_ABI` | Same joint tuple plus authenticated tool-call provider/server/schema ABI; v17.3.7 lacks it. |
+| `AUTOMATIC_PLAN_GATE` | `DEFERRED_HOST_ABI` | Requires `plan-gate:FR-13` and `plan-gate:CHK-HOST-ABI-01`. |
 
 ## Product identity
 
 - Repository/product: `omp-spec-kit`.
-- Intended future installed identity: `omp-spec-kit@omp-spec-kit`.
+- Current installed identity: `omp-spec-kit@omp-spec-kit`.
 - Architecture: one standalone OMP marketplace containing exactly one plugin package and exactly one extension entry.
 - Canonical runtime identifiers: `<spec-slug>:<local-id>`, for example `product:FR-1`.
 - Upstream snapshot: provenance reference only, never the target product source of truth or delivery evidence.

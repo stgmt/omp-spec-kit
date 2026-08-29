@@ -74,7 +74,7 @@ These requirements are approved specification intent, not implementation status.
 
 - **Rationale:** each release stage must advance only after its complete cumulative set of externally observable aggregate contracts is proven for one artifact lineage, while permitting the specifically linked v0.2 predecessor artifact to differ from a later current candidate.
 - **Risk if omitted:** requiring one artifact hash across all stages makes legitimate v0.2→v0.3 evolution impossible; accepting an untyped or merely same-lineage predecessor lets a later aggregate launder a missing or unrelated distribution/kernel gate.
-- **Verification mode:** stage-specific cumulative evidence review: v0.1.0 requires current-candidate `plugin-distribution:FR-13`; v0.2 adds current-candidate `spec-kernel:FR-14` `targetStage: "v0.2"`; v0.3 requires current-candidate distribution and `targetStage: "v0.3"` kernel evidence plus a separately identified v0.2 predecessor whose artifact SHA-256 equals the later result's `v02ParentArtifactSha256`; authoring additionally requires current-candidate `spec-authoring-workflow:FR-13`.
+- **Verification mode:** stage-specific cumulative evidence review: v0.1.0 uses historical `distribution-release-eligibility@1` owned by `plugin-distribution:FR-13`; v0.2/v0.3 use their candidate-applicable historical distribution profile plus the typed kernel stages; every new post-repair candidate uses `distribution-release-eligibility@2`. Product composition always occurs here; authoring/enforcement delivery additionally requires the joint same-candidate tuple `spec-evidence:FR-13`, `spec-evidence:FR-14`, `spec-authoring-workflow:FR-13`, `spec-authoring-workflow:FR-14`, and `spec-enforcement:FR-11`.
 - **Evidence demand:** accepted complete mandatory member/dependency evidence for every cumulative aggregate; current distribution/current-stage/current-authoring results bound to the current candidate; the exact ordered v0.2/v0.3 target-stage/profile pair sharing product revision and lineage; exact parent-SHA equality; and non-stale/non-revoked results. Latest-only, member-subset, historical, unlinked, wrong-target-stage, and cross-lineage evidence are insufficient.
 - **Acceptance:** `product:AC-6.1`, `product:AC-6.2`.
 - **Scenario:** `@feature6`.
@@ -112,21 +112,37 @@ These requirements are approved specification intent, not implementation status.
 
 ## CHK traceability matrix
 
-| CHK ID | Check | FR | AC | Scenario/UC |
-|---|---|---|---|---|
-| CHK-FR9-01 | Forbidden destination phrases fail in `ROADMAP.md`, `.specs/product`, `.specs/spec-kernel`, `.specs/spec-lsp`, `.specs/spec-authoring-workflow`, `.specs/spec-evidence`, `.specs/mcp-release-integrity/README.md`, and `plugins/omp-spec-kit/README.md` unless nearby wording is first-slice or v0.3-candidate. Run `node scripts/check-spec-generator-port-freeze.mjs`. | FR-9 | AC-9.1 | `@feature9`, UC-7 |
+| CHK ID | Check | FR | AC | Scenario/UC | Task |
+|---|---|---|---|---|---|
+| CHK-FR1-01 | Current/public-init status distinguishes historical no-runtime state from the v0.3.2 baseline and refuses premature payload claims. | FR-1 | AC-1.1, AC-1.2 | `@feature1`, SCEN-specification-only-init, SCEN-premature-installable-artifact | product:TASK-1 |
+| CHK-FR2-01 | Source export reconstructs from the immutable commit and rejects one changed/unmanifested byte. | FR-2 | AC-2.1, AC-2.2 | `@feature2`, SCEN-pinned-source-export, SCEN-mismatched-imported-byte | product:TASK-2 |
+| CHK-FR3-01 | Current source-owner license evidence is accepted; a future uncovered import fails closed. | FR-3 | AC-3.1, AC-3.2 | `@feature3`, SCEN-unresolved-import-license, SCEN-root-license-import-separation | product:TASK-3 |
+| CHK-FR4-01 | Public tree and secret gates reject prohibited state paths and unresolved findings. | FR-4 | AC-4.1, AC-4.2 | `@feature4`, SCEN-prohibited-state-path, SCEN-unresolved-secret-finding | product:TASK-4 |
+| CHK-FR5-01 | One marketplace/plugin/extension identity persists and a second control plane is refused. | FR-5 | AC-5.1, AC-5.2 | `@feature5`, SCEN-single-product-identity, SCEN-second-control-plane-refusal | product:TASK-5 |
+| CHK-FR6-01 | Baseline and every capability require their exact aggregates; sibling or member-subset evidence never substitutes. | FR-6 | AC-6.1, AC-6.2 | `@feature6`, SCEN-incomplete-aggregate-remains-planned, SCEN-owning-aggregate-cannot-be-bypassed | product:TASK-6 |
+| CHK-FR7-01 | Current status binds to evidence, reports blockers, and unexecuted Gherkin contributes no delivery claim. | FR-7 | AC-7.1, AC-7.2 | `@feature7`, SCEN-status-fails-closed, SCEN-unexecuted-bdd-not-evidence | product:TASK-7 |
+| CHK-FR7-02 | `check-spec-corpus` requires one v0.3.2 version across root/catalog/package/runtime/status docs, public/installable delivered state, exact archive asset hash, and commit-bound release attestation identity. | FR-7 | AC-7.1, AC-7.2 | `@feature7`, SCEN-status-fails-closed | product:TASK-7 |
+| CHK-FR8-01 | README/ROADMAP separate delivered baseline and independent capabilities and use qualified canonical owners. | FR-8 | AC-8.1, AC-8.2 | `@feature8`, SCEN-roadmap-separates-states, SCEN-canonical-owner-delegation | product:TASK-8 |
+| CHK-FR8-02 | `check-spec-corpus` conserves 10 specs/150 canonical docs, requires shipped graph valid with zero errors/rejected/ambiguous/duplicate definitions, validates contract-v2 sentinels, and resolves all local links with `marksman-anchor@2`. | FR-8 | AC-8.1, AC-8.2 | `@feature8`, SCEN-canonical-owner-delegation | product:TASK-8 |
+| CHK-FR9-01 | Source registry and decision table contain exactly the same 46 unique names numbered 1..46 with non-empty owner/stage; forbidden destination wording and any row loss/duplication fail. | FR-9 | AC-9.1 | `@feature9`, SCEN-generator-port-destination, UC-7 | product:TASK-9 |
 
 ## Cross-spec dependency matrix
 
 | Product requirement | Canonical dependency | Reason |
 |---|---|---|
 | `product:FR-5` | `plugin-distribution:FR-1` | Owns marketplace/plugin/extension cardinality. |
-| `product:FR-6` | `plugin-distribution:FR-13` | Required for v0.1.0 and cumulatively for every later product stage; its aggregate evidence binds to the current candidate artifact. |
+| `product:FR-6` | `plugin-distribution:FR-13` | Owns versioned distribution eligibility: historical @1 receipts for v0.1–v0.3.2 remain valid; new candidates require @2. The product evaluator composes the applicable result with other baseline/capability aggregates. |
 | `product:FR-6` | `spec-kernel:FR-14` | v0.2 delivery uses a current-candidate `targetStage: "v0.2"` result. v0.3/authoring use a current-candidate `targetStage: "v0.3"` result plus a separately identified v0.2 predecessor whose artifact SHA-256 is named exactly by `v02ParentArtifactSha256`; both share revision/lineage, appear in strict stage/profile order, and remain active. |
-| `product:FR-6` | `spec-authoring-workflow:FR-13` | Additional current-candidate authoring/mutation gate; it cannot replace distribution or either separately identified kernel target-stage aggregate. |
+| `product:FR-6` | `spec-kernel:FR-16`, `spec-kernel:FR-17` | Generator-read capability profiles; neither enters the historical v0.3 gate. |
+| `product:FR-6` | `spec-lsp:FR-1`, `spec-lsp:FR-12` | LSP owner and release aggregate; editor/MCP-internal only. |
+| `product:FR-6` | `spec-evidence:FR-13`, `spec-evidence:FR-14` | Evidence aggregate and defining MCP projection. |
+| `product:FR-6` | `spec-capability:FR-6`, `spec-capability:FR-9` | Capability graph/overlay owner and release aggregate. |
+| `product:FR-6` | `spec-authoring-workflow:FR-13`, `spec-authoring-workflow:FR-14` | Authoring aggregate and MCP facade mapping. |
+| `product:FR-6` | `spec-enforcement:FR-1`, `spec-enforcement:FR-11`, `spec-enforcement:CHK-FR1-01` | Enforcement owner/release aggregate plus authenticated tool-call host authority gate. |
+| `product:FR-6` | `plan-gate:FR-13`, `plan-gate:CHK-HOST-ABI-01` | Automatic plan gate additionally requires the pinned selected-plan host ABI check. |
 | `product:FR-9` | `docs/decisions/spec-generator-port.md` | Canonical 46-name census and destination invariants. |
 | `product:FR-9` | `spec-kernel:FR-16` | Later generator-port kernel reads beyond the eight first-slice names. |
 | `product:FR-9` | `spec-kernel:FR-17` | Later generator-port MCP adapter I/O reads. |
 | `product:FR-9` | `spec-lsp:FR-1` | Sibling LSP adapter; not the agent-facing spec API. |
-| `product:FR-9` | `spec-evidence` | Later evidence MCP names after the evidence layer. |
-| `product:FR-9` | `spec-authoring-workflow` | Later authoring MCP names; schema v1 omission is later, not DROP. |
+| `product:FR-9` | `spec-evidence:FR-14` | Later evidence MCP names after the evidence layer. |
+| `product:FR-9` | `spec-authoring-workflow:FR-14` | Later authoring MCP names; schema v1 omission is later, not DROP. |

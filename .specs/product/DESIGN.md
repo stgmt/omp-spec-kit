@@ -19,8 +19,8 @@ flowchart LR
     H --> I[Read-only graph/query capability]
     I --> J{distribution + v0.2 + v0.3 kernel targets accepted}
     J --> K[One MCP projection over same service]
-    K --> L{all earlier aggregates + authoring accepted}
-    L --> M[Proposal/CAS/mutation capabilities]
+    K --> L{v0.3 + evidence + authoring + enforcement accepted}
+    L --> M[Proposal/CAS/mutation delivered jointly with write enforcement]
 ```
 
 The arrows are gates, not dates. A later node cannot become delivered while an earlier gate is blocked.
@@ -32,11 +32,11 @@ The arrows are gates, not dates. A later node cannot become delivered while an e
 | Imported bytes and provenance | `IMPORT_MANIFEST.yaml` | Decide whether the freeze is reproducible and which copied bytes are affected by license status. |
 | Migration/adoption decisions | `MIGRATION_MATRIX.md` | Explain which upstream ideas are adopted, rewritten, deferred, or dropped. |
 | Product/publication lifecycle | `product:FR-1` through `product:FR-9` | Decide public claims, identity, stage, blocker, next gate, and generator-port MCP destination. |
-| Marketplace/package/activation/release | `plugin-distribution:FR-13` aggregate gate; member contracts remain internal to `plugin-distribution` | Accept or refuse v0.1.0 and remain a required cumulative gate for every later product stage; its evidence always binds to the current candidate artifact. |
+| Marketplace/package/activation/release | Versioned aggregate owned by `plugin-distribution:FR-13`: historical `distribution-release-eligibility@1` for v0.1–v0.3.2 receipts, forward `distribution-release-eligibility@2` for new candidates | Accept or refuse the candidate-applicable distribution result; product/public composition remains here and every result binds its schema/profile and candidate artifact. |
 | Read-only kernel/query evolution | `spec-kernel:FR-14` stage-targeted aggregate gate; member contracts remain internal to `spec-kernel` | Bind the current target-stage result to the current candidate. For v0.3/authoring, retain the separately identified v0.2 result as predecessor evidence only through the later result's exact `v02ParentArtifactSha256` link, common revision/lineage, closed stage order, and active non-stale/non-revoked state. Later generator-port reads are `spec-kernel:FR-16` and `spec-kernel:FR-17`. |
 | Editor/LSP diagnostics | `spec-lsp` | Sibling adapter for editor diagnostics/navigation; not the agent-facing spec API. |
 | Evidence evaluation | `spec-evidence` | Later evidence MCP after the evidence layer; not a v0.3 first-slice tool. |
-| Authoring and mutation | `spec-authoring-workflow:FR-13` aggregate gate; member contracts remain internal to `spec-authoring-workflow` | Keep product registration/release deferred and later accept only when authoring, distribution, and v0.3 kernel evidence bind to the current candidate and the linked v0.2 predecessor plus every mandatory aggregate remains accepted. |
+| Authoring and enforcement | Joint tuple `spec-evidence:FR-13/14` + `spec-authoring-workflow:FR-13/14` + `spec-enforcement:FR-11` | Implementation/evaluation may proceed while deferred, but no mutation/API delivery or enforcement delivery may occur until the same candidate satisfies the full joint tuple. |
 | Agent-facing MCP destination | [spec-generator-port.md](../../docs/decisions/spec-generator-port.md) constrained by `product:FR-9` | Closed 46-name census; eight SCHEMA-11 names are the v0.3 first slice. |
 | Public roadmap | root `ROADMAP.md` constrained by `product:FR-6`–`FR-9` | Communicate delivered/planned/deferred/blocked state without redefining contracts. v0.3 is the first slice of the generator-port MCP door. |
 | Imported upstream corpus | `docs/upstream/dev-pomogator/spec-generator-v4/` | Reference and provenance only; never target truth or passing evidence. |
@@ -45,11 +45,13 @@ The arrows are gates, not dates. A later node cannot become delivered while an e
 
 | State | Meaning | Permitted public wording |
 |---|---|---|
-| `SPEC_ONLY` | Contracts/policies exist; runtime is absent. | “Specification-only; no installable plugin.” |
-| `PLANNED` | Scope is approved but required delivery evidence does not exist. | “Planned for stage/version…” |
-| `DEFERRED` | Deliberately outside the active/near-term gate. | “Deferred pending…” |
-| `BLOCKED` | A required gate failed or lacks an owner decision. | “Blocked by…” with remediation. |
-| `DELIVERED` | Current observable evidence satisfies every cumulative aggregate gate for the stage under the typed current-candidate/predecessor binding rules. | Exact delivered capability plus the complete cumulative evidence set and artifact chain. |
+| `SPEC_ONLY` | Contracts/policies exist; runtime is absent. | “Specification-only; no executable capability.” |
+| `PLANNED` | Scope is approved but required delivery evidence does not exist. | “Planned; exact missing aggregates: …” |
+| `SPECIFIED` | Closed implementable contract exists; accepted runtime evidence is absent. | “Specified; exact next aggregate…” |
+| `DEFERRED` | Deliberately outside the active capability set. | “Deferred by product decision…” |
+| `DEFERRED_HOST_ABI` | Contract is ready but the pinned host lacks one named ABI. | “Deferred on host ABI `<name>`; no simulated support.” |
+| `BLOCKED` | A declared gate failed or its evidence is invalid/missing. | “Blocked by…” with remediation. |
+| `DELIVERED` | Current observable evidence satisfies the exact baseline/capability aggregate. | Exact delivered behavior plus bound evidence. |
 
 Status projection uses the most conservative state. `DELIVERED` is not inherited from a parent stage, document completion, task status, tag, scenario presence, the latest aggregate alone, or evidence for only a subset of a required aggregate. A later aggregate cannot replace an earlier one. Current distribution, current target-stage kernel, and current authoring results must bind to the current candidate. The only permitted different-artifact evidence is the explicitly typed v0.2 kernel predecessor for v0.3/authoring, and only when the current v0.3 result cryptographically names its exact artifact SHA-256, both results share revision and lineage in strict target-stage order, and neither is stale or revoked.
 
@@ -57,12 +59,12 @@ Status projection uses the most conservative state. `DELIVERED` is not inherited
 
 | Stage | Current-candidate evidence | Permitted predecessor evidence | Required relation |
 |---|---|---|---|
-| v0.1.0 | `plugin-distribution:FR-13` | none | Distribution artifact SHA-256 equals the status candidate SHA-256. |
-| v0.2 | distribution plus `spec-kernel:FR-14` `targetStage: "v0.2"` | none | Both artifact SHA-256 values equal the status candidate SHA-256. |
-| v0.3 | distribution plus `spec-kernel:FR-14` `targetStage: "v0.3"` | one separately identified `targetStage: "v0.2"` result | The v0.3 result binds to candidate B and declares `v02ParentArtifactSha256` equal to predecessor A; A and B may differ, but both kernel results share revision/lineage, use the exact ordered profiles, and remain active. |
-| authoring/mutation | distribution, v0.3 kernel, and `spec-authoring-workflow:FR-13` | the same linked v0.2 predecessor | Every current result binds to B; the v0.2 A-to-v0.3 B link remains valid; every cumulative aggregate stays mandatory. |
+| v0.1.0 | historical `distribution-release-eligibility@1` (`plugin-distribution:FR-13`) | none | Distribution artifact SHA-256 equals the status candidate SHA-256. |
+| v0.2 | candidate-applicable distribution result plus `spec-kernel:FR-14` `targetStage: "v0.2"` | none | Both artifact SHA-256 values equal the status candidate SHA-256. |
+| v0.3 through v0.3.2 | historical candidate-applicable distribution result plus `spec-kernel:FR-14` `targetStage: "v0.3"` | one separately identified `targetStage: "v0.2"` result | The v0.3 result binds to candidate B and declares `v02ParentArtifactSha256` equal to predecessor A; A and B may differ, but both kernel results share revision/lineage, use the exact ordered profiles, and remain active. New candidates after the contract repair use distribution @2. |
+| post-v0.3 capability | delivered v0.3 baseline plus the exact aggregate in its `CapabilityDelivery` row | only predecessor evidence explicitly admitted by that capability | Current capability evidence binds to the evaluated candidate; no sibling aggregate is inherited. |
 
-Artifact ancestry is established by the exact parent SHA-256 plus the closed target-stage/profile pair, not by evidence-array order, capture timestamp, matching version text, or a shared lineage label alone. Historical, different-lineage, unlinked, stale, or revoked predecessor evidence fails closed.
+Artifact ancestry is established by exact hashes plus closed profile identity, not by evidence-array order, capture timestamp, matching version text, or a shared lineage label. Historical, different-lineage, unlinked, stale, revoked or sibling-capability evidence fails closed.
 
 ## Public-init decision flow
 
@@ -75,12 +77,13 @@ Artifact ancestry is established by the exact parent SHA-256 plus the closed tar
 
 ## One-product architecture invariant
 
-The long-term architecture is one standalone OMP marketplace containing exactly one plugin package and exactly one extension entry. The intended identity is `omp-spec-kit@omp-spec-kit`. Capabilities accumulate by stage inside that product:
+The architecture is one public OMP marketplace, one plugin package, one extension entry and one agent-facing MCP spec door. Delivery is split into:
 
-- v0.1.0: bounded read-only inventory/diagnostic path;
-- v0.2: read-only graph/query kernel in the same plugin;
-- v0.3: one read-only MCP adapter over the same query service (first slice of the generator-port door);
-- later: generator-port reads, sibling LSP, evidence MCP, and authoring/mutation only after separate safety gates. Authoring is not delivered by naming those stages.
+- baseline history: public init, v0.1 inventory, v0.2 kernel, v0.3 MCP first slice;
+- independent post-v0.3 capability rows: generator reads, LSP, evidence MCP, capability graph, authoring MCP, enforcement and automatic plan gate;
+- per-capability aggregate evidence that never implies a sibling capability.
+
+Automatic plan gate is `DEFERRED_HOST_ABI` on OMP v17.3.7. LSP is editor/MCP-internal. Capability and authoring projections remain MCP-only.
 
 This specification deliberately does not restate manifest fields, tool schemas, parser types, transport messages, or CAS algorithms. Their owners are linked in the authority model.
 
@@ -98,7 +101,7 @@ A public claim record conceptually contains:
 - unresolved blockers;
 - next eligible gates.
 
-A claim is non-public or non-delivered when any required field/evidence is absent, stale, revoked, contradictory, failed, targeted to another kernel stage, bound to another lineage, current-artifact mismatched, or parent-SHA mismatched. v0.2 requires current-candidate distribution plus current-candidate `spec-kernel:FR-14` for `targetStage: "v0.2"`. v0.3 requires current-candidate distribution and current-candidate `targetStage: "v0.3"` kernel evidence plus a separately identified active `targetStage: "v0.2"` predecessor linked by the v0.3 result's exact `v02ParentArtifactSha256`. Authoring additionally requires current-candidate `spec-authoring-workflow:FR-13`. The product claim never selects a smaller member subset, treats the latest aggregate as a substitute for an earlier accepted aggregate, or reuses historical/different-lineage/unlinked earlier-stage proof. BDD scenarios in `.specs/product/product.feature` are intent-only until an executed result is produced by future verification infrastructure.
+A claim is non-public or non-delivered when any required field/evidence is absent, stale, revoked, contradictory, failed, targeted to another kernel stage, bound to another lineage, current-artifact mismatched, or parent-SHA mismatched. v0.2 requires current-candidate distribution plus current-candidate `spec-kernel:FR-14` for `targetStage: "v0.2"`. v0.3 requires current-candidate distribution and current-candidate `targetStage: "v0.3"` kernel evidence plus a separately identified active `targetStage: "v0.2"` predecessor linked by the v0.3 result's exact `v02ParentArtifactSha256`. Authoring and enforcement additionally require the joint current-candidate tuple `spec-evidence:FR-13/14` + `spec-authoring-workflow:FR-13/14` + `spec-enforcement:FR-11`; neither row delivers alone. The product claim never selects a smaller member subset, treats the latest aggregate as a substitute for an earlier accepted aggregate, or reuses historical/different-lineage/unlinked earlier-stage proof. BDD scenarios in `.specs/product/product.feature` are intent-only until an executed result is produced by future verification infrastructure.
 
 ## Key decisions
 
@@ -144,7 +147,7 @@ A claim is non-public or non-delivered when any required field/evidence is absen
 
 ### D-5 — Read-only core precedes mutation
 
-**Decision:** inventory and graph/query observation must be proven before authoring, proposal, CAS, or mutation may be registered or released. Product authoring delivery requires current-candidate distribution, v0.3 kernel, and authoring aggregates, plus the separately identified active v0.2 predecessor that the v0.3 result names by exact parent artifact SHA-256. Both kernel results share one revision/lineage in strict v0.2-before-v0.3 order, while every cumulative aggregate remains mandatory.
+**Decision:** inventory/graph observation precedes mutation. Authoring and enforcement are a joint product delivery boundary: v0.3 baseline, evidence FR-13/14, authoring FR-13/14, and enforcement FR-11 must all bind one candidate before any user mutation/API delivery claim.
 
 **Rationale:** observation can be validated without risking user repository changes; the typed parent chain permits legitimate artifact evolution without allowing a later authoring aggregate, unrelated historical proof, or same-lineage-but-unlinked result to launder an unproven distribution/kernel stage.
 

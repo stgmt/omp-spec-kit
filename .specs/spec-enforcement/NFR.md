@@ -4,8 +4,8 @@ Budgets are release gates for the installed child-plugin artifact carrying the e
 
 ## NFR-PERF-1: Hook handler latency
 
-- One `tool_call` handler invocation for a non-matching tool call SHALL complete in at most 1 ms p95 over 20 samples; non-matching calls SHALL return without any kernel query or filesystem I/O.
-- One `tool_call` handler invocation for a matching spec-write SHALL complete in at most 10 ms p95 (path normalization + gate status check + reason rendering).
+- Pure registry lookup/classification for a known `READ_ONLY` or exact authoring-authority call SHALL complete in at most 1 ms p95 over 20 samples and perform no filesystem/kernel I/O.
+- A `MAY_WRITE_TARGETS` call including exhaustive extraction, filesystem containment, mode check, and decision SHALL complete in at most 25 ms p95 over 20 local-filesystem samples; each invocation has a hard 5-second deadline.
 - One `tool_result` diagnostic injection SHALL complete in at most 50 ms p95 including kernel query; kernel absence SHALL complete in at most 1 ms (immediate diagnostic message).
 - One `context` census injection SHALL complete in at most 100 ms p95 including kernel overview query.
 - The `session_start` initialization handler SHALL complete in at most 500 ms p95 including kernel initialization and corpus census computation.
@@ -27,7 +27,7 @@ Budgets are release gates for the installed child-plugin artifact carrying the e
 
 ## NFR-SEC-1: Containment and data minimization
 
-- Path matching in `tool_call` handlers SHALL normalize separators to `/`, reject absolute paths outside the project root, reject traversal (`..`), and reject symbolic links before inspection.
+- Pure classification SHALL perform no filesystem claim. The target resolver SHALL canonicalize project root, reject outside-root/traversal, inspect every existing ancestor with lstat/realpath, reject Windows reparse points and POSIX symlinks, and resolve a non-existing target through its nearest existing ancestor.
 - Diagnostic content, block reasons, and census summaries SHALL NOT contain absolute paths, environment values, credentials, stack traces, or arbitrary OS error text; repository-relative paths only.
 - The hooks SHALL NOT read `.git`, `.env*`, user home, plugin cache, or non-spec documents.
 - No network calls, subprocess spawns, or credential access SHALL occur from any handler.
@@ -41,7 +41,7 @@ Budgets are release gates for the installed child-plugin artifact carrying the e
 
 ## NFR-USE-1: Actionable block and diagnostic content
 
-Every block reason SHALL name the matched tool, the target path, and the redirect destination (authoring door command or API). Every diagnostic injection SHALL name the source (kernel finding code or "kernel unavailable") and the affected spec slug. Census summaries SHALL include spec count, document counts, and top-level diagnostic severity.
+Every block reason SHALL name the tool, closed decision code, repository-relative target when known, and qualified redirect `omp-spec-kit:spec-authoring-workflow`; no arbitrary command/API endpoint is permitted. Kernel additions name their `spec-kernel:FR-6` source; enforcement-policy diagnostics name their separate component/code and never claim conformance. Census summaries include spec/document counts and diagnostic severity.
 
 ## Hard input limits
 
@@ -52,6 +52,7 @@ Every block reason SHALL name the matched tool, the target path, and the redirec
 | Block reason bytes | n/a | 4 KiB |
 | Diagnostic records per session | 50 | 50 |
 | Diagnostic record message scalar values | 1,024 | 1,024 |
+| Raw targets per call | n/a | 64 |
 | Handler deadline per event | n/a | 5 s |
 | Session-start initialization deadline | n/a | 500 ms |
 | Corpus census cache bytes per session | n/a | 64 KiB |

@@ -1,6 +1,6 @@
 # Plugin Distribution Public Schemas
 
-This document is normative for v0.1.0. `additionalProperties` is false for every public object unless a table explicitly says otherwise. Strings are UTF-8. Public paths are normalized `/`-separated project-relative paths and never begin with `/`, a drive prefix, `..`, `~`, or a URI scheme.
+This document preserves the immutable historical v0.1.0 profiles and defines the forward `distribution-release-eligibility@2` boundary after delivered v0.3.2. `additionalProperties` is false for every public object unless stated otherwise. Strings are UTF-8; public paths are normalized project-relative paths and never expose host identity.
 
 ## 1. Runtime canonical identifiers
 
@@ -119,6 +119,29 @@ It returns `void` or a resolved promise after registration. It does not scan, ex
 | `parameters` | host schema | yes | Validates `spec-inventory-request@1`; rejects unknown properties. |
 | `execute` | async function | yes | Uses execution `ctx.cwd` as project root, honors abort signal, returns bounded content and `details`. |
 
+### 4.2 Delivered v0.3.2 profile overlay
+
+The historical v0.1.0 tables above remain immutable. The delivered v0.3.2
+profile changes only these closed values/surfaces:
+
+| Surface | Exact v0.3.2 contract |
+|---|---|
+| Catalog versions | `metadata.version == plugins[0].version == "0.3.2"`; all other catalog topology/field rules remain |
+| Child `version` | exact `0.3.2` |
+| Child `files` | exact ordered array `.mcp.json`, `package.json`, `README.md`, `LICENSE`, `bin/`, `dist/`, `skills/`, `commands/` |
+| OMP extension | still one `./dist/extension.js`; no second factory/entry |
+| MCP config | one `.mcp.json` with exact `$schema` `https://raw.githubusercontent.com/can1357/oh-my-pi/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/config/mcp-schema.json`; one server key `omp-spec-kit`, `type:"stdio"`, command `./bin/omp-spec-kit-mcp`; no `cwd` |
+| Launchers | exactly regular contained `bin/omp-spec-kit-mcp` and `bin/omp-spec-kit-mcp.cmd`; POSIX launcher executable in archive |
+| Generated dist | `extension.js`, `inventory.js`, `kernel/**`, `adapters/**`, `mcp/**`, and `manifest.json`; every leaf is regular/contained and exactly hash-listed by `omp-spec-kit-dist-manifest@1` |
+| Guidance | the same one skill and one command; no duplicate runtime logic |
+
+No source, tests, fixtures, evidence, build script, dependency tree, nested
+manifest/package, second MCP server identity, install script, native addon or
+download is permitted in the child. The exact v0.3 first-slice registration and
+behavioral evidence are owned by `mcp-release-integrity`/`spec-kernel`; this
+distribution overlay owns package topology and bytes, not a permanent tool-count
+ceiling.
+
 ## 5. `spec-inventory-request@1`
 
 All fields are optional; omission selects documented defaults.
@@ -129,6 +152,7 @@ All fields are optional; omission selects documented defaults.
 | `maxSpecs` | integer | no | 50 | Minimum 1, maximum hard cap 200. |
 | `maxDiagnostics` | integer | no | 25 | Minimum 0, maximum hard cap 100. |
 | `includeDocumentCounts` | boolean | no | `true` | Counts only regular direct files with canonical document names; never reads contents for this count. |
+| `maxResultBytes` | integer | no | 262144 | Minimum 4096; hard maximum 524288 UTF-8 bytes. |
 
 Unknown properties, non-integers, `NaN`, infinities, strings in numeric fields, or values outside ranges are rejected before filesystem access.
 
@@ -146,6 +170,7 @@ Unknown properties, non-integers, `NaN`, infinities, strings in numeric fields, 
 | `counts` | object | yes | Closed counts object below. |
 | `truncated` | boolean | yes | True if any eligible spec/diagnostic was omitted by a bound. |
 | `readOnly` | literal `true` | yes | Contract assertion backed by test instrumentation, not self-sufficient proof. |
+| `serializedBytes` | integer | yes | Exact canonical UTF-8 result size; <= effective `maxResultBytes`. |
 
 ### 6.1 Counts object
 
@@ -155,7 +180,7 @@ Unknown properties, non-integers, `NaN`, infinities, strings in numeric fields, 
 | `observedSpecs` | integer or null | yes | Non-negative count when known without exceeding safe scan; `null` when aborted/unsafe/unavailable. |
 | `returnedDiagnostics` | integer | yes | `0..100`, equals `diagnostics.length`. |
 
-No timing, hostname, username, package cache path, process path, environment, source contents, or unbounded observed list is public output.
+No timing, hostname, username, package cache path, process path, environment, source contents, or unbounded observed list is public output. Before serialization, the service admits complete lexical spec entries then complete diagnostics until the next row would exceed `maxResultBytes`; it sets `truncated=true` and emits one complete `LIMIT_REACHED` diagnostic with exact omitted counts. If even the fixed envelope plus that diagnostic cannot fit 4,096 bytes, request validation refuses. No string/object is cut.
 
 ## 7. `spec-inventory-entry@1`
 
@@ -209,20 +234,18 @@ exist for the closed input `{ schema:
 omp-spec-kit-distribution-evidence-input@1, trust, receipt }`. With
 `trust: "untrusted-self-attested"` the evaluator always emits
 `distribution-producer-provenance-untrusted:no-independent-trust-root`.
-With `trust: "github-artifact-attestation"` the evaluator additionally spawns
-the independent verifier
-`gh attestation verify <evidence.json> --repo OWNER/REPO --signer-workflow
-OWNER/REPO/.github/workflows/distribution-evidence.yml --source-ref
-refs/tags/<candidate tag>` after full structural matrix validation. The
-signer-workflow path `.github/workflows/distribution-evidence.yml` is a fixed
-constant, the source ref is always the candidate tag, and the `OWNER/REPO`
-trust root is pinned: it comes from the GitHub Actions environment
-(`GITHUB_REPOSITORY`) or from an explicitly set strict `OWNER/REPO` variable
-(`OMP_SPEC_KIT_ATTESTATION_REPO`); it is never derived from local git config,
-and outside those sources the evaluator emits
-`distribution-producer-attestation-unverified:trust-root-unpinned`. Any missing
-`gh`, spawn failure, non-zero exit, or timeout yields
-`distribution-producer-attestation-unverified:<short reason>` (fail closed).
+With `trust: "github-artifact-attestation"` the evaluator additionally runs
+`gh attestation verify <evidence.json> --repo stgmt/omp-spec-kit
+--signer-workflow stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml
+--source-ref refs/tags/<candidate tag>` after full structural validation.
+Repository, signer workflow and source ref are fixed constants. `GITHUB_REPOSITORY`
+or `OMP_SPEC_KIT_ATTESTATION_REPO` may confirm the repository only when its value
+is exactly `stgmt/omp-spec-kit`; any other, absent, syntactically valid, receipt-
+supplied or local-git-derived value emits
+`distribution-producer-attestation-unverified:trust-root-unpinned`.
+Missing `gh`, spawn failure, non-zero exit, timeout, wrong workflow/ref/repository
+or subject mismatch fails closed as
+`distribution-producer-attestation-unverified:<short reason>`.
 The certificate identity (Fulcio signer bound to that workflow) and its
 timestamps are the trustworthy parts of an attestation; predicate contents are
 not attacker-proof and are treated as bounded diagnostics. `gh` availability is
@@ -277,7 +300,7 @@ The v0.1.0 implementation authority is OMP v17.3.7 at commit `8500092296621a6826
 
 Pinned source establishes recursive relative-source copying and extension discovery, but source inspection alone is not fresh-session runtime evidence. Structured `details` behavior and closed-profile loader acceptance remain release-proof obligations for the pinned lifecycle fixture; absence of those receipts keeps release eligibility blocked without weakening the schemas above.
 
-## 12. Executable v0.3.1 evidence envelopes
+## 12. Executable v0.3.2 evidence envelopes
 
 `omp-spec-kit-release-evidence@3` is the closed assembler output. Its exact fields are
 `schema`, candidate identity (`version`, `tag`, `commit`, `candidateDigest`,
@@ -315,9 +338,91 @@ source ref `refs/tags/<candidate tag>`; any failure adds
 subject bytes. Certificate identity and timestamps are the trusted parts of
 the attestation; predicate bytes remain diagnostics.
 
-The composed evaluator result is `public-release-eligibility@1` with the candidate
-identity, `mri`, `distribution`, `eligible`, and namespaced `blocking`. A
-supplied distribution bundle alone never produces eligibility: an eligible
-result requires eligible MRI, a structurally complete FR-1..FR-12 matrix, and a
-verifier-passing `github-artifact-attestation` trust root over the exact
-evidence subject.
+`public-release-eligibility@1` is the historical composed result used by the
+v0.3.2 lineage. Its receipt remains valid evidence and is summarized by
+`docs/validation/release-status-v0.3.2.json`; it is not the forward distribution
+evaluator contract. New distribution evaluation emits no MRI, capability, public,
+or product-delivery result.
+
+## 13. Forward distribution-only eligibility
+
+```ts
+interface DistributionReleaseInputV2 {
+  schemaVersion: "distribution-release-input@2";
+  candidate: {
+    version: string;
+    tag: string;
+    commit: string;
+    candidateDigest: string;
+    packageTreeDigest: string;
+    archiveSha256: string;
+    catalogDigest: string;
+  };
+  omp: { version: string; commit: string };
+  platform: { os: string; architecture: string; fixtureDigest: string };
+  evidence: {
+    manifestPath: string;
+    manifestSha256: string;
+    manifest: "omp-spec-kit-distribution-evidence@1";
+  };
+  trust: {
+    kind: "github-artifact-attestation";
+    repository: "stgmt/omp-spec-kit";
+    signerWorkflow: "stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml";
+    sourceRef: string; // exact refs/tags/<candidate.tag>
+    subjectSha256: string; // exact evidence manifest bytes
+  };
+}
+
+interface VerifiedDistributionAttestationV2 {
+  repository: "stgmt/omp-spec-kit";
+  signerWorkflow: "stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml";
+  sourceRef: string;
+  subjectSha256: string;
+  certificateIdentity: string;
+  verifiedAt: string;
+}
+
+interface DistributionReleaseEligibilityV2 {
+  schemaVersion: "distribution-release-eligibility@2";
+  candidateVersion: string;
+  candidateCommit: string;
+  candidateDigest: string;
+  eligible: boolean;
+  evidenceByRequirement: Record<string, string[]>; // exactly FR-1..FR-12
+  verifiedAttestation: VerifiedDistributionAttestationV2 | null;
+  blockers: { code: string; requirement: string | null; message: string }[];
+  serializedBytes: number; // exact UTF-8 size of canonical result, <= 524,288
+}
+```
+
+Admission first validates the complete canonical-contained producer matrix and
+all candidate/OMP/platform/applicability/lifecycle identities. It then runs
+`gh attestation verify <subject> --repo stgmt/omp-spec-kit --signer-workflow
+stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml --source-ref
+refs/tags/<candidate.tag>`. `GITHUB_REPOSITORY` MAY supply the repository only
+when it equals `stgmt/omp-spec-kit`; local git configuration, receipt JSON and
+predicate fields are never trust-root inputs.
+
+The result has exactly 12 `evidenceByRequirement` keys, at most 64 unique
+receipt digests total, at most 200 blockers, blocker messages at most 512
+Unicode scalar values, and canonical serialized size at most 512 KiB. If a
+complete failure set would exceed a bound, eligibility is false and the final
+complete blocker is `DISTRIBUTION_RESULT_LIMIT_EXCEEDED`; no row/string is cut.
+
+Closed trust blockers include:
+
+- `DISTRIBUTION_SELF_ATTESTED_ONLY`;
+- `DISTRIBUTION_TRUST_ROOT_UNPINNED`;
+- `DISTRIBUTION_SIGNER_WORKFLOW_MISMATCH`;
+- `DISTRIBUTION_SOURCE_REF_MISMATCH`;
+- `DISTRIBUTION_SUBJECT_MISMATCH`;
+- `DISTRIBUTION_ATTESTATION_VERIFIER_UNAVAILABLE`;
+- `DISTRIBUTION_ATTESTATION_TIMEOUT`;
+- `DISTRIBUTION_ATTESTATION_FAILED`;
+- `DISTRIBUTION_EVIDENCE_MATRIX_INVALID`.
+
+Only certificate identity/timestamps and exact subject binding are trusted.
+Predicate bytes remain diagnostics. The result is distribution eligibility only.
+`mcp-release-integrity` owns MRI; `product:FR-6` consumes baseline and
+capability-specific aggregates and alone owns product/public delivery.

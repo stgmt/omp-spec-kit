@@ -111,6 +111,7 @@ Feature: Standalone deterministic specification graph kernel
     And Foo-1 Foo Foo emits foo-1 foo foo-2 and Foo Foo-1 Foo emits foo foo-1 foo-2
     And every heading and semantic link occurrence appears exactly once with versioned anchors exact use and rewrite spans stable rewrite keys and outcomes
     And all inbound links to the focus and all outbound links in its section are identified and the heading and link conservation totals reconcile
+    And historical glfm behavior is owned only by CHK-FR13-01 while kernel-anchor-migration@1 requires exactly CHK-FR13-02 for Marksman rows and cross-version cursor refusal
 
   @feature14 @AC-14.1 @id:SCEN-kernel-release-gate-is-all-not-any
   Scenario: Kernel release eligibility requires the complete selected stage profile
@@ -125,37 +126,39 @@ Feature: Standalone deterministic specification graph kernel
     And every ineligible result has deterministic blocking details and no publication or readiness side effect
 
   @feature15 @AC-15.1 @id:SCEN-contained-step-binding-index
-  Scenario: Contained step-definition files become kernel bindings without adding an MCP tool
-    Given canonical spec documents and cucumber-js step definitions under tests/step-definitions
+  Scenario: Contained step-definition sources become kernel bindings under their own profile
+    Given a delivered v0.3 baseline and allowlisted cucumber-js step-definition sources
     And one Gherkin step has exactly one matching pattern one has none and one has two
-    When the kernel builds the graph
-    Then each parsed pattern is one STEP_BINDING node
+    When kernel-step-bindings at 1 is evaluated
+    Then every binding node uses NodeSourceV2 kind STEP_DEFINITION
     And the uniquely matched step has one BINDS_STEP edge
     And the unmatched step has WARNING STEP_UNDEFINED and the graph remains valid
     And the doubly matched step has WARNING STEP_AMBIGUOUS and no BINDS_STEP edge
     And a symlink or path outside tests/step-definitions is refused before read
-    And findNodes getEdges and diagnostics expose the index
-    And this FR does not add an MCP tool
-    And a v0.2 eligibility manifest without FR-15 evidence remains evaluable
+    And CHK-FR13-02 plus CHK-FR15-01 and the baseline are required for the same pre-registration candidate
+    And activation uses the same dormant artifact without rebuilding
+    And historical v0.2 and v0.3 manifests without FR-15 remain evaluable
 
   @feature16 @AC-16.1 @id:SCEN-generator-port-read-operations
-  Scenario: Generator-port kernel reads grow MCP without a second graph
-    Given the v0.2 eight query operations exist
-    When FR-16 operations are implemented
-    Then listSpecs findByTags listTasks listPhaseTasks findOrphans validateAnchor policyQuery validateRequirementMetadata archivalProof validateSpec and specStatus are read-only query operations
-    And MCP projects them so the agent never needs an LSP tool
-    And get_test_result and get_scenario_trace remain absent until spec-evidence
-    And mutation tools remain absent from the v0.3 read registry
-    And a v0.2 eligibility manifest without FR-16 evidence remains evaluable
+  Scenario: Generator-port kernel reads grow MCP under a standalone profile
+    Given the delivered v0.3 eight-tool first slice
+    When kernel-generator-port-reads at 1 is evaluated
+    Then every FR-16 operation satisfies its exact args result error bounds and cursor contract
+    And MCP projects each operation one-to-one without deleting the first-slice names
+    And get_test_result get_scenario_trace and mutation tools remain absent
+    And CHK-FR13-02 plus CHK-FR16-01 and the baseline are required for the same pre-registration candidate
+    And dormant MCP mappings activate without rebuilding
+    And historical v0.2 and v0.3 manifests without FR-16 remain evaluable
 
   @feature17 @AC-17.1 @id:SCEN-mcp-adapter-document-preflight-io
-  Scenario: Adapter document and preflight I/O grow MCP without a second graph
-    Given the v0.3 first-slice eight SCHEMA-11 tools exist
-    When FR-17 adapter I/O is implemented
-    Then list_spec_docs read_spec_doc read_attachment and mcp_preflight are read-only adapter operations
-    And they apply the same containment as FR-7
-    And they are not query-service operations
-    And MCP projects them so the agent never needs a second graph
-    And a v0.2 eligibility manifest without FR-17 evidence remains evaluable
+  Scenario: Adapter document and preflight I/O grow MCP under a standalone profile
+    Given the delivered v0.3 eight-tool first slice
+    When kernel-adapter-io at 1 is evaluated
+    Then list_spec_docs read_spec_doc read_attachment and mcp_preflight satisfy their exact adapter contracts
+    And they apply FR-7 containment before bytes leave the adapter
+    And they are not QueryOperationV2 values and create no second graph
+    And CHK-FR13-02 plus CHK-FR17-01 and the baseline are required for the same pre-registration candidate
+    And dormant MCP mappings activate without rebuilding
+    And historical v0.2 and v0.3 manifests without FR-17 remain evaluable
 
 

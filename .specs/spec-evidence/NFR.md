@@ -12,9 +12,9 @@ Budgets are release gates for the installed artifact carrying the evidence evalu
 
 ## NFR-SIZE-1: Artifact and result size
 
-- A single execution artifact SHALL be at most 16 MiB; artifacts exceeding this limit SHALL produce `NOT_INGESTED` with reason `MALFORMED_ARTIFACT` before parsing.
-- The evaluation output for one run SHALL be at most 4 MiB serialized.
-- One diagnostic record message SHALL be at most 1,024 Unicode scalar values; diagnostic state per evaluation SHALL be at most 200 records or 512 KiB, whichever first.
+- A single PRESENT execution artifact SHALL be at most 16 MiB; larger input returns `LIMIT_EXCEEDED` before parsing.
+- One MCP response SHALL be at most 1 MiB; larger pageable output uses explicit totals/cursor.
+- Diagnostic state SHALL be at most 10,000 records and 512 KiB.
 - Coverage census serialized form SHALL be at most 256 KiB.
 
 ## NFR-MEM-1: Memory bound
@@ -31,10 +31,10 @@ Budgets are release gates for the installed artifact carrying the evidence evalu
 
 ## NFR-REL-1: Determinism and reproducibility
 
-- Identical kernel graph, artifact bytes, and limits SHALL produce byte-identical evaluation output (ingestion states, join outcomes, freshness verdicts, status truth, census) across repeated runs on Windows and POSIX.
-- Join outcomes SHALL be ordered by qualified scenario ID, then tag, then name.
-- Diagnostics SHALL be ordered by phase, then artifact, then code.
-- Unknown schema versions, malformed artifact encodings, or unrecognized artifact kinds SHALL produce `NOT_INGESTED` with appropriate reason, never a guess.
+- Identical kernel bindings, artifact bytes, and limits SHALL produce byte-identical evaluation output across Windows and POSIX.
+- Join outcomes SHALL be ordered by canonical scenario ID, producer result ID, then layer.
+- Diagnostics SHALL be ordered by evaluation phase, artifact ID, scenario ID, then code.
+- Unsupported kind/version produces `NOT_INGESTED/UNSUPPORTED_ARTIFACT_IDENTITY`; malformed bytes produce `NOT_INGESTED/MALFORMED_ARTIFACT`; neither path guesses.
 
 ## NFR-USE-1: Actionable diagnostics
 
@@ -46,8 +46,10 @@ Every diagnostic SHALL carry a closed code, a human message naming the violated 
 |---|---:|---:|
 | Single artifact bytes | n/a | 16 MiB |
 | Aggregate artifact bytes per evaluation | n/a | 64 MiB |
-| Artifacts per evaluation | n/a | 50 |
-| Canonical scenarios per evaluation | n/a | 10,000 |
-| Diagnostic records per evaluation | 200 | 200 |
-| Evaluation output bytes | n/a | 4 MiB |
-| Evaluation run deadline | n/a | 120 s |
+| Artifacts per evaluation | 16 | 64 |
+| Parsed producer rows | n/a | 1,000,000 |
+| Diagnostic records/bytes | 200 | 10,000 / 512 KiB |
+| Census bytes | n/a | 256 KiB |
+| MCP response bytes | n/a | 1 MiB |
+| Trace failed-step/error bytes | n/a | 8 KiB complete or `RESPONSE_TOO_LARGE` |
+| External evaluation deadline | n/a | 120 s |

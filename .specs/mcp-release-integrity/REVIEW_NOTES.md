@@ -1,29 +1,30 @@
 # Spec Review: mcp-release-integrity
 
-**Phase:** corrective post-implementation review
+**Phase:** post-release contract reconciliation
 
 ## Verdict
 
-**NOT READY for public release.** The deterministic pinned OMP manager handoff is now captured and has a repeatable BDD gate; public lifecycle, upgrade, rollback, and release-asset receipts remain incomplete.
+**Public v0.3.2 remains delivered and installable. Contract revalidation is in progress.** The bounded public-release authority is `docs/validation/release-status-v0.3.2.json`; this specification-only corpus repair neither retracts nor creates a runtime release. CHK/TASK rows remain `In Progress` until the amended all-scenario Docker run and final corpus review are recorded.
 
-## Confirmed fixes
+`.progress.json` records completion of the four document-authoring phases only. It is not implementation, CHK, task, or public-release status.
 
-- Docker BDD now covers malformed raw JSON: one `-32700` response with null id, then successful recovery.
-- Candidate evidence parser rejects non-NDJSON, meta-only streams, duplicate `testRunFinished`, retried-without-terminal attempts, missing chain members, and non-passing terminal steps.
-- `tests/fixtures/release-candidate/cucumber-messages.ndjson` is captured real Cucumber 13.2.1 output with provenance documentation.
-- Corrective Docker suite: 43 scenarios / 353 steps passed.
-- Tasks and CHKs were reopened: 0 verified, 9 in progress, 2 blocked.
-- The prior `omp-manager-handoff-probe@2` receipt reached `PluginManager.link` → `omp-plugins` → sole target config/source → `MCPManager.connectServers`, reported eight tools, and left the manager empty after disconnect. The strengthened `SCEN-MRI-012` now additionally requires a real manager-owned `spec_inventory` execution from project-a, exclusion of package-decoy, project-root evidence for the child fallback, and pre-enrollment manifest/launcher hash binding; it remains unverified until the targeted Docker scenario is run.
-- Receipt and Cucumber message paths now reject a symlinked evidence root or parent, canonical realpath escape, non-regular file, and digest mismatch before bytes are read.
-- Distribution eligibility now rejects self-authored `claims` placeholders: every required FR claim must bind a copied, digest-verified producer receipt with matching candidate/platform fixture and passed observations. No live producer provenance is present, so notes, candidate upload, and publication remain blocked.
-- Public-safety BDD mutates the real package with only synthetic Authorization/Bearer, credential, cookie, PEM, and known-prefix sentinels; each is detected without disclosing its value.
+## Current bounded evidence
+
+- Public release/tag: `v0.3.2`, peeled commit `2938389e34e2d06bdd497291ed01e0a2d89146c9`.
+- Candidate digest: `526ef6ff94ea682a116a43e4de0b5f622686b8ef36648b7884c830ba1eac25b4`.
+- Published archive: `omp-spec-kit-0.3.2.tar`, SHA-256 `26a2ebadd7d1888c10dc9bdbdc25e11fecf5a7dcc7515b15c7e3bb363a0cbea9`.
+- Evidence schema: `omp-spec-kit-release-evidence@3`, with separate MRI, distribution, and public eligibility result contracts.
+- Distribution subject: `distribution-evidence.json`, SHA-256 `46deadb5ccb26413942bf96c046516231e1c98d217d95353b90574922365f5d7`, repository `stgmt/omp-spec-kit`, signer workflow `.github/workflows/distribution-evidence.yml@refs/tags/v0.3.2`, Rekor index `2624698726`.
+- The committed real Cucumber fixture is an immutable prior full Docker stream. After any scenario/step change it must be recaptured from a new successful unfiltered Docker run before CHKs become Verified.
+
+## Revalidation changes
+
+- All eighteen MRI IDs and all source-derived Scenario Outline rows are mandatory `@release-evidence`; the amended set is 40 pickle executions. Six FR receipts do not replace multiplicity.
+- FR-2 now verifies `-32600`, `-32700`, `-32601`, and `-32602` terminal responses.
+- FR-4/FR-5/FR-6 separate local fail-closed evaluator tests from bounded historical public-release/asset/release-note readback; no fresh trusted verifier/download execution is claimed.
+- Candidate/evidence/result schemas now mirror delivered evidence@3 and the distinct MRI/distribution/public result identities.
+- Every CHK has a TASK backlink; all eleven CHKs have one honest `In Progress` state.
 
 ## Historical interactive CLI observation
 
-| Code | Severity | Evidence | Current interpretation |
-|------|----------|----------|------------------------|
-| `PINNED_OMP_MCP_DISCOVERY_MISSING` | Historical diagnostic | A fresh pinned `@oh-my-pi/pi-coding-agent@17.3.7` session listed `omp-spec-kit@0.3.1` under `/plugins list`, but `/mcp list` omitted it and `/mcp test omp-spec-kit` returned `Server "omp-spec-kit" not found.` | Retained as receipt history. The deterministic manager probe is the authoritative manager-level check because it directly performs enrollment, capability/config conversion, target-only connection, and disconnect; this does not supersede public release/lifecycle obligations. |
-
-## Release boundary
-
-No v0.3.1 tag, GitHub release, upgrade proof, rollback proof, or live release asset was created. The release workflow is intentionally fail-closed until those receipts exist.
+The v0.3.1 observation where `/mcp list` omitted `omp-spec-kit` is retained as historical defect evidence only. The deterministic manager receipt and bounded public v0.3.2 status record are current authorities.

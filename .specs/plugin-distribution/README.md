@@ -1,8 +1,8 @@
 # Plugin Distribution Specification
 
-**Status:** Specification text only; no implementation or executed lifecycle evidence is claimed.
+**Contract status:** the v0.1 distribution contract has a delivered public descendant at v0.3.2. Current release identity and attestation receipts are summarized in `docs/validation/release-status-v0.3.2.json`; Gherkin remains specification text unless a cited producer receipt proves execution.
 
-This specification defines the `v0.1.0` distribution boundary for `omp-spec-kit`: one repository-root OMP marketplace catalog, one child plugin package at `plugins/omp-spec-kit`, and one built extension entry. The first installed capability is a bounded, root-relative, read-only `spec_inventory` tool.
+This specification owns one marketplace, one child package, one extension entry, one profile-gated MCP server identity, candidate packaging/lifecycle/safety receipts, and distribution-only eligibility. Historical v0.1.0 began with bounded `spec_inventory`; delivered v0.3.2 preserves the topology and adds its read-only kernel/MCP first slice.
 
 ## Scope
 
@@ -11,14 +11,15 @@ This specification defines the `v0.1.0` distribution boundary for `omp-spec-kit`
 - Catalog path: `.omp-plugin/marketplace.json`
 - Child package: `plugins/omp-spec-kit`
 - Extension artifact: `plugins/omp-spec-kit/dist/extension.js`
-- First installable version: `0.1.0`
+- MCP server identity from v0.3 profiles: `omp-spec-kit`
+- First installable version: `0.1.0`; current delivered baseline: `0.3.2`
 - Install scope proven by this specification: project
 
 The repository root is the marketplace root. A nested marketplace, a nested plugin package, a second catalog entry, or a second `omp.extensions` entry is invalid.
 
 ## Readiness rule
 
-A catalog file, a successful build, plugin installation, `/reload-plugins`, an individual passing job, or a structurally complete self-authored distribution JSON bundle is not release proof. `v0.1.0` may be claimed only when [FR-13](FR.md#fr-13-aggregate-release-eligibility) has complete current mandatory FR-1..FR-12 evidence for one candidate identity **and** a passing independent trust root exists — today that root is GitHub Artifact Attestations (`trust: "github-artifact-attestation"`, verified by `gh attestation verify` against `.github/workflows/distribution-evidence.yml` at the candidate tag); `trust: "untrusted-self-attested"` keeps `distribution-producer-provenance-untrusted:no-independent-trust-root`, and an unverifiable attestation keeps `distribution-producer-attestation-unverified:<reason>`, both blocking artifacts, notes, and publication. Upgrade-from-prior and rollback-to-prior are not `0.1.0` prerequisites; they become mandatory beginning with the first subsequent release.
+A catalog/build/install/reload/job summary or self-authored receipt matrix is not distribution proof. Forward `distribution-release-eligibility@2` requires the complete FR-1..FR-12 matrix plus `gh attestation verify` over the exact evidence subject with repository `stgmt/omp-spec-kit`, signer workflow `stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml`, and source ref `refs/tags/<candidate>`; missing/wrong/unavailable verification fails closed. That result owns distribution eligibility only. MRI remains `mcp-release-integrity`; product baseline/capability/public delivery remains `product:FR-6`. Historical v0.3.2 composed receipts remain valid evidence.
 
 ## Documents
 
@@ -31,7 +32,7 @@ A catalog file, a successful build, plugin installation, `/reload-plugins`, an i
 - [Acceptance criteria](ACCEPTANCE_CRITERIA.md)
 - [Design](DESIGN.md)
 - [Tasks](TASKS.md)
-- [Planned file changes](FILE_CHANGES.md)
+- [File state and planned changes](FILE_CHANGES.md)
 - [Specification changelog](CHANGELOG.md)
 - [BDD specification](plugin-distribution.feature)
 - [Fixture contract](FIXTURES.md)

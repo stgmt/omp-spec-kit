@@ -2,11 +2,11 @@
 
 ## Scope and method
 
-This research combines two evidence classes: (1) the installed OMP runtime source `pi-coding-agent@17.3.7` at `C:\Users\stigm\.omp\plugins\node_modules\@oh-my-pi\pi-coding-agent\src\` (pinned per the repository contract note `docs/omp-v17.3.7-contract.md`), and (2) the upstream `dev-pomogator` FR-39 concept and the `plan-gate` sibling specification as design provenance. OMP-side findings are stated with installed source paths and must be re-proven live by TASK-1 before implementation. Upstream FR-39 is research evidence only; no MCP server, audit log, or centralized access policy is imported.
+This research combines (1) installed OMP `pi-coding-agent@17.3.7` source pinned by `docs/omp-v17.3.7-contract.md`, (2) source FR-39 as migration provenance, and (3) accepted `spec-authoring-workflow`/product contracts. OMP claims require TASK-1 live receipts. FR-39 remains DEFER: this spec may enforce access and recognize the sanctioned authoring MCP authority, but it does not import or claim the source persistent audit implementation.
 
 ## RF-1: OMP hook events provide sufficient interception surfaces
 
-**Finding:** The OMP extension API exposes `tool_call` (pre-execution, may return `{block, reason}` or rewritten `{input}`), `tool_result` (post-execution, may add `{content, details, isError}`), `context` (message injection before each LLM call), and session lifecycle events (`session_start`, `turn_start`, `agent_end`). These surfaces are sufficient for both informational diagnostic injection and enforcement-mode write interception without Claude hooks.
+**Finding:** The OMP extension API exposes `tool_call` (pre-execution, may return `{block, reason}` or rewritten `{input}`), `tool_result` (post-execution, may add `{content, details, isError}`), `context` (message injection before each LLM call), and session lifecycle events (`session_start`, `turn_start`, `agent_end`). These surfaces are sufficient for informational injection and generic pre-call blocking, but v17.3.7 `ToolCallEvent` is insufficient to authenticate an MCP authoring authority because it exposes only `toolName` and `input`.
 
 **Evidence:**
 - `src/extensibility/hooks/types.ts:306` — `ToolCallEvent` shape with `toolName`, `input`.
@@ -18,16 +18,16 @@ This research combines two evidence classes: (1) the installed OMP runtime sourc
 
 **Decision:** FR-1 pins the event-surface claim set to these documented events. TASK-1 probes must confirm live behavior matches documentation before implementation.
 
-## RF-2: `tool_call` can match write targets touching `.specs/**`
+## RF-2: `tool_call` exposes every tool but names do not prove effects
 
-**Finding:** The `tool_call` event carries `toolName` and `input` for every tool execution. For `write` and `edit` tools, `input` contains the file path target. For `bash`, `input.command` contains the shell command string. A handler can inspect these fields to determine whether the operation touches `.specs/**`. The `input` rewrite capability allows redirecting non-matching calls without blocking.
+**Finding:** `tool_call` carries `toolName` and input for every execution, including built-in, MCP, and extension tools. Known write/edit fields and shell command strings are examples, not a complete future-proof write census. A regex/string match cannot prove command targets, and tool names alone cannot authenticate the authoring service.
 
 **Evidence:**
-- `src/extensibility/hooks/tool-wrapper.ts:42–74` — `tool_call` emission with full `input`.
-- `docs/hooks.md` lines 258–273 — realistic example matching `bash` commands by inspecting `event.input.command`.
-- `docs/skills/authoring-hooks.md` lines 82–101 — pre-tool blocking contract with `toolName` and `input` inspection.
+- `src/extensibility/hooks/tool-wrapper.ts:42–74` — event emission with tool name/input and block result.
+- `src/extensibility/extensions/wrapper.ts` — registered tool execution passes through the wrapper.
+- `docs/skills/authoring-hooks.md:82–101` — pre-tool input inspection contract.
 
-**Decision:** FR-3 matches `write`/`edit` by path prefix and `bash` by command-string pattern. TASK-1 must confirm the exact `input` field names and path normalization for each tool.
+**Decision:** FR-3/FR-7 use a candidate-bundled installed registry for expected effects, but authoring allowance requires a future non-model-controlled `tool-call-authority-abi@1` provider/server/schema envelope. Current v17.3.7 state is `DEFERRED_HOST_ABI`; tool-name equality cannot authorize. Every call enters classification; there is no three-name early return.
 
 ## RF-3: `tool_result` supports diagnostic content injection
 
@@ -50,18 +50,18 @@ This research combines two evidence classes: (1) the installed OMP runtime sourc
 - `docs/skills/authoring-hooks.md` lines 130–148 — context modification contract.
 - `plan-gate:FR-3` — proven precedent for bounded context injection.
 
-**Decision:** FR-2 uses `context` for corpus census injection on session start and periodically. Injection is bounded and modifies only the event deep copy.
+**Decision:** FR-2 uses `session_start` to prepare one corpus census and the next `context` event to inject it once. The bounded message modifies only the event deep copy.
 
-## RF-5: Hook handler errors fail closed in OMP; fail-honest requires compensation
+## RF-5: Hook handler errors fail closed; fail-honest must preserve safety
 
-**Finding:** The OMP tool wrapper treats a hook handler error as a block ("fail-safe"). Unlike `plan-gate` which compensates to fail-open, this spec's fail-honest policy (FR-4) requires explicit visible messages rather than silent allowance or silent blocking. Handler code must catch all internal faults and translate them into diagnostic content, not into thrown exceptions.
+**Finding:** OMP's outer wrapper blocks on handler error/timeout. Catching faults inside the handler is required for bounded actionable output. But uniformly allowing caught faults would open a raw-write bypass when classification or containment fails.
 
 **Evidence:**
-- `src/extensibility/hooks/tool-wrapper.ts:43` — "If hook errors/times out, block by default (fail-safe)".
-- `plan-gate:RF-3` — same finding; plan-gate compensates to fail-open.
-- `spec-kernel:FR-6` — anti-fake-green lineage: diagnostics must never convert structural findings into passing claims.
+- `src/extensibility/hooks/tool-wrapper.ts:43` — outer fail-safe behavior.
+- `plan-gate:FR-2` — internal fail-open is capability-specific, not a universal policy.
+- `spec-authoring-workflow:FR-12` — no-bypass mutation invariant.
 
-**Decision:** FR-4 defines the fail-honest invariant: every fault produces an explicit visible message. This differs from plan-gate's fail-open because enforcement-mode silent blocking is worse than silent allowance (it creates false negatives), while informational-mode silence is worse than honest absence (it creates false confidence).
+**Decision:** Informational kernel/render faults diagnose and allow. Enforcement safety faults in registry, extraction, authority, containment, or resolution diagnose and BLOCK `TARGET_INDETERMINATE`. Both paths catch exceptions before the outer wrapper; neither is silent or fake-green.
 
 ## RF-6: Session events enable lifecycle-scoped initialization
 
@@ -72,17 +72,18 @@ This research combines two evidence classes: (1) the installed OMP runtime sourc
 - `docs/skills/authoring-hooks.md` lines 46–59 — session lifecycle event table.
 - `docs/extensions.md` lines 272–279 — extension session lifecycle events.
 
-**Decision:** FR-2 uses `session_start` for corpus census initialization. FR-9 uses session events for stage-gate status caching.
+**Decision:** FR-2 uses `session_start` for corpus census initialization. FR-9 uses session events for stage-gate/static-manifest caching only; session_start does not enumerate live tools.
 
-## RF-7: Upstream FR-39 concept informs but does not constrain
+## RF-7: FR-39 remains deferred while authoring authority is MCP-only
 
-**Finding:** Upstream FR-39 specified "MCP-only spec access and audit log" — centralized access control through MCP with persistent audit trails. `MIGRATION_MATRIX.md` defers this pending a later adapter/policy stage. The enforcement *concept* (controlled access to spec documents) survives, but the surface (MCP), the persistence (audit log), and the centralization policy are outside this spec's boundary.
+**Finding:** Source FR-39 combined MCP-only spec access with persistent audit. `MIGRATION_MATRIX.md` marks the whole source feature DEFER. Separately, the target authoring contract now defines the only sanctioned proposal-first mutation authority as MCP server `omp-spec-kit`.
 
 **Evidence:**
-- `MIGRATION_MATRIX.md` row FR-39 — DEFER decision with rationale "Central access and audit require a later adapter and privacy/state policy."
-- `ROADMAP.md` lines 46–50 — "Later — authoring and mutation" entry gates include audit/privacy policy.
+- `MIGRATION_MATRIX.md` FR-39 — DEFER.
+- `spec-authoring-workflow:FR-12`/`FR-14` and its schema facade map — no raw writer and exact MCP facade authority.
+- `product:FR-6` — AUTHORING_MCP then SPEC_ENFORCEMENT capability gates.
 
-**Decision:** This spec enforces through OMP-native hook events, not MCP. No audit log or persistent state is introduced (FR-5). The deferred FR-39 concept remains research input for a future adapter stage.
+**Decision:** OMP `tool_call` enforces effects; exact authoring MCP calls are the sole allowed mutation authority. No persistent audit log or full FR-39 delivery is claimed.
 
 ## RF-8: Extension modules ship inside bundled plugin artifacts
 
@@ -102,14 +103,14 @@ This research combines two evidence classes: (1) the installed OMP runtime sourc
 
 OMP documentation on `main` is mutable. Cited contracts may change between the pinned commit and implementation time. **Mitigation:** TASK-1 live ABI probes re-prove every cited claim against the pinned runtime before implementation proceeds.
 
-### RISK-2: Tool input shape variation across OMP versions
+### RISK-2: Live tool registry changes across OMP versions
 
-The exact field names and path normalization in `tool_call` `input` for `write`, `edit`, and `bash` may differ from documentation. **Mitigation:** TASK-1 probes record exact shapes; spec corrections precede implementation if deviations are found.
+New built-in, MCP, or extension tools can change name/input/effect. **Mitigation:** TASK-1 is blocked until a future host emits authenticated authority fields; candidate build verification captures the installed registry/hash, and runtime compares the future host envelope to it. Drift is visible and unmatched calls become `UNKNOWN`/BLOCK rather than disabling accepted enforcement.
 
-### RISK-3: Enforcement mode activation timing
+### RISK-3: Product or authoring authority identity is unavailable
 
-The cumulative gate acceptance signal may not be observable from within a hook handler without additional infrastructure. **Mitigation:** TASK-1 probes must confirm how stage-gate status is accessible to extension code; FR-9 may need adjustment based on probe findings.
+Activating from a local boolean would bypass same-candidate evidence. **Mitigation:** FR-9 requires exact product capability and authority-manifest digests; absence/mismatch refuses activation and cannot be overridden locally.
 
-### RISK-4: Bypass through non-standard tools
+### RISK-4: Dynamic commands and filesystem links hide targets
 
-Future OMP tools or extension-registered tools may write to `.specs/**` without triggering the matched `toolName` set. **Mitigation:** FR-7 requires enumeration of all known write surfaces; the design includes a catch-all pattern for unrecognized tools targeting `.specs/` paths.
+Shell substitution, computed paths, non-existing targets, POSIX symlinks, and Windows reparse points defeat substring matching. **Mitigation:** versioned exhaustive extraction returns incomplete for unsupported syntax, and an I/O resolver checks canonical root plus every existing ancestor. Any indeterminate result blocks in enforcement mode.

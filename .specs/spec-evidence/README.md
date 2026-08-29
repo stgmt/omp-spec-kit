@@ -1,10 +1,10 @@
 # spec-evidence
 
-One standalone specification for the evidence and honesty evaluation layer: a pure function that consumes an immutable spec-kernel graph and immutable execution-artifact bytes, then produces artifact-level ingestion state, scenario-result joins, freshness/staleness verdicts, fail-closed task status truth, waiver honesty, coverage census with conservation equations, and release-eligibility contributions. This layer exists because `spec-kernel:FR-6` explicitly forbids the kernel from converting structural parsing into readiness or passing-test claims; evidence evaluation is therefore a separate specification with its own boundary, inputs, and invariants.
+This specification defines a pure, hash-bound evidence evaluator plus two later read-only MCP projections. It consumes kernel definition hashes and immutable producer bytes; it outputs ingestion, producer result/join/freshness records, fail-closed task truth, split conservation census, diagnostics and a candidate-bound release aggregate. It never adds pass/fail semantics to the kernel.
 
 ## Status
 
-SPEC_ONLY. All tasks are `Planned`; every Gherkin scenario is specification text with no executed status. The capability belongs to a roadmap stage after kernel v0.2 and requires an explicit release-stage decision recorded in `ROADMAP.md`.
+SPEC_ONLY. `spec-evidence@2` is the current implementable contract; no runtime or accepted evidence aggregate exists. The capability is independent of LSP/generator-read siblings and requires the delivered v0.3 baseline plus its exact `spec-evidence-mcp@1` aggregate.
 
 ## Why a separate spec
 
@@ -13,8 +13,8 @@ SPEC_ONLY. All tasks are `Planned`; every Gherkin scenario is specification text
 ## Provenance and evidence
 
 - Upstream research provenance lives in `docs/upstream/dev-pomogator/spec-generator-v4/` (`FR.md`, `DESIGN.md`). These documents are cited as research evidence only and are never target authority.
-- The spec-kernel graph contract (`spec-kernel:FR-1` through `spec-kernel:FR-14`) is the authoritative input shape; this spec adapts to it without modifying it.
-- Real fixture admission follows `spec-kernel:FR-11` discipline: real producer bytes, SHA-256, provenance, reviewed ground truth.
+- Historical kernel@1 and future kernel@2 snapshots provide graph/scenario content hashes; step-binding hashes are required when applicable.
+- Real fixture admission follows `spec-kernel:FR-11`: real producer bytes, immutable hashes, provenance and reviewed ground truth.
 - No upstream byte is imported without its own provenance, SHA-256, and license disposition decision per repository policy.
 
 ## Documents
@@ -38,6 +38,6 @@ SPEC_ONLY. All tasks are `Planned`; every Gherkin scenario is specification text
 
 ## Release boundary
 
-This specification belongs to a stage after kernel v0.2. It requires an explicit release-stage decision recorded in `ROADMAP.md` before any implementation may ship. Its release-eligibility contribution (FR-13) plugs the future stage's all-not-any conjunction like `spec-kernel:FR-14` but SHALL NOT loosen the `product:FR-6` cumulative gate. Entry additionally requires: accepted kernel v0.2 graph as input, real-producer fixture corpus with reviewed ground truth, budget evidence per NFR, and an independent adversarial review record. Structural specification text and unexecuted Gherkin SHALL NOT satisfy evidence.
+This capability requires the delivered v0.3 baseline and one exact `spec-evidence-mcp@1` aggregate containing current PASS records for CHK-FR1-01 through CHK-FR14-01. Real multi-producer fixtures, budget evidence and independent review are mandatory. It contributes to, but never loosens, `product:FR-6`.
 
-When this layer exists, MCP SHALL expose `get_test_result` and `get_scenario_trace` as read-only projections of evaluator output ([FR-14](FR.md#fr-14-mcp-projection-of-get_test_result-and-get_scenario_trace)). That projection is not a v0.2/v0.3 kernel required check. `spec-kernel:FR-6` remains forbidden from pass/fail claims. Until this FR exists, `spec-lsp` hover SHALL NOT invent run results.
+After that aggregate passes, MCP may expose `get_test_result` and `get_scenario_trace` as exact read-only projections of evaluator output ([FR-14](FR.md#fr-14-mcp-projection-of-gettestresult-and-getscenariotrace)). They never enter historical kernel-v0.3. Until the projection is delivered, LSP hover exposes kernel-stored fields only.

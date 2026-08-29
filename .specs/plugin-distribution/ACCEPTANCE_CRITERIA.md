@@ -10,7 +10,7 @@ These criteria describe required future observations. They are not claims of exe
 
 ## AC-2.1 — Single child package and extension
 
-**WHEN** the child manifest is validated **THEN** it SHALL resolve exactly one package at `plugins/omp-spec-kit` and one extension entry `./dist/extension.js`; **AND WHEN** a nested package, legacy `pi.extensions`, second extension, source entry, install script, or v0.1.0 MCP entry is planted **THEN** validation SHALL fail.
+**WHEN** a candidate child manifest/tree is validated **THEN** it SHALL resolve one package and one extension entry `./dist/extension.js`, match the candidate version, and match its closed profile (historical v0.1.0 without MCP; delivered v0.3.2 with one `.mcp.json`, two launchers, and generated kernel/adapters/mcp trees); **AND** nested package/catalog, legacy entry, second extension/server/control plane, source/test/evidence file, install script, ambient dependency, or profile-mismatched MCP surface SHALL fail.
 
 **Trace:** FR-2; `@feature2`.
 
@@ -22,7 +22,7 @@ These criteria describe required future observations. They are not claims of exe
 
 ## AC-4.1 — Fresh-session activation
 
-**WHEN** the marketplace is added, the plugin is discovered and installed with project scope, `/reload-plugins` runs, the pre-install session ends, and a fresh session starts **THEN** `spec_inventory` SHALL execute from the installed `plugins/omp-spec-kit/dist/extension.js` and report version `0.1.0`.
+**WHEN** the exact candidate is discovered and installed project-scope, `/reload-plugins` runs, the pre-install session ends, and a fresh session starts **THEN** the declared installed surface SHALL execute from `plugins/omp-spec-kit/dist/**` and report the exact candidate version; current v0.3.2 observations SHALL bind to `docs/validation/release-status-v0.3.2.json`.
 
 **Trace:** FR-4; `@feature4`.
 
@@ -34,7 +34,7 @@ These criteria describe required future observations. They are not claims of exe
 
 ## AC-5.1 — Dependency-absent execution
 
-**WHEN** previous `dist/` output is absent, a clean build creates the allowlisted child payload, repository-root `node_modules` and the source checkout are unavailable, and that payload is installed **THEN** a fresh session SHALL load the extension and execute `spec_inventory` without resolving an undeclared or ambient dependency.
+**WHEN** a clean build creates only the candidate-profile allowlist, repository-root/external `node_modules` and the source checkout are unavailable, and the payload is installed **THEN** a fresh session SHALL load the extension and, for MCP-enabled profiles, launch the MCP server and invoke the declared first-slice surface without undeclared/ambient dependencies.
 
 **Trace:** FR-5; `@feature5`.
 
@@ -46,7 +46,7 @@ These criteria describe required future observations. They are not claims of exe
 
 ## AC-7.1 — Version consistency
 
-**WHEN** any release candidate is evaluated **THEN** the catalog entry, child package, embedded runtime, installed tool, artifact metadata, and GitHub tag SHALL identify the exact same candidate semver; for the first release that SHALL be `0.1.0`/`v0.1.0`, with no lower-release prerequisite.
+**WHEN** any candidate is evaluated **THEN** catalog entry, child package, embedded runtime, installed observation, artifact/evidence metadata, and GitHub tag SHALL identify the exact same semver/commit/digests; v0.1.0 has no lower-release prerequisite, while current v0.3.2 SHALL bind the real v0.3.0 predecessor and exact upgrade/rollback receipt digests.
 
 **Trace:** FR-7; `@feature7`.
 
@@ -76,7 +76,7 @@ These criteria describe required future observations. They are not claims of exe
 
 ## AC-10.1 — GitHub Actions release transaction
 
-**WHEN** a `v0.1.0` tag targets an immutable commit **THEN** GitHub Actions SHALL publish only after every required verification job succeeds, all version authorities match, FR-13 reports aggregate eligibility, and the release job consumes the verified artifact digest; **AND IF** the event is a pull request/untagged push, a required job fails, aggregate eligibility is blocked, the release exists with a different digest, or permissions are broader than required **THEN** no release SHALL be created or replaced.
+**WHEN** a qualifying immutable tag is evaluated **THEN** `distribution-evidence.yml` SHALL build and attest the exact matrix subject, `release.yml` SHALL select only the successful peeled-tag-commit run, verify candidate identity and the fixed GitHub attestation trust contract, publish the already verified digest once, and attest the assets; **AND** PR/untagged events, failed jobs, wrong signer/repo/ref/subject, blocked distribution eligibility, broader-than-needed permissions, or an existing different artifact SHALL not publish/replace.
 
 **Trace:** FR-10; `@feature10`.
 
@@ -94,6 +94,6 @@ These criteria describe required future observations. They are not claims of exe
 
 ## AC-13.1 — Complete candidate-aware release evidence
 
-**WHEN** release eligibility is evaluated **THEN** it SHALL emit independently named `mri-release-eligibility@1`, `distribution-release-eligibility@1`, and composed `public-release-eligibility@1`; MRI SHALL contain only `mcp-release-integrity:FR-1..FR-6` and the pinned manager receipt, while distribution SHALL validate every exact per-FR claim-matrix cell as a regular, canonical-contained, content-addressed producer receipt. Every producer receipt SHALL agree on candidate version, commit, OMP pin, platform fixture and fixture digest, catalog/package/archive digest, applicability, lifecycle, and passed observations. **IF** any matrix cell or receipt is missing, duplicate, foreign, placeholder, symlinked, failed, stale, mismatched, or only a passing job summary, public eligibility SHALL be blocked. **AND IF** structurally complete receipts provide only self-authored `workflow`/`runId` metadata and observations, public eligibility SHALL remain blocked with `distribution-producer-provenance-untrusted:no-independent-trust-root`; no current optional JSON input is release authority. Eligibility is reserved for a future separately implemented independently verifiable producer-attestation path.
+**WHEN** distribution eligibility is evaluated **THEN** it SHALL emit only `distribution-release-eligibility@2` for the complete canonical-contained FR-1..FR-12 producer matrix bound to one candidate/OMP/platform/applicability/lifecycle identity. Self-authored metadata SHALL block. Eligibility SHALL require `gh attestation verify` over the exact subject with pinned repository `stgmt/omp-spec-kit` (or exact trusted `GITHUB_REPOSITORY`), signer workflow `stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml`, and source ref `refs/tags/<candidate-tag>`. Missing verifier, unpinned/wrong repo, wrong workflow/ref, subject/hash mismatch, timeout/nonzero/spawn failure, incomplete/duplicate/foreign/stale/symlinked receipt, or passing-summary-only evidence SHALL block. MRI and public/product conjunctions SHALL remain owned by `mcp-release-integrity` and `product:FR-6`; predicate JSON is diagnostic only.
 
 **Trace:** FR-13; `@feature13`.

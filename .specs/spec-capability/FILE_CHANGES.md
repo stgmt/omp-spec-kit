@@ -1,68 +1,18 @@
-# Planned File Changes
+# File Changes
 
-Every path below is a concrete future path and every action is **planned**, not present or implemented. All runtime code stays inside the repository's single `plugins/omp-spec-kit` child package. No second plugin or marketplace entry is introduced.
+Every row is planned future work under the repository-root JavaScript build convention. The delivered v0.3 payload is unchanged until the capability aggregate passes.
 
-## FC-1: Capability schema and types
+| Path | Action | Requirements | Responsibility |
+|---|---|---|---|
+| `src/kernel/extensions/capability/schema.js` | create | FR-1, FR-2, FR-3, FR-7 | Register CAPABILITY nodes, DERIVES_FROM edges, lifecycle and diagnostics for kernel@2. |
+| `src/kernel/parsers/capability.js` | create | FR-1, FR-7 | Parse optional owning-spec CAPABILITIES.md and qualified IDs. |
+| `src/kernel/graph/capability-edges.js` | create | FR-2, FR-3 | Resolve qualified Covers declarations under the closed endpoint matrix. |
+| `src/kernel/query/capability.js` | create | FR-4, FR-5, FR-6 | Implement requirementsOf, capabilitiesOf and graph-only getImpact. |
+| `src/evidence/capability-invalidation.js` | create | FR-6 | Join graph impact to an explicit evidence snapshot and return binding proof. |
+| `src/mcp/capability-tools.js` | create | FR-8 | Register MCP-only one-to-one capability projections. |
+| `src/kernel/release/capability-eligibility.js` | create | FR-9 | Evaluate delivered baseline, kernel profile and exact 16-record graph or 18-record overlay aggregate with role-typed baseline/evidence bytes. |
+| `scripts/build-plugin.mjs` | edit | FR-8, FR-9 | Add capability sources to the generated payload only at capability release. |
+| `tests/fixtures/spec-capability/` | create | FR-1 through FR-7 | Real owning-spec/graph/evidence fixtures plus minimal one-fault variants. |
+| `docs/validation/spec-capability-release.md` | create | FR-9, FR-10 | Record candidate-bound aggregate, MCP parity and independent boundary review. |
 
-**Action:** create (planned)
-
-**Requirements:** [FR-1](FR.md#fr-1-capability-node-and-document), [FR-7](FR.md#fr-7-determinism-and-identity), [FR-10](FR.md#fr-10-non-goals-enforcement)
-
-| Planned path | Responsibility |
-|---|---|
-| `plugins/omp-spec-kit/src/kernel/extensions/capability/types.ts` | Closed `spec-capability@1` types: CAPABILITY node kind, CAP-N/CAP-N.M grammar, DERIVES_FROM edge type, endpoint matrix, capability attributes, impact response envelope, conformance finding codes |
-| `plugins/omp-spec-kit/src/kernel/extensions/capability/schema.ts` | Schema registration and version binding against `spec-kernel@1` |
-
-## FC-2: Capability parser
-
-**Action:** create (planned)
-
-**Requirements:** [FR-1](FR.md#fr-1-capability-node-and-document), [FR-2](FR.md#fr-2-derives-from-edge-and-declaration-grammar)
-
-| Planned path | Responsibility |
-|---|---|
-| `plugins/omp-spec-kit/src/kernel/parsers/capability.ts` | CAPABILITIES.md level-2/3 heading parsing, CAP-N/CAP-N.M validation, nesting extraction |
-| `plugins/omp-spec-kit/src/kernel/parsers/capability-field.ts` | `**Capability:** [CAP-N.M]` field recognition on FR/NFR headings and `capabilities:` frontmatter parsing |
-
-## FC-3: Capability graph extension
-
-**Action:** edit (planned)
-
-**Requirements:** [FR-2](FR.md#fr-2-derives-from-edge-and-declaration-grammar), [FR-3](FR.md#fr-3-conformance-findings)
-
-| Planned path | Responsibility |
-|---|---|
-| `plugins/omp-spec-kit/src/kernel/graph/build.ts` | Extend to resolve DERIVES_FROM edges and build capability backlink indexes |
-| `plugins/omp-spec-kit/src/kernel/graph/invariants.ts` | Extend to evaluate CAPABILITY_DANGLING, CAPABILITY_ORPHAN, SPEC_WITHOUT_CAPABILITY findings |
-
-## FC-4: Capability query operations
-
-**Action:** create (planned)
-
-**Requirements:** [FR-4](FR.md#fr-4-requirements-of-capability-query), [FR-5](FR.md#fr-5-capabilities-of-spec-query), [FR-6](FR.md#fr-6-get-impact-query)
-
-| Planned path | Responsibility |
-|---|---|
-| `plugins/omp-spec-kit/src/kernel/query/capability-queries.ts` | `requirements_of` and `capabilities_of` operations with deterministic ordering and bounded pagination |
-| `plugins/omp-spec-kit/src/kernel/query/impact.ts` | `get_impact` operation with structural, semantic_recheck, and invalidates sections; versioned response envelope |
-
-## FC-5: Projection adapters
-
-**Action:** edit (planned)
-
-**Requirements:** [FR-8](FR.md#fr-8-parity-discipline)
-
-| Planned path | Responsibility |
-|---|---|
-| `plugins/omp-spec-kit/src/adapters/omp/register-spec-tools.ts` | Register capability query tools projecting canonical envelopes |
-| `plugins/omp-spec-kit/src/adapters/mcp/server.ts` | Register capability MCP tools with one-to-one mapping |
-
-## FC-6: Release eligibility
-
-**Action:** create (planned)
-
-**Requirements:** [FR-9](FR.md#fr-9-release-eligibility-conjunction)
-
-| Planned path | Responsibility |
-|---|---|
-| `plugins/omp-spec-kit/src/kernel/release/capability-eligibility.ts` | `spec-capability-release@1` evaluator with closed conjunction over mandatory checks |
+No `src/adapters/omp/register-spec-tools.*`, child `plugins/omp-spec-kit/src/**`, mutation API, direct filesystem query or second graph is permitted.

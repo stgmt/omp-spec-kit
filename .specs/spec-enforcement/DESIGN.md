@@ -2,97 +2,155 @@
 
 ## Context
 
-OMP v17.3.7 provides hook events (`tool_call`, `tool_result`, `context`, session lifecycle) that enable pre-execution interception, post-execution diagnostic injection, and message augmentation. The upstream FR-39 concept (MCP-only spec access + audit) is deferred per `MIGRATION_MATRIX.md`, but the enforcement *concept* survives on OMP-native surfaces. This design ports spec-discipline enforcement onto pinned OMP extension surfaces without Claude hooks, without MCP, without audit logs, and without any external dependency, per the repository single-plugin boundary and the `plan-gate` sibling precedent.
+`spec-enforcement` is a future post-v0.3 capability inside the existing `omp-spec-kit` extension. It does not add a plugin, extension factory, MCP server, validator, or agent tool. Its write policy redirects only to the accepted proposal-first `omp-spec-kit` authoring MCP authority. Full source FR-39 (MCP-only access plus persistent audit) remains `DEFER`; this capability implements pre-execution effect enforcement and honest diagnostics without claiming the deferred audit log.
+
+The central problem is no-bypass classification. Checking only `write`, `edit`, and `bash` names is incomplete, regex command matching cannot prove dynamic targets, and a pure matcher cannot inspect symlinks/reparse points. The repaired design uses a closed effect registry, an I/O-capable containment resolver, and a conservative unknown-tool policy.
 
 ## Component boundary
 
 ```mermaid
 flowchart LR
-  TC[tool_call event] --> Match[Path match predicate]
-  Match -->|non-match| Pass[No-op return]
-  Match -->|specs write| Gate{Mode check}
-  Gate -->|informational| DiagInfo[Diagnostic note only]
-  Gate -->|enforcement| Block[block true reason]
-  TR[tool_result event] --> DiagInject[Kernel diagnostic injection]
-  Ctx[context event] --> CensusInject[Census message injection]
-  SS[session_start event] --> Init[Kernel init + census compute + gate cache]
-  DiagInject --> Kernel[spec-kernel query]
-  CensusInject --> Kernel
-  Init --> Kernel
-  Kernel -->|unavailable| FailHonest[Explicit degradation message]
+  TC[Every tool_call] --> C[Pure effect classifier]
+  C -->|accepted authoring authority| Allow[ALLOW]
+  C -->|known read only| Allow
+  C -->|writer + complete targets| R[Filesystem target resolver]
+  C -->|unknown/incomplete/authority mismatch| Block[BLOCK with qualified redirect]
+  R -->|all non-spec| Allow
+  R -->|spec or indeterminate| Block
+  SS[session_start] --> M[Product/candidate/authority binding]
+  SS --> Reg[Re-hashed installed registry + accepted host authority ABI]
+  TR[tool_result] --> K[Kernel finding projection]
+  CX[context] --> Census[Bounded census projection]
 ```
 
-### Planned layout under repository-root `src/enforcement/`
+`tool_call` classification runs for every host-visible tool. No early name filter bypasses the registry. Informational mode computes the same would-block decision but never blocks. Enforcement mode conservatively blocks any effect it cannot prove safe.
 
-Sources follow the house build convention (`docs/omp-v17.3.7-contract.md`, `scripts/build-plugin.mjs`): plain JavaScript with JSDoc types at the repository root, copied by the build script into the child `dist/`; the child package tree itself never holds enforcement sources.
+## Root-source layout and integration
 
-- `match.js` — pure predicate over `toolName` + target path; no I/O. Normalizes separators, rejects traversal/symlinks, checks `.specs/` prefix.
-- `mode.js` — mode determination: reads cumulative gate status at `session_start`, caches for session duration. Returns `informational | enforcement | degraded`.
-- `diagnostics.js` — kernel query adapter + bounded diagnostic rendering. Translates `spec-kernel:FR-6` findings into ≤2 KiB content additions.
-- `census.js` — corpus overview query + bounded census rendering. Produces ≤4 KiB context messages from kernel overview.
-- `block.js` — enforcement-mode block reason renderer. Produces bounded `{block: true, reason}` with actionable redirect to authoring door.
-- `fail-honest.js` — fault barrier translating every internal exception into explicit diagnostic content. Wraps all handler bodies.
-- `adapter.js` — OMP event subscriptions and handler registration. Single entry point for the extension factory.
+Plain root JavaScript with JSDoc types remains source of truth. The build script copies/bundles accepted files into `plugins/omp-spec-kit/dist/**`.
 
-The pure match predicate receives tool name and input only; it never imports OMP, reads a clock, or writes. OMP-facing glue (event subscription, result translation, fault wrapping) lives in the adapter and is the only code allowed to touch hook APIs.
+- `src/enforcement/registry.js` — pinned `ToolEffectRegistryManifestV2` and live-registry comparison.
+- `src/enforcement/classify.js` — pure registry/input classification and target extraction.
+- `src/enforcement/command-effects.js` — bounded `command-effects@1` grammar; unsupported/dynamic syntax is incomplete, never allowed by regex.
+- `src/enforcement/resolve-targets.js` — filesystem-backed project/spec containment.
+- `src/enforcement/decision.js` — mode/effect/resolution/authority policy.
+- `src/enforcement/mode.js` — same-candidate product and authoring-authority binding.
+- `src/enforcement/diagnostics.js` — kernel findings plus separate enforcement-policy diagnostics.
+- `src/enforcement/census.js` — bounded kernel overview projection.
+- `src/enforcement/release.js` — pure `spec-enforcement-release@2` evaluator.
+- `src/enforcement/register.js` — registers event handlers on an existing `ExtensionAPI` instance.
+- `src/v0.1/extension.js` — imports and invokes `registerSpecEnforcement(pi, deps)` only after the capability is accepted for the built candidate.
+- `scripts/build-plugin.mjs` — closed root-source/output allowlist and manifest hashes.
 
-## Matching algorithm
+There is no standalone enforcement default export or second factory. The current `src/v0.1/extension.js` remains the single extension entry and existing read-only tool registration remains intact.
 
-1. `tool_call` arrives: if `toolName` is not `write`, `edit`, or `bash`, return immediately (no I/O).
-2. For `write`/`edit`: extract target path from `input.file_path` or equivalent field (TASK-1 probe obligation). Normalize separators to `/`. Reject absolute paths outside project root, `..` traversal, and symlinks.
-3. Check normalized path prefix against `.specs/`. Non-match returns immediately.
-4. For `bash`: extract `input.command` string. Apply pattern matching for file-write operations targeting `.specs/` (e.g., redirection operators, `tee`, `cp`, `mv` with `.specs/` arguments). Non-match returns immediately.
-5. Match found: proceed to mode check.
+## Closed tool-effect registry
 
-Probe obligations (TASK-1): confirm exact `input` field names for `write`, `edit`, `bash`; confirm path normalization behavior; confirm that extension-registered tools also emit `tool_call`.
+Each supported host pin ships a unique canonical entry for every host-visible tool:
 
-## Mode determination
+```text
+{toolName, effect, targetExtractor, authority}
+```
 
-1. At `session_start`: query cumulative gate status (`product:FR-6` + `spec-authoring-workflow:FR-13` acceptance). Cache result.
-2. If gate accepted → mode = `enforcement`.
-3. If gate not accepted but kernel available → mode = `informational`.
-4. If kernel unavailable → mode = `degraded` (explicit diagnostic at session start).
-5. Mode is immutable for the session duration.
+Effects:
 
-## Diagnostic injection algorithm
+- `READ_ONLY` — no mutation target and no authoring authority.
+- `MAY_WRITE_TARGETS` — exhaustive versioned target extractor required.
+- `SPEC_AUTHORING_AUTHORITY` — exact accepted MCP server/profile/tool/candidate manifest; no raw target extractor.
+- `UNKNOWN` — synthesized for absent/changed names, input-shape mismatch, dynamic/incomplete extraction, or authority mismatch.
 
-1. `tool_result` fires after successful spec-file read/edit.
-2. Extract spec slug from the touched path.
-3. Query kernel for diagnostics on that slug (bounded, with timeout).
-4. Render findings into ≤2 KiB content addition using kernel diagnostic format.
-5. Append to result content array. Original content is preserved.
-6. On kernel error: render explicit "kernel unavailable" diagnostic instead.
+The registry covers built-ins, MCP tools, and extension-registered tools. At `session_start`, candidate-bundled installed registry/authority manifests are re-hashed. Pinned v17.3.7 does not expose a live provider/server/schema census; activation waits for `tool-call-authority-abi@1`. Mismatch emits a visible pin diagnostic. If product capability evidence is otherwise accepted, enforcement stays active and new/changed tools become `UNKNOWN`; downgrading would create a bypass.
 
-## Census injection algorithm
+## Authoring authority
 
-1. `session_start` fires: compute corpus overview via kernel `overview` query.
-2. Cache rendered census summary (≤4 KiB).
-3. Next `context` event: append census as system-role message to outgoing messages deep copy.
-4. Clear cached census after injection (inject once per session).
-5. On kernel error: render explicit "corpus census unavailable" message instead.
+The only redirect/allow authority is MCP server `omp-spec-kit` bound to the accepted `spec-authoring-workflow@1` or separately accepted `@2` manifest and the same candidate artifact. The manifest contains the exact 17 v1 or seven v2 facade names and the service request schema hash. Tool-name equality alone is not authority.
+
+A valid authority call passes through because the authoring service itself enforces proposal, separate review, CAS, containment, atomicity, rollback, and evidence. Raw filesystem tools never become authoritative by naming the door in an argument.
+
+## Classification and target extraction
+
+1. Look up the exact hook tool name and host-authenticated provider/server/schema identity in the closed registry.
+2. Verify the runtime input shape against the versioned extractor descriptor.
+3. `READ_ONLY`: return complete classification with no targets.
+4. `SPEC_AUTHORING_AUTHORITY`: verify server/profile/tool/candidate/service-schema/manifest identities.
+5. `MAY_WRITE_TARGETS`: extract every possible target. JSON-pointer extractors reject missing/wrong-shaped fields. Command tools use `command-effects@1`; unsupported quoting, substitution, redirection, shell syntax, computed destinations, or subprocess indirection returns incomplete.
+6. Any missing entry, mismatch, dynamic effect, or non-exhaustive extraction becomes `UNKNOWN`.
+
+Classification is pure and makes no containment claim.
+
+## Filesystem-backed containment
+
+For each raw target, `resolve-targets.js`:
+
+1. resolves the canonical project root;
+2. rejects absolute targets outside it and lexical `..` traversal;
+3. walks existing ancestors using lstat/realpath;
+4. rejects Windows reparse points and POSIX symlinks at root, `.specs`, ancestor, or target;
+5. for a not-yet-existing target, resolves the nearest existing ancestor and appends only ordinary normalized segments;
+6. returns repository-relative path plus `SPEC`, `NON_SPEC`, or `INDETERMINATE` and a closed code.
+
+Resolver exceptions, timeouts, missing ancestors, or mixed incomplete results are `INDETERMINATE`. The pure classifier never “rejects symlinks” because it has no filesystem capability.
+
+## Decision table
+
+| Mode | Classification | Resolution | Decision |
+|---|---|---|---|
+| informational | any | any | ALLOW; optionally report would-block |
+| enforcement | exact accepted authoring authority | n/a | ALLOW |
+| enforcement | known read-only | n/a | ALLOW |
+| enforcement | writer | all targets proven non-spec | ALLOW |
+| enforcement | writer | any spec target | BLOCK `RAW_SPEC_WRITE` |
+| enforcement | unknown/incomplete/authority mismatch | n/a | BLOCK |
+| enforcement | writer | any indeterminate/resolver fault | BLOCK `TARGET_INDETERMINATE` |
+
+Block reasons are at most 4 KiB, name the tool, repository-relative target when known, closed code, and `omp-spec-kit:spec-authoring-workflow` redirect. They contain no arbitrary endpoint, absolute path, stack, environment, or credential.
+
+## Mode and product ownership
+
+At `session_start`, mode binding consumes the product evaluator result for the exact built candidate:
+
+- delivered v0.3 baseline;
+- accepted `AUTHORING_MCP` capability and exact authority manifest;
+- accepted `spec-enforcement:FR-11` eligibility;
+- accepted `SPEC_ENFORCEMENT` capability for the same candidate.
+
+Before this conjunction and an accepted host authority ABI receipt, behavior is informational/degraded only. Local flags cannot promote it. Product/candidate/authority mismatch prevents activation. Installed-registry/host-envelope mismatch does not disable accepted enforcement; conservative unknown-tool blocking preserves no-bypass.
+
+## Diagnostics and fail-honest behavior
+
+Two record classes remain distinct:
+
+- kernel spec-conformance findings, always traceable to `spec-kernel:FR-6`;
+- enforcement-policy diagnostics for registry, authority, containment, product gate, or handler faults.
+
+Informational kernel/render faults are visible and non-blocking. Enforcement-critical classification/authority/containment faults are visible BLOCK decisions, not silent pass-through. Handler exceptions are caught before OMP's outer fail-closed boundary and rendered with a closed code. No policy diagnostic may claim a spec is conformant.
+
+## Release evidence
+
+`spec-enforcement-release@2` is capability-only. It binds one candidate to baseline/authoring evidence, authoring authority manifest, effect/installed registry and host-ABI digests, typed attested producer check receipts, installed dependency-absent proof, Windows/POSIX containment, unknown/new/dynamic tool attacks, budgets, and independent adversarial review. The product evaluator alone may mark `SPEC_ENFORCEMENT` accepted/delivered.
 
 ## Decisions
 
-### DEC-1: Fail-honest over fail-open
+### DEC-1: Effect registry, not a tool-name shortlist
 
-Unlike `plan-gate` which compensates OMP's fail-closed default to fail-open, this spec uses fail-honest: every fault produces an explicit visible message. Rationale: enforcement-mode silent blocking creates false negatives (legitimate work blocked without explanation), while informational-mode silence creates false confidence (agent unaware of spec problems). Both are worse than honest degradation.
+A three-name shortlist misses extension/MCP/future tools. Exact registry entries make supported effects reviewable; unknown inputs block conservatively.
 
-### DEC-2: No audit log
+### DEC-2: Filesystem truth belongs to an I/O resolver
 
-`MIGRATION_MATRIX.md` defers FR-39 audit log to a later adapter/policy stage. This spec introduces no persistent audit trail. All observable state surfaces through event-visible records. A future adapter stage may add audit logging with its own privacy/state policy.
+A pure function can normalize text but cannot prove symlink/reparse/realpath containment. Separating extraction from resolution makes both contracts executable.
 
-### DEC-3: Session-scoped gate cache
+### DEC-3: Only qualified authoring MCP authority may mutate specs
 
-Gate status is evaluated once at `session_start` and cached. Mid-session re-evaluation would require additional event subscriptions and introduce non-determinism. Sessions are short-lived enough that stale gate status is acceptable; a new session picks up the current gate state.
+An arbitrary “door command or API” is a bypass. Exact server/profile/tool/candidate/service-schema binding reuses the proposal-first authoring authority without introducing a second writer.
 
-### DEC-4: Kernel queries are bounded and optional
+### DEC-4: Registry drift does not disable enforcement
 
-All kernel queries have timeouts and byte limits. Kernel absence degrades honestly rather than failing the session. The enforcement hooks are consumers of kernel output, not dependents of kernel availability.
+Disabling on a newly visible tool would open the exact gap the policy is meant to close. Drift is diagnostic; unknown tools block until a reviewed manifest update.
 
-### DEC-5: Path matching is conservative
+### DEC-5: FR-39 remains DEFER
 
-Path matching normalizes separators, rejects traversal and symlinks, and stays inside the project root. Over-matching (blocking legitimate non-spec writes) is preferred over under-matching (missing spec writes) because over-matching produces visible block reasons while under-matching produces silent policy violations.
+This capability enforces access and keeps bounded session records, but does not implement the source feature's persistent audit log. The migration disposition stays honest.
 
-### DEC-6: Stage separation from plan-gate
+### DEC-6: One extension factory
 
-This spec shares event surfaces and distribution posture with `plan-gate` but targets different interception points (`.specs/**` writes vs. `xd://propose` writes), different decision contracts (redirect-to-door vs. content-validation), and different activation gates (authoring cumulative gate vs. plan-mode signal). Merging would create coupling between independent release timelines.
+`registerSpecEnforcement` is imported by the existing root extension entry. A standalone adapter/factory would be unreachable or create a second control plane.

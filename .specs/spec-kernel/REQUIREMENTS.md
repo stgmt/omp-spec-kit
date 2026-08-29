@@ -24,25 +24,26 @@
 
 ## Contract checks
 
-| Check | Contract | Trace | Future evidence | State |
-|---|---|---|---|---|
-| CHK-FR1-01 | Pure kernel has no ambient I/O and registries have no mutation operations | FR-1, AC-1.1, `@feature1` | Boundary test plus public-export inspection | Not recorded |
-| CHK-FR2-01 | Document-role grammar emits each current FR/AC/TASK definition exactly once: FR only from FR.md colon/em-dash title, AC only from ACCEPTANCE_CRITERIA.md colon/em-dash/bare exact ID, TASK only from TASKS.md colon/em-dash title; grouping/wrong-document headings emit none; `planned` and `todo` remain distinct | FR-2, AC-2.1, `@feature2` | Exact target-corpus parser census plus planted wrong-document/group/arbitrary-heading and status-preservation controls | Not recorded |
-| CHK-FR3-01 | Input ordering/newlines do not alter qualified snapshot | FR-3, AC-3.1, `@feature3` | Property test over captured bytes | Not recorded |
-| CHK-FR4-01 | Duplicate candidates survive and no winner is elected | FR-4, AC-4.1, `@feature4` | Negative fixture graph test | Not recorded |
-| CHK-FR5-01 | Every reference has exactly one permitted resolution outcome | FR-5, AC-5.1, `@feature5` | Edge matrix/conservation test | Not recorded |
-| CHK-FR6-01 | Cardinality and conservation failures invalidate graph | FR-6, AC-6.1, `@feature6` | Invariant mutation test | Not recorded |
-| CHK-FR7-01 | Traversal/link/reparse/budget variants are rejected before unsafe read | FR-7, AC-7.1, `@feature7` | Cross-platform adapter integration test | Not recorded |
-| CHK-FR8-01 | Eight operations use bounded exhaustive envelopes and stable cursors | FR-8, AC-8.1, `@feature8` | Query contract suite | Not recorded |
-| CHK-FR9-01 | MCP structured results equal shared service results; registry is read-only | FR-9, AC-9.1, `@feature9` | Installed MCP adapter contract test | Not recorded |
-| CHK-FR10-01 | Stage-bound dependency-absent package proof: v0.2 accepts only `OMP_EXTENSION_ONLY`; v0.3 accepts only `OMP_EXTENSION_AND_MCP` with both components from the exact v0.3 artifact; wrong profile/surface/stage/artifact fails closed | FR-10, AC-10.1, `@feature10` | Two installed-directory smokes keyed by targetStage plus cross-profile package-surface swaps | Not recorded |
-| CHK-FR11-01 | Real fixture manifest hash/provenance/ground truth reconcile | FR-11, AC-11.1, `@feature11` | Fixture admission test | Not recorded |
-| CHK-FR12-01 | Artifact and benchmark meet every hard budget | FR-12, AC-12.1, `@feature12` | Packaged benchmark report | Not recorded |
-| CHK-FR13-01 | Every GLFM heading/link occurrence, canonical anchor, rewrite site, outcome, and focused inbound/outbound relation is complete and conserved; anchor candidates are tested against the full previously emitted set, including `Foo`/`Foo`/`Foo-1` collisions | FR-13, AC-13.1, `@feature13` | Real Markdown inventory/query contract with adversarial anchor vectors and complete cursor-chain reconciliation | Not recorded |
-| CHK-FR14-01 | `v0.2`/`kernel-v0.2` is the exact all-PASS FR-1..FR-8 plus FR-10..FR-13 profile with no FR-9/MCP dependency and extension-only FR-10 proof; `v0.3`/`kernel-v0.3` additionally requires a same-lineage accepted v0.2 input, FR-9, exact-v0.3 extension-plus-MCP FR-10 proof, and MCP-inclusive budgets; unknown or mismatched profiles/surfaces fail closed | FR-14, AC-14.1, `@feature14` | Per-profile evidence manifests, v0.2 extension-only positive proof, v0.3 exact-artifact MCP/lineage positive proof, and one-fault-at-a-time negative matrix | Not recorded |
-| CHK-FR15-01 | Allowlisted `tests/step-definitions/**/*.js|mjs` parse to `STEP_BINDING`; conservation of BINDS_STEP/STEP_UNDEFINED/STEP_AMBIGUOUS; symlink/escape refused; not a v0.2/v0.3 required check; unblocks spec-lsp step diagnostics | FR-15, AC-15.1, `@feature15` | Real cucumber-js step-def fixtures plus negative path/ambiguity cases | Not recorded |
-| CHK-FR16-01 | Each FR-16 operation is read-only on the query service and projected by MCP; mutations absent from v0.3 read registry; eight first-slice tools remain; not a v0.2/v0.3 required check | FR-16, AC-16.1, `@feature16` | Query+MCP registry contract plus negative mutation-name scan | Not recorded |
-| CHK-FR17-01 | Each FR-17 adapter I/O name is read-only, contained as FR-7, projected by MCP, not a query-service op; not a v0.2/v0.3 required check | FR-17, AC-17.1, `@feature17` | Adapter+MCP registry contract plus containment negatives | Not recorded |
+| Check | Contract | Trace | Task | Required evidence | State |
+|---|---|---|---|---|---|
+| CHK-FR1-01 | Pure kernel has no ambient I/O and registries have no mutation operations | FR-1, AC-1.1, `@feature1` | TASK-2, TASK-7 | Boundary test plus public-export inspection | Delivered runtime; exact record pending |
+| CHK-FR2-01 | Role grammar emits current FR/AC/TASK once only from owning docs and preserves `planned`/`todo` | FR-2, AC-2.1, `@feature2` | TASK-1, TASK-3 | Corpus parser census + wrong-document/status controls | Delivered runtime; exact record pending |
+| CHK-FR3-01 | Input ordering/newlines do not alter qualified snapshot | FR-3, AC-3.1, `@feature3` | TASK-2, TASK-3 | Property test over captured bytes | Delivered runtime; exact record pending |
+| CHK-FR4-01 | Duplicate candidates survive and no winner is elected | FR-4, AC-4.1, `@feature4` | TASK-4, TASK-10 | Negative graph fixture | Delivered runtime; exact record pending |
+| CHK-FR5-01 | Every reference has exactly one permitted resolution outcome | FR-5, AC-5.1, `@feature5` | TASK-4 | Edge matrix/conservation test | Delivered runtime; exact record pending |
+| CHK-FR6-01 | Cardinality/conservation failures invalidate graph | FR-6, AC-6.1, `@feature6` | TASK-4, TASK-10 | Invariant mutation test | Delivered runtime; exact record pending |
+| CHK-FR7-01 | Traversal/link/reparse/budget variants refuse before read | FR-7, AC-7.1, `@feature7` | TASK-6, TASK-10 | Cross-platform adapter test | Delivered runtime; exact record pending |
+| CHK-FR8-01 | Eight V1 operations use bounded exhaustive envelopes/cursors | FR-8, AC-8.1, `@feature8` | TASK-5, TASK-7 | Query contract suite | Delivered runtime; exact record pending |
+| CHK-FR9-01 | MCP first-slice results equal shared service; registry is read-only | FR-9, AC-9.1, `@feature9` | TASK-9 | Installed MCP adapter contract | Delivered runtime; exact record pending |
+| CHK-FR10-01 | Stage-bound dependency-absent package surface is exact for V1 v0.2/v0.3 profiles | FR-10, AC-10.1, `@feature10` | TASK-8, TASK-9, TASK-10 | Installed extension/MCP smokes and profile swaps | Delivered runtime; exact record pending |
+| CHK-FR11-01 | Real fixture hash/provenance/ground truth reconcile | FR-11, AC-11.1, `@feature11` | TASK-1, TASK-3, TASK-10 | Fixture admission test | Delivered runtime; exact record pending |
+| CHK-FR12-01 | Artifact and benchmark meet every hard budget | FR-12, AC-12.1, `@feature12` | TASK-5, TASK-6, TASK-8, TASK-9 | Packaged benchmark report | Delivered runtime; exact record pending |
+| CHK-FR13-01 | Historical V1 glfm-anchor@1 heading/link inventory and cursors remain exact | FR-13, AC-13.1, `@feature13` | TASK-1, TASK-3, TASK-4, TASK-5, TASK-7, TASK-10 | Historical fixture and inventory conservation | Delivered runtime; exact record pending |
+| CHK-FR13-02 | `kernel-anchor-migration@1` matches pinned Marksman, emits complete legacy migration and rejects cross-version cursors | FR-13, AC-13.1, `@feature13` | TASK-15 | Marksman golden + complete migration corpus | Planned |
+| CHK-FR14-01 | Historical kernel-v0.2/v0.3 evidence profiles remain exact; evaluator handles one-fault matrix | FR-14, AC-14.1, `@feature14` | TASK-1, TASK-8, TASK-10, TASK-11 | Per-profile manifests/evidence bytes/negative matrix | Evaluator planned |
+| CHK-FR15-01 | `kernel-step-bindings@1` plus prerequisite CHK-FR13-02 constructs/refuses/conserves flag-sensitive bindings over the same pre-registration candidate | FR-15, AC-15.1, `@feature15` | TASK-12 | Real step-definition fixture/profile matrix | Planned |
+| CHK-FR16-01 | `kernel-generator-port-reads@1` plus CHK-FR13-02 proves exact lifted/new V2 query/full-error/dormant-MCP contracts without rebuild | FR-16, AC-16.1, `@feature16` | TASK-13 | Query/MCP contract matrix/capability result | Planned |
+| CHK-FR17-01 | `kernel-adapter-io@1` plus CHK-FR13-02 proves exact full adapter envelope/containment/dormant-MCP mapping without rebuild | FR-17, AC-17.1, `@feature17` | TASK-14 | Adapter/MCP/containment matrix/capability result | Planned |
 
 ## Non-functional traceability
 
@@ -71,4 +72,6 @@
 11. `markdownLinkOccurrences = internalHeading + internalDocument + external + unresolved`; each semantic link use has one outcome and one stable rewrite key.
 12. A complete rename inventory is proven only by one graph fingerprint, a fully consumed cursor chain, reconciled global/matched totals, and pairwise-unique canonical anchors even for suffix-shaped adversarial headings.
 13. Kernel release eligibility is the conjunction of the schema-owned selected profile: v0.2 requires exactly FR-1..FR-8 and FR-10..FR-13 checks, rejects FR-9/MCP evidence, and binds `CHK-FR10-01` to `OMP_EXTENSION_ONLY`; v0.3 requires an accepted same-lineage v0.2 input plus the complete v0.2 set, FR-9, fresh `OMP_EXTENSION_AND_MCP` FR-10 evidence from the exact v0.3 artifact, and fresh MCP-inclusive FR-12 evidence. Unknown/mismatched stage/profile/package-surface values fail closed.
-14. Definition roles are closed before heading recognition: FR only from `FR.md`, AC only from `ACCEPTANCE_CRITERIA.md`, and TASK only from `TASKS.md`; grouping/reference headings never create definition candidates, and shared `TASK.status` preserves `planned` and `todo` distinctly.
+14. Every non-anchor V2 profile requires CHK-FR13-02 plus its own check; the same pre-registration artifact contains dormant mappings and activation never rebuilds.
+15. V2 document, definition, reference, link-outcome, rewrite-site, step/capability node, typed-edge, migration-row and diagnostic counters conserve exactly.
+16. Definition roles are closed before heading recognition: FR only from `FR.md`, AC only from `ACCEPTANCE_CRITERIA.md`, and TASK only from `TASKS.md`; grouping/reference headings never create definition candidates, and shared `TASK.status` preserves `planned` and `todo` distinctly.

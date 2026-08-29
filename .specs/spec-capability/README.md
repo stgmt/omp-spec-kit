@@ -1,14 +1,14 @@
 # spec-capability
 
-One standalone specification for a product-level capability layer above requirements: typed `CAPABILITY` nodes, a `DERIVES_FROM` typed edge, conformance findings for dangling and orphan capabilities, bounded read-only impact and derivation queries, and deterministic identity rules. This specification extends the spec-kernel typed node/edge model via its own schema version bump; it never modifies the kernel schema or loosens kernel contracts.
+This specification defines a future kernel@2 capability layer: per-owning-spec CAPABILITY nodes, qualified DERIVES_FROM edges, graph-only queries, a separate evidence invalidation overlay, closed diagnostics and MCP-only projection.
 
 ## Status
 
-SPEC_ONLY. All tasks are `Planned`; every Gherkin scenario is specification text with no executed status. The capability belongs to a kernel-family extension stage AFTER v0.2: it extends the closed node/edge sets defined in `spec-kernel@1` and requires an explicit ROADMAP decision before any release registration.
+SPEC_ONLY. `spec-capability@2` is the current implementable contract; all tasks are planned and scenario text is not execution evidence. No live CAPABILITIES.md is added to the historical 150-document kernel@1 corpus.
 
 ## Why a separate spec
 
-The spec-kernel defines a closed set of node kinds, edge types, and diagnostic codes in `spec-kernel@1`. Adding a new node kind (`CAPABILITY`), a new edge type (`DERIVES_FROM`), new diagnostic codes (`CAPABILITY_DANGLING`, `CAPABILITY_ORPHAN`), and new query operations (`requirements_of`, `capabilities_of`, `get_impact`) constitutes a typed-model extension that must be versioned and reviewed independently. Placing this work in its own spec directory preserves the kernel's closed-set discipline: the kernel schema remains unchanged, and this spec declares its own extension schema version (`spec-capability@1`) that references the kernel by dependency. The capability layer provides two things the kernel alone cannot: (1) stable product-wording anchors that outlive individual specs, solving the upstream dogfood pain where ABSORBED specs lose requirement destinations because they are human markers rather than graph edges; and (2) an explicit change-impact query contract that defines structural, semantic-recheck, and invalidation sets without reimplementing evidence freshness.
+The delivered kernel@1 model is closed. Capability functionality therefore uses a separately gated kernel@2 extension. Actual capability definitions belong to their owning spec (`product:CAP-N`, etc.), not to this meta-spec or a repository-root singleton. The graph core never consumes evidence; result invalidation is an explicit evidence overlay. Agent-facing operations are MCP-only.
 
 ## Provenance and evidence
 
@@ -38,4 +38,4 @@ The spec-kernel defines a closed set of node kinds, edge types, and diagnostic c
 
 ## Release boundary
 
-This spec extends the kernel typed model and belongs to a kernel-family extension stage AFTER v0.2. Entry requires: an explicit release-stage decision recorded in `ROADMAP.md`; accepted current-candidate `spec-kernel:FR-14` for both `v0.2` and `v0.3` with the typed predecessor linkage; the kernel-family extension schema version bump reviewed and registered; and all mandatory evidence for this spec's own FR-1 through FR-10 conjunction. This spec SHALL NOT ship in v0.1.0, v0.2, or v0.3. It SHALL NOT loosen `product:FR-6` cumulative gates. Capability checks plug a future stage conjunction in the `spec-kernel:FR-14` style; the exact stage is decided in `ROADMAP.md`.
+Release requires delivered v0.3 baseline, accepted kernel@2 capability profile and exact graph 16-record or overlay 18-record `spec-capability-release@2` aggregate. Shipping invalidation additionally requires accepted evidence MCP and a bound `spec-evidence@2.deterministicFingerprint` snapshot with current kernel bindings. This capability never enters historical v0.3 or implies a sibling capability.
