@@ -1,16 +1,25 @@
 # MCP Release Integrity Schema
 
-This document mirrors the delivered v0.3.2 producer/evaluator contract. It does not redefine the forward `distribution-release-eligibility@2` aggregate owned by `plugin-distribution:FR-13`.
+## Shared scalars
 
-All objects are closed: unknown or missing keys, duplicate set members, unsafe paths and unknown enum members are invalid. `Sha256` is exactly 64 lowercase hexadecimal characters; `Commit` is exactly 40 lowercase hexadecimal characters. Receipt paths are unique, relative, regular files contained beneath the evidence directory with no symlink/junction/reparse escape.
+`Sha256` is 64 lowercase hexadecimal characters. `Commit` is 40 lowercase hexadecimal characters. Paths are unique repository-relative POSIX paths to regular files beneath the declared root. Content is digested before parsing. Symlink, junction, reparse, or realpath escape is invalid.
 
-```text
-package tree -> candidate.json + omp-spec-kit-<version>.tar
-candidate + semantic Cucumber Messages + MRI receipts + distribution subject -> evidence.json@3
-candidate + evidence@3 -> mri-release-eligibility@1
-                       -> distribution-release-eligibility@1
-                       -> public-release-eligibility@1
+## Runtime result provenance
+
+```ts
+type RootMode = "active-project" | "explicit-absolute-override";
+
+interface ResponseProvenance {
+  serverName: "omp-spec-kit";
+  resolvedRootId: Sha256;
+  activeProjectRootId: Sha256;
+  rootMode: RootMode;
+  matchesActiveProject: boolean;
+}
 ```
+
+`ResponseProvenance` is adapter metadata, not kernel graph content. `resolvedRootId` and `activeProjectRootId` are domain-separated SHA-256 identities of canonical physical roots. They are opaque, stable for one physical root, and contain no absolute path, environment value, credential, or document bytes. Every stdio `QueryEnvelope` and legacy OMP `spec_inventory` result SHALL carry one `provenance: ResponseProvenance`. A missing override produces equal IDs, `active-project`, and `true`; an accepted absolute override produces `explicit-absolute-override` and `false` when it differs from the active cwd. Human summaries SHALL expose the mode and mismatch without exposing the IDs' source paths.
+
 
 ## Candidate manifest
 
@@ -21,164 +30,81 @@ interface ReleaseCandidateV1 {
   tag: string;                     // exact v<version>
   commit: Commit;                  // peeled tag commit
   packageTreeDigest: Sha256;
-  archive: { file:string; sha256:Sha256; bytes:number };
-  files: { path:string; mode:number; bytes:number; sha256:Sha256 }[];
+  archive: { file: string; bytes: number; sha256: Sha256 };
+  files: { path: string; mode: number; bytes: number; sha256: Sha256 }[];
   candidateDigest: Sha256;
 }
 ```
 
-The bounded current identity includes `"version": "0.3.2"` and `"tag": "v0.3.2"`. For v0.3.2 the archive file is exactly `omp-spec-kit-0.3.2.tar`. `files` is lexical, unique and contains every regular packaged path with POSIX mode; the POSIX launcher is mode 493 (`0755`). `candidateDigest` hashes canonical JSON before that field is added. Candidate creation resolves `git rev-parse <tag>^{}` itself and refuses a dirty package tree or `HEAD` different from the peeled tag commit.
+`files` is lexical and unique. The POSIX launcher retains executable mode. Candidate creation refuses dirty package bytes or `HEAD` different from the peeled tag commit. `candidateDigest` hashes canonical manifest JSON before that field is added.
 
-## Receipt reference and shared identity
+## Forward MRI run
 
 ```ts
-type ReceiptRef =
-  | { status:"present"; path:string; digest:Sha256 }
-  | { status:"missing" };
+type MriCheck =
+  | "active-project"
+  | "protocol-recovery"
+  | "historical-eight-tools"
+  | "public-tree-safety"
+  | "lifecycle";
 
-interface CandidateIdentityV1 {
-  version: string;
-  tag: string;
-  commit: Commit;
+interface LifecycleObservation {
+  action: "install" | "upgrade" | "rollback" | "uninstall" | "reinstall";
+  fromVersion: string | null;
+  toVersion: string | null;
+  observedFreshSessionVersion: string | null;
+  projectHashBefore: Sha256;
+  projectHashAfter: Sha256;
+  passed: boolean;
+}
+
+interface MriRunV1 {
+  schema: "omp-spec-kit-mri-run@1";
   candidateDigest: Sha256;
-  packageTreeDigest: Sha256;
   archiveSha256: Sha256;
-  catalogDigest: Sha256;
+  featureDigest: Sha256;
+  stepDefinitionsDigest: Sha256;
+  sourceInputManifestDigest: Sha256;
+  messageDigest: Sha256;
+  producer: { name: "Cucumber"; version: string; imageDigest: Sha256 };
+  unfiltered: true;
+  checks: { name: MriCheck; passed: boolean; evidenceRef: string }[];
+  lifecycle: LifecycleObservation[];
+  outcome: "passed" | "blocked";
+  reasons: string[];
 }
 ```
 
-A `present` digest is recomputed over the exact copied bytes before JSON parsing. A `missing` reference has no path/digest keys. Every MRI/distribution receipt that carries identity must equal all seven candidate identity fields.
+A passed run has one passed entry for every `MriCheck`, includes install, upgrade, rollback, uninstall, and reinstall observations, reports equal project hashes for each action, and contains no reason. `checks` names observable groups, not scenario counts. `reasons` are bounded redacted explanations, not a closed public error taxonomy.
 
-## Evidence manifest v3
+A trusted current-run pointer may advance only after a successful unfiltered producer run. A failed, malformed, meta-only, tag-scoped, or name-scoped run is retained only as diagnostic output and cannot replace it.
 
-```ts
-interface ReleaseEvidenceV3 extends CandidateIdentityV1 {
-  schema: "omp-spec-kit-release-evidence@3";
-  mri: {
-    schema: "omp-spec-kit-mri-evidence@1";
-    checks: {
-      publicSafety: ReceiptRef;
-      dockerBdd: ReceiptRef;
-      priorV030: ReceiptRef;
-      upgradeFromV030: ReceiptRef;
-      rollbackToV030: ReceiptRef;
-    };
-    frReceipts: {
-      "mcp-release-integrity:FR-1": ReceiptRef;
-      "mcp-release-integrity:FR-2": ReceiptRef;
-      "mcp-release-integrity:FR-3": ReceiptRef;
-      "mcp-release-integrity:FR-4": ReceiptRef;
-      "mcp-release-integrity:FR-5": ReceiptRef;
-      "mcp-release-integrity:FR-6": ReceiptRef;
-    };
-    discovery: ReceiptRef;
-  };
-  distribution: {
-    schema: "omp-spec-kit-distribution-evidence-input@1";
-    trust: "untrusted-self-attested" | "github-artifact-attestation";
-    receipt: ReceiptRef;
-  };
-}
-```
+## Publication input
 
-The current release evidence file has exactly the top-level keys `schema`, seven identity keys, `mri`, and `distribution`. MRI, distribution and public results are distinct; evidence@3 never embeds a single conflated eligibility boolean.
+The release workflow consumes:
 
-## MRI semantic execution set
+- one `ReleaseCandidateV1`;
+- one passed `MriRunV1` with matching `candidateDigest` and `archiveSha256`;
+- native `gh attestation verify` success for the exact archive subject, repository, signer workflow, and `refs/tags/<candidate.tag>`;
+- a freshly downloaded archive whose SHA-256 equals `candidate.archive.sha256`.
 
-Every scenario heading in `mcp-release-integrity.feature` carries `@release-evidence`. The exact v0.3.2 mandatory scenario-ID set is:
+No MRI-defined distribution or public eligibility object exists. Before release mutation, every required identity must match. Existing release idempotence additionally requires the expected asset name, byte size, and SHA-256.
 
-```text
-SCEN-mri-active-project-root
-SCEN-mri-terminal-json-rpc
-SCEN-mri-malformed-json-recovery
-SCEN-mri-all-tool-parity
-SCEN-mri-public-eligibility-separation
-SCEN-mri-meta-only-evidence-refusal
-SCEN-mri-semantic-cucumber-mutations
-SCEN-mri-artifact-mismatch-refusal
-SCEN-mri-public-communication-proof
-SCEN-mri-credential-mutation-refusal
-SCEN-mri-executable-launcher-archive
-SCEN-mri-synthetic-distribution-refusal
-SCEN-mri-self-attested-distribution-refusal
-SCEN-mri-unverified-attestation-refusal
-SCEN-mri-symlinked-evidence-refusal
-SCEN-mri-active-project-manager-receipt
-SCEN-mri-missing-payload-refusal
-SCEN-mri-lifecycle-receipt-refusal
-```
+## Historical v0.3.2 reader
 
-`omp-spec-kit-bdd-receipt@1` contains the shared candidate identity plus `status:"passed"`, a contained regular `messagePath`, its `messageDigest`, and exactly that sorted scenario-ID set. The evaluator recomputes the message digest and derives expected pickle multiplicity from the exact source feature: one per ordinary scenario and one per Scenario Outline Examples row. The current set is 18 IDs / 40 pickle executions (outline counts 12 semantic mutations, 9 credential mutations, 2 symlink variants, 3 lifecycle variants). It requires exactly that many distinct pickles/test cases and a passing completed non-retried terminal chain for every pickle, plus one final successful `testRunFinished` at stream end. Missing/extra outline expansions, malformed/meta-only frames, duplicate terminal attempts, retry-only and non-passing chains fail closed with named codes; an ID-level first-pickle match is insufficient.
+The file `docs/validation/release-status-v0.3.2.json` is accepted only as immutable historical readback with these fixed identities:
 
-Each `omp-spec-kit-fr-receipt@1` contains `status:"passed"`, shared identity, one exact qualified `requirement`, and one `scenarioId` in the mandatory set whose `@FR-N` tag equals that requirement. The six-key receipt map is exact; one receipt per FR does not replace the independent obligation to execute all eighteen scenarios.
+| Field | Value |
+|---|---|
+| version/tag | `0.3.2` / `v0.3.2` |
+| tag commit | `2938389e34e2d06bdd497291ed01e0a2d89146c9` |
+| candidate digest | `526ef6ff94ea682a116a43e4de0b5f622686b8ef36648b7884c830ba1eac25b4` |
+| package-tree digest | `e8d53934122a495e1003f17126785dcd181f5d6d5f417270844e17fc25f12f92` |
+| archive | `omp-spec-kit-0.3.2.tar` |
+| archive SHA-256 | `26a2ebadd7d1888c10dc9bdbdc25e11fecf5a7dcc7515b15c7e3bb363a0cbea9` |
 
-## Lifecycle and discovery receipts
+Historical evidence@3, manager-discovery, lifecycle, distribution-attestation, and eligibility shapes remain readable exactly as recorded. They are sealed and SHALL NOT be accepted as the forward `MriRunV1` schema or regenerated after feature/step changes.
 
-- `publicSafety` is `omp-spec-kit-public-safety@1`, status passed, candidate/package digests matched, with redacted findings.
-- `priorV030` is `omp-spec-kit-tagged-source-proof@1`, status passed, exact tag `v0.3.0`, source `public-tag`, and the freshly peeled public tag commit.
-- `upgradeFromV030` is `omp-spec-kit-lifecycle-receipt@1` proving `0.3.0 -> 0.3.2`, fresh-session observed `0.3.2`, and project-hash preservation.
-- `rollbackToV030` is the inverse `0.3.2 -> 0.3.0` receipt with fresh-session observation and hash preservation.
-- `discovery` contains the bounded `omp-manager-handoff-probe@2` receipt for `@oh-my-pi/pi-coding-agent` 17.3.7, exactly one connected `omp-spec-kit` server, eight v0.3 first-slice tools, no manager error, and target-only active-project execution.
+## Current OMP 18 profile
 
-No stage name, arbitrary SHA, target commit, static note or job summary substitutes for these receipt bytes.
-
-## Distribution input and trust root
-
-The distribution receipt is `omp-spec-kit-distribution-evidence@1` with the shared candidate identity, non-empty `ompRevision`, exact `{os,architecture,fixtureDigest}` platform, exact subsequent-release applicability (`upgrade`, `rollback`, and `reinstall` mandatory), matching MRI discovery digest, and a closed claim matrix for qualified `plugin-distribution:FR-1` through `FR-12`. Every `{requirement,claim,receipt}` row has one digest-verified `omp-spec-kit-distribution-producer-receipt@1`, exact candidate/platform/applicability/lifecycle identity, producer `{workflow:"distribution-lifecycle",runId:<positive decimal>}`, and a nonempty unique passed observation set bound to the platform fixture digest.
-
-`untrusted-self-attested` always adds `distribution-producer-provenance-untrusted:no-independent-trust-root`.
-
-`github-artifact-attestation` succeeds only when all of these are true:
-
-1. the exact copied `distribution-evidence.json` subject is contained and its declared digest matches;
-2. environment may confirm only exact repository `stgmt/omp-spec-kit` (`GITHUB_REPOSITORY` or `OMP_SPEC_KIT_ATTESTATION_REPO`); arbitrary owner/repository input is invalid;
-3. signer workflow is exact `stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml`;
-4. source ref is exact `refs/tags/<candidate.tag>`;
-5. `gh attestation verify <subject> --repo stgmt/omp-spec-kit --signer-workflow stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml --source-ref refs/tags/<candidate.tag>` exits zero within 120 seconds.
-
-Missing `gh`, spawn/timeout/nonzero exit, wrong repository/workflow/ref, uncontained subject or digest mismatch blocks distribution and public eligibility.
-
-## Eligibility results
-
-```ts
-interface MriReleaseEligibilityV1 extends CandidateIdentityV1 {
-  schema: "mri-release-eligibility@1";
-  eligible: boolean;
-  mandatoryRequirements: [
-    "mcp-release-integrity:FR-1", "mcp-release-integrity:FR-2",
-    "mcp-release-integrity:FR-3", "mcp-release-integrity:FR-4",
-    "mcp-release-integrity:FR-5", "mcp-release-integrity:FR-6"
-  ];
-  discoveryReceiptDigest: Sha256 | null;
-  blocking: string[];
-}
-
-interface DistributionReleaseEligibilityV1 {
-  schema: "distribution-release-eligibility@1";
-  outcome: "eligible" | "blocked";
-  candidateVersion: string;
-  commit: Commit;
-  ompRevision: string | null;
-  platform: {os:string; architecture:string; fixtureDigest:Sha256} | null;
-  catalogDigest: Sha256;
-  artifactDigest: Sha256;
-  mandatoryRequirements: string[]; // exact qualified plugin-distribution:FR-1..FR-12 tuple
-  evidenceByRequirement: Record<string, Sha256[]>; // exact twelve keys and required claim order
-  applicability: {releasePosition:"first"|"subsequent"; upgrade:"mandatory"|"inapplicable"; rollback:"mandatory"|"inapplicable"; reinstall:"mandatory"};
-  blockingReasons: string[];
-}
-
-interface PublicReleaseEligibilityV1 extends CandidateIdentityV1 {
-  schema: "public-release-eligibility@1";
-  eligible: boolean;
-  mri: MriReleaseEligibilityV1;
-  distribution: DistributionReleaseEligibilityV1;
-  blocking: string[];
-}
-```
-
-MRI is eligible exactly when `mri.blocking` is empty. Distribution outcome is eligible exactly when `blockingReasons` is empty. Public eligibility is true exactly when preflight, MRI and distribution blockers are all empty and every nested identity matches the same candidate. Blockers are unique and lexically sorted. Supported blocker families are candidate/evidence shape or identity mismatch; unsafe/missing/digest-mismatched receipts; semantic Cucumber failure; discovery/lifecycle/FR-receipt failure; missing/duplicate/unexpected distribution claims; distribution identity/lifecycle/observation failure; untrusted provenance; and attestation verification failure.
-
-## Publication identity
-
-Publish downloads the verified candidate bundle, recomputes candidate/archive/tag/receipt identities, and attaches the exact `candidate.json`, `evidence.json`, and `omp-spec-kit-<version>.tar` bytes. It never rebuilds. An existing release is idempotent only when every required asset name, size and digest matches. The bounded current v0.3.2 instance is `docs/validation/release-status-v0.3.2.json`; that record is evidence for the published release, not a substitute for evaluating a future candidate.
+The current manager handoff is OMP 18.0.10 and may expose the project plugin server as omp-spec-kit:omp-spec-kit. The eight v0.3.2 MCP names remain the compatibility set; later stage counts are additive and separately dogfooded.

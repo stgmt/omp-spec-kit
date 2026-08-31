@@ -1,92 +1,65 @@
 # Use Cases
 
-## UC-1: Evaluate fresh green evidence for a task
+## UC-1: Evaluate task evidence
 
-**Primary actor:** Release evaluator or query consumer.
+**Actor:** Product or task evidence consumer.
 
-**Precondition:** A spec-kernel graph and Cucumber Messages NDJSON artifact bytes are supplied as immutable inputs.
-
-**Flow:**
-1. The evaluator ingests the artifact, producing `INGESTED` state with parsed/matched/unmatched/malformed counts.
-2. Scenario results are joined to canonical scenarios by qualified scenario ID, tag, or name fallback.
-3. Freshness compares graph, scenario-content, applicable step-binding-set, and applicable implementation-artifact hashes.
-4. Fresh PASSED canonical evidence yields `done-verified`; stale/indeterminate green yields `done-unverified`; absent/red yields `not-done`.
-
-**Postcondition:** The evaluation output contains ingestion state, join outcomes, freshness verdicts, and task status truth with conservation equations satisfied.
-
-**Related:** [FR-1](FR.md#fr-1-pure-evaluation-boundary), [FR-4](FR.md#fr-4-scenario-result-join), [FR-6](FR.md#fr-6-freshness-and-staleness), [FR-7](FR.md#fr-7-fail-closed-status-truth), `@feature1`, `@feature4`, `@feature6`, `@feature7`
-
-## UC-2: Detect stale evidence that cannot satisfy readiness
-
-**Primary actor:** Release evaluator.
-
-**Precondition:** A once-passing result carries one hash binding that differs from the current kernel scenario binding.
+**Precondition:** The current kernel snapshot and trusted-capture envelopes are available.
 
 **Flow:**
-1. The evaluator compares the four hash dimensions and applicability bits; timestamps remain display-only.
-2. The original result stays observable with `STALE` and an exact `staleBecause` dimension.
-3. The stale result does not satisfy `done-verified`; task status is `done-unverified` or `not-done`.
+1. Parse and re-hash captured producer bytes.
+2. Join rows by qualified ID or verified canonical tag.
+3. Compare scenario content, applicable step binding, and tested implementation identity.
+4. For each current required scenario, elect a PASSED/FRESH/FULL evidence reference or emit a blocker.
+5. Return VERIFIED only when all required scenarios satisfy the rule; waived tasks remain WAIVED_OPEN.
 
-**Postcondition:** Stale evidence is visible in diagnostics and census but never satisfies readiness.
+**Postcondition:** Readiness is derived from actual captured bytes with all-not-any semantics.
 
-**Related:** [FR-6](FR.md#fr-6-freshness-and-staleness), [FR-7](FR.md#fr-7-fail-closed-status-truth), `@feature6`, `@feature7`
+**Related:** [FR-4](FR.md#fr-4-scenario-result-join), [FR-5](FR.md#fr-5-full-run-scope-authority), [FR-6](FR.md#fr-6-freshness-and-staleness), [FR-7](FR.md#fr-7-fail-closed-status-truth), [FR-8](FR.md#fr-8-waiver-honesty)
 
-## UC-3: Refuse fake-close of a waived task
+## UC-2: Diagnose stale or partial evidence
 
-**Primary actor:** Evidence evaluator.
-
-**Precondition:** A task is marked as waived in the kernel graph.
-
-**Flow:**
-1. The evaluator identifies the waiver flag on the task node.
-2. Regardless of any matching green evidence, the task status remains open-waived.
-3. The waiver is recorded in the evaluation output as a named state distinct from DONE and not-DONE.
-
-**Postcondition:** Waived tasks are never counted as satisfied; coverage census excludes them from satisfied counts while retaining them in authored totals.
-
-**Related:** [FR-8](FR.md#fr-8-waiver-honesty), `@feature8`
-
-## UC-4: Produce a coverage census with conservation
-
-**Primary actor:** Coverage reporter.
+**Actor:** Engineer or MCP query consumer.
 
 **Flow:**
-1. The evaluator counts unique authored scenarios from the kernel graph.
-2. It counts unique joined scenarios separately from canonical/overlay producer rows.
-3. Authored conservation verifies `authoredScenarioCount = joinedScenarioCount + unmatchedAuthorScenarioCount`.
-4. Producer conservation verifies `ingestedProducerResultCount = joinedProducerResultCount + unmatchedProducerResultCount + ambiguousProducerResultCount`; collection lengths/membership and per-artifact parse counts reconcile independently.
-5. The census emits waivedTaskCount separately and reports every equation result.
+1. `get_test_result` resolves one elected `ScenarioEvidence`.
+2. Freshness names scenario, step, or implementation mismatch; partial scope is explicit.
+3. The task blocker points to the same `EvidenceRef` when evidence exists.
+4. `get_scenario_trace` pages the exact producer trace addressed by that reference.
 
-**Postcondition:** Every result is accounted for; no silent drops or fabrications.
+**Postcondition:** Result, freshness, blocker, and trace refer to one evidence identity without duplicated hashes or trace IDs.
 
-**Related:** [FR-9](FR.md#fr-9-coverage-census-with-conservation-equations), `@feature9`
+**Related:** [FR-6](FR.md#fr-6-freshness-and-staleness), [FR-9](FR.md#fr-9-internal-row-accounting), [FR-14](FR.md#fr-14-mcp-projection-of-gettestresult-and-getscenariotrace)
 
-## UC-5: Ingest artifacts with fail-closed state
+## UC-3: Capture a real run
 
-**Primary actor:** Artifact ingester.
+**Actor:** Trusted local capture adapter.
 
-**Precondition:** An artifact input is PRESENT, ABSENT, or explicitly caller-skipped.
-
-**Flow:**
-1. PRESENT bytes are re-hashed and their exact kind/version admitted against the closed registry before parsing.
-2. Success produces `INGESTED`; unsupported/malformed/missing-results produce the exact `NOT_INGESTED` reason; absent and caller-skipped inputs produce their distinct closed states.
-3. Caller input cannot assert parse-derived `MISSING_SCENARIO_RESULTS`, and artifact state remains distinct from scenario result status.
-
-**Postcondition:** Every artifact has one schema-valid discriminated record; no state/reason cross-product is possible.
-
-**Related:** [FR-3](FR.md#fr-3-artifact-level-ingestion-state), `@feature3`
-
-## UC-6: Contribute to release eligibility
-
-**Primary actor:** Future release-stage evaluator.
-
-**Precondition:** This spec's evaluation output exists for a candidate release.
+**Precondition:** A supported runner invocation and containment root are available.
 
 **Flow:**
-1. The release evaluator receives the complete check records plus caller-supplied evidence-document bytes.
-2. It re-hashes each document and validates exact check/requirement/candidate/graph bindings.
-3. Missing, extra, duplicate, failed, stale, mismatched, unverified or unbound records fail with closed blockers.
+1. Execute or observe the actual invocation.
+2. Capture exact producer bytes and compute their SHA-256.
+3. Capture tested implementation identity and current scenario/step bindings.
+4. Derive FULL or PARTIAL from the invocation and selected scenario set.
+5. Emit one immutable run envelope or a closed capture error.
 
-**Postcondition:** This spec's contribution either passes as a complete conjunction member or blocks release with deterministic reasons.
+**Postcondition:** The evaluator receives one trusted envelope rather than separately supplied artifact and sidecar claims.
+
+**Related:** [FR-2](FR.md#fr-2-supported-execution-artifacts), [FR-3](FR.md#fr-3-trusted-capture-run-envelope), [FR-11](FR.md#fr-11-real-fixtures-per-spec-kernel-discipline)
+
+## UC-4: Contribute to product readiness
+
+**Actor:** Product release gate.
+
+**Precondition:** Ordinary task and scenario evidence exists for the tested candidate.
+
+**Flow:**
+1. Consume the task evidence required by the capability.
+2. Require every required task to be VERIFIED.
+3. Retain satisfying evidence references in the product evidence record.
+4. Refuse on any blocked or waived-open required task.
+
+**Postcondition:** Evidence is one normal all-not-any input to the product gate; no separate 14-record manifest or evidence fingerprint is produced.
 
 **Related:** [FR-13](FR.md#fr-13-release-eligibility-contribution), `@feature13`

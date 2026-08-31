@@ -21,7 +21,7 @@
     "commands/"
   ],
   "engines": {
-    "omp": "17.3.7"
+    "omp": "18.0.10"
   },
   "omp": {
     "extensions": [

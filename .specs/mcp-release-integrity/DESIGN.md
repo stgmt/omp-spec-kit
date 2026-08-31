@@ -1,176 +1,123 @@
 # Design
 
-## Implemented Requirements
-
-- FR-1 through FR-6 in [FR.md](FR.md).
-
 ## Architecture
 
 ```text
-.mcp.json command ──> package launcher ──> plugins/omp-spec-kit/dist/mcp/server.js
-                         │                        │
-                         │ package path only      │ active OMP cwd
-                         └────────────────────────┴──> resolveRepositoryRoot
-                                                          │
-                                                          v
-                                             one read-only query service
-                                                          │
-                                                          v
-                                            eight canonical MCP envelopes
+active project -> installed package launcher -> stdio MCP server -> one read-only query service
+                                                      |
+                                                      +-> historical eight tool calls
 
-package tree ──> deterministic candidate tar + candidate.json
-candidate + evidence@3 ──> MRI result + distribution result ──> public result ──> publish exact verified assets
+clean peeled tag -> deterministic candidate archive -> one unfiltered MRI run
+                    |                                  +-> real lifecycle journey
+                    +-> native artifact attestation -> download + re-hash -> publish same bytes
+
+immutable v0.3.2 status record -> historical evidence reader only
 ```
 
-## Components
+## Runtime verification
 
-- `plugins/omp-spec-kit/.mcp.json` declares `./bin/omp-spec-kit-mcp` and omits `cwd`.
-- `plugins/omp-spec-kit/bin/omp-spec-kit-mcp` and `.cmd` locate only their package-local built server, preserving inherited cwd and stdio.
-- `src/adapters/query-service.js` accepts only an explicit absolute `OMP_SPEC_KIT_ROOT`; otherwise it uses OMP's active project cwd. [VERIFIED: RESEARCH.md]
-- `src/mcp/server.js` writes exactly one terminal JSON-RPC response for every request with an id.
-- `scripts/release-candidate-utils.mjs` and `scripts/create-release-candidate.mjs` create a lexical mode-preserving tar only from a clean peeled-tag checkout.
-- `scripts/verify-public-tree.mjs`, `scripts/create-release-evidence.mjs`, `scripts/verify-release.mjs`, and `scripts/render-release-notes.mjs` bind safety, real Cucumber messages, lifecycle records, eligibility, and public claims fail closed.
-- `scripts/docker-bdd.sh` allocates one host-side `.dev-pomogator/bdd-results/run.*.ndjson` file, mounts only that dedicated directory writable into the disposable BDD container, and atomically promotes a successful unfiltered semantic Cucumber Messages stream to `.dev-pomogator/.last-test-run.ndjson`.
-- `cucumber.mjs` keeps interactive `progress` output while an explicit `OMP_SPEC_KIT_BDD_MESSAGE_PATH` adds a file message formatter; `OMP_SPEC_KIT_BDD_MESSAGE_STDOUT=1` keeps its release-capture NDJSON stdout and mirrors the same messages to that path.
-- `tests/helpers/mcp-world.mjs` and release-candidate BDD helpers drive the real built package and release scripts.
+The launcher finds its package-local server but does not choose the repository. OMP's active-project cwd is the default data root; a validated absolute override may select another contained project. MRI launches the copied installed package, sends raw protocol frames, calls all eight historical MCP handlers, snapshots the served corpus before and after, and checks the response source identity.
 
-## Algorithm
+The historical eight-tool test checks external package behavior. Full query semantics remain kernel-owned; MRI retains one serialization-boundary comparison to catch packaging drift without becoming a second kernel oracle.
 
-1. OMP roots the path-like launcher command at the plugin package but chooses active project cwd because `.mcp.json` omits `cwd`.
-2. Launcher derives its own directory, `exec`s `plugins/omp-spec-kit/dist/mcp/server.js`, and never changes cwd.
-3. Launcher exports its canonical package root. Server selects a validated absolute non-package override or inherited active-project cwd; package override retains active project and package cwd refuses.
-4. Parse errors yield `-32700`; invalid request objects yield `-32600`; unknown methods yield `-32601`; unknown tools yield `-32602`; valid notifications have no reply; every identified request has exactly one reply.
-5. The host wrapper creates a unique result file under its ignored dedicated results directory, passes only its container-visible path as `OMP_SPEC_KIT_BDD_MESSAGE_PATH`, and bind-mounts no source workspace.
-6. Cucumber writes progress plus Messages NDJSON for an ordinary run; release capture mode writes Messages to stdout and the per-run file without mixing progress into stdout.
-7. A successful no-argument Docker run must produce nonempty parseable Cucumber envelopes containing the complete feature/pickle/test-run/test-case lifecycle before the host atomically renames that per-run file to `.dev-pomogator/.last-test-run.ndjson`.
-8. Any failed, malformed, or argument-scoped run—including `--tags` or `--name`—retains the previous canonical file; a scoped run may leave its unique result artifact for inspection but cannot make `spec-verdict` appear fresh.
-9. Verify builds once; candidate assembly checks peeled tag and clean package tree, hashes a lexical mode-preserving tar, copies semantic Cucumber messages plus lifecycle receipts, emits evidence@3, and evaluates separate MRI/distribution/public results. Publish rechecks the same candidate before asset mutation.
+## Response provenance
 
-## API
+The adapter layer creates one root context from the canonical physical active-project cwd and the optional absolute override. Every stdio MCP envelope and legacy OMP inventory result carries `provenance` with the fixed server name, opaque SHA-256 identities for the resolved and active roots, `rootMode`, and `matchesActiveProject`. The IDs never contain absolute paths or environment values. The core graph fingerprint remains content/limits identity; it does not replace root provenance.
 
-| Input | Valid form | Outcome |
-|-------|------------|---------|
-| MCP default root | inherited active project cwd | served specification root |
-| `OMP_SPEC_KIT_ROOT` | absolute non-placeholder path | explicit served root [VERIFIED: RESEARCH.md] |
-| Relative or legacy literal override | rejected as override | inherited cwd remains root |
-| JSON-RPC 1.0 object with id | request object | one `-32600` response with same id |
-| malformed JSON | raw invalid frame | one `-32700` response with null id |
-| unknown method | identified request | one `-32601` response with original id |
-| unknown tool | identified `tools/call` request | one `-32602` response with original id |
+The explicit override remains available for controlled diagnostics, but it is never silent: summaries and structured results identify `explicit-absolute-override` and `matchesActiveProject: false`. The stdio server and all eight OMP extension tools use the same root context; no tool may read `ctx.cwd` while another honors the override.
 
-## Key Decisions
+## Candidate run
 
-### Decision: Package-relative command, project-relative data
+A future candidate run is one compact result bound to candidate/archive/feature/step/source digests. It records named observable groups, source identities for installed results, and the real install/upgrade/rollback/uninstall/reinstall journey. It does not contain manager/provider topology, a per-FR receipt registry, a distribution claim matrix, or fixed scenario/pickle/CHK counts.
 
-**Rationale:** Pinned OMP roots path-like `command` values at the package while `cwd` defaults to the active project when omitted.
-**Требование:** [FR-1](FR.md#fr-1-active-project-mcp-root).
+The Docker wrapper allocates a unique writable result file. Only a successful unfiltered run may be atomically promoted. Failed, malformed, tag-scoped, and name-scoped runs leave the prior trusted artifact untouched.
 
-**Trade-off:** The package owns small POSIX and Windows launcher files plus allowlist validation.
+## Candidate and publication
+
+Candidate creation resolves the peeled tag, refuses dirty or different checkout state, enumerates the allowlisted regular files lexically, preserves executable mode, and hashes the package tree and archive. One filesystem-backed containment check runs before content use and rejects symlink, junction, reparse, or realpath escape.
+
+Public-tree scanning is an outcome contract: no credentials in published bytes, bounded redacted findings, no secret echo. Detector category names are not public ABI.
+
+The release workflow verifies GitHub Artifact Attestations for the exact subject, repository, signer workflow, and tag ref. Publish downloads and re-hashes the candidate archive and never invokes the build. An existing release is idempotent only when required asset name, size, and digest match.
+
+## Historical reader
+
+`release-status-v0.3.2.json` remains the immutable authority for public v0.3.2 readback. Its evidence@3, lifecycle, manager-discovery, distribution-attestation, and release-result fields may be parsed as historical data. New candidates use the compact forward run contract in [the schema](mcp-release-integrity_SCHEMA.md); historical objects are never migrated in place.
+
+## Key decisions
+
+### Decision: Verify behavior, not OMP topology
+
+**Rationale:** Active-project answers and decoy exclusion are stable user-visible outcomes.
+**Trade-off:** A host refactor does not invalidate MRI if installed behavior is unchanged.
 
 **Alternatives considered:**
-- `node` plus a relative script argument — rejected because the argument would resolve from the active project and cannot find package `dist/`.
-- Package cwd plus environment override — rejected because an unset override silently returns an empty package corpus.
+- Maintain a host-topology receipt as the primary acceptance object.
+- Accept installed behavior only and keep host topology out of the contract.
 
-### Decision: Exercise all tools from an isolated copied package
+**Требование:** [FR-1](FR.md#fr-1-active-project-installed-behavior)
 
-**Rationale:** Direct source execution and descriptor checks cannot prove copied launcher, root selection, handler execution, or exact envelopes.
-**Требование:** [FR-2](FR.md#fr-2-terminal-json-rpc-protocol-responses), [FR-3](FR.md#fr-3-installed-package-all-tool-parity).
+### Decision: Keep protocol errors terminal and recovery local
 
-**Trade-off:** BDD creates temporary package and corpus trees.
-
-**Alternatives considered:**
-- Keep two representative tool calls — rejected because six handlers stay unexecuted.
-- Assert only registry descriptors — rejected because descriptors do not execute behavior.
-
-### Decision: Publish a verified candidate rather than rebuild
-
-**Rationale:** One archive digest lets verification, receipts, and publication compare the same delivered bytes.
-**Требование:** [FR-4](FR.md#fr-4-candidate-bound-lifecycle-eligibility), [FR-5](FR.md#fr-5-artifact-only-publication), [FR-6](FR.md#fr-6-honest-release-communication).
-
-**Trade-off:** Missing lifecycle or attestation evidence blocks a future candidate rather than allowing a convenience release. The published v0.3.2 receipts and release notes were captured pipeline-time by `scripts/compose-mri-lifecycle-receipts.mjs` from attested distribution-evidence runs and are bounded in the current release-status record.
+**Rationale:** A terminal JSON-RPC error gives clients a bounded result and preserves the next valid call.
+**Trade-off:** Invalid input cannot be silently ignored without making the process state ambiguous.
 
 **Alternatives considered:**
-- Rebuild in publish — rejected because publish may release unverified bytes.
-- Use `targetCommitish` as sufficient idempotence — rejected because it does not bind assets or evidence.
+- Drop the process on the first malformed frame.
+- Return one terminal error and keep the same process available for the next valid request.
 
-### Decision: Keep protocol framing in the stdio transport
+**Требование:** [FR-2](FR.md#fr-2-terminal-protocol-errors-and-recovery)
 
-**Rationale:** The server owns raw newline-delimited JSON-RPC framing, so invalid requests can receive one exact terminal error without changing kernel semantics.
+### Decision: Prove installed handlers, not descriptors
 
-**Требование:** [FR-2](FR.md#fr-2-terminal-json-rpc-protocol-responses).
-
-**Trade-off:** Transport tests must assert raw stdout frames in addition to structured tool content.
-
-**Alternatives considered:**
-- Let malformed requests time out — rejected because client recovery becomes indistinguishable from transport failure.
-- Move JSON-RPC validation into the kernel — rejected because the pure kernel has no stdio/protocol boundary.
-
-### Decision: Project full canonical envelopes through the copied package
-
-**Rationale:** Comparing the server response after JSON serialization to the direct shared service catches undefined fields, missing paths, and unexecuted handlers.
-
-**Требование:** [FR-3](FR.md#fr-3-installed-package-all-tool-parity).
-
-**Trade-off:** The test copies a real corpus and package rather than using a tiny in-memory stub.
+**Rationale:** Calling each historical handler from an isolated package catches packaging and transport regressions.
+**Trade-off:** A tools/list snapshot alone cannot prove a handler executes.
 
 **Alternatives considered:**
-- Compare only two tool responses — rejected because tool-specific serializers can drift independently.
-- Compare only a summary string — rejected because it hides closed-envelope fields.
+- Trust the manifest and skip handler calls.
+- Call every historical handler and compare the bounded result.
 
-### Decision: Generate release communication only after eligibility
+**Требование:** [FR-3](FR.md#fr-3-historical-eight-tool-installed-surface)
 
-**Rationale:** Notes receive candidate digests from the evaluator and cannot make a v0.3.2 readiness claim before all evidence exists.
+### Decision: One real run, no receipt lattice
 
-**Требование:** [FR-6](FR.md#fr-6-honest-release-communication).
-
-**Trade-off:** A future release remains blocked until its own external lifecycle and attestation receipts are captured; the bounded v0.3.2 instance is already public and is not reclassified by this spec-only repair.
-
-**Alternatives considered:**
-- Keep static notes per release workflow — rejected because they had remained on v0.1 wording.
-- Delete the faulty v0.3.0 release — rejected because users need durable advisory and provenance history.
-
-### Decision: Recheck asset bytes on idempotent publication
-
-**Rationale:** A release can share a target commit yet contain a missing or different archive, so idempotence must download and hash the named candidate asset.
-
-**Требование:** [FR-5](FR.md#fr-5-artifact-only-publication).
-
-**Trade-off:** The publish job performs one asset download before deciding that an existing release is safe.
+**Rationale:** A successful unfiltered producer run and observed lifecycle journey are stronger than nested self-authored eligibility objects.
+**Trade-off:** Lifecycle verification takes longer but has one understandable result.
 
 **Alternatives considered:**
-- Trust `targetCommitish` alone — rejected because it does not bind the archive bytes.
-- Overwrite existing assets — rejected because it hides a release provenance violation.
+- Keep a nested eligibility and per-FR receipt lattice.
+- Require one trusted unfiltered run with named lifecycle observations.
 
-## BDD Test Infrastructure
+**Требование:** [FR-4](FR.md#fr-4-one-real-candidate-run)
 
-**Classification:** TEST_DATA_ACTIVE
-**Format:** BDD
-**Framework:** Cucumber.js
-**Install Command:** already installed through `npm ci`
-**Evidence:** `package.json` declares `@cucumber/cucumber` and `test:bdd`; `cucumber.mjs` imports `tests/features/**/*.feature`; `tests/support/world.mjs` owns temporary-tree cleanup.
-**Verdict:** Existing Cucumber world and tagged Before/After hooks are reused. Each scenario owns one `mkdtemp` tree; source checkout, user state, and public releases are never mutated.
+### Decision: Publish the verified archive
 
-### Existing hooks
+**Rationale:** A single archive digest binds verification, attestation, download, and release.
+**Trade-off:** Any identity mismatch blocks mutation rather than rebuilding for convenience.
 
-| Hook file | Type | Scope | Reuse |
-|-----------|------|-------|-------|
-| `tests/step-definitions/spec-mcp.steps.mjs` | Before/After | `@spec-mcp` | Extend MCP process cleanup |
-| `tests/support/world.mjs` | World cleanup | all | Reuse temporary tree cleanup |
+**Alternatives considered:**
+- Rebuild during publication and compare only the version.
+- Publish the already verified archive and block on any digest mismatch.
 
-### New hooks
+**Требование:** [FR-5](FR.md#fr-5-contained-deterministic-candidate-and-same-byte-publication)
 
-| Hook file | Type | Scope | Purpose |
-|-----------|------|-------|---------|
-| `tests/step-definitions/release-candidate.steps.mjs` | Before/After | `@release-candidate` | Own and remove candidate/evidence temp directories |
+### Decision: Preserve immutable history
 
-### Cleanup Strategy
+**Rationale:** Historical receipts explain the shipped baseline without pretending to be a new candidate run.
+**Trade-off:** The forward contract carries less historical detail and uses a separate evidence reader.
 
-The After hook closes its server, then removes only the scenario's `mkdtemp` root. No tracked source, repository corpus, OMP user state, Docker image, tag, or release is deleted.
+**Alternatives considered:**
+- Rewrite historical receipts into the compact candidate schema.
+- Keep historical bytes immutable and read them without reclassifying them.
 
-### Test Data & Fixtures
+**Требование:** [FR-6](FR.md#fr-6-public-guidance-and-immutable-v032-evidence)
 
-| Fixture | Path | Lifecycle |
-|---------|------|-----------|
-| Manifest-pinned real corpus | `tests/fixtures/kernel/real-corpus-manifest.json` | shared/read-only |
-| project-a, project-b, package-decoy | generated beneath `mkdtemp` | per scenario |
-| candidate/evidence JSON | generated beneath `mkdtemp` | per scenario |
+## Fixture isolation
+
+Each scenario owns one `mkdtemp` tree. Cleanup removes only that tree after closing its server. Tests do not mutate tracked source, user OMP state, tags, releases, or the shared real fixture. The copied payload and corpus are externally hashed before use.
+
+**Alternatives considered:**
+- Rebuild during publication and compare only the version.
+- Publish the already verified archive and block on any digest mismatch.
+
+**Требование:** [FR-5](FR.md#fr-5-contained-deterministic-candidate-and-same-byte-publication)

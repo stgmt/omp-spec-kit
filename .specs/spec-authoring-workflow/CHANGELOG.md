@@ -1,33 +1,24 @@
 # Changelog
 
-## Unreleased — specification-only public init
+## Unreleased — contract simplification
 
-### Added
+### Changed
 
-- Closed every service-operation reachability gap through existing `propose_patch` modes and `apply_spec_transaction` phases; added exact AC/SCEN/CHK/TASK identities.
-- Closed corpus-review gaps: reciprocal AC→FR links, canonical CHK→scenario→TASK rows, all NFR owners, seven edit operations, reachable two-call review/commit phases, MCP-only authoring, build/server wiring, and corrected TASK-14-before-TASK-13 release order.
+- Reduced the future public mutation surface to `propose_patch` and `apply_proposed_patch`.
+- Made helper intents internal compilers over one edit-operation union.
+- Replaced runtime release/evidence eligibility machinery with the product's ordinary `NEXT` state; distribution and product evaluators retain their own authority.
+- Replaced durable server-side review with caller inspection of one immutable Proposal and exact-hash apply.
+- Reduced public results to Proposal, ApplyResult, compact MutationReceipt, and seven error families.
+- Kept filesystem containment, full kernel validation, anchor/link closure, CAS, one-spec atomicity, byte/EOL conservation, redaction, real concurrency, and deterministic fault verification.
+- Limited recovery to internal complete-old/complete-new selection; unrecoverable storage now fails closed to manual VCS/backup restore.
+- Removed separate task lifecycle, audit digest chain, public repair/recovery surfaces, registry taxonomy, and runtime mutation-quality gate.
 
-- Defined the deferred `spec-authoring-workflow` product boundary inside the single `omp-spec-kit` plugin.
-- Added read-only proposal/diff preview followed by explicit authenticated full-preview review; `apply_transaction` now consumes only an unexpired reviewed proposal ID/hash and current expected hashes and rejects raw/same-call edits.
-- Added canonical containment that makes linked roots/spec directories/targets unsupported for both kernel reads and mutation.
-- Added anchor-safe section and heading operations driven by the complete `spec-kernel:FR-13` heading/anchor/link-occurrence inventory.
-- Added exhaustive proposal, transaction, eligibility, task-status, retained-recovery, and no-survivor rebaseline transitions: `RECOVERY_REQUIRED→RECOVERING→COMMITTED|ROLLED_BACK` for a complete valid retained generation, or authenticated hash-bound dry-run/review/apply `RECOVERY_REQUIRED→REBASELINING→REBASELINED` when neither retained original nor retained result is complete and valid, even if corrupt or incomplete retained directories remain.
-- Added versioned request/result/error schemas and redacted proposal-review/recovery/rebaseline provenance, full pre/post/current/journal/candidate hash evidence, and append-only history-preserving audit events.
-- Added a hard 100%-killed mutation gate for enumerated safety-critical mutant families.
-- Recorded MP-1 through MP-4 as explicit decision-required release blockers.
-- Defined FR-13 as the all-of registration/release eligibility gate over mandatory FR-1..FR-12 evidence, current `plugin-distribution:FR-13`, and separately qualified accepted `spec-kernel:FR-14` v0.2 and v0.3 results whose predecessor/current artifact hashes are cryptographically linked within one product revision/artifact lineage; schema/service/fixture/evaluator implementation may proceed while lifecycle remains `DEFERRED` and actions remain unregistered.
-- Added stable unique `@id:SCEN-*` and exact `@AC-N.M` trace tags to every specification scenario.
-- Named the exact 24 generator-port mutation census rows in FR-14: 17 schema-v1 MCP names map onto proposal/review/commit operations; 7 unregistered schema-v2 names (`set_spec_status`, `create_spec`, `archive_spec`, `delete_spec_doc`, `rename_spec_doc`, `add_backlog_task`, `register_incident_backlog`) are listed in `unsupportedLaterNames`, not DROP and not invokable v1 refusals. None appear on the historical v0.3 read registry. The dropped advisor/dashboard/harness backlog UI is not `add_backlog_task`.
+## Historical baseline — v0.3.2
 
-### Deferred
+- v0.3.2 shipped the real read-only baseline with eight working MCP tools and no authoring mutation surface.
+- Historical reconciliation identities remain: tag commit `2938389e34e2d06bdd497291ed01e0a2d89146c9`, candidate digest `526ef6ff94ea682a116a43e4de0b5f622686b8ef36648b7884c830ba1eac25b4`, package-tree digest `e8d53934122a495e1003f17126785dcd181f5d6d5f417270844e17fc25f12f92`, archive SHA-256 `26a2ebadd7d1888c10dc9bdbdc25e11fecf5b15c7e3bb363a0cbea9`.
+- Those receipts remain historical evidence and do not gate authoring requests at runtime.
 
-- Authoring action registration, exposure, user-spec mutation, and release eligibility until aggregate `spec-authoring-workflow:FR-13` is green for the exact built release-candidate artifact/snapshot/policy/host; implementation and isolated evidence production are not deferred by this gate.
-- Any publication while required public-init validation remains incomplete; the frozen snapshot's historical license gap is resolved, while `plugin-distribution:FR-13` retains fail-closed provenance/license checks for future or changed imports.
-- Mutation engine, non-critical threshold, timeout budget, and equivalent-mutant authority until measured baselines resolve MP-1–MP-4.
+## Historical design record
 
-### Excluded
-
-- dev-pomogator advisor, dashboard, harness backlog UI, hooks, stop gates, repair loops, SQLite, watcher, judge, and runtime harness machinery (that excluded backlog UI is not MCP `add_backlog_task`, which is later-authoring-v2, not DROP).
-- Direct or raw-edit writes, same-call preview-and-commit, cross-spec atomic transactions, automatic CAS rebase, linked-spec reads/mutation, retained recovery with replacement bytes, unauthenticated or unreviewed rebaseline, out-of-root/linked candidate sources, recovery-history erasure, `.progress.json`, and hidden repository workflow state.
-
-No runtime release, executed scenario, passing test, or implementation completion is claimed.
+Earlier drafts explored broader facade, review, recovery, audit, lifecycle, and quality authorities. The current contract supersedes those designs before runtime implementation; no compatibility aliases are retained because no authoring API was shipped.

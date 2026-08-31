@@ -8,13 +8,13 @@
   },
   "scripts": {
     "build": "node scripts/build-plugin.mjs",
-    "verify": "node scripts/verify-marketplace.mjs && node scripts/verify-package.mjs && npm run check:spec-port && npm run check:spec-corpus",
-    "check:spec-port": "node scripts/check-spec-generator-port-freeze.mjs",
+    "verify": "node scripts/verify-marketplace.mjs && node scripts/verify-package.mjs && npm run check:spec-corpus && npm run check:spec-port",
     "check:spec-corpus": "node scripts/check-spec-corpus.mjs",
-    "bdd:container": "node scripts/run-bdd-container.mjs",
+    "check:spec-port": "node scripts/check-spec-port.mjs",
+    "dogfood:mcp": "node scripts/dogfood-mcp.mjs",
     "test:bdd": "bash scripts/docker-bdd.sh",
     "test:bdd:omp-discovery": "bash scripts/docker-bdd.sh --tags '@id:SCEN-mri-active-project-manager-receipt or @id:SCEN-mri-missing-payload-refusal'",
-    "test": "npm run build && npm run verify && npm run test:bdd"
+    "test": "npm run build && npm run verify && npm run dogfood:mcp && npm run test:bdd"
   },
   "devDependencies": {
     "@cucumber/cucumber": "13.2.1"

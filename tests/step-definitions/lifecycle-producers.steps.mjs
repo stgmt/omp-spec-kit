@@ -70,7 +70,7 @@ After({ tags: "@lifecycle-producers" }, async function () {
 Given("the pinned omp-discovery-runtime fixture and its bun-installed dependencies exist", async function () {
 	assert.equal(process.env.OMP_SPEC_KIT_BDD_CONTAINER, "1", "lifecycle producers run only inside the BDD container");
 	const runtimePackage = await readJson(path.join(RUNTIME_ROOT, "package.json"));
-	assert.equal(runtimePackage.dependencies["@oh-my-pi/pi-coding-agent"], "17.3.7");
+	assert.equal(runtimePackage.dependencies["@oh-my-pi/pi-coding-agent"], "18.0.10");
 	assert.ok(
 		existsSync(path.join(RUNTIME_ROOT, "node_modules", "@oh-my-pi", "pi-coding-agent", "src", "discovery", "index.ts")),
 		"pinned runtime is not installed; the BDD image must run bun install first",
@@ -335,7 +335,7 @@ When("create-distribution-evidence runs with --lifecycle-receipts-dir", { timeou
 		}, null, 2)}\n`,
 	);
 
-	const discoveryDoc = path.join(REPOSITORY_ROOT, "docs", "validation", "omp-discovery-v17.3.7.md");
+	const discoveryDoc = path.join(REPOSITORY_ROOT, "docs", "validation", "omp-discovery-v18.0.10.md");
 	const { createHash } = await import("node:crypto");
 	const discoveryDigest = createHash("sha256").update(await readFile(discoveryDoc)).digest("hex");
 

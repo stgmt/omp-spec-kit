@@ -2,20 +2,47 @@
   "schema": "omp-spec-kit-dist-manifest@1",
   "pluginVersion": "0.3.2",
   "files": {
+    "adapters/document-service.js": {
+      "sha256": "2744b3b649faf1f2bf98dd287f3236e58b037dd1b9f7f14dd5e4507b6a189df2"
+    },
     "adapters/omp/register-spec-tools.js": {
-      "sha256": "e9e70714cb5c8236e100df5f8056346f3aeaafa9a6ac92efe6aba85cec902109"
+      "sha256": "5597fcd7b1a1a530b672633036a2f6190938473c0ff65897bb1a0b6e4c97438a"
     },
     "adapters/query-service.js": {
-      "sha256": "c34dcaf5d923b5b39b86e156c48cb3128a5a069a085540440e007c894b38c723"
+      "sha256": "cdff58b3b117b77d4f6a92da724dd544cdf43cbdf1986e558ebb07f893f31189"
     },
     "adapters/tool-contracts.js": {
-      "sha256": "ef4d30478a5db7165a36bf2b57a45168da38485c13da265ce0f1d9dd20a531af"
+      "sha256": "3413d1b5efc591230a6c9c35d2d6c222b866e4eec2ec6ee4da23792726884a8c"
+    },
+    "authoring/proposals.js": {
+      "sha256": "4f7e1cc5dae8dff85a1af5d019ded9b4aa671dd7bf17a96b5b1fec79ca61d9da"
+    },
+    "authoring/service.js": {
+      "sha256": "0da2ec4e4c6e965b08a013b8f7464185bb415ce7e3b6875442bb086b470460fd"
+    },
+    "authoring/transactions.js": {
+      "sha256": "89701a2d82ccdc26abe6554f9ef024ae58d9579071c43d2175caf2178cf90da6"
+    },
+    "enforcement/adapter.js": {
+      "sha256": "99df996ce1e08c08318d1be5799b262a8609de5e535d9a639cc4babc3556660a"
+    },
+    "enforcement/classifier.js": {
+      "sha256": "16bcf2895c67489ebf4b740345d0089ecc2713153bb3a6e4d0b9d46f8c52f964"
+    },
+    "evidence/service.js": {
+      "sha256": "395f474c0a24777e7e4fa325f5d4432788deac1b8fcda49a393fb308579a8f34"
     },
     "extension.js": {
-      "sha256": "bb66cd370ea155844406c80254c0929ab31f92bf1d7c3db02708086a118bef83"
+      "sha256": "2f50be3d8c5146fe10014b97f9887929ab50b77bed5db64bb4872d2b4425094f"
+    },
+    "gate/automatic-adapter.js": {
+      "sha256": "82c385544c2aa793679512b93ef150cfd382722f0cbcc1dd28b99b710e3d3ed8"
+    },
+    "gate/validator.js": {
+      "sha256": "4541d470c5266c7ed22f24c69b2916a0f0f2c9918b013e7bd475c70cf2ee39cd"
     },
     "inventory.js": {
-      "sha256": "c4244fd999af8cbeb2ca7b21b400de6e90eca86e72405f538f35bc37f9910afc"
+      "sha256": "5c10581f0a669525272135e41b458d0055ecdf3a34a8065ff3aad3552032c33f"
     },
     "kernel/adapters/fs.js": {
       "sha256": "31e338483be6ebcea53588efd832fa0153febf8e098e55f614206f007abcc38e"
@@ -62,6 +89,9 @@
     "kernel/query/cursor.js": {
       "sha256": "6149e4ad947bc49544d59f78a04b55c410145245ba369b323ce221be29675942"
     },
+    "kernel/query/extended.js": {
+      "sha256": "6c04d2628f0d31326a2219ddd820f7385cd447bf81ee20772f53d041aa24f34b"
+    },
     "kernel/query/service.js": {
       "sha256": "254119bb02dc746807b910d352801070081335039702b66dae32a426abb4e0af"
     },
@@ -69,7 +99,7 @@
       "sha256": "ff1a46bba6a1940a5a1aff16d5c3b0e5799790c1418f6b5ae18bceec3a2da883"
     },
     "mcp/server.js": {
-      "sha256": "deb03fe15b5e212ea67f50a4cbdafa1f10e39be15006d615403e596274b485ee"
+      "sha256": "1fb25bb94f71a3005c2e20c8a57b584269009f601faa32539c6a1b0f6b620237"
     }
   }
 }

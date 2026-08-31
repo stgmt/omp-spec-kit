@@ -1,145 +1,47 @@
-# OMP v18 authority and selected-plan ABI grounding — 2026-08-29
+# OMP v18 authority and plan ABI
 
-## Decision
+Status: source-grounded candidate design; not a release receipt for an authority-dependent profile.
 
-Upgrade the active OMP binary and the repository compatibility baseline to v18.0.10, then implement the two missing host contracts on top of that release instead of leaving product work indefinitely deferred:
+## Current baseline
 
-1. authenticated tool authority on pre-execution tool events;
-2. a blocking event for the exact plan selected by the native resolver.
+`omp-spec-kit` v0.3.2 runs on OMP `18.0.10` at immutable commit `33cc6b9a043a74e00a157e72ca909272796d8461`. The current profile is read-only and preserves the eight published MCP names.
 
-A version bump alone does not provide either contract. OMP v18.0.10 already retains the required MCP metadata internally, but drops it when constructing `tool_call`; its plan resolver already returns the selected plan content, but `PlanApprovalDetails` drops that content and no extension event is emitted.
+## Authority envelope
 
-## Grounded facts
+The upstream candidate adds `tool-call-authority-abi@1` to host-generated `tool_call` and `tool_result` events. The envelope is projected from the actual registered tool object and the live session registry, never from a model-visible name:
 
-| Fact | Evidence |
-|---|---|
-| Active binary is v18.0.3; v18.0.10 is available. | `omp --version`; `omp update --check` |
-| Stable npm release is 18.0.10. | `npm view @oh-my-pi/pi-coding-agent version dist-tags --json` |
-| v18.0.10 tag resolves to commit `33cc6b9a043a74e00a157e72ca909272796d8461`. | `https://api.github.com/repos/can1357/oh-my-pi/git/ref/tags/v18.0.10` |
-| v18.0.10 extension `ToolCallEvent` contains only `toolCallId`, `toolName`, and `input`; no authority envelope. | `https://github.com/can1357/oh-my-pi/blob/v18.0.10/packages/coding-agent/src/extensibility/extensions/types.ts#L920-L978` |
-| MCP tool objects already retain `mcpServerName`, `mcpToolName`, normalized parameters, and connection provider metadata. | `https://github.com/can1357/oh-my-pi/blob/v18.0.10/packages/coding-agent/src/mcp/tool-bridge.ts#L490-L555` |
-| The model-loop event constructor forwards only name, call ID, and normalized input. | `https://github.com/can1357/oh-my-pi/blob/v18.0.10/packages/coding-agent/src/session/agent-session.ts#L3675-L3710` |
-| Direct/nested dispatch has a second constructor with the same metadata loss. | `https://github.com/can1357/oh-my-pi/blob/v18.0.10/packages/coding-agent/src/extensibility/extensions/wrapper.ts#L170-L245` |
-| Native plan resolution already returns `planFilePath`, `planContent`, and normalized title. | `https://github.com/can1357/oh-my-pi/blob/v18.0.10/packages/coding-agent/src/plan-mode/approved-plan.ts#L130-L205` |
-| Interactive review drops plan content and returns only path/title/existence. | `https://github.com/can1357/oh-my-pi/blob/v18.0.10/packages/coding-agent/src/session/agent-session.ts#L1010-L1045` |
-| ACP has a separate resolver/approval path and must share the same gate. | `https://github.com/can1357/oh-my-pi/blob/v18.0.10/packages/coding-agent/src/modes/acp/acp-agent.ts#L1870-L1920` |
-| Pre-execution extension-handler error or timeout blocks by default. | `https://github.com/can1357/oh-my-pi/blob/v18.0.10/packages/coding-agent/src/extensibility/extensions/runner.ts#L1440-L1495` |
-
-## Proposed host contracts
-
-### Tool authority
-
-Add one non-model-controlled envelope to `tool_call` and `tool_result`:
-
-```ts
-interface ToolAuthorityV1 {
-  schema: "tool-call-authority-abi@1";
-  providerKind: "builtin" | "extension" | "mcp" | "device";
-  registeredToolName: string;
-  serverId: string | null;
-  sourceToolName: string;
-  inputSchemaSha256: string;
-  registrySnapshotSha256: string;
-  sourcePath: string | null;
+```json
+{
+  "abi": "tool-call-authority-abi@1",
+  "providerKind": "builtin | extension | mcp | sdk | unknown",
+  "registeredName": "<registered tool name>",
+  "serverId": "<MCP server name or null>",
+  "sourceToolName": "<original MCP name or null>",
+  "inputSchemaSha256": "<64 lowercase hex characters>",
+  "registrySnapshotSha256": "<64 lowercase hex characters>",
+  "sourcePath": "<host-owned source path>"
 }
 ```
 
-For MCP calls, construct it from the actual registered `MCPTool`/`DeferredMCPTool` object and manager source, never by parsing the model-visible name. Hash a canonical JSON projection of the actual registered input schema. Build the registry snapshot only after the live tool slate is finalized; every event references that immutable session snapshot.
+Object keys are canonicalized before hashing. Registry entries are sorted by registered name. A schema or registry change therefore changes the relevant digest instead of inheriting an old authorization decision.
 
-### Selected plan
+## Exact selected-plan event
 
-Add a blocking post-resolver event shared by TUI and ACP:
+The upstream candidate adds one blocking `plan_approval_requested` event after native plan resolution and before TUI or ACP approval. It carries the exact selected `planFilePath`, `planContent`, normalized `title`, and SHA-256 of the exact content. Handler error, timeout, cancellation, or an explicit block fails closed; approval UI is not opened.
 
-```ts
-interface PlanApprovalRequestedEvent {
-  type: "plan_approval_requested";
-  requestId: string;
-  sessionId: string;
-  planFileUrl: string;
-  planContent: string;
-  planSha256: string;
-  title: string;
-  planMode: "tui" | "acp";
-}
+TUI and ACP call the same `AgentSession.gateResolvedPlan` path. No directory scan or second native plan resolver is permitted.
 
-type PlanApprovalRequestedResult =
-  | { block: true; reason: string }
-  | { block?: false };
-```
+## Evidence boundary
 
-Emit it after `resolveApprovedPlan` chooses exact bytes and before any user/client approval UI. A block keeps plan mode active and surfaces the reason to the model/user. TUI and ACP must call one shared resolver-and-gate method so neither path can bypass the other.
+The files below are independent evidence classes:
 
-## Architecture
+- `docs/omp-v18.0.10-contract.md` — immutable read-only compatibility baseline.
+- `docs/validation/omp-discovery-v18.0.10.md` — fresh project-session manager handoff.
+- The pinned upstream worktree `E:/repos/oh-my-pi-omp18` — candidate source and targeted tests.
+- Historical v17 documents and receipts — unchanged historical evidence only.
 
-```mermaid
-flowchart LR
-  R[Live registered tool] --> A[Authority projector]
-  A --> S[Session registry snapshot]
-  S --> E[tool_call event]
-  E --> G[omp-spec-kit enforcement]
-  G -->|allow| X[approval and execution]
-  G -->|block| B[bounded tool error]
+Authority-dependent package activation remains blocked until the candidate source and behavioral tests are accepted together.
 
-  P[Native plan resolver] --> H[Shared resolved-plan gate]
-  H --> T[TUI approval]
-  H --> C[ACP approval]
-  H -->|block| K[plan mode remains active]
-```
+## Candidate source receipt
 
-## Failure modes
-
-| Failure | Required behavior |
-|---|---|
-| Schema cannot be canonically serialized | Block authority-dependent activation; never hash an unstable representation. |
-| Registry changes after snapshot | Rebuild under the registry mutation lock before accepting another call; mismatch is `UNKNOWN`, not trusted. |
-| Deferred MCP connection lacks provider source | Authority envelope remains present with a non-authorizing provider state; authoring calls are blocked. |
-| Direct/nested dispatch bypasses the agent loop | Extension wrapper constructs the same authority envelope from the same projector. |
-| Plan content changes between resolution and approval | Hash mismatch blocks; approval displays/records the exact gated bytes. |
-| Gate handler errors or times out | Preserve OMP's existing fail-closed behavior and bounded reason. |
-| ACP and TUI produce different selected-plan contracts | Shared resolver-and-gate method is mandatory; duplicate implementations are rejected. |
-
-## Rejected alternatives
-
-| Alternative | Rejection |
-|---|---|
-| Treat `mcp__server__tool` spelling as authority | Name parsing is not origin authentication and ignores the already-available registered metadata. |
-| Read `.mcp.json` inside the enforcement extension | Configuration describes intent, not the live tool object or session registry. |
-| Keep `DEFERRED_HOST_ABI` as the roadmap endpoint | It records the gap but does not deliver the product; this work implements the missing ABI. |
-| Re-scan `local://` files before plan approval | Duplicates native resolution and can gate different bytes. |
-| Patch only interactive mode | ACP would remain an unguarded approval path. |
-| Put the spec API behind LSP instead of MCP | Violates the single agent-facing MCP boundary and does not solve write authority. |
-
-## Blocking probes
-
-- **З-1:** prove one canonical schema serializer yields the same SHA-256 for built-in, extension, active MCP, and deferred MCP tools across two fresh sessions.
-- **З-2:** prove registry snapshot creation occurs after all startup registration and under the same mutation lock used by later registry changes.
-- **З-3:** prove provider/server/source-tool identity survives active connection, deferred connection, reconnect, and name-collision handling.
-- **З-4:** prove model-loop, nested device, Cursor/direct, and retry dispatches emit exactly one equivalent authority envelope.
-- **З-5:** prove TUI and ACP both invoke one post-resolver plan gate and preserve plan mode on block.
-- **З-6:** prove event input revisions cannot alter the authority envelope or bypass the second approval check.
-
-No non-blocking unknown affects the proposed architecture.
-
-## Work order
-
-1. Upgrade the local binary to v18.0.10 and recapture the unmodified v18 baseline.
-2. Add authority types/projector/registry snapshot and thread them through every event constructor.
-3. Add shared resolved-plan gating and migrate TUI plus ACP onto it.
-4. Add upstream behavioral tests for authority parity, reconnects, nested/direct dispatch, TUI, ACP, timeout, and block behavior.
-5. Build a pinned OMP candidate, run the omp-spec-kit probes against it, and submit the upstream change.
-6. After an immutable upstream commit/release exists, update omp-spec-kit compatibility pins, fixtures, schemas, product states, and release evidence.
-
-## Acceptance scenarios
-
-- An `omp-spec-kit` authoring MCP call carries exact provider/server/source-tool/schema/snapshot identity and is accepted only when it matches the installed candidate registry.
-- A same-name extension or another MCP server is rejected before filesystem mutation.
-- A registry or schema change after startup becomes visible and cannot inherit prior authorization.
-- The exact native-selected plan is blocked before TUI or ACP approval when corpus validation fails.
-- A valid plan proceeds in both modes with the same content hash.
-- Handler error/timeout remains fail-closed with a bounded reason.
-
-## Rollback
-
-- OMP authority ABI: revert the upstream commit; no omp-spec-kit code should depend on the envelope before the compatibility pin changes.
-- Plan event: revert the shared resolver-and-gate commit; TUI/ACP return to their prior approval flow.
-- omp-spec-kit activation: one product-state/config edit restores the prior read-only v0.3.2 profile; historical v17.3.7 receipts remain untouched.
+The pinned upstream worktree contains the candidate ABI at commit `1dc1022d779b68066b3c0ce523e292637aa2d053`. The candidate type check passed. The authority projector tests passed with 5 tests and 14 assertions; the combined authority, plan-gate, ACP, interactive, and runner regression run passed 229 tests with 742 assertions. The candidate is local and not published to the package registry, so the v0.3.2 package remains on the immutable read-only OMP 18.0.10 profile.

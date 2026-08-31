@@ -31,7 +31,7 @@ The immutable snapshot under `docs/upstream/dev-pomogator/` is a provenance refe
 
 The specification-only public-init milestone deliberately contains no installable catalog, plugin payload, extension, MCP server, release tag, or claim that the product can be installed. Those artifacts may be added only in their later phase after the corresponding aggregate requirement and evidence gate passes.
 
-The agent-facing specification API destination is the generator-port MCP door; see [spec-generator-port.md](spec-generator-port.md).
+The later agent-facing specification API is the read-only MCP server described by [spec-kernel](../../.specs/spec-kernel/README.md); the speculative generator-port decision was dropped.
 
 ## Immutable source and provenance
 

@@ -4,15 +4,22 @@ import {
   inventorySpecs,
   summarizeInventory,
 } from "./inventory.js";
+import { activeStageForEnvironment } from "../adapters/tool-contracts.js";
 import { registerSpecTools } from "../adapters/omp/register-spec-tools.js";
-import { createSpecService, resolveRepositoryRoot } from "../adapters/query-service.js";
+import {
+  createResponseProvenance,
+  createSpecService,
+  resolveRepositoryContext,
+} from "../adapters/query-service.js";
+import { registerSpecEnforcement } from "../enforcement/adapter.js";
+import { registerAutomaticPlanGate } from "../gate/automatic-adapter.js";
 
 export const PLUGIN_VERSION = "0.3.2";
 export const SCHEMA_VERSION = "1";
 
-// OMP v17.3.7 extension contract pinned at commit
-// 8500092296621a6826b7136e840f8a59ea338958:
-// docs/extensions.md and packages/coding-agent/src/extensibility/extensions/types.ts.
+// OMP 18.0.10 extension contract pinned at commit
+// 33cc6b9a043a74e00a157e72ca909272796d8461. Authority-dependent mutation
+// profiles additionally require the candidate OMP event ABI.
 export default function ompSpecKitExtension(pi) {
   const z = pi.zod;
   const parameters = z
@@ -34,31 +41,48 @@ export default function ompSpecKitExtension(pi) {
     approval: "read",
     strict: true,
     async execute(_toolCallId, params, signal, _onUpdate, ctx) {
-      const details = await inventorySpecs(ctx.cwd, params, signal);
+      const rootContext = resolveRepositoryContext(globalThis.process?.env, ctx?.cwd);
+      const details = await inventorySpecs(rootContext.resolvedRoot, params, signal);
+      const result = {
+        ...details,
+        provenance: createResponseProvenance(rootContext),
+      };
       return {
-        content: [{ type: "text", text: summarizeInventory(details) }],
-        details,
+        content: [{ type: "text", text: summarizeInventory(result) }],
+        details: result,
       };
     },
   });
 
-  // One lazily-built reader/graph/query service per repository root, shared by
-  // the seven kernel-backed tools registered below. Keyed by the session's
-  // resolved root (OMP_SPEC_KIT_ROOT override, else ctx.cwd); the graph is
-  // built at most once per root per extension lifetime.
-  const servicesByRoot = new Map();
+  // One lazily-built reader/graph/query service per root context, shared by
+  // the seven kernel-backed tools registered below. The active cwd and
+  // optional absolute override are both part of the cache key because the
+  // response mismatch marker depends on both.
+  const servicesByContext = new Map();
   function getService(ctx) {
-    const root = resolveRepositoryRoot(globalThis.process?.env, ctx?.cwd);
-    let service = servicesByRoot.get(root);
+    const rootContext = resolveRepositoryContext(globalThis.process?.env, ctx?.cwd);
+    const key = [
+      rootContext.resolvedRoot,
+      rootContext.activeProjectRoot,
+      rootContext.rootMode,
+    ].join("\u0000");
+    let service = servicesByContext.get(key);
     if (service === undefined) {
-      service = createSpecService(root);
-      servicesByRoot.set(root, service);
+      service = createSpecService(rootContext.resolvedRoot, rootContext);
+      servicesByContext.set(key, service);
     }
     return service;
   }
 
   // FC-6: registers spec_get_node/spec_find_nodes/spec_get_edges/spec_trace/
   // spec_diagnostics/spec_overview/spec_markdown_inventory. Together with
-  // spec_inventory above the extension exposes exactly eight read-only tools.
-  registerSpecTools(pi, getService);
+  // spec_inventory above. Future mutation stages stay hidden until the
+  // accepted host authority profile is active.
+  const requestedStage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE;
+  const activeStage = activeStageForEnvironment(requestedStage);
+  registerSpecEnforcement(pi);
+  if (["v0.7.0", "plan-gate"].includes(activeStage)) {
+    registerAutomaticPlanGate(pi);
+  }
+  registerSpecTools(pi, getService, activeStage);
 }

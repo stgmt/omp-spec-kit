@@ -1,55 +1,41 @@
 # Research
 
-## Scope and evidence classes
+## Verified runtime boundary
 
-This record separates the historical v0.3.0 defect, delivered v0.3.2 implementation, published-release evidence, and current contract revalidation. Source inspection proves code shape; Docker Cucumber Messages prove executed behavior; GitHub release/attestation receipts prove public identity. No one class substitutes for another.
+OMP v17.3.7 resolves a path-like MCP command relative to the installed package and uses the active project when `cwd` is omitted:
 
-## Pinned OMP launch contract
+- [`omp-plugins.ts`](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/discovery/omp-plugins.ts#L274-L344)
+- [`stdio.ts`](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/mcp/transports/stdio.ts#L578-L609)
+- [`mcp-config.md`](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/mcp-config.md#L377-L425)
 
-- OMP v17.3.7 `omp-plugins` resolves path-like `command` relative to the package root and preserves raw `args`/`env`: [pinned source](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/discovery/omp-plugins.ts#L274-L344).
-- `StdioTransport` uses `config.cwd ?? getProjectDir()`: [pinned source](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/mcp/transports/stdio.ts#L578-L609).
-- MCP environment indirection behavior is pinned in [mcp-config.md](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/mcp-config.md#L377-L425).
+The observable contract is active-project behavior. OMP manager classes, provider names, server-registration cardinality, and private launcher environment variables are implementation details.
 
-**Verified conclusion:** v0.3.0's package `cwd` selected package data. v0.3.2 omits `cwd`, uses a package-relative launcher, and lets OMP supply the active project root. Only an explicitly validated absolute `OMP_SPEC_KIT_ROOT` may override it. Current bytes: `plugins/omp-spec-kit/.mcp.json`, launchers, and `src/adapters/query-service.js`.
+## Verified shipped behavior
 
-## Delivered protocol and package behavior
+The installed v0.3.2 package launches from the active project, returns terminal JSON-RPC errors, recovers on the same process, and exposes the eight read-only SCHEMA-11 names. MRI checks the installed boundary. Full graph/query semantics remain kernel-owned.
 
-`src/mcp/server.js` implements one terminal JSON-RPC frame for invalid request, parse error, unknown method, and unknown tool (`-32600`, `-32700`, `-32601`, `-32602`). The copied-package tests execute all eight historical SCHEMA-11 tools against the real frozen corpus and direct service oracle without source checkout or ambient dependency ancestry. The eight names are v0.3.2 release identity, not the destination registry ceiling.
+## Real producer evidence
 
-## Delivered release architecture
+`tests/fixtures/release-candidate/cucumber-messages.ndjson` came from the real Docker Cucumber 13.2.1 producer. Its stream hash, image digest, command, capture date, and source-input manifest are closed provenance. Historical scenario and step counts are descriptive only. A source change requires a newly captured successful unfiltered run; the old stream must never be relabeled.
 
-- `scripts/create-release-candidate.mjs` emits `omp-spec-kit-<version>.tar` and `omp-spec-kit-release-candidate@1` from one clean peeled-tag package tree.
-- `scripts/create-release-evidence.mjs` emits `omp-spec-kit-release-evidence@3` with nested `omp-spec-kit-mri-evidence@1` and `omp-spec-kit-distribution-evidence-input@1`; MRI FR receipt keys are qualified `mcp-release-integrity:FR-1` through `FR-6`.
-- `scripts/verify-release.mjs` emits separate `mri-release-eligibility@1`, `distribution-release-eligibility@1`, and `public-release-eligibility@1` results. Forward `distribution-release-eligibility@2` belongs to `plugin-distribution:FR-13` and is not redefined here.
-- Cucumber evidence is a real Message NDJSON stream. The evaluator requires semantic pickle/test-case/attempt/step/final-run chains and rejects malformed, meta-only, duplicate-terminal, retry-only, incomplete, or non-passing evidence.
+The forward MRI contract checks parseability, a successful unfiltered terminal run, source/feature/step binding, and one bounded negative showing that meta-only or failed output cannot become trusted. Detailed Cucumber envelope error codes belong to the producer adapter, not release policy.
 
-## Distribution trust root
+## Root provenance and cross-surface consistency
 
-Self-attested distribution matrices are always blocked. The trusted path verifies the exact copied subject bytes with GitHub Artifact Attestations and fixes all verifier identities:
+The repository runtime audit found two distinct risks. The stdio query envelope and legacy inventory result expose content and graph identity but no physical project identity; the same server name can therefore serve two roots without a client-visible source marker. Separately, the OMP extension inventory used `ctx.cwd` while the seven query tools honored `OMP_SPEC_KIT_ROOT`, so a cwd plus absolute override could split one extension across two projects.
 
-- repository: `stgmt/omp-spec-kit`;
-- signer workflow: `stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml`;
-- source ref: `refs/tags/<candidate-tag>`;
-- command: `gh attestation verify <subject> --repo ... --signer-workflow ... --source-ref ...`;
-- timeout: 120 seconds; missing/unavailable/nonzero verifier fails closed.
+The bounded fix is adapter-owned rather than kernel-owned: the pure kernel continues to exclude transport and host state from its content fingerprint, while the shared adapter root context adds `serverName`, opaque canonical-root IDs, `rootMode`, and `matchesActiveProject` to every result. The explicit absolute override remains a diagnostic capability, but its mismatch is visible in both structured output and one-line text. No absolute path or environment value is returned.
 
-Environment may confirm only that exact repository; it cannot select another trust root. Evidence: `scripts/verify-release.mjs` trust-root constants and `attestationTrustRootRepository()`.
+Evidence inputs are the current source/test inspection, the built-artifact two-root smoke, and the installed extension mixed-cwd/override smoke. The required regression scenarios are `SCEN-mri-response-provenance` and `SCEN-mri-extension-root-consistency`; a changed source input requires a fresh unfiltered Cucumber capture before a run can become trusted evidence.
 
-## Current public instance
+## Candidate and publication facts
 
-`docs/validation/release-status-v0.3.2.json` records public/installable v0.3.2, tag commit, candidate/package/archive digests, release assets, release-workflow attestation, independently verified distribution subject/workflow/ref, Rekor index, and provenance commands. The public archive is `omp-spec-kit-0.3.2.tar`; evidence schema is @3. This bounded record supersedes the pre-release claim that no live producer provenance exists.
+Candidate bytes are assembled once from a clean peeled tag in lexical order with regular contained paths and preserved executable mode. Publication downloads and re-hashes the same archive. Native GitHub Artifact Attestation verification binds the exact subject to repository, signer workflow, and tag ref. MRI does not revalidate a distribution producer's internal claim matrix.
 
-## Current revalidation obligation
+## Historical v0.3.2 evidence
 
-The original release gate selected scenario headings by `@release-evidence`; leaving eleven MRI scenarios untagged allowed their execution to be omitted from the mandatory set. The repaired contract marks all eighteen headings mandatory while retaining six qualified FR receipts. Because feature/step bytes changed, a fresh unfiltered Docker stream must be captured and committed before amended CHKs can become Verified. Scenario text alone remains non-evidence.
+[`release-status-v0.3.2.json`](../../docs/validation/release-status-v0.3.2.json) is immutable readback evidence for tag `v0.3.2`, commit `2938389e34e2d06bdd497291ed01e0a2d89146c9`, candidate digest `526ef6ff94ea682a116a43e4de0b5f622686b8ef36648b7884c830ba1eac25b4`, package-tree digest `e8d53934122a495e1003f17126785dcd181f5d6d5f417270844e17fc25f12f92`, and archive SHA-256 `26a2ebadd7d1888c10dc9bdbdc25e11fecf5a7dcc7515b15c7e3bb363a0cbea9`. Its evidence@3 and attestation fields remain readable historical bytes; they are not the schema for future candidates.
 
-## Risks
+## Decision
 
-| Risk | Control |
-|---|---|
-| Wrong project root returns plausible empty data | Installed manager + copied-package active-root scenarios |
-| Protocol client hangs or receives mixed stdout | Exact four-code raw-frame tests and no-extra-stdout assertion |
-| Synthetic Cucumber fixture hides parser drift | Real Docker stream, immutable provenance, semantic one-fault mutations |
-| Self-attested producer authorizes release | Fixed GitHub attestation repository/workflow/ref and fail-closed verifier |
-| Publish rebuilds or substitutes bytes | One candidate archive; download/re-hash; existing asset identity check |
-| Published status and amended spec diverge | Bounded status record plus current all-scenario Docker revalidation |
+Future MRI produces one compact candidate run result. The release workflow may compose that result with native artifact-attestation output, but MRI defines no nested MRI/distribution/public eligibility lattice and no custom blocker taxonomy.

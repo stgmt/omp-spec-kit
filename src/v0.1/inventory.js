@@ -846,5 +846,9 @@ export async function inventorySpecs(projectRoot, request = {}, signal, runtimeH
 export function summarizeInventory(result) {
   const observed = result.counts.observedSpecs === null ? "unknown" : String(result.counts.observedSpecs);
   const suffix = result.truncated ? " (truncated)" : "";
-  return `spec_inventory ${result.status}: returned ${result.counts.returnedSpecs} of ${observed} observed specs; ${result.counts.returnedDiagnostics} diagnostics${suffix}.`;
+  const mismatch =
+    result.provenance?.matchesActiveProject === false
+      ? " source=explicit-absolute-override, active-project-mismatch"
+      : "";
+  return `spec_inventory ${result.status}: returned ${result.counts.returnedSpecs} of ${observed} observed specs; ${result.counts.returnedDiagnostics} diagnostics${suffix}.${mismatch}`;
 }

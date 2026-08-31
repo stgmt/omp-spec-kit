@@ -3,9 +3,9 @@ Feature: The v0.3 MCP adapter and extension registry expose exactly eight read-o
   As the omp-spec-kit v0.3 distribution contract
   the stdio MCP server and the OMP extension registry must both surface the
   eight SCHEMA-11 read-only tools over one shared kernel query service,
-  answer every call with exactly one canonical QueryEnvelope identical to a
-  direct kernel query against the same corpus, refuse unknown tools and
-  malformed requests fail-closed, mutate nothing, and run dependency-free
+  answer every call with exactly one canonical QueryEnvelope plus adapter
+  provenance metadata identical to the selected root context, refuse unknown
+  tools and malformed requests fail-closed, mutate nothing, and run dependency-free
   against any repository root.
 
   Background:
@@ -47,3 +47,15 @@ Feature: The v0.3 MCP adapter and extension registry expose exactly eight read-o
     Given a temporary repository holding only a copied product specification and no node_modules ancestry
     When a spawned stdio MCP server rooted there initializes and reads the overview
     Then the overview succeeds over exactly the copied product documents
+
+  @id:SCEN-mcp-response-provenance @feature7 @feature9 @FR-7 @AC-7.1
+  Scenario: The installed MCP surface identifies one resolved project root
+    Given two byte-exact temporary project replicas for provenance checks
+    When the real MCP server probes every tool with project-b as an explicit override while cwd is project-a
+    Then every result identifies one project-b root, the omp-spec-kit server, and an active-project mismatch
+
+  @id:SCEN-mcp-extension-root-consistency @feature7 @feature9 @FR-7 @AC-7.1
+  Scenario: The OMP extension inventory and query tools share one root
+    Given two byte-exact temporary project replicas for provenance checks
+    When the real OMP extension probes inventory and overview with project-b as an explicit override while cwd is project-a
+    Then both extension results identify project-b and the active-project mismatch

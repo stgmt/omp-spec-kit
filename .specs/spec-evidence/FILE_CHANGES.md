@@ -1,27 +1,22 @@
 # File Changes
 
-All paths are repository-relative. Status is planned; no file exists yet for this specification. This table is the planned surface for implementation stages and mirrors the DESIGN layout. Sources live at the repository root (`src/evidence/`) as plain JavaScript with JSDoc types per the house build convention; the child payload receives only generated `dist/` output. The build script's closed source/output allowlist gains the evidence stage only at its implementation stage.
+All paths are repository-relative and NEXT. Root `src/` is source; plugin `dist/` is generated. No runtime delivery is claimed.
 
 | Path | Action | Reason |
 |---|---|---|
-| `src/evidence/evaluate.js` | create | Pure evaluator entry (FR-1) |
-| `src/evidence/ingest/index.js` | create | Artifact ingestion dispatcher (FR-2, FR-3) |
-| `src/evidence/ingest/cucumber-messages.js` | create | Cucumber Messages NDJSON parser (FR-2) |
-| `src/evidence/ingest/pytest-bdd.js` | create | pytest-bdd cucumber-json parser (FR-2) |
-| `src/evidence/ingest/overlay.js` | create | Scenario-result overlay parser (FR-2, FR-5) |
-| `src/evidence/join.js` | create | Scenario result join by ID/tag/name (FR-4) |
-| `src/evidence/freshness.js` | create | Hash-bound freshness verdicts (FR-6) |
-| `src/evidence/status.js` | create | Evidence-hash task status derivation (FR-7) |
-| `src/evidence/waiver.js` | create | Waiver honesty enforcement (FR-8) |
-| `src/evidence/census.js` | create | Split authored/producer conservation (FR-9) |
-| `src/evidence/invariants.js` | create | Anti-false-green binding checks (FR-10) |
-| `src/evidence/release.js` | create | FR-1..FR-14 release record evaluator (FR-13) |
-| `src/evidence/mcp-projection.js` | create | Result/trace MCP envelopes (FR-14) |
-| `src/evidence/adapter.js` | create | I/O adapter for artifact retrieval (FR-1) |
-| `scripts/build-plugin.mjs` | edit | At the evidence implementation stage only: extend the closed source/output allowlist with the evidence stage files; no change in v0.1/v0.2/v0.3 (FR-1) |
-| `tests/fixtures/spec-evidence/` | create | Real multi-producer fixture corpus and one-fault derivatives (FR-11) |
-| `docs/validation/spec-evidence-release.md` | create | Hash-bound FR-1..FR-14 release receipts (FR-13, FR-14) |
+| `src/evidence/evaluate.js` | create | Pure evaluation entry (FR-1, FR-9) |
+| `src/evidence/capture.js` | create | Trusted run capture, containment, scope, hashes (FR-2, FR-3, FR-5, FR-10) |
+| `src/evidence/ingest/cucumber-messages.js` | create | Real Cucumber Messages parser (FR-2) |
+| `src/evidence/ingest/pytest-bdd.js` | create | Real pytest-bdd parser (FR-2) |
+| `src/evidence/join.js` | create | Stable ID/tag join and name diagnostics (FR-4) |
+| `src/evidence/freshness.js` | create | Scenario/step/implementation freshness (FR-6) |
+| `src/evidence/readiness.js` | create | Required-scenario and waiver evidence states (FR-7, FR-8) |
+| `src/evidence/mcp-projection.js` | create | ScenarioEvidence and EvidenceRef trace projection (FR-14) |
+| `scripts/build-plugin.mjs` | edit | Add evidence sources to the closed build mapping when implemented (FR-1) |
+| `tests/fixtures/spec-evidence/` | create | Real producer captures and labeled derivatives (FR-11) |
 
-## Impact analysis
+Removed from the plan: overlay parser, binding sidecar, census module, custom invariant/release evaluators, evidence release receipt document, and standalone trace identity.
 
-No destructive actions are planned. The evidence stage touches the single child package and repository documentation only. The read-only v0.1.0 artifact, the v0.2/v0.3 kernel surfaces, and existing specs are not modified by this specification; the evidence evaluator consumes the kernel graph as an immutable input and its release is stage-separated per DESIGN DEC-1.
+## Impact
+
+Implementation adds one read-only evidence capability after the SHIPPED v0.3.2 baseline. It does not modify historical receipts or the existing eight-tool first slice. Product readiness consumes ordinary task/scenario evidence rather than a new evidence-specific release protocol.

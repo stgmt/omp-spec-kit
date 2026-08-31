@@ -1,61 +1,49 @@
 # User Stories
 
-## US-1: Release owner who trusts evidence verdicts
+## US-1: Release owner who trusts evidence
 
 **Priority:** Must
 
-As a release owner, I want the exact derived status `done-verified` to require fresh execution bytes joined to canonical scenarios, so stale/fabricated results remain `done-unverified` or `not-done`.
+As a release owner, I want verification to require fresh passed FULL-scope evidence for every required scenario, so one green row, a partial run, or stale bytes cannot approve a task.
 
-**Why:** Upstream incident class "526 stale results reported as passed while execution lane claimed GREEN" demonstrates that without an explicit honesty boundary, stale or misjoined results silently satisfy completion.
+**Why:** A known upstream incident reported stale passing results while the execution lane appeared green.
 
-**Independent Test:** Supply three tasks with fresh green, stale green, and absent evidence; observe exactly one `done-verified`, one `done-unverified`, and one `not-done`.
+**Independent Test:** Require three scenarios; provide valid evidence for two; observe BLOCKED until all three satisfy PASSED/FRESH/FULL.
 
-**Acceptance Scenarios:** `@feature1`, `@feature6`, `@feature7`
+**Acceptance Scenarios:** `@feature3`, `@feature5`, `@feature6`, `@feature7`, `@feature10`, `@feature13`
 
-## US-2: Specification author whose waived work stays honest
+## US-2: Engineer diagnosing evidence
 
 **Priority:** Must
 
-As a specification author, I want a waived open task to remain visibly open and never counted as satisfied by evidence, so that waiver is an explicit named state rather than a silent completion path.
+As an engineer, I want every producer row and required scenario to have one visible outcome and one evidence reference, so unmatched, ambiguous, stale, failed, or partial evidence is easy to locate.
 
-**Why:** Waiver without an honesty gate becomes indistinguishable from completion in rollups and coverage reports.
+**Why:** Silent drops and duplicate result/trace identities hide the cause of a blocked task.
 
-**Independent Test:** Mark a task as waived; supply passing evidence for its scenario; observe the task remains open-waived and is excluded from satisfied counts.
+**Independent Test:** Capture joined, unmatched, ambiguous, stale, and partial rows; observe one outcome per row and scenario-specific blockers with trace lookup by evidence reference.
+
+**Acceptance Scenarios:** `@feature4`, `@feature6`, `@feature9`, `@feature12`, `@feature14`
+
+## US-3: Author whose waiver stays open
+
+**Priority:** Must
+
+As a specification author, I want a waived task to remain visibly open even when passing evidence exists, so waiver is never confused with completion.
+
+**Why:** Waiver is a scope decision, not proof.
+
+**Independent Test:** Mark a task waived and provide fresh passed full evidence; observe WAIVED_OPEN and not VERIFIED.
 
 **Acceptance Scenarios:** `@feature8`
 
-## US-3: Engineer diagnosing unmatched execution results
+## US-4: Multi-runner team
 
 **Priority:** Must
 
-As an engineer reviewing a coverage census, I want every producer row accounted for as joined, unmatched, ambiguous, or malformed while authored scenarios conserve separately, so no result is silently dropped or mixed across cardinality domains.
+As a team using different BDD runners, I want actual producer bytes captured into one common envelope, so evaluation does not depend on a custom overlay or hand-built fixture shape.
 
-**Why:** Silent drops and authored/producer count mixing hide broken traceability.
+**Why:** Real producer fixtures catch parser assumptions that synthetic fixtures hide.
 
-**Independent Test:** Supply two joined rows, one unmatched row, one ambiguous row and one malformed source record; observe producer collection/membership equations and the independent authored-scenario equation both hold exactly.
-
-**Acceptance Scenarios:** `@feature4`, `@feature9`
-
-## US-4: Integrator plugging evidence into release gates
-
-**Priority:** Must
-
-As an integrator building a future release stage, I want this spec's evaluation output to contribute one closed conjunction member to the all-not-any release gate, so that evidence absence or failure blocks release deterministically.
-
-**Why:** Release gates must be compositional; each layer contributes its own mandatory checks without weakening others.
-
-**Independent Test:** Produce a release-eligibility evaluation with one missing evidence record; observe the conjunction fails closed with the missing check named.
-
-**Acceptance Scenarios:** `@feature13`
-
-## US-5: Multi-language team using canonical NDJSON
-
-**Priority:** Must
-
-As a team running tests in multiple languages, I want Cucumber Messages NDJSON accepted as the canonical artifact format with language-neutral ingestion, so that evidence evaluation does not depend on any single test runner.
-
-**Why:** Product neutrality requires evidence ingestion to be runner-agnostic; upstream FR-9 established this as a portable contract.
-
-**Independent Test:** Supply NDJSON from Cucumber-JS, Reqnroll, and behave producers; observe identical ingestion-state shapes and join outcomes modulo producer metadata.
+**Independent Test:** Capture real outputs from two identified producers and observe the same normalized evidence model with preserved provenance.
 
 **Acceptance Scenarios:** `@feature2`, `@feature11`

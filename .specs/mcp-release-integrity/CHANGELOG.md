@@ -1,18 +1,24 @@
 # Changelog
 
-## 2026-08-24 — Initial remediation specification
+## 2026-08-24 — Initial remediation
 
-- Recorded the v0.3.0 package-cwd MCP defect, silent invalid-request behavior, release-evidence gap, and stale public claims.
-- Defined v0.3.1 active-project launcher, terminal protocol, isolated all-tool BDD, candidate artifact, lifecycle, and advisory contracts.
-- Kept public v0.3.1 publication out of scope until real candidate evidence exists.
+- Defined active-project launch, terminal protocol responses, installed eight-tool verification, deterministic candidate bytes, and v0.3.0 advisory behavior.
 
-## 2026-08-29 — Current v0.3.2 contract reconciliation
+## 2026-08-29 — v0.3.2 evidence reconciliation
 
-- Retained v0.3.1 as the first public launcher correction and v0.3.0 as the advised defective baseline.
-- Bound the current MRI contract to public v0.3.2 release metadata, candidate/package/archive digests, lifecycle receipts and GitHub attestation identity.
-- Migrated scenario and AC identities to the canonical kernel grammar without changing the historical release evidence meaning.
-- Mirrored delivered candidate/evidence@3 and separate MRI/distribution/public result schemas; corrected the archive name and qualified FR receipt keys.
-- Made all eighteen MRI IDs and all forty source-derived pickle executions mandatory release evidence, added the -32601/-32602 branches, and paired public-path refusals with bounded positive v0.3.2 readback.
-- Reconciled CHK/TASK/review status as public runtime delivered with amended contract revalidation in progress.
+- Bound public status to immutable tag, candidate, package-tree, archive, release-note, and attestation evidence.
+- Preserved the real Docker Cucumber stream and closed source provenance without relabeling historical bytes.
 
-- Added valid absolute override/package-root refusal behavior and separated bounded historical positive readback (including captured release notes) from local negative evaluator proof.
+## 2026-08-29 — Contract simplification
+
+- Replaced manager/provider topology receipts and nested MRI/distribution/public eligibility schemas with black-box installed behavior and one compact future candidate run.
+- Removed fixed scenario/pickle/CHK counters, distribution claim matrices, detailed Cucumber error ABI, lifecycle receipt key sets, private launcher environment ABI, secret categories, and future registry conservation.
+- Kept active-project behavior, protocol recovery, the exact historical eight tools, real unfiltered producer evidence, real fresh-session lifecycle journeys, deterministic contained bytes, same-digest publication, public guidance, and immutable v0.3.2 readers.
+
+## Unreleased — Root provenance hardening
+
+- Added a response-source contract for the stdio MCP and OMP extension surfaces.
+- Made explicit absolute-root overrides visible through opaque root identities and `matchesActiveProject`.
+- Required the legacy inventory tool and seven query tools to share one resolved root context.
+- Added regression scenarios for two-root MCP responses and mixed-cwd extension execution.
+

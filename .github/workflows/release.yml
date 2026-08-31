@@ -108,7 +108,7 @@ jobs:
               --public-safety release-candidate/public-safety.json \
               --cucumber-messages release-candidate/cucumber.ndjson \
               --lifecycle-dir "$LIFECYCLE_DIR" \
-              --mri-discovery docs/validation/omp-discovery-v17.3.7.md \
+              --mri-discovery docs/validation/omp-discovery-v18.0.10.md \
               --distribution-evidence dist-evidence/distribution-evidence.json \
               --distribution-trust github-artifact-attestation \
               --output release-candidate
@@ -118,7 +118,7 @@ jobs:
               --public-safety release-candidate/public-safety.json \
               --cucumber-messages release-candidate/cucumber.ndjson \
               --lifecycle-dir "$LIFECYCLE_DIR" \
-              --mri-discovery docs/validation/omp-discovery-v17.3.7.md \
+              --mri-discovery docs/validation/omp-discovery-v18.0.10.md \
               --output release-candidate
           fi
 

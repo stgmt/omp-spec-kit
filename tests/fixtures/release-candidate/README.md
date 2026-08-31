@@ -6,17 +6,17 @@
 
 | Field | Value |
 |---|---|
-| Fixture SHA-256 | `9bcaa12544ad81dca1fb72915a38afb26e8e0ba890ece243783bfd54063600d2` |
-| Repository base commit | `86525eaf6f411757e001474f69d38447bafd0d28` |
+| Fixture SHA-256 | `c568d98c1137688950286d57271b3d9a3aa0de5114bc18de5185d923246717dd` |
+| Repository base commit | `843b40af742592a74964f101f41d7dfa6cf3223b` |
 | Source state | `working-tree-content-addressed` |
-| Parent fixture SHA-256 | `398711c01ad40d86edece475b1313a15ab7f9f01cca0a164be1f97296b47428f` |
-| Source inputs | 174 files; aggregate `cca0e38e47581e776e61eaf72cdea1dfcf9d63f317abadf29c5a1700fd9963ea` |
-| Source manifest SHA-256 | `194c85494af9a0380202ae665894fbd40783b1198babfb367020cb258dbfae15` |
-| Docker image digest | `sha256:1143a064082310cc43132ce8562b233a413a8e0c625969675143c17f686647c8` |
+| Parent fixture SHA-256 | `eadb0c0ec669ecef114d49371886f53b6fa6ee0c496291d21ba932650a20424e` |
+| Source inputs | 186 files; aggregate `d3c32661aedddd1f74cb278eb35cb0f7e75d283ae0cabd7a142e3b2cfcf2a2b3` |
+| Source manifest SHA-256 | `4b09cf6c6abe572d36d1e54c8592127b6859acbed6c1c4bf4117fb05d3425751` |
+| Docker image digest | `sha256:48633e327b2e8ff30f38ebc0a5710165b62b37e9dc46a1758d1ffc9147fcdae9` |
 | Cucumber version | `@cucumber/cucumber` `13.2.1` |
 | Capture command | `bash scripts/docker-bdd.sh` |
-| Capture date | `2026-08-29` |
-| Executed scenarios | 77 |
-| Completed steps | 720 |
+| Capture date | `2026-08-31` |
+| Executed scenarios | 58 |
+| Completed steps | 493 |
 
-Ground truth: the stream contains all 18 release-evidence IDs and all 40 source-derived MRI pickle executions. Every required pickle has one test case and a complete passing terminal chain; the stream has one final successful `testRunFinished`. The evaluator rejects malformed/meta-only, missing or duplicate chain members, missing non-first outline expansions, retry-only and non-passing evidence with named `CucumberEvidenceError` codes.
+Ground truth: the stream contains all 11 MRI scenario IDs and all 12 source-derived MRI pickle executions. Every required pickle has one test case and a complete passing terminal chain; the stream has one final successful `testRunFinished`. The evaluator rejects malformed/meta-only, missing or duplicate chain members, missing non-first outline expansions, retry-only and non-passing evidence with named `CucumberEvidenceError` codes.

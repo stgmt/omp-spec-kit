@@ -95,7 +95,7 @@ function validDiscovery(bytes, blocking) {
   if (!match) { add(blocking, "invalid-mri-discovery-receipt:no-json-receipt"); return false; }
   try {
     const receipt = JSON.parse(match[1]);
-    const valid = receipt.schema === "omp-manager-handoff-probe@2" && receipt.result === "completed" && receipt.provenance?.runtime?.name === "@oh-my-pi/pi-coding-agent" && receipt.provenance?.runtime?.version === "17.3.7" && receipt.manager?.connectionResult?.toolCount === 8 && JSON.stringify(receipt.manager?.connectionResult?.connectedServers) === JSON.stringify(["omp-spec-kit"]) && Object.keys(receipt.manager?.connectionResult?.errors ?? {}).length === 0;
+    const valid = receipt.schema === "omp-manager-handoff-probe@2" && receipt.result === "completed" && receipt.provenance?.runtime?.name === "@oh-my-pi/pi-coding-agent" && receipt.provenance?.runtime?.version === "18.0.10" && receipt.manager?.connectionResult?.toolCount === 8 && JSON.stringify(receipt.manager?.connectionResult?.connectedServers) === JSON.stringify(["omp-spec-kit:omp-spec-kit"]) && Object.keys(receipt.manager?.connectionResult?.errors ?? {}).length === 0;
     if (!valid) add(blocking, "invalid-mri-discovery-receipt:pin-or-manager-contract");
     return valid;
   } catch (error) { add(blocking, `invalid-mri-discovery-receipt:${error.message}`); return false; }

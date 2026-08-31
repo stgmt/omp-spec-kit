@@ -1,0 +1,401 @@
+{
+  "schema": "omp-spec-kit-mcp-runtime-census@1",
+  "stage": "authoring",
+  "root": "E:\\repos\\omp-spec-kit",
+  "registryCount": 49,
+  "rows": [
+    {
+      "name": "spec_inventory",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 26,
+      "structuredBytes": 2868
+    },
+    {
+      "name": "spec_get_node",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 10,
+      "structuredBytes": 1139
+    },
+    {
+      "name": "spec_find_nodes",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 29,
+      "structuredBytes": 5603
+    },
+    {
+      "name": "spec_get_edges",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 25,
+      "structuredBytes": 1967
+    },
+    {
+      "name": "spec_trace",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 22,
+      "structuredBytes": 4133
+    },
+    {
+      "name": "spec_diagnostics",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 30,
+      "structuredBytes": 7839
+    },
+    {
+      "name": "spec_overview",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 11,
+      "structuredBytes": 2612
+    },
+    {
+      "name": "spec_markdown_inventory",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 38,
+      "structuredBytes": 17476
+    },
+    {
+      "name": "find_by_tags",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 13,
+      "structuredBytes": 5631
+    },
+    {
+      "name": "list_tasks",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 26,
+      "structuredBytes": 889
+    },
+    {
+      "name": "list_phase_tasks",
+      "ok": false,
+      "isError": true,
+      "errorCode": "PHASE_NOT_FOUND",
+      "contentBytes": 36,
+      "structuredBytes": 907
+    },
+    {
+      "name": "find_orphans",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 14,
+      "structuredBytes": 27869
+    },
+    {
+      "name": "validate_anchor",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 17,
+      "structuredBytes": 1145
+    },
+    {
+      "name": "list_specs",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 12,
+      "structuredBytes": 927
+    },
+    {
+      "name": "validate_requirement_metadata",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 30,
+      "structuredBytes": 836
+    },
+    {
+      "name": "policy_query_requirements",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 26,
+      "structuredBytes": 814
+    },
+    {
+      "name": "get_archival_proof",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 19,
+      "structuredBytes": 854
+    },
+    {
+      "name": "validate_spec",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 15,
+      "structuredBytes": 1000
+    },
+    {
+      "name": "get_spec_status",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 16,
+      "structuredBytes": 7573
+    },
+    {
+      "name": "mcp_preflight",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 15,
+      "structuredBytes": 824
+    },
+    {
+      "name": "list_spec_docs",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 15,
+      "structuredBytes": 736
+    },
+    {
+      "name": "read_spec_doc",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 14,
+      "structuredBytes": 1248
+    },
+    {
+      "name": "read_attachment",
+      "ok": false,
+      "isError": true,
+      "errorCode": "ATTACHMENT_NOT_FOUND",
+      "contentBytes": 41,
+      "structuredBytes": 919
+    },
+    {
+      "name": "get_test_result",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 16,
+      "structuredBytes": 1412
+    },
+    {
+      "name": "get_scenario_trace",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 19,
+      "structuredBytes": 1466
+    },
+    {
+      "name": "propose_spec_change",
+      "ok": false,
+      "isError": true,
+      "errorCode": "INVALID_REQUEST",
+      "contentBytes": 39,
+      "structuredBytes": 949
+    },
+    {
+      "name": "apply_spec_change",
+      "ok": false,
+      "isError": true,
+      "errorCode": "CONFLICT",
+      "contentBytes": 30,
+      "structuredBytes": 945
+    },
+    {
+      "name": "propose_patch",
+      "ok": false,
+      "isError": true,
+      "errorCode": "INVALID_REQUEST",
+      "contentBytes": 34,
+      "structuredBytes": 969
+    },
+    {
+      "name": "apply_proposed_patch",
+      "ok": false,
+      "isError": true,
+      "errorCode": "CONFLICT",
+      "contentBytes": 33,
+      "structuredBytes": 951
+    },
+    {
+      "name": "apply_spec_transaction",
+      "ok": false,
+      "isError": true,
+      "errorCode": "INVALID_REQUEST",
+      "contentBytes": 42,
+      "structuredBytes": 977
+    },
+    {
+      "name": "append_to_section",
+      "ok": false,
+      "isError": true,
+      "errorCode": "PATH_FORBIDDEN",
+      "contentBytes": 36,
+      "structuredBytes": 946
+    },
+    {
+      "name": "insert_after_heading",
+      "ok": false,
+      "isError": true,
+      "errorCode": "PATH_FORBIDDEN",
+      "contentBytes": 39,
+      "structuredBytes": 952
+    },
+    {
+      "name": "insert_at_eof",
+      "ok": false,
+      "isError": true,
+      "errorCode": "PATH_FORBIDDEN",
+      "contentBytes": 32,
+      "structuredBytes": 938
+    },
+    {
+      "name": "replace_in_section",
+      "ok": false,
+      "isError": true,
+      "errorCode": "PATH_FORBIDDEN",
+      "contentBytes": 37,
+      "structuredBytes": 948
+    },
+    {
+      "name": "amend_requirement",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 19,
+      "structuredBytes": 12218
+    },
+    {
+      "name": "add_acceptance_criterion",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 25,
+      "structuredBytes": 1577
+    },
+    {
+      "name": "add_phase",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 11,
+      "structuredBytes": 1499
+    },
+    {
+      "name": "set_entity_status",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 18,
+      "structuredBytes": 1539
+    },
+    {
+      "name": "set_spec_status",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 16,
+      "structuredBytes": 7117
+    },
+    {
+      "name": "set_requirement_metadata",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 25,
+      "structuredBytes": 12257
+    },
+    {
+      "name": "propose_requirement_contract",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 29,
+      "structuredBytes": 12261
+    },
+    {
+      "name": "propose_spec_repairs",
+      "ok": false,
+      "isError": true,
+      "errorCode": "INVALID_REQUEST",
+      "contentBytes": 40,
+      "structuredBytes": 954
+    },
+    {
+      "name": "apply_spec_repairs",
+      "ok": false,
+      "isError": true,
+      "errorCode": "CONFLICT",
+      "contentBytes": 31,
+      "structuredBytes": 947
+    },
+    {
+      "name": "delete_spec_doc",
+      "ok": false,
+      "isError": true,
+      "errorCode": "PATH_FORBIDDEN",
+      "contentBytes": 34,
+      "structuredBytes": 942
+    },
+    {
+      "name": "rename_spec_doc",
+      "ok": false,
+      "isError": true,
+      "errorCode": "PATH_FORBIDDEN",
+      "contentBytes": 34,
+      "structuredBytes": 942
+    },
+    {
+      "name": "create_spec",
+      "ok": false,
+      "isError": true,
+      "errorCode": "CONFLICT",
+      "contentBytes": 25,
+      "structuredBytes": 942
+    },
+    {
+      "name": "archive_spec",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 14,
+      "structuredBytes": 2634
+    },
+    {
+      "name": "add_backlog_task",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 17,
+      "structuredBytes": 1636
+    },
+    {
+      "name": "register_incident_backlog",
+      "ok": true,
+      "isError": false,
+      "errorCode": null,
+      "contentBytes": 26,
+      "structuredBytes": 1645
+    }
+  ],
+  "status": "passed"
+}

@@ -49,8 +49,3 @@ Use `/marketplace update omp-spec-kit` to refresh catalog metadata. A catalog up
 
 Only fresh-session invocation proves the installed extension/MCP profile activated. Discovery, install and reload alone are insufficient.
 
-## Plan-approval ABI limit
-
-Pinned v17.3.7 resolves `local://` under the session artifacts directory before its temp fallback, and native approval searches the supplied-title path, state path and scanned plan candidates. It exposes no extension event carrying the exact plan selected after that resolver. Automatic plan-gate interception is therefore `DEFERRED_HOST_ABI` on this pin; guessed temp paths or duplicate fallback search are unsupported.
-
-The required future ABI is specified in [`omp-plan-approval-event-contract.md`](omp-plan-approval-event-contract.md). Manual/advisory validation of an explicitly supplied plan may be implemented independently and must not be presented as automatic approval interception.

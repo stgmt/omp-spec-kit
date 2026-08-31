@@ -1,114 +1,114 @@
 # Acceptance Criteria
 
-These criteria define future verification obligations. The linked Gherkin scenarios are specification text and are not recorded as executed.
+These criteria specify NEXT behavior. Their scenarios are not execution evidence.
 
 ## AC-1.1: Pure evaluator has no side effects
 
-**EARS:** WHEN the evaluator consumes a kernel graph and immutable artifact bytes THEN it SHALL produce evaluation output without filesystem, clock, environment, network, process, OMP, or MCP access; AND all I/O SHALL exist only in adapters external to the evaluator.
+**EARS:** WHEN the evaluator receives a current snapshot, run envelopes, and limits THEN it SHALL return the same output for the same input without filesystem, clock, environment, network, process, OMP, or MCP access.
 
 **Requirement:** [FR-1](FR.md#fr-1-pure-evaluation-boundary)
 
 **Scenario:** `@feature1`, `@id:SCEN-spec-evidence-pure-evaluation-boundary`
 
-## AC-2.1: Closed versioned artifact kind set
+## AC-2.1: Closed producer artifact set
 
-**EARS:** WHEN the three exact supported kind/version pairs and unknown/unsupported pairs are supplied THEN only `cucumber-messages-ndjson@33.0.4`, `pytest-bdd-cucumber-json@1`, and `scenario-result-overlay@1` SHALL be admitted; unsupported identity yields `NOT_INGESTED/UNSUPPORTED_ARTIFACT_IDENTITY`, while malformed admitted bytes yield `MALFORMED_ARTIFACT`.
+**EARS:** WHEN trusted capture receives supported, unsupported, malformed, absent, and over-limit producer artifacts THEN it SHALL accept only Cucumber Messages NDJSON 33.0.4 and pytest-bdd cucumber-json 1, preserve and re-hash actual bytes, and return the exact closed error for every other case.
 
 **Requirement:** [FR-2](FR.md#fr-2-supported-execution-artifacts)
 
 **Scenario:** `@feature2`, `@id:SCEN-spec-evidence-supported-artifact-kinds`
 
-## AC-3.1: Ingestion state is closed and conserved
+## AC-3.1: One run has one capture-owned envelope
 
-**EARS:** WHEN PRESENT valid/malformed/unsupported/missing-results, ABSENT, or caller-SKIPPED input is evaluated THEN exactly one discriminated output state/reason from the schema SHALL result; callers SHALL NOT assert parse-derived missing-results; and INGESTED counts SHALL satisfy parsed = matched + unmatched + ambiguous + malformed.
+**EARS:** WHEN the trusted adapter captures an actual run THEN it SHALL emit one immutable envelope containing capture-owned run identity, scope, artifact bytes/hash, tested implementation identity, and scenario bindings; AND caller-supplied metadata/hash pairs SHALL NOT authenticate evidence.
 
-**Requirement:** [FR-3](FR.md#fr-3-artifact-level-ingestion-state)
+**Requirement:** [FR-3](FR.md#fr-3-trusted-capture-run-envelope)
 
-**Scenario:** `@feature3`, `@id:SCEN-spec-evidence-artifact-ingestion-state`
+**Scenario:** `@feature3`, `@id:SCEN-spec-evidence-trusted-capture-envelope`
 
-## AC-4.1: Every result is joined or counted unmatched
+## AC-4.1: Only stable identity can join
 
-**EARS:** WHEN valid producer rows are evaluated THEN each SHALL have exactly one JOINED, UNMATCHED, or AMBIGUOUS_JOIN record using the priority order and bounded candidates; result/join collections and census memberships SHALL conserve exactly, with no silent drop or arbitrary election.
+**EARS:** WHEN producer rows are joined THEN only an exact qualified ID or graph-verified canonical tag SHALL yield `JOINED`; ambiguous and unmatched rows SHALL remain non-authoritative; AND name matches SHALL appear only as diagnostics.
 
 **Requirement:** [FR-4](FR.md#fr-4-scenario-result-join)
 
-**Scenario:** `@feature4`, `@id:SCEN-spec-evidence-scenario-result-join`
+**Scenario:** `@feature4`, `@id:SCEN-spec-evidence-stable-scenario-join`
 
-## AC-5.1: Canonical and overlay are retained separately
+## AC-5.1: Only capture-owned full scope is authoritative
 
-**EARS:** WHEN both canonical full-run results and overlay results exist for the same scenario THEN the evaluation output SHALL expose both with explicit labeling; AND overlay results SHALL NOT replace canonical results; AND freshness verdicts SHALL apply independently to each.
+**EARS:** WHEN full and partial runs exist THEN only a run whose trusted capture proves `FULL` scope over its expected scenario set SHALL be eligible for readiness; partial evidence SHALL remain visible but SHALL NOT replace or satisfy full evidence.
 
-**Requirement:** [FR-5](FR.md#fr-5-canonical-vs-overlay-separation)
+**Requirement:** [FR-5](FR.md#fr-5-full-run-scope-authority)
 
-**Scenario:** `@feature5`, `@id:SCEN-spec-evidence-canonical-overlay-separation`
+**Scenario:** `@feature5`, `@id:SCEN-spec-evidence-full-run-scope-authority`
 
-## AC-6.1: Stale results never satisfy readiness
+## AC-6.1: Current content bindings determine freshness
 
-**EARS:** WHEN evidence hash bindings equal the current graph, scenario, step-binding set and implementation artifact THEN freshness SHALL be FRESH; WHEN any binding differs THEN it SHALL be STALE with exact reasons; WHEN any required binding is absent THEN it SHALL be INDETERMINATE; AND only FRESH canonical PASSED evidence may satisfy readiness.
+**EARS:** WHEN scenario content, applicable step binding, and tested implementation identity equal current values THEN evidence SHALL be `FRESH`; any mismatch SHALL be `STALE`; any required missing binding SHALL be `INDETERMINATE`; AND graph fingerprints and timestamps SHALL not affect the verdict.
 
 **Requirement:** [FR-6](FR.md#fr-6-freshness-and-staleness)
 
 **Scenario:** `@feature6`, `@id:SCEN-spec-evidence-freshness-staleness`
 
-## AC-7.1: DONE/verified requires fresh green evidence
+## AC-7.1: Every required scenario needs fresh passed full evidence
 
-**EARS:** WHEN status is derived THEN `done-verified` SHALL require one FRESH PASSED CANONICAL row per required scenario plus evidence hashes; overlay-only/stale/skipped/failed/unknown/ambiguous/absent rows fail; all-not-any applies; waived status remains `open-waived`.
+**EARS:** WHEN task evidence is derived THEN the task SHALL be `VERIFIED` only if every current required scenario has `PASSED`, `FRESH`, `FULL` evidence; otherwise it SHALL be `BLOCKED` with the exact missing, failed, stale, indeterminate, ambiguous, or partial reason.
 
 **Requirement:** [FR-7](FR.md#fr-7-fail-closed-status-truth)
 
 **Scenario:** `@feature7`, `@id:SCEN-spec-evidence-fail-closed-status-truth`
 
-## AC-8.1: Waived tasks remain open and unsatisfied
+## AC-8.1: Waived tasks remain open
 
-**EARS:** WHEN a task is marked as waived in the kernel graph THEN its status SHALL remain open-waived regardless of any matching green evidence; AND coverage census SHALL retain waived tasks in authored totals but exclude them from satisfied counts; AND the waiver state SHALL be explicitly named and distinguishable from all other states.
+**EARS:** WHEN a task is waived THEN its evidence state SHALL be `WAIVED_OPEN` regardless of matching passed evidence and SHALL NOT count as verified.
 
 **Requirement:** [FR-8](FR.md#fr-8-waiver-honesty)
 
 **Scenario:** `@feature8`, `@id:SCEN-spec-evidence-waiver-honesty`
 
-## AC-9.1: Census conservation equations hold
+## AC-9.1: No row or required scenario is silently lost
 
-**EARS:** WHEN census is produced THEN authored and producer equations, ambiguous rows, per-artifact/global sums, collection lengths, unique IDs and join-outcome partitions SHALL all match `spec-evidence_SCHEMA.md`; waivedTaskCount remains separate; any violation invalidates the census.
+**EARS:** WHEN evaluation completes THEN every parsed producer row SHALL have one join outcome and every current required scenario SHALL have either one elected satisfying evidence reference or a blocker; display counts SHALL be derived rather than persisted as authority.
 
-**Requirement:** [FR-9](FR.md#fr-9-coverage-census-with-conservation-equations)
+**Requirement:** [FR-9](FR.md#fr-9-internal-row-accounting)
 
-**Scenario:** `@feature9`, `@id:SCEN-spec-evidence-coverage-census-conservation`
+**Scenario:** `@feature9`, `@id:SCEN-spec-evidence-internal-row-accounting`
 
-## AC-10.1: No verdict without evidence bytes
+## AC-10.1: No verdict without trusted captured bytes
 
-**EARS:** WHEN a status/result/trace verdict is produced THEN it SHALL reference parsed producer bytes and current bindings from a rehashed canonical sidecar bound to that artifact ID/hash; no green or fresh result may originate from flags, structural parsing, overlay-only data or missing evidence; invariant violations SHALL name the exact breached binding.
+**EARS:** WHEN result, freshness, readiness, or trace is returned THEN it SHALL resolve to re-hashed producer bytes in one trusted-capture envelope; sidecars, labels, structural parsing, name-only matches, and partial scope SHALL NOT establish green authority.
 
 **Requirement:** [FR-10](FR.md#fr-10-anti-false-green-invariants)
 
 **Scenario:** `@feature10`, `@id:SCEN-spec-evidence-anti-false-green-invariants`
 
-## AC-11.1: Fixtures are real hashed and reconciled
+## AC-11.1: Fixtures are real hashed and reviewed
 
-**EARS:** WHEN an executable evaluation fixture is admitted THEN it SHALL originate from actual producer bytes with recorded fixture ID, capture method, producer/version, source path, capture date, SHA-256, byte count, license disposition, permitted trimming, and reviewed ground truth including expected ingestion/join/freshness/census outcomes; AND synthetic fixtures SHALL be labeled synthetic; AND multi-language NDJSON fixtures SHALL cover at least two distinct producers.
+**EARS:** WHEN an executable fixture is admitted THEN it SHALL contain real producer bytes and the required provenance, hash, trimming, and reviewed normalized outcomes; synthetic fixtures SHALL be limited to labeled scale or one-fault derivatives.
 
 **Requirement:** [FR-11](FR.md#fr-11-real-fixtures-per-spec-kernel-discipline)
 
 **Scenario:** `@feature11`, `@id:SCEN-spec-evidence-real-fixture-provenance`
 
-## AC-12.1: Budgets are measured and enforced
+## AC-12.1: Budgets are enforced
 
-**EARS:** WHEN evaluation runs THEN input count/bytes parsed-record diagnostic-byte census-byte and response-byte limits SHALL be enforced by `EvidenceLimitsV2`; exceeded hard limits SHALL return `LIMIT_EXCEEDED`; explicit totals/cursors SHALL accompany any permitted truncation; AND latency SHALL be measured by the caller without giving the pure evaluator clock access.
+**EARS:** WHEN capture, evaluation, or trace paging exceeds a hard count/byte limit THEN it SHALL return a closed limit error without partial failure text; AND latency SHALL be measured outside the pure evaluator.
 
 **Requirement:** [FR-12](FR.md#fr-12-budgets)
 
 **Scenario:** `@feature12`, `@id:SCEN-spec-evidence-budget-enforcement`
 
-## AC-13.1: Release contribution fails closed
+## AC-13.1: Release uses ordinary fresh full evidence
 
-**EARS:** WHEN `spec-evidence-mcp@1` eligibility is evaluated THEN exactly one current PASS hash-valid candidate/graph-bound record SHALL exist for CHK-FR1-01 through CHK-FR14-01; missing extra duplicate failed stale mismatched unbound or structural-only records SHALL fail with deterministic blockers; AND the result SHALL contribute to, never replace, `product:FR-6`.
+**EARS:** WHEN the product gate evaluates this capability THEN every required task SHALL be `VERIFIED` by ordinary scenario evidence bound to the tested candidate; one missing or blocked task SHALL fail the contribution; AND no evidence-specific manifest or second fingerprint SHALL be required.
 
 **Requirement:** [FR-13](FR.md#fr-13-release-eligibility-contribution)
 
 **Scenario:** `@feature13`, `@id:SCEN-spec-evidence-release-contribution`
 
-## AC-14.1: MCP projection of get_test_result and get_scenario_trace
+## AC-14.1: Result returns evidence and trace uses its reference
 
-**EARS:** WHEN `get_test_result` or `get_scenario_trace` is called THEN the read-only MCP projection SHALL return the exact schema fields for selected layer, status, run/source, trace, failed step/error, freshness bindings, sidecar/evidence hashes and the deterministic fingerprint; missing evidence SHALL return explicit null result/trace; ambiguous candidates and trace pages SHALL expose consumable cursor/limit fields; the pure evaluator SHALL not call MCP; and neither tool belongs to historical kernel-v0.3.
+**EARS:** WHEN `get_test_result` resolves a scenario THEN it SHALL return one `ScenarioEvidence` or null; WHEN `get_scenario_trace` receives that evidence reference THEN it SHALL return only the corresponding bounded trace page and failure; AND no duplicate evidence identity SHALL appear.
 
 **Requirement:** [FR-14](FR.md#fr-14-mcp-projection-of-gettestresult-and-getscenariotrace)
 

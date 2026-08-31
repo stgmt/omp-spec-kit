@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 /**
- * Portable two-profile corpus gate.
+ * Portable corpus gate for the live specifications.
  *
- * Runtime profile: build the real 150-document corpus with shipped spec-kernel@1
- * and require a valid, lossless graph with no rejected/ambiguous definitions.
- * Contract profile: enforce canonical document/ID forms, Marksman-compatible
- * anchors/links, v2 contract sentinels, and current v0.3.2 status identity.
+ * Build the real corpus with the shipped kernel, require a valid graph, enforce
+ * canonical document/ID forms and Markdown links, then reconcile the published
+ * v0.3.2 identity with the package metadata.
  */
 import fs from "node:fs";
 import { createHash } from "node:crypto";
@@ -22,11 +21,9 @@ const EXPECTED_SPECS = Object.freeze([
   "plugin-distribution",
   "product",
   "spec-authoring-workflow",
-  "spec-capability",
   "spec-enforcement",
   "spec-evidence",
   "spec-kernel",
-  "spec-lsp",
 ]);
 const FIXED_DOCS = Object.freeze([
   "README.md",
@@ -43,16 +40,7 @@ const FIXED_DOCS = Object.freeze([
   "FIXTURES.md",
   "CHANGELOG.md",
 ]);
-const CONTRACT_MARKERS = Object.freeze([
-  [".specs/spec-evidence/spec-evidence_SCHEMA.md", ["spec-evidence@2", "GetTestResultRequest", "GetScenarioTraceRequest"]],
-  [".specs/spec-kernel/spec-kernel_SCHEMA.md", ["spec-kernel@2", "marksman-anchor@2", "kernel-generator-port-reads@1", "kernel-adapter-io@1"]],
-  [".specs/spec-capability/spec-capability_SCHEMA.md", ["spec-capability@2", "evidence invalidation", "MCP"]],
-  [".specs/spec-lsp/spec-lsp_SCHEMA.md", ["spec-lsp-read@1", "spec-lsp-step@1", "agent-facing spec API is MCP only"]],
-  [".specs/plan-gate/plan-gate_SCHEMA.md", ["plan-gate@2", "selected-plan-event@1", "internalDeadlineMs"]],
-  [".specs/spec-enforcement/spec-enforcement_SCHEMA.md", ["spec-enforcement@2", "ToolEffectRegistryEntry", "SPEC_AUTHORING_AUTHORITY"]],
-  [".specs/spec-authoring-workflow/FR.md", ["authoring-mcp@1", "Schema v1 names", "Schema v2 later names"]],
-  [".specs/plugin-distribution/plugin-distribution_SCHEMA.md", ["distribution-release-eligibility@2", "stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml"]],
-]);
+const EXPECTED_DOCUMENT_COUNT = EXPECTED_SPECS.length * (FIXED_DOCS.length + 2);
 
 function fail(message) {
   console.error(`spec-corpus check: ${message}`);
@@ -96,7 +84,7 @@ function exactCanonicalDocuments() {
       canonicalCount += 1;
     }
   }
-  if (canonicalCount !== 150) fail(`canonical document count is ${canonicalCount}, expected 150`);
+  if (canonicalCount !== EXPECTED_DOCUMENT_COUNT) fail(`canonical document count is ${canonicalCount}, expected ${EXPECTED_DOCUMENT_COUNT}`);
   return canonicalCount;
 }
 
@@ -128,8 +116,14 @@ async function validateRuntimeGraph() {
     ].slice(0, 30);
     fail(`shipped kernel graph invalid; ${details.join("\n")}`);
   }
-  if (graph.counts.discoveredDocuments !== 150 || graph.counts.acceptedDocuments !== 150) {
-    fail(`kernel document conservation is ${graph.counts.acceptedDocuments}/${graph.counts.discoveredDocuments}, expected 150/150`);
+  if (
+    graph.counts.discoveredDocuments !== EXPECTED_DOCUMENT_COUNT ||
+    graph.counts.acceptedDocuments !== EXPECTED_DOCUMENT_COUNT
+  ) {
+    fail(
+      `kernel document conservation is ${graph.counts.acceptedDocuments}/${graph.counts.discoveredDocuments}, ` +
+        `expected ${EXPECTED_DOCUMENT_COUNT}/${EXPECTED_DOCUMENT_COUNT}`,
+    );
   }
   return graph;
 }
@@ -154,6 +148,8 @@ function markdownFiles() {
     "CHANGELOG.md",
     "SECURITY.md",
     "docs/omp-v17.3.7-contract.md",
+    "docs/omp-v18.0.10-contract.md",
+    "docs/validation/omp-discovery-v18.0.10.md",
     "docs/omp-plan-approval-event-contract.md",
   ];
   const output = [];
@@ -277,14 +273,6 @@ function validateCanonicalHeadingForms() {
   if (failures.length) fail(`noncanonical AC/NFR headings:\n${failures.slice(0, 40).join("\n")}`);
 }
 
-function validateContractMarkers() {
-  for (const [relativePath, markers] of CONTRACT_MARKERS) {
-    const text = readText(relativePath);
-    for (const marker of markers) {
-      if (!text.toLowerCase().includes(marker.toLowerCase())) fail(`${relativePath} lacks contract marker ${marker}`);
-    }
-  }
-}
 
 function embeddedVersion(relativePath, pattern) {
   const match = readText(relativePath).match(pattern);
@@ -309,51 +297,15 @@ function validateCurrentStatus() {
   for (const [label, actual] of authorities) {
     if (actual !== version) fail(`${label} version ${String(actual)} differs from release status ${version}`);
   }
-  if (status.tag !== `v${version}` || status.status?.public !== true || status.status?.installable !== true) {
-    fail("release status tag/public/installable identity is inconsistent");
-  }
-  if (status.status?.baselineStage !== "V0_3_READONLY_MCP" || status.status?.capabilityState !== "DELIVERED") {
-    fail("release status baseline/capability state is not the delivered v0.3 baseline");
-  }
-  const expectedCapabilityStates = [
-    ["GENERATOR_READS", "SPECIFIED"],
-    ["LSP_ADAPTER", "SPECIFIED"],
-    ["EVIDENCE_MCP", "SPECIFIED"],
-    ["CAPABILITY_GRAPH", "SPECIFIED"],
-    ["AUTHORING_MCP", "DEFERRED_HOST_ABI"],
-    ["SPEC_ENFORCEMENT", "DEFERRED_HOST_ABI"],
-    ["AUTOMATIC_PLAN_GATE", "DEFERRED_HOST_ABI"],
-  ];
-  const capabilities = status.status?.capabilities;
   if (
-    !Array.isArray(capabilities) ||
-    capabilities.length !== expectedCapabilityStates.length ||
-    expectedCapabilityStates.some(([id, state], index) =>
-      capabilities[index]?.capabilityId !== id ||
-      capabilities[index]?.state !== state ||
-      !capabilities[index]?.requiredAggregateIds?.includes("product:FR-6") ||
-      capabilities[index]?.acceptedEvidence?.length !== 0 ||
-      capabilities[index]?.blockers?.length !== 1)
+    status.tag !== `v${version}` ||
+    status.status?.public !== true ||
+    status.status?.installable !== true ||
+    status.status?.state !== "SHIPPED" ||
+    status.status?.surface !== "READ_ONLY_MCP" ||
+    status.status?.toolCount !== 8
   ) {
-    fail("release status capability map is incomplete or state-drifted");
-  }
-  const productStatus = status.productStatus;
-  if (
-    productStatus?.statusProfile !== "historical-v0.3.2@1" ||
-    productStatus?.stage !== "V0_3_READONLY_MCP" ||
-    productStatus?.state !== "DELIVERED" ||
-    productStatus?.productRevision !== status.tagCommit ||
-    productStatus?.candidateArtifactSha256 !== status.archive?.sha256 ||
-    productStatus?.artifactLineageId !== null ||
-    productStatus?.v02ParentArtifactSha256 !== null ||
-    productStatus?.publicVisibility !== "PUBLIC" ||
-    productStatus?.installable !== true ||
-    productStatus?.executedScenarioEvidence !== true ||
-    productStatus?.blockers?.length !== 0 ||
-    productStatus?.evidence?.length !== 3 ||
-    JSON.stringify(productStatus?.capabilities) !== JSON.stringify(capabilities)
-  ) {
-    fail("bounded historical v0.3.2 ProductStatus is absent or inconsistent");
+    fail("release status is not the shipped eight-tool read-only v0.3.2 release");
   }
   const releaseNotes = status.releaseNotes;
   const releaseNotesDigest =
@@ -368,33 +320,16 @@ function validateCurrentStatus() {
   ) {
     fail("captured public release notes are absent or identity-drifted");
   }
-  if (
-    JSON.stringify(capabilities[4].requiredAggregateIds) !==
-    JSON.stringify(capabilities[5].requiredAggregateIds)
-  ) {
-    fail("authoring and enforcement joint gate tuples differ");
-  }
   if (status.attestation?.verified !== true || status.attestation?.workflowCommit !== status.tagCommit) {
     fail("release attestation is absent or not commit-bound");
   }
   if (!String(status.attestation?.workflow ?? "").endsWith(`/release.yml@refs/tags/${status.tag}`)) {
     fail("release attestation workflow/ref does not match the candidate tag");
   }
-  const distributionAttestation = status.distributionAttestation;
-  if (
-    distributionAttestation?.verified !== true ||
-    distributionAttestation.repository !== "stgmt/omp-spec-kit" ||
-    distributionAttestation.sourceRef !== `refs/tags/${status.tag}` ||
-    distributionAttestation.workflowCommit !== status.tagCommit ||
-    distributionAttestation.subjectSha256 !== status.evidence?.distributionReceiptDigest ||
-    !String(distributionAttestation.signerWorkflow ?? "").endsWith(
-      `/distribution-evidence.yml@refs/tags/${status.tag}`,
-    )
-  ) {
-    fail("distribution evidence attestation trust tuple is absent or inconsistent");
-  }
   const archiveAsset = status.releaseAssets?.find((asset) => asset.name === status.archive?.name);
-  if (!archiveAsset || archiveAsset.sha256 !== status.archive.sha256) fail("release archive asset/hash is inconsistent");
+  if (!archiveAsset || archiveAsset.sha256 !== status.archive.sha256) {
+    fail("release archive asset/hash is inconsistent");
+  }
   for (const [label, value] of [
     ["tag commit", status.tagCommit],
     ["candidate digest", status.candidateDigest],
@@ -407,11 +342,6 @@ function validateCurrentStatus() {
 
   const requiredStatusMarkers = [
     ["README.md", [`v${version}`, "release-status-v0.3.2.json", "--scope project"]],
-    [".specs/product/README.md", [`current public baseline is v${version}`, "DELIVERED / CURRENT_BASELINE", "release-status-v0.3.2.json"]],
-    [".specs/product/product_SCHEMA.md", ["V0_3_READONLY_MCP", "release-status-v0.3.2.json"]],
-    [".specs/plugin-distribution/README.md", [`v${version}`, "distribution-release-eligibility@2"]],
-    [".specs/spec-kernel/README.md", [`v${version}`, "spec-kernel@2"]],
-    [".specs/mcp-release-integrity/mcp-release-integrity_SCHEMA.md", [`\"version\": \"${version}\"`, `\"tag\": \"v${version}\"`]],
   ];
   for (const [relativePath, markers] of requiredStatusMarkers) {
     const text = readText(relativePath).toLowerCase();
@@ -425,7 +355,6 @@ function validateCurrentStatus() {
 const canonicalDocuments = exactCanonicalDocuments();
 const graph = await validateRuntimeGraph();
 validateCanonicalHeadingForms();
-validateContractMarkers();
 const markdownCount = validateMarkdownLinks();
 const version = validateCurrentStatus();
 console.log(

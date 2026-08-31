@@ -2,44 +2,36 @@
 
 ## Decision
 
-The repository-built v0.3.2 MCP server has eight registered read-only tools. All eight returned real data from the real ten-specification corpus. No current tool is dead or silently empty.
-
-The user's project installation is not at that state: `omp plugin list` reports project plugin `omp-spec-kit@omp-spec-kit` version 0.2.0, its recorded cache path is absent, and `omp plugin marketplace list` reports no configured marketplace. Therefore the working repository payload is healthy, but a fresh OMP session cannot rely on the project install to expose the v0.3.2 MCP server until the marketplace/install state is repaired.
+The repository-built v0.3.2 MCP server exposes exactly eight read-only tools. Every registered tool returned a bounded, structured result from the current eight-specification corpus. The report is the runtime baseline for the shipped compatibility profile; future release stages are additive.
 
 ## Runtime results
 
-| Tool | Result | Real returned data |
+| Tool | Result | Structured result bytes |
 |---|---|---:|
-| `spec_inventory` | PASS | 10 / 10 specifications |
-| `spec_get_node` | PASS | one full `product:FR-1` node |
-| `spec_find_nodes` | PASS | 89 / 89 product nodes |
-| `spec_get_edges` | PASS | 6 / 6 incident edges |
-| `spec_trace` | PASS | 46 / 46 visited nodes |
-| `spec_diagnostics` | PASS | first 100 / 194 diagnostics; cursor present |
-| `spec_overview` | PASS | corpus counts and histograms |
-| `spec_markdown_inventory` | PASS | first 100 / 223 items; cursor present |
+| `spec_inventory` | PASS | 2868 |
+| `spec_get_node` | PASS | 1139 |
+| `spec_find_nodes` | PASS | 5603 |
+| `spec_get_edges` | PASS | 1967 |
+| `spec_trace` | PASS | 4133 |
+| `spec_diagnostics` | PASS | 7839 |
+| `spec_overview` | PASS | 2612 |
+| `spec_markdown_inventory` | PASS | 17476 |
 
-Machine-readable inputs and results: `audit-reports/omp-spec-kit-mcp-runtime-census-2026-08-29.json`.
+The machine-readable rows are in [`omp-spec-kit-mcp-runtime-census-2026-08-29.json`](omp-spec-kit-mcp-runtime-census-2026-08-29.json). The dogfood process obtains the registry from `tools/list`, invokes every actual handler, and fails on missing, unexpected, or empty responses.
 
-## Destination surface
+## Destination stages
 
-`docs/decisions/spec-generator-port.md` preserves all 46 upstream generator-door names. Five are already represented by the v0.3 tools. The repository additionally keeps three v0.3-native tools that are not upstream names. Completing the stated destination therefore adds 41 names and yields 49 agent-facing MCP tools unless the product decision is changed explicitly.
+The eight shipped names remain registered in every later stage:
 
-Planned additions by product outcome:
+- v0.4.0 read complete: 23 tools, including contained document reads, task/status views, anchor and metadata reads, policy and archival views.
+- v0.5.0 evidence/navigation: 25 tools, adding hash-bound scenario results and traces.
+- v0.6.0 safe authoring: 49 tools in the complete destination census, with proposal-first transactional mutations.
+- v0.7.0 automatic plan gate: exact selected-plan validation in OMP before approval; no new graph or directory-guessing fallback.
 
-| Outcome | Additional names | Registry after stage |
-|---|---:|---:|
-| Current v0.3.2 read-only slice | — | 8 |
-| Complete kernel and document reads | 15 | 23 |
-| Evidence result and trace reads | 2 | 25 |
-| Proposal-first authoring and document lifecycle | 24 | 49 |
+The closed 46-name operation census and ownership map remain in [`docs/decisions/spec-generator-port.md`](../docs/decisions/spec-generator-port.md). Names not active in v0.3.2 are planned stages, not silently dropped operations.
 
-LSP, write enforcement, and automatic plan approval are host/editor capabilities, not extra MCP names in the closed 46-name census.
+## Installation baseline
 
-## Proof commands
+The live workstation runs OMP 18.0.10. The project marketplace points to `stgmt/omp-spec-kit`, the project-scoped v0.3.2 cache is present, and a fresh OMP session returned a non-empty `spec_inventory` result. The current compatibility profile and discovery receipt are recorded in [`docs/omp-v18.0.10-contract.md`](../docs/omp-v18.0.10-contract.md) and [`docs/validation/omp-discovery-v18.0.10.md`](../docs/validation/omp-discovery-v18.0.10.md).
 
-- `omp --version` → `omp/18.0.3`.
-- `omp update --check` → `18.0.10` available.
-- `omp plugin list` → project `omp-spec-kit@omp-spec-kit (0.2.0)`.
-- `omp plugin marketplace list` → no marketplaces configured.
-- Direct JSON-RPC `initialize`, `tools/list`, and one `tools/call` per registered tool against `plugins/omp-spec-kit/dist/mcp/server.js` → eight tools, eight successful data-bearing responses, zero JSON-RPC errors.
+`omp update --check` reports 18.0.11 as available. The package remains pinned to the approved immutable 18.0.10 profile until a separate compatibility receipt accepts a newer release.

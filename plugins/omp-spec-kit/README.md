@@ -8,6 +8,8 @@ Install at project scope, reload plugin metadata, then start a fresh OMP session
 
 `OMP_SPEC_KIT_ROOT` is optional diagnostic configuration. Only an explicit absolute value is accepted; a missing, relative, placeholder, or bare variable name leaves the active project as the root.
 
+Every MCP `QueryEnvelope` and OMP `spec_inventory` result includes `provenance` with the fixed server name, opaque resolved/active root IDs, `rootMode`, and `matchesActiveProject`. An explicit absolute override is allowed for diagnostics but is reported as `explicit-absolute-override` with `matchesActiveProject: false`; absolute paths and environment values are never returned.
+
 The command `/spec-inventory` and skill `spec-inventory` provide guidance only. They do not implement another scanner or runtime.
 
 ## v0.3.0 advisory
@@ -16,6 +18,8 @@ v0.3.0 MCP results can use package cwd rather than active project cwd. See [the 
 
 ## Compatibility
 
-This payload targets OMP v17.3.7 at commit `8500092296621a6826b7136e840f8a59ea338958`.
+This payload targets OMP v18.0.10 at immutable commit `33cc6b9a043a74e00a157e72ca909272796d8461`.
+
+Update the project-scoped plugin with the marketplace lifecycle, reload plugins, and restart OMP before checking `tools/list`.
 
 License: MIT.

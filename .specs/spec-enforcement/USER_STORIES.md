@@ -1,73 +1,49 @@
 # User Stories
 
-## US-1: Spec corpus owner protected from uncontrolled writes
+## US-1: Spec owner protected from direct writes
 
 **Priority:** Must
 
-As an owner of `.specs/`, I want every host-visible tool classified and raw spec mutation blocked unless it is the exact accepted `omp-spec-kit` authoring MCP authority, so that new, indirect, or dynamically targeted tools cannot bypass proposal/review/CAS enforcement.
+As a spec owner, I want direct mutation of `.specs` blocked while the two proposal-first authoring operations remain available, so reviewed atomic changes are the only mutation route.
 
-**Why:** A write/edit/bash shortlist and name-only redirect leave future tools, shell indirection, and authority spoofing uncontrolled.
+**Why:** A raw write can bypass proposal review and atomic application.
 
-**Independent Test:** Drive the full live tool census plus a new tool, dynamic shell target, raw spec write, non-spec write, and exact authoring facade; only read-only/non-spec/qualified-authority controls pass.
+**Independent Test:** Call both exact allowlisted names, near-miss names, a direct mutator against `.specs`, and a direct mutator against a non-spec path; only exact authoring calls and proven non-spec writes pass.
 
-**Acceptance Scenarios:** `@feature3`, `@feature7`
+**Acceptance Scenarios:** `@feature2`, `@feature4`
 
-## US-2: Agent receiving diagnostic context about spec corpus state
-
-**Priority:** Must
-
-As an agent working in a repository with specs, I want kernel diagnostics and corpus census summaries injected into my tool results and context, so that I understand the current spec state without running separate queries.
-
-**Why:** Agents lack ambient awareness of spec-corpus health; injecting findings at natural event boundaries provides situational awareness without requiring explicit query actions.
-
-**Independent Test:** Execute a `read` on a spec file while informational mode is active; observe a `tool_result` content addition containing kernel diagnostics. Start a session; observe a `context` injection with corpus census summary.
-
-**Acceptance Scenarios:** `@feature2`, `@feature10`
-
-## US-3: Session owner whose workflow never breaks on hook failure
+## US-2: User receiving an actionable block
 
 **Priority:** Must
 
-As an OMP user, I want every internal fault visible and safety-critical uncertainty conservative, so that informational failures never fake health and classification/containment failures never become raw-write bypasses.
+As an OMP user, I want an unsafe or unresolved target blocked with one short repository-relative reason, so I know which path was refused and which two operations to use instead.
 
-**Why:** Uniform silent allow undermines enforcement; unhandled outer errors produce opaque host fail-closed behavior.
+**Why:** Absolute paths and raw filesystem errors are noisy and may disclose workstation details.
 
-**Independent Test:** Inject kernel/render faults and observe visible non-blocking diagnostics; inject registry/extractor/authority/resolver faults in enforcement mode and observe `TARGET_INDETERMINATE` BLOCK.
+**Independent Test:** Exercise spec, unresolved, symlink, reparse, and new-target cases and compare the bounded result with reviewed ground truth.
 
-**Acceptance Scenarios:** `@feature4`, `@feature8`
+**Acceptance Scenarios:** `@feature3`, `@feature5`
 
-## US-4: Release owner verifying self-contained distribution
-
-**Priority:** Must
-
-As a release owner, I want enforcement integrated into the existing bundled extension with exact registry/authority manifests, no ambient dependencies, and no private conformance producer, so that installed behavior matches the reviewed candidate.
-
-**Why:** A standalone factory can be unreachable or form a second control plane; an ambient parser can silently diverge from the kernel.
-
-**Independent Test:** Hide source/root modules, run the installed extension, verify registry/authority/dist hashes, and audit exports/dependencies for any second factory, private spec validator, network, subprocess, or credential access.
-
-**Acceptance Scenarios:** `@feature6`, `@feature11`
-
-## US-5: Privacy-conscious operator with no hidden state
+## US-3: Maintainer shipping one extension
 
 **Priority:** Must
 
-As an operator concerned with data minimization, I want enforcement hooks to keep no private logs, counters, or audit trails outside event-visible records, so that all observable state surfaces through tool results and context injections.
+As a maintainer, I want the policy registered only on `tool_call` in the existing extension factory and bundled without ambient dependencies, so the installed artifact has one reachable enforcement path.
 
-**Why:** Hidden state creates unverifiable behavior and privacy risk; the MIGRATION_MATRIX defers audit-log policy (FR-39) to a later stage, so this spec must not preemptively introduce hidden persistence.
+**Why:** A second factory or background component is needless and can drift from the product entrypoint.
 
-**Independent Test:** Run multiple sessions with enforcement active; inspect the filesystem for any new files outside event-visible records; find none. Verify all diagnostic output appears in `tool_result` content or `context` messages.
+**Independent Test:** Load the installed artifact without the source checkout or root `node_modules`; observe one handler registration and the same path decisions as source fixtures.
+
+**Acceptance Scenarios:** `@feature1`, `@feature6`
+
+## US-4: Operator with no hidden state
+
+**Priority:** Must
+
+As an operator, I want each decision derived from the current call and filesystem only, so enforcement leaves no logs, counters, caches, or private state.
+
+**Why:** Hidden state is unnecessary for a pre-execution path decision.
+
+**Independent Test:** Run repeated calls and verify byte-identical decisions and no created files, network access, subprocesses, or credential reads.
 
 **Acceptance Scenarios:** `@feature5`
-
-## US-6: Stage-gated activation observer
-
-**Priority:** Must
-
-As a product integrator, I want enforcement active only after the same-candidate `SPEC_ENFORCEMENT` capability is accepted, so that local settings cannot claim or activate a partial security feature.
-
-**Why:** The valid redirect exists only after accepted `AUTHORING_MCP`, and enforcement itself needs its independent aggregate; live registry drift must block unknown tools rather than disable the gate.
-
-**Independent Test:** Exercise absent, mismatched, and accepted product/authority evidence plus one new live tool; only the accepted candidate activates, and the new tool remains `UNKNOWN`/blocked.
-
-**Acceptance Scenarios:** `@feature9`

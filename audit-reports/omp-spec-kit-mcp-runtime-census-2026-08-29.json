@@ -1,100 +1,73 @@
 {
   "schema": "omp-spec-kit-mcp-runtime-census@1",
-  "capturedAt": "2026-08-29",
-  "target": {
-    "repositoryRoot": "E:/repos/omp-spec-kit",
-    "pluginVersion": "0.3.2",
-    "server": "plugins/omp-spec-kit/dist/mcp/server.js"
-  },
+  "stage": "v0.3.2",
+  "root": "E:\\repos\\omp-spec-kit",
   "registryCount": 8,
   "rows": [
     {
-      "tool": "spec_inventory",
-      "input": { "specSlugs": [], "includeDocuments": true, "limit": 100, "cursor": null },
+      "name": "spec_inventory",
       "ok": true,
-      "dataPresent": true,
-      "size": 10,
-      "total": 10,
-      "truncated": false,
+      "isError": false,
       "errorCode": null,
-      "note": "inventory ok, returned=10/10"
+      "contentBytes": 26,
+      "structuredBytes": 2868
     },
     {
-      "tool": "spec_get_node",
-      "input": { "canonicalId": "product:FR-1", "projection": "full", "includeIncidentCounts": true },
+      "name": "spec_get_node",
       "ok": true,
-      "dataPresent": true,
-      "size": 1,
-      "total": 1,
-      "truncated": false,
+      "isError": false,
       "errorCode": null,
-      "note": "getNode ok"
+      "contentBytes": 10,
+      "structuredBytes": 1139
     },
     {
-      "tool": "spec_find_nodes",
-      "input": { "specSlugs": ["product"], "kinds": [], "canonicalIds": [], "text": null, "projection": "summary", "limit": 100, "cursor": null },
+      "name": "spec_find_nodes",
       "ok": true,
-      "dataPresent": true,
-      "size": 89,
-      "total": 89,
-      "truncated": false,
+      "isError": false,
       "errorCode": null,
-      "note": "findNodes ok, returned=89/89"
+      "contentBytes": 29,
+      "structuredBytes": 5603
     },
     {
-      "tool": "spec_get_edges",
-      "input": { "canonicalId": "product:FR-1", "direction": "both", "types": [], "aggregate": false, "limit": 100, "cursor": null },
+      "name": "spec_get_edges",
       "ok": true,
-      "dataPresent": true,
-      "size": 6,
-      "total": 6,
-      "truncated": false,
+      "isError": false,
       "errorCode": null,
-      "note": "getEdges ok, returned=6/6"
+      "contentBytes": 25,
+      "structuredBytes": 1967
     },
     {
-      "tool": "spec_trace",
-      "input": { "canonicalId": "product:FR-1", "direction": "both", "types": [], "maxDepth": 3, "maxVisited": 1000, "projection": "summary", "limit": 100, "cursor": null },
+      "name": "spec_trace",
       "ok": true,
-      "dataPresent": true,
-      "size": 46,
-      "total": 46,
-      "truncated": false,
+      "isError": false,
       "errorCode": null,
-      "note": "trace ok, returned=46/46"
+      "contentBytes": 22,
+      "structuredBytes": 4133
     },
     {
-      "tool": "spec_diagnostics",
-      "input": { "severities": [], "codes": [], "specSlugs": [], "paths": [], "limit": 100, "cursor": null },
+      "name": "spec_diagnostics",
       "ok": true,
-      "dataPresent": true,
-      "size": 100,
-      "total": 194,
-      "truncated": true,
+      "isError": false,
       "errorCode": null,
-      "note": "diagnostics ok, returned=100/194"
+      "contentBytes": 30,
+      "structuredBytes": 7839
     },
     {
-      "tool": "spec_overview",
-      "input": { "specSlugs": [] },
+      "name": "spec_overview",
       "ok": true,
-      "dataPresent": true,
-      "size": 1,
-      "total": 1,
-      "truncated": false,
+      "isError": false,
       "errorCode": null,
-      "note": "overview ok"
+      "contentBytes": 11,
+      "structuredBytes": 2612
     },
     {
-      "tool": "spec_markdown_inventory",
-      "input": { "specSlugs": ["product"], "mode": "all", "focusPath": null, "focusAnchor": null, "direction": "both", "outcomes": [], "includeHeadings": true, "includeLinks": true, "limit": 100, "cursor": null },
+      "name": "spec_markdown_inventory",
       "ok": true,
-      "dataPresent": true,
-      "size": 100,
-      "total": 223,
-      "truncated": true,
+      "isError": false,
       "errorCode": null,
-      "note": "markdownInventory ok, returned=100/223"
+      "contentBytes": 38,
+      "structuredBytes": 17476
     }
-  ]
+  ],
+  "status": "passed"
 }

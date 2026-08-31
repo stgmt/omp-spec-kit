@@ -1,64 +1,58 @@
 # Roadmap
 
-The roadmap delivers one standalone OMP product in verifiable stages. Dates are intentionally absent; each stage advances only when its exit evidence exists.
+This roadmap is organized around what a user can do. A release is shipped only after the installed package is exercised from a fresh OMP session and its behavior is recorded against real repository data.
 
-## Public init — specification and provenance
+## v0.3.2 — shipped
 
-**Outcome:** manager-readable product boundary, immutable upstream reference, migration decisions, and public policies.
+The current release provides a bounded, read-only specification graph. Users can:
 
-**Included:**
+- inventory specifications;
+- find requirements, scenarios, tasks, and other graph nodes;
+- inspect incoming and outgoing relationships;
+- trace a requirement through related nodes;
+- inspect parser and graph diagnostics;
+- inspect Markdown headings and links.
 
-- fresh local Git history;
-- pinned source manifest and byte/hash verification;
-- ADOPT / REWRITE / DEFER / DROP decisions;
-- README, license, security, contribution, and roadmap policy.
+The compatibility surface is exactly eight read-only MCP tools. Proof includes package construction, a project-scoped installation, a fresh-session call on a real corpus, and unchanged repository data.
 
-**Not included:** marketplace catalog, plugin package, extension, MCP server, install command, runtime artifact, tag, or release.
+## v0.3.3 — OMP 18 maintenance
 
-**Exit evidence:** zero secrets/state imports; every copied byte matches the pinned commit; redistribution rights are established; standalone requirements and anchors are reviewed; the complete candidate tree is scanned; the repository clearly reports NOT INSTALLABLE. The reviewed initial commit `fe70b10caaed888daf7c48dfc8f1bad9caf45598` is published at `https://github.com/stgmt/omp-spec-kit`; `docs/validation/publication-receipt.md` proves public visibility and local/remote/tree identity.
+Outcome: current OMP users can install the package with the supported OMP 18 runtime, reload it, restart a session, and reach the same eight tools.
 
-## v0.1.0 — one plugin, first read-only value
+Proof: immutable runtime compatibility metadata, project install and cache records, fresh-session discovery, and upgrade/rollback lifecycle observations.
 
-**Outcome:** exactly one installable `omp-spec-kit` OMP plugin provides one bounded, read-only specification inventory/diagnostic path.
+## v0.4.0 — read complete
 
-**Required evidence:** one catalog entry and one extension entry; bundled dependency-safe artifact; candidate version consistency; clean project-scope install; reload and fresh-session activation and inventory invocation; actionable absent/malformed-spec behavior; zero repository writes; project-scope uninstall that preserves user specs and yields fresh-session absence; reinstall of the exact same `v0.1.0` candidate artifact with fresh-session invocation; complete current `plugin-distribution:FR-1` through `plugin-distribution:FR-12` evidence accepted only by `plugin-distribution:FR-13` for that candidate identity.
+Outcome: agents can enumerate specifications and documents, read a contained document or attachment, inspect task phases and statuses, validate anchors and requirement metadata, query policy, inspect orphan findings, and obtain archival proof without opening repository files manually.
 
-Prior-version upgrade and rollback are inapplicable to `v0.1.0`. Beginning with the first subsequent release, the distribution gate retains candidate uninstall/reinstall evidence and additionally requires upgrade-from-prior and rollback-to-prior evidence for the same lineage.
+The eight compatibility tools remain. The read-complete registry contains 23 tools and uses the same graph and containment rules.
 
-Advisor, hooks, dashboards, backlogs, persistence, mutation, and copied dev-pomogator runtime remain excluded.
+Proof: one runtime call for every registered tool on a real corpus, bounded pagination and error cases, installed-package execution, and Docker BDD coverage.
 
-## v0.2 — standalone specification kernel
+## v0.5.0 — evidence and navigation
 
-**Outcome:** typed, deterministic in-memory graph and bounded read-query service inside the same plugin.
+Outcome: agents can retrieve the latest result for a scenario and follow its runtime trace, including freshness, failure, and expired-trace states.
 
-**Initial scope:** qualified identities; selected Markdown, Gherkin, task, and evidence parsers; typed nodes/edges; conformance findings; provenance; fail-closed readiness; real-producer fixtures. Watchers, SQLite, repair, and model judging remain gated.
+The evidence stage adds two tools and brings the registry to 25. Result rows remain separate from authored scenario and task nodes.
 
-**Required evidence:** deterministic full and incremental semantics where supported; collision and endpoint refusal; malformed-input diagnostics; conservation counts; stable bounded query contracts; no dependency on dev-pomogator checkout or state.
+Proof: real producer output, content-addressed evidence, stale-result refusal, one happy path and one fault path per tool, and installed-package dogfood.
 
-## v0.3 — one MCP adapter
+## v0.6.0 — safe authoring
 
-**Outcome:** a single bundled MCP server projects the same bounded read contracts used by the extension. It does not become a second graph, registry, or source of truth.
+Outcome: authors can preview a specification change, review the exact before/after result, and apply only that reviewed proposal atomically.
 
-**Required evidence:** documented nested MCP configuration; installed-artifact startup; response parity with the shared query service; bounded errors and output; clean activation/restart lifecycle; no writes or hidden state.
+The complete destination surface contains 49 tools. Every mutation is proposal-first, containment-checked, hash-bound, and rollback-safe. Direct untrusted writes under `.specs` are refused.
 
-For `v0.2`, `v0.3`, and later releases, stage eligibility also requires every earlier aggregate gate to remain accepted for the same lineage. The `v0.2` kernel profile excludes `v0.3`-only MCP-adapter evidence; the `v0.3` profile includes that evidence.
+Proof: real create/read/review/edit/status/rename/delete flows, concurrent-change refusal, same-name authority refusal, all-or-nothing transaction checks, and fresh installed-package execution.
 
-The v0.3 MCP registry is the first slice of the generator-port door: the eight SCHEMA-11 names that map onto the kernel query service. Growing MCP SHALL NOT delete them. They are not the destination registry.
+## v0.7.0 — automatic plan gate
 
-## Post-v0.3 capability DAG
+Outcome: the agent's plan is checked after OMP has selected the exact plan bytes and before the interactive or ACP approval UI opens.
 
-The following capabilities are siblings. Their order in this document is not a delivery order. Every row requires the delivered v0.3.2 baseline plus its own aggregate; accepting one row never accepts another.
+Interactive and ACP sessions use one shared gate. A failed, timed-out, or unavailable check keeps plan mode active and shows a bounded reason; no directory scan guesses which plan was selected.
 
-| Capability | Outcome | Exact owner | Additional entry gate |
-|---|---|---|---|
-| Generator-port reads | Add FR-16 query and FR-17 adapter I/O names while preserving the first slice | `spec-kernel:FR-16`, `spec-kernel:FR-17` | `spec-kernel:CHK-FR16-01`, `spec-kernel:CHK-FR17-01` |
-| LSP adapter | Editor/MCP-internal navigation/diagnostics; never an agent spec API | `spec-lsp:FR-1`, `spec-lsp:FR-12` | complete `spec-lsp:FR-12` profile over v0.3 |
-| Evidence MCP | Hash-bound evaluation plus result/trace tools | `spec-evidence:FR-13`, `spec-evidence:FR-14` | both defining evidence aggregates |
-| Capability graph/impact | Per-owner CAP nodes, graph impact, optional evidence overlay | `spec-capability:FR-6`, `spec-capability:FR-9` | complete profile-specific `spec-capability:FR-9` result |
-| Authoring MCP | Proposal-first mutation facade | `spec-authoring-workflow:FR-13`, `spec-authoring-workflow:FR-14` | joint evidence FR-13/14 + authoring FR-13/14 + enforcement FR-11 tuple |
-| Spec enforcement | Refuse raw bypasses and route exact authority | `spec-enforcement:FR-1`, `spec-enforcement:FR-11` | the same joint tuple plus accepted `tool-call-authority-abi@1`; neither row ships alone |
-| Automatic plan gate | Validate host-selected plan before approval | `plan-gate:FR-1`, `plan-gate:FR-13` | `plan-gate:FR-13` plus `plan-gate:CHK-HOST-ABI-01` |
+Proof: valid, invalid, changed-content, error, and timeout cases in both approval modes, with the exact selected path, title, content, and digest.
 
-The automatic plan-gate and spec-enforcement rows are `DEFERRED_HOST_ABI` on pinned OMP v17.3.7. Manual/advisory plan validation can be specified now; automatic interception and trusted authoring-call classification must not be simulated from missing host identity fields.
+## Boundaries
 
-Mutation verification, deterministic kill evidence, semantic judging and richer cross-spec reconciliation are evidence techniques inside the owning capability gates, not additional product control planes.
+The current release remains read-only. LSP is an editor and internal transport, not a replacement for the agent-facing MCP API. The roadmap does not include dashboards, advisors, databases, or a second graph engine.

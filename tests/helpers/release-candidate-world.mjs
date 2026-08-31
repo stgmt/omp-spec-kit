@@ -119,7 +119,7 @@ function resolveTagCommit(tag) { if (tag === "v0.3.2") return CANDIDATE_COMMIT; 
 async function writeBytes(directory, name, bytes) { const relative = `receipts/${name}`; const absolute = path.join(directory, relative); await mkdir(path.dirname(absolute), { recursive: true }); await writeFile(absolute, bytes); return { status: "present", path: relative, digest: sha256(bytes) }; }
 async function writeReceipt(directory, name, value) { return writeBytes(directory, `${name}.json`, Buffer.from(`${JSON.stringify(value, null, 2)}\n`)); }
 function identity(candidate, catalogDigest) { return { version: candidate.version, tag: candidate.tag, commit: candidate.commit, candidateDigest: candidate.candidateDigest, packageTreeDigest: candidate.packageTreeDigest, archiveSha256: candidate.archive.sha256, catalogDigest }; }
-function placeholderClaim(candidate, catalogDigest, requirement) { return { schema: "omp-spec-kit-distribution-evidence-receipt@1", status: "passed", ...identity(candidate, catalogDigest), requirement, claims: ["candidate-evidence"], ompRevision: "@oh-my-pi/pi-coding-agent@17.3.7#8500092296621a6826b7136e840f8a59ea338958", platform: structuredClone(PLATFORM), fixtureDigest: "d".repeat(64), applicability: structuredClone(APPLICABILITY), lifecycle: lifecycleForClaim("candidate-evidence", APPLICABILITY) }; }
+function placeholderClaim(candidate, catalogDigest, requirement) { return { schema: "omp-spec-kit-distribution-evidence-receipt@1", status: "passed", ...identity(candidate, catalogDigest), requirement, claims: ["candidate-evidence"], ompRevision: "@oh-my-pi/pi-coding-agent@18.0.10#33cc6b9a043a74e00a157e72ca909272796d8461", platform: structuredClone(PLATFORM), fixtureDigest: "d".repeat(64), applicability: structuredClone(APPLICABILITY), lifecycle: lifecycleForClaim("candidate-evidence", APPLICABILITY) }; }
 
 export async function createCandidateWorld(repositoryRoot, tempRoot, verifiedMessageBytes) {
   const candidateDirectory = path.join(tempRoot, "candidate");
@@ -130,14 +130,14 @@ export async function createCandidateWorld(repositoryRoot, tempRoot, verifiedMes
   const id = identity(candidate, catalogDigest);
   const checks = {
     publicSafety: await writeReceipt(candidateDirectory, "public-safety", safety),
-    dockerBdd: await writeReceipt(candidateDirectory, "docker-bdd", { schema: "omp-spec-kit-bdd-receipt@1", status: "passed", ...id, messagePath: messageRelativePath, messageDigest: sha256(messageBytes), scenarioIds: MRI_RELEASE_SCENARIOS }),
+    dockerBdd: await writeReceipt(candidateDirectory, "docker-bdd", { schema: "omp-spec-kit-bdd-receipt@1", status: "passed", ...id, messagePath: messageRelativePath, messageDigest: sha256(messageBytes), scenarioIds: Object.values(MRI_SCENARIOS) }),
     priorV030: await writeReceipt(candidateDirectory, "prior-v030", { schema: "omp-spec-kit-tagged-source-proof@1", status: "passed", tag: "v0.3.0", commit: PRIOR_COMMIT, source: "public-tag" }),
     upgradeFromV030: await writeReceipt(candidateDirectory, "upgrade", { schema: "omp-spec-kit-lifecycle-receipt@1", status: "passed", ...id, fromVersion: "0.3.0", fromTag: "v0.3.0", toVersion: "0.3.2", toTag: "v0.3.2", observedVersion: "0.3.2", freshSession: true, projectHashPreserved: true }),
     rollbackToV030: await writeReceipt(candidateDirectory, "rollback", { schema: "omp-spec-kit-lifecycle-receipt@1", status: "passed", ...id, fromVersion: "0.3.2", fromTag: "v0.3.2", toVersion: "0.3.0", toTag: "v0.3.0", observedVersion: "0.3.0", freshSession: true, projectHashPreserved: true }),
   };
   const frReceipts = Object.create(null);
   for (const [requirement, scenarioId] of Object.entries(MRI_SCENARIOS)) frReceipts[requirement] = await writeReceipt(candidateDirectory, `mri-${requirement.slice(-4)}`, { schema: "omp-spec-kit-fr-receipt@1", status: "passed", ...id, requirement, scenarioId });
-  const discoveryBytes = await readFile(path.join(repositoryRoot, "docs", "validation", "omp-discovery-v17.3.7.md"));
+  const discoveryBytes = await readFile(path.join(repositoryRoot, "docs", "validation", "omp-discovery-v18.0.10.md"));
   const evidence = { schema: "omp-spec-kit-release-evidence@3", ...id, mri: { schema: "omp-spec-kit-mri-evidence@1", checks, frReceipts, discovery: await writeBytes(candidateDirectory, "omp-discovery.md", discoveryBytes) }, distribution: { schema: "omp-spec-kit-distribution-evidence-input@1", trust: "untrusted-self-attested", receipt: { status: "missing" } } };
   const evidencePath = path.join(candidateDirectory, "evidence.json"); await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
   return { candidate, catalogDigest, manifestPath, archivePath, evidencePath, candidateDirectory, resolveTagCommit };
@@ -152,7 +152,7 @@ export async function writeSyntheticDistributionClaims(world) {
 }
 export async function writeStructurallyCompleteSelfAttestedDistributionEvidence(world) {
   const evidence = JSON.parse(await readFile(world.evidencePath, "utf8"));
-  const ompRevision = "@oh-my-pi/pi-coding-agent@17.3.7#8500092296621a6826b7136e840f8a59ea338958";
+  const ompRevision = "@oh-my-pi/pi-coding-agent@18.0.10#33cc6b9a043a74e00a157e72ca909272796d8461";
   const records = [];
   let index = 0;
   for (const [requirement, claims] of Object.entries(DISTRIBUTION_CLAIMS)) {
@@ -194,7 +194,7 @@ export async function writeStructurallyCompleteSelfAttestedDistributionEvidence(
 
 export async function writeStructurallyCompleteAttestationTrustedDistributionEvidence(world) {
   const evidence = JSON.parse(await readFile(world.evidencePath, "utf8"));
-  const ompRevision = "@oh-my-pi/pi-coding-agent@17.3.7#8500092296621a6826b7136e840f8a59ea338958";
+  const ompRevision = "@oh-my-pi/pi-coding-agent@18.0.10#33cc6b9a043a74e00a157e72ca909272796d8461";
   const records = [];
   let index = 0;
   for (const [requirement, claims] of Object.entries(DISTRIBUTION_CLAIMS)) {

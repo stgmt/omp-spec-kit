@@ -1,100 +1,62 @@
 # Research
 
-## Scope and method
+## R-1: Read-only baseline is historical product truth
 
-This is specification research, not runtime evidence. Target decisions were derived from the validated public-init plan, the repository migration matrix, the immutable upstream snapshot, and current official OMP documentation cited below. Upstream claims are inputs to rewrite, not target implementation proof.
+**Status:** `[VERIFIED_FROM_RELEASE_PROVENANCE]`
 
-## Findings
+The published v0.3.2 baseline exposes eight working read-only MCP tools and no authoring mutation surface. This specification therefore uses public state `NEXT` and does not reinterpret historical release evidence as a live API eligibility input.
 
-### R-1 — Authoring must follow a proven read-only kernel
+Bounded v0.3.2 identities retained for reconciliation:
 
-**Status:** `[VERIFIED_FROM_LOCAL_PROVENANCE]`
+- tag commit: `2938389e34e2d06bdd497291ed01e0a2d89146c9`;
+- candidate digest: `526ef6ff94ea682a116a43e4de0b5f622686b8ef36648b7884c830ba1eac25b4`;
+- package-tree digest: `e8d53934122a495e1003f17126785dcd181f5d6d5f417270844e17fc25f12f92`;
+- release archive SHA-256: `26a2ebadd7d1888c10dc9bdbdc25e11fecf5b15c7e3bb363a0cbea9`.
 
-The repository decision explicitly sequences a read-only kernel before mutation in [Read-only-first kernel](../../docs/decisions/omp-spec-kit-public-init.md#read-only-first-kernel), keeps phases strictly ordered in [Exact phase sequence](../../docs/decisions/omp-spec-kit-public-init.md#exact-phase-sequence), and requires complete containment/authorization/proposal/CAS/atomicity/rollback/concurrency/audit/privacy/recovery evidence in the [Authoring gate](../../docs/decisions/omp-spec-kit-public-init.md#authoring-gate). The [Release boundary derived from the matrix](../../MIGRATION_MATRIX.md#release-boundary-derived-from-the-matrix) places the read-only kernel before later mutation work; the functional/source tables classify validated mutation, status transitions, high-level authoring, recovery, and mutation verification as `DEFER` while retaining portable anchors, identity, containment, and evidence concepts.
+These values are historical receipts only. Distribution and product release evaluators own current attestation and delivery decisions.
 
-**Decision:** `spec-authoring-workflow` actions and release remain `DEFERRED` until FR-13 proves mandatory FR-1..FR-12 evidence, current `plugin-distribution:FR-13`, and two distinct accepted `spec-kernel:FR-14` results: v0.2/kernel-v0.2 artifact `A` and v0.3/kernel-v0.3 artifact `B` with `v02ParentArtifactSha256: A`. The legitimate predecessor/current hashes may differ, but both results must remain current, non-revoked, and bound to the same product revision/artifact lineage, with current-stage evidence bound to the exact built release-candidate artifact/snapshot/policy/host. `DEFERRED` does not prohibit schema/service/fixture/evaluator implementation or isolated evidence production; it prohibits registration, exposure, user-spec mutation, and release claims.
+## R-2: OMP provides one MCP boundary
 
-### R-2 — OMP extension load is registration-only
+**Status:** `[VERIFIED_FROM_PINNED_SOURCE]`
 
-**Status:** `[VERIFIED_OFFICIAL_SOURCE]`
+OMP marketplace and MCP integration are grounded in pinned host commit `8500092296621a6826b7136e840f8a59ea338958`, including:
 
-OMP's extension contract uses a default extension factory and registration APIs, and forbids performing runtime actions during factory load: https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/extensions.md
+- `https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/marketplace.md`
+- `https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/mcp.md`
 
-**Decision:** authoring registers only through the existing package's MCP server after the release gate opens; the existing OMP extension remains read-only. Proposal/review/commit work occurs only on explicit MCP facade invocation. No second extension entry, second authoring adapter, or load-time mutation is allowed.
+**Decision:** extend the existing MCP server only. Do not create a second plugin, extension writer, registry authority, or agent-facing helper surface.
 
-### R-3 — Distribution proof is not inferred from source code
+## R-3: Proposal plus CAS protects the observable failure modes
 
-**Status:** `[VERIFIED_OFFICIAL_AND_LOCAL_PLAN]`
+**Status:** `[VERIFIED_FROM_LOCAL_DESIGN_AND_FIXTURES]`
 
-OMP marketplace installation, update, and plugin lifecycle are documented at https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/marketplace.md. The validated plan requires clean project-scope install, reload, fresh-session activation, dependency isolation, uninstall preservation, and upgrade evidence.
+A pure preview prevents surprise writes. Expected content hashes and a second under-lock comparison prevent stale overwrite and ABA changes. Reusing the kernel validators prevents a second definition of valid FR, AC, scenario, task, anchor, or trace forms.
 
-**Decision:** eligibility consumes current accepted `plugin-distribution:FR-13` evidence for the current built release candidate in addition to, not instead of, the separately qualified linked v0.2 and v0.3 kernel aggregates. A source-tree test, subset, aggregate count, unqualified kernel singleton, duplicate target stage, stale/revoked predecessor, or cross-lineage parent/current pair cannot substitute for installed-artifact proof.
+**Decision:** one immutable Proposal value and one Apply operation; caller review is behavior around the preview, not a durable server state.
 
-### R-4 — Proposal/apply and CAS solve observed authoring failures
+## R-4: Containment needs filesystem evidence
 
-**Status:** `[VERIFIED_FROM_IMMUTABLE_UPSTREAM]`
+**Status:** `[VERIFIED_FROM_PLATFORM_BEHAVIOR_REQUIREMENT]`
 
-`docs/upstream/dev-pomogator/spec-generator-v4/FR.md` sections FR-40 and FR-60 record validation-before-write, proposal preview, expected hashes, anchor operations, and all-or-none multi-document changes. The migration matrix defers these behaviors rather than adopting the source harness.
+Lexical normalization alone cannot prove Windows junction/reparse or POSIX symlink containment. The authoring handler must use platform filesystem metadata and recheck before swap. The host path policy is an additional boundary for non-authoring tools, not a replacement for handler containment.
 
-**Decision:** retain the safety properties, require a read-only proposal followed by a separate authenticated full-preview review before `apply_transaction`, and define new standalone contracts without MCP-only assumptions, watcher state, dev-pomogator logs, Claude hooks, or backlog APIs. A same-call synthesized preview and commit is not review.
+## R-5: Generation commit keeps the proof small
 
-### R-5 — Heading identity and node identity are different concerns
+**Status:** `[DECISION]`
 
-**Status:** `[VERIFIED_FROM_IMMUTABLE_UPSTREAM]`
+One-spec staging on the same filesystem permits all-or-none generation replacement and bounded internal rollback. A public catastrophic-repair protocol would add authorization and state without improving the normal contract.
 
-The upstream FR-34 and FR-36 distinguish file-local Markdown anchors from spec-qualified graph identities. Renaming descriptive headings changes generated slugs and can break inbound links.
+**Decision:** recover internally only while a complete hashed old or new generation exists. Otherwise stop with `RECOVERY_REQUIRED` and manual VCS/backup restore instructions.
 
-**Decision:** requests use canonical `<spec-slug>:<local-id>` for nodes and stable heading selectors for edits. Safe rename consumes the authoritative `spec-kernel:FR-13` query containing complete heading definitions, generated anchors, and link occurrences over one immutable snapshot; accepted renames rewrite all provable same-spec inbound links in the reviewed transaction. External, linked, ambiguous, colliding, or incomplete inventory blocks.
+## R-6: Quality checks are verification, not runtime authority
 
-### R-6 — Path safety requires canonical containment and reparse-point refusal
+**Status:** `[DECISION]`
 
-**Status:** `[VERIFIED_FROM_IMMUTABLE_UPSTREAM]`
-
-The upstream FR-62 and FR-74 require deterministic target root selection, realpath confinement, and rejection of traversal, absolute/UNC paths, normalization collision, and symlink/junction escape.
-
-**Decision:** the first authoring release adopts one deny policy shared with kernel containment: the selected root and every component through the spec directory and target must not be a symlink, junction, mount point, or other reparse point. Linked spec directories are unsupported for both document reads and mutation, containment refuses before content read, and no allowlisted-link exception exists.
-
-### R-7 — Task status is guarded state, not free-form text
-
-**Status:** `[VERIFIED_FROM_IMMUTABLE_UPSTREAM]`
-
-The upstream FR-48 defines a centralized `todo`, `ready`, `in-progress`, `blocked`, `done` lifecycle and guards starting and completing work. FR-35 and FR-77 require current, task-owned, strong evidence rather than green plumbing.
-
-**Decision:** status changes are typed read-only proposals using the same validation path, followed by explicit review and `apply_transaction`. No raw status edit, `.progress.json`, phase stop, prompt gate, watcher, or dashboard behavior transfers.
-
-### R-8 — Mutation testing is necessary but policy must be calibrated
-
-**Status:** `[PARTIALLY_DECIDED]`
-
-The immutable upstream FR-53 and FR-85 require deterministic mutation resistance and restoration after fault injection. They do not establish a portable target engine, timeout, or representative general-code threshold for this greenfield repository.
-
-**Decision fixed now:** every safety-critical mutant family listed in FR-11 must achieve 100% killed, with `NO_COVERAGE`, `TIMED_OUT`, `SKIPPED`, and engine errors treated as blocking rather than killed.
-
-### R-9 — RECOVERY_REQUIRED needs a bounded operator exit
-
-**Status:** `[DESIGN_DECISION]`
-
-Deterministic recovery can prove a retained original or result generation, but corrupt or incomplete transaction material can leave neither byte set complete. Permanent terminal blocking provides no operational exit; accepting request-embedded replacement bytes would create a privileged writer outside proposal review.
-
-**Decision:** recovery is two-path and mutually exclusive. A host-authenticated `recover_transaction` selects a complete retained original/result by hashes. Only a hash-bound no-survivor assessment admits `propose_rebaseline_recovery`: an unexpired operator authorization binds actor/reason, transaction/root/target, fixed root-contained ordinary candidate source, complete candidate inventory, expected blocked-current snapshot/documents, exact journal or missing-marker hash, no-survivor assessment, bounds, and expiry. Dry-run containment/link/full validation returns complete pre/post hashes without writing; separately reviewed `apply_rebaseline_recovery` repeats all hashes, audit-chain, and lease/concurrency checks before atomic `REBASELINED`. Every failure remains `RECOVERY_REQUIRED`, leaks no candidate path/bytes, and erases no current, journal, recovery, candidate, or audit history.
-
-## Open mutation policy decisions
-
-These are explicit `DECISION_REQUIRED` items, not implementation placeholders. They keep the feature deferred until measured evidence exists.
-
-| Decision | Fixed constraints | Remaining alternatives | Owner | Resolution evidence |
-|---|---|---|---|---|
-| MP-1 — mutation engine | Must run against the built plugin code and emit machine-readable per-mutant outcomes | Select the engine after the implementation language, bundling, and BDD runner are pinned; candidate engines must support deterministic targeted runs | Release owner | Repeated identical runs over the same artifact yield the same mutant inventory and outcomes |
-| MP-2 — non-critical threshold | Critical families remain 100%; equivalent mutants require reviewed classification, never silent exclusion | Choose a measured global percentage or per-module floor after the first full baseline | Test owner | Baseline distribution, survivor review, and false-block analysis committed with policy version |
-| MP-3 — timeout and performance budget | Timeout/engine errors block and may not be counted as killed | Set per-mutant and suite budgets from CI observations rather than invented numbers | Release owner | At least three clean CI baselines with artifact and runner versions |
-| MP-4 — equivalent-mutant authority | No author may self-waive a safety-critical mutant | Choose one independent reviewer or two-person approval for non-critical equivalent classification | Maintainer | Auditable decision record names mutant, rationale, reviewers, and expiry/revisit trigger |
+Real corpus, platform filesystem, race, crash, redaction, and anchor fixtures directly defend the observable contract. Mutation/fault injection may strengthen CI but does not create another product lifecycle or eligibility gate.
 
 ## Provenance sources
 
-- [Read-only-first kernel](../../docs/decisions/omp-spec-kit-public-init.md#read-only-first-kernel), [Exact phase sequence](../../docs/decisions/omp-spec-kit-public-init.md#exact-phase-sequence), and [Authoring gate](../../docs/decisions/omp-spec-kit-public-init.md#authoring-gate)
-- [Release boundary derived from the matrix](../../MIGRATION_MATRIX.md#release-boundary-derived-from-the-matrix)
-- `docs/upstream/dev-pomogator/spec-generator-v4/FR.md` — especially FR-34, FR-35, FR-40, FR-48, FR-53, FR-60, FR-62, FR-74, FR-77, FR-84, and FR-85
-- `docs/upstream/dev-pomogator/spec-generator-v4/ACCEPTANCE_CRITERIA.md`
-- `docs/upstream/dev-pomogator/spec-generator-v4/spec-generator-v4.feature`
-- https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/extensions.md
-- https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/marketplace.md
+- [Public-init decision](../../docs/decisions/omp-spec-kit-public-init.md)
+- [Migration matrix](../../MIGRATION_MATRIX.md)
+- Existing v0.3.2 distribution and release-integrity receipts referenced by the product corpus
+- Real fixture capture obligations in [FIXTURES.md](FIXTURES.md)

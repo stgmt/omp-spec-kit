@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/config/mcp-schema.json",
+  "$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/33cc6b9a043a74e00a157e72ca909272796d8461/packages/coding-agent/src/config/mcp-schema.json",
   "mcpServers": {
     "omp-spec-kit": {
       "type": "stdio",

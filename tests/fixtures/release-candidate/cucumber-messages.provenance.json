@@ -1,18 +1,18 @@
 {
   "schema": "omp-spec-kit-cucumber-fixture-provenance@2",
   "fixture": "cucumber-messages.ndjson",
-  "sha256": "9bcaa12544ad81dca1fb72915a38afb26e8e0ba890ece243783bfd54063600d2",
-  "repositoryCommit": "86525eaf6f411757e001474f69d38447bafd0d28",
+  "sha256": "c568d98c1137688950286d57271b3d9a3aa0de5114bc18de5185d923246717dd",
+  "repositoryCommit": "843b40af742592a74964f101f41d7dfa6cf3223b",
   "sourceState": "working-tree-content-addressed",
-  "parentFixtureSha256": "398711c01ad40d86edece475b1313a15ab7f9f01cca0a164be1f97296b47428f",
+  "parentFixtureSha256": "eadb0c0ec669ecef114d49371886f53b6fa6ee0c496291d21ba932650a20424e",
   "sourceManifest": "cucumber-messages.inputs.json",
-  "sourceManifestSha256": "194c85494af9a0380202ae665894fbd40783b1198babfb367020cb258dbfae15",
-  "sourceInputsSha256": "cca0e38e47581e776e61eaf72cdea1dfcf9d63f317abadf29c5a1700fd9963ea",
-  "sourceInputCount": 174,
-  "dockerImageDigest": "sha256:1143a064082310cc43132ce8562b233a413a8e0c625969675143c17f686647c8",
+  "sourceManifestSha256": "4b09cf6c6abe572d36d1e54c8592127b6859acbed6c1c4bf4117fb05d3425751",
+  "sourceInputsSha256": "d3c32661aedddd1f74cb278eb35cb0f7e75d283ae0cabd7a142e3b2cfcf2a2b3",
+  "sourceInputCount": 186,
+  "dockerImageDigest": "sha256:48633e327b2e8ff30f38ebc0a5710165b62b37e9dc46a1758d1ffc9147fcdae9",
   "cucumberVersion": "13.2.1",
   "captureCommand": "bash scripts/docker-bdd.sh",
-  "capturedAt": "2026-08-29",
-  "scenarioCount": 77,
-  "stepCount": 720
+  "capturedAt": "2026-08-31",
+  "scenarioCount": 58,
+  "stepCount": 493
 }

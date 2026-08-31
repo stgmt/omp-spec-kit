@@ -4,11 +4,13 @@ All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
 ## Unreleased
 
-Specification-only corpus repair, not a runtime release:
+OMP 18 compatibility and staged MCP delivery work; v0.3.2 remains the only published package baseline.
 
-- Product/distribution/kernel/MRI status is reconciled to public v0.3.2 evidence.
-- The eight SCHEMA-11 MCP names are the v0.3 first slice / candidate identity, not the destination registry; shipped 0.3.x receipts are unchanged.
-- Post-v0.3 schemas use independent capability gates, and normal verification now ratchets the 46-name census, shipped graph, canonical IDs, Marksman anchors, status identity and release wording.
+- Pinned current discovery evidence to OMP `18.0.10` at immutable commit `33cc6b9a043a74e00a157e72ca909272796d8461`.
+- Kept the published eight-tool read-only MCP surface stable while adding runtime-verified read-complete (23), evidence (25), and proposal-first authoring (49) destination contracts.
+- Added contained document reads, hash-bound evidence, transactional authoring, direct-write refusal, and the automatic plan gate behind explicit future stages.
+- Added a source-grounded OMP authority ABI candidate and exact selected-plan event; authority-dependent activation remains blocked until that upstream candidate is published and accepted.
+- Recaptured the v18 discovery receipt and real Docker Cucumber fixture with content-addressed provenance.
 
 ## 0.3.2 — 2026-08-28
 

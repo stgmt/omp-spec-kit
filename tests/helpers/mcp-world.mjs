@@ -55,7 +55,7 @@ export const MCP_TOOL_NAMES = Object.freeze([
 
 // Canonical QueryEnvelope key set (sorted); every answer must carry exactly these.
 export const QUERY_ENVELOPE_KEYS = Object.freeze(
-  ["ok", "schemaVersion", "requestId", "operation", "graph", "page", "data", "error", "diagnostics"].sort(),
+  ["ok", "schemaVersion", "requestId", "operation", "graph", "page", "data", "error", "diagnostics", "provenance"].sort(),
 );
 
 function sameBytes(left, right) {
@@ -256,6 +256,7 @@ function makeHost() {
         enum: (values) => schemaNode("enum", { values }),
         array: (items) => schemaNode("array", { items: schemaSnapshot(items) }),
         object: (shape) => schemaNode("object", { shape }),
+        unknown: () => schemaNode("unknown"),
       },
       setLabel: (label) => registration.labels.push(label),
       registerTool: (tool) => registration.tools.push(tool),
@@ -265,11 +266,26 @@ function makeHost() {
 
 const extensionPath = process.argv[2];
 if (!extensionPath) {
-  throw new Error("usage: extension-registry-probe <extension-path>");
+  throw new Error("usage: extension-registry-probe <extension-path> [queries-json]");
 }
+const queries = process.argv[3] ? JSON.parse(process.argv[3]) : [];
 const extensionModule = await import(pathToFileURL(extensionPath).href);
 const { pi, registration } = makeHost();
 extensionModule.default(pi);
+const queryResults = [];
+for (const query of queries) {
+  if (!query || typeof query.name !== "string") throw new Error("query probe entries require a tool name");
+  const tool = registration.tools.find((candidate) => candidate.name === query.name);
+  if (tool === undefined) throw new Error("query probe tool not registered: " + query.name);
+  const result = await tool.execute(
+    "probe-" + query.name,
+    query.params ?? {},
+    undefined,
+    undefined,
+    { cwd: query.cwd },
+  );
+  queryResults.push({ name: query.name, result });
+}
 process.stdout.write(JSON.stringify({
   processCwd: process.cwd(),
   exports: {
@@ -286,6 +302,7 @@ process.stdout.write(JSON.stringify({
     executeType: typeof tool.execute,
     parameters: schemaSnapshot(tool.parameters),
   })),
+  queryResults,
 }) + "\\n");
 `;
 
@@ -295,14 +312,19 @@ process.stdout.write(JSON.stringify({
  * generated probe file lives in its own temp directory that is removed
  * unconditionally, success or failure.
  */
-export async function runExtensionProbe({ extensionPath, cwd }) {
+export async function runExtensionProbe({ extensionPath, cwd, env = {}, queries = [] }) {
   const probeDir = await mkdtemp(path.join(tmpdir(), "omp-spec-kit-ext-probe-"));
   let receipt;
   try {
     const probePath = path.join(probeDir, "extension-registry-probe.mjs");
     await writeFile(probePath, PROBE_SCRIPT);
-    receipt = spawnSync(process.execPath, [probePath, String(extensionPath)], {
+    const childEnv = { ...process.env, ...env };
+    if (!Object.prototype.hasOwnProperty.call(env, "OMP_SPEC_KIT_ROOT")) {
+      delete childEnv.OMP_SPEC_KIT_ROOT;
+    }
+    receipt = spawnSync(process.execPath, [probePath, String(extensionPath), JSON.stringify(queries)], {
       cwd,
+      env: childEnv,
       encoding: "utf8",
       windowsHide: true,
       timeout: 60000,
@@ -345,6 +367,7 @@ export function createMcpState() {
     specsBefore: null,
     bareSnapshot: null,
     tempRoot: null,
+    provenanceOverrideRoot: null,
     async cleanup() {
       if (this.server !== null) {
         const server = this.server;
@@ -354,6 +377,10 @@ export function createMcpState() {
       if (this.tempRoot !== null) {
         await rm(this.tempRoot, { recursive: true, force: true, maxRetries: 3 });
         this.tempRoot = null;
+      }
+      if (this.provenanceOverrideRoot !== null) {
+        await rm(this.provenanceOverrideRoot, { recursive: true, force: true, maxRetries: 3 });
+        this.provenanceOverrideRoot = null;
       }
     },
   };

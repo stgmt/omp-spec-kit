@@ -159,7 +159,7 @@ jobs:
         run: |
           # Bound the MRI discovery artifact by digest, exactly as
           # create-release-evidence copies it and verify-release checks it.
-          DISCOVERY_SHA="$(sha256sum docs/validation/omp-discovery-v17.3.7.md | cut -d ' ' -f1)"
+          DISCOVERY_SHA="$(sha256sum docs/validation/omp-discovery-v18.0.10.md | cut -d ' ' -f1)"
           node scripts/create-distribution-evidence.mjs \
             --candidate dist-candidate/candidate.json \
             --public-safety dist-candidate/public-safety.json \

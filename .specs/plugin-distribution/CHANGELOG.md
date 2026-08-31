@@ -1,31 +1,18 @@
 # Specification Changelog
 
-## Unreleased — Specification baseline
+## Unreleased — Practical release contract
 
-- Added representable inventory result-byte bounds, the exact commit-pinned `.mcp.json` schema URI, and exact bidirectional FR/CHK/NFR task ownership.
+- Removed the forward `distribution-release-eligibility@2` ABI and its arbitrary matrices, counters, and per-FR receipt envelope.
+- Removed internal evidence-subject attestation and re-verification from the forward path.
+- Delegated marketplace/extension/MCP schemas to OMP and inventory/query schemas to the kernel.
+- Scoped topology checks to the uniquely named `omp-spec-kit` entry and its contained child; unrelated repository entries are allowed.
+- Replaced global status policing with one compact distribution-owned status record.
+- Defined one forward path: build tagged bytes once, run named checks, publish the same digest, and create one final GitHub Artifact Attestation for the public archive.
 
-### Added
+## SHIPPED — v0.3.2
 
-- Defined the invariant of one repository-root OMP marketplace, one `plugins/omp-spec-kit` child package, and one built extension entry.
-- Defined the v0.1.0 `spec_inventory` request, result, entry, diagnostic, and evidence receipt contracts.
-- Distinguished install, reload, fresh-session activation, invocation, uninstall, and exact-version reinstall for `0.1.0`, while deferring upgrade-from-prior and rollback-to-prior proof until the first subsequent release.
-- Added dependency-absent packaging, provenance, license, secret, public-path, version, and GitHub Actions release gates.
-- Added FR-13 aggregate release eligibility: complete current mandatory FR-1..FR-12 evidence is required, and partial stage/job success cannot publish.
-- Added explicit negative cases for duplicate/nested topology, path/link escape, malformed/unbounded inputs, stale evidence, version mismatch, release overwrite, partial evidence sets, and project mutation.
+The public release remains unchanged. `docs/validation/release-status-v0.3.2.json` records tag commit `2938389e34e2d06bdd497291ed01e0a2d89146c9`, candidate digest `526ef6ff94ea682a116a43e4de0b5f622686b8ef36648b7884c830ba1eac25b4`, package-tree digest `e8d53934122a495e1003f17126785dcd181f5d6d5f417270844e17fc25f12f92`, archive SHA-256 `26a2ebadd7d1888c10dc9bdbdc25e11fecf5a7dcc7515b15c7e3bb363a0cbea9`, lifecycle receipt identities, and the public release attestation.
 
-### Current delivered descendant
+## Historical receipt policy
 
-- The one-marketplace/one-plugin/one-extension topology is publicly delivered at v0.3.2.
-- Public tag commit, candidate/package/archive digests, lifecycle receipt identities and GitHub release attestation are recorded in `docs/validation/release-status-v0.3.2.json`.
-- This changelog records the specification's evolution; scenario text is not execution evidence unless tied to those producer receipts.
-
-### Contract repair
-
-- Made GitHub Artifact Attestations the current normative producer trust root with exact repository, signer-workflow, source-ref and subject binding plus closed verifier failures.
-- Defined forward `distribution-release-eligibility@2` as distribution-only; MRI stays with `mcp-release-integrity` and product/public composition stays with `product:FR-6`.
-- Reconciled historical v0.1.0 and delivered v0.3.2 child/build/lifecycle profiles, current file existence and task statuses.
-- Preserved historical v0.3.2 `public-release-eligibility@1` receipts without making that composed shape the forward distribution API.
-
-## Release-history policy
-
-Historical v0.1/v0.2/v0.3 contracts and receipts remain immutable. New capability releases must preserve the same single-product topology and satisfy their current product aggregate; a new release entry is added only after the exact tagged candidate and trust-root evidence pass.
+Historical v0.1, v0.2, v0.3, and v0.3.2 contracts and receipts are immutable audit evidence. The delivered `omp-spec-kit-release-evidence@3`, `public-release-eligibility@1`, distribution-evidence subject, and its attestation describe those releases only. They are not required shapes or a double-attestation chain for the next release.

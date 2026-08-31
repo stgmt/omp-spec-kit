@@ -12,8 +12,12 @@
 
 import { createInterface } from "node:readline";
 import { KERNEL_SCHEMA_VERSION } from "../kernel/index.js";
-import { createSpecService, resolveRepositoryRoot, summarizeEnvelope } from "../adapters/query-service.js";
-import { TOOL_CONTRACTS, jsonSchemaFor } from "../adapters/tool-contracts.js";
+import {
+  createSpecService,
+  resolveRepositoryContext,
+  summarizeEnvelope,
+} from "../adapters/query-service.js";
+import { activeStageForEnvironment, toolContractsForStage, jsonSchemaFor, validateContractArguments } from "../adapters/tool-contracts.js";
 
 const PROTOCOL_VERSION_FALLBACK = "2025-03-26";
 const SERVER_NAME = "omp-spec-kit";
@@ -34,7 +38,7 @@ function respondError(id, code, message) {
   writeMessage({ jsonrpc: "2.0", id, error: { code, message } });
 }
 
-function internalErrorEnvelope(operation, requestId) {
+function internalErrorEnvelope(operation, requestId, provenance) {
   return {
     schemaVersion: KERNEL_SCHEMA_VERSION,
     requestId: requestId ?? null,
@@ -68,6 +72,7 @@ function internalErrorEnvelope(operation, requestId) {
       causeCode: null,
     },
     diagnostics: [],
+    provenance,
   };
 }
 
@@ -82,9 +87,79 @@ function splitCommonFields(rawArguments) {
   };
 }
 
-const contractsByName = new Map(TOOL_CONTRACTS.map((contract) => [contract.tool, contract]));
-// One lazily-built graph per process, rooted once at startup.
-const service = createSpecService(resolveRepositoryRoot());
+const ARGUMENT_ALIASES = Object.freeze({
+  spec_slugs: "specSlugs",
+  include_documents: "includeDocuments",
+  canonical_id: "canonicalId",
+  include_incident_counts: "includeIncidentCounts",
+  max_depth: "maxDepth",
+  max_visited: "maxVisited",
+  focus_path: "focusPath",
+  focus_anchor: "focusAnchor",
+  include_headings: "includeHeadings",
+  include_links: "includeLinks",
+  read_for_edit: "readForEdit",
+  declared_worktree: "declaredWorktree",
+  verification_method: "verificationMethod",
+  safety_class: "safetyClass",
+  verification_method_missing: "verificationMethodMissing",
+  scenario_id: "scenarioId",
+  proposal_id: "proposalId",
+  proposal_sha256: "proposalSha256",
+  expected_documents: "expectedDocuments",
+  actor_ref: "actorRef",
+  repository_root_fingerprint: "repositoryRootFingerprint",
+  expected_sha: "expectedSha",
+  old_string: "oldText",
+  new_string: "newText",
+  replace_all: "replaceAll",
+  new_doc: "newDoc",
+  node_id: "canonicalId",
+});
+
+function normalizeArguments(rawArguments) {
+  const normalized = {};
+  for (const [name, value] of Object.entries(rawArguments)) {
+    const canonical = ARGUMENT_ALIASES[name] ?? name;
+    if (Object.hasOwn(normalized, canonical)) {
+      return { ok: false, error: { code: "DUPLICATE_FIELD", message: `tool argument has duplicate aliases: ${canonical}`, parameter: canonical } };
+    }
+    normalized[canonical] = value;
+  }
+  return { ok: true, args: normalized };
+}
+
+const requestedStage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE;
+const activeStage = activeStageForEnvironment(requestedStage);
+const activeContracts = toolContractsForStage(activeStage);
+const contractsByName = new Map(activeContracts.map((contract) => [contract.tool, contract]));
+const rootContext = resolveRepositoryContext();
+const service = createSpecService(rootContext.resolvedRoot, {
+  ...rootContext,
+  stage: activeStage ?? "v0.3.2",
+});
+function argumentErrorEnvelope(operation, requestId, validation) {
+  const envelope = internalErrorEnvelope(operation, requestId, service.provenance);
+  return {
+    ...envelope,
+    error: {
+      ...envelope.error,
+      code: validation.code,
+      message: validation.message,
+      parameter: validation.parameter ?? null,
+      expected: validation.expected ?? null,
+      receivedType: validation.receivedType ?? null,
+    },
+  };
+}
+
+function respondTool(id, envelope) {
+  respond(id, {
+    content: [{ type: "text", text: summarizeEnvelope(envelope) }],
+    structuredContent: envelope,
+    isError: !envelope.ok,
+  });
+}
 
 async function handleMessage(message) {
   const hasId = isPlainObject(message) && Object.prototype.hasOwnProperty.call(message, "id");
@@ -118,11 +193,21 @@ async function handleMessage(message) {
   }
   if (method === "tools/list") {
     respond(id, {
-      tools: TOOL_CONTRACTS.map((contract) => ({
+      tools: activeContracts.map((contract) => ({
         name: contract.tool,
         description: contract.description,
         inputSchema: jsonSchemaFor(contract),
-        annotations: { readOnlyHint: true },
+        annotations: {
+          readOnlyHint:
+            !contract.operation.startsWith("apply") &&
+            !contract.operation.startsWith("set") &&
+            !contract.operation.startsWith("delete") &&
+            !contract.operation.startsWith("rename") &&
+            !contract.operation.startsWith("create") &&
+            !contract.operation.startsWith("archive") &&
+            !contract.operation.startsWith("add") &&
+            !contract.operation.startsWith("register"),
+        },
       })),
     });
     return;
@@ -134,19 +219,43 @@ async function handleMessage(message) {
       respondError(id, -32602, `Unknown tool: ${typeof params.name === "string" ? params.name : "<missing>"}`);
       return;
     }
+    const hasArguments = Object.prototype.hasOwnProperty.call(params, "arguments");
+    const invalidArgumentShape = hasArguments && !isPlainObject(params.arguments);
     const rawArguments = isPlainObject(params.arguments) ? params.arguments : {};
-    const { args, requestId, schemaVersion } = splitCommonFields(rawArguments);
+    const split = splitCommonFields(rawArguments);
+    const { requestId, schemaVersion } = split;
     let envelope;
     try {
-      envelope = await service.runQuery(contract.operation, args, { requestId, schemaVersion });
+      if (
+        (schemaVersion !== undefined && schemaVersion !== KERNEL_SCHEMA_VERSION) ||
+        (requestId !== null && typeof requestId !== "string")
+      ) {
+        envelope = await service.runQuery(contract.operation, {}, { requestId, schemaVersion });
+      } else if (invalidArgumentShape) {
+        envelope = argumentErrorEnvelope(contract.operation, requestId, {
+          code: "INVALID_REQUEST",
+          message: "tool arguments must be an object",
+          parameter: "arguments",
+          expected: "object",
+          receivedType: Array.isArray(params.arguments) ? "array" : typeof params.arguments,
+        });
+      } else {
+        const normalized = normalizeArguments(split.args);
+        if (!normalized.ok) {
+          envelope = argumentErrorEnvelope(contract.operation, requestId, normalized.error);
+        } else {
+          const args = normalized.args;
+          if (contract.fields.some((entry) => entry.name === "requestId") && requestId !== null) args.requestId = requestId;
+          const validation = validateContractArguments(contract, args);
+          envelope = validation.ok
+            ? await service.runQuery(contract.operation, args, { requestId, schemaVersion })
+            : argumentErrorEnvelope(contract.operation, requestId, validation);
+        }
+      }
     } catch {
-      envelope = internalErrorEnvelope(contract.operation, requestId);
+      envelope = internalErrorEnvelope(contract.operation, requestId, service.provenance);
     }
-    respond(id, {
-      content: [{ type: "text", text: summarizeEnvelope(envelope) }],
-      structuredContent: envelope,
-      isError: !envelope.ok,
-    });
+    respondTool(id, envelope);
     return;
   }
   respondError(id, -32601, `Method not found: ${method}`);

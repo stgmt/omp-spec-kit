@@ -1,107 +1,107 @@
 # Functional Requirements
 
-All IDs are local in source documents. Runtime and cross-spec identifiers MUST use the qualified form `plugin-distribution:<local-id>`.
+IDs are local here and qualified as `plugin-distribution:<id>` outside this specification.
 
-## FR-1 — Single marketplace topology
+## FR-1 — Target plugin identity and containment
 
-The repository SHALL expose exactly one OMP marketplace catalog at `.omp-plugin/marketplace.json`. That catalog SHALL contain exactly one plugin entry named `omp-spec-kit` with `source: "./plugins/omp-spec-kit"`. The repository SHALL NOT contain another marketplace catalog, nested marketplace, second plugin entry, external source object, npm source, or path escaping the repository root.
+A release SHALL select exactly one catalog entry named `omp-spec-kit`, require source `./plugins/omp-spec-kit`, and prove that source resolves beneath the repository root. The child version plus declared extension and MCP entrypoints SHALL resolve beneath that child. Unrelated catalog entries, packages, or servers are outside this requirement.
 
-**Acceptance:** [AC-1.1](ACCEPTANCE_CRITERIA.md#ac-11-single-marketplace-topology)
+**Acceptance:** [AC-1.1](ACCEPTANCE_CRITERIA.md#ac-11-target-identity-and-containment)
 
-**Scenario:** [`@feature1`](plugin-distribution.feature)
+**Scenario:** `@feature1` / `SCEN-select-contained-target-plugin`.
 
-## FR-2 — Single child package and extension entry
+## FR-2 — Deterministic child payload
 
-The only installable plugin package SHALL be `plugins/omp-spec-kit`, with one `omp.extensions` entry `./dist/extension.js` and a version equal to the evaluated candidate. The immutable v0.1.0 profile contained package/README/LICENSE/generated dist/one skill/one command and no MCP entry. The delivered v0.3.2 profile additionally contains exactly one `.mcp.json`, the cross-platform `bin/omp-spec-kit-mcp{,.cmd}` launchers, and generated `dist/{kernel,adapters,mcp}` trees inside the same child. Future capabilities MAY extend only this package through their accepted gates; they SHALL NOT add another package, marketplace, extension entry, MCP server identity, nested manifest/control plane, source/test/evidence files, install scripts, ambient runtime dependencies, or root escape.
+A clean build from the immutable tag commit SHALL create the complete installable child, reject missing, unexpected, linked, or non-regular payload files, and record deterministic package-tree and archive SHA-256 values. Generated `dist/**` SHALL not depend on source/test/evidence files inside the child.
 
-**Acceptance:** [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-single-child-package-and-extension)
+**Acceptance:** [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-deterministic-child-payload)
 
-**Scenario:** [`@feature2`](plugin-distribution.feature)
+**Scenario:** `@feature2` / `SCEN-build-deterministic-child-payload`.
 
-## FR-3 — Root-relative bounded inventory
+## FR-3 — Installed canonical invocation
 
-For historical v0.1.0, the installed extension registered only bounded read-only `spec_inventory`. Each later baseline profile SHALL preserve that contract and declare its additional read-only first-slice surface through the exact kernel/MRI manifest; distribution validates the candidate's declared surface and SHALL NOT turn the v0.3 eight-name first slice into a permanent ceiling. Every inventory execution derives the project root from OMP context, resolves only `<project-root>/.specs`, rejects lexical/link escape, orders deterministically, enforces caller/hard bounds, and returns the versioned public schema without inferring root from package/CWD.
+The release check SHALL install the exact candidate project-scope in an isolated OMP environment and invoke a canonical read-only request from a fresh session. It SHALL compare the observed candidate version and declared surface with the candidate manifest, while leaving request/result/error semantics to the kernel/runtime owner. For historical v0.3.2, the declared MCP surface is the eight shipped read-only names.
 
-**Acceptance:** [AC-3.1](ACCEPTANCE_CRITERIA.md#ac-31-bounded-root-relative-inventory)
+**Acceptance:** [AC-3.1](ACCEPTANCE_CRITERIA.md#ac-31-installed-canonical-invocation)
 
-**Scenario:** [`@feature3`](plugin-distribution.feature)
+**Scenario:** `@feature3` / `SCEN-invoke-installed-candidate`.
 
-## FR-4 — Install, reload, and fresh-session activation
+## FR-4 — Fresh-session activation
 
-Each release lifecycle SHALL separately prove marketplace discovery, project-scope install of the exact candidate, installed-version observation, `/reload-plugins`, termination of the pre-install session, fresh-session startup, and invocation of the declared candidate surface from the installed child. Install/reload alone is never activation proof. Current v0.3.2 status additionally binds these receipts to `docs/validation/release-status-v0.3.2.json`.
+Discovery, project-scope install, installed-version observation, `/reload-plugins`, old-session termination, fresh-session startup, and invocation SHALL be separate observations. Install or reload without fresh invocation SHALL not prove activation.
 
-**Acceptance:** [AC-4.1](ACCEPTANCE_CRITERIA.md#ac-41-fresh-session-activation), [AC-4.2](ACCEPTANCE_CRITERIA.md#ac-42-reload-is-not-activation-proof)
+**Acceptance:** [AC-4.1](ACCEPTANCE_CRITERIA.md#ac-41-fresh-session-activation)
 
-**Scenario:** [`@feature4`](plugin-distribution.feature)
+**Scenario:** `@feature4` / `SCEN-require-fresh-session-activation`.
 
-## FR-5 — Clean-build dependency-independent package
+## FR-5 — Dependency-absent execution
 
-Release packaging SHALL delete prior `plugins/omp-spec-kit/dist/`, copy/rebase the exact root sources `src/v0.1/{extension,inventory}.js` plus closed `src/{kernel,adapters,mcp}` trees, emit a deterministic hash manifest, and reject missing, unexpected, non-regular, or symlink output. Because OMP recursively copies the child source, verification SHALL enforce the complete candidate-profile allowlist including `.mcp.json`/`bin` only for MCP-enabled profiles. Installed extension and MCP launcher SHALL execute with source checkout/root `node_modules` absent; ambient imports, absolute paths, source/build/test/evidence files, native addons, downloads, and undeclared dependencies are forbidden.
+The installed extension and MCP launcher SHALL load and serve the canonical invocation when the source checkout, repository-root `node_modules`, and unrelated external dependencies are unavailable. Absolute workstation paths, install-time downloads, native addons, and undeclared runtime dependencies SHALL block release.
 
 **Acceptance:** [AC-5.1](ACCEPTANCE_CRITERIA.md#ac-51-dependency-absent-execution)
 
-**Scenario:** [`@feature5`](plugin-distribution.feature)
+**Scenario:** `@feature5` / `SCEN-run-without-ambient-dependencies`.
 
-## FR-6 — Read-only diagnostics and failure containment
+## FR-6 — Installed containment and read-only smoke
 
-`spec_inventory` and its factory SHALL perform zero repository writes, state creation, process spawning, network access, credential access, model calls, watchers, locks, database access, repair, mutation, or background work. Missing `.specs`, non-directory `.specs`, malformed entries, permission failures, aborts, and safety-cap truncation SHALL return bounded typed diagnostics and SHALL NOT terminate the OMP session or claim a healthy corpus.
+The installed smoke SHALL prove that the candidate resolves the active project rather than package CWD, does not escape the project/package boundaries, and performs no repository mutation, credential access, network access, model call, or background work. Detailed runtime diagnostics remain owned by the runtime contracts.
 
-**Acceptance:** [AC-6.1](ACCEPTANCE_CRITERIA.md#ac-61-read-only-negative-cases)
+**Acceptance:** [AC-6.1](ACCEPTANCE_CRITERIA.md#ac-61-installed-containment-and-read-only-smoke)
 
-**Scenario:** [`@feature6`](plugin-distribution.feature)
+**Scenario:** `@feature6` / `SCEN-contain-installed-invocation`.
 
-## FR-7 — Version authority and release-aware upgrade
+## FR-7 — Version consistency and upgrade
 
-Catalog entry version, child package version, embedded runtime version, installed observation, artifact metadata, evidence candidate, and GitHub tag SHALL agree. v0.1.0 requires no prior version; every subsequent profile SHALL prove upgrade from an actual public lower version after separate catalog refresh, exact explicit install, and fresh-session observation. Current v0.3.2 receipts SHALL identify v0.3.0 as the public predecessor and bind upgrade observations to the exact candidate/prior digests. Partial, mismatched, or stale-session observations fail.
+Catalog version, child version, embedded version, tag, commit, archive digest, and fresh installed observation SHALL identify one candidate. Every release after the first SHALL upgrade from exact bytes of a real lower public release. Catalog refresh or an old-session observation SHALL not count as upgrade proof.
 
-**Acceptance:** [AC-7.1](ACCEPTANCE_CRITERIA.md#ac-71-version-consistency), [AC-7.2](ACCEPTANCE_CRITERIA.md#ac-72-subsequent-release-upgrade)
+**Acceptance:** [AC-7.1](ACCEPTANCE_CRITERIA.md#ac-71-version-consistency-and-upgrade)
 
-**Scenario:** [`@feature7`](plugin-distribution.feature)
+**Scenario:** `@feature7` / `SCEN-upgrade-from-real-public-release`.
 
-## FR-8 — Release-aware uninstall, reinstall, and rollback preservation
+## FR-8 — Uninstall, reinstall, and rollback
 
-Every candidate SHALL prove project-scope uninstall plus fresh-session absence, then exact-candidate reinstall/reload/fresh-session invocation with project and `.specs` preservation. Every post-first release SHALL additionally prove rollback to an explicit public prior artifact and fresh-session observation. Current v0.3.2 uses the real v0.3.0 predecessor and the upgrade/rollback receipt digests recorded in `docs/validation/release-status-v0.3.2.json`. Marketplace removal, cache deletion, old-session observation, or unbound prior bytes do not count.
+Every candidate SHALL prove uninstall plus fresh-session absence and reinstall of the same candidate digest plus fresh invocation. Every release after the first SHALL also roll back to exact bytes of a real public predecessor. Non-OMP-managed project bytes SHALL remain unchanged across all transitions.
 
-**Acceptance:** [AC-8.1](ACCEPTANCE_CRITERIA.md#ac-81-candidate-uninstall-and-reinstall), [AC-8.2](ACCEPTANCE_CRITERIA.md#ac-82-subsequent-release-rollback)
+**Acceptance:** [AC-8.1](ACCEPTANCE_CRITERIA.md#ac-81-uninstall-reinstall-and-rollback)
 
-**Scenario:** [`@feature8`](plugin-distribution.feature)
+**Scenario:** `@feature8` / `SCEN-recover-with-exact-artifacts`.
 
-## FR-9 — Provenance, license, secret, and package gates
+## FR-9 — Public-safety gates
 
-Before a public artifact or release is created, automation SHALL verify imported-file provenance against the immutable source commit and hashes, approved license disposition, zero secret findings, absence of local/user state and evidence leakage, a clean public diff, and an allowlisted packaged file set. Unknown license, provenance mismatch, credential-like material, `.env`, logs, local caches, OMP user state, or unapproved artifacts SHALL block publication.
+Before publication, automation SHALL verify source provenance and license disposition, secret scanning, absence of local/user state, a clean public diff, and an allowlisted child payload. A failed check SHALL stop publication and SHALL not leak the triggering secret or host path.
 
 **Acceptance:** [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-public-safety-gates)
 
-**Scenario:** [`@feature9`](plugin-distribution.feature)
+**Scenario:** `@feature9` / `SCEN-block-unsafe-public-artifact`.
 
-## FR-10 — GitHub Actions release transaction
+## FR-10 — Build once, publish the same digest, attest once
 
-GitHub Actions SHALL verify public safety/provenance, schema/cardinality, clean package/dependency-absent execution, lifecycle BDD, version consistency, and the complete distribution evidence matrix. `distribution-evidence.yml` SHALL build and attest the exact evidence subject; `release.yml` SHALL download only a successful run for the peeled tag commit, revalidate candidate identity, verify the fixed GitHub Artifact Attestations trust contract before notes/upload, publish the already verified digest exactly once, and attest published assets. PRs/untagged pushes SHALL not publish; reruns SHALL not overwrite a different release artifact.
+The tag workflow SHALL build the candidate once, pass its archive SHA-256 through the named release checks, and publish those exact bytes without rebuilding. It SHALL refuse replacement of an existing different asset and SHALL create one final GitHub Artifact Attestation whose subject is the public archive. PRs and untagged pushes SHALL remain verify-only.
 
-**Acceptance:** [AC-10.1](ACCEPTANCE_CRITERIA.md#ac-101-github-actions-release-transaction)
+**Acceptance:** [AC-10.1](ACCEPTANCE_CRITERIA.md#ac-101-build-once-publish-and-attest)
 
-**Scenario:** [`@feature10`](plugin-distribution.feature)
+**Scenario:** `@feature10` / `SCEN-publish-same-digest-with-final-attestation`.
 
-## FR-11 — Evidence-gated claims
+## FR-11 — Distribution-owned release status
 
-No README, changelog, catalog, release notes, badge, tag, task status, or generated report SHALL claim installability, activation, passing scenarios, upgradeability, rollback, or release readiness before corresponding current receipts exist for the same commit, OMP pin, platform fixture, artifact digest, and version. `.feature` text and structural validation are specifications, not executed evidence. Missing, stale, foreign-commit, or internally inconsistent receipts SHALL yield `SPEC_ONLY/NOT_READY` and block release.
+After publication, distribution SHALL write one immutable status record containing version, tag, commit, package-tree and archive SHA-256 values, supported OMP/platform identity, named check outcomes, lifecycle observations, public asset identity, and final attestation identity. It SHALL not decide global badges, task states, capabilities, MRI, or product delivery.
 
-**Acceptance:** [AC-11.1](ACCEPTANCE_CRITERIA.md#ac-111-no-claim-before-proof)
+**Acceptance:** [AC-11.1](ACCEPTANCE_CRITERIA.md#ac-111-distribution-owned-status-record)
 
-**Scenario:** [`@feature11`](plugin-distribution.feature)
+**Scenario:** `@feature11` / `SCEN-write-compact-distribution-status`.
 
-## FR-12 — Public inventory contract and containment
+## FR-12 — Compact release decision
 
-The request, result, entry, diagnostic, and evidence receipt schemas SHALL be versioned and exhaustively defined in `plugin-distribution_SCHEMA.md`. Unknown request properties, invalid bounds, duplicate spec slugs, unsupported schema versions, non-relative paths, unsafe link targets, or result over hard limits SHALL fail closed with a typed diagnostic. Paths in public results SHALL be normalized project-relative paths; absolute paths, usernames, environment values, file contents, credentials, stack traces, and host state SHALL never be returned.
+The release job SHALL decide from the named checks `target`, `build`, `install`, `invoke`, `dependencyAbsent`, `lifecycle`, and `publicSafety`. It SHALL report failed check names with bounded human diagnostics in CI logs; no public per-FR receipts, exhaustive host/runtime schemas, serialized-byte counters, or global repository inventory are part of the decision contract.
 
-**Acceptance:** [AC-12.1](ACCEPTANCE_CRITERIA.md#ac-121-schema-and-containment-negative-cases)
+**Acceptance:** [AC-12.1](ACCEPTANCE_CRITERIA.md#ac-121-compact-release-decision)
 
-**Scenario:** [`@feature12`](plugin-distribution.feature)
+**Scenario:** `@feature12` / `SCEN-block-on-named-check-failure`.
 
-## FR-13 — Aggregate release eligibility
+## FR-13 — Practical distribution release path
 
-The distribution evaluator SHALL compute only `distribution-release-eligibility@2` for the exact FR-1..FR-12 claim matrix. Every cell SHALL bind a canonical-contained producer receipt to candidate version/tag/commit/digests, OMP pin, platform fixture, applicability, lifecycle and observations. Self-authored metadata alone SHALL remain blocked. The current normative independent trust root is GitHub Artifact Attestations over the exact evidence subject, verified with repository `stgmt/omp-spec-kit` (or exact trusted `GITHUB_REPOSITORY`), fixed signer workflow `stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml`, and source ref `refs/tags/<candidate-tag>`; missing `gh`, unpinned repo, wrong signer workflow, wrong source ref, subject/hash mismatch, verifier timeout/nonzero/spawn error, or incomplete matrix SHALL fail closed. Predicate JSON is diagnostic, not trust authority. MRI eligibility remains owned by `mcp-release-integrity`; baseline/capability/public delivery conjunction remains owned by `product:FR-6`. Historical v0.3.2 `public-release-eligibility@1` receipts remain evidence but SHALL NOT define the forward distribution evaluator.
+A candidate is distribution-ready only when FR-1 through FR-12 are satisfied for one tag/commit/archive identity. The only forward path is: validate the contained target, build once, run installed and lifecycle/public-safety checks, publish the same digest, create the final archive attestation, and record the result. Historical eligibility and internal evidence-attestation formats SHALL remain readable historical evidence but SHALL NOT be required or emitted as the forward API.
 
-**Acceptance:** [AC-13.1](ACCEPTANCE_CRITERIA.md#ac-131-complete-candidate-aware-release-evidence)
+**Acceptance:** [AC-13.1](ACCEPTANCE_CRITERIA.md#ac-131-practical-distribution-release-path)
 
-**Scenario:** [`@feature13`](plugin-distribution.feature)
+**Scenario:** `@feature13` / `SCEN-use-one-practical-release-path`.
