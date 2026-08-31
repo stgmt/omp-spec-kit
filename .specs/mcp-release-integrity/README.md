@@ -1,33 +1,33 @@
 # MCP Release Integrity
 
-## Current status
+## Product state
 
-The current public MRI baseline is v0.3.2. Tag, commit, candidate/package/archive digests, lifecycle receipt identities, release URL and GitHub asset-attestation identity are summarized in [`release-status-v0.3.2.json`](../../docs/validation/release-status-v0.3.2.json). v0.3.1 is historical corrective evidence; v0.3.0 remains publicly tagged with the active-project-root advisory.
+- **SHIPPED:** v0.3.2 is public and installable. Its immutable release reader is [`release-status-v0.3.2.json`](../../docs/validation/release-status-v0.3.2.json).
+- **NEXT:** use one black-box MRI run for a future candidate, then publish the same verified archive bytes and prove response source identity.
+- **LATER:** capabilities outside the historical eight-tool read-only surface are owned by their own specifications, not by MRI.
 
-## Goal
+## Contract
 
-Preserve the released active-project-root and protocol corrections, prove exact candidate/lifecycle/release identity, and keep the eight read-only SCHEMA-11 MCP names as the v0.3 first slice / candidate identity rather than a permanent registry ceiling.
+MRI answers five questions:
 
-## Scope
+1. Does the installed package launch from the active project, recover from protocol errors, and execute the historical eight read-only MCP tools without changing the corpus?
+2. Does every installed result identify the server, one resolved project root, and whether an explicit override differs from the active project?
+3. Did one successful unfiltered real-producer run cover those behaviors and a real upgrade, rollback, and reinstall journey?
+4. Are candidate inputs contained, deterministic clean-tag bytes, and are those exact bytes attested, downloaded, re-hashed, and published without rebuild?
+5. Do release notes, installation guidance, the v0.3.0 advisory, and the immutable v0.3.2 record agree?
 
-- Installed MCP starts from the active OMP project, not package cwd.
-- Invalid JSON-RPC receives a terminal standards-compliant error.
-- The eight v0.3 first-slice names are proven through an isolated copied package and remain registered when later gated names arrive.
-- Candidate archive, tag, receipts, lifecycle, release assets, public notes and attestation are identity-bound.
-- Upgrade and rollback use the real v0.3.0 public predecessor; history/advisory remain reversible and intact.
+Manager/provider topology remains outside this contract. Server identity and project-root provenance are part of the installed result contract because a result without source identity can be mistaken for data from the active project.
 
-## Out of scope
+## Documents
 
-Authoring/mutation APIs, upstream OMP changes, tag/history rewrites, and creating a new runtime release as part of this specification-only corpus repair. Later generator/evidence/authoring names have their own capability gates and do not rewrite v0.3.2 receipts.
-
-## Primary evidence
-
-- [Current public release status](../../docs/validation/release-status-v0.3.2.json)
-- [Research](RESEARCH.md)
-- [Requirements](FR.md)
+- [Functional requirements](FR.md)
 - [Acceptance criteria](ACCEPTANCE_CRITERIA.md)
 - [Design](DESIGN.md)
-- `mcp-release-integrity.feature` — specification text; only a bound Cucumber Message execution is evidence
+- [Fixtures](FIXTURES.md)
+- [Tasks](TASKS.md)
 
-`.progress.json` records completion of the four spec-authoring phases only. Runtime v0.3.2 is public; the amended contract checks and task board remain the authority for current revalidation state.
-- [Task board](TASKS.md)
+The feature file is executable specification text. Evidence is a bound real producer run, never scenario prose or `.progress.json`.
+
+## Current lifecycle contract
+
+Current manager discovery uses OMP 18.0.10 and may namespace installed MCP server names. The eight published tools remain the compatibility baseline; staged registries are verified separately.

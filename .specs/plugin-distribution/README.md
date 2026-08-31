@@ -1,43 +1,36 @@
 # Plugin Distribution Specification
 
-**Contract status:** the v0.1 distribution contract has a delivered public descendant at v0.3.2. Current release identity and attestation receipts are summarized in `docs/validation/release-status-v0.3.2.json`; Gherkin remains specification text unless a cited producer receipt proves execution.
+**SHIPPED:** v0.3.2 is the current public read-only plugin. Its bounded release record is `docs/validation/release-status-v0.3.2.json`.
 
-This specification owns one marketplace, one child package, one extension entry, one profile-gated MCP server identity, candidate packaging/lifecycle/safety receipts, and distribution-only eligibility. Historical v0.1.0 began with bounded `spec_inventory`; delivered v0.3.2 preserves the topology and adds its read-only kernel/MCP first slice.
+This specification owns the practical path from a tagged commit to an installable `omp-spec-kit` archive: select the target catalog entry, build deterministic contained bytes once, exercise those installed bytes, prove lifecycle and public-safety checks, publish the same digest, and create one final GitHub Artifact Attestation for the public asset.
 
-## Scope
+It does not own OMP's marketplace, extension, or MCP schemas; the kernel's request/result contracts; MRI; or product capability status. Historical v0.1 through v0.3.2 receipts remain historical evidence and are never reinterpreted as the forward release API.
 
-- Marketplace identity: `omp-spec-kit`
+## Product identity
+
+- Catalog: `.omp-plugin/marketplace.json`
+- Target entry: `omp-spec-kit`
+- Contained source: `./plugins/omp-spec-kit`
 - Installed identity: `omp-spec-kit@omp-spec-kit`
-- Catalog path: `.omp-plugin/marketplace.json`
-- Child package: `plugins/omp-spec-kit`
-- Extension artifact: `plugins/omp-spec-kit/dist/extension.js`
-- MCP server identity from v0.3 profiles: `omp-spec-kit`
-- First installable version: `0.1.0`; current delivered baseline: `0.3.2`
-- Install scope proven by this specification: project
+- Extension entry: `./dist/extension.js`
+- MCP configuration: `plugins/omp-spec-kit/.mcp.json`
+- Current version: `0.3.2`
+- Supported release-smoke pin: OMP v17.3.7, commit `8500092296621a6826b7136e840f8a59ea338958`
 
-The repository root is the marketplace root. A nested marketplace, a nested plugin package, a second catalog entry, or a second `omp.extensions` entry is invalid.
+Unrelated catalog entries or packages are outside this specification. The selected `omp-spec-kit` name must be unique in its catalog, and its source and entrypoints must remain inside the selected child.
 
-## Readiness rule
+## Public states
 
-A catalog/build/install/reload/job summary or self-authored receipt matrix is not distribution proof. Forward `distribution-release-eligibility@2` requires the complete FR-1..FR-12 matrix plus `gh attestation verify` over the exact evidence subject with repository `stgmt/omp-spec-kit`, signer workflow `stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml`, and source ref `refs/tags/<candidate>`; missing/wrong/unavailable verification fails closed. That result owns distribution eligibility only. MRI remains `mcp-release-integrity`; product baseline/capability/public delivery remains `product:FR-6`. Historical v0.3.2 composed receipts remain valid evidence.
+- **SHIPPED:** public v0.3.2 and its historical receipts.
+- **NEXT:** use the single release path in this specification for the next candidate.
+- **LATER:** capabilities owned by other specifications; they do not alter this release path until included in a tagged candidate.
 
 ## Documents
 
-- [User stories](USER_STORIES.md)
-- [Use cases](USE_CASES.md)
-- [Research](RESEARCH.md)
-- [Requirements summary](REQUIREMENTS.md)
-- [Functional requirements](FR.md)
-- [Non-functional requirements](NFR.md)
-- [Acceptance criteria](ACCEPTANCE_CRITERIA.md)
-- [Design](DESIGN.md)
-- [Tasks](TASKS.md)
-- [File state and planned changes](FILE_CHANGES.md)
-- [Specification changelog](CHANGELOG.md)
-- [BDD specification](plugin-distribution.feature)
-- [Fixture contract](FIXTURES.md)
-- [Public schemas](plugin-distribution_SCHEMA.md)
+[Stories](USER_STORIES.md) · [Use cases](USE_CASES.md) · [Research](RESEARCH.md) · [Requirements](REQUIREMENTS.md) · [FR](FR.md) · [NFR](NFR.md) · [AC](ACCEPTANCE_CRITERIA.md) · [Design](DESIGN.md) · [Tasks](TASKS.md) · [Files](FILE_CHANGES.md) · [Changelog](CHANGELOG.md) · [BDD](plugin-distribution.feature) · [Fixtures](FIXTURES.md) · [Schemas](plugin-distribution_SCHEMA.md)
 
-## Normative identity
+Local IDs become qualified outside this directory, for example `plugin-distribution:FR-10`.
 
-Document-local IDs such as `FR-1` are authored locally. Any runtime, report, or cross-spec reference MUST qualify them as `plugin-distribution:FR-1`, `plugin-distribution:AC-1.1`, or `plugin-distribution:@feature1`.
+## Current lifecycle contract
+
+The current compatibility profile targets OMP 18.0.10. Future package updates require immutable runtime, install, reload, fresh-session, and rollback evidence.

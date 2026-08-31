@@ -1,29 +1,19 @@
 # File Changes
 
-All runtime paths are future and repository-relative. Root JavaScript is source of truth; the existing `src/v0.1/extension.js` remains the single extension factory. `scripts/build-plugin.mjs` copies/bundles accepted root files into `plugins/omp-spec-kit/dist/**`; no `plugins/omp-spec-kit/src/**` source or standalone enforcement factory is supported.
+Root JavaScript is the source of truth. The existing `src/v0.1/extension.js` remains the single extension factory, and `scripts/build-plugin.mjs` owns the bundled payload.
 
 | Path | Action | State | Reason |
 |---|---|---|---|
-| `src/enforcement/registry.js` | create | planned | Closed supported-host tool-effect manifest and live comparison (FR-1, FR-7) |
-| `src/enforcement/classify.js` | create | planned | Pure all-tool effect/authority classification (FR-3, FR-7) |
-| `src/enforcement/command-effects.js` | create | planned | Versioned exhaustive command target grammar; dynamic input becomes incomplete (FR-7) |
-| `src/enforcement/resolve-targets.js` | create | planned | I/O-capable realpath/reparse/symlink/ancestor containment (FR-3, FR-7) |
-| `src/enforcement/decision.js` | create | planned | Conservative enforcement decision table and qualified redirect (FR-3, FR-4) |
-| `src/enforcement/mode.js` | create | planned | Same-candidate product/authoring/enforcement binding (FR-8, FR-9) |
-| `src/enforcement/diagnostics.js` | create | planned | Kernel finding and separate policy-diagnostic projections (FR-2, FR-10) |
-| `src/enforcement/census.js` | create | planned | Bounded corpus census projection (FR-2) |
-| `src/enforcement/release.js` | create | planned | `spec-enforcement-release@2` capability evaluator (FR-11) |
-| `src/enforcement/register.js` | create | planned | Register handlers on the existing ExtensionAPI; no default factory (FR-1, FR-6) |
-| `src/v0.1/extension.js` | edit | planned | Import `registerSpecEnforcement` into the existing single extension entry (FR-6, FR-9) |
-| `scripts/build-plugin.mjs` | edit | planned | Add accepted enforcement root sources/dist hashes to the closed build allowlist (FR-6) |
-| `.specs/spec-enforcement/fixtures/**` | create | planned | Real event/input/filesystem/no-bypass fixtures with provenance (FR-3, FR-7, FR-10) |
-| `docs/validation/spec-enforcement-probes.json` | create | planned | Pinned v17.3.7 authority-ABI absence plus future host-authority and candidate-bundled installed-registry receipts (FR-1, FR-7) |
-| `.github/workflows/spec-enforcement-evidence.yml` | create | planned | Produce candidate-bound check receipts and GitHub Artifact Attestation bundles under the fixed signer identity (FR-11) |
-| `docs/validation/spec-enforcement-sigstore-trust.json` | create | planned | Reviewed Sigstore TUF/Fulcio/Rekor trust-root snapshot with version/hash/validity and rotation rule (FR-11) |
-| `docs/validation/spec-enforcement-release.json` | create | planned | Candidate-bound eligibility, installed, containment, budget, and adversarial receipts (FR-11) |
-| `.specs/product/product_SCHEMA.md` | unchanged | delivered contract | Already owns `SPEC_ENFORCEMENT` capability after `AUTHORING_MCP`; evaluator result remains required |
-| `MIGRATION_MATRIX.md` | unchanged | current contract | FR-39 remains DEFER; this capability does not claim persistent audit delivery |
+| `src/enforcement/decision.js` | create | planned | Exact two-name allowlist, closed decision matrix, four codes, and bounded redirect (FR-2, FR-4, FR-5) |
+| `src/enforcement/resolve-targets.js` | create | planned | Canonical path and filesystem containment for existing and new targets (FR-3, FR-4) |
+| `src/enforcement/register.js` | create | planned | Register one current `tool_call` handler on the supplied extension API (FR-1, FR-6) |
+| `src/v0.1/extension.js` | edit | planned | Invoke `registerSpecEnforcement` once from the existing factory (FR-1, FR-6) |
+| `scripts/build-plugin.mjs` | edit | planned | Bundle the three enforcement modules into the existing plugin artifact (FR-6) |
+| `tests/enforcement/path-policy.test.js` | create | planned | Exact-name, decision precedence, bounded output, and side-effect checks (FR-2, FR-4, FR-5) |
+| `tests/enforcement/containment.test.js` | create | planned | Separator, case, boundary, dot-segment, realpath, link, reparse, and new-target checks (FR-3) |
+| `tests/enforcement/installed-policy.test.js` | create | planned | Dependency-absent one-factory installed smoke (FR-1, FR-6) |
+| `.specs/spec-enforcement/fixtures/**` | create | planned | Real OMP call and cross-platform filesystem fixtures with provenance (FR-2 through FR-6) |
 
 ## Impact analysis
 
-No destructive action is planned. Enforcement extends the single existing extension only after the product capability gate accepts the same candidate. Historical v0.3 read-only behavior and receipts remain unchanged. Raw `.specs/**` mutation is blocked or redirected exclusively to the qualified `omp-spec-kit` authoring MCP authority; the capability adds no second writer, validator, query surface, persistent audit, or control plane.
+The change adds no public tool and no second writer. It only blocks non-allowlisted direct mutations when the resolved target is the canonical `.specs` tree or containment is indeterminate. Existing read-only v0.3.2 behavior and historical release receipts remain unchanged.

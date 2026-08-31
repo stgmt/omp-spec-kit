@@ -1,51 +1,55 @@
 # Use Cases
 
-## UC-1: Fresh project-scoped MCP discovery
+## UC-1: Launch from the active project
 
-**Stories:** User Story 1, User Story 4.
+1. Install the package at project scope.
+2. Start a fresh OMP session from project-a.
+3. Call the read-only MCP surface.
+4. Observe only project-a data; package and project-b decoys are absent.
+5. Optionally supply a validated absolute project-b override and observe only project-b.
 
-1. A user creates project-a with real `.specs` content and installs the v0.3.2 package at project scope.
-2. OMP starts a fresh session from project-a and discovers the package `.mcp.json`.
-3. The package-relative launcher finds `dist/mcp/server.js`; omitted `cwd` lets OMP pass project-a as the process cwd.
-4. The client calls each read-only MCP tool.
-5. Every answer is built from project-a; no package or second-project data appears.
+## UC-2: Recover after an invalid protocol frame
 
-## UC-2: Invalid protocol request receives one answer
+1. Send malformed JSON or an invalid identified request.
+2. Receive one JSON-RPC terminal error.
+3. Send a valid request on the same process.
+4. Receive a normal response with no non-protocol stdout.
 
-**Stories:** User Story 2.
+## UC-3: Exercise the historical v0.3.2 surface
 
-1. A client sends a newline-delimited JSON-RPC request with version `1.0` and id `7`.
-2. The server classifies it as an invalid request before dispatch.
-3. The server writes exactly one `-32600` response with id `7`.
-4. Unknown method and unknown tool requests return `-32601` and `-32602` with their original ids.
-5. The client can continue using the same process for a subsequent valid request.
+1. Copy only the allowlisted built payload to an isolated package directory.
+2. Verify the pinned corpus manifest before loading it.
+3. Launch the installed server with no source checkout or ambient dependency ancestry.
+4. Call exactly `spec_inventory`, `spec_get_node`, `spec_find_nodes`, `spec_get_edges`, `spec_trace`, `spec_diagnostics`, `spec_overview`, and `spec_markdown_inventory`.
+5. Check complete external envelopes, corpus identity, and zero writes.
 
-## UC-3: All-eight tool parity from an installed package
+## UC-4: Run a future candidate journey
 
-**Stories:** User Story 1, User Story 3.
+1. Build one clean candidate.
+2. Run the ordinary unfiltered Docker profile and retain its real Cucumber Message output.
+3. Install the prior public version, upgrade to the candidate, roll back, uninstall, and reinstall using fresh sessions for each observation.
+4. Compare observed versions and project hashes before accepting the run.
+5. Reject failed, malformed, meta-only, tag-scoped, or name-scoped output as trusted-run replacement.
 
-1. Test setup builds the plugin once and copies only the allowlisted payload to an isolated package location.
-2. A real server process starts through the installed package launcher.
-3. The test calls all eight SCHEMA-11 tools with valid request matrices.
-4. Each structured result deep-equals the shared query-service result over the same manifest-verified corpus.
-5. Snapshot comparisons prove the served corpus remains byte-for-byte unchanged.
+## UC-5: Publish the verified archive
 
-## UC-4: Candidate release upgrade and rollback
+1. Assemble a deterministic archive from the clean peeled tag.
+2. Verify contained inputs, package safety, executable mode, and candidate digests.
+3. Verify GitHub Artifact Attestations for the exact subject, repository, signer workflow, and tag ref.
+4. Publish by downloading and re-hashing the verified archive; never rebuild.
+5. Treat an existing release as idempotent only when its required asset name, size, and digest match.
 
-**Stories:** User Story 3.
+## UC-6: Read immutable v0.3.2 evidence
 
-1. A clean project starts from the publicly released v0.3.0 tagged source proof.
-2. It refreshes the catalog, upgrades to v0.3.2, reloads plugin metadata, and starts a fresh OMP session.
-3. The observed installed version is v0.3.2 and non-OMP project hashes equal their baseline.
-4. It explicitly reinstalls v0.3.0, reloads, and starts another fresh session.
-5. The observed version is v0.3.0, hashes remain equal, and both receipts bind to the candidate/tag identities.
+1. Read `docs/validation/release-status-v0.3.2.json` as a sealed historical record.
+2. Reconcile tag, commit, candidate, package-tree, archive, asset, attestation, release-note, and advisory identities.
+3. Do not reinterpret old evidence after feature or step files change.
 
-## UC-5: Safe release publication and recovery information
+## UC-7: Distinguish the active and overridden project
 
-**Stories:** User Story 3, User Story 4.
+1. Start the installed package from project-a without an override.
+2. Confirm every MCP result carries `serverName: "omp-spec-kit"`, matching opaque resolved/active root identities, and `rootMode: "active-project"`.
+3. Start the same package with an explicit absolute project-b override while the cwd remains project-a.
+4. Confirm every MCP result carries one project-b resolved identity, `rootMode: "explicit-absolute-override"`, and `matchesActiveProject: false`.
+5. Run the OMP extension inventory and query tools with the same cwd/override pair and confirm they report the same provenance instead of splitting between `ctx.cwd` and the override.
 
-1. Verify creates one candidate archive, manifest, digests, public-safety report, Docker BDD receipt, and lifecycle receipts.
-2. Publish downloads that candidate rather than rebuilding it.
-3. It rejects a mismatched tag, archive, receipt, or existing release asset.
-4. After success, generated v0.3.2 notes and README describe verified behavior.
-5. v0.3.0’s release remains available with a reversible advisory, never a history rewrite.

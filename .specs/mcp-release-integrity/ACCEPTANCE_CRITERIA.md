@@ -1,37 +1,43 @@
 # Acceptance Criteria (EARS)
 
-## AC-1.1: Active project wins over package cwd
+## AC-1.1: Active project and contained override
 
-**Requirement:** [FR-1](FR.md#fr-1-active-project-mcp-root).
+**Requirement:** [FR-1](FR.md#fr-1-active-project-installed-behavior).
 
-WHEN OMP discovers the installed package launcher from project-a without an override THEN the server SHALL return project-a data and exclude package-decoy/project-b; WHEN `OMP_SPEC_KIT_ROOT` is the validated absolute project-b path THEN only project-b SHALL be served; IF it is relative, unresolved, the bare literal, or the canonical package root THEN project-a SHALL remain; IF inherited cwd equals package root THEN startup SHALL refuse.
+WHEN the installed package starts from project-a without an override THEN every result SHALL describe project-a and exclude project-b and package decoys; WHEN a validated absolute override selects project-b THEN only project-b SHALL be served; IF a root is relative, unresolved, package-local, or escaping THEN it SHALL NOT select data; IF startup inherits package cwd THEN startup SHALL refuse before serving.
 
-## AC-2.1: Invalid frames are terminal and framed
+## AC-2.1: One error and process recovery
 
-**Requirement:** [FR-2](FR.md#fr-2-terminal-json-rpc-protocol-responses).
+**Requirement:** [FR-2](FR.md#fr-2-terminal-protocol-errors-and-recovery).
 
-WHEN a JSON-RPC 1.0 request object with id `7` reaches the server THEN it SHALL emit exactly one JSON-RPC 2.0 error response with id `7` and code `-32600`; WHEN malformed JSON reaches the server THEN it SHALL emit exactly one response with null id and code `-32700`; WHEN an unknown method with id `8` or an unknown tool with id `9` is requested THEN it SHALL emit exactly one response with the same id and code `-32601` or `-32602` respectively; AND WHEN a valid request follows an invalid frame THEN it SHALL return its canonical envelope.
+WHEN invalid JSON-RPC, malformed JSON, an unknown method, or an unknown tool is sent THEN exactly one response SHALL carry `-32600`, `-32700`, `-32601`, or `-32602` with the required id; WHEN a valid request follows THEN it SHALL succeed on the same process and stdout SHALL contain protocol frames only.
 
-## AC-3.1: The packaged MCP surface is complete and immutable
+## AC-3.1: Eight installed handlers and zero writes
 
-**Requirement:** [FR-3](FR.md#fr-3-installed-package-all-tool-parity).
+**Requirement:** [FR-3](FR.md#fr-3-historical-eight-tool-installed-surface).
 
-WHEN an isolated allowlisted v0.3.2 package copy is launched without repository source or ambient `node_modules` ancestry THEN tools/list SHALL return exactly the eight SCHEMA-11 names of the v0.3 first slice and every valid tool call SHALL deep-equal the direct-service `QueryEnvelope`; this release identity SHALL NOT cap later generator-port growth; IF the served corpus changes after the snapshot THEN the scenario SHALL fail instead of accepting different bytes.
+WHEN the isolated v0.3.2 payload runs without source checkout or ambient dependency ancestry THEN `tools/list` SHALL equal the eight named historical tools, each handler SHALL return a complete result for the manifest-verified corpus, at least one serialization boundary SHALL match the direct query service, and corpus bytes SHALL remain unchanged.
 
-## AC-4.1: Candidate evidence is complete and bound
+## AC-4.1: Unfiltered run and observed lifecycle
 
-**Requirement:** [FR-4](FR.md#fr-4-candidate-bound-lifecycle-eligibility).
+**Requirement:** [FR-4](FR.md#fr-4-one-real-candidate-run).
 
-WHEN MRI eligibility is evaluated THEN every one of the 18 scenario IDs and all 40 source-derived pickle expansions SHALL have passing semantic chains plus matching candidate/lifecycle/FR receipts; any missing expansion or identity SHALL block. WHEN a future candidate uses GitHub-attestation trust THEN production SHALL verify the exact subject/repository/workflow/ref and emit separate MRI/distribution/public results. The bounded historical v0.3.2 positive claim SHALL instead reconcile `release-status-v0.3.2.json`, require its distribution subject SHA to equal the evidence distribution receipt digest, and SHALL NOT pretend Docker reran the trusted verifier; self-attested or unverifiable local candidates remain blocked.
+WHEN a future candidate is verified THEN one successful unfiltered real Docker Cucumber Message run SHALL be bound to candidate/archive/feature/step/source digests and SHALL record passing active-project, protocol, eight-tool, safety, upgrade, rollback, uninstall, and reinstall observations with fresh-session versions and unchanged project hashes; IF output is failed, malformed, meta-only, tag-scoped, or name-scoped THEN it SHALL NOT replace trusted run evidence. Scenario or pickle counts and receipt key sets SHALL NOT decide acceptance.
 
-## AC-5.1: Publish consumes the verified artifact only
+## AC-5.1: Publish only the attested candidate bytes
 
-**Requirement:** [FR-5](FR.md#fr-5-artifact-only-publication).
+**Requirement:** [FR-5](FR.md#fr-5-contained-deterministic-candidate-and-same-byte-publication).
 
-WHEN a future verification workflow succeeds THEN publish SHALL download/re-hash the candidate bundle and SHALL NOT rebuild; mismatch SHALL stop mutation. For already-published v0.3.2, the acceptance readback is limited to one release asset row whose name/size/SHA equal the bounded archive record and whose workflow commit equals the peeled tag; it is evidence of historical identity, not a new execution of download/rebuild steps.
+WHEN a clean peeled-tag candidate is assembled THEN its contained lexical file manifest, executable mode, package-tree digest, archive digest, and candidate digest SHALL be deterministic; WHEN GitHub Artifact Attestations verifies the exact subject/repository/workflow/ref and publish downloads the archive THEN the downloaded and released SHA-256 SHALL equal the verified candidate archive; IF containment, safety, attestation, or asset identity differs THEN no release mutation SHALL occur.
 
-## AC-6.1: Public status tells users the truth
+## AC-6.1: Public history remains honest
 
-**Requirement:** [FR-6](FR.md#fr-6-honest-release-communication).
+**Requirement:** [FR-6](FR.md#fr-6-public-guidance-and-immutable-v032-evidence).
 
-WHEN bounded v0.3.2 public communication is reconciled THEN the captured real GitHub release-note body/hash/source, root README, package README, changelog and v0.3.0 advisory SHALL agree on version/archive/current/advisory identity; WHEN a new candidate lacks eligible evidence THEN `renderReleaseNotes` SHALL refuse. The historical readback SHALL not be labeled a fresh trusted-evaluator run.
+WHEN the bounded v0.3.2 record is read THEN tag, commit, candidate, package-tree, archive, release asset, attestation, captured notes, current guidance, and v0.3.0 advisory SHALL agree; historical evidence@3 fields SHALL remain readable but SHALL NOT be relabeled as a current run or a forward schema.
+
+## AC-7.1: Response source identity and root consistency
+
+**Requirement:** [FR-7](FR.md#fr-7-response-source-identity-and-root-consistency).
+
+WHEN the installed stdio MCP server serves the active project without an override THEN every one of the eight tool results SHALL identify `omp-spec-kit`, carry equal opaque resolved and active-project root identities, and declare `rootMode: active-project`; WHEN an explicit absolute override selects project-b THEN every result SHALL identify one project-b root identity, declare `rootMode: explicit-absolute-override`, and set `matchesActiveProject: false`; WHEN the OMP extension receives the same cwd and override THEN its legacy inventory result and every query-tool result SHALL carry the same provenance; IF any result exposes an absolute root path, environment value, document body, or silently mixes roots THEN the check SHALL fail.

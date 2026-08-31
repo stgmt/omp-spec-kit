@@ -1,40 +1,34 @@
 # Fixture Contract
 
-The v0.3.2 producer suite is delivered. Fixture presence is not execution evidence; only current producer receipts and the independent attestation over their exact evidence subject support distribution eligibility.
+Real producer output, not hand-authored shapes, is the authority for executable distribution checks.
 
-## Provenance requirements
+## Provenance required for every fixture
 
-Every committed or captured fixture records producer/source, immutable version/commit, capture command, retained-byte SHA-256/counts, trimming rationale, expected ground truth, license disposition and safety review. Synthetic variants are labeled and derive from a real admitted base. Real OMP/Cucumber output is never reconstructed from memory.
+Record producer/source, immutable version or commit, capture command, retained-byte SHA-256 and counts, trimming rationale, ground truth, license disposition, and safety review. Synthetic one-fault variants must name the real admitted base.
 
-## Delivered fixture and producer matrix
+## Retained real producers
 
-| Surface | Current path / producer | Ground truth |
+| Surface | Producer/path | Ground truth |
 |---|---|---|
-| Pinned Docker runtime | `tests/distribution/Dockerfile` | Digest-pinned Node/Bun plus OMP v17.3.7; no user credentials/state. |
-| Distribution behavior | `tests/features/plugin-distribution.feature`, `tests/step-definitions/plugin-distribution.steps.mjs` | Real package/topology/inventory/dependency/negative decisions. |
-| Lifecycle behavior | `tests/features/lifecycle-producers.feature`, `tests/step-definitions/lifecycle-producers.steps.mjs` | Install/reload/fresh session/uninstall/reinstall and real v0.3.0↔v0.3.2 upgrade/rollback observations. |
-| Candidate world | `tests/helpers/release-candidate-world.mjs` | Exact candidate/digest/evidence identities and one-fault mutations. |
-| Real Cucumber messages | `tests/fixtures/release-candidate/cucumber-messages.ndjson` plus provenance JSON | Real full Docker Cucumber stream; scenario/step counts and required passing scenario chains reconcile. |
-| Frozen real corpus | `tests/fixtures/kernel/real-corpus/` plus manifest | Byte/hash/count ground truth independent of mutable `.specs`. |
-| Pinned OMP discovery | `tests/fixtures/omp-discovery-runtime/`, `tests/helpers/omp-discovery-world.mjs` | Target-only manager connection and active-project query. |
-| Distribution evidence subject | `create-distribution-evidence.mjs` output in `distribution-evidence.yml` | Complete FR-1..FR-12 content-addressed matrix for one candidate/platform/applicability profile. |
-| Public safety | candidate `public-safety.json`/release evidence asset | Provenance/license/secret/state/path/package violations block without leaking sentinel values. |
-| Generated negative variants | disposable temp roots derived by step definitions | Missing/non-directory/excess/unreadable/link escape, duplicate topology, malformed requests, identity/trust/receipt faults each change one observable dimension. |
+| Supported host | `tests/distribution/Dockerfile` | Pinned runtime plus OMP v17.3.7 commit `8500092296621a6826b7136e840f8a59ea338958`; no host credentials/state. |
+| Installed distribution | `tests/features/plugin-distribution.feature` and step definitions | Target containment, deterministic payload, fresh invocation, dependency absence, and public-safety observations. |
+| Lifecycle | `tests/features/lifecycle-producers.feature` and step definitions | Fresh install/uninstall/reinstall and real v0.3.0↔v0.3.2 upgrade/rollback observations. |
+| Real Cucumber messages | `tests/fixtures/release-candidate/cucumber-messages.ndjson` plus provenance JSON | Captured Docker stream reconciled to its producer summary. |
+| OMP discovery | `tests/fixtures/omp-discovery-runtime/` and helper | Installed active-project manager connection and canonical invocation. |
+| Current public release | `docs/validation/release-status-v0.3.2.json` | Exact v0.3.2 tag, digests, lifecycle identities, release asset, and attestations. |
 
-## Isolation contract
+## Isolation
 
-The producer SHALL:
+Each run uses disposable project and OMP user roots; installs exact artifact digests; hides checkout/root/external dependencies for the packaged smoke; uses distinct pre-install/reload/fresh sessions; hashes non-OMP-managed project files around lifecycle transitions; and cleans only fixture-owned roots. Releases after the first use real public predecessor bytes.
 
-- pin OMP/runtime/container identities;
-- use disposable project and OMP user roots without host plugins, credentials, caches or marketplace state;
-- observe zero inventory writes/network/process/model/credential access;
-- hide source checkout/root/external `node_modules` for installed dependency proof;
-- install the exact candidate by digest;
-- use separate pre-install/reload/fresh sessions;
-- hash non-OMP-managed project files before/after every lifecycle transition;
-- use real public predecessor bytes after the first release;
-- clean only roots it created.
+## Current v0.3.2 ground truth
 
-## Evidence distinction
+- tag commit: `2938389e34e2d06bdd497291ed01e0a2d89146c9`
+- candidate SHA-256: `526ef6ff94ea682a116a43e4de0b5f622686b8ef36648b7884c830ba1eac25b4`
+- package-tree SHA-256: `e8d53934122a495e1003f17126785dcd181f5d6d5f417270844e17fc25f12f92`
+- archive SHA-256: `26a2ebadd7d1888c10dc9bdbdc25e11fecf5a7dcc7515b15c7e3bb363a0cbea9`
+- public predecessor v0.3.0 digest: `a76965be487d54bd0eea31c366fb06da4874237986c6a5abf33d2191eae0c3d1`
+- upgrade receipt digest: `0940519e597e71d2db00e4a95eb34299f3cde9e1c77df2c52c52be584a272abc`
+- rollback receipt digest: `26c8b5e0481beb7375b3d39d80775a2ec9ce1b85a0d010f7368d2a1cc53893aa`
 
-Spec Gherkin and executable feature files state behavior; skipped/pending/undefined scenarios and parser reports are not passing evidence. Each distribution claim binds one regular canonical-contained `omp-spec-kit-distribution-producer-receipt@1` through `omp-spec-kit-distribution-evidence@1`. Self-authored producer fields remain diagnostic. Forward eligibility additionally requires a verifier-passing GitHub Artifact Attestation over the exact matrix subject under the fixed repository/workflow/tag trust tuple.
+The historical internal distribution-evidence subject and attestation remain in the v0.3.2 record. New executable fixtures prove the public-archive final attestation path directly and do not manufacture a forward @2 eligibility envelope.

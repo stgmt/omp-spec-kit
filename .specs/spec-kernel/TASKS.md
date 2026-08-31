@@ -1,307 +1,115 @@
 # Tasks
 
-TASK-1 through TASK-10 describe delivered runtime work whose exact per-CHK evidence is not yet locally indexed, so they remain `in-progress` rather than claiming Done When from a generic release receipt. TASK-11 is planned release-evaluator work. TASK-12 through TASK-15 are future independently gated kernel@2 capabilities.
+Tasks own the eight FR/AC/scenario/check traces. `done` means evidence-backed historical work; `planned` means NEXT implementation work.
 
-## TASK-1: Freeze schema and canonical fixtures
+## TASK-1: Define the pure core boundary
 
-**Status:** in-progress
+**Status:** planned
 
-**Estimate:** 2 days
+**Estimate:** 1 day
 
-**Owner:** Kernel maintainer
+**Requirements:** [FR-1](FR.md#fr-1-pure-occurrence-first-core)
 
-**Depends On:** none
+**Checks:** CHK-FR1-01
 
-**Requirements:** [FR-2](FR.md#fr-2-supported-documents-and-entity-ids), [FR-11](FR.md#fr-11-real-fixtures-and-provenance), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory), [FR-14](FR.md#fr-14-conjunctive-kernel-release-eligibility)
-**Checks:** CHK-FR2-01, CHK-FR11-01, CHK-FR13-01, CHK-FR14-01
+**Scenario:** `@feature1` / `@id:SCEN-pure-occurrence-first-core`
 
-**Done When:**
-- `spec-kernel@1`, `glfm-anchor@1`, and `kernel-release-evidence@1` types, document-role heading productions, shared `TASK.status` including distinct `planned`/`todo`, closed stage/profile/package-surface enums, per-stage check sets, v0.2 baseline binding, inventory/release records, and canonical serialization rules are represented in runtime types without widening.
-- The exact current product, plugin-distribution, spec-kernel, and spec-authoring-workflow FR/AC/TASK bytes have complete manifests, hashes, license disposition, and independently reviewed per-document definition/reference/heading/link ground truth.
-- Fixture admission refuses missing provenance fields and mismatched bytes; grammar vectors cover FR colon/em-dash title, AC colon/em-dash/bare ID, TASK colon/em-dash title, wrong-document/grouping/arbitrary negatives, and status preservation; release vectors cover both exact stage/package profiles plus unknown/mismatched failures.
+**Done When:** Source values, occurrence-first parsing, cancellation, and zero-side-effect boundaries are explicit in the core entry point.
 
-## TASK-2: Implement pure normalization and identity
+## TASK-2: Implement canonical inventory and identity
 
-**Status:** in-progress
+**Status:** planned
 
 **Estimate:** 2 days
 
-**Owner:** Kernel maintainer
+**Requirements:** [FR-2](FR.md#fr-2-canonical-documents-and-qualified-ids)
 
-**Depends On:** TASK-1
+**Checks:** CHK-FR2-01
 
-**Requirements:** [FR-1](FR.md#fr-1-pure-read-only-kernel-and-adapter-boundary), [FR-3](FR.md#fr-3-canonical-identity-and-deterministic-parsing)
-**Checks:** CHK-FR1-01, CHK-FR3-01
+**Scenario:** `@feature2` / `@id:SCEN-canonical-documents-and-qualified-ids`
 
-**Done When:**
-- Slug, local ID, canonical ID, public path, UTF-8/BOM/line-ending, and content-hash rules match the schema.
-- Equivalent source sets in permuted order serialize identically.
-- The pure module has no filesystem, clock, environment, network, process, OMP, or MCP imports.
+**Done When:** The fifteen-name allowlist, role-aware definitions, qualified IDs, and duplicate candidates match the schema.
 
-## TASK-3: Implement occurrence-first Markdown and Gherkin parsers
+## TASK-3: Build typed conserved graph
 
-**Status:** in-progress
-
-**Estimate:** 4 days
-
-**Owner:** Parser maintainer
-
-**Depends On:** TASK-1, TASK-2
-
-**Requirements:** [FR-2](FR.md#fr-2-supported-documents-and-entity-ids), [FR-3](FR.md#fr-3-canonical-identity-and-deterministic-parsing), [FR-11](FR.md#fr-11-real-fixtures-and-provenance), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory)
-**Checks:** CHK-FR2-01, CHK-FR3-01, CHK-FR11-01, CHK-FR13-01
-
-**Done When:**
-- The parser selects canonical document role before heading shape, emits every current FR/AC/TASK definition exactly once only from its owning document, preserves `planned` and `todo` distinctly, and retains every ordinary-or-ID GLFM heading plus every inline/reference/autolink use with exact spans.
-- `glfm-anchor@1` tests base/base-N candidates against the complete previously emitted canonical-anchor set; the selected ordinal and pairwise-unique anchors for `Foo`/`Foo`/`Foo-1`, `Foo-1`/`Foo`/`Foo`, and equivalent orders match real fixture ground truth.
-- Product AC-file FR grouping headings, matrix/reference IDs, wrong-role and arbitrary headings yield no definitions; malformed owning-document forms yield typed diagnostics; all definition/reference/heading/link counts reconcile.
-
-## TASK-4: Build lossless graph and invariants
-
-**Status:** in-progress
-
-**Estimate:** 4 days
-
-**Owner:** Graph maintainer
-
-**Depends On:** TASK-3
-
-**Requirements:** [FR-4](FR.md#fr-4-lossless-duplicate-handling), [FR-5](FR.md#fr-5-typed-edge-resolution), [FR-6](FR.md#fr-6-invariants-and-diagnostics), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory)
-**Checks:** CHK-FR4-01, CHK-FR5-01, CHK-FR6-01, CHK-FR13-01
-
-**Done When:**
-- Duplicate groups preserve every candidate, elect no winner, and make incoming references ambiguous.
-- Every reference has exactly one resolved/unresolved outcome and every resolved edge satisfies the endpoint matrix.
-- Document, definition, domain-reference, Markdown-heading, Markdown-link, link-outcome, and rewrite-site conservation equations are checked and an injected violation invalidates the snapshot.
-
-## TASK-5: Implement bounded query service
-
-**Status:** in-progress
-
-**Estimate:** 4 days
-
-**Owner:** Query maintainer
-
-**Depends On:** TASK-4
-
-**Requirements:** [FR-8](FR.md#fr-8-bounded-read-only-query-service), [FR-12](FR.md#fr-12-performance-size-and-result-budgets), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory)
-**Checks:** CHK-FR8-01, CHK-FR12-01, CHK-FR13-01
-
-**Done When:**
-- All eight operations implement their exhaustive inputs, results, errors, ordering, projections, pagination, and limits.
-- `markdownInventory` provides complete unscoped and focused ordinary-heading inbound/outbound pages with reconciled totals and shared rewrite sites.
-- Cursors bind to graph fingerprint, normalized filters, operation, projection, and stable sort position; normal, boundary, excessive, ambiguous, cancelled, stale-cursor, and oversized-response cases return the specified envelope without graph mutation.
-
-## TASK-6: Implement contained filesystem adapter
-
-**Status:** in-progress
+**Status:** planned
 
 **Estimate:** 3 days
 
-**Owner:** Platform security maintainer
+**Requirements:** [FR-3](FR.md#fr-3-typed-graph-conservation)
 
-**Depends On:** TASK-1, TASK-2
+**Checks:** CHK-FR3-01
 
-**Requirements:** [FR-7](FR.md#fr-7-bounded-repository-containment), [FR-12](FR.md#fr-12-performance-size-and-result-budgets)
-**Checks:** CHK-FR7-01, CHK-FR12-01
+**Scenario:** `@feature3` / `@id:SCEN-typed-graph-conservation`
 
-**Done When:**
-- One explicit root and only canonical documents are read within every hard input budget.
-- Traversal, external absolute paths, symlink, junction, reparse/mount, non-regular, race/change, and OS-failure variants refuse safely on Windows and POSIX.
-- Public diagnostics contain no absolute path/OS prose and the adapter creates or changes zero filesystem entries.
+**Done When:** Nodes, typed edges, unresolved references, endpoint checks, and conservation counters fail closed on planted faults.
 
-## TASK-7: Register the v0.2 OMP query surface
+## TASK-4: Implement four primitives and cursors
 
-**Status:** in-progress
+**Status:** planned
+
+**Estimate:** 3 days
+
+**Requirements:** [FR-4](FR.md#fr-4-four-bounded-core-primitives)
+
+**Checks:** CHK-FR4-01
+
+**Scenario:** `@feature4` / `@id:SCEN-four-bounded-core-primitives`
+
+**Done When:** inventory, findNodes, traverse, and diagnostics share one bounded envelope, deterministic sort, cursor validation, and typed errors.
+
+## TASK-5: Enforce containment cancellation and budgets
+
+**Status:** planned
 
 **Estimate:** 2 days
 
-**Owner:** OMP adapter maintainer
+**Requirements:** [FR-5](FR.md#fr-5-contained-inputs-and-budgets)
 
-**Depends On:** TASK-5, TASK-6
+**Checks:** CHK-FR5-01
 
-**Requirements:** [FR-1](FR.md#fr-1-pure-read-only-kernel-and-adapter-boundary), [FR-8](FR.md#fr-8-bounded-read-only-query-service), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory)
-**Checks:** CHK-FR1-01, CHK-FR8-01, CHK-FR13-01
+**Scenario:** `@feature5` / `@id:SCEN-contained-inputs-and-budgets`
 
-**Done When:**
-- The single child-plugin extension registers only the specified read operations and uses the shared reader, graph builder, and query service.
-- Transport validation does not alter semantic results.
-- An installed-directory invocation returns a canonical envelope and changes zero repository bytes.
+**Done When:** Root containment, link rejection, cancellation, hard limits, sanitized errors, and zero writes are proven on supported hosts.
 
-## TASK-8: Bundle and prove the installed v0.2 artifact
+## TASK-6: Preserve eight compatibility adapters
 
-**Status:** in-progress
+**Status:** done
 
-**Estimate:** 3 days
+**Estimate:** historical receipt
 
-**Owner:** Release maintainer
+**Requirements:** [FR-6](FR.md#fr-6-historical-eight-name-compatibility)
 
-**Depends On:** TASK-7
+**Checks:** CHK-FR6-01
 
-**Requirements:** [FR-10](FR.md#fr-10-self-contained-runtime-distribution), [FR-12](FR.md#fr-12-performance-size-and-result-budgets), [FR-14](FR.md#fr-14-conjunctive-kernel-release-eligibility)
-**Checks:** CHK-FR10-01, CHK-FR12-01, CHK-FR14-01
+**Scenario:** `@feature6` / `@id:SCEN-historical-eight-name-compatibility`
 
-**Done When:**
-- The exact v0.2 artifact contains no undeclared external/runtime dependency and its extension builds a graph and executes a query with source/root dependencies unavailable.
-- Required third-party code/data/licenses are fully bundled and inventoried, or the runtime is dependency-free.
-- The fresh `CHK-FR10-01` record is bound to `targetStage=v0.2`, `kernel-v0.2`, `packageSurface=OMP_EXTENSION_ONLY`, and the exact v0.2 artifact; v0.2 bundle, latency, memory, response, hard-limit, and complete Markdown inventory measurements meet every NFR budget, and no MCP byte, tool, execution, or evidence is required or accepted.
+**Done When:** The immutable v0.3.2 receipt identifies the shipped eight names and adapter parity; no new implementation claim is inferred.
 
-## TASK-9: Add the v0.3 MCP read projection
+## TASK-7: Prove deterministic diagnostics and fingerprint
 
-**Status:** in-progress
-
-**Estimate:** 3 days
-
-**Owner:** MCP adapter maintainer
-
-**Depends On:** TASK-8
-
-**Requirements:** [FR-9](FR.md#fr-9-read-only-mcp-projection-in-v03), [FR-10](FR.md#fr-10-self-contained-runtime-distribution), [FR-12](FR.md#fr-12-performance-size-and-result-budgets), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory), [FR-14](FR.md#fr-14-conjunctive-kernel-release-eligibility)
-**Checks:** CHK-FR9-01, CHK-FR10-01, CHK-FR12-01
-
-**Done When:**
-- One bundled MCP server in the same child plugin exposes exactly the eight named read tools as v0.3 first-slice evidence.
-- For a common graph/request, each structured canonical envelope equals the direct service result after transport metadata is removed.
-- Registry inspection proves no mutation-like tool; a dependency-absent installed smoke proves both extension and MCP server execute the shared kernel from the exact v0.3 artifact; every v0.3 MCP-inclusive size/performance budget remains satisfied.
-- Hash-bound v0.3 records for FR-9, stage-bound `CHK-FR10-01` with `packageSurface=OMP_EXTENSION_AND_MCP`, and the MCP-inclusive FR-12 budget gate are available for `kernel-v0.3`; extension-only, v0.2, wrong-profile, or foreign-artifact records are rejected.
-
-## TASK-10: Run adversarial conservation and packaging review
-
-**Status:** in-progress
+**Status:** planned
 
 **Estimate:** 2 days
 
-**Owner:** Independent reviewer
+**Requirements:** [FR-7](FR.md#fr-7-deterministic-diagnostics-and-fingerprint)
 
-**Depends On:** TASK-8
+**Checks:** CHK-FR7-01
 
-**Requirements:** [FR-4](FR.md#fr-4-lossless-duplicate-handling), [FR-6](FR.md#fr-6-invariants-and-diagnostics), [FR-7](FR.md#fr-7-bounded-repository-containment), [FR-10](FR.md#fr-10-self-contained-runtime-distribution), [FR-11](FR.md#fr-11-real-fixtures-and-provenance), [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory), [FR-14](FR.md#fr-14-conjunctive-kernel-release-eligibility)
-**Checks:** CHK-FR4-01, CHK-FR6-01, CHK-FR7-01, CHK-FR10-01, CHK-FR11-01, CHK-FR13-01, CHK-FR14-01
+**Scenario:** `@feature7` / `@id:SCEN-deterministic-diagnostics-and-fingerprint`
 
-**Done When:**
-- An independent review plants last-writer duplicate, dangling edge, lost domain reference, missing ordinary heading/link occurrence, shared rewrite-site loss, `Foo`/`Foo`/`Foo-1` anchor collision, wrong-document/grouping definition harvest, dropped `todo`, path escape, link, over-budget, ambient dependency, fixture-hash, stage/profile/package-surface, and mandatory-evidence faults and observes explicit failures.
-- Document/definition/reference/heading/link conservation totals remain explainable; every current FR/AC/TASK definition occurs exactly once in its owning role, grouping headings occur zero times as definitions, `planned`/`todo` remain distinct, and every emitted canonical anchor is pairwise unique.
-- The v0.2 review proves the complete `kernel-v0.2` conjunction and `OMP_EXTENSION_ONLY` FR-10 smoke pass before MCP exists and rejects FR-9/MCP package evidence; the v0.3 review, once TASK-9 evidence exists, proves no pass without an accepted same-lineage v0.2 input and fresh exact-v0.3 `OMP_EXTENSION_AND_MCP` evidence.
-- The report distinguishes structural graph validity from aggregate release evidence and records no unexecuted scenario as passing.
+**Done When:** Normalized source permutations produce equal canonical bytes/fingerprints and stable bounded diagnostics; query availability is excluded.
 
-## TASK-11: Implement and prove the aggregate kernel release gate
+## TASK-8: Retain real fixture and budget evidence
 
-**Status:** Planned
+**Status:** planned
 
 **Estimate:** 2 days
 
-**Owner:** Release maintainer
+**Requirements:** [FR-8](FR.md#fr-8-real-fixtures-and-measurable-budgets)
 
-**Depends On:** TASK-8
+**Checks:** CHK-FR8-01
 
-**Requirements:** [FR-14](FR.md#fr-14-conjunctive-kernel-release-eligibility)
-**Checks:** CHK-FR14-01
+**Scenario:** `@feature8` / `@id:SCEN-real-fixtures-and-measurable-budgets`
 
-**Done When:**
-- The evaluator validates the closed `targetStage`/`evidenceProfile` pairs, candidate release line, per-record stage/artifact binding, and the stage-selected `CHK-FR10-01.packageSurface`, and fails closed for every unknown or mismatched value.
-- For v0.2 it derives exactly FR-1..FR-8 and FR-10..FR-13 checks, rejects FR-9 and MCP-inclusive package evidence as wrong-profile, and returns eligible for exactly one hash-valid `PASS` record per required check after the dependency-absent extension smoke without any MCP dependency.
-- For v0.3 it re-evaluates an accepted v0.2 input, verifies the declared parent artifact SHA-256, derives the complete v0.2 set plus FR-9, and requires fresh v0.3-bound FR-9 parity/registry, FR-10 `OMP_EXTENSION_AND_MCP` proof for extension plus server from the exact v0.3 artifact, and FR-12 MCP-budget records.
-- Candidate artifact/corpus bindings and the FR-10 package, FR-11 fixture, and FR-12 budget gate IDs are verified rather than caller-selected.
-- One-fault-at-a-time variants for unknown/mismatched stage/profile/package surface, wrong release line, missing lineage, missing, extra, duplicate, failed, stale, mismatched, waived, partial, unverifiable, empty, bad-hash, and cross-stage evidence each return deterministic blockers and `eligible=false`.
-- The result creates no readiness evidence, publication side effect, publication-validation override, or future-import license-gate override.
-
-
-## TASK-12: Contained step-binding index
-
-**Status:** Planned
-
-**Estimate:** 4 days
-
-**Owner:** Kernel maintainer
-
-**Depends On:** TASK-3 (Gherkin scenario steps exist), TASK-5 (query service), TASK-15 (anchor migration prerequisite)
-
-**Requirements:** [FR-15](FR.md#fr-15-contained-step-binding-index-not-a-v02v03-release-member)
-**Checks:** CHK-FR13-02, CHK-FR15-01
-
-**Done When:**
-- `StepDefinitionDocumentV2` uses `NodeSourceV2.kind="STEP_DEFINITION"` and produces constructible STEP_BINDING nodes.
-- Every Gherkin step has exactly one conserved binding outcome; warnings do not flip graph validity.
-- Symlink, reparse, traversal and non-allowlisted sources refuse before read.
-- `kernel-step-bindings@1` requires CHK-FR13-02 plus CHK-FR15-01 for the same pre-registration candidate and delivered-v0.3 baseline.
-- Historical kernel-v0.2/kernel-v0.3 profiles remain unchanged.
-- Passing this profile unblocks [spec-lsp:TASK-12](../spec-lsp/TASKS.md#task-12-implement-the-separately-gated-step-projection); it adds no MCP tool.
-
-## TASK-13: Generator-port read operations
-
-**Status:** Planned
-
-**Estimate:** 5 days
-
-**Owner:** Kernel + MCP maintainer
-
-**Depends On:** TASK-5, TASK-9, TASK-15
-
-**Requirements:** [FR-16](FR.md#fr-16-generator-port-read-operations-beyond-the-eight), [FR-9](FR.md#fr-9-read-only-mcp-projection-in-v03)
-**Checks:** CHK-FR13-02, CHK-FR16-01
-
-**Done When:**
-- Every FR-16 operation implements its exact SCHEMA-14 args/result/error/limit/cursor contract.
-- MCP maps each one-to-one; the agent still sees only MCP and the original eight names remain.
-- Evidence and mutation names remain absent.
-- `kernel-generator-port-reads@1` requires CHK-FR13-02 plus CHK-FR16-01 for the same dormant pre-registration artifact and delivered-v0.3 baseline.
-- Eligibility activates the same artifact without rebuilding or changing its digest.
-- Historical kernel-v0.2/kernel-v0.3 profiles remain unchanged.
-
-## TASK-14: MCP adapter document and preflight I/O
-
-**Status:** Planned
-
-**Estimate:** 3 days
-
-**Owner:** MCP adapter maintainer
-
-**Depends On:** TASK-6, TASK-9, TASK-15
-
-**Requirements:** [FR-17](FR.md#fr-17-mcp-adapter-document-and-preflight-io-not-a-v02v03-release-member), [FR-7](FR.md#fr-7-bounded-repository-containment), [FR-9](FR.md#fr-9-read-only-mcp-projection-in-v03)
-**Checks:** CHK-FR13-02, CHK-FR17-01
-
-**Done When:**
-- The four FR-17 operations implement exact SCHEMA-14 request/result/error contracts.
-- FR-7 containment applies before bytes leave the adapter; these operations are not QueryOperationV2 values.
-- MCP maps each one-to-one without creating a second graph.
-- `kernel-adapter-io@1` requires CHK-FR13-02 plus CHK-FR17-01 for the same dormant pre-registration artifact and delivered-v0.3 baseline.
-
-## TASK-15: Marksman anchor migration profile
-
-**Status:** Planned
-
-**Estimate:** 3 days
-
-**Owner:** Kernel + editor integration maintainer
-
-**Depends On:** delivered v0.3 baseline
-
-**Requirements:** [FR-13](FR.md#fr-13-complete-markdown-heading-anchor-and-link-inventory)
-**Checks:** CHK-FR13-02
-
-**Done When:**
-- `GraphSnapshotV2`, heading summaries and migration rows carry only `marksman-anchor@2`; V1 bytes/fingerprints remain unchanged.
-- Pinned Marksman golden cases and the complete 150-document migration corpus reconcile with zero lost/duplicate occurrence.
-- V1/V2 cursors are mutually rejected.
-- `kernel-anchor-migration@1` requires exactly CHK-FR13-02 plus the delivered-v0.3 baseline and returns the closed capability eligibility result.
-
-## Task summary
-
-| Task | Status | Estimate | Owner | Primary output |
-|---|---|---:|---|---|
-| TASK-1 | in-progress | 2 days | Kernel maintainer | Schema and admitted real fixtures; exact CHKs pending |
-| TASK-2 | in-progress | 2 days | Kernel maintainer | Pure identity/normalization; exact CHKs pending |
-| TASK-3 | in-progress | 4 days | Parser maintainer | Markdown/Gherkin occurrences; exact CHKs pending |
-| TASK-4 | in-progress | 4 days | Graph maintainer | Graph, duplicates, invariants; exact CHKs pending |
-| TASK-5 | in-progress | 4 days | Query maintainer | Eight-operation service/inventory; exact CHKs pending |
-| TASK-6 | in-progress | 3 days | Platform security maintainer | Contained reader; exact CHKs pending |
-| TASK-7 | in-progress | 2 days | OMP adapter maintainer | v0.2 read surface; exact CHKs pending |
-| TASK-8 | in-progress | 3 days | Release maintainer | v0.2 artifact proof; exact CHKs pending |
-| TASK-9 | in-progress | 3 days | MCP adapter maintainer | v0.3 first-slice projection; exact CHKs pending |
-| TASK-10 | in-progress | 2 days | Independent reviewer | Adversarial evidence indexing pending |
-| TASK-11 | Planned | 2 days | Release maintainer | Conjunctive kernel eligibility evaluator |
-| TASK-12 | Planned | 4 days | Kernel maintainer | CHK-FR15-01 step-binding index; unblocks `spec-lsp:TASK-12` |
-| TASK-13 | Planned | 5 days | Kernel + MCP maintainer | CHK-FR16-01 generator-port reads on MCP |
-| TASK-14 | Planned | 3 days | MCP adapter maintainer | CHK-FR17-01 adapter document/preflight I/O on MCP |
-| TASK-15 | Planned | 3 days | Kernel + editor integration maintainer | CHK-FR13-02 Marksman migration profile |
+**Done When:** Real-corpus provenance, hashes, independent oracles, package/memory/latency measurements, and historical receipts remain linked without a kernel release gate.

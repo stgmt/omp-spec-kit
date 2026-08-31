@@ -2,142 +2,64 @@
 
 ## Context
 
-Pinned OMP v17.3.7 resolves a plan natively before approval but exposes no extension event carrying that selected plan. A pre-write hook sees only the title and runs before native title/state/newest-plan fallback selection; reconstructing the selected file from temp paths would duplicate host logic incorrectly. Therefore `plan-gate@2` has two explicit profiles:
+OMP already owns plan discovery and approval. This capability begins only when a caller explicitly supplies exact plan bytes. It is an advisory library: the caller decides whether and how to use the result.
 
-- `plan-gate-manual@1` — implementable now; validates one exact caller-supplied plan request.
-- `plan-gate-automatic@1` — `DEFERRED_HOST_ABI`; requires the future post-resolver event in `docs/omp-plan-approval-event-contract.md`.
-
-The deterministic validation core is shared. Neither profile uses Claude hooks, the upstream daemon/registry, guessed temp roots, or an additional agent-facing tool surface.
-
-## Component boundary
+## Boundary
 
 ```mermaid
 flowchart LR
-  Manual[Explicit manual request] --> MIO[Manual I/O adapter]
-  MIO --> Input[Closed PlanValidationInputV2]
-  Host[Future plan_approval_requested event] --> AIO[Automatic adapter]
-  AIO --> Input
-  Input --> Val[Pure validator]
-  Val --> Render[Bounded result and reason]
-  Render --> Allow[ALLOW]
-  Render --> Block[BLOCK after complete validation]
-  MIO -->|read/containment/deadline fault| Diag[ALLOW plus diagnostic]
-  AIO -->|unsupported/fault/deadline| Diag
+  C[Manual caller] --> V[validateExactPlan]
+  V --> H[SHA-256 and hard bounds]
+  H --> P[Markdown semantic parser]
+  P --> R[VALID / INVALID / UNAVAILABLE]
 ```
 
-Host owns selection and transition copying. The automatic event arrives after `resolveApprovedPlan`, carrying selected content plus selection/approval session IDs, transition kind, and copied-plan hash. The adapter checks the complete identity one-to-one and performs no fallback scan.
+`validateExactPlan` is the only product contract. There is no directory reader, extension hook, provider call, registry, secondary authority, or persistent service.
 
-## Planned root-source layout
+## Processing
 
-Sources follow the repository build convention: root JavaScript with JSDoc types is copied/bundled by `scripts/build-plugin.mjs` into the single child package's `dist/`; `plugins/omp-spec-kit/src/**` is not a supported source tree.
+1. Validate request shape and hard bounds.
+2. Compute SHA-256 over the original UTF-8 content.
+3. Compare the optional expected digest.
+4. Parse recognized semantic headings while allowing unrelated sections and arbitrary order.
+5. Validate objective, approach, file/action rows, verification, assumptions, and destructive impact when triggered.
+6. Optionally emit the non-blocking request-alignment warning.
+7. Sort complete findings, retain the first 50, and report the exact omitted count.
 
-- `src/gate/manual-adapter.js` — explicit request admission and I/O construction.
-- `src/gate/automatic-adapter.js` — future `selected-plan-event@1` translation; gated by host pin.
-- `src/gate/io-resolver.js` — bounded explicit reads and realpath/reparse/symlink containment for manual mode.
-- `src/gate/validator/index.js` — pure `validatePlan(input)` entry.
-- `src/gate/validator/identity.js` — schema/hash/mode/host-contract checks.
-- `src/gate/validator/duplicate.js` — explicit-candidate duplicate checks.
-- `src/gate/validator/structure.js` — section/form checks.
-- `src/gate/validator/grounding.js` — deterministic prompt relevance.
-- `src/gate/validator/crossref.js` — File Changes/body consistency.
-- `src/gate/validator/specref.js` — qualified references against a complete supplied index.
-- `src/gate/deny.js` — paged findings and bounded host reason.
-- `src/gate/resources/{plan-template.md,section-model.json,guarded-paths.json}` — exact hash-inventoried resources; guarded policy has only `.specs/**`, `MIGRATION_MATRIX.md`, `ROADMAP.md`, and `docs/decisions/**`.
-- `src/gate/release.js` — closed manual/automatic release-profile evaluator.
+## Failure semantics
 
-The pure validator imports no OMP, filesystem, clock, network, process, or MCP API. Only adapters perform I/O. Every adapter exit either supplies a complete valid input to the validator or returns ALLOW with exactly one bounded bridge diagnostic.
+Content defects are `INVALID`. A request that cannot be evaluated truthfully is `UNAVAILABLE`. The implementation catches unexpected exceptions at the public boundary and emits `VALIDATOR_FAILURE`; it never converts inability to evaluate into `VALID`.
 
-## Manual admission
+## Implementation shape
 
-1. Receive `ManualPlanValidationRequestV1` containing exact plan URL/content/hash/title/slug, explicit duplicate candidate URLs, prompt excerpts, project root, and limits.
-2. Verify plan bytes and hash before any validation.
-3. Resolve only the declared duplicate candidate URLs. Maximum 20 candidates and 8 MiB aggregate bytes. An unreadable candidate is not silently skipped: the adapter returns `DUPLICATE_INPUT_UNAVAILABLE` so validation cannot prove non-duplication from a partial set.
-4. Load the exact hash-inventoried resource set and build a complete `SpecReferenceIndexV2` only when `.specs/**` or one of the three other guarded patterns is touched; apply containment and 512 KiB/2 MiB budgets.
-5. Supply one closed `PlanValidationInputV2` with SAME_SESSION binding. No directory scan, temp-root inference, or fallback reconstruction occurs.
-
-Manual output is advisory unless a caller explicitly adopts the decision. This profile does not claim automatic plan interception.
-
-## Automatic admission
-
-The future host emits `plan_approval_requested` after native resolution and before approval. It carries request ID, selection/approval session IDs, transition kind/copied-plan hash, planMode, selected URL/content/hash, supplied title and normalized slug. The adapter:
-
-1. refuses a pin without `selected-plan-event@1`;
-2. validates the ID/kind/copied-hash relation and selected plan identity;
-3. maps the event one-to-one to AUTOMATIC input;
-4. returns the exact host result before the outer timeout.
-
-It does not subscribe to model-issued `write` calls as a substitute. OMP v17.3.7 therefore remains `DEFERRED_HOST_ABI` for automatic mode.
-
-## Validation pipeline
-
-Phases run in fixed order. A validation error is a finding; an internal failure is a bridge fault and returns ALLOW.
-
-1. **IDENTITY:** closed schema, all hashes, transition binding, mode/host pair, complete index/resources, and limits.
-2. **DUPLICATE:** SHA-256 against explicit bounded candidates, with ±10-byte size short-circuit.
-3. **STRUCTURE:** ten mandatory sections, ordered/non-empty forms, inventory/requirements/todo/verification/file-change/impact obligations.
-4. **GROUNDING:** deterministic lexical relevance against explicit prompt excerpts; exact deny threshold `-20`.
-5. **CROSS_REFERENCE:** File Changes paths mentioned outside the table; block above 0.5 unmentioned ratio.
-6. **SPEC_REFERENCE:** required qualified IDs exist in the complete supplied index.
-7. **ACTIONABILITY:** diagnostics only; never participates in BLOCK.
-
-## Deadline and fault policy
-
-The adapter installs one internal deadline no greater than 20 seconds. All loops and I/O observe the remaining budget. Validator exception, resource failure, unreadable input, containment refusal, partial index, or internal deadline expiry returns ALLOW plus one bounded diagnostic. The handler must return before the pinned host's default 30-second outer timeout; an outer timeout/error is host fail-closed and an implementation defect.
-
-Invariant: only a complete successful validation returning one or more ERROR findings may produce BLOCK.
-
-## Deny rendering
-
-The structured result carries total counts and cursor-paged complete findings. The host reason is at most 16 KiB: complete error+hint rows first, then exact omitted count/cursor, then template/prompt excerpts in remaining space. Truncation never cuts a finding row or claims completeness.
-
-## Release profiles
-
-`plan-gate-manual@1` requires the exact manual check-ID set in the schema, including explicit identity, manual guidance, dependency-absent execution, unreadable/containment/resource fail-open variants, budgets, fixtures and adversarial review.
-
-`plan-gate-automatic@1` requires that entire set plus the separately identified automatic transition, context, installed-event and host-ABI checks. `PlanGateEligibilityResultV2` returns candidate-bound eligibility, capability state and closed blockers; a manual candidate cannot be relabeled automatic.
+The root source of truth is one JavaScript module with JSDoc types under `src/gate/validate-exact-plan.js`. The normal build copies it into the installed package. Rules are code constants; there are no runtime templates or inventories to synchronize.
 
 ## Decisions
 
-### DEC-1: Host-selected plan, never reconstructed selection
+### DEC-1: Exact bytes, not plan discovery
 
-**Rationale:** Native resolution includes state/title/newest-plan fallback and session transitions. A title-only pre-write event cannot identify the final plan.
+**Rationale:** Native OMP already resolves plans. Explicit bytes make the validator deterministic and independently testable.
 
-**Trade-off:** Automatic blocking waits for a host ABI addition.
+**Trade-off:** Callers must obtain content before invoking the library.
 
-**Alternatives:** scan temp/session directories or replay native fallback (rejected: divergent selection and containment risk); treat a propose write as approval (rejected: wrong lifecycle point).
+### DEC-2: Semantic fields, not a fixed document template
 
-### DEC-2: Explicit manual profile remains independently useful
+**Rationale:** Objective, approach, files/actions, verification, assumptions, and impact are observable planning outcomes. A fixed heading census rejects otherwise actionable native plans.
 
-**Rationale:** The validation core can be exercised and consumed with exact caller-supplied bytes today without claiming interception.
+**Trade-off:** A closed alias table must be versioned when a genuinely new heading convention is accepted.
 
-**Trade-off:** Manual callers decide how to act on the result.
+### DEC-3: Three truthful statuses
 
-**Alternatives:** defer the entire validator (rejected: needless coupling); call manual validation automatic (rejected: false runtime claim).
+**Rationale:** Content failure and evaluator failure are different facts.
 
-### DEC-3: Adapter I/O, pure validator
+**Trade-off:** Callers must handle `UNAVAILABLE` explicitly.
 
-**Rationale:** Filesystem containment and unreadable-input handling require I/O; placing them in a pure matcher makes the contract impossible.
+### DEC-4: Request alignment is advisory
 
-**Trade-off:** Adapter fixtures and validator fixtures are separate evidence sets.
+**Rationale:** Deterministic lexical comparison can highlight obvious drift but is not reliable enough to reject a plan.
 
-**Alternatives:** let the validator read disk (rejected: non-deterministic and untestable purity claim); infer absence from partial reads (rejected: false allow/block evidence).
+**Trade-off:** Some unrelated plans may remain structurally valid.
 
-### DEC-4: Internal fail-open, outer fail-closed acknowledged
+## Mutation boundary
 
-**Rationale:** OMP's wrapper fails closed on handler error/timeout. A bounded internal barrier can preserve gate fail-open semantics only if it returns before that boundary.
-
-**Trade-off:** deadline instrumentation is release-critical.
-
-**Alternatives:** 60-second inherited timeout (rejected: exceeds host boundary); claim outer fail-open (rejected: contradicted by pinned source).
-
-### DEC-5: Capability release is independent of historical v0.3
-
-**Rationale:** Plan gating is a post-v0.3 capability, not part of the eight-tool read-only first slice.
-
-**Trade-off:** separate profile receipts and product capability state.
-
-**Alternatives:** reinterpret v0.3 receipts (rejected: destroys historical evidence).
-
-## Repository mutation boundary
-
-The validator never edits plans, specs, or repository files. Manual adapter reads are bounded and contained. Repair remains the caller's responsibility. Any future automatic context message is optional, bounded, and permitted only by a host event carrying `planMode:true`; failure to emit it never changes validation.
+The function reads only its request values and returns data. It does not mutate plans, specifications, repository files, process state, or caller objects.

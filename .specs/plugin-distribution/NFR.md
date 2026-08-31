@@ -1,33 +1,29 @@
 # Non-Functional Requirements
 
-## NFR-SECURITY-1 — Security and least privilege
+## NFR-SECURITY-1 — Least privilege
 
-Installed read-only baseline profiles SHALL require no credential, network, shell, subprocess, model, database, watcher, lock, or mutation capability. Workflow permissions default to `actions: read`/`contents: read`; only the final tag-gated publish job receives `contents: write`, `id-token: write`, and `attestations: write`. Untrusted repository/evidence content is data and is never executed.
+Installed read-only operation requires no credential, network, shell, model, database, watcher, or mutation access. Verification jobs use read permissions; only the final tag-gated publish job receives the minimum contents/attestation permissions. Untrusted repository content is data, never executable input.
 
-**Measures:** zero repository writes; zero outbound requests/processes/model calls during inventory; zero secret findings outside designated scanner-test fixtures; no absolute path or environment disclosure.
+## NFR-PERFORMANCE-1 — Proportional release checks
 
-## NFR-PERFORMANCE-1 — Bounded performance
+Distribution work SHALL be proportional to the selected child and named fixture set. Hashing SHALL stream exact bytes, each named release check SHALL run once per candidate, and verbose diagnostics SHALL remain ordinary CI artifacts/logs. No distribution-specific result-byte, receipt-count, blocker-count, or scalar-count ABI is normative.
 
-Inventory SHALL have fixed hard caps independent of corpus size. Defaults and maxima are defined in `plugin-distribution_SCHEMA.md`. Directory processing SHALL be linear in inspected entries up to the cap, results SHALL be deterministic, and abort signals SHALL stop additional work promptly.
+## NFR-PORTABILITY-1 — Installed portability
 
-**Measures:** inspected entries, elapsed time, truncation flag, and returned byte count are captured. `spec-inventory-result@1` is at most the effective `maxResultBytes` (default 256 KiB, hard 512 KiB) with complete-row truncation and `LIMIT_REACHED`; `distribution-release-eligibility@2` is at most 512 KiB with 12 requirement keys, 64 receipt digests, 200 complete blockers, and 512-scalar blocker messages. A fixed runtime latency SLO remains deferred until a real baseline exists.
+The packaged extension and MCP launcher SHALL operate on supported Windows and POSIX OMP environments without the source checkout, root `node_modules`, user-global setup, or workstation-specific absolute paths.
 
-## NFR-PORTABILITY-1 — Portability
+## NFR-RELIABILITY-1 — Reversible lifecycle
 
-The installed runtime SHALL operate from the child package on supported OMP platforms without dev-pomogator, the source checkout, repository-root `node_modules`, absolute workstation paths, or user-global setup. Path normalization SHALL preserve platform independence and public output SHALL use `/`-separated project-relative paths.
+Install, uninstall, reinstall, upgrade, and rollback SHALL use isolated roots, fresh sessions, exact artifact digests, and preservation hashes. A failed release check cannot publish partial or replacement bytes.
 
-## NFR-RELIABILITY-1 — Reliability and containment
+## NFR-SUPPLYCHAIN-1 — Reproducible exact bytes
 
-A malformed or inaccessible spec SHALL degrade the single result, not terminate the session or poison subsequent invocations. Clean install, activation, uninstall, and reinstall operations SHALL be repeatable in isolated fixtures and SHALL preserve non-OMP-managed project bytes; upgrade and rollback SHALL meet the same property beginning with the first subsequent release.
+The tagged commit produces one verified archive. Publication consumes that archive without rebuilding, and the final public asset attestation names the same SHA-256.
 
-## NFR-SUPPLYCHAIN-1 — Reproducibility and supply-chain integrity
+## NFR-USABILITY-1 — Actionable diagnostics
 
-A clean build from the tagged commit SHALL produce the release artifact consumed by verification and publication. Evidence SHALL bind commit, OMP pin, platform image/digest, catalog/package/runtime version, artifact digest, fixture digest, timestamps, and step outcomes. Release publication SHALL never rebuild an unverified payload.
+A failed release identifies the failed named check and a concise remediation in CI logs without exposing secrets, absolute user paths, stacks, or internal receipt schemas.
 
-## NFR-USABILITY-1 — Usability and diagnostics
+## NFR-MAINTAINABILITY-1 — Owner boundaries
 
-Every non-success result SHALL provide a stable machine code and one bounded remediation message without stack traces or internal paths. Public documentation SHALL distinguish catalog update, plugin upgrade, plugin reload, fresh-session restart, rollback, marketplace removal, and uninstall.
-
-## NFR-MAINTAINABILITY-1 — Maintainability and single control plane
-
-Historical v0.1.0 and delivered v0.3.2 registration remain in one extension factory, one child package, and one profile-gated MCP server identity. Release profiles reject nested manifests and unused compatibility surfaces. Future capabilities require separate accepted gates and extend only the same product topology.
+OMP owns host parsing, the kernel owns runtime query contracts, distribution owns packaging/lifecycle/publication, MRI owns release integrity, and product owns public capability state. New OMP fields or runtime operations do not require a distribution schema fork.

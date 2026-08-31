@@ -1,124 +1,110 @@
-@spec-evidence @evidence-gated
-Feature: Evidence and honesty evaluation layer
-  The evaluator consumes an immutable spec-kernel graph and immutable
-  execution-artifact bytes, then produces ingestion state, scenario-result
-  joins, freshness verdicts, fail-closed task status truth, waiver honesty,
-  coverage census with conservation equations, and release-eligibility
-  contributions. Every scenario specifies required behavior and has no
-  executed status here.
+@spec-evidence @next
+Feature: Trusted execution evidence
+  A trusted capture adapter records one actual run and a pure evaluator decides
+  whether current scenarios and tasks have usable evidence. These scenarios are
+  specification text, not execution evidence.
 
   @feature1 @AC-1.1 @id:SCEN-spec-evidence-pure-evaluation-boundary
   Scenario: Pure evaluator has no side effects
-    Given a kernel graph and immutable artifact bytes are supplied as inputs
-    And limits are supplied
-    When the evaluator runs
-    Then it produces evaluation output without filesystem clock environment network process OMP or MCP access
-    And all I/O exists only in adapters external to the evaluator
+    Given identical current bindings trusted run envelopes and limits
+    When evaluation is repeated
+    Then the output is identical without filesystem clock environment network process OMP or MCP access
 
   @feature2 @AC-2.1 @id:SCEN-spec-evidence-supported-artifact-kinds
-  Scenario: Closed versioned artifact kind set
-    Given exact supported pairs cucumber-messages-ndjson at 33.0.4 pytest-bdd-cucumber-json at 1 scenario-result-overlay at 1 and unknown identities
-    When admission and ingestion run
-    Then only the three exact pairs are accepted
-    And unsupported identity yields UNSUPPORTED_ARTIFACT_IDENTITY while malformed admitted bytes yield MALFORMED_ARTIFACT
+  Scenario: Only supported real producer artifacts are captured
+    Given supported unsupported malformed absent and over-limit producer artifacts
+    When trusted capture admits them
+    Then only Cucumber Messages NDJSON 33.0.4 and pytest-bdd cucumber-json 1 are admitted
+    And actual admitted bytes are retained and re-hashed while every refusal has a closed reason
 
-  @feature3 @AC-3.1 @id:SCEN-spec-evidence-artifact-ingestion-state
-  Scenario: Artifact ingestion state is closed and conserved
-    Given PRESENT valid malformed unsupported and missing-results artifacts plus ABSENT and caller-SKIPPED inputs
-    When the evaluator ingests each artifact
-    Then each receives the exact discriminated state and reason from spec-evidence at 2
-    And INGESTED parsed count equals matched plus unmatched plus ambiguous plus malformed counts
+  @feature3 @AC-3.1 @id:SCEN-spec-evidence-trusted-capture-envelope
+  Scenario: One actual run produces one trusted envelope
+    Given the trusted adapter observes an actual runner invocation and tested implementation
+    When it captures the run
+    Then one envelope owns run identity scope artifact bytes and hash implementation identity and scenario bindings
+    And a caller-supplied metadata and hash pair cannot authenticate evidence
 
-  @feature4 @AC-4.1 @id:SCEN-spec-evidence-scenario-result-join
-  Scenario: Every result is joined or counted unmatched
-    Given valid producer results and canonical scenarios where some match by qualified ID some by tag some by name fallback some match multiple candidates and some match none
-    When the join phase runs
-    Then each result has exactly one JOINED UNMATCHED or AMBIGUOUS_JOIN record with full bounded candidates
-    And producer result join collection and census memberships conserve without silent drops
+  @feature4 @AC-4.1 @id:SCEN-spec-evidence-stable-scenario-join
+  Scenario: Stable identity is required for a join
+    Given producer rows match current scenarios by qualified ID verified tag ambiguous tag name only or nothing
+    When join runs
+    Then only exact ID and uniquely verified tag rows are JOINED
+    And every other row is AMBIGUOUS or UNMATCHED with name candidates diagnostic only
 
-  @feature5 @AC-5.1 @id:SCEN-spec-evidence-canonical-overlay-separation
-  Scenario: Canonical and overlay are retained separately
-    Given both canonical full-run results and overlay results exist for the same scenario
-    When the evaluator processes both
-    Then the evaluation output exposes both with explicit labeling
-    And overlay results do not replace canonical results
-    And freshness verdicts apply independently to each
+  @feature5 @AC-5.1 @id:SCEN-spec-evidence-full-run-scope-authority
+  Scenario: Partial runs never replace full-run authority
+    Given the trusted adapter captured one unfiltered full run and one narrowed partial run
+    When readiness is evaluated
+    Then only the full run may satisfy readiness
+    And the partial run remains queryable without replacing full evidence
 
   @feature6 @AC-6.1 @id:SCEN-spec-evidence-freshness-staleness
-  Scenario Outline: Hash bindings determine freshness without clock authority
-    Given evidence and current inputs bind graph scenario step-binding and implementation dimensions with "<condition>"
-    When freshness comparison runs without clock authority
-    Then the result is "<verdict>" and readiness is "<readiness>"
+  Scenario Outline: Current content bindings determine freshness
+    Given captured and current scenario step and implementation bindings have "<condition>"
+    When freshness is evaluated without graph or clock authority
+    Then evidence is "<state>"
 
     Examples:
-      | condition                        | verdict       | readiness |
-      | all applicable hashes equal      | FRESH         | eligible  |
-      | one applicable hash differs      | STALE         | refused   |
-      | applicable hash is missing       | INDETERMINATE | refused   |
-      | both sides mark dimension not applicable | FRESH      | eligible  |
+      | condition                         | state         |
+      | all applicable values equal       | FRESH         |
+      | one applicable value differs      | STALE         |
+      | one required value is missing     | INDETERMINATE |
+      | step binding is not applicable in both | FRESH     |
 
   @feature7 @AC-7.1 @id:SCEN-spec-evidence-fail-closed-status-truth
-  Scenario: Done verified requires fresh passed canonical evidence for every scenario
-    Given one task has fresh PASSED canonical rows for every required scenario and evidence hashes
-    And other tasks have overlay-only stale skipped failed ambiguous or missing rows
-    When status derivation runs
-    Then only the first task is done-verified
-    And every other task has an explicit evidence blocker
+  Scenario: Every required scenario needs fresh passed full evidence
+    Given a task requires three current scenarios
+    And only two have fresh passed full-scope evidence
+    When task evidence is derived
+    Then the task is BLOCKED with the missing scenario named
+    And it becomes VERIFIED only after all three satisfy the rule
 
   @feature8 @AC-8.1 @id:SCEN-spec-evidence-waiver-honesty
-  Scenario: Waived tasks remain open and unsatisfied
-    Given a task marked as waived in the kernel graph and matching fresh green evidence exists for its scenarios
-    When the evaluator derives status
-    Then the task status remains open-waived regardless of the green evidence
-    And coverage census retains the waived task in authored totals but excludes it from satisfied counts
-    And the waiver state is explicitly named and distinguishable from all other states
+  Scenario: Waived tasks remain open
+    Given a waived task has fresh passed full-scope evidence
+    When task evidence is derived
+    Then its state is WAIVED_OPEN and it is not verified
 
-  @feature9 @AC-9.1 @id:SCEN-spec-evidence-coverage-census-conservation
-  Scenario: Authored and producer conservation equations hold independently
-    Given authored scenarios and canonical overlay unmatched ambiguous and malformed producer rows
-    When the coverage census is computed
-    Then authored scenario conservation holds independently
-    And producer joined unmatched and ambiguous counts equal producerResults and joinRecords membership
-    And per-artifact and global parsed equations include malformed rows exactly
-    And waivedTaskCount does not alter scenario cardinality
-    And an equation violation invalidates the census with an exact diagnostic
+  @feature9 @AC-9.1 @id:SCEN-spec-evidence-internal-row-accounting
+  Scenario: Every row and required scenario is accounted for
+    Given joined unmatched ambiguous and malformed producer rows and current required scenarios
+    When evaluation completes
+    Then every parsed row has one outcome
+    And every required scenario has one elected evidence reference or one blocker
+    And display counts are derived from those records
 
   @feature10 @AC-10.1 @id:SCEN-spec-evidence-anti-false-green-invariants
-  Scenario: No result status or trace exists without evidence bytes and bindings
-    Given task result and trace outputs with missing producer bytes hash bindings or parsed rows
-    When anti-false-green invariants run
-    Then every unsupported status freshness and trace claim is refused with its exact diagnostic
-    And overlay-only evidence never satisfies canonical readiness
+  Scenario: No green claim exists without trusted captured bytes
+    Given a result claim has only a sidecar label self-declared hash name match or partial run
+    When anti-false-green rules run
+    Then readiness is refused with the exact reason
+    And no result or trace is fabricated
 
   @feature11 @AC-11.1 @id:SCEN-spec-evidence-real-fixture-provenance
-  Scenario: Fixtures are real hashed and reconciled
-    Given executable evaluation fixtures from at least two distinct NDJSON producers
+  Scenario: Executable fixtures preserve real producer provenance
+    Given captured fixtures from at least two identified real producers
     When fixture admission runs
-    Then each fixture has recorded fixture ID capture method producer version source path capture date SHA-256 byte count license disposition permitted trimming and reviewed ground truth
-    And synthetic fixtures are labeled synthetic
-    And ground truth includes expected ingestion join freshness and census outcomes
+    Then each fixture records capture method producer version source date hash bytes license trimming and reviewed outcomes
+    And synthetic data is labeled and limited to scale or one-fault derivatives
 
   @feature12 @AC-12.1 @id:SCEN-spec-evidence-budget-enforcement
-  Scenario: Pure evaluator budgets are enforced and latency is measured externally
-    Given artifact count bytes parsed-record diagnostic census and response limits
-    When the pure evaluator processes an over-limit input
-    Then it returns LIMIT_EXCEEDED or an explicitly paged bounded result
-    And it never reads a clock
-    And the caller records latency observations separately
+  Scenario: Hard limits fail closed
+    Given capture evaluation or trace output exceeds a configured hard limit
+    When the operation runs
+    Then it returns a closed limit error without partial failure text
+    And latency measurement remains outside the evaluator
 
   @feature13 @AC-13.1 @id:SCEN-spec-evidence-release-contribution
-  Scenario: Evidence MCP release contribution requires all fourteen checks
-    Given a spec-evidence-mcp@1 manifest with one candidate graph fingerprint and caller-supplied evidence-document bytes
-    When one CHK-FR1-01 through CHK-FR14-01 record or evidence document is missing extra duplicate failed stale mismatched unverifiable or unbound
-    Then eligibility is false with a closed deterministic blocker
-    And every evidence document is re-hashed while prose and unexecuted Gherkin satisfy nothing
-    And the result contributes to but never replaces product FR-6
+  Scenario: Product release consumes ordinary task evidence
+    Given one required task is BLOCKED and the others are VERIFIED for the tested candidate
+    When the product gate consumes ordinary task and scenario evidence
+    Then the evidence contribution fails with the blocked task named
+    And no evidence-specific manifest or second fingerprint is created
 
   @feature14 @AC-14.1 @id:SCEN-spec-evidence-mcp-projection-of-run-results
-  Scenario: MCP projects complete result and trace contracts from evaluator output
-    Given evaluator output contains canonical and overlay rows run ordinals trace pages freshness bindings and evidence hashes
-    And the evaluator itself makes no MCP calls
-    When get_test_result and get_scenario_trace are invoked with qualified IDs layers and cursors
-    Then deterministic LATEST selection status run source trace failed step error freshness evidence and paging follow the exact schema
-    And missing evidence returns success with null while missing/ambiguous IDs and overflow return closed errors
-    And neither tool belongs to historical kernel-v0.3 or its eight-tool first slice
+  Scenario: Result and trace share one evidence reference
+    Given one elected ScenarioEvidence has a trace
+    When get_test_result resolves the scenario and get_scenario_trace receives its evidence reference
+    Then the result returns that ScenarioEvidence
+    And the trace returns only bounded steps and failure for the same evidence reference
+    And neither tool changes the historical eight-tool v0.3.2 first slice

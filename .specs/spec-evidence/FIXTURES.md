@@ -1,35 +1,50 @@
 # Fixtures
 
-Fixture admission follows the repository real-producer policy (`spec-kernel:FR-11` house standard). Every executable evaluation fixture must be real, immutable, hashed, and reconciled with reviewed ground truth.
+Executable fixtures follow the repository real-producer policy. No fixture proves delivery until its bytes and manifest are captured and reviewed.
 
-## Categories
+## Required real captures
 
-| Category | Producer | Purpose | Admission |
-|---|---|---|---|
-| Valid NDJSON (Cucumber-JS) | Cucumber-JS runner emitting Cucumber Messages NDJSON | Positive ingestion + join + freshness for canonical format | Real; full manifest |
-| Valid NDJSON (Reqnroll) | Reqnroll runner emitting Cucumber Messages NDJSON | Multi-language positive ingestion + join | Real; full manifest |
-| Valid NDJSON (behave) | behave runner emitting Cucumber Messages NDJSON | Third producer for multi-language coverage | Real; full manifest |
-| pytest-bdd cucumber-json | pytest-bdd runner emitting cucumber-json | Legacy format positive ingestion | Real; full manifest |
-| Overlay artifact | Real scenario-result overlay emitted by an identified adapter/producer | Canonical vs overlay separation (FR-5) | Real capture; trimming documented |
-| Malformed artifact | One corrupted copy of a captured NDJSON frame | NOT_INGESTED/MALFORMED_ARTIFACT | Minimal synthetic negative; provenance points to source capture |
-| Absent artifact | No bytes plus explicit ABSENT input record | ABSENT/ARTIFACT_ABSENT | Minimal synthetic negative |
-| Empty results container | Captured valid container trimmed to zero result records without breaking format | NOT_INGESTED/MISSING_SCENARIO_RESULTS | Real-derived; trimming documented |
-| Stale evidence | Real passing artifact plus canonical binding sidecar whose sidecar record is changed one dimension at a time and re-hashed | STALE reasons; fails readiness | Real-derived one-fault variants |
-| Ambiguous join | Real result copied into a fixture with two planted same-priority canonical candidates | AMBIGUOUS_JOIN | Real-derived minimal negative |
-| Unmatched results | Real result paired with a corpus that contains no target scenario | UNMATCHED producer count | Real-derived |
-| Waived task corpus | Captured target spec corpus plus its real passing evidence | Waiver honesty: remains open-waived | Real target-owned capture |
-| Scale fixtures | Generated large NDJSON after semantic fixtures pass | NFR count/byte/latency evidence | Synthetic scale-only |
+| Category | Source | Required observable |
+|---|---|---|
+| Cucumber Messages full run | Actual Cucumber-JS or Reqnroll invocation emitting NDJSON | FULL scope, stable join, passed/failed rows, trace |
+| Second producer | Actual supported producer distinct from the first | Same normalized `ScenarioEvidence` shape |
+| Filtered run | Actual runner invocation with a tag/name/path selector | Capture-derived PARTIAL; never readiness authority |
+| Failed run | Actual producer failure with steps/error | Trace pages resolve the result `EvidenceRef` |
+| pytest-bdd cucumber-json | Actual pytest-bdd run when that adapter is implemented | Supported secondary format normalization |
 
 ## Manifest fields
 
-Each fixture record carries: fixture ID, category, capture command or method, producer and version/commit, source path or URL, capture date, SHA-256, byte count, license disposition, permitted trimming note, and ground truth.
+Each real fixture record SHALL include:
 
-Ground truth lists exact kind/version admission, recomputed artifact and sidecar hashes with exact artifactId/artifactSha256 binding, discriminated ingestion record, per-row JOINED/UNMATCHED/AMBIGUOUS outcome, four binding dimensions/applicability, freshness, exact derived status, collection memberships and all conservation counts/equations.
+- fixture ID and category;
+- exact capture command or documented capture method;
+- producer name and version/commit;
+- source path or URL;
+- capture date;
+- artifact SHA-256 and byte count;
+- license disposition;
+- permitted trimming and a statement that the trimmed bytes remain valid producer output;
+- reviewed expected admission, scope, parsed rows, stable join outcomes, freshness, evidence references, task blockers, and trace outcome.
+
+The manifest hash describes the fixture record for review convenience; it is not runtime authentication and never substitutes for re-hashing producer bytes.
+
+## Derived negative fixtures
+
+A derived negative starts from a named real capture and changes exactly one fact:
+
+- corrupt one frame for malformed input;
+- remove the stable ID/tag for unmatched evidence;
+- plant two verified tag candidates for ambiguity;
+- change scenario, applicable step, or implementation identity for staleness;
+- remove one required binding for indeterminate freshness;
+- exceed one byte/count limit.
+
+Each derivative records its source fixture, exact mutation, new hash, and expected single blocker. Hand-authored positive producer payloads are forbidden.
+
+## Synthetic fixtures
+
+Synthetic data is allowed only for scale after semantic real fixtures pass. It SHALL be labeled `synthetic`, SHALL NOT establish parser compatibility or provenance, and SHALL state the generator and seed.
 
 ## Provenance boundary
 
-Upstream `dev-pomogator` NDJSON files (e.g., `.test-results.ndjson.tmp.*`) are capture candidates only. Importing any upstream byte into this repository still requires the repository's provenance/SHA-256/license disposition decision per `SECURITY.md` and the import policy; this specification does not waive that gate. Target-owned captures from live test runs are preferred.
-
-## Multi-language requirement
-
-At least two distinct NDJSON producers MUST be represented in the fixture corpus before FR-11 acceptance. The preferred combination is Cucumber-JS + Reqnroll; behave is a valid alternative second producer.
+Upstream artifacts are capture candidates only. Importing bytes requires the repository's hash, source, license, and review policy. Existing historical v0.3.2 release fixtures/receipts are preserved but do not prove this NEXT evidence capability.

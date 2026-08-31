@@ -1,99 +1,81 @@
 # Acceptance Criteria
 
-These criteria describe required future observations. They are not claims of execution.
+These criteria define observable release behavior; prose and Gherkin alone are not execution evidence.
 
-## AC-1.1 — Single marketplace topology
+## AC-1.1 — Target identity and containment
 
-**WHEN** the release validator scans the complete repository tree **THEN** it SHALL find exactly one marketplace catalog at `.omp-plugin/marketplace.json`, exactly one catalog plugin named `omp-spec-kit`, and exactly `source: "./plugins/omp-spec-kit"`; **AND WHEN** a duplicate catalog, plugin entry, nested marketplace, external source, or root-escaping source is planted **THEN** validation SHALL fail before build or release.
+**WHEN** the candidate catalog is evaluated **THEN** exactly one entry named `omp-spec-kit` SHALL resolve from `./plugins/omp-spec-kit` beneath the repository root and its declared entrypoints SHALL remain beneath that child; duplicate target names or path escape SHALL fail, while unrelated entries SHALL not.
 
-**Trace:** FR-1; `@feature1`.
+**Requirement:** [FR-1](FR.md#fr-1-target-plugin-identity-and-containment) · **Scenario:** `@feature1`.
 
-## AC-2.1 — Single child package and extension
+## AC-2.1 — Deterministic child payload
 
-**WHEN** a candidate child manifest/tree is validated **THEN** it SHALL resolve one package and one extension entry `./dist/extension.js`, match the candidate version, and match its closed profile (historical v0.1.0 without MCP; delivered v0.3.2 with one `.mcp.json`, two launchers, and generated kernel/adapters/mcp trees); **AND** nested package/catalog, legacy entry, second extension/server/control plane, source/test/evidence file, install script, ambient dependency, or profile-mismatched MCP surface SHALL fail.
+**WHEN** the immutable tag commit is built twice from clean output **THEN** both package-tree and archive SHA-256 values SHALL match, and missing, unexpected, linked, non-regular, source, test, or evidence payload files SHALL fail.
 
-**Trace:** FR-2; `@feature2`.
+**Requirement:** [FR-2](FR.md#fr-2-deterministic-child-payload) · **Scenario:** `@feature2`.
 
-## AC-3.1 — Bounded root-relative inventory
+## AC-3.1 — Installed canonical invocation
 
-**WHEN** `spec_inventory` runs from a fresh session rooted at a fixture project **THEN** it SHALL inspect only `<project-root>/.specs`, return direct spec directories in lexical order, apply request bounds and hard caps, expose only normalized project-relative paths, and report truncation explicitly; **AND IF** current working directory, package location, or a link would escape the project **THEN** it SHALL not traverse the escape.
+**WHEN** the exact archive is installed project-scope and a fresh supported OMP session sends a canonical request **THEN** the installed candidate SHALL answer from the active project and report the candidate version and declared surface; distribution SHALL not revalidate the kernel's full request/result grammar.
 
-**Trace:** FR-3; `@feature3`.
+**Requirement:** [FR-3](FR.md#fr-3-installed-canonical-invocation) · **Scenario:** `@feature3`.
 
 ## AC-4.1 — Fresh-session activation
 
-**WHEN** the exact candidate is discovered and installed project-scope, `/reload-plugins` runs, the pre-install session ends, and a fresh session starts **THEN** the declared installed surface SHALL execute from `plugins/omp-spec-kit/dist/**` and report the exact candidate version; current v0.3.2 observations SHALL bind to `docs/validation/release-status-v0.3.2.json`.
+**WHEN** discovery, install, and reload succeed but the old session has not ended **THEN** activation SHALL remain unproven; **AND WHEN** a new session invokes the installed candidate **THEN** activation SHALL pass.
 
-**Trace:** FR-4; `@feature4`.
-
-## AC-4.2 — Reload is not activation proof
-
-**WHEN** installation and `/reload-plugins` complete but no fresh session has started **THEN** the evidence evaluator SHALL record reload completion separately and SHALL refuse an extension-activation or tool-availability claim.
-
-**Trace:** FR-4; `@feature4`.
+**Requirement:** [FR-4](FR.md#fr-4-fresh-session-activation) · **Scenario:** `@feature4`.
 
 ## AC-5.1 — Dependency-absent execution
 
-**WHEN** a clean build creates only the candidate-profile allowlist, repository-root/external `node_modules` and the source checkout are unavailable, and the payload is installed **THEN** a fresh session SHALL load the extension and, for MCP-enabled profiles, launch the MCP server and invoke the declared first-slice surface without undeclared/ambient dependencies.
+**WHEN** the checkout and ambient dependencies are unavailable **THEN** the installed extension and MCP launcher SHALL still complete the canonical invocation, or release SHALL fail.
 
-**Trace:** FR-5; `@feature5`.
+**Requirement:** [FR-5](FR.md#fr-5-dependency-absent-execution) · **Scenario:** `@feature5`.
 
-## AC-6.1 — Read-only negative cases
+## AC-6.1 — Installed containment and read-only smoke
 
-**WHEN** the fixture presents missing `.specs`, non-directory `.specs`, malformed documents, unreadable entries, an abort signal, or more entries/diagnostics than allowed **THEN** the tool SHALL return the corresponding bounded status/diagnostic, write zero bytes, perform no network/model/process/background activity, and leave the session usable.
+**WHEN** the installed candidate is invoked from a project distinct from the package directory **THEN** it SHALL use the active project, stay contained, and leave project hashes, credentials, network, model, and background state untouched.
 
-**Trace:** FR-6; `@feature6`.
+**Requirement:** [FR-6](FR.md#fr-6-installed-containment-and-read-only-smoke) · **Scenario:** `@feature6`.
 
-## AC-7.1 — Version consistency
+## AC-7.1 — Version consistency and upgrade
 
-**WHEN** any candidate is evaluated **THEN** catalog entry, child package, embedded runtime, installed observation, artifact/evidence metadata, and GitHub tag SHALL identify the exact same semver/commit/digests; v0.1.0 has no lower-release prerequisite, while current v0.3.2 SHALL bind the real v0.3.0 predecessor and exact upgrade/rollback receipt digests.
+**WHEN** a post-first candidate is evaluated **THEN** all candidate authorities and the fresh installed observation SHALL agree, and an upgrade from exact public predecessor bytes SHALL reach the candidate; stale-session or catalog-only change SHALL fail.
 
-**Trace:** FR-7; `@feature7`.
+**Requirement:** [FR-7](FR.md#fr-7-version-consistency-and-upgrade) · **Scenario:** `@feature7`.
 
-## AC-7.2 — Subsequent-release upgrade
+## AC-8.1 — Uninstall, reinstall, and rollback
 
-**GIVEN** the candidate is later than `0.1.0` and a lower version was actually released, **WHEN** that lower release is installed project-scope, the catalog is updated, the plugin is upgraded to the strictly newer candidate, plugin metadata is reloaded, and a fresh session starts **THEN** the installed tool SHALL report the candidate version matching catalog, package, artifact, and tag; catalog refresh alone, a relabeled local candidate, or observation from the old session SHALL not satisfy the criterion.
+**WHEN** lifecycle recovery is exercised **THEN** uninstall SHALL yield fresh absence, reinstall SHALL invoke the same candidate digest, rollback SHALL invoke the exact public predecessor for post-first releases, and non-OMP-managed project hashes SHALL remain unchanged.
 
-**Trace:** FR-7; `@feature7`.
-
-## AC-8.1 — Candidate uninstall and reinstall
-
-**GIVEN** the verified candidate artifact is installed project-scope, including candidate `0.1.0`, **WHEN** it is uninstalled **THEN** a fresh project session SHALL not expose its tool and all non-OMP-managed project hashes SHALL equal baseline; **AND WHEN** the exact same candidate artifact is explicitly reinstalled, plugin metadata is reloaded, and another fresh session invokes `spec_inventory` **THEN** the tool SHALL report the candidate version with the same project-hash preservation.
-
-**Trace:** FR-8; `@feature8`.
-
-## AC-8.2 — Subsequent-release rollback
-
-**GIVEN** a release later than `0.1.0` is installed and its immediately applicable prior version was actually released, **WHEN** that prior version is explicitly installed for rollback, reloaded, and started fresh **THEN** the tool SHALL report the prior version and all non-OMP-managed project hashes SHALL equal baseline.
-
-**Trace:** FR-8; `@feature8`.
+**Requirement:** [FR-8](FR.md#fr-8-uninstall-reinstall-and-rollback) · **Scenario:** `@feature8`.
 
 ## AC-9.1 — Public-safety gates
 
-**WHEN** a provenance hash or source commit differs, a license is unknown, a secret-like fixture is outside the designated scanner test fixture, a local-state path is packaged, the public diff is dirty, or the packaged-path allowlist is exceeded **THEN** the public artifact and release jobs SHALL stop without publishing.
+**WHEN** provenance, license, secret, local-state, public-diff, or payload-allowlist verification fails **THEN** no public release asset SHALL be created and diagnostics SHALL not disclose the protected value.
 
-**Trace:** FR-9; `@feature9`.
+**Requirement:** [FR-9](FR.md#fr-9-public-safety-gates) · **Scenario:** `@feature9`.
 
-## AC-10.1 — GitHub Actions release transaction
+## AC-10.1 — Build once, publish, and attest
 
-**WHEN** a qualifying immutable tag is evaluated **THEN** `distribution-evidence.yml` SHALL build and attest the exact matrix subject, `release.yml` SHALL select only the successful peeled-tag-commit run, verify candidate identity and the fixed GitHub attestation trust contract, publish the already verified digest once, and attest the assets; **AND** PR/untagged events, failed jobs, wrong signer/repo/ref/subject, blocked distribution eligibility, broader-than-needed permissions, or an existing different artifact SHALL not publish/replace.
+**WHEN** a qualifying tag passes every named check **THEN** the public archive SHA-256 SHALL equal the verified build SHA-256 and the final GitHub Artifact Attestation subject SHA-256; a rebuild, different existing asset, PR, or untagged push SHALL not publish.
 
-**Trace:** FR-10; `@feature10`.
+**Requirement:** [FR-10](FR.md#fr-10-build-once-publish-the-same-digest-attest-once) · **Scenario:** `@feature10`.
 
-## AC-11.1 — No claim before proof
+## AC-11.1 — Distribution-owned status record
 
-**WHEN** any applicable lifecycle receipt is missing, stale, belongs to another commit/version/OMP pin, lacks artifact digest or project-hash evidence, or represents only feature text/structural validation **THEN** every public status surface SHALL remain `SPEC_ONLY/NOT_READY` and the release job SHALL be ineligible.
+**WHEN** publication and final attestation complete **THEN** one compact immutable distribution record SHALL contain the candidate identity, named checks, lifecycle, public asset, and attestation; it SHALL contain no product capability decision.
 
-**Trace:** FR-11; `@feature11`.
+**Requirement:** [FR-11](FR.md#fr-11-distribution-owned-release-status) · **Scenario:** `@feature11`.
 
-## AC-12.1 — Schema and containment negative cases
+## AC-12.1 — Compact release decision
 
-**WHEN** a request has unknown properties, invalid limits, unsupported schema version, duplicate slug, unsafe path/link, oversized result, or a diagnostic containing a forbidden absolute path, stack, secret, environment value, or file content **THEN** the tool SHALL fail closed or sanitize to the defined public schema, return a bounded diagnostic, and disclose none of the forbidden data.
+**WHEN** any named release check fails **THEN** the release SHALL stop and identify that check in CI diagnostics without requiring extra receipt envelopes, copied host/runtime schemas, arbitrary counters, or a repository-wide inventory.
 
-**Trace:** FR-12; `@feature12`.
+**Requirement:** [FR-12](FR.md#fr-12-compact-release-decision) · **Scenario:** `@feature12`.
 
-## AC-13.1 — Complete candidate-aware release evidence
+## AC-13.1 — Practical distribution release path
 
-**WHEN** distribution eligibility is evaluated **THEN** it SHALL emit only `distribution-release-eligibility@2` for the complete canonical-contained FR-1..FR-12 producer matrix bound to one candidate/OMP/platform/applicability/lifecycle identity. Self-authored metadata SHALL block. Eligibility SHALL require `gh attestation verify` over the exact subject with pinned repository `stgmt/omp-spec-kit` (or exact trusted `GITHUB_REPOSITORY`), signer workflow `stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml`, and source ref `refs/tags/<candidate-tag>`. Missing verifier, unpinned/wrong repo, wrong workflow/ref, subject/hash mismatch, timeout/nonzero/spawn failure, incomplete/duplicate/foreign/stale/symlinked receipt, or passing-summary-only evidence SHALL block. MRI and public/product conjunctions SHALL remain owned by `mcp-release-integrity` and `product:FR-6`; predicate JSON is diagnostic only.
+**WHEN** a next candidate is released **THEN** it SHALL follow only the contained-target → build-once → installed/lifecycle/safety checks → same-digest publish → final archive attestation → status-record path; an obsolete secondary evaluator or intermediate attestation SHALL neither be required nor emitted.
 
-**Trace:** FR-13; `@feature13`.
+**Requirement:** [FR-13](FR.md#fr-13-practical-distribution-release-path) · **Scenario:** `@feature13`.

@@ -1,164 +1,54 @@
 @spec-kernel @read-only
-Feature: Standalone deterministic specification graph kernel
-  The v0.2 kernel parses a bounded repository snapshot and serves read queries.
-  The v0.3 MCP adapter projects the same service without mutations.
-  These scenarios specify required behavior and have no executed status here.
+Feature: One deterministic specification graph core
+  The core is pure and occurrence-first. Historical MCP names are thin compatibility adapters.
 
-  @feature1 @AC-1.1 @id:SCEN-pure-read-only-boundary
-  Scenario: Pure kernel and public registries remain read-only
-    Given immutable source documents and kernel limits are supplied as values
-    When every v0.2 kernel and query operation is exercised
-    Then no filesystem clock environment network process OMP or MCP access occurs in the pure kernel
-    And the v0.2 and v0.3 public operation registries contain no mutation or state-transition operation
+  @feature1 @AC-1.1 @id:SCEN-pure-occurrence-first-core
+  Scenario: Pure occurrence-first core
+    Given caller-supplied canonical source documents and limits
+    When the core builds a graph
+    Then it performs no ambient I/O and preserves source occurrences
 
-  @feature2 @AC-2.1 @id:SCEN-supported-documents-and-ids
-  Scenario: Document-role grammar recognizes only canonical FR AC and TASK definitions
-    Given the current product plugin-distribution spec-kernel and spec-authoring-workflow FR AC and TASK documents
-    And their headings include FR colon-title and em-dash-title forms AC colon-title em-dash-title and bare exact-ID forms and TASK colon-title and em-dash-title forms
-    And product acceptance documents contain FR grouping headings while requirement and task matrices repeat IDs as reference prose
-    When the source set is parsed by canonical document role before heading shape
-    Then every authored FR AC and TASK definition is emitted exactly once from its owning document
-    And grouping wrong-document arbitrary and malformed headings do not become definitions
-    And shared TASK status preserves planned and todo as distinct values while mapping canonical Completed to done
+  @feature2 @AC-2.1 @id:SCEN-canonical-documents-and-qualified-ids
+  Scenario: Canonical documents and qualified IDs
+    Given the fifteen canonical document names and two specs with the same local ID
+    When role-aware parsing runs
+    Then owning-document definitions and spec-qualified identities are distinct
+    And duplicate candidates are retained
 
-  @feature3 @AC-3.1 @id:SCEN-qualified-deterministic-snapshot
-  Scenario: Qualified identities and snapshots are reproducible
-    Given two specs each define local ID FR-1
-    And local and explicit qualified cross-spec references connect them
-    When equivalent UTF-8 inputs with different arrival orders and line endings are parsed
-    Then the canonical nodes remain distinct by spec slug
-    And both builds have identical fingerprints and canonical serialization
+  @feature3 @AC-3.1 @id:SCEN-typed-graph-conservation
+  Scenario: Typed graph conservation
+    Given valid, missing, ambiguous, malformed, and forbidden references
+    When the graph resolves occurrences
+    Then each reference has one typed edge outcome
+    And all conservation equations reconcile
 
-  @feature4 @AC-4.1 @id:SCEN-lossless-duplicates
-  Scenario: Duplicate definitions are preserved without winner selection
-    Given one spec contains two valid definitions for the same canonical ID
-    And another definition references that ID
-    When the graph is built and the ID is queried
-    Then both definition candidates are preserved and no canonical node is elected
-    And the reference is ambiguous and the query returns AMBIGUOUS_ID with both bounded candidates
+  @feature4 @AC-4.1 @id:SCEN-four-bounded-core-primitives
+  Scenario: Four bounded core primitives
+    Given an immutable graph and a bounded cursor
+    When inventory findNodes traverse and diagnostics are called
+    Then one deterministic envelope returns stable pages or typed errors
 
-  @feature5 @AC-5.1 @id:SCEN-edge-resolution-outcomes
-  Scenario: Every reference occurrence has exactly one edge outcome
-    Given references include valid missing ambiguous malformed forbidden-endpoint and qualified cross-spec targets
-    When typed edges are resolved
-    Then each reference occurrence is exactly one resolved edge or one typed unresolved reference
-    And every resolved edge joins existing endpoint kinds permitted by the schema
+  @feature5 @AC-5.1 @id:SCEN-contained-inputs-and-budgets
+  Scenario: Contained inputs and budgets
+    Given contained canonical files and unsafe or oversized variants
+    When the host adapter prepares sources
+    Then unsafe bytes are refused before admission and no writes occur
 
-  @feature6 @AC-6.1 @id:SCEN-conservation-and-fail-closed-diagnostics
-  Scenario: Conservation and cardinality failures invalidate the graph
-    Given document definition domain-reference Markdown-heading and Markdown-link occurrence counts are known
-    When the graph invariants are evaluated
-    Then all conservation and cardinality equations reconcile
-    But when an invariant violation is planted
-    Then graph validity is false and no readiness or passing-test claim is returned
+  @feature6 @AC-6.1 @id:SCEN-historical-eight-name-compatibility
+  Scenario: Historical eight-name compatibility
+    Given the released v0.3.2 compatibility adapters
+    When each preserved MCP name projects a common request
+    Then each result matches the shared core after transport metadata is removed
 
-  @feature7 @AC-7.1 @id:SCEN-contained-reader-rejects-links
-  Scenario: Repository reader refuses linked external and over-budget paths
-    Given an explicit repository root has contained canonical files
-    And variants include traversal an external absolute path a symbolic link a junction or reparse point and an oversized file
-    When the filesystem adapter prepares a source snapshot
-    Then every unsafe or over-budget variant is refused before target bytes are read
-    And diagnostics contain only sanitized repository-relative information and zero files are written
+  @feature7 @AC-7.1 @id:SCEN-deterministic-diagnostics-and-fingerprint
+  Scenario: Deterministic diagnostics and fingerprint
+    Given equivalent normalized source bytes in different orders and line endings
+    When the graph is built
+    Then canonical bytes diagnostics and fingerprint are identical
+    And query availability does not affect the fingerprint
 
-  @feature8 @AC-8.1 @id:SCEN-bounded-query-service
-  Scenario: Shared query operations are stable and bounded
-    Given an immutable valid graph and its fingerprint
-    When inventory getNode findNodes getEdges trace diagnostics overview and markdownInventory receive normal boundary excessive and stale-cursor inputs
-    Then each call returns the exhaustive canonical envelope or a closed typed error
-    And ordering pagination totals truncation and limits are explicit and graph state is unchanged
-
-  @feature9 @AC-9.1 @id:SCEN-mcp-read-projection-only
-  Scenario: MCP adapter adds transport but no semantics
-    Given the v0.3 MCP adapter and v0.2 service share one graph and request
-    When every registered MCP tool is invoked
-    Then each structured canonical result equals the direct service result after transport metadata is removed
-    And the MCP registry has exactly eight named read tools and zero mutation-like tools
-
-  @feature10 @AC-10.1 @id:SCEN-self-contained-artifact
-  Scenario Outline: Installed package proof is selected by target stage
-    Given targetStage <targetStage> and evidenceProfile <evidenceProfile> select CHK-FR10-01
-    And the exact candidate artifact is installed outside the source checkout with root and external node_modules unavailable
-    When <exercise>
-    Then the record has packageSurface <packageSurface> and proves <acceptedProof>
-    And a record with the other stage profile package surface release line or artifact binding is rejected
-
-    Examples:
-      | targetStage | evidenceProfile | packageSurface          | exercise                                                        | acceptedProof                                                                 |
-      | v0.2        | kernel-v0.2     | OMP_EXTENSION_ONLY      | the OMP extension builds a graph and executes one query          | only the dependency-absent extension package with no MCP dependency           |
-      | v0.3        | kernel-v0.3     | OMP_EXTENSION_AND_MCP   | the OMP extension and MCP server each execute the shared service | both components came from the exact dependency-absent installed v0.3 artifact |
-
-  @feature11 @AC-11.1 @id:SCEN-real-fixture-provenance
-  Scenario: Real fixture bytes reconcile with declared provenance and ground truth
-    Given a target-owned fixture manifest records producer capture hash size license trimming and reviewed counts
-    When fixture bytes are verified and parsed
-    Then their hash and size match and all occurrence and outcome counts reconcile
-    And the result makes no upstream parity or executed-scenario claim
-
-  @feature12 @AC-12.1 @id:SCEN-performance-and-size-budgets
-  Scenario: Packaged runtime enforces performance size and result budgets
-    Given the packaged artifact and pinned benchmark corpus
-    When cold builds bounded queries hard-limit variants and cancellation are measured
-    Then latency memory bundle response corpus and traversal observations meet every NFR budget
-    And any hard excess returns a typed limit error or blocks release without silent data loss
-
-  @feature13 @AC-13.1 @id:SCEN-complete-markdown-rename-inventory
-  Scenario: Complete heading and link inventory makes a rename plan conservative
-    Given accepted Markdown contains ID and ordinary ATX and Setext headings including Foo Foo Foo-1 and equivalent adversarial orders
-    And its links include inline reference and autolink forms with internal external unresolved and shared-definition destinations
-    When headings are allocated in document order against the complete set of previously emitted canonical anchors
-    And the complete markdownInventory cursor chain is requested unscoped and focused on one ordinary canonical anchor
-    Then Foo Foo Foo-1 emits foo foo-1 foo-1-1 and every emitted canonical anchor is pairwise unique
-    And Foo-1 Foo Foo emits foo-1 foo foo-2 and Foo Foo-1 Foo emits foo foo-1 foo-2
-    And every heading and semantic link occurrence appears exactly once with versioned anchors exact use and rewrite spans stable rewrite keys and outcomes
-    And all inbound links to the focus and all outbound links in its section are identified and the heading and link conservation totals reconcile
-    And historical glfm behavior is owned only by CHK-FR13-01 while kernel-anchor-migration@1 requires exactly CHK-FR13-02 for Marksman rows and cross-version cursor refusal
-
-  @feature14 @AC-14.1 @id:SCEN-kernel-release-gate-is-all-not-any
-  Scenario: Kernel release eligibility requires the complete selected stage profile
-    Given a v0.2 manifest declares targetStage v0.2 and evidenceProfile kernel-v0.2
-    And it has exactly one passing hash-bound record for every mandatory check for FR-1 through FR-8 and FR-10 through FR-13
-    And its package fixture and v0.2 budget records agree on the candidate artifact and applicable corpus fingerprint
-    When kernel release eligibility is evaluated
-    Then v0.2 eligibility is true without FR-9 MCP evidence
-    But a v0.2 manifest containing FR-9 evidence or an unknown or mismatched stage profile is ineligible
-    And a v0.3 manifest is eligible only with a same-lineage accepted v0.2 input every v0.2-profile check FR-9 adapter parity and read-only registry evidence and MCP-inclusive package and budget evidence
-    And removing duplicating failing staling mismatching waiving partializing or making unverifiable any one required record makes that stage ineligible
-    And every ineligible result has deterministic blocking details and no publication or readiness side effect
-
-  @feature15 @AC-15.1 @id:SCEN-contained-step-binding-index
-  Scenario: Contained step-definition sources become kernel bindings under their own profile
-    Given a delivered v0.3 baseline and allowlisted cucumber-js step-definition sources
-    And one Gherkin step has exactly one matching pattern one has none and one has two
-    When kernel-step-bindings at 1 is evaluated
-    Then every binding node uses NodeSourceV2 kind STEP_DEFINITION
-    And the uniquely matched step has one BINDS_STEP edge
-    And the unmatched step has WARNING STEP_UNDEFINED and the graph remains valid
-    And the doubly matched step has WARNING STEP_AMBIGUOUS and no BINDS_STEP edge
-    And a symlink or path outside tests/step-definitions is refused before read
-    And CHK-FR13-02 plus CHK-FR15-01 and the baseline are required for the same pre-registration candidate
-    And activation uses the same dormant artifact without rebuilding
-    And historical v0.2 and v0.3 manifests without FR-15 remain evaluable
-
-  @feature16 @AC-16.1 @id:SCEN-generator-port-read-operations
-  Scenario: Generator-port kernel reads grow MCP under a standalone profile
-    Given the delivered v0.3 eight-tool first slice
-    When kernel-generator-port-reads at 1 is evaluated
-    Then every FR-16 operation satisfies its exact args result error bounds and cursor contract
-    And MCP projects each operation one-to-one without deleting the first-slice names
-    And get_test_result get_scenario_trace and mutation tools remain absent
-    And CHK-FR13-02 plus CHK-FR16-01 and the baseline are required for the same pre-registration candidate
-    And dormant MCP mappings activate without rebuilding
-    And historical v0.2 and v0.3 manifests without FR-16 remain evaluable
-
-  @feature17 @AC-17.1 @id:SCEN-mcp-adapter-document-preflight-io
-  Scenario: Adapter document and preflight I/O grow MCP under a standalone profile
-    Given the delivered v0.3 eight-tool first slice
-    When kernel-adapter-io at 1 is evaluated
-    Then list_spec_docs read_spec_doc read_attachment and mcp_preflight satisfy their exact adapter contracts
-    And they apply FR-7 containment before bytes leave the adapter
-    And they are not QueryOperationV2 values and create no second graph
-    And CHK-FR13-02 plus CHK-FR17-01 and the baseline are required for the same pre-registration candidate
-    And dormant MCP mappings activate without rebuilding
-    And historical v0.2 and v0.3 manifests without FR-17 remain evaluable
-
-
+  @feature8 @AC-8.1 @id:SCEN-real-fixtures-and-measurable-budgets
+  Scenario: Real fixtures and measurable budgets
+    Given the target-owned real-corpus manifest and retained receipt references
+    When hashes oracles and package measurements are reviewed
+    Then provenance and budgets are visible without a kernel release claim

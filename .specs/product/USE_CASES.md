@@ -1,121 +1,65 @@
 # Use cases
 
-## UC-1 — Freeze the upstream source
+## UC-1 — Read current status
 
-**Primary actor:** provenance reviewer
+**Actor:** Product manager.
 
-**Preconditions:** an immutable upstream commit is selected; no target publication has occurred.
-
-**Main flow:**
-
-1. Read only Git-object bytes from the selected commit and allowlisted subtree.
-2. Record repository URL, commit, source path, target path, SHA-256, disposition, import status, and license status for every inventoried path.
-3. Copy approved reference bytes under `docs/upstream/` without editing them.
-4. Compare copied bytes to the manifest.
-5. Mark source-freeze evidence eligible only if every inventory row is accounted for and every copied hash matches.
-
-**Alternatives:** a missing path, dirty-worktree read, unrecorded file, or hash mismatch makes the freeze ineligible and stops publication.
-
-**Trace:** `product:FR-2`, `product:AC-2.1`, `product:AC-2.2`, `@feature2`.
-
-## UC-2 — Decide redistribution eligibility
-
-**Primary actor:** legal reviewer
-
-**Preconditions:** source-freeze evidence exists.
+**Precondition:** The public status and bounded v0.3.2 proof are readable.
 
 **Main flow:**
+1. Open the product README.
+2. Read the single SHIPPED row.
+3. Follow the proof link and confirm version `0.3.2` and installed identity `omp-spec-kit@omp-spec-kit`.
 
-1. Review the upstream license evidence and each imported row's status.
-2. Record the decision and its evidence without changing the imported bytes.
-3. Permit publication only when every copied item has an accepted redistribution basis.
+**Outcome:** The manager sees the current read-only baseline without treating prior releases as separate current products.
 
-**Hypothetical alternative:** a future or changed import lacks sufficient evidence; status stays `NOT_READY_FOR_PUBLICATION`, and removal/replacement of the affected bytes remains an acceptable remediation.
+**Trace:** `product:FR-1`, `product:AC-1.1`, `SCEN-current-release-proof`.
 
-**Trace:** `product:FR-3`, `product:AC-3.1`, `product:AC-3.2`, `@feature3`.
+## UC-2 — Verify one product identity
 
-## UC-3 — Produce a clean public export
+**Actor:** OMP user.
 
-**Primary actor:** security reviewer
+**Main flow:** Inspect the marketplace entry, package, extension, and public mutation inventory.
 
-**Preconditions:** an allowlist and prohibited-path policy exist.
+**Outcome:** All surfaces belong to one installed product and no competing writer exists.
 
-**Main flow:**
+**Trace:** `product:FR-2`, `product:AC-2.1`, `SCEN-one-product-identity`.
 
-1. Build the candidate tree only from approved repository-owned files and manifest-approved imported bytes.
-2. Reject credentials, `.env` material, logs, caches, user state, mutable test evidence, inherited Git history, and unapproved binary/generated assets.
-3. Run the configured secret scan over the complete candidate history/tree.
-4. Record zero unresolved findings and public-diff review.
+## UC-3 — Evaluate a shipment claim
 
-**Alternatives:** any unknown path or unresolved scan finding blocks publication; a scanner exception requires a recorded reviewer decision tied to the exact finding and bytes.
-
-**Trace:** `product:FR-4`, `product:AC-4.1`, `product:AC-4.2`, `@feature4`.
-
-## UC-4 — Publish specification-first init
-
-**Primary actor:** product manager
-
-**Preconditions:** source freeze, redistribution rights, clean export, specification review, and public documentation gates are eligible.
+**Actor:** Release owner.
 
 **Main flow:**
+1. Select a proposed SHIPPED row.
+2. Read its current proof.
+3. Compare the proof's release identity with the row.
+4. Refuse SHIPPED if proof is absent or mismatched.
 
-1. Confirm the repository contains product specifications and policies but no marketplace catalog or plugin payload.
-2. Confirm the README says no plugin is installable.
-3. Confirm the roadmap separates delivered, planned, and deferred stages.
-4. Publish from fresh history only after all blockers are zero.
+**Outcome:** Specification text, tasks, Gherkin, and old receipts cannot promote a row.
 
-**Alternative:** any blocker keeps the repository local/non-public and status fail-closed.
+**Trace:** `product:FR-3`, `product:AC-3.1`, `product:AC-3.2`, `SCEN-missing-proof-is-not-shipped`, `SCEN-unexecuted-text-is-not-proof`.
 
-**Trace:** `product:FR-1`, `product:FR-8`, `product:AC-1.1`, `product:AC-8.1`, `@feature1`, `@feature8`.
+## UC-4 — Author through the safe path
 
-## UC-5 — Advance one product through releases
-
-**Primary actor:** release owner
-
-**Preconditions:** the exact product revision, current candidate artifact SHA-256, and artifact lineage to be evaluated are identified; each evidence reference declares a typed current-candidate or v0.2-predecessor binding; a preceding-stage label or historical proof is not itself gate evidence.
+**Actor:** Spec author.
 
 **Main flow:**
+1. Call `propose_patch`.
+2. Review the proposal.
+3. Call `apply_proposed_patch`.
+4. Observe atomic contained application.
+5. Attempt a non-allowlisted direct `.specs/**` write and observe refusal.
 
-1. Derive the proposed stage's complete cumulative canonical cross-spec gate set; do not caller-select a subset.
-2. Require `plugin-distribution:FR-1` separately for the one marketplace/plugin/extension identity invariant.
-3. For v0.1.0, require accepted historical `distribution-release-eligibility@1` owned by `plugin-distribution:FR-13`.
-4. For v0.2, require the candidate-applicable distribution profile plus accepted `spec-kernel:FR-14` `targetStage: "v0.2"`; new candidates after the repair use distribution @2.
-5. For v0.3, require accepted current-candidate distribution and accepted current-candidate `spec-kernel:FR-14` with `targetStage: "v0.3"`. Separately identify the required accepted `targetStage: "v0.2"` result as the predecessor; permit its artifact SHA-256 to differ only when the v0.3 result's `v02ParentArtifactSha256` equals it, both kernel results share the status product revision and lineage, their stage/profile pair is ordered v0.2 before v0.3, and neither is stale or revoked.
-6. For authoring/mutation delivery, require the joint evidence FR-13/14 + authoring FR-13/14 + enforcement FR-11 tuple for the same current candidate; implementation may exist while deferred but no row delivers alone.
-7. Confirm every baseline/capability aggregate and typed predecessor link; only then publish the applicable DELIVERED rows.
+**Outcome:** Authoring and direct-write protection are one product outcome.
 
-**Alternatives:** any missing or member-subset aggregate, current distribution/current-stage/current-authoring result bound away from the current candidate, historical or different-lineage v0.2 result, missing or mismatched `v02ParentArtifactSha256`, reversed/duplicate/wrong target-stage pair, or stale/revoked result retains the last proven stage. A second product/control plane fails the identity gate.
+**Trace:** `product:FR-4`, `product:AC-4.1`, `product:AC-4.2`, `SCEN-authoring-tools-are-bounded`, `SCEN-direct-spec-write-is-refused`.
 
-**Trace:** `product:FR-5`, `product:FR-6`, `product:AC-5.1`, `product:AC-6.1`, `@feature5`, `@feature6`.
+## UC-5 — Read the roadmap
 
-## UC-6 — Report honest status
+**Actor:** Contributor.
 
-**Primary actor:** public reader
+**Main flow:** Read one SHIPPED row, one NEXT row, and the plain LATER list.
 
-**Preconditions:** stage definitions and evidence records exist.
+**Outcome:** The contributor knows the current product, the next safe outcome, and later ideas without internal state machinery.
 
-**Main flow:**
-
-1. Read baseline plus all seven capability rows, evidence source, blockers and next gates.
-2. Distinguish `SPEC_ONLY`, `PLANNED`, `SPECIFIED`, `DEFERRED`, `DEFERRED_HOST_ABI`, `BLOCKED`, and `DELIVERED`.
-3. Treat specification/Gherkin/roadmap/task labels as intent, never execution evidence.
-4. Project the most conservative schema-valid state when evidence is missing, stale, revoked, contradictory, parent-mismatched or failed.
-
-**Trace:** `product:FR-7`, `product:AC-7.1`, `product:AC-7.2`, `@feature7`.
-
-## UC-7 — Use the MCP spec door
-
-**Primary actor:** agent
-
-**Preconditions:** the canonical census in `docs/decisions/spec-generator-port.md` exists.
-
-**Main flow:**
-
-1. Treat the agent-facing specification API as MCP only.
-2. Treat the eight SCHEMA-11 names as the v0.3 first slice, not the destination registry.
-3. Resolve later generator-port reads, evidence MCP, sibling LSP, and authoring MCP to their owner specs without unlocking authoring as delivered.
-4. Refuse leftover freeze phrases that deny the 46-tool door unless they say first slice or v0.3 candidate.
-
-**Alternatives:** host `lsp` is not a spec tool; MCP MAY consume LSP internally for diagnostics/navigation.
-
-**Trace:** `product:FR-9`, `product:AC-9.1`, `@feature9`.
+**Trace:** `product:FR-5`, `product:AC-5.1`, `SCEN-roadmap-has-three-buckets`.

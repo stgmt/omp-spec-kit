@@ -1,119 +1,58 @@
 # User Stories
 
-### User Story 1: Active-project MCP results (Priority: P1)
+## User Story 1: Active-project answers
 
-As an OMP user, I want the installed MCP plugin to read the project from which I started OMP, so that its answers describe my specifications rather than an empty plugin folder.
-**Требование:** [FR-1](FR.md#fr-1-active-project-mcp-root).
+- **Priority:** P1
+**Требование:** [FR-1](FR.md#fr-1-active-project-installed-behavior)
+- **Why:** Empty package-local answers look valid while describing the wrong repository.
+- **Independent Test:** `SCEN-mri-active-project-root` launches the installed package from project-a and excludes project-b and package decoys.
+- **Acceptance Scenario:** Given distinct projects, when OMP starts from project-a, then every answer comes from project-a; a validated absolute override may select project-b.
 
-**Why:** A successful-looking empty result makes the product untrustworthy and hides a release defect from the person who needs the data.
+## User Story 2: Recoverable protocol errors
 
-**Independent Test:** `SCEN-mri-active-project-root` installs the built package in project-a with no root override and proves that `spec_overview` returns project-a data but excludes package-decoy and project-b data.
+- **Priority:** P1
+**Требование:** [FR-2](FR.md#fr-2-terminal-protocol-errors-and-recovery)
+- **Why:** A silent invalid frame makes clients wait indefinitely.
+- **Independent Test:** `SCEN-mri-terminal-json-rpc` and `SCEN-mri-malformed-json-recovery` send raw frames and then a valid call on the same process.
+- **Acceptance Scenario:** Given a running server, when an invalid request is sent, then one terminal JSON-RPC error is returned and the next valid call succeeds.
 
-**Acceptance Scenarios:**
+## User Story 3: Historical eight-tool package
 
-Given project-a, project-b, and the package folder each contain distinct `.specs` fixtures
-When a fresh OMP process discovers the installed v0.3.2 MCP server from project-a without `OMP_SPEC_KIT_ROOT`
-Then every returned envelope describes project-a and contains neither package-decoy nor project-b identifiers
+- **Priority:** P1
+**Требование:** [FR-3](FR.md#fr-3-historical-eight-tool-installed-surface)
+- **Why:** A descriptor list does not prove installed handlers work.
+- **Independent Test:** `SCEN-mri-all-tool-parity` calls every historical v0.3.2 MCP tool from an isolated package copy.
+- **Acceptance Scenario:** Given no source checkout or ambient dependency ancestry, when all eight tools are called, then each returns a complete result for the pinned corpus and the corpus remains unchanged.
 
-Given a caller explicitly supplies a validated absolute `OMP_SPEC_KIT_ROOT`
-When the server starts from a different current directory
-Then it reads only that explicit root and does not reinterpret a bare environment-variable name as a path
+## User Story 4: One real candidate run
 
----
+- **Priority:** P1
+**Требование:** [FR-4](FR.md#fr-4-one-real-candidate-run)
+- **Why:** Hand-authored receipts and job summaries can be green without exercising the release journey.
+- **Independent Test:** A future candidate uses one unfiltered Docker Cucumber Message run plus fresh-session install, upgrade, rollback, and reinstall observations.
+- **Acceptance Scenario:** Given a clean candidate, when the unfiltered profile runs, then every named observable group passes; scoped, failed, malformed, or meta-only output cannot replace the trusted run.
 
-### User Story 2: Standards-compliant MCP failures (Priority: P1)
+## User Story 5: Same verified bytes reach users
 
-As an MCP client integrator, I want malformed requests to receive a terminal protocol response, so that my client does not wait indefinitely for an answer.
-**Требование:** [FR-2](FR.md#fr-2-terminal-json-rpc-protocol-responses).
+- **Priority:** P1
+**Требование:** [FR-5](FR.md#fr-5-contained-deterministic-candidate-and-same-byte-publication)
+- **Why:** Rebuilding during publication breaks the identity proven by verification.
+- **Independent Test:** `SCEN-mri-artifact-mismatch-refusal`, `SCEN-mri-executable-launcher-archive`, and `SCEN-mri-symlinked-evidence-refusal` cover candidate identity, executable mode, containment, and mutation refusal.
+- **Acceptance Scenario:** Given a verified archive, when publish downloads it, then its digest must still match; otherwise no release mutation occurs.
 
-**Why:** Silent protocol drops look like network hangs and are materially harder to diagnose than a precise JSON-RPC error.
+## User Story 6: Honest immutable history
 
-**Independent Test:** `SCEN-mri-terminal-json-rpc` sends raw newline-delimited JSON-RPC frames to the built server and checks response count, id, code, and complete stdout framing.
+- **Priority:** P2
+**Требование:** [FR-6](FR.md#fr-6-public-guidance-and-immutable-v032-evidence)
+- **Why:** Installation and recovery guidance is part of the operational product.
+- **Independent Test:** `SCEN-mri-public-communication-proof` reads the bounded v0.3.2 record and public guidance.
+- **Acceptance Scenario:** Given the public v0.3.2 record, when identities are reconciled, then release notes, archive identity, current guidance, and the v0.3.0 advisory agree without claiming a fresh rerun.
 
-**Acceptance Scenarios:**
 
-Given a running installed server
-When a request with `jsonrpc: "1.0"` and id `7` is sent
-Then the server emits exactly one JSON-RPC `-32600` response with id `7`
+## User Story 7: Know which project produced an answer
 
-Given a running installed server
-When malformed JSON, an unknown method, or an unknown tool is sent
-Then the server emits exactly one JSON-RPC `-32700`, `-32601`, or `-32602` response with the required id and no non-protocol stdout
-
----
-
-### User Story 3: Evidence-bound release (Priority: P1)
-
-As a release maintainer, I want publishing to consume the exact archive that verification inspected, so that a green check cannot release different or unproven bytes.
-**Требование:** [FR-3](FR.md#fr-3-installed-package-all-tool-parity), [FR-4](FR.md#fr-4-candidate-bound-lifecycle-eligibility), [FR-5](FR.md#fr-5-artifact-only-publication).
-
-**Why:** A version label or successful workflow job is not evidence that the delivered package, tag, lifecycle, and release assets agree.
-
-**Independent Test:** `SCEN-mri-artifact-mismatch-refusal`, `SCEN-mri-public-eligibility-separation`, and the bound v0.3.2 release-status digests jointly prove that verified candidate identity is preserved through publication.
-
-**Acceptance Scenarios:**
-
-Given a v0.3.2 candidate has all current required receipts and a matching peeled tag commit
-When the evaluator checks its archive and receipt digests
-Then it marks the candidate eligible and publish consumes that same archive
-
-Given any candidate identity or required post-0.1 lifecycle receipt differs or is absent
-When release eligibility runs
-Then it blocks publication with a specific reason
-
----
-
-### User Story 4: Honest public release status (Priority: P2)
-
-As an existing user, I want the v0.3.0 issue and v0.3.2 fix described plainly, so that I know whether to upgrade and do not rely on stale claims.
-**Требование:** [FR-6](FR.md#fr-6-honest-release-communication).
-
-**Why:** Documentation is the operational interface for installation and recovery; stale release notes create support cost and bad decisions.
-
-**Independent Test:** `SCEN-mri-public-communication-proof` validates generated v0.3.2 notes and documentation against the verified candidate version/evidence and checks the v0.3.0 advisory target.
-
-**Acceptance Scenarios:**
-
-Given v0.3.0 remains historically published
-When a user opens its release page or advisory
-Then it is marked superseded for the MCP root defect and directs the user to v0.3.2
-
-Given v0.3.2 has passed all release gates
-When public notes are rendered
-Then they name the current version, MCP surface, evidence status, and fresh-session requirement without v0.1-only claims
-
----
-
-### User Story 5: Proven upgrade and rollback (Priority: P1)
-
-As a release maintainer, I want v0.3.2 eligibility to require observed upgrade and rollback receipts, so that a release cannot be called recoverable from a job summary alone.
-
-**Требование:** [FR-4](FR.md#fr-4-candidate-bound-lifecycle-eligibility).
-
-**Why:** The prior release deferred the exact cross-version behavior this patch must prove.
-
-**Independent Test:** `SCEN-mri-lifecycle-receipt-refusal` rejects a missing, foreign, or mismatched upgrade/rollback receipt before eligibility.
-
-**Acceptance Scenarios:**
-
-Given an evidence record is missing upgrade or rollback
-When candidate eligibility is evaluated
-Then it is ineligible with a lifecycle blocking reason
-
----
-
-### User Story 6: One verified archive reaches users (Priority: P1)
-
-As a release maintainer, I want publish to recheck the downloaded candidate archive, so that it cannot rebuild or substitute bytes after verification.
-
-**Требование:** [FR-5](FR.md#fr-5-artifact-only-publication).
-
-**Why:** A tag and a successful job do not prove which archive reached users.
-
-**Independent Test:** `SCEN-mri-artifact-mismatch-refusal` tampers with the archive and observes release eligibility fail before release mutation.
-
-**Acceptance Scenarios:**
-
-Given a verified candidate archive exists
-When its bytes differ at publish verification
-Then publish is refused without a release mutation
+- **Priority:** P1
+**Требование:** [FR-7](FR.md#fr-7-response-source-identity-and-root-consistency)
+- **Why:** A valid result from another project can look identical to a current-project result when the tool omits its source identity.
+- **Independent Test:** `SCEN-mri-response-provenance` and `SCEN-mri-extension-root-consistency` run the installed stdio server and OMP extension with separate cwd and absolute-root inputs.
+- **Acceptance Scenario:** Given an active project and an explicit project override, when the installed read surfaces return results, then every result names the server, carries one resolved/active root identity pair, and visibly marks a mismatch.
