@@ -1,0 +1,31 @@
+# Repository-root policy for forbid-root-artifacts.
+# Keep generated output under existing project directories; do not add scratch files to root.
+mode: extend
+allow:
+  - CHANGELOG.md
+  - CONTRIBUTING.md
+  - IMPORT_MANIFEST.yaml
+  - MIGRATION_MATRIX.md
+  - ROADMAP.md
+  - SECURITY.md
+  - cucumber.mjs
+allowed_directories:
+  - .dev-pomogator
+  - .github
+  - .omp
+  - .omp-plugin
+  - .specs
+  - .tmp
+  - node_modules
+  - audit-reports
+  - docs
+  - plugins
+  - scripts
+  - src
+  - tests
+ignore_patterns: []
+use_default_trash_patterns: true
+classifier:
+  mode: config
+auto_prune:
+  enabled: true
