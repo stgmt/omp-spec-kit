@@ -1,6 +1,6 @@
 {
   "schema": "omp-spec-kit-authoring-real-corpus@1",
-  "sourceCommit": "b9b5744325aedbaa39273c675e76b3fc6b05e881",
+  "sourceCommit": "5a01a8ac76d87f4a8cc600f763cbb3228375c199",
   "sourceCommand": "git show <commit>:.specs/<spec>/<document>",
   "fixtureDirectory": "tests/fixtures/kernel/authoring-real-corpus/.specs",
   "selectedSpecs": [
