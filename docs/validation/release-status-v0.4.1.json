@@ -1,0 +1,86 @@
+{
+  "schema": "omp-spec-kit-public-release-status@1",
+  "version": "0.4.1",
+  "tag": "v0.4.1",
+  "releaseUrl": "https://github.com/stgmt/omp-spec-kit/releases/tag/v0.4.1",
+  "publishedAt": "2026-09-01T23:22:46Z",
+  "tagCommit": "221feb9f069935ae5739044b079d5a4590963b58",
+  "candidateDigest": "0c3a838d0ba523ba68814e5394239bacb1715f18e019c9b9fc42476fc8f58df3",
+  "packageTreeDigest": "d38a0f37017abdfce4fb76df4a31222af795e4b113f57442dca78945ff7234a3",
+  "archive": {
+    "name": "omp-spec-kit-0.4.1.tar",
+    "bytes": 432640,
+    "sha256": "0e7b94ad0ae9ed693d2ec79c7242a9a4e0f7c542b988d20967b949a24606cadc"
+  },
+  "releaseAssets": [
+    {
+      "name": "candidate.json",
+      "bytes": 8216,
+      "sha256": "844b81770d8cd62bafbb99f814d1aa9710f3168180bafa0fe61dcfa92ab6f7f7"
+    },
+    {
+      "name": "evidence.json",
+      "bytes": 3304,
+      "sha256": "32ea8ede729ad3b461ae55386dc9fe0bc3184338385854386b075f5fc62f15b2"
+    },
+    {
+      "name": "omp-spec-kit-0.4.1.tar",
+      "bytes": 432640,
+      "sha256": "0e7b94ad0ae9ed693d2ec79c7242a9a4e0f7c542b988d20967b949a24606cadc"
+    }
+  ],
+  "attestation": {
+    "verified": true,
+    "workflow": "https://github.com/stgmt/omp-spec-kit/.github/workflows/release.yml@refs/tags/v0.4.1",
+    "workflowCommit": "221feb9f069935ae5739044b079d5a4590963b58",
+    "run": "https://github.com/stgmt/omp-spec-kit/actions/runs/33570465319/attempts/1",
+    "subjectNames": [
+      "omp-spec-kit-0.4.1.tar",
+      "candidate.json",
+      "evidence.json"
+    ]
+  },
+  "distributionAttestation": {
+    "verified": true,
+    "subject": "distribution-evidence.json",
+    "subjectSha256": "54834e809da55b14934505b40b0ca5a6b6748b3c1b2b3004761a8143d8578a0d",
+    "repository": "stgmt/omp-spec-kit",
+    "signerWorkflow": "https://github.com/stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml@refs/tags/v0.4.1",
+    "sourceRef": "refs/tags/v0.4.1",
+    "workflowCommit": "221feb9f069935ae5739044b079d5a4590963b58",
+    "run": "https://github.com/stgmt/omp-spec-kit/actions/runs/33570465194/attempts/1"
+  },
+  "evidence": {
+    "schema": "omp-spec-kit-release-evidence@3",
+    "catalogDigest": "13bb81c5d172771ce6d48065cd98a5dd41298a39e0077d66377b42883e67e248",
+    "publicSafetyDigest": "91d1a788382d24c01b8e36182433e7405f1de7fd1d7fb626f1fbe9b3b94c1c64",
+    "dockerBddDigest": "b2948d27c808e679c7a28e16cd1395f623900734fabefad08ec1381eab836ed2",
+    "priorV032Digest": "27bb47ac617586620a09eea0a9de31c8f1d557cc610acaf63841e8206be342a3",
+    "upgradeFromV032Digest": "53b385a325d0a086f042b8fa923770dc79afe95d02e06c459d0e2c2e5bddba66",
+    "rollbackToV032Digest": "a113cb787c27e25a3d3eecc9384d6af82fc0f14746a7999a94fb11ccb4458960",
+    "managerDiscoveryDigest": "69659d9c84b4f405054a0cac12f6aa3a2a4b285a6a36d312abaa407834fcda6f",
+    "distributionReceiptDigest": "54834e809da55b14934505b40b0ca5a6b6748b3c1b2b3004761a8143d8578a0d"
+  },
+  "status": {
+    "public": true,
+    "installable": true,
+    "state": "SHIPPED",
+    "surface": "SAFE_AUTHORING",
+    "toolCount": 10
+  },
+  "provenance": {
+    "releaseMetadataCommand": "gh release view v0.4.1 --repo stgmt/omp-spec-kit",
+    "assetDownloadCommand": "gh release download v0.4.1 --repo stgmt/omp-spec-kit",
+    "archiveSmokeCommand": "npm run test:release-archive -- --archive omp-spec-kit-0.4.1.tar",
+    "candidateAttestationCommand": "gh attestation verify candidate.json --repo stgmt/omp-spec-kit --format json",
+    "distributionRunCommand": "gh run download 33570465194 --repo stgmt/omp-spec-kit --name omp-spec-kit-distribution-evidence-v0.4.1",
+    "distributionAttestationCommand": "gh attestation verify distribution-evidence.json --repo stgmt/omp-spec-kit --format json",
+    "capturedOn": "2026-09-01"
+  },
+  "releaseNotes": {
+    "source": "https://github.com/stgmt/omp-spec-kit/releases/tag/v0.4.1",
+    "captureCommand": "gh release view v0.4.1 --repo stgmt/omp-spec-kit --json body --jq .body",
+    "capturedOn": "2026-09-01",
+    "bodySha256": "0b19b315d5de3475fa523328c7ec90eb46d3b45c5da4d0ce2907cac0b7ac688a"
+  }
+}

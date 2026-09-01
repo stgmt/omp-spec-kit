@@ -73,6 +73,6 @@ The MCP server reads the active OMP project. It does not use editor LSP as a sub
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution workflow
 - [`CHANGELOG.md`](CHANGELOG.md) — release history
 - [`ROADMAP.md`](ROADMAP.md) — user-visible delivery sequence
-- [GitHub release evidence for v0.4.1](https://github.com/stgmt/omp-spec-kit/releases/tag/v0.4.1) — immutable candidate, evidence, archive, and attestation records
+- docs/validation/release-status-v0.4.1.json — immutable release candidate, evidence, archive, and attestation record
 
 License: MIT.
