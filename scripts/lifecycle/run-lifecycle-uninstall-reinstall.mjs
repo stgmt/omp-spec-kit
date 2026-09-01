@@ -4,7 +4,7 @@
 // over every regular file under the project dir (sorted relative paths);
 // any mutation after uninstall fails the run hard.
 import { spawnSync } from "node:child_process";
-import { mkdir } from "node:fs/promises";
+import { lstat, mkdir, unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -18,7 +18,7 @@ import {
 	reloadCapability,
 	writeLifecycleRecord,
 } from "./lib/omp-session.mjs";
-import { projectHash } from "./lib/project-hash.mjs";
+import { fail, projectHash } from "./lib/project-hash.mjs";
 
 const PLUGIN_NAME = "omp-spec-kit";
 
@@ -111,6 +111,20 @@ async function main() {
 		uninstalled = attempt.value;
 	}
 
+	// OMP 18.0.11 link() creates a profile symlink; uninstall() clears its
+	// runtime config but leaves that link when it was not a package dependency.
+	// Remove the stale package declaration before the fresh-process absence proof.
+	try {
+		await unlink(enrollment.linkPath);
+	} catch (error) {
+		if (error.code !== "ENOENT") throw error;
+	}
+	try {
+		await lstat(enrollment.linkPath);
+		fail(`linked package remained after unlink: ${enrollment.linkPath}`);
+	} catch (error) {
+		if (error.code !== "ENOENT") throw error;
+	}
 	// A fresh process must see NO converted config for the plugin.
 	try {
 		const childArgs = [

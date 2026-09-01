@@ -10,9 +10,9 @@ const REPOSITORY_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const RUNTIME_ROOT = path.join(REPOSITORY_ROOT, "tests", "fixtures", "omp-discovery-runtime");
 const RUNNER_DIR = path.join(REPOSITORY_ROOT, "scripts", "lifecycle");
 const RUNTIME_PACKAGE_ROOT = path.join(RUNTIME_ROOT, "node_modules", "@oh-my-pi", "pi-coding-agent");
-const FROZEN_CORPUS_ROOT = path.join(REPOSITORY_ROOT, "tests", "fixtures", "kernel", "real-corpus");
-const EXPECTED_VERSION = "0.3.2";
-const PRIOR_VERSION = "0.3.0";
+const FROZEN_CORPUS_ROOT = path.join(REPOSITORY_ROOT, "tests", "fixtures", "kernel", "authoring-real-corpus");
+const EXPECTED_VERSION = "0.4.0";
+const PRIOR_VERSION = "0.3.2";
 const PHASE_TIMEOUT_MS = "30000";
 const CHILD_TIMEOUT_MS = 240000;
 
@@ -23,7 +23,7 @@ function lifecycleEnv(home, agentRoot) {
 		CI: "1",
 		HOME: home,
 		USERPROFILE: home,
-		PI_CODING_AGENT_DIR: agentRoot,
+		PI_CONFIG_DIR: ".omp-lifecycle-producer",
 		OMP_PROFILE: "lifecycle-producer",
 		OMP_SPEC_KIT_BDD_CONTAINER: process.env.OMP_SPEC_KIT_BDD_CONTAINER,
 	};
@@ -70,7 +70,7 @@ After({ tags: "@lifecycle-producers" }, async function () {
 Given("the pinned omp-discovery-runtime fixture and its bun-installed dependencies exist", async function () {
 	assert.equal(process.env.OMP_SPEC_KIT_BDD_CONTAINER, "1", "lifecycle producers run only inside the BDD container");
 	const runtimePackage = await readJson(path.join(RUNTIME_ROOT, "package.json"));
-	assert.equal(runtimePackage.dependencies["@oh-my-pi/pi-coding-agent"], "18.0.10");
+	assert.equal(runtimePackage.dependencies["@oh-my-pi/pi-coding-agent"], "18.0.11");
 	assert.ok(
 		existsSync(path.join(RUNTIME_ROOT, "node_modules", "@oh-my-pi", "pi-coding-agent", "src", "discovery", "index.ts")),
 		"pinned runtime is not installed; the BDD image must run bun install first",
@@ -78,35 +78,34 @@ Given("the pinned omp-discovery-runtime fixture and its bun-installed dependenci
 });
 
 Given("an isolated temp project containing one valid spec corpus", async function () {
-	// The frozen real corpus ships one complete spec (product); copy its
-	// manifest-selected documents so spec_inventory observes exactly it.
-	const manifest = await readJson(path.join(REPOSITORY_ROOT, "tests", "fixtures", "kernel", "real-corpus-manifest.json"));
-	const productDocuments = manifest.documents.map((entry) => entry.path).filter((relative) => relative.startsWith(".specs/product/"));
-	assert.ok(productDocuments.length > 0, "frozen corpus manifest must select product documents");
-	for (const relative of productDocuments) {
+	// Copy every manifest-selected document from the current three-spec corpus.
+	const manifest = await readJson(path.join(REPOSITORY_ROOT, "tests", "fixtures", "kernel", "authoring-real-corpus-manifest.json"));
+	const documents = manifest.documents.map((entry) => entry.path);
+	assert.equal(documents.length, 45, "authoring corpus manifest must select all 45 documents");
+	for (const relative of documents) {
 		const target = path.join(this.lifecycle.projectDir, ...relative.split("/"));
 		await mkdir(path.dirname(target), { recursive: true });
 		await copyFile(path.join(FROZEN_CORPUS_ROOT, ...relative.split("/")), target);
 	}
 });
 
-Given("the built candidate package root and expected version 0.3.2", async function () {
+Given("the built candidate package root and expected version 0.4.0", async function () {
 	const packageManifest = await readJson(path.join(this.lifecycle.candidateRoot, "package.json"));
 	assert.equal(packageManifest.version, EXPECTED_VERSION);
 });
 
-Given("the candidate package root with expected version 0.3.2", async function () {
+Given("the candidate package root with expected version 0.4.0", async function () {
 	const packageManifest = await readJson(path.join(this.lifecycle.candidateRoot, "package.json"));
 	assert.equal(packageManifest.version, EXPECTED_VERSION);
 });
 
-Given("the v0.3.0 prior release extracted by build-tagged-candidate", async function () {
-	this.lifecycle.priorRoot = path.join(this.lifecycle.tempRoot, "prior-0.3.0");
+Given("the v0.3.2 prior release extracted by build-tagged-candidate", async function () {
+	this.lifecycle.priorRoot = path.join(this.lifecycle.tempRoot, "prior-0.3.2");
 	const result = spawnSync(process.execPath, [
 		path.join(RUNNER_DIR, "build-tagged-candidate.mjs"),
-		"--tag", `v${PRIOR_VERSION}`,
+		"--tag", "v" + PRIOR_VERSION,
 		"--output", this.lifecycle.priorRoot,
-	], { cwd: REPOSITORY_ROOT, encoding: "utf8", timeout: 60000, env: { ...process.env, OMP_SPEC_KIT_TAGGED_COMMIT_V0_3_0: process.env.OMP_SPEC_KIT_V030_COMMIT ?? "382ce8850203303f42225ccdcf2966cc13fc80e4" } });
+	], { cwd: REPOSITORY_ROOT, encoding: "utf8", timeout: 60000, env: { ...process.env, OMP_SPEC_KIT_TAGGED_COMMIT_V0_3_2: process.env.OMP_SPEC_KIT_V032_COMMIT ?? "2938389e34e2d06bdd497291ed01e0a2d89146c9" } });
 	assert.equal(result.status, 0, `build-tagged-candidate failed: ${result.stderr}`);
 	const summary = JSON.parse(result.stdout);
 	assert.equal(summary.version, PRIOR_VERSION);
@@ -241,7 +240,7 @@ Then("the runner wrote a passing upgrade record binding plugin-distribution:FR-7
 	this.lifecycle.records.upgrade = record;
 });
 
-Then("the upgrade details observe version 0.3.0 in one fresh session and 0.3.2 in another", function () {
+Then("the upgrade details observe version 0.3.2 in one fresh session and 0.4.0 in another", function () {
 	const record = this.lifecycle.records.upgrade;
 	assert.equal(record.details.fromVersion, PRIOR_VERSION);
 	assert.equal(record.details.toVersion, EXPECTED_VERSION);
@@ -260,7 +259,7 @@ Then("the runner additionally wrote a passing rollback record binding plugin-dis
 	this.lifecycle.records.rollback = record;
 });
 
-Then("the rollback details observe version 0.3.0 after uninstalling the candidate", function () {
+Then("the rollback details observe version 0.3.2 after uninstalling the candidate", function () {
 	const record = this.lifecycle.records.rollback;
 	assert.equal(record.details.fromVersion, EXPECTED_VERSION);
 	assert.equal(record.details.toVersion, PRIOR_VERSION);
@@ -317,27 +316,27 @@ When("create-distribution-evidence runs with --lifecycle-receipts-dir", { timeou
 
 	// Real corpus inventory output via the standalone kernel reader over the
 	// temp project's one-spec corpus.
-	const corpusManifest = await readJson(path.join(REPOSITORY_ROOT, "tests", "fixtures", "kernel", "real-corpus-manifest.json"));
+	const corpusManifest = await readJson(path.join(REPOSITORY_ROOT, "tests", "fixtures", "kernel", "authoring-real-corpus-manifest.json"));
 	const adapterUrl = new URL("../../src/kernel/adapters/fs.js", import.meta.url);
 	const { readRepositorySpecs } = await import(adapterUrl.href);
 	const observed = await readRepositorySpecs({ root: projectDir });
 	const specSlugs = [...new Set(observed.files.map((file) => file.path.split("/")[1]))].sort();
-	assert.equal(specSlugs.length, 1);
+	assert.equal(specSlugs.length, 3);
 	await writeFile(
 		path.join(workDir, "corpus-inventory.json"),
 		`${JSON.stringify({
 			schema: "omp-spec-kit-corpus-inventory@1",
-			corpusFixtureSha256: corpusManifest.provenance.fixtureSha256,
-			documentCount: observed.files.length,
-			returnedSpecs: 1,
-			observedSpecs: 1,
+			corpusFixtureSha256: corpusManifest.aggregateSha256,
+				documentCount: observed.files.length,
+				returnedSpecs: 3,
+				observedSpecs: 3,
 			specs: specSlugs,
 		}, null, 2)}\n`,
 	);
 
-	const discoveryDoc = path.join(REPOSITORY_ROOT, "docs", "validation", "omp-discovery-v18.0.10.md");
+	const discoveryHarness = path.join(REPOSITORY_ROOT, "scripts", "probe-omp-discovery-v18.0.11.mjs");
 	const { createHash } = await import("node:crypto");
-	const discoveryDigest = createHash("sha256").update(await readFile(discoveryDoc)).digest("hex");
+	const discoveryDigest = createHash("sha256").update(await readFile(discoveryHarness)).digest("hex");
 
 	// Synthesize a candidate manifest bound to the working tree. The BDD
 	// image ships no .git (docker-no-git-repo rule), so identity comes from
@@ -567,15 +566,15 @@ Then("it wrote exactly the nine closed receipt files", function () {
 	assert.equal(summary.schema, "omp-spec-kit-mri-composer-summary@1");
 	assert.deepEqual(
 		[...summary.files].sort(),
-		["fr/FR-1.json", "fr/FR-2.json", "fr/FR-3.json", "fr/FR-4.json", "fr/FR-5.json", "fr/FR-6.json", "prior-v0.3.0.json", "rollback-to-v0.3.0.json", "upgrade-from-v0.3.0.json"].sort(),
+			["fr/FR-19.json", "fr/FR-20.json", "fr/FR-21.json", "fr/FR-22.json", "fr/FR-23.json", "fr/FR-24.json", "prior-v0.3.2.json", "rollback-to-v0.3.2.json", "upgrade-from-v0.3.2.json"].sort(),
 	);
 });
 
 Then("each prior, upgrade, and rollback receipt carries its exact contract key set", async function () {
 	const out = this.lifecycle.composerReceiptsOut;
-	const prior = JSON.parse(await readFile(path.join(out, "prior-v0.3.0.json"), "utf8"));
+		const prior = JSON.parse(await readFile(path.join(out, "prior-v0.3.2.json"), "utf8"));
 	exactKeySet(prior, ["commit", "schema", "source", "status", "tag"]);
-	for (const name of ["upgrade-from-v0.3.0.json", "rollback-to-v0.3.0.json"]) {
+		for (const name of ["upgrade-from-v0.3.2.json", "rollback-to-v0.3.2.json"]) {
 		const receipt = JSON.parse(await readFile(path.join(out, name), "utf8"));
 		exactKeySet(receipt, COMPOSER_LIFECYCLE_KEYS);
 		assert.equal(receipt.schema, "omp-spec-kit-lifecycle-receipt@1");
@@ -585,19 +584,19 @@ Then("each prior, upgrade, and rollback receipt carries its exact contract key s
 
 Then("each FR receipt cites its own passing release-evidence scenario id", async function () {
 	const out = this.lifecycle.composerReceiptsOut;
-	for (let index = 1; index <= 6; index += 1) {
-		const receipt = JSON.parse(await readFile(path.join(out, "fr", `FR-${index}.json`), "utf8"));
+	for (let requirement = 19; requirement <= 24; requirement += 1) {
+		const receipt = JSON.parse(await readFile(path.join(out, "fr", `FR-${requirement}.json`), "utf8"));
 		exactKeySet(receipt, COMPOSER_FR_KEYS);
 		assert.equal(receipt.schema, "omp-spec-kit-fr-receipt@1");
-		assert.equal(receipt.requirement, `plugin-distribution:FR-${index + 18}`);
-		assert.match(receipt.scenarioId, /^SCEN-mri-[a-z0-9]+(?:-[a-z0-9]+)*$/u, `FR-${index} scenario id must use canonical lower-kebab MRI grammar`);
+		assert.equal(receipt.requirement, `plugin-distribution:FR-${requirement}`);
+		assert.match(receipt.scenarioId, /^SCEN-mri-[a-z0-9]+(?:-[a-z0-9]+)*$/u, `FR-${requirement} scenario id must use canonical lower-kebab MRI grammar`);
 	}
 	assert.ok(this.lifecycle.composerOutput.scenarioIds.length > 0, "composer summary must cite passing scenario ids");
 });
 
-Then("the prior receipt proves the v0.3.0 public-tag source", async function () {
-	const prior = JSON.parse(await readFile(path.join(this.lifecycle.composerReceiptsOut, "prior-v0.3.0.json"), "utf8"));
-	assert.equal(prior.tag, "v0.3.0");
+Then("the prior receipt proves the v0.3.2 public-tag source", async function () {
+	const prior = JSON.parse(await readFile(path.join(this.lifecycle.composerReceiptsOut, "prior-v0.3.2.json"), "utf8"));
+	assert.equal(prior.tag, "v0.3.2");
 	assert.equal(prior.source, "public-tag");
 	assert.match(prior.commit, /^[0-9a-f]{40}$/u);
 });

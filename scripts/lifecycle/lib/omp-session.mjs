@@ -1,6 +1,6 @@
 // Shared helpers for the real distribution lifecycle producers. Every helper
-// drives the pinned OMP 18.0.10 runtime exactly the way
-// scripts/probe-omp-discovery-v18.0.10.mjs does: bounded phases, fresh HOME
+// drives the pinned OMP 18.0.11 runtime exactly the way
+// scripts/probe-omp-discovery-v18.0.11.mjs does: bounded phases, fresh HOME
 // isolation supplied by the caller, and no fabricated observations.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -68,6 +68,7 @@ export async function loadRuntimeModules(runtimePackageRoot, cwd) {
 		const fixtureHost = path.resolve(runtimePackageRoot, "..", "..", "..");
 		return import(pathToFileURL(path.join(fixtureHost, "node_modules", "@oh-my-pi", "pi-utils", "src", "index.ts")).href);
 	});
+	if (typeof piUtils.setProfile === "function" && process.env.OMP_PROFILE) piUtils.setProfile(process.env.OMP_PROFILE);
 	if (process.cwd() !== cwd || piUtils.getProjectDir() !== cwd) {
 		fail(`session must start at project root; process=${process.cwd()} project=${piUtils.getProjectDir()} expected=${cwd}`);
 	}
@@ -137,21 +138,27 @@ export async function assertCapabilityAbsent(cwd, targetName, modules, timeoutMs
 // Connects only the target server through a fresh MCPManager and returns its
 // spec_inventory tool handle. Caller owns disconnect().
 export async function loadAndConnect(cwd, targetName, targetConfigs, targetSources, modules, timeoutMs = DEFAULT_PHASE_TIMEOUT_MS) {
-	const manager = new modules.MCPManager(cwd);
-	const result = await phase("connect", timeoutMs, async () => {
-		const connectionResult = await manager.connectServers(targetConfigs, targetSources, () => {});
-		const resolvedName = targetConfigName(targetConfigs, targetSources, targetName) ?? targetName;
-		if (!(connectionResult.connectedServers ?? []).includes(resolvedName)) {
-			throw new Error(`server ${resolvedName} did not connect; connected: ${(connectionResult.connectedServers ?? []).join(", ") || "<none>"}`);
-		}
-		const tool = manager.getTools().find((candidate) =>
-			candidate.mcpServerName === resolvedName && candidate.mcpToolName === "spec_inventory",
-		);
-		if (!tool) throw new Error(`OMP manager did not expose ${resolvedName}/spec_inventory`);
-		return { tool, toolCount: connectionResult.tools.length, serverName: resolvedName };
-	});
-	if (!result.ok) throw new Error(`connect failed: ${result.error.message}`);
-	return { manager, ...result.value };
+	const resolvedName = targetConfigName(targetConfigs, targetSources, targetName) ?? targetName;
+	let lastError = null;
+	for (let attempt = 1; attempt <= 3; attempt += 1) {
+		const manager = new modules.MCPManager(cwd);
+		const result = await phase("connect", timeoutMs, async () => {
+			const connectionResult = await manager.connectServers(targetConfigs, targetSources, () => {});
+			if (!(connectionResult.connectedServers ?? []).includes(resolvedName)) {
+				throw new Error(`server ${resolvedName} did not connect; connected: ${(connectionResult.connectedServers ?? []).join(", ") || "<none>"}`);
+			}
+			const tool = manager.getTools().find((candidate) =>
+				candidate.mcpServerName === resolvedName && candidate.mcpToolName === "spec_inventory",
+			);
+			if (!tool) throw new Error(`OMP manager did not expose ${resolvedName}/spec_inventory`);
+			return { tool, toolCount: connectionResult.tools.length, serverName: resolvedName };
+		});
+		if (result.ok) return { manager, ...result.value };
+		lastError = result.error;
+		await disconnectManager(manager);
+		if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 250));
+	}
+	throw new Error(`connect failed after 3 attempts: ${lastError.message}`);
 }
 
 // Executes spec_inventory and parses the documented text result.

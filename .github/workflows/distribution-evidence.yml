@@ -45,6 +45,7 @@ jobs:
             exit 2
           fi
           "$NODE_BIN" scripts/refresh-real-corpus-manifest.mjs --check
+          "$NODE_BIN" scripts/refresh-authoring-real-corpus-manifest.mjs --check
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -76,7 +77,7 @@ jobs:
           dist_manifest_sha="$(sha256sum plugins/omp-spec-kit/dist/manifest.json | cut -d ' ' -f1)"
           launcher_sha="$(sha256sum plugins/omp-spec-kit/bin/omp-spec-kit-mcp | cut -d ' ' -f1)"
           cd "$DISCOVERY_PROJECT"
-          HOME="$DISCOVERY_HOME" USERPROFILE="$DISCOVERY_HOME" PI_CODING_AGENT_DIR="$DISCOVERY_HOME/agent" OMP_PROFILE=discovery-producer \
+          HOME="$DISCOVERY_HOME" USERPROFILE="$DISCOVERY_HOME" PI_CONFIG_DIR=.omp-discovery-producer OMP_PROFILE=discovery-producer \
             bun "$GITHUB_WORKSPACE/scripts/probe-omp-discovery-v18.0.11.mjs" \
             --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
             --cwd "$DISCOVERY_PROJECT" \
@@ -113,8 +114,8 @@ jobs:
           LIFECYCLE_AGENT_DIR: ${{ runner.temp }}/omp-lifecycle-agent
         run: |
           mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
-          cp -r tests/fixtures/kernel/real-corpus/.specs/product "$LIFECYCLE_PROJECT_DIR/.specs/"
-          cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
+          cp -r tests/fixtures/kernel/authoring-real-corpus/.specs/. "$LIFECYCLE_PROJECT_DIR/.specs/"
+          cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CONFIG_DIR=.omp-lifecycle-producer OMP_PROFILE=lifecycle-producer \
             bun "$GITHUB_WORKSPACE/scripts/lifecycle/run-lifecycle-install-reload-fresh-session.mjs" \
             --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
             --candidate-package-root "$GITHUB_WORKSPACE/plugins/omp-spec-kit" \
@@ -132,8 +133,8 @@ jobs:
         run: |
           # Reuse the single v0.3.2 extraction from dist-evidence/prior.
           mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
-          cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
-            bun "$GITHUB_WORKSPACE/scripts/lifecycle/run-lifecycle-upgrade.mjs" \
+          cp -r tests/fixtures/kernel/authoring-real-corpus/.specs/. "$LIFECYCLE_PROJECT_DIR/.specs/"
+          cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CONFIG_DIR=.omp-lifecycle-producer OMP_PROFILE=lifecycle-producer \
             --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
             --candidate-package-root "$GITHUB_WORKSPACE/plugins/omp-spec-kit" \
             --prior-package-root "$GITHUB_WORKSPACE/dist-evidence/prior" \
@@ -150,8 +151,8 @@ jobs:
           LIFECYCLE_AGENT_DIR: ${{ runner.temp }}/omp-fr8-agent
         run: |
           mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
-          cp -r tests/fixtures/kernel/real-corpus/.specs/product "$LIFECYCLE_PROJECT_DIR/.specs/"
-          cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
+          cp -r tests/fixtures/kernel/authoring-real-corpus/.specs/. "$LIFECYCLE_PROJECT_DIR/.specs/"
+          cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CONFIG_DIR=.omp-lifecycle-producer OMP_PROFILE=lifecycle-producer \
             bun "$GITHUB_WORKSPACE/scripts/lifecycle/run-lifecycle-uninstall-reinstall.mjs" \
             --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
             --candidate-package-root "$GITHUB_WORKSPACE/plugins/omp-spec-kit" \
