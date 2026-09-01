@@ -12,10 +12,10 @@ const serverPath = path.join(repositoryRoot, "src", "mcp", "server.js");
 
 function valueForField(entry, index) {
   if (entry.kind === "string") {
-    if (entry.name === "canonicalId") return "product:FR-1";
-    if (entry.name === "spec" || entry.name === "specSlug") return "product";
+    if (entry.name === "canonicalId") return "plugin-distribution:FR-1";
+    if (entry.name === "spec" || entry.name === "specSlug") return "plugin-distribution";
     if (entry.name === "path") return "FR.md";
-    if (entry.name === "anchor") return "product:FR-1";
+    if (entry.name === "anchor") return "plugin-distribution:FR-1";
     if (entry.name === "scenarioId") return "SCEN-mri-active-project-root";
     if (entry.name === "requestId") return `dogfood-${index}`;
     if (entry.name === "proposalId") return "dogfood-proposal";
@@ -29,7 +29,7 @@ function valueForField(entry, index) {
     if (entry.name === "newText") return "replacement text";
     if (entry.name === "text" || entry.name === "body" || entry.name === "criterion" || entry.name === "title" || entry.name === "summary") return "dogfood";
     if (entry.name === "newDoc") return "FR.md";
-    return "product";
+    return "plugin-distribution";
   }
   if (entry.kind === "boolean") return entry.name === "includeHeadings" || entry.name === "includeLinks";
   if (entry.kind === "integer") return entry.name === "maxDepth" ? 1 : 10;

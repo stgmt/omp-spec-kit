@@ -30,7 +30,7 @@ export const MRI_RELEASE_SCENARIOS = Object.freeze([
   "SCEN-mri-missing-payload-refusal",
   "SCEN-mri-lifecycle-receipt-refusal",
 ]);
-const MRI_SCENARIOS = Object.freeze({ "mcp-release-integrity:FR-1": "SCEN-mri-active-project-root", "mcp-release-integrity:FR-2": "SCEN-mri-terminal-json-rpc", "mcp-release-integrity:FR-3": "SCEN-mri-all-tool-parity", "mcp-release-integrity:FR-4": "SCEN-mri-public-eligibility-separation", "mcp-release-integrity:FR-5": "SCEN-mri-artifact-mismatch-refusal", "mcp-release-integrity:FR-6": "SCEN-mri-public-communication-proof" });
+const MRI_SCENARIOS = Object.freeze({ "plugin-distribution:FR-19": "SCEN-mri-active-project-root", "plugin-distribution:FR-20": "SCEN-mri-terminal-json-rpc", "plugin-distribution:FR-21": "SCEN-mri-all-tool-parity", "plugin-distribution:FR-22": "SCEN-mri-public-eligibility-separation", "plugin-distribution:FR-23": "SCEN-mri-artifact-mismatch-refusal", "plugin-distribution:FR-24": "SCEN-mri-public-communication-proof" });
 const DISTRIBUTION_REQUIREMENTS = Object.freeze(Array.from({ length: 12 }, (_, index) => `plugin-distribution:FR-${index + 1}`));
 const DISTRIBUTION_CLAIMS = Object.freeze({
   "plugin-distribution:FR-1": ["marketplace-shape"],

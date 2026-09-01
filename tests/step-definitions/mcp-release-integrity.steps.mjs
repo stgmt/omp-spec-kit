@@ -26,23 +26,23 @@ function toolArguments(tool) {
   const shared = { schemaVersion: "spec-kernel@1", requestId: `mri-${tool}` };
   switch (tool) {
     case "spec_inventory":
-      return { ...shared, specSlugs: ["product"], includeDocuments: false, limit: 50, cursor: null };
+      return { ...shared, specSlugs: ["plugin-distribution"], includeDocuments: false, limit: 50, cursor: null };
     case "spec_get_node":
-      return { ...shared, canonicalId: "product:FR-1", projection: "summary", includeIncidentCounts: false };
+      return { ...shared, canonicalId: "plugin-distribution:FR-1", projection: "summary", includeIncidentCounts: false };
     case "spec_find_nodes":
-      return { ...shared, specSlugs: ["product"], kinds: [], canonicalIds: [], text: null, projection: "summary", limit: 50, cursor: null };
+      return { ...shared, specSlugs: ["plugin-distribution"], kinds: [], canonicalIds: [], text: null, projection: "summary", limit: 50, cursor: null };
     case "spec_get_edges":
-      return { ...shared, canonicalId: "product:FR-1", direction: "out", types: [], aggregate: false, limit: 50, cursor: null };
+      return { ...shared, canonicalId: "plugin-distribution:FR-1", direction: "out", types: [], aggregate: false, limit: 50, cursor: null };
     case "spec_trace":
-      return { ...shared, canonicalId: "product:FR-1", direction: "out", types: [], maxDepth: 2, maxVisited: 50, projection: "summary", limit: 50, cursor: null };
+      return { ...shared, canonicalId: "plugin-distribution:FR-1", direction: "out", types: [], maxDepth: 2, maxVisited: 50, projection: "summary", limit: 50, cursor: null };
     case "spec_diagnostics":
-      return { ...shared, severities: [], codes: [], specSlugs: ["product"], paths: [], limit: 50, cursor: null };
+      return { ...shared, severities: [], codes: [], specSlugs: ["plugin-distribution"], paths: [], limit: 50, cursor: null };
     case "spec_overview":
-      return { ...shared, specSlugs: ["product"] };
+      return { ...shared, specSlugs: ["plugin-distribution"] };
     case "spec_markdown_inventory":
       return {
         ...shared,
-        specSlugs: ["product"],
+        specSlugs: ["plugin-distribution"],
         mode: "all",
         focusPath: null,
         focusAnchor: null,
@@ -139,7 +139,7 @@ When("the installed package launcher serves project-a without an override", asyn
     name: "spec_overview",
     arguments: toolArguments("spec_overview"),
   });
-  this.mri.overviewOracle = await this.mri.directService.runQuery("overview", { specSlugs: ["product"] }, {
+  this.mri.overviewOracle = await this.mri.directService.runQuery("overview", { specSlugs: ["plugin-distribution"] }, {
     requestId: "mri-spec_overview",
     schemaVersion: "spec-kernel@1",
   });

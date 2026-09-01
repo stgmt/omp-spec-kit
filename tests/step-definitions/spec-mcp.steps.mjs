@@ -26,12 +26,12 @@ const INITIALIZE_PARAMS = Object.freeze({
   clientInfo: { name: "bdd-mcp-client", version: "0.0.0" },
 });
 const GET_NODE_ARGS = Object.freeze({
-  canonicalId: "product:FR-1",
+  canonicalId: "plugin-distribution:FR-1",
   projection: "full",
   includeIncidentCounts: true,
 });
 const TRACE_ARGS = Object.freeze({
-  canonicalId: "product:FR-1",
+  canonicalId: "plugin-distribution:FR-1",
   direction: "out",
   types: [],
   maxDepth: 8,
@@ -43,7 +43,7 @@ const TRACE_ARGS = Object.freeze({
 
 const PROVENANCE_CALLS = Object.freeze([
   ["spec_inventory", { specSlugs: [], includeDocuments: false, limit: 10, cursor: null }],
-  ["spec_get_node", { canonicalId: "product:FR-1", projection: "summary", includeIncidentCounts: true }],
+  ["spec_get_node", { canonicalId: "plugin-distribution:FR-1", projection: "summary", includeIncidentCounts: true }],
   ["spec_find_nodes", {
     specSlugs: [],
     kinds: [],
@@ -54,7 +54,7 @@ const PROVENANCE_CALLS = Object.freeze([
     cursor: null,
   }],
   ["spec_get_edges", {
-    canonicalId: "product:FR-1",
+    canonicalId: "plugin-distribution:FR-1",
     direction: "out",
     types: [],
     aggregate: false,
@@ -166,7 +166,7 @@ Then("the tool list is exactly the eight SCHEMA-11 read-only tools", function ()
   }
 });
 
-When('the client calls "spec_get_node" on "product:FR-1"', async function () {
+When('the client calls "spec_get_node" on "plugin-distribution:FR-1"', async function () {
   this.mcp.lastArgs = GET_NODE_ARGS;
   this.mcp.lastToolCall = await this.mcp.server.request("tools/call", {
     name: "spec_get_node",
@@ -174,7 +174,7 @@ When('the client calls "spec_get_node" on "product:FR-1"', async function () {
   });
 });
 
-When('the client calls "spec_trace" from "product:FR-1" direction "out"', async function () {
+When('the client calls "spec_trace" from "plugin-distribution:FR-1" direction "out"', async function () {
   this.mcp.lastArgs = TRACE_ARGS;
   this.mcp.lastToolCall = await this.mcp.server.request("tools/call", {
     name: "spec_trace",

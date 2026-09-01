@@ -20,18 +20,17 @@ This decision's specification-only publication action is complete: reviewed init
 
 ## Product boundary
 
-The canonical product requirements are divided into four repository-owned specifications:
+The canonical product requirements are divided into three repository-owned specifications:
 
-1. `product` — product identity, lifecycle, readiness, and public-stage boundary;
-2. `plugin-distribution` — marketplace, package, activation, upgrade, uninstall, and release authority;
-3. `spec-kernel` — deterministic specification inventory, parsing, graph, evidence, and bounded read queries;
-4. `spec-authoring-workflow` — specification guidance and the separately gated path toward safe proposals and mutation.
+1. `plugin-distribution` — marketplace, package, product identity, lifecycle, release integrity, activation, upgrade, uninstall, and release authority;
+2. `spec-mcp-operations` — deterministic specification inventory, parsing, graph, evidence, bounded read queries, and validated write operations;
+3. `spec-mcp-access-gate` — MCP-only access policy for specification reads, searches, enumeration, shell, edits, and writes.
 
 The immutable snapshot under `docs/upstream/dev-pomogator/` is a provenance reference only. It does not determine target readiness, release status, package shape, or runtime behavior.
 
 The specification-only public-init milestone deliberately contains no installable catalog, plugin payload, extension, MCP server, release tag, or claim that the product can be installed. Those artifacts may be added only in their later phase after the corresponding aggregate requirement and evidence gate passes.
 
-The later agent-facing specification API is the read-only MCP server described by [spec-kernel](../../.specs/spec-kernel/README.md); the speculative generator-port decision was dropped.
+The later agent-facing specification API is the MCP operations server described by [spec-mcp-operations](../../.specs/spec-mcp-operations/README.md#read-domain); the speculative generator-port decision was dropped.
 
 ## Immutable source and provenance
 
@@ -113,8 +112,8 @@ Phases are strictly ordered; a later phase cannot supply missing evidence for an
 4. **Publish specification-only public init.** Create public history only after Phase 3 passes; do not include a marketplace catalog or imply an installable release.
 5. **Build and verify the `v0.1.0` candidate.** Add the single marketplace/plugin/extension shape, the bundled read-only inventory capability, and user guidance; produce candidate-bound lifecycle evidence without treating a passing stage or job as release proof.
 6. **Release `v0.1.0`.** Release only when `plugin-distribution:FR-13` reports eligible from complete current mandatory `plugin-distribution:FR-1` through `plugin-distribution:FR-12` evidence for the same candidate identity, including version consistency, clean project-scope installation, reload, fresh-session invocation, uninstall with fresh-session absence and user-spec preservation, and reinstall of the exact same `v0.1.0` candidate artifact with fresh-session invocation. Prior-version upgrade and rollback are inapplicable to this first release.
-7. **Build and verify `v0.2`.** Extract the typed deterministic kernel and expose bounded read-only graph/status/query capabilities through the existing extension and shared query service. Its stage gate uses the `v0.2` profile of `spec-kernel:FR-14`, excludes `v0.3`-only MCP-adapter evidence, and also requires every earlier aggregate gate to remain accepted for the same lineage.
-8. **Build and verify `v0.3`.** Add at most one bundled plugin-root MCP adapter over the same query service, with installed-artifact startup and response-parity evidence. Its stage gate uses the `v0.3` profile of `spec-kernel:FR-14`, includes the MCP-adapter evidence, and also requires every earlier aggregate gate to remain accepted for the same lineage.
+7. **Build and verify `v0.2`.** Extract the typed deterministic kernel and expose bounded read-only graph/status/query capabilities through the existing extension and shared query service. Its stage gate uses the `v0.2` profile of `spec-mcp-operations Read / Core contract`, excludes `v0.3`-only MCP-adapter evidence, and also requires every earlier aggregate gate to remain accepted for the same lineage.
+8. **Build and verify `v0.3`.** Add at most one bundled plugin-root MCP adapter over the same query service, with installed-artifact startup and response-parity evidence. Its stage gate uses the `v0.3` profile of `spec-mcp-operations Read / Core contract`, includes the MCP-adapter evidence, and also requires every earlier aggregate gate to remain accepted for the same lineage.
 9. **Consider later authoring and mutation releases.** Admit guidance, proposals, CAS, atomic mutation, archival, repair, backlog, judging, or persistence only through separate specifications and release gates; no writer is implied by this decision.
 
 ## Release and stage gates
@@ -151,15 +150,15 @@ Beginning with the first release after `v0.1.0`, `plugin-distribution:FR-13` ret
 
 ### `v0.2` kernel gate
 
-Release of `v0.2` additionally requires `spec-kernel:FR-14` to accept its complete mandatory `v0.2` profile: typed deterministic outputs, qualified identity and collision refusal, endpoint and malformed-input diagnostics, provenance and conservation counts from real producer fixtures, complete safe-rename inventory/query behavior, bounded queries, and no operational or writer dependency. `v0.3`-only MCP-adapter evidence is inapplicable to this profile and cannot supply missing `v0.2` evidence.
+Release of `v0.2` additionally requires `spec-mcp-operations Read / Core contract` to accept its complete mandatory `v0.2` profile: typed deterministic outputs, qualified identity and collision refusal, endpoint and malformed-input diagnostics, provenance and conservation counts from real producer fixtures, complete safe-rename inventory/query behavior, bounded queries, and no operational or writer dependency. `v0.3`-only MCP-adapter evidence is inapplicable to this profile and cannot supply missing `v0.2` evidence.
 
 ### `v0.3` MCP gate
 
-Release of `v0.3` additionally requires `spec-kernel:FR-14` to accept its complete mandatory `v0.3` profile, including installed-artifact MCP startup, bounded output/errors, and response parity with the shared query service, while every earlier aggregate gate remains accepted for the same lineage.
+Release of `v0.3` additionally requires `spec-mcp-operations Read / Core contract` to accept its complete mandatory `v0.3` profile, including installed-artifact MCP startup, bounded output/errors, and response parity with the shared query service, while every earlier aggregate gate remains accepted for the same lineage.
 
 ### Authoring gate
 
-Any authoring release requires complete mandatory evidence for `spec-authoring-workflow:FR-13` and every earlier applicable aggregate gate for the same lineage. Guidance alone does not authorize mutation. A writer remains blocked until containment, authorization, proposal/dry-run, CAS, atomicity, rollback, concurrency, audit, privacy, and recovery evidence is complete.
+Any authoring release requires complete mandatory evidence for `spec-mcp-operations Write domain contract` and every earlier applicable aggregate gate for the same lineage. Guidance alone does not authorize mutation. A writer remains blocked until containment, authorization, proposal/dry-run, CAS, atomicity, rollback, concurrency, audit, privacy, and recovery evidence is complete.
 
 A structural pass, generated scaffold, or historical upstream test result never satisfies a release gate. Evidence must exercise the built artifact and the exact stage contract.
 

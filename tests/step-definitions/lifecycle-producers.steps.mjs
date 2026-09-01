@@ -589,7 +589,7 @@ Then("each FR receipt cites its own passing release-evidence scenario id", async
 		const receipt = JSON.parse(await readFile(path.join(out, "fr", `FR-${index}.json`), "utf8"));
 		exactKeySet(receipt, COMPOSER_FR_KEYS);
 		assert.equal(receipt.schema, "omp-spec-kit-fr-receipt@1");
-		assert.equal(receipt.requirement, `mcp-release-integrity:FR-${index}`);
+		assert.equal(receipt.requirement, `plugin-distribution:FR-${index + 18}`);
 		assert.match(receipt.scenarioId, /^SCEN-mri-[a-z0-9]+(?:-[a-z0-9]+)*$/u, `FR-${index} scenario id must use canonical lower-kebab MRI grammar`);
 	}
 	assert.ok(this.lifecycle.composerOutput.scenarioIds.length > 0, "composer summary must cite passing scenario ids");

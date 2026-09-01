@@ -2,7 +2,7 @@ const messagePath = process.env.OMP_SPEC_KIT_BDD_MESSAGE_PATH;
 const stdoutMessages = process.env.OMP_SPEC_KIT_BDD_MESSAGE_STDOUT === "1";
 
 export default {
-  paths: ["tests/features/**/*.feature", ".specs/mcp-release-integrity/mcp-release-integrity.feature"],
+  paths: ["tests/features/**/*.feature", ".specs/plugin-distribution/plugin-distribution.feature"],
   import: ["tests/support/**/*.mjs", "tests/step-definitions/**/*.mjs"],
   format: stdoutMessages
     ? messagePath

@@ -16,14 +16,9 @@ import { readRepositorySpecs } from "../src/kernel/adapters/fs.js";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SPECS_ROOT = path.join(ROOT, ".specs");
 const EXPECTED_SPECS = Object.freeze([
-  "mcp-release-integrity",
-  "plan-gate",
   "plugin-distribution",
-  "product",
-  "spec-authoring-workflow",
-  "spec-enforcement",
-  "spec-evidence",
-  "spec-kernel",
+  "spec-mcp-access-gate",
+  "spec-mcp-operations",
 ]);
 const FIXED_DOCS = Object.freeze([
   "README.md",

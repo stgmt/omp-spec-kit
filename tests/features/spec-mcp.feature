@@ -17,9 +17,9 @@ Feature: The v0.3 MCP adapter and extension registry expose exactly eight read-o
     When the client initializes the session and requests the tool list
     Then initialize answers with exactly the omp-spec-kit identity
     And the tool list is exactly the eight SCHEMA-11 read-only tools
-    When the client calls "spec_get_node" on "product:FR-1"
+    When the client calls "spec_get_node" on "plugin-distribution:FR-1"
     Then the answer carries one canonical QueryEnvelope whose data deep-equals the direct kernel "getNode" answer
-    When the client calls "spec_trace" from "product:FR-1" direction "out"
+    When the client calls "spec_trace" from "plugin-distribution:FR-1" direction "out"
     Then the answer carries one canonical QueryEnvelope whose data deep-equals the direct kernel "trace" answer
     And the repository's pinned .specs tree is byte-for-byte unchanged
 

@@ -53,7 +53,7 @@ export const TOOL_CONTRACTS = Object.freeze([
     label: "Spec Get Node",
     operation: "getNode",
     description:
-      "Read one specification graph node by qualified canonical ID (for example product:FR-1), with summary or full projection.",
+      "Read one specification graph node by qualified canonical ID (for example plugin-distribution:FR-1), with summary or full projection.",
     fields: [
       field("canonicalId", "string"),
       field("projection", "enum", ["summary", "full"]),

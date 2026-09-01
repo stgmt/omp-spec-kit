@@ -257,7 +257,7 @@ Then("the candidate is refused for nonsemantic Cucumber evidence", function () {
 Given("the captured real Cucumber message fixture", async function () {
   this.cucumberFixture = this.verifiedCucumberFixture;
   this.mriScenarioMultiplicities = requiredScenarioMultiplicity(
-    await readFile(path.join(repositoryRoot(), ".specs", "mcp-release-integrity", "mcp-release-integrity.feature"), "utf8"),
+    await readFile(path.join(repositoryRoot(), ".specs", "plugin-distribution", "plugin-distribution.feature"), "utf8"),
   );
 });
 
@@ -342,7 +342,7 @@ When("the candidate archive is extracted into a clean project", async function (
   await this.releaseServer.request("initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "candidate-bdd", version: "1" } });
   this.extractedOverview = await this.releaseServer.request("tools/call", {
     name: "spec_overview",
-    arguments: { specSlugs: ["product"], requestId: "candidate-extract-overview", schemaVersion: "spec-kernel@1" },
+    arguments: { specSlugs: ["plugin-distribution"], requestId: "candidate-extract-overview", schemaVersion: "spec-kernel@1" },
   });
 });
 

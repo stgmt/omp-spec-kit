@@ -21,7 +21,7 @@ import {
 } from "./release-candidate-utils.mjs";
 import { cucumberMessages, requiredScenarioMultiplicity } from "./create-release-evidence.mjs";
 
-const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, index) => `mcp-release-integrity:FR-${index + 1}`));
+const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, index) => `plugin-distribution:FR-${index + 19}`));
 const PRIOR_TAG = "v0.3.0";
 const PRIOR_VERSION = "0.3.0";
 
@@ -63,7 +63,7 @@ function parseArgs(argv) {
 // Parses the FR ↔ scenario-id map and exact Scenario Outline multiplicities
 // from the same source bytes consumed by release assembly.
 async function scenarioRequirements(repositoryRoot) {
-	const text = await readFile(path.join(repositoryRoot, ".specs", "mcp-release-integrity", "mcp-release-integrity.feature"), "utf8");
+	const text = await readFile(path.join(repositoryRoot, ".specs", "plugin-distribution", "plugin-distribution.feature"), "utf8");
 	const multiplicities = requiredScenarioMultiplicity(text);
 	const requirements = new Map();
 	let tags = [];
@@ -78,7 +78,7 @@ async function scenarioRequirements(repositoryRoot) {
 			const scenarioId = tags.find((tag) => tag.startsWith("@id:"))?.slice(4);
 			const local = tags.find((tag) => /^@FR-\d+$/u.test(tag))?.slice(1);
 			if (!scenarioId || !local || requirements.has(scenarioId)) throw new Error(`invalid MRI scenario tags near ${trimmed}`);
-			requirements.set(scenarioId, `mcp-release-integrity:${local}`);
+			requirements.set(scenarioId, `plugin-distribution:${local}`);
 		}
 		tags = [];
 	}

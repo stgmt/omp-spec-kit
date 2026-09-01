@@ -7,7 +7,7 @@ import { cucumberMessages, requiredScenarioMultiplicity } from "./create-release
 import { PLUGIN_VERSION, repositoryRoot as defaultRepositoryRoot } from "./verify-marketplace.mjs";
 import { assertCandidateShape, canonicalJson, collectRegularFiles, isCommit, isSha256, packageTreeDigest, parseArgs, readStrictJson, resolveContainedRegularFile, sha256, toPublicFileRows } from "./release-candidate-utils.mjs";
 
-const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, i) => `mcp-release-integrity:FR-${i + 1}`));
+const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, i) => `plugin-distribution:FR-${i + 19}`));
 const DISTRIBUTION_REQUIREMENTS = Object.freeze(Array.from({ length: 12 }, (_, i) => `plugin-distribution:FR-${i + 1}`));
 const DISTRIBUTION_TRUST_VALUES = Object.freeze(["untrusted-self-attested", "github-artifact-attestation"]);
 const ATTESTATION_REPOSITORY = "stgmt/omp-spec-kit";
@@ -66,7 +66,7 @@ function verifyMriFr(receipt, requirement, id, scenarioIds, requirementsByScenar
   if (!exact(receipt, keys) || receipt.schema !== "omp-spec-kit-fr-receipt@1" || receipt.status !== "passed" || !matches(receipt, id) || receipt.requirement !== requirement || typeof receipt.scenarioId !== "string" || !scenarioIds.includes(receipt.scenarioId) || requirementsByScenario.get(receipt.scenarioId) !== requirement) add(blocking, `invalid-mri-fr-receipt:${requirement}`);
 }
 async function scenarioRequirements(repositoryRoot) {
-  const text = await readFile(path.join(repositoryRoot, ".specs", "mcp-release-integrity", "mcp-release-integrity.feature"), "utf8");
+  const text = await readFile(path.join(repositoryRoot, ".specs", "plugin-distribution", "plugin-distribution.feature"), "utf8");
   const multiplicities = requiredScenarioMultiplicity(text);
   const requirements = new Map();
   let tags = [];
@@ -78,7 +78,7 @@ async function scenarioRequirements(repositoryRoot) {
       const scenarioId = tags.find((tag) => tag.startsWith("@id:"))?.slice(4);
       const local = tags.find((tag) => /^@FR-\d+$/u.test(tag))?.slice(1);
       if (!scenarioId || !local || requirements.has(scenarioId)) throw new Error(`invalid MRI scenario tags near ${trimmed}`);
-      requirements.set(scenarioId, `mcp-release-integrity:${local}`);
+      requirements.set(scenarioId, `plugin-distribution:${local}`);
     }
     tags = [];
   }

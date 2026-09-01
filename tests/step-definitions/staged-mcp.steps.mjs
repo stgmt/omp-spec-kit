@@ -15,7 +15,7 @@ const READ_STAGE_CALLS = Object.freeze([
   ["list_tasks", { spec: "product", statuses: ["planned", "todo", "ready", "in-progress", "blocked"], limit: 20 }],
   ["list_phase_tasks", { spec: "product", phase: "missing-phase", limit: 20 }],
   ["find_orphans", {}],
-  ["validate_anchor", { anchor: "product:FR-1" }],
+  ["validate_anchor", { anchor: "plugin-distribution:FR-1" }],
   ["list_specs", {}],
   ["validate_requirement_metadata", { metadata: {} }],
   ["policy_query_requirements", {}],
@@ -168,7 +168,7 @@ Then("the approved proposal changes the temporary document, section edits preser
   assert.equal(this.stagedMcp.rename.applied.ok, true, JSON.stringify(this.stagedMcp.rename.applied));
   assert.equal((content.match(/^## Current product status renamed$/gmu) ?? []).length, 1, "heading rename must preserve one document");
   assert.equal((content.match(/^## Current product status$/gmu) ?? []).length, 0, "heading rename must replace the old heading");
-  const blocked = classifyToolCall({ toolName: "write", input: { path: ".specs/product/README.md", content: "bypass" } });
+  const blocked = classifyToolCall({ toolName: "write", input: { path: ".specs/plugin-distribution/README.md", content: "bypass" } });
   assert.equal(blocked.action, "block");
   assert.equal(blocked.mismatchField, "toolName");
   const authority = {
@@ -181,8 +181,8 @@ Then("the approved proposal changes the temporary document, section edits preser
     registrySnapshotSha256: "1".repeat(64),
     sourcePath: "<mcp:omp-spec-kit:omp-spec-kit>",
   };
-  const allowed = classifyToolCall({ toolName: "apply_spec_change", input: { path: ".specs/product/FR.md", approval: "approve" }, authority });
-  const spoofed = classifyToolCall({ toolName: "apply_spec_change", input: { path: ".specs/product/FR.md", approval: "approve" }, authority: { ...authority, abi: "spoofed" } });
+  const allowed = classifyToolCall({ toolName: "apply_spec_change", input: { path: ".specs/plugin-distribution/FR.md", approval: "approve" }, authority });
+  const spoofed = classifyToolCall({ toolName: "apply_spec_change", input: { path: ".specs/plugin-distribution/FR.md", approval: "approve" }, authority: { ...authority, abi: "spoofed" } });
   assert.equal(allowed.action, "allow");
   assert.equal(spoofed.action, "block");
   assert.equal(spoofed.mismatchField, "abi");
