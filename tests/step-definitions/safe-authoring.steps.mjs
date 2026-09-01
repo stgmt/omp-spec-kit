@@ -59,14 +59,22 @@ async function runCandidateManagerE2E() {
       "--expected-dist-manifest-sha256", await digest(path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit", "dist", "manifest.json")),
       "--expected-launcher-sha256", await digest(path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit", "bin", "omp-spec-kit-mcp")),
     ], { cwd: probeRoot, env, encoding: "utf8", windowsHide: true, timeout: 120000 });
-    assert.equal(result.status, 0, String(result.stderr) + "\n" + String(result.stdout));
+    if (result.status !== 0) {
+      let detail = String(result.stderr);
+      try {
+        const receipt = JSON.parse(result.stdout);
+        const phase = receipt.phaseMode?.terminalPhase;
+        detail = receipt.phaseMode?.checkpoints?.[phase]?.error?.message ?? detail;
+      } catch {}
+      assert.equal(result.status, 0, detail);
+    }
     return JSON.parse(result.stdout);
   } finally {
     await rm(probeRoot, { recursive: true, force: true });
     await rm(probeHome, { recursive: true, force: true });
   }
 }
-Given("a disposable real authoring corpus and live v0.4.0 MCP server", async function () {
+Given("a disposable real authoring corpus and live v0.4.1 MCP server", async function () {
   this.root = await createTempRepo();
   this.corpus = await loadAuthoringRealCorpus(REPOSITORY_ROOT);
   await writeCorpus(this.root, this.corpus.files);
@@ -74,11 +82,11 @@ Given("a disposable real authoring corpus and live v0.4.0 MCP server", async fun
     serverPath: SERVER_PATH,
     root: this.root,
     cwd: this.root,
-    env: { OMP_SPEC_KIT_STAGE: "v0.4.0" },
+    env: { OMP_SPEC_KIT_STAGE: "v0.4.1" },
   });
 });
 
-When("the v0.4.0 scenario {string} runs", async function (scenario) {
+When("the v0.4.1 scenario {string} runs", async function (scenario) {
   if (scenario === "inventory") {
     const listed = await this.server.request("tools/list");
     const names = listed.result.tools.map((tool) => tool.name).sort();
@@ -180,9 +188,9 @@ When("the v0.4.0 scenario {string} runs", async function (scenario) {
     return;
   }
   if (scenario === "installed-factory") {
-    const receipt = await runExtensionProbe({ extensionPath: path.join(REPOSITORY_ROOT, "plugins/omp-spec-kit/dist/extension.js"), cwd: this.root, env: { OMP_SPEC_KIT_STAGE: "v0.4.0" } });
+    const receipt = await runExtensionProbe({ extensionPath: path.join(REPOSITORY_ROOT, "plugins/omp-spec-kit/dist/extension.js"), cwd: this.root, env: { OMP_SPEC_KIT_STAGE: "v0.4.1" } });
     const names = receipt.tools.map((tool) => tool.name).sort();
-    assert.equal(receipt.exports.pluginVersion, "0.4.0");
+    assert.equal(receipt.exports.pluginVersion, "0.4.1");
     assert.equal(names.length, 10);
     assert.equal(new Set(names).size, 10);
     assert.equal(receipt.tools.find((tool) => tool.name === "propose_patch").approval, "read");
@@ -192,7 +200,7 @@ When("the v0.4.0 scenario {string} runs", async function (scenario) {
   }
   if (scenario === "future-hidden") {
     await this.server.close();
-    this.server = spawnMcpServer({ serverPath: SERVER_PATH, root: this.root, cwd: this.root, env: {} });
+    this.server = spawnMcpServer({ serverPath: SERVER_PATH, root: this.root, cwd: this.root, env: { OMP_SPEC_KIT_STAGE: "v0.3.2" } });
     const listed = await this.server.request("tools/list");
     assert.equal(listed.result.tools.some((tool) => tool.name === "propose_patch"), false);
     assert.equal(listed.result.tools.some((tool) => tool.name === "apply_proposed_patch"), false);
@@ -264,7 +272,11 @@ When("the v0.4.0 scenario {string} runs", async function (scenario) {
   }
   if (scenario === "omp-manager-authoring") {
     const receipt = await runCandidateManagerE2E();
-    assert.equal(receipt.result, "completed", JSON.stringify(receipt));
+    if (receipt.result !== "completed") {
+      const phase = receipt.phaseMode?.terminalPhase;
+      const detail = receipt.phaseMode?.checkpoints?.[phase]?.error?.message ?? "unknown manager failure";
+      assert.equal(receipt.result, "completed", detail);
+    }
     assert.equal(receipt.provenance.runtime.version, "18.0.11");
     assert.deepEqual(receipt.manager.connectionResult.connectedServers, ["omp-spec-kit:omp-spec-kit"]);
     assert.equal(receipt.manager.connectionResult.toolCount, 10);
@@ -278,7 +290,7 @@ When("the v0.4.0 scenario {string} runs", async function (scenario) {
   throw new Error("unknown safe-authoring scenario: " + scenario);
 });
 
-Then("the v0.4.0 scenario passes", function () {
+Then("the v0.4.1 scenario passes", function () {
   assert.equal(this.result, true);
 });
 

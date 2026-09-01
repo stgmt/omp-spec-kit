@@ -14,11 +14,11 @@ async function createGitFreeCandidate(outputDirectory) {
   const archiveBytes = await createDeterministicTar(files);
   const withoutDigest = {
     schema: "omp-spec-kit-release-candidate@1",
-    version: "0.4.0",
-    tag: "v0.4.0",
+    version: "0.4.1",
+    tag: "v0.4.1",
     commit: "5a01a8ac76d87f4a8cc600f763cbb3228375c199",
     packageTreeDigest: packageTreeDigest(files),
-    archive: { file: "omp-spec-kit-0.4.0.tar", sha256: sha256(archiveBytes), bytes: archiveBytes.length },
+    archive: { file: "omp-spec-kit-0.4.1.tar", sha256: sha256(archiveBytes), bytes: archiveBytes.length },
     files: toPublicFileRows(files),
   };
   const candidate = { ...withoutDigest, candidateDigest: candidateDigest(withoutDigest) };
@@ -27,7 +27,7 @@ async function createGitFreeCandidate(outputDirectory) {
   await writeFile(manifestPath, canonicalJson(candidate), "utf8");
   return { candidate, manifestPath };
 }
-Given("a v0.4.0 candidate and complete evidence record", async function () {
+Given("a v0.4.1 candidate and complete evidence record", async function () {
   const outputDirectory = path.join(this.mri.tempRoot, "current-candidate");
   this.currentCandidate = await createGitFreeCandidate(outputDirectory);
 });
@@ -67,7 +67,7 @@ Then("the predecessor record contains one exact published archive identity", fun
   assert.equal(this.predecessorStatus.archive.sha256, archiveInNotes);
 });
 
-Given("a v0.4.0 candidate without live distribution provenance", async function () {
+Given("a v0.4.1 candidate without live distribution provenance", async function () {
   const outputDirectory = path.join(this.mri.tempRoot, "current-candidate-without-distribution");
   this.currentCandidate = await createGitFreeCandidate(outputDirectory);
 });
@@ -76,7 +76,7 @@ When("current publish verification sees a different archive identity", async fun
   this.currentReleaseResult = await evaluateRelease({
     candidatePath: this.currentCandidate.manifestPath,
     evidencePath: path.join(this.mri.tempRoot, "missing-distribution-evidence.json"),
-    tag: "v0.4.0",
+    tag: "v0.4.1",
     repositoryRoot: REPOSITORY_ROOT,
   });
 });

@@ -37,7 +37,7 @@ export {
   writeCorpus,
 };
 
-export const PLUGIN_VERSION = "0.4.0";
+export const PLUGIN_VERSION = "0.4.1";
 export const EXTENSION_SCHEMA_VERSION = "1";
 export const EXTENSION_LABEL = "OMP Spec Kit";
 

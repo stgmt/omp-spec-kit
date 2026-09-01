@@ -2,11 +2,12 @@ const messagePath = process.env.OMP_SPEC_KIT_BDD_MESSAGE_PATH;
 const stdoutMessages = process.env.OMP_SPEC_KIT_BDD_MESSAGE_STDOUT === "1";
 
 export default {
-  // Historical v0.3.x feature projections stay available for regression
-  // commands. The unfiltered release stream contains the executable
-  // v0.4.0 release-integrity scenarios; lifecycle producer evidence is run
-  // separately by the distribution workflow on the host checkout.
-  paths: ["tests/features/release-evidence.feature"],
+  // All feature projections remain selectable by tag; release workflows
+  // invoke the exact tag they need instead of silently running zero cases.
+  // The host release stream includes the archive and release-integrity gates.
+  // Lifecycle producer evidence is run separately by the distribution workflow.
+  // Keep the paths broad so @safe-authoring and @mcp-release-integrity both execute.
+  paths: ["tests/features/**/*.feature"],
   import: ["tests/support/**/*.mjs", "tests/step-definitions/**/*.mjs"],
   format: stdoutMessages
     ? messagePath

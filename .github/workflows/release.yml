@@ -45,9 +45,15 @@ jobs:
         run: node scripts/create-release-candidate.mjs --tag "$GITHUB_REF_NAME" --output release-candidate
       - name: Verify candidate public safety
         run: node scripts/verify-public-tree.mjs --candidate release-candidate/candidate.json --output release-candidate/public-safety.json
+      - name: Smoke the exact release archive with unset environment
+        run: |
+          archive="$(node -p "require('./release-candidate/candidate.json').archive.file")"
+          node scripts/smoke-release-archive.mjs --archive "release-candidate/$archive"
       - run: mkdir -p .dev-pomogator/bdd-results
-      - name: Run v0.4.0 safe-authoring BDD and OMP manager E2E
+      - name: Run v0.4.1 safe-authoring BDD and OMP manager E2E
         run: npm run test:safe-authoring
+      - name: Run v0.4.1 release-integrity BDD
+        run: npm run test:release-integrity
       - name: Run Docker BDD and preserve canonical Cucumber messages
         run: |
           set -o pipefail
@@ -74,6 +80,8 @@ jobs:
             mkdir dist-evidence
             gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
               --name "omp-spec-kit-distribution-evidence-$TAG" --dir dist-evidence
+            gh attestation verify dist-evidence/distribution-evidence.json --repo "$GITHUB_REPOSITORY" --format json > dist-evidence/attestation.json
+            test -s dist-evidence/attestation.json
             # The pipeline-time composed MRI receipts live beside the bundle;
             # the assembler copies them instead of pre-tag-committed files.
             if [ -d dist-evidence/mri-receipts ]; then
@@ -81,7 +89,6 @@ jobs:
             else
               echo "::error::attested distribution evidence artifact is missing dist-evidence/mri-receipts; refusing pre-tag-committed receipts" >&2
             fi
-            # Positively bind the downloaded bundle to THIS candidate before
             if [ ! -f dist-evidence/mri-discovery/omp-discovery-v18.0.11.md ]; then
               echo "::error::attested distribution evidence artifact is missing the live OMP discovery receipt" >&2
               identity_ok=""
@@ -173,7 +180,7 @@ jobs:
           expected_commit="$(node -p "require('./release-candidate/candidate.json').commit")"
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            existing_commit="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish)"
+            existing_commit="$(git rev-parse "$TAG^{commit}")"
             if [ "$existing_commit" != "$expected_commit" ]; then
               echo "::error::existing release commit differs from verified candidate"
               exit 1

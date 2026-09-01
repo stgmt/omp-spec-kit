@@ -14,7 +14,7 @@ import {
 import { registerSpecEnforcement } from "./enforcement/adapter.js";
 import { registerAutomaticPlanGate } from "./gate/automatic-adapter.js";
 
-export const PLUGIN_VERSION = "0.4.0";
+export const PLUGIN_VERSION = "0.4.1";
 export const SCHEMA_VERSION = "1";
 
 // OMP 18.0.11 extension contract pinned at the active release runtime
@@ -73,9 +73,10 @@ export default function ompSpecKitExtension(pi) {
     return service;
   }
 
-  // v0.4.0: eight kernel-backed reads plus proposal-first propose/apply.
+  // v0.4.1 is the shipped OMP discovery default; older profiles remain
+  // selectable explicitly through OMP_SPEC_KIT_STAGE.
   // Direct filesystem mutation remains blocked by the enforcement handler.
-  const requestedStage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE;
+  const requestedStage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE ?? "v0.4.1";
   const activeStage = activeStageForEnvironment(requestedStage);
   registerSpecEnforcement(pi);
   if (["v0.7.0", "plan-gate"].includes(activeStage)) {

@@ -1,5 +1,5 @@
 @mcp-release-integrity
-Feature: Verify the v0.4.0 release evidence boundary
+Feature: Verify the v0.4.1 release evidence boundary
   These scenarios are the executable projection of the release-integrity
   scenarios in the authoring corpus. They run against the real packaged server
   and emit the canonical scenario ids consumed by the evidence composer.
@@ -41,7 +41,7 @@ Feature: Verify the v0.4.0 release evidence boundary
 
   @release-evidence @id:SCEN-mri-public-eligibility-separation
   Scenario: Meta-only producer output cannot become trusted evidence
-    Given a v0.4.0 candidate and complete evidence record
+    Given a v0.4.1 candidate and complete evidence record
     When the current candidate message artifact contains only meta
     Then the current candidate is refused for nonsemantic Cucumber evidence
 
@@ -50,7 +50,7 @@ Feature: Verify the v0.4.0 release evidence boundary
     Given the bounded v0.3.2 predecessor release status record
     When the predecessor publication identities are reconciled
     Then the predecessor record contains one exact published archive identity
-    Given a v0.4.0 candidate without live distribution provenance
+    Given a v0.4.1 candidate without live distribution provenance
     When current publish verification sees a different archive identity
     Then current publication is refused before release mutation
 

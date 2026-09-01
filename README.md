@@ -20,11 +20,11 @@ Update an existing project install with:
 omp plugin upgrade omp-spec-kit@omp-spec-kit --scope project
 ```
 
-This v0.4.0 release targets OMP 18.0.11. The compatibility profile is pinned to immutable OMP 18.0.11.
+This v0.4.1 corrective release targets OMP 18.0.11. The compatibility profile is pinned to immutable OMP 18.0.11; v0.4.0 is superseded because its normal launcher required an ambient stage variable.
 
 ## Available today
 
-The v0.4.0 release exposes exactly ten MCP tools: eight bounded reads plus `propose_patch` and `apply_proposed_patch`.
+The v0.4.1 release exposes exactly ten MCP tools: eight bounded reads plus propose_patch and apply_proposed_patch.
 
 | Need | Tools |
 |---|---|
@@ -54,16 +54,16 @@ When the answer is in the graph, the agent should use these MCP tools instead of
 The next releases add capabilities without removing the eight compatibility tools:
 
 - **v0.3.2 — shipped predecessor:** bounded, read-only graph queries.
-- **v0.4.0 — shipped:** eight bounded reads plus proposal-first safe authoring; exactly 10 MCP tools.
+- **v0.4.1 — shipped:** eight bounded reads plus proposal-first safe authoring; exactly 10 MCP tools, with the shipped launcher selecting this surface by default.
 - **v0.5.0 — planned:** evidence and navigation after independent producer capture.
 - **v0.6.0 — planned:** additional authoring helpers remain internal and are not public tools.
 - **v0.7.0 — automatic plan gate:** validate the exact plan selected by OMP before approval in interactive and ACP sessions.
 
-The v0.4.0 release is published with independent package, lifecycle, Docker BDD, and OMP manager evidence. See [`ROADMAP.md`](ROADMAP.md) for release proof and sequencing.
+The v0.4.1 corrective release is published with an exact archive smoke from unset environment, independent package/lifecycle/Docker BDD/OMP manager evidence, and commit-bound attestations. See ROADMAP.md for release proof and sequencing.
 
 ## Safety and boundaries
 
-The published v0.3.2 predecessor is read-only. The v0.4.0 release is proposal-first: preview and validate a change, then apply the exact reviewed proposal through the trusted host path. Direct untrusted writes to `.specs` are not an alternative API.
+The published v0.3.2 predecessor is read-only. The v0.4.1 release is proposal-first: preview and validate a change, then apply the exact reviewed proposal through the trusted host path. Direct untrusted writes to .specs are not an alternative API.
 
 The MCP server reads the active OMP project. It does not use editor LSP as a substitute for the agent-facing MCP API.
 
@@ -73,6 +73,6 @@ The MCP server reads the active OMP project. It does not use editor LSP as a sub
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution workflow
 - [`CHANGELOG.md`](CHANGELOG.md) — release history
 - [`ROADMAP.md`](ROADMAP.md) — user-visible delivery sequence
-- [`docs/validation/release-status-v0.4.0.json`](docs/validation/release-status-v0.4.0.json) — published release evidence
+- [GitHub release evidence for v0.4.1](https://github.com/stgmt/omp-spec-kit/releases/tag/v0.4.1) — immutable candidate, evidence, archive, and attestation records
 
 License: MIT.

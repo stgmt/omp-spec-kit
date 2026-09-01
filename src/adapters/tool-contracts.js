@@ -648,7 +648,7 @@ export const SAFE_AUTHORING_TOOL_CONTRACTS = Object.freeze([
 ]);
 export function toolContractsForStage(stage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE) {
   const value = typeof stage === "string" ? stage.trim().toLowerCase() : "";
-  if (value === "v0.4.0" || value === "safe-authoring") return SAFE_AUTHORING_TOOL_CONTRACTS;
+  if (value === "v0.4.0" || value === "v0.4.1" || value === "safe-authoring") return SAFE_AUTHORING_TOOL_CONTRACTS;
   if (value === "read-complete" || value === "v0.4.0-read-complete") return READ_COMPLETE_TOOL_CONTRACTS;
   if (value === "evidence" || value === "v0.5.0") return EVIDENCE_TOOL_CONTRACTS;
   if (value === "authoring" || value === "v0.6.0" || value === "v0.7.0") return AUTHORING_TOOL_CONTRACTS;

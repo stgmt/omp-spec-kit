@@ -21,13 +21,13 @@ Outcome: current OMP users can install the package with the supported OMP 18 run
 
 Proof: immutable runtime compatibility metadata, project install and cache records, fresh-session discovery, and upgrade/rollback lifecycle observations.
 
-## v0.4.0 — shipped
+## v0.4.1 — shipped corrective release
 
 Outcome: agents can enumerate specifications and documents, read contained documents and attachments, inspect graph and policy state, and safely propose and apply reviewed specification changes through the trusted host path.
 
 The eight compatibility tools remain. The release adds exactly two proposal-first authoring tools, for a total of ten MCP tools. Direct untrusted writes under `.specs` are refused.
 
-Proof: package construction, public-safety verification, installed OMP 18.0.11 execution, current-corpus manager and lifecycle producer evidence, Docker BDD, nine closed MRI receipts, and digest-bound GitHub release assets.
+Proof: package construction, public-safety verification, exact archive launch with all stage/root overrides unset, installed OMP 18.0.11 execution, current-corpus manager and lifecycle producer evidence, Docker BDD, nine closed MRI receipts, and digest-bound GitHub release assets plus attestations.
 
 ## v0.5.0 — evidence and navigation
 
@@ -55,4 +55,4 @@ Proof: valid, invalid, changed-content, error, and timeout cases in both approva
 
 ## Boundaries
 
-The current release remains read-only. LSP is an editor and internal transport, not a replacement for the agent-facing MCP API. The roadmap does not include dashboards, advisors, databases, or a second graph engine.
+The v0.3.2 read-only compatibility baseline remains available for explicit historical selection. The current v0.4.1 release is proposal-first; LSP is an editor and internal transport, not a replacement for the agent-facing MCP API. The roadmap does not include dashboards, advisors, databases, or a second graph engine.
