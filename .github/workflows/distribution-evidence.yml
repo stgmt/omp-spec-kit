@@ -135,6 +135,7 @@ jobs:
           mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
           cp -r tests/fixtures/kernel/authoring-real-corpus/.specs/. "$LIFECYCLE_PROJECT_DIR/.specs/"
           cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CONFIG_DIR=.omp-lifecycle-producer OMP_PROFILE=lifecycle-producer \
+            bun "$GITHUB_WORKSPACE/scripts/lifecycle/run-lifecycle-upgrade.mjs" \
             --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
             --candidate-package-root "$GITHUB_WORKSPACE/plugins/omp-spec-kit" \
             --prior-package-root "$GITHUB_WORKSPACE/dist-evidence/prior" \
