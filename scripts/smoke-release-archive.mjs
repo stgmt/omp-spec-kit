@@ -44,8 +44,8 @@ try {
   const packageManifest = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
   const launcher = path.join(packageRoot, "bin", "omp-spec-kit-mcp");
   const windows = process.platform === "win32";
-  const command = windows ? process.env.ComSpec ?? "cmd.exe" : launcher;
-  const args = windows ? ["/d", "/s", "/c", `""${path.join(packageRoot, "bin", "omp-spec-kit-mcp.cmd")}"`] : [];
+  const command = windows ? path.join(packageRoot, "bin", "omp-spec-kit-mcp.cmd") : launcher;
+  const args = [];
   const env = { ...process.env };
   delete env.OMP_SPEC_KIT_STAGE;
   delete env.OMP_SPEC_KIT_PACKAGE_ROOT;
@@ -54,7 +54,7 @@ try {
     cwd: projectRoot,
     env,
     stdio: ["pipe", "pipe", "pipe"],
-    windowsHide: true,
+    shell: windows,
   });
 
   const stderr = [];
