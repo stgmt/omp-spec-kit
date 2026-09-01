@@ -1,33 +1,10 @@
 import { TOOL_AUTHORITY_ABI } from "../adapters/tool-contracts.js";
-const AUTHORING_TOOL_NAMES = new Set([
-  "propose_spec_change",
-  "apply_spec_change",
-  "propose_patch",
-  "apply_proposed_patch",
-  "apply_spec_transaction",
-  "append_to_section",
-  "insert_after_heading",
-  "insert_at_eof",
-  "replace_in_section",
-  "amend_requirement",
-  "add_acceptance_criterion",
-  "add_phase",
-  "set_entity_status",
-  "set_spec_status",
-  "set_requirement_metadata",
-  "propose_requirement_contract",
-  "propose_spec_repairs",
-  "apply_spec_repairs",
-  "delete_spec_doc",
-  "rename_spec_doc",
-  "create_spec",
-  "archive_spec",
-  "add_backlog_task",
-  "register_incident_backlog",
-]);
+import { decidePathPolicy } from "./resolve-targets.js";
 
+const AUTHORING_TOOL_NAMES = new Set(["propose_patch", "apply_proposed_patch"]);
 const DIRECT_MUTATION_TOOLS = new Set(["write", "edit", "bash", "apply_patch", "delete", "rename"]);
 const PATH_KEYS = new Set(["path", "paths", "file", "files", "document", "documents", "cwd", "command", "text"]);
+const AUTHORITY_PROVIDER_KINDS = new Set(["builtin", "extension", "mcp", "sdk", "unknown"]);
 
 function textValues(value, key = "") {
   if (typeof value === "string") return PATH_KEYS.has(key) || key === "" ? [value] : [];
@@ -36,11 +13,9 @@ function textValues(value, key = "") {
   return [];
 }
 
-function targetsSpecs(input) {
-  return textValues(input).some((value) => /(?:^|[\\/])\.specs(?:[\\/]|$)/u.test(value) || value.includes(".specs/"));
+function hasLexicalSpecTarget(values) {
+  return values.some((value) => /(?:^|[\\/])\.specs(?:[\\/]|$)/u.test(value) || value.includes(".specs/"));
 }
-
-const AUTHORITY_PROVIDER_KINDS = new Set(["builtin", "extension", "mcp", "sdk", "unknown"]);
 
 function authorityMismatch(registeredName, logicalName, authority) {
   if (!authority) return "authority";
@@ -56,25 +31,51 @@ function authorityMismatch(registeredName, logicalName, authority) {
   return null;
 }
 
+function boundedReason(code, relativePath = null) {
+  const target = typeof relativePath === "string" && relativePath !== "" && !/^[a-z]:[\\/]/iu.test(relativePath) && !relativePath.startsWith("/")
+    ? ` target=${relativePath}`
+    : "";
+  const reason = `${code}:${target} use propose_patch then apply_proposed_patch`;
+  return Buffer.byteLength(reason, "utf8") <= 512 ? reason : `${reason.slice(0, 500)}…`;
+}
+
+function blocked(toolName, code, resolutions = []) {
+  const relativePath = resolutions.find((item) => typeof item.relativePath === "string")?.relativePath ?? null;
+  return {
+    action: "block",
+    code,
+    toolName,
+    touchesSpecs: code !== "TARGET_INDETERMINATE" || resolutions.length > 0,
+    mismatchField: code === "UNREGISTERED_AUTHORING_CALL" ? "authority" : null,
+    reason: boundedReason(code, relativePath),
+  };
+}
+
 export function classifyToolCall(event, options = {}) {
   const toolName = typeof event?.toolName === "string" ? event.toolName : "";
   const input = event?.input ?? {};
   const authorityName = typeof event?.authority?.sourceToolName === "string" ? event.authority.sourceToolName : toolName;
   const authoring = AUTHORING_TOOL_NAMES.has(toolName) || AUTHORING_TOOL_NAMES.has(authorityName);
-  const mutation = DIRECT_MUTATION_TOOLS.has(toolName) || authoring || toolName.includes("_spec_") || toolName.includes("spec_");
-  const touchesSpecs = targetsSpecs(input) || (authoring && authorityName !== "propose_patch" && authorityName !== "propose_spec_change");
-  if (!mutation || !touchesSpecs) return { action: "continue", toolName, touchesSpecs: false, mismatchField: null };
-  if (!authoring) {
-    return { action: "block", toolName, touchesSpecs: true, mismatchField: "toolName", reason: `direct mutation of .specs is forbidden for ${toolName}` };
+  const directMutation = DIRECT_MUTATION_TOOLS.has(toolName) || toolName.includes("_spec_") || toolName.includes("spec_");
+  const targets = textValues(input);
+
+  if (authoring) {
+    const mismatchField = authorityMismatch(toolName, authorityName, event?.authority);
+    if (mismatchField) return blocked(toolName, "UNREGISTERED_AUTHORING_CALL");
+    if (options.requireApproval !== false && authorityName === "apply_proposed_patch" && input.approval !== "approve") {
+      return blocked(toolName, "APPROVAL_REQUIRED");
+    }
+    return { action: "allow", code: "AUTHORING_TOOL_ALLOWED", toolName, touchesSpecs: true, mismatchField: null };
   }
-  const mismatchField = authorityMismatch(toolName, authorityName, event?.authority);
-  if (mismatchField) {
-    return { action: "block", toolName, touchesSpecs: true, mismatchField, reason: `specification mutation requires omp-spec-kit authority (${mismatchField} mismatch)` };
+
+  if (!directMutation && targets.length === 0) return { action: "continue", toolName, touchesSpecs: false, mismatchField: null };
+  const policy = decidePathPolicy(options.root ?? event?.cwd ?? process.cwd(), targets);
+  if (policy.decision === "ALLOW") {
+    return directMutation
+      ? { action: "continue", code: "NON_SPEC_ALLOWED", toolName, touchesSpecs: false, mismatchField: null }
+      : { action: "continue", toolName, touchesSpecs: false, mismatchField: null };
   }
-  if (options.requireApproval !== false && authorityName.startsWith("apply_") && input.approval !== "approve") {
-    return { action: "block", toolName, touchesSpecs: true, mismatchField: "approval", reason: "specification mutation requires explicit approval=approve" };
-  }
-  return { action: "allow", toolName, touchesSpecs: true, mismatchField: null };
+  return blocked(toolName, policy.code, policy.resolutions);
 }
 
 export { AUTHORING_TOOL_NAMES, DIRECT_MUTATION_TOOLS };

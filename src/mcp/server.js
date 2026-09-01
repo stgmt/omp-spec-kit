@@ -154,8 +154,11 @@ function argumentErrorEnvelope(operation, requestId, validation) {
 }
 
 function respondTool(id, envelope) {
+  const contentText = activeStage === "v0.4.0" && ["overview", "proposePatch", "applyProposedPatch"].includes(envelope.operation)
+    ? JSON.stringify(envelope)
+    : summarizeEnvelope(envelope);
   respond(id, {
-    content: [{ type: "text", text: summarizeEnvelope(envelope) }],
+    content: [{ type: "text", text: contentText }],
     structuredContent: envelope,
     isError: !envelope.ok,
   });

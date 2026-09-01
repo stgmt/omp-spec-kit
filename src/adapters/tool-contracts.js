@@ -495,8 +495,8 @@ export const AUTHORING_TOOL_CONTRACTS = Object.freeze([
       field("proposalSha256", "string"),
       field("expectedDocuments", "json"),
       field("reason", "string"),
+      field("approval", "enum", ["approve"]),
       optionalField("actorRef", "nullableString"),
-      optionalField("approval", "enum", ["approve"]),
     ],
   ),
   futureContract(
@@ -641,12 +641,19 @@ export const AUTHORING_TOOL_CONTRACTS = Object.freeze([
   ),
 ]);
 
+const SAFE_AUTHORING_NAMES = new Set(["propose_patch", "apply_proposed_patch"]);
+export const SAFE_AUTHORING_TOOL_CONTRACTS = Object.freeze([
+  ...TOOL_CONTRACTS,
+  ...AUTHORING_TOOL_CONTRACTS.filter((contract) => SAFE_AUTHORING_NAMES.has(contract.tool)),
+]);
 export function toolContractsForStage(stage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE) {
   const value = typeof stage === "string" ? stage.trim().toLowerCase() : "";
-  if (value === "read-complete" || value === "v0.4.0") return READ_COMPLETE_TOOL_CONTRACTS;
+  if (value === "v0.4.0" || value === "safe-authoring") return SAFE_AUTHORING_TOOL_CONTRACTS;
+  if (value === "read-complete" || value === "v0.4.0-read-complete") return READ_COMPLETE_TOOL_CONTRACTS;
   if (value === "evidence" || value === "v0.5.0") return EVIDENCE_TOOL_CONTRACTS;
   if (value === "authoring" || value === "v0.6.0" || value === "v0.7.0") return AUTHORING_TOOL_CONTRACTS;
-  return TOOL_CONTRACTS;
+  if (value === "" || value === "v0.3.2") return TOOL_CONTRACTS;
+  throw new Error("unsupported OMP_SPEC_KIT_STAGE: " + value);
 }
 
 export function ompToolContractsForStage(stage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE) {

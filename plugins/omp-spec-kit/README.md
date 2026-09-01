@@ -1,6 +1,6 @@
 # omp-spec-kit
 
-`omp-spec-kit` v0.3.2 provides one bounded read-only OMP tool, `spec_inventory`, and an eight-tool read-only MCP surface over the active project specification corpus. That eight-tool MCP surface is the current v0.3 first slice, not the destination generator-port door. It does not write, repair, or claim a specification is complete.
+`omp-spec-kit` v0.4.0 candidate provides one bounded read-only OMP tool, eight bounded read-only MCP tools, and exactly two proposal-first MCP authoring tools: `propose_patch` and `apply_proposed_patch`. Only an approved, hash-checked apply can write specification bytes.
 
 ## Use
 
@@ -14,11 +14,11 @@ The command `/spec-inventory` and skill `spec-inventory` provide guidance only. 
 
 ## v0.3.0 advisory
 
-v0.3.0 MCP results can use package cwd rather than active project cwd. See [the advisory](../../docs/advisories/v0.3.0-mcp-root.md). Upgrade to v0.3.2, reload plugin metadata, and start a fresh OMP session.
+v0.3.0 MCP results can use package cwd rather than active project cwd. See [the advisory](../../docs/advisories/v0.3.0-mcp-root.md). Upgrade to the candidate, reload plugin metadata, and start a fresh OMP session.
 
 ## Compatibility
 
-This payload targets OMP v18.0.10 at immutable commit `33cc6b9a043a74e00a157e72ca909272796d8461`.
+This payload targets OMP v18.0.11 at immutable commit `33cc6b9a043a74e00a157e72ca909272796d8461`.
 
 Update the project-scoped plugin with the marketplace lifecycle, reload plugins, and restart OMP before checking `tools/list`.
 

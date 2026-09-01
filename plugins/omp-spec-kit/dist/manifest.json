@@ -1,39 +1,42 @@
 {
   "schema": "omp-spec-kit-dist-manifest@1",
-  "pluginVersion": "0.3.2",
+  "pluginVersion": "0.4.0",
   "files": {
     "adapters/document-service.js": {
-      "sha256": "2744b3b649faf1f2bf98dd287f3236e58b037dd1b9f7f14dd5e4507b6a189df2"
+      "sha256": "3f3a836ea60e9feba9673b2e9203dd15620ca01c3cf937caa247f189737b2dac"
     },
     "adapters/omp/register-spec-tools.js": {
-      "sha256": "5597fcd7b1a1a530b672633036a2f6190938473c0ff65897bb1a0b6e4c97438a"
+      "sha256": "06238bd924475045e8d46770eac22e895e7ba32b6b23a03663283e74a1c12f3f"
     },
     "adapters/query-service.js": {
       "sha256": "cdff58b3b117b77d4f6a92da724dd544cdf43cbdf1986e558ebb07f893f31189"
     },
     "adapters/tool-contracts.js": {
-      "sha256": "a495599b75515435bbedc0a9b6728df12331d21557f8c96c2cd5021dea7c1002"
+      "sha256": "f7c376fe5767d8df35c0658eba503ec139b00b22832fd700a8e139050200981c"
     },
     "authoring/proposals.js": {
-      "sha256": "4f7e1cc5dae8dff85a1af5d019ded9b4aa671dd7bf17a96b5b1fec79ca61d9da"
+      "sha256": "75ac167dcc99dd5221e8714a5f2db910c65d4469ed4d19436514cf6b593517cb"
     },
     "authoring/service.js": {
-      "sha256": "0da2ec4e4c6e965b08a013b8f7464185bb415ce7e3b6875442bb086b470460fd"
+      "sha256": "e2e51303b775e47a09c017473a9ddc7ae543ca5f326451e62e948504ecf9d908"
     },
     "authoring/transactions.js": {
-      "sha256": "89701a2d82ccdc26abe6554f9ef024ae58d9579071c43d2175caf2178cf90da6"
+      "sha256": "7ef5258d7c171ac932470dc54f627e6bd111902fda60a3a1282d0295dc7f669a"
     },
     "enforcement/adapter.js": {
       "sha256": "99df996ce1e08c08318d1be5799b262a8609de5e535d9a639cc4babc3556660a"
     },
     "enforcement/classifier.js": {
-      "sha256": "16bcf2895c67489ebf4b740345d0089ecc2713153bb3a6e4d0b9d46f8c52f964"
+      "sha256": "d0f443066d815a86a14a89683a4e220be0450e4d74d4420b0cd50a0defe5bfea"
+    },
+    "enforcement/resolve-targets.js": {
+      "sha256": "8161a4d3e22b0767c989a944fe2641c0fa67a129181f6d94bbdd4ff5adbaf57c"
     },
     "evidence/service.js": {
       "sha256": "395f474c0a24777e7e4fa325f5d4432788deac1b8fcda49a393fb308579a8f34"
     },
     "extension.js": {
-      "sha256": "2f50be3d8c5146fe10014b97f9887929ab50b77bed5db64bb4872d2b4425094f"
+      "sha256": "19af03d65c23b4bcfcbbfca4fc27ed97be9d033dd325278fbc7e4b74aea68188"
     },
     "gate/automatic-adapter.js": {
       "sha256": "82c385544c2aa793679512b93ef150cfd382722f0cbcc1dd28b99b710e3d3ed8"
@@ -42,7 +45,7 @@
       "sha256": "4541d470c5266c7ed22f24c69b2916a0f0f2c9918b013e7bd475c70cf2ee39cd"
     },
     "inventory.js": {
-      "sha256": "5c10581f0a669525272135e41b458d0055ecdf3a34a8065ff3aad3552032c33f"
+      "sha256": "3fe24da9b445584302095ccb966c2e1ed6b914255cf5c339c06e882866a57e5c"
     },
     "kernel/adapters/fs.js": {
       "sha256": "31e338483be6ebcea53588efd832fa0153febf8e098e55f614206f007abcc38e"
@@ -99,7 +102,7 @@
       "sha256": "ff1a46bba6a1940a5a1aff16d5c3b0e5799790c1418f6b5ae18bceec3a2da883"
     },
     "mcp/server.js": {
-      "sha256": "1fb25bb94f71a3005c2e20c8a57b584269009f601faa32539c6a1b0f6b620237"
+      "sha256": "cd1e90a90f5136a064cdfc0a5b4a9d1034901b5c5be51ef6c2e7ccadf69d31dc"
     }
   }
 }

@@ -436,7 +436,10 @@ export async function withWriteLock(root, requestId, operation) {
 }
 
 /** Commit a complete set of changed document bytes with rollback on failure. */
-export async function commitDocuments(root, requestId, changes) {
+function injectFault(options, point) {
+  if (options?.faultAt === point) throw Object.assign(new Error("deterministic transaction fault"), { code: "INTERNAL_ERROR" });
+}
+export async function commitDocuments(root, requestId, changes, options = {}) {
   if (!Array.isArray(changes) || changes.length === 0) throw Object.assign(new Error("transaction needs at least one document"), { code: "INVALID_REQUEST" });
   const stagingParent = path.join(root, ".specs", STAGING_DIRECTORY);
   const stageRoot = path.join(stagingParent, stagingName(requestId));
@@ -486,6 +489,7 @@ export async function commitDocuments(root, requestId, changes) {
     await syncDirectory(stageRoot);
     journal.phase = "ready";
     await writeJournal(journalPath, journal);
+    injectFault(options, "after-staging");
     for (const change of changes) {
       const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
       if (!checked.ok) throw Object.assign(new Error(checked.message), { code: checked.code });
@@ -500,6 +504,7 @@ export async function commitDocuments(root, requestId, changes) {
         await syncDirectory(path.dirname(target));
         await syncFile(backup);
         backups.push({ target, backup, spec: change.spec, document: change.document });
+        injectFault(options, "during-swap");
       }
       const beforeInstall = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
       if (!beforeInstall.ok) throw Object.assign(new Error(beforeInstall.message), { code: beforeInstall.code });
@@ -522,6 +527,7 @@ export async function commitDocuments(root, requestId, changes) {
     journal.phase = "committed";
     await writeJournal(journalPath, journal);
     await syncDirectory(path.dirname(stageRoot));
+    injectFault(options, "during-cleanup");
     await rm(stageRoot, { recursive: true, force: true });
     await rmdir(stagingParent).catch(() => {});
     return { ok: true };

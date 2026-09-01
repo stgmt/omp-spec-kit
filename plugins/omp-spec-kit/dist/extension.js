@@ -14,10 +14,10 @@ import {
 import { registerSpecEnforcement } from "./enforcement/adapter.js";
 import { registerAutomaticPlanGate } from "./gate/automatic-adapter.js";
 
-export const PLUGIN_VERSION = "0.3.2";
+export const PLUGIN_VERSION = "0.4.0";
 export const SCHEMA_VERSION = "1";
 
-// OMP 18.0.10 extension contract pinned at commit
+// OMP 18.0.11 extension contract pinned at the active release runtime
 // 33cc6b9a043a74e00a157e72ca909272796d8461. Authority-dependent mutation
 // profiles additionally require the candidate OMP event ABI.
 export default function ompSpecKitExtension(pi) {
@@ -55,9 +55,8 @@ export default function ompSpecKitExtension(pi) {
   });
 
   // One lazily-built reader/graph/query service per root context, shared by
-  // the seven kernel-backed tools registered below. The active cwd and
-  // optional absolute override are both part of the cache key because the
-  // response mismatch marker depends on both.
+  // the eight kernel-backed read tools and two proposal-first authoring tools.
+  // Active cwd and optional absolute override are both part of the cache key.
   const servicesByContext = new Map();
   function getService(ctx) {
     const rootContext = resolveRepositoryContext(globalThis.process?.env, ctx?.cwd);
@@ -74,10 +73,8 @@ export default function ompSpecKitExtension(pi) {
     return service;
   }
 
-  // FC-6: registers spec_get_node/spec_find_nodes/spec_get_edges/spec_trace/
-  // spec_diagnostics/spec_overview/spec_markdown_inventory. Together with
-  // spec_inventory above. Future mutation stages stay hidden until the
-  // accepted host authority profile is active.
+  // v0.4.0: eight kernel-backed reads plus proposal-first propose/apply.
+  // Direct filesystem mutation remains blocked by the enforcement handler.
   const requestedStage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE;
   const activeStage = activeStageForEnvironment(requestedStage);
   registerSpecEnforcement(pi);

@@ -199,7 +199,7 @@ async function verifyMcpJson() {
     mcpJson.$schema !==
     "https://raw.githubusercontent.com/can1357/oh-my-pi/33cc6b9a043a74e00a157e72ca909272796d8461/packages/coding-agent/src/config/mcp-schema.json"
   ) {
-    fail(".mcp.json $schema must reference the pinned OMP v18.0.10 mcp-schema.json");
+    fail(".mcp.json $schema must reference the pinned OMP v18.0.11 mcp-schema.json");
   }
   assertExactKeys(mcpJson.mcpServers, ["omp-spec-kit"], ".mcp.json servers", fail);
   const server = mcpJson.mcpServers["omp-spec-kit"];
@@ -261,7 +261,7 @@ async function verifyPackage() {
   if (manifest.license !== "MIT" || manifest.type !== "module") fail("package license/type mismatch");
   if (!sameStrings(manifest.files, packageFiles)) fail(`package files must be exactly: ${packageFiles.join(", ")}`);
   assertExactKeys(manifest.engines, ["omp"], "package engines", fail);
-  if (manifest.engines.omp !== "18.0.10") fail("package must pin OMP 18.0.10");
+  if (manifest.engines.omp !== "18.0.11") fail("package must pin OMP 18.0.11");
   if (!sameStrings(manifest.omp.extensions, ["./dist/extension.js"])) fail("package must contain one extension entry");
 
   const distManifestPath = path.join(pluginRoot, "dist", "manifest.json");

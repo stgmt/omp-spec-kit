@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Composes the nine MRI lifecycle receipts (prior-v0.3.0, upgrade-from-v0.3.0,
-// rollback-to-v0.3.0, fr/FR-1..FR-6) at pipeline time from REAL producer
+// Composes the nine MRI lifecycle receipts (prior-v0.3.2, upgrade-from-v0.3.2,
+// rollback-to-v0.3.2, fr/FR-1..FR-6) at pipeline time from REAL producer
 // outputs, so create-release-evidence.mjs can copy them instead of requiring
 // pre-tag-committed receipts (a fixed-point impossibility for receipts that
 // embed the tagged commit).
@@ -22,8 +22,8 @@ import {
 import { cucumberMessages, requiredScenarioMultiplicity } from "./create-release-evidence.mjs";
 
 const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, index) => `plugin-distribution:FR-${index + 19}`));
-const PRIOR_TAG = "v0.3.0";
-const PRIOR_VERSION = "0.3.0";
+const PRIOR_TAG = "v0.3.2";
+const PRIOR_VERSION = "0.3.2";
 
 // Key sets mirror scripts/verify-release.mjs — the enforcement authority.
 const PRIOR_KEYS = Object.freeze(["commit", "schema", "source", "status", "tag"]);
@@ -152,12 +152,12 @@ async function main() {
 		fail(`cucumber messages are not release-grade evidence: ${error.message}`);
 	}
 
-	// 4a. prior-v0.3.0.json — tagged-source proof over the peeled prior tag.
+	// 4a. prior-v0.3.2.json — tagged-source proof over the peeled prior tag.
 	const priorReceipt = { schema: "omp-spec-kit-tagged-source-proof@1", status: "passed", tag: PRIOR_TAG, commit: priorCommit, source: "public-tag" };
 	const written = [];
-	written.push(["prior-v0.3.0.json", await writeAndSelfCheck(outputDirectory, "prior-v0.3.0.json", priorReceipt, PRIOR_KEYS, "prior-v0.3.0.json")]);
+	written.push(["prior-v0.3.2.json", await writeAndSelfCheck(outputDirectory, "prior-v0.3.2.json", priorReceipt, PRIOR_KEYS, "prior-v0.3.2.json")]);
 
-	// 4b. upgrade-from-v0.3.0.json — composed ONLY from the real FR-7 record.
+	// 4b. upgrade-from-v0.3.2.json — composed ONLY from the real FR-7 record.
 	const upgradeRaw = JSON.parse(await readFile(path.join(runnerDir, "upgrade.json"), "utf8"));
 	requireKeys(upgradeRaw, ["observedVersion"], "upgrade.json record");
 	if (upgradeRaw.requirement !== "plugin-distribution:FR-7" || upgradeRaw.claim !== "upgrade") fail("upgrade.json does not bind plugin-distribution:FR-7 to the upgrade claim");
@@ -185,9 +185,9 @@ async function main() {
 		toVersion: identity.version,
 		observedVersion: identity.version,
 	};
-	written.push(["upgrade-from-v0.3.0.json", await writeAndSelfCheck(outputDirectory, "upgrade-from-v0.3.0.json", upgradeReceipt, LIFECYCLE_KEYS, "upgrade-from-v0.3.0.json")]);
+	written.push(["upgrade-from-v0.3.2.json", await writeAndSelfCheck(outputDirectory, "upgrade-from-v0.3.2.json", upgradeReceipt, LIFECYCLE_KEYS, "upgrade-from-v0.3.2.json")]);
 
-	// 4c. rollback-to-v0.3.0.json — composed ONLY from the real FR-8 rollback
+	// 4c. rollback-to-v0.3.2.json — composed ONLY from the real FR-8 rollback
 	// record (same runner as uninstall/reinstall).
 	const rollbackRaw = JSON.parse(await readFile(path.join(runnerDir, "rollback.json"), "utf8"));
 	requireKeys(rollbackRaw, ["expectedVersion"], "rollback.json record");
@@ -213,7 +213,7 @@ async function main() {
 		toVersion: PRIOR_VERSION,
 		observedVersion: PRIOR_VERSION,
 	};
-	written.push(["rollback-to-v0.3.0.json", await writeAndSelfCheck(outputDirectory, "rollback-to-v0.3.0.json", rollbackReceipt, LIFECYCLE_KEYS, "rollback-to-v0.3.0.json")]);
+	written.push(["rollback-to-v0.3.2.json", await writeAndSelfCheck(outputDirectory, "rollback-to-v0.3.2.json", rollbackReceipt, LIFECYCLE_KEYS, "rollback-to-v0.3.2.json")]);
 
 	// 4d. fr/FR-{1..6}.json — each requirement bound to ITS OWN passing id.
 	const byRequirement = new Map();

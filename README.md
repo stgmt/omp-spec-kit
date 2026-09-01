@@ -20,12 +20,11 @@ Update an existing project install with:
 omp plugin upgrade omp-spec-kit@omp-spec-kit --scope project
 ```
 
-This release targets OMP 18.0.10 or newer. The package's compatibility profile is pinned to the immutable OMP 18.0.10 release.
+This v0.4.0 candidate targets OMP 18.0.11. The candidate compatibility profile is pinned to immutable OMP 18.0.11.
 
 ## Available today
 
-The current v0.3.2 release is read-only and exposes exactly eight MCP tools:
-Current status: v0.3.2 published; v0.3.0 MCP advisory remains historical guidance for users upgrading old installations.
+The v0.4.0 candidate exposes exactly ten MCP tools: eight bounded reads plus `propose_patch` and `apply_proposed_patch`. v0.3.2 remains the published predecessor until the candidate's independent release evidence is complete.
 
 | Need | Tools |
 |---|---|
@@ -34,8 +33,9 @@ Current status: v0.3.2 published; v0.3.0 MCP advisory remains historical guidanc
 | Follow relationships | `spec_get_edges`, `spec_trace` |
 | Find parser and graph problems | `spec_diagnostics` |
 | Inspect Markdown headings and links | `spec_markdown_inventory` |
+| Propose and apply reviewed spec changes | `propose_patch`, `apply_proposed_patch` |
 
-The tools share one bounded graph and return structured, paged results. They never modify repository files.
+The read tools share one bounded graph and return structured, paged results. `propose_patch` is read-only; only an explicitly approved `apply_proposed_patch` can change a specification, through hash-checked transactions.
 
 ## Typical use
 
@@ -53,18 +53,17 @@ When the answer is in the graph, the agent should use these MCP tools instead of
 
 The next releases add capabilities without removing the eight compatibility tools:
 
-- **v0.3.2 — shipped:** bounded, read-only graph queries.
-- **v0.3.3 — OMP 18 maintenance:** current installation and runtime compatibility.
-- **v0.4.0 — read complete:** document inventory, contained document reads, task/status views, and other read operations; 23 MCP tools.
-- **v0.5.0 — evidence and navigation:** hash-bound test results and scenario traces; 25 MCP tools.
-- **v0.6.0 — safe authoring:** proposal-first, transactional specification changes; 49 MCP tools in the complete destination surface.
+- **v0.3.2 — shipped predecessor:** bounded, read-only graph queries.
+- **v0.4.0 — candidate:** eight bounded reads plus proposal-first safe authoring; exactly 10 MCP tools.
+- **v0.5.0 — planned:** evidence and navigation after independent producer capture.
+- **v0.6.0 — planned:** additional authoring helpers remain internal and are not public tools.
 - **v0.7.0 — automatic plan gate:** validate the exact plan selected by OMP before approval in interactive and ACP sessions.
 
 Only v0.3.2 is published in the current package. See [`ROADMAP.md`](ROADMAP.md) for release proof and sequencing.
 
 ## Safety and boundaries
 
-The current package is read-only. Future authoring is proposal-first: preview and validate a change, then apply the exact reviewed proposal through the trusted host path. Direct untrusted writes to `.specs` are not an alternative API.
+The published predecessor is read-only. The v0.4.0 candidate is proposal-first: preview and validate a change, then apply the exact reviewed proposal through the trusted host path. Direct untrusted writes to `.specs` are not an alternative API.
 
 The MCP server reads the active OMP project. It does not use editor LSP as a substitute for the agent-facing MCP API.
 

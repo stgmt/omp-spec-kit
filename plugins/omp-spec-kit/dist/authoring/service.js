@@ -33,14 +33,18 @@ const AUTHORING_OPERATIONS = Object.freeze([
 export { AUTHORING_OPERATIONS };
 
 function error(code, message, extra = {}) {
+  const allowed = new Set(["INVALID_REQUEST", "PATH_FORBIDDEN", "VALIDATION_FAILED", "CONFLICT", "RECOVERY_REQUIRED", "DEADLINE_EXCEEDED", "INTERNAL_ERROR"]);
+  const normalizedCode = allowed.has(code) ? code : code === "DOC_NOT_FOUND" || code === "NOT_FOUND" ? "PATH_FORBIDDEN" : "INTERNAL_ERROR";
   return {
     ok: false,
     error: {
-      code,
+      code: normalizedCode,
       message,
-      retryable: code === "CONFLICT" || code === "WRITE_FAILED",
-      findings: [],
-      nextAction: code === "CONFLICT" ? "re-read the proposal and affected documents" : "fix the request and retry",
+      retryable: normalizedCode === "CONFLICT" || normalizedCode === "DEADLINE_EXCEEDED",
+      requestId: extra.requestId ?? null,
+      proposalHash: extra.proposalHash ?? null,
+      changedPaths: extra.changedPaths ?? [],
+      findings: extra.findings ?? [],
       ...extra,
     },
   };
@@ -144,10 +148,12 @@ function operationForFacade(name, input) {
 
 function expectedDocumentsMatch(expectedDocuments, proposal) {
   if (!Array.isArray(expectedDocuments)) return false;
-  const expected = expectedDocuments.map((entry) => ({
-    document: entry.document ?? entry.path,
-    sha256: entry.sha256 ?? entry.beforeSha256,
-  })).sort((left, right) => String(left.document).localeCompare(String(right.document)));
+  const expected = expectedDocuments.map((entry) => {
+    const rawDocument = entry?.document ?? entry?.path;
+    const prefix = ".specs/" + proposal.spec + "/";
+    const document = typeof rawDocument === "string" && rawDocument.startsWith(prefix) ? rawDocument.slice(prefix.length) : rawDocument;
+    return { document, sha256: entry?.sha256 ?? entry?.beforeSha256 };
+  }).sort((left, right) => String(left.document).localeCompare(String(right.document)));
   const actual = proposal.changes.map((change) => ({ document: change.document, sha256: change.preview.beforeSha256 })).sort((left, right) => left.document.localeCompare(right.document));
   return JSON.stringify(expected) === JSON.stringify(actual);
 }
@@ -163,55 +169,83 @@ export function createAuthoringService(root, getGraph, refreshGraph, options = {
   async function applyProposedPatch(input = {}) {
     const requestId = input.requestId;
     const proposalId = input.proposalId;
-    if (typeof requestId !== "string" || typeof proposalId !== "string" || typeof input.proposalSha256 !== "string" || typeof input.reason !== "string") return error("INVALID_REQUEST", "requestId, proposalId, proposalSha256, and reason are required");
+    const proposalHash = input.proposalSha256;
+    const refusal = (code, message, findings = []) => ({
+      ok: true,
+      data: {
+        schemaVersion: "spec-mcp-operations-apply@1",
+        requestId,
+        proposalHash: typeof proposalHash === "string" ? proposalHash : "",
+        outcome: "REFUSED",
+        error: {
+          code,
+          message,
+          retryable: code === "CONFLICT" || code === "DEADLINE_EXCEEDED",
+          requestId: typeof requestId === "string" ? requestId : "",
+          ...(typeof proposalHash === "string" ? { proposalHash } : {}),
+          changedPaths: [],
+          ...(findings.length > 0 ? { findings } : {}),
+        },
+      },
+    });
+    if (typeof requestId !== "string" || typeof proposalId !== "string" || typeof proposalHash !== "string" || typeof input.reason !== "string" || input.reason.trim() === "") {
+      return error("INVALID_REQUEST", "requestId, proposalId, proposalSha256, and non-empty reason are required", { requestId, proposalHash, changedPaths: [] });
+    }
     const prior = applied.get(requestId);
     if (prior) return prior;
-    if (input.approval !== "approve") return error("CONFLICT", "explicit approval=approve is required before applying a proposal");
+    if (input.approval !== "approve") return refusal("INVALID_REQUEST", "explicit approval=approve is required before applying a proposal");
     const proposal = proposals.getProposal(proposalId);
-    if (!proposal) return error("CONFLICT", "proposal is unknown or expired");
-    if (proposal.proposalSha256 !== input.proposalSha256) return error("CONFLICT", "proposal hash does not match the stored proposal");
-    if (!expectedDocumentsMatch(input.expectedDocuments, proposal)) return error("CONFLICT", "expected document hashes do not match the proposal");
-    if (options.authorityAllowed === false) return error("PATH_FORBIDDEN", "untrusted caller cannot mutate specifications");
-    const graph = await getGraph();
-    if (graph.fingerprint !== proposal.baseSnapshotSha256) return error("CONFLICT", "graph snapshot changed after proposal");
+    if (!proposal) return refusal("CONFLICT", "proposal is unknown or expired");
+    if (proposal.proposalSha256 !== proposalHash) return refusal("CONFLICT", "proposal hash does not match the stored proposal");
+    if (!expectedDocumentsMatch(input.expectedDocuments, proposal)) return refusal("CONFLICT", "expected document hashes do not match the proposal");
+    if (options.authorityAllowed === false) return refusal("PATH_FORBIDDEN", "untrusted caller cannot mutate specifications");
     try {
-      const receipt = await withWriteLock(root, requestId, async () => {
+      const result = await withWriteLock(root, requestId, async () => {
+        const graph = await getGraph();
+        if (graph.fingerprint !== proposal.baseSnapshotSha256) return refusal("CONFLICT", "graph snapshot changed after proposal");
         if (proposal.kind === "archive") {
           const archived = await commitArchive(root, requestId, proposal.spec, proposal.archive.sourceDigest);
           await refreshGraph();
-          return {
+          const receipt = {
+            schemaVersion: "spec-mcp-operations-receipt@1",
             requestId,
-            proposalId,
-            outcome: "COMMITTED",
+            proposalHash,
+            outcome: "APPLIED",
             reason: input.reason,
-            actorRef: input.actorRef ?? null,
-            archivedSpec: { from: archived.from, to: archived.to, digest: archived.digest },
+            ...(input.actorRef ? { actorRef: input.actorRef } : {}),
             changedDocuments: [],
             findings: [],
           };
+          return { ok: true, data: { schemaVersion: "spec-mcp-operations-apply@1", requestId, proposalHash, outcome: "APPLIED", receipt } };
         }
         for (const change of proposal.changes) {
           const current = await readDocumentBytes(root, proposal.spec, change.document);
           const currentHash = current.ok ? current.sha256 : sha256(Buffer.alloc(0));
-          if (currentHash !== change.preview.beforeSha256) throw Object.assign(new Error(`document changed: ${change.document}`), { code: "CONFLICT" });
+          if (currentHash !== change.preview.beforeSha256) return refusal("CONFLICT", "a targeted document changed after proposal creation");
         }
-        await commitDocuments(root, requestId, proposal.changes);
+        await commitDocuments(root, requestId, proposal.changes, options);
         await refreshGraph();
-        return {
+        const receipt = {
+          schemaVersion: "spec-mcp-operations-receipt@1",
           requestId,
-          proposalId,
-          outcome: "COMMITTED",
+          proposalHash,
+          outcome: "APPLIED",
           reason: input.reason,
-          actorRef: input.actorRef ?? null,
-          changedDocuments: proposal.changes.map((change) => ({ document: change.document, beforeSha256: change.preview.beforeSha256, afterSha256: change.preview.afterSha256 })),
+          ...(input.actorRef ? { actorRef: input.actorRef } : {}),
+          changedDocuments: proposal.changes.map((change) => ({
+            path: ".specs/" + change.spec + "/" + change.document,
+            beforeSha256: change.preview.beforeSha256,
+            afterSha256: change.preview.afterSha256,
+          })),
           findings: [],
         };
+        return { ok: true, data: { schemaVersion: "spec-mcp-operations-apply@1", requestId, proposalHash, outcome: "APPLIED", receipt } };
       });
-      const result = { ok: true, data: { receipt } };
-      applied.set(requestId, result);
+      if (result.ok) applied.set(requestId, result);
       return result;
     } catch (caught) {
-      return error(caught?.code === "CONFLICT" ? "CONFLICT" : caught?.code === "RECOVERY_REQUIRED" ? "RECOVERY_REQUIRED" : "WRITE_FAILED", caught instanceof Error ? caught.message : "specification transaction failed");
+      const code = ["PATH_FORBIDDEN", "VALIDATION_FAILED", "CONFLICT", "RECOVERY_REQUIRED", "DEADLINE_EXCEEDED", "INTERNAL_ERROR"].includes(caught?.code) ? caught.code : "INTERNAL_ERROR";
+      return refusal(code, "specification transaction was refused");
     }
   }
 

@@ -6,6 +6,8 @@ import {
   requestIdWithinBounds,
   specificationDirectoryDigest,
 } from "./transactions.js";
+import { buildKernelGraph } from "../kernel/index.js";
+import { readRepositorySpecs } from "../kernel/adapters/fs.js";
 
 import { FIXED_DOCUMENT_FILES } from "../kernel/types.js";
 const MAX_PROPOSALS = 128;
@@ -13,15 +15,24 @@ const MAX_REASON_BYTES = 512;
 const MAX_DIFF_BYTES = 64 * 1024;
 const PROPOSAL_TTL_MS = 10 * 60 * 1000;
 
+const WRITE_ERROR_CODES = new Set(["INVALID_REQUEST", "PATH_FORBIDDEN", "VALIDATION_FAILED", "CONFLICT", "RECOVERY_REQUIRED", "DEADLINE_EXCEEDED", "INTERNAL_ERROR"]);
+function safeErrorCode(code) {
+  if (WRITE_ERROR_CODES.has(code)) return code;
+  if (code === "DOC_NOT_FOUND" || code === "NOT_FOUND") return "PATH_FORBIDDEN";
+  return "VALIDATION_FAILED";
+}
 function error(code, message, extra = {}) {
+  const normalizedCode = safeErrorCode(code);
   return {
     ok: false,
     error: {
-      code,
+      code: normalizedCode,
       message,
-      retryable: code === "CONFLICT" || code === "WRITE_FAILED",
-      findings: [],
-      nextAction: code === "CONFLICT" ? "re-read the affected document and propose again" : "fix the request and retry",
+      retryable: normalizedCode === "CONFLICT" || normalizedCode === "DEADLINE_EXCEEDED",
+      requestId: extra.requestId ?? null,
+      proposalHash: extra.proposalHash ?? null,
+      changedPaths: extra.changedPaths ?? [],
+      findings: extra.findings ?? [],
       ...extra,
     },
   };
@@ -212,6 +223,47 @@ export function createProposalService(root, getGraph) {
   const proposals = new Map();
   const terminalRequests = new Map();
 
+function publicOperationKind(operation) {
+  switch (operation?.kind) {
+    case "insert_at_eof":
+    case "insert_after_heading":
+      return "insert";
+    case "replace_section":
+    case "replace_in_section":
+    case "replace_task_status":
+    case "replace_document":
+      return "replace";
+    case "delete_document":
+      return "delete";
+    case "rename_document":
+      return "rename";
+    default:
+      return "replace";
+  }
+}
+
+function publicProposal(proposal, requestId) {
+  return {
+    schemaVersion: "spec-mcp-operations-proposal@1",
+    requestId,
+    proposalId: proposal.proposalId,
+    proposalHash: proposal.proposalSha256,
+    spec: proposal.spec,
+    baseGenerationSha256: proposal.baseSnapshotSha256,
+    operations: proposal.changes.map((change) => ({
+      path: ".specs/" + change.spec + "/" + change.document,
+      operation: publicOperationKind(change.operation),
+      beforeSha256: change.preview.beforeSha256,
+      afterSha256: change.preview.afterSha256,
+      diff: change.preview.unifiedDiff,
+    })),
+    findings: (proposal.findings ?? []).map((finding) => ({
+      code: finding.code,
+      ...(finding.path ? { path: finding.path } : {}),
+      message: finding.message,
+    })),
+  };
+}
   async function proposePatch(input = {}) {
     const requestId = input.requestId;
     const spec = input.spec;
@@ -236,13 +288,13 @@ export function createProposalService(root, getGraph) {
         diffTruncated: diff.truncated,
       };
       normalizedOperations.push({ ...operation });
-      documents.set(document, { spec, document, beforeBytes, afterBytes, deleteAfter, preview });
+      documents.set(document, { spec, document, beforeBytes, afterBytes, operation, deleteAfter, preview });
     };
     for (const rawOperation of operations) {
       const operation = normalizeOperation(rawOperation);
       if (!operation || typeof operation.document !== "string") return error("INVALID_REQUEST", "every operation needs a document");
       if (operation.spec !== undefined && operation.spec !== spec) return error("INVALID_REQUEST", "mixed-spec operations are forbidden");
-      if (documents.has(operation.document)) return error("CONFLICT", `duplicate document target: ${operation.document}`);
+      if (documents.has(operation.document)) return error("INVALID_REQUEST", "duplicate document target: " + operation.document);
       if (operation.kind === "rename_document") {
         if (typeof operation.newDocument !== "string" || operation.newDocument === operation.document || documents.has(operation.newDocument)) return error("INVALID_REQUEST", "rename_document needs a distinct newDocument");
         const current = await loadDocument(root, spec, operation.document, false);
@@ -265,6 +317,29 @@ export function createProposalService(root, getGraph) {
       const transformedText = newline === "\n" ? transformed.text : transformed.text.replace(/\r?\n/gu, newline);
       addChange(operation.document, current.bytes, Buffer.from(transformedText, "utf8"), operation, transformed.delete === true);
     }
+    const snapshot = await readRepositorySpecs({ root });
+    if (snapshot.error) return error("PATH_FORBIDDEN", "specification repository could not be read");
+    const replacements = new Map();
+    for (const change of documents.values()) {
+      const key = ".specs/" + change.spec + "/" + change.document;
+      replacements.set(key, change.deleteAfter ? null : change.afterBytes);
+    }
+    const resultingFiles = snapshot.files
+      .filter((file) => !replacements.has(file.path))
+      .concat([...replacements.entries()].filter(([, bytes]) => bytes !== null).map(([path, bytes]) => ({ path, bytes })))
+      .sort((left, right) => left.path.localeCompare(right.path));
+    const resulting = buildKernelGraph({ files: resultingFiles });
+    if (resulting.graph.valid !== true) {
+      const findings = resulting.diagnostics
+        .filter((diagnostic) => diagnostic.severity === "ERROR")
+        .map((diagnostic) => ({
+          code: diagnostic.code,
+          ...(diagnostic.span?.path ? { path: diagnostic.span.path } : {}),
+          message: diagnostic.message ?? diagnostic.code,
+        }))
+        .sort((left, right) => (left.path ?? "").localeCompare(right.path ?? "") || left.code.localeCompare(right.code));
+      return error("VALIDATION_FAILED", "resulting specification graph is invalid", { findings });
+    }
     const previews = [...documents.values()].map((entry) => entry.preview).sort((left, right) => left.document.localeCompare(right.document));
     const proposalMaterial = { requestId, repositoryRootFingerprint: graph.fingerprint, spec, reason, normalizedOperations, previews };
     const proposalSha256 = sha256(canonicalJson(proposalMaterial));
@@ -285,7 +360,7 @@ export function createProposalService(root, getGraph) {
     };
     proposals.set(proposalId, proposal);
     terminalRequests.set(requestId, proposalId);
-    return success({ requestId, proposal: { ...proposal, expiresAt: undefined, changes: undefined } });
+    return success(publicProposal(proposal, requestId));
   }
 
   async function proposeArchive(input = {}) {

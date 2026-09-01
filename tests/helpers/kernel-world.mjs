@@ -5,7 +5,8 @@ import path from "node:path";
 
 // Shared kernel contract (v0.2 profile). The core worker implements this
 // surface in parallel; these tests code to the contract, not to file state.
-export { KERNEL_SCHEMA_VERSION, buildKernelGraph, query } from "../../src/kernel/index.js";
+import { KERNEL_SCHEMA_VERSION, buildKernelGraph, query } from "../../src/kernel/index.js";
+export { KERNEL_SCHEMA_VERSION, buildKernelGraph, query };
 export { readRepositorySpecs } from "../../src/kernel/adapters/fs.js";
 
 export function sha256Hex(bytes) {
@@ -164,6 +165,28 @@ export async function loadFrozenRealCorpus(repositoryRoot) {
   return { manifest, fixtureRoot, files };
 }
 
+export async function loadAuthoringRealCorpus(repositoryRoot) {
+  const manifestPath = path.join(repositoryRoot, "tests", "fixtures", "kernel", "authoring-real-corpus-manifest.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  const fixtureRoot = path.join(repositoryRoot, "tests", "fixtures", "kernel", "authoring-real-corpus");
+  const entries = manifest.documents;
+  if (manifest.schema !== "omp-spec-kit-authoring-real-corpus@1" || manifest.documentCount !== 45 || !Array.isArray(entries) || entries.length !== 45) {
+    throw new Error("authoring corpus manifest must contain exactly 45 documents");
+  }
+  const paths = entries.map((entry) => entry.path);
+  if (new Set(paths).size !== paths.length || JSON.stringify(paths) !== JSON.stringify([...paths].sort())) throw new Error("authoring corpus manifest paths are not unique and sorted");
+  const files = [];
+  for (const entry of entries) {
+    const bytes = await readFile(path.join(fixtureRoot, entry.path));
+    if (bytes.byteLength !== entry.bytes || sha256Hex(bytes) !== entry.sha256) throw new Error("authoring corpus byte drifted: " + entry.path);
+    files.push({ path: entry.path, bytes });
+  }
+  const aggregate = sha256Hex(Buffer.from(entries.map((entry) => entry.path + "\u0000" + entry.bytes + "\u0000" + entry.sha256 + "\n").join(""), "utf8"));
+  if (aggregate !== manifest.aggregateSha256) throw new Error("authoring corpus aggregate digest is invalid");
+  const built = buildKernelGraph({ files });
+  if (built.graph.valid !== true) throw new Error("authoring corpus graph is invalid");
+  return { manifest, fixtureRoot, files, graph: built.graph };
+}
 export async function createTempRepo() {
   return mkdtemp(path.join(tmpdir(), "omp-spec-kit-kernel-"));
 }

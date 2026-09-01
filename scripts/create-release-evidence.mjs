@@ -275,9 +275,9 @@ export async function createReleaseEvidence({
   const checks = {
     publicSafety: await copyReceipt(publicSafetyPath, outputDirectory, "public-safety.json"),
     dockerBdd: await copyReceipt(bddReceiptPath, outputDirectory, "docker-bdd-copy.json"),
-    priorV030: await copyReceipt(path.join(lifecycleDirectory, "prior-v0.3.0.json"), outputDirectory, "prior-v0.3.0.json"),
-    upgradeFromV030: await copyReceipt(path.join(lifecycleDirectory, "upgrade-from-v0.3.0.json"), outputDirectory, "upgrade-from-v0.3.0.json"),
-    rollbackToV030: await copyReceipt(path.join(lifecycleDirectory, "rollback-to-v0.3.0.json"), outputDirectory, "rollback-to-v0.3.0.json"),
+    priorV032: await copyReceipt(path.join(lifecycleDirectory, "prior-v0.3.2.json"), outputDirectory, "prior-v0.3.2.json"),
+    upgradeFromV032: await copyReceipt(path.join(lifecycleDirectory, "upgrade-from-v0.3.2.json"), outputDirectory, "upgrade-from-v0.3.2.json"),
+    rollbackToV032: await copyReceipt(path.join(lifecycleDirectory, "rollback-to-v0.3.2.json"), outputDirectory, "rollback-to-v0.3.2.json"),
   };
   const frReceipts = Object.create(null);
   for (const requirement of MRI_REQUIREMENTS) {

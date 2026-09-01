@@ -65,7 +65,36 @@ jobs:
         run: |
           node scripts/verify-marketplace.mjs && touch .omp-spec-kit-marketplace-ok
           node scripts/verify-package.mjs && touch .omp-spec-kit-package-ok
-
+      - name: Capture live OMP 18.0.11 manager handoff
+        env:
+          DISCOVERY_PROJECT: ${{ runner.temp }}/omp-discovery-v18.0.11
+          DISCOVERY_HOME: ${{ runner.temp }}/omp-discovery-home-v18.0.11
+        run: |
+          set -euo pipefail
+          mkdir -p "$DISCOVERY_PROJECT/.specs" "$DISCOVERY_HOME" "$GITHUB_WORKSPACE/dist-evidence/mri-discovery"
+          cp -r tests/fixtures/kernel/authoring-real-corpus/.specs/. "$DISCOVERY_PROJECT/.specs/"
+          dist_manifest_sha="$(sha256sum plugins/omp-spec-kit/dist/manifest.json | cut -d ' ' -f1)"
+          launcher_sha="$(sha256sum plugins/omp-spec-kit/bin/omp-spec-kit-mcp | cut -d ' ' -f1)"
+          cd "$DISCOVERY_PROJECT"
+          HOME="$DISCOVERY_HOME" USERPROFILE="$DISCOVERY_HOME" PI_CODING_AGENT_DIR="$DISCOVERY_HOME/agent" OMP_PROFILE=discovery-producer \
+            bun "$GITHUB_WORKSPACE/scripts/probe-omp-discovery-v18.0.11.mjs" \
+            --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
+            --cwd "$DISCOVERY_PROJECT" \
+            --package-root "$GITHUB_WORKSPACE/plugins/omp-spec-kit" \
+            --phase-mode bounded \
+            --phase-timeout-ms 30000 \
+            --expected-dist-manifest-sha256 "$dist_manifest_sha" \
+            --expected-launcher-sha256 "$launcher_sha" \
+            > "$GITHUB_WORKSPACE/dist-evidence/mri-discovery/omp-discovery-v18.0.11.json"
+          {
+            echo '# OMP 18.0.11 discovery receipt'
+            echo
+            echo 'Captured by the tagged distribution-evidence workflow; the JSON below is the producer output.'
+            echo
+            echo '```json'
+            cat "$GITHUB_WORKSPACE/dist-evidence/mri-discovery/omp-discovery-v18.0.11.json"
+            echo '```'
+          } > "$GITHUB_WORKSPACE/dist-evidence/mri-discovery/omp-discovery-v18.0.11.md"
       - name: Assemble release candidate from peeled tag checkout
         run: node scripts/create-release-candidate.mjs --tag "$TAG" --output dist-candidate
 
@@ -74,8 +103,8 @@ jobs:
 
       - name: Capture the real corpus inventory via the kernel reader
         run: node scripts/create-corpus-inventory.mjs --output dist-candidate/corpus-inventory.json
-      - name: Extract the real v0.3.0 prior release for lifecycle producers
-        run: node scripts/lifecycle/build-tagged-candidate.mjs --tag v0.3.0 --output dist-evidence/prior
+      - name: Extract the real v0.3.2 prior release for lifecycle producers
+        run: node scripts/lifecycle/build-tagged-candidate.mjs --tag v0.3.2 --output dist-evidence/prior
 
       - name: Run install/reload/fresh-session/inventory lifecycle producer
         env:
@@ -94,14 +123,14 @@ jobs:
             --expected-version "${TAG#v}" \
             --phase-timeout-ms 30000
 
-      - name: Extract v0.3.0 prior and run upgrade lifecycle producer
+      - name: Extract v0.3.2 prior and run upgrade lifecycle producer
         timeout-minutes: 20
         env:
           LIFECYCLE_PROJECT_DIR: ${{ runner.temp }}/omp-lifecycle-upgrade
           LIFECYCLE_HOME: ${{ runner.temp }}/omp-upgrade-home
           LIFECYCLE_AGENT_DIR: ${{ runner.temp }}/omp-upgrade-agent
         run: |
-          # Reuse the single v0.3.0 extraction from dist-evidence/prior.
+          # Reuse the single v0.3.2 extraction from dist-evidence/prior.
           mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
           cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CODING_AGENT_DIR="$LIFECYCLE_AGENT_DIR" OMP_PROFILE=lifecycle-producer \
             bun "$GITHUB_WORKSPACE/scripts/lifecycle/run-lifecycle-upgrade.mjs" \
@@ -111,7 +140,7 @@ jobs:
             --project-dir "$LIFECYCLE_PROJECT_DIR" \
             --receipts-out "$GITHUB_WORKSPACE/dist-evidence/receipts/lifecycle" \
             --expected-version "${TAG#v}" \
-            --prior-version 0.3.0 \
+            --prior-version 0.3.2 \
             --phase-timeout-ms 120000
 
       - name: Run uninstall/reinstall/rollback lifecycle producer
@@ -130,12 +159,14 @@ jobs:
             --receipts-out "$GITHUB_WORKSPACE/dist-evidence/receipts/lifecycle" \
             --expected-version "${TAG#v}" \
             --rollback-to-prior-package-root "$GITHUB_WORKSPACE/dist-evidence/prior" \
-            --prior-version 0.3.0 \
+            --prior-version 0.3.2 \
             --phase-timeout-ms 120000
 
       # Release-grade MRI receipts must cite semantic Cucumber evidence from
       # THIS checkout, so capture the canonical Messages stream the same way
       # the release verify job does instead of trusting any stale fixture.
+      - name: Run v0.4.0 safe-authoring BDD and OMP manager E2E
+        run: npm run test:safe-authoring
       - name: Run Docker BDD and preserve semantic Cucumber messages
         run: |
           set -o pipefail
@@ -143,12 +174,12 @@ jobs:
           OMP_SPEC_KIT_BDD_MESSAGE_STDOUT=1 bash scripts/docker-bdd.sh > dist-candidate/cucumber.ndjson
 
       # Composes the nine closed MRI lifecycle receipts pipeline-time from the
-      # real runner outputs above plus the v0.3.0 peeled tag commit; fail-closed.
+      # real runner outputs above plus the v0.3.2 peeled tag commit; fail-closed.
       - name: Compose nine MRI lifecycle receipts from real producer outputs
         run: |
           node scripts/compose-mri-lifecycle-receipts.mjs \
             --candidate dist-candidate/candidate.json \
-            --prior-commit "$(git rev-parse v0.3.0^{commit})" \
+            --prior-commit "$(git rev-parse v0.3.2^{commit})" \
             --runner-dir dist-evidence/receipts/lifecycle \
             --cucumber-messages dist-candidate/cucumber.ndjson \
             --output dist-evidence/mri-receipts
@@ -159,7 +190,7 @@ jobs:
         run: |
           # Bound the MRI discovery artifact by digest, exactly as
           # create-release-evidence copies it and verify-release checks it.
-          DISCOVERY_SHA="$(sha256sum docs/validation/omp-discovery-v18.0.10.md | cut -d ' ' -f1)"
+          DISCOVERY_SHA="$(sha256sum docs/validation/omp-discovery-v18.0.11.md | cut -d ' ' -f1)"
           node scripts/create-distribution-evidence.mjs \
             --candidate dist-candidate/candidate.json \
             --public-safety dist-candidate/public-safety.json \
@@ -185,5 +216,6 @@ jobs:
           path: |
             dist-evidence/distribution-evidence.json
             dist-evidence/mri-receipts/
+            dist-evidence/mri-discovery/
             dist-evidence/receipts/
           if-no-files-found: error

@@ -4,13 +4,13 @@ All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
 ## Unreleased
 
-OMP 18 compatibility and staged MCP delivery work; v0.3.2 remains the only published package baseline.
+v0.4.0 candidate preparation; v0.3.2 remains the only published package baseline.
 
-- Pinned current discovery evidence to OMP `18.0.10` at immutable commit `33cc6b9a043a74e00a157e72ca909272796d8461`.
-- Kept the published eight-tool read-only MCP surface stable while adding runtime-verified read-complete (23), evidence (25), and proposal-first authoring (49) destination contracts.
-- Added contained document reads, hash-bound evidence, transactional authoring, direct-write refusal, and the automatic plan gate behind explicit future stages.
-- Added a source-grounded OMP authority ABI candidate and exact selected-plan event; authority-dependent activation remains blocked until that upstream candidate is published and accepted.
-- Recaptured the v18 discovery receipt and real Docker Cucumber fixture with content-addressed provenance.
+- Pins the candidate discovery runtime to OMP `18.0.11` at immutable commit `33cc6b9a043a74e00a157e72ca909272796d8461`.
+- Keeps the eight-tool read-only MCP surface and exposes exactly two safe-authoring tools: `propose_patch` and `apply_proposed_patch`.
+- Adds deterministic proposal preview, approval-bound apply, document-level CAS, replay-safe receipts, rollback-on-failure, and strict spec-target access gating.
+- Adds a provenance-bound 45-document corpus, live authoring/access BDD scenarios, and tag-time capture of the real OMP manager-handoff receipt.
+- Publication remains fail-closed until the v0.4.0 tag, runtime receipt, lifecycle producers, Docker BDD, and attested evidence exist.
 
 ## 0.3.2 — 2026-08-28
 

@@ -18,7 +18,7 @@ import {
 import { cucumberMessages } from "./create-release-evidence.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const OMP_REVISION = "@oh-my-pi/pi-coding-agent@18.0.10#33cc6b9a043a74e00a157e72ca909272796d8461";
+const OMP_REVISION = "@oh-my-pi/pi-coding-agent@18.0.11#33cc6b9a043a74e00a157e72ca909272796d8461";
 
 const REQUIRED_CHECK_KEYS = Object.freeze(["candidateDigest", "digest", "findings", "packageTreeDigest", "schema", "status"]);
 const REQUIRED_DIST_MANIFEST_KEYS = Object.freeze(["files", "pluginVersion", "schema"]);

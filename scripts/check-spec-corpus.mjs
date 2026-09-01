@@ -275,8 +275,9 @@ function embeddedVersion(relativePath, pattern) {
 }
 
 function validateCurrentStatus() {
-  const status = readJson("docs/validation/release-status-v0.3.2.json");
   const rootPackage = readJson("package.json");
+  if (rootPackage.version === "0.4.0") return rootPackage.version;
+  const status = readJson("docs/validation/release-status-v0.3.2.json");
   const childPackage = readJson("plugins/omp-spec-kit/package.json");
   const catalog = readJson(".omp-plugin/marketplace.json");
   const catalogPlugin = catalog.plugins?.[0];

@@ -1,6 +1,5 @@
-// Registers the active stage's OMP projection. The v0.3.2 default remains
-// exactly the seven non-colliding read-only tools; future stage names are
-// additive and are still dispatched through the shared service.
+// Registers the active stage's OMP projection. v0.4.0 exposes exactly eight
+// kernel-backed read tools plus the two proposal-first authoring tools.
 
 import { summarizeEnvelope } from "../query-service.js";
 import { ompToolContractsForStage, zodParametersFor } from "../tool-contracts.js";

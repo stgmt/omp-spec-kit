@@ -12,7 +12,7 @@ const DISTRIBUTION_REQUIREMENTS = Object.freeze(Array.from({ length: 12 }, (_, i
 const DISTRIBUTION_TRUST_VALUES = Object.freeze(["untrusted-self-attested", "github-artifact-attestation"]);
 const ATTESTATION_REPOSITORY = "stgmt/omp-spec-kit";
 const ATTESTATION_SIGNER_WORKFLOW = `${ATTESTATION_REPOSITORY}/.github/workflows/distribution-evidence.yml`;
-const REQUIRED_CHECKS = Object.freeze(["publicSafety", "dockerBdd", "priorV030", "upgradeFromV030", "rollbackToV030"]);
+const REQUIRED_CHECKS = Object.freeze(["publicSafety", "dockerBdd", "priorV032", "upgradeFromV032", "rollbackToV032"]);
 const DISTRIBUTION_CLAIM_MATRIX = Object.freeze({
   "plugin-distribution:FR-1": Object.freeze(["marketplace-shape"]),
   "plugin-distribution:FR-2": Object.freeze(["package-shape"]),
@@ -95,7 +95,7 @@ function validDiscovery(bytes, blocking) {
   if (!match) { add(blocking, "invalid-mri-discovery-receipt:no-json-receipt"); return false; }
   try {
     const receipt = JSON.parse(match[1]);
-    const valid = receipt.schema === "omp-manager-handoff-probe@2" && receipt.result === "completed" && receipt.provenance?.runtime?.name === "@oh-my-pi/pi-coding-agent" && receipt.provenance?.runtime?.version === "18.0.10" && receipt.manager?.connectionResult?.toolCount === 8 && JSON.stringify(receipt.manager?.connectionResult?.connectedServers) === JSON.stringify(["omp-spec-kit:omp-spec-kit"]) && Object.keys(receipt.manager?.connectionResult?.errors ?? {}).length === 0;
+    const valid = receipt.schema === "omp-manager-handoff-probe@2" && receipt.result === "completed" && receipt.provenance?.runtime?.name === "@oh-my-pi/pi-coding-agent" && receipt.provenance?.runtime?.version === "18.0.11" && receipt.manager?.connectionResult?.toolCount === 10 && JSON.stringify(receipt.manager?.connectionResult?.connectedServers) === JSON.stringify(["omp-spec-kit:omp-spec-kit"]) && Object.keys(receipt.manager?.connectionResult?.errors ?? {}).length === 0;
     if (!valid) add(blocking, "invalid-mri-discovery-receipt:pin-or-manager-contract");
     return valid;
   } catch (error) { add(blocking, `invalid-mri-discovery-receipt:${error.message}`); return false; }
@@ -116,10 +116,10 @@ async function evaluateMri(evidence, evidenceDirectory, id, repositoryRoot, reso
     try { if (!messageArtifact.bytes) throw new Error(messageArtifact.error); observed = cucumberMessages(messageArtifact.bytes, required.multiplicities); } catch (error) { add(blocking, `invalid-cucumber-messages:${error.message}`); }
     const declared = Array.isArray(dockerBdd?.scenarioIds) ? [...new Set(dockerBdd.scenarioIds)].sort() : [];
     if (!exact(dockerBdd, ["archiveSha256", "candidateDigest", "catalogDigest", "commit", "messageDigest", "messagePath", "packageTreeDigest", "scenarioIds", "schema", "status", "tag", "version"]) || dockerBdd.schema !== "omp-spec-kit-bdd-receipt@1" || dockerBdd.status !== "passed" || !matches(dockerBdd, id) || JSON.stringify(declared) !== JSON.stringify(expectedScenarioIds) || JSON.stringify(observed) !== JSON.stringify(expectedScenarioIds)) add(blocking, "invalid-docker-bdd-receipt");
-    const prior = (await readReceipt(checks.priorV030, "priorV030", evidenceDirectory, blocking))?.value;
-    try { const priorCommit = resolveTagCommit("v0.3.0", repositoryRoot); if (!exact(prior, ["commit", "schema", "source", "status", "tag"]) || prior.schema !== "omp-spec-kit-tagged-source-proof@1" || prior.status !== "passed" || prior.tag !== "v0.3.0" || prior.source !== "public-tag" || prior.commit !== priorCommit || !isCommit(prior.commit)) add(blocking, "invalid-prior-v030-proof"); } catch (error) { add(blocking, `unverifiable-prior-v030:${error.message}`); }
-    verifyLifecycle((await readReceipt(checks.upgradeFromV030, "upgradeFromV030", evidenceDirectory, blocking))?.value, "upgradeFromV030", id, "0.3.0", id.version, blocking);
-    verifyLifecycle((await readReceipt(checks.rollbackToV030, "rollbackToV030", evidenceDirectory, blocking))?.value, "rollbackToV030", id, id.version, "0.3.0", blocking);
+    const prior = (await readReceipt(checks.priorV032, "priorV032", evidenceDirectory, blocking))?.value;
+    try { const priorCommit = resolveTagCommit("v0.3.2", repositoryRoot); if (!exact(prior, ["commit", "schema", "source", "status", "tag"]) || prior.schema !== "omp-spec-kit-tagged-source-proof@1" || prior.status !== "passed" || prior.tag !== "v0.3.2" || prior.source !== "public-tag" || prior.commit !== priorCommit || !isCommit(prior.commit)) add(blocking, "invalid-prior-v032-proof"); } catch (error) { add(blocking, "unverifiable-prior-v032:" + error.message); }
+    verifyLifecycle((await readReceipt(checks.upgradeFromV032, "upgradeFromV032", evidenceDirectory, blocking))?.value, "upgradeFromV032", id, "0.3.2", id.version, blocking);
+    verifyLifecycle((await readReceipt(checks.rollbackToV032, "rollbackToV032", evidenceDirectory, blocking))?.value, "rollbackToV032", id, id.version, "0.3.2", blocking);
   }
   const frs = asObject(mri.frReceipts);
   if (!frs || !exact(frs, MRI_REQUIREMENTS)) add(blocking, "mri-fr-receipt-set-mismatch");
