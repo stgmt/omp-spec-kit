@@ -1,323 +1,324 @@
-# Plugin Distribution Public Schemas
+# Plugin Distribution Schemas
 
-This document is normative for v0.1.0. `additionalProperties` is false for every public object unless a table explicitly says otherwise. Strings are UTF-8. Public paths are normalized `/`-separated project-relative paths and never begin with `/`, a drive prefix, `..`, `~`, or a URI scheme.
+This document defines only distribution-owned data. OMP owns marketplace, package-extension, and MCP configuration parsing. The kernel owns query requests, results, errors, paging, and diagnostics.
 
-## 1. Runtime canonical identifiers
+All SHA-256 values are 64 lowercase hexadecimal characters and commits are 40 lowercase hexadecimal characters. Paths below are repository-relative and must remain contained after realpath/link resolution.
 
-| Kind | Format | Example |
-|---|---|---|
-| Requirement | `<spec-slug>:FR-<n>` | `plugin-distribution:FR-3` |
-| Acceptance criterion | `<spec-slug>:AC-<n>.<m>` | `plugin-distribution:AC-3.1` |
-| Feature trace tag | `<spec-slug>:@feature<n>` | `plugin-distribution:@feature3` |
-| Stable scenario ID | `SCEN-<lower-kebab>` | `SCEN-require-complete-release-evidence` |
+## 1. TargetPluginIdentity
 
-`spec-slug` matches `^[a-z0-9](?:[a-z0-9.-]{0,62}[a-z0-9])?$`. Scenario IDs match `^SCEN-[a-z0-9]+(?:-[a-z0-9]+)*$` and are unique within the feature. Bare IDs are valid only inside their owning source documents.
+```ts
+type TargetPluginIdentity = {
+  catalogPath: ".omp-plugin/marketplace.json";
+  pluginName: "omp-spec-kit";
+  childSource: "./plugins/omp-spec-kit";
+  version: string;
+  extensionEntry: "./dist/extension.js";
+  mcpConfigPath: "plugins/omp-spec-kit/.mcp.json";
+};
+```
 
-## 2. Marketplace catalog profile
+Distribution asks OMP's supported parser to read the catalog and manifest, then selects the unique target name and verifies path containment. Other accepted host fields and unrelated entries are not copied into this schema.
 
-Path: `.omp-plugin/marketplace.json`. Exactly one such file exists in the repository. JSON duplicate keys are invalid.
+## 2. CandidateIdentity
 
-### 2.1 Top-level fields
+```ts
+type CandidateIdentity = {
+  version: string;
+  tag: `v${string}`;
+  commit: string;
+  candidateSha256: string;
+  packageTreeSha256: string;
+  archive: { name: string; bytes: number; sha256: string };
+  supportedOmp: { version: string; commit: string };
+  platform: { os: string; architecture: string; fixtureSha256: string };
+};
+```
 
-| Field | Type | Required | v0.1.0 value/policy |
-|---|---|---:|---|
-| `$schema` | string URI | yes | Exact `https://anthropic.com/claude-code/marketplace.schema.json`, as referenced by the pinned OMP v17.3.7 marketplace documentation. |
-| `name` | string | yes | Exact `omp-spec-kit`; OMP naming grammar applies. |
-| `owner` | object | yes | Closed owner object below. |
-| `metadata` | object | yes | Closed metadata object below. |
-| `plugins` | array | yes | `minItems: 1`, `maxItems: 1`; one plugin-entry object. |
+The tag, catalog, child, embedded version, archive metadata, and fresh installed observation must agree with `version` and `commit`.
 
-No fallback `.claude-plugin/marketplace.json`, top-level `description`, or unknown top-level field is permitted by the product profile even if an upstream parser preserves extra fields.
+## 3. NamedReleaseChecks
 
-### 2.2 Owner object
+```ts
+type CheckName =
+  | "target"
+  | "build"
+  | "install"
+  | "invoke"
+  | "dependencyAbsent"
+  | "lifecycle"
+  | "publicSafety";
 
-| Field | Type | Required | v0.1.0 policy |
-|---|---|---:|---|
-| `name` | string | yes | Exact `stgmt`. |
-| `email` | string email | no | Omitted unless a public, monitored project address is approved. Personal/local addresses are forbidden. |
+type NamedReleaseChecks = Record<CheckName, {
+  status: "PASS" | "FAIL";
+  artifactSha256: string;
+  logArtifact: string; // contained CI artifact reference
+}>;
+```
 
-### 2.3 Metadata object
+Every key is required once. Detailed logs remain CI artifacts; this is a compact outcome map.
 
-| Field | Type | Required | v0.1.0 policy |
-|---|---|---:|---|
-| `description` | non-empty string | yes | Public description of the single OMP spec-kit plugin; no readiness claim without evidence. |
-| `version` | semver string | yes | Exact `0.1.0`; informational marketplace version and checked for equality by this product. |
-| `pluginRoot` | string | no | MUST be omitted because the entry already uses `./plugins/omp-spec-kit`; double-prefix ambiguity is forbidden. |
+## 4. LifecycleObservation
 
-### 2.4 Catalog plugin-entry object — exhaustive upstream-documented fields
+```ts
+type LifecycleObservation = {
+  candidateSha256: string;
+  installedVersion: string;
+  freshInvocation: "PASS";
+  uninstallAbsence: "PASS";
+  reinstallSha256: string;
+  predecessor: null | {
+    version: string;
+    publicArtifactSha256: string;
+    upgradeObservedVersion: string;
+    rollbackObservedVersion: string;
+  };
+  projectPreservationSha256Before: string;
+  projectPreservationSha256After: string;
+};
+```
 
-| Field | Documented type | Upstream required | v0.1.0 product policy |
-|---|---|---:|---|
-| `name` | string | yes | Required; exact `omp-spec-kit`. |
-| `source` | string or source object | yes | Required; exact relative string `./plugins/omp-spec-kit`; all object forms forbidden. |
-| `description` | string | no | Required by product; bounded public description. |
-| `version` | string | no | Required by product; exact semver `0.1.0`. |
-| `author` | object `{name, email?}` | no | Required by product; `name: "stgmt"`; approved public email optional. |
-| `homepage` | URL string | no | Required by product; canonical public repository URL. |
-| `repository` | URL/string | no | Required by product; canonical public Git repository URL. |
-| `license` | string | no | Required by product; exact approved SPDX identifier after provenance/license gate. |
-| `keywords` | string array | no | Optional; unique lowercase bounded public keywords. |
-| `category` | string | no | Required by product; exact approved category such as `development`. |
-| `tags` | string array | no | Optional; unique bounded public tags. |
-| `strict` | boolean | no | Forbidden/omitted; upstream preserves but does not use it for install/runtime behavior. |
-| `commands` | metadata | no | Forbidden/omitted; runtime commands are discovered from the installed tree and no catalog duplicate is allowed. |
-| `agents` | metadata | no | Forbidden/omitted in v0.1.0. |
-| `hooks` | metadata | no | Forbidden/omitted in v0.1.0. |
-| `mcpServers` | metadata | no | Forbidden/omitted in v0.1.0. |
-| `lspServers` | map or in-plugin path | no | Forbidden/omitted in v0.1.0. |
-| `dapAdapters` | map or in-plugin JSON/YAML path | no | Forbidden/omitted in v0.1.0. |
+`predecessor` is `null` only for the first release. Later releases use real public bytes. `reinstallSha256` equals `candidateSha256`; preservation hashes match.
 
-Documented `source` variants are: relative string; `{source:"url",url,sha?}`; `{source:"github",repo,ref?,sha?}`; `{source:"git-subdir",url,path,ref?,sha?}`; and `{source:"npm",package,version?}`. The product accepts only the exact relative string. A direct catalog URL cannot support this relative source and is outside the release proof.
+## 5. PublicSafetyResult
 
-## 3. Child package manifest profile
+```ts
+type PublicSafetyResult = {
+  status: "PASS" | "FAIL";
+  checks: {
+    provenance: "PASS" | "FAIL";
+    license: "PASS" | "FAIL";
+    secrets: "PASS" | "FAIL";
+    localState: "PASS" | "FAIL";
+    publicDiff: "PASS" | "FAIL";
+    payloadAllowlist: "PASS" | "FAIL";
+  };
+  logArtifact: string;
+};
+```
 
-Path: `plugins/omp-spec-kit/package.json`. No other `package.json` may occur beneath `plugins/omp-spec-kit/`. Pinned OMP v17.3.7 recursively copies this entire directory with `fs.cp`; `package.json#files` does not filter installation.
+A failed member prevents publication. The result never contains the protected secret, absolute host path, environment value, or file content.
 
-| Field | Type | Required | v0.1.0 value/policy |
-|---|---|---:|---|
-| `name` | string | yes | Exact `omp-spec-kit`. |
-| `version` | semver string | yes | Exact `0.1.0`. |
-| `description` | non-empty string | yes | Evidence-honest plugin description. |
-| `homepage` | URL string | yes | Canonical public repository URL. |
-| `repository` | string or `{type,url,directory?}` | yes | Canonical repository; if object, `type` is `git` and `directory` is `plugins/omp-spec-kit`. |
-| `license` | SPDX string | yes | Exact license approved by provenance gate. |
-| `type` | string | yes | Exact `module`. |
-| `files` | string array | yes | Exact ordered values: `package.json`, `README.md`, `LICENSE`, `dist/`, `skills/`, `commands/`. |
-| `engines` | object | yes | Closed object `{ "omp": "17.3.7" }`. |
-| `omp` | object | yes | Closed OMP object below. |
-| `scripts` | object | no | Forbidden; build and verification scripts live at repository root and are not copied into the payload. |
-| `dependencies` | object | no | Forbidden; v0.1.0 has no non-host runtime dependency. |
-| `devDependencies` | object | no | Forbidden; the installed child is not a build workspace. |
+## 6. DistributionReleaseStatus
 
-Unknown fields are rejected by the product package-shape validator. The complete child tree is exactly `package.json`, `README.md`, `LICENSE`, `dist/{extension.js,inventory.js,manifest.json}`, `skills/spec-inventory/SKILL.md`, and `commands/spec-inventory.md`; every entry is a real directory or regular file, never a symlink. `dist/manifest.json` is canonical deterministic JSON with schema `omp-spec-kit-dist-manifest@1`, plugin version `0.1.0`, and SHA-256 values for the two JavaScript files. Fields commonly used for npm publication (`main`, `module`, `exports`, `bin`, `publishConfig`), lifecycle/build scripts, dependencies, and `private` are forbidden.
+```ts
+type DistributionReleaseStatus = {
+  schema: "omp-spec-kit-distribution-status@1";
+  state: "SHIPPED";
+  candidate: CandidateIdentity;
+  target: TargetPluginIdentity;
+  checks: NamedReleaseChecks;
+  lifecycle: LifecycleObservation;
+  publicAsset: {
+    releaseUrl: string;
+    name: string;
+    sha256: string;
+  };
+  finalAttestation: {
+    subjectName: string;
+    subjectSha256: string;
+    repository: "stgmt/omp-spec-kit";
+    workflow: string;
+    sourceRef: `refs/tags/${string}`;
+    runUrl: string;
+  };
+};
+```
 
-### 3.1 `omp` object and extension entry
+`publicAsset.sha256`, `candidate.archive.sha256`, every check's `artifactSha256`, and `finalAttestation.subjectSha256` are equal. Distribution emits no product capability state.
 
-| Field | Type | Required | v0.1.0 value/policy |
-|---|---|---:|---|
-| `extensions` | string array | yes | `minItems: 1`, `maxItems: 1`, unique; sole value `./dist/extension.js`. |
+## 7. Release decision
 
-No other `omp` property is accepted in v0.1.0. Legacy `pi.extensions` is forbidden. The resolved real path must be a regular file inside the installed child package, have `.js` suffix, and match the verified artifact digest. Directories, symlink escapes, `.ts`/source entries, `.mjs` alternatives, missing files, and duplicate normalized paths are invalid for this product profile.
+The release job publishes only if every named check is `PASS`, identity fields agree, lifecycle invariants hold, and the asset digest is unchanged. Failures name the failed check in CI logs. There is no forward eligibility evaluator or intermediate trust layer. Release decisions use only the named checks and exact artifact identity.
 
-## 4. Extension factory contract
+## 8. Historical profiles
 
-The module exports one default `ExtensionFactory`. During load it may only:
+The following remain readable, immutable evidence for their releases only:
 
-1. obtain host-provided schema builders such as `pi.zod`;
-2. set a stable extension label; and
-3. call `pi.registerTool` once for `spec_inventory`.
+- v0.1/v0.2/v0.3 lifecycle and package receipts;
+- `omp-spec-kit-release-evidence@3`;
+- historical `distribution-release-eligibility@1` and `public-release-eligibility@1`;
+- the v0.3.2 `distribution-evidence.json` subject and its attestation;
+- `docs/validation/release-status-v0.3.2.json`.
 
-It returns `void` or a resolved promise after registration. It does not scan, execute the tool, message, write, spawn, fetch, start timers, register events, commands, hooks, providers, MCP, LSP, DAP, or a second tool during v0.1.0 factory load.
+Historical receipts are not rewritten into `DistributionReleaseStatus` and are not required to publish the next candidate.
 
-### 4.1 Registered tool descriptor
+## OMP 18.0.10 compatibility observation
 
-| Field | Type | Required | Contract |
-|---|---|---:|---|
-| `name` | string | yes | Exact `spec_inventory`. |
-| `label` | string | yes | Stable human label. |
-| `description` | string | yes | States bounded read-only inventory and active project root. |
-| `parameters` | host schema | yes | Validates `spec-inventory-request@1`; rejects unknown properties. |
-| `execute` | async function | yes | Uses execution `ctx.cwd` as project root, honors abort signal, returns bounded content and `details`. |
+The package has a compatibility observation against OMP 18.0.10 at immutable commit 33cc6b9a043a74e00a157e72ca909272796d8461. This observation is non-authoritative and does not replace the supported release-smoke authority: OMP v17.3.7 at commit 8500092296621a6826b7136e840f8a59ea338958. Historical runtime receipts remain historical; current discovery uses the versioned OMP 18 probe and accepts the namespaced plugin/server handoff.
 
-## 5. `spec-inventory-request@1`
+---
 
-All fields are optional; omission selects documented defaults.
+## Product status schema (merged)
 
-| Field | Type | Required | Default | Constraint |
-|---|---|---:|---:|---|
-| `schemaVersion` | literal string | no | `1` | If present, exact `1`; another value yields `UNSUPPORTED_SCHEMA_VERSION`. |
-| `maxSpecs` | integer | no | 50 | Minimum 1, maximum hard cap 200. |
-| `maxDiagnostics` | integer | no | 25 | Minimum 0, maximum hard cap 100. |
-| `includeDocumentCounts` | boolean | no | `true` | Counts only regular direct files with canonical document names; never reads contents for this count. |
+## Scope
 
-Unknown properties, non-integers, `NaN`, infinities, strings in numeric fields, or values outside ranges are rejected before filesystem access.
+This schema defines the small public roadmap record. Detailed release, authoring, and enforcement records belong to their owning specifications.
 
-## 6. `spec-inventory-result@1`
+## Canonical identifiers
 
-| Field | Type | Required | Constraint |
-|---|---|---:|---|
-| `schemaVersion` | literal `1` | yes | Public contract version. |
-| `tool` | literal `spec_inventory` | yes | Tool identity. |
-| `pluginVersion` | semver string | yes | Embedded build version; `0.1.0` for first release. |
-| `status` | enum | yes | `ok`, `absent`, `invalid`, `partial`, `aborted`, or `error`. |
-| `root` | literal `.specs` | yes | Never absolute. |
-| `specs` | `spec-inventory-entry@1[]` | yes | Lexically sorted by `slug`; maximum requested/hard limit. |
-| `diagnostics` | `spec-inventory-diagnostic@1[]` | yes | Maximum requested/hard limit. |
-| `counts` | object | yes | Closed counts object below. |
-| `truncated` | boolean | yes | True if any eligible spec/diagnostic was omitted by a bound. |
-| `readOnly` | literal `true` | yes | Contract assertion backed by test instrumentation, not self-sufficient proof. |
+A cross-spec identifier is `<spec-slug>:<local-id>`. Product requirements use `plugin-distribution:FR-N`, acceptance criteria use `plugin-distribution:AC-N.M`, tasks use `plugin-distribution:TASK-N`, and checks use `plugin-distribution:CHK-FRN-NN`. Bare IDs are local prose only.
 
-### 6.1 Counts object
+## RoadmapRow
 
-| Field | Type | Required | Constraint |
-|---|---|---:|---|
-| `returnedSpecs` | integer | yes | `0..200`, equals `specs.length`. |
-| `observedSpecs` | integer or null | yes | Non-negative count when known without exceeding safe scan; `null` when aborted/unsafe/unavailable. |
-| `returnedDiagnostics` | integer | yes | `0..100`, equals `diagnostics.length`. |
+| Field | Type | Required | Rule |
+|---|---|---|---|
+| `bucket` | `SHIPPED | NEXT | LATER` | yes | The only public status vocabulary. |
+| `label` | non-empty string | yes | Manager-readable outcome. |
+| `proof` | repository-relative path or null | yes | Required only for SHIPPED. |
+| `observedRelease` | `{version, installedIdentity}` or null | yes | Required only for SHIPPED. |
+| `whyNotShipped` | non-empty string or null | yes | Required for NEXT, optional for LATER, null for SHIPPED. |
 
-No timing, hostname, username, package cache path, process path, environment, source contents, or unbounded observed list is public output.
+## Roadmap
 
-## 7. `spec-inventory-entry@1`
+A roadmap is an ordered array of `RoadmapRow` with these invariants:
 
-| Field | Type | Required | Constraint |
-|---|---|---:|---|
-| `slug` | string | yes | Directory basename matching the canonical slug grammar. |
-| `path` | string | yes | Exact `.specs/<slug>` normalized relative path. |
-| `status` | enum | yes | `recognized`, `incomplete`, `invalid`, or `unreadable`. Never `passing`/`ready`. |
-| `documentCount` | integer or null | yes | `0..15` when requested/available; otherwise `null`. |
-| `missingDocuments` | canonical-document-name array | yes | Bounded to 15 unique lexical names; empty does not claim semantic validity. |
+1. exactly one SHIPPED row;
+2. exactly one NEXT row;
+3. zero or more LATER rows;
+4. the SHIPPED row has readable current proof whose released identity equals `observedRelease`;
+5. NEXT and LATER rows do not claim shipment;
+6. no additional public state field is permitted.
 
-Canonical document names are: `README.md`, `USER_STORIES.md`, `USE_CASES.md`, `RESEARCH.md`, `REQUIREMENTS.md`, `FR.md`, `NFR.md`, `ACCEPTANCE_CRITERIA.md`, `DESIGN.md`, `TASKS.md`, `FILE_CHANGES.md`, `CHANGELOG.md`, `<slug>.feature`, `FIXTURES.md`, and `<slug>_SCHEMA.md`.
 
-## 8. `spec-inventory-diagnostic@1`
+## Current instance
 
-| Field | Type | Required | Constraint |
-|---|---|---:|---|
-| `code` | enum | yes | One stable code from the list below. |
-| `severity` | enum | yes | `info`, `warning`, or `error`. |
-| `path` | string or null | yes | Safe project-relative path or `null`; never absolute/escaping. |
-| `message` | string | yes | Non-empty, one-line, maximum 240 Unicode scalar values. |
-| `remediation` | string or null | yes | One-line, maximum 240 values; no executable instruction from repo content. |
+| bucket | label | proof | observedRelease | whyNotShipped |
+|---|---|---|---|---|
+| SHIPPED | v0.3.2 read-only MCP baseline: v0.2 graph/query kernel plus eight working read-only MCP tools | `docs/validation/release-status-v0.3.2.json` | `{version: "0.3.2", installedIdentity: "omp-spec-kit@omp-spec-kit"}` | null |
+| NEXT | Safe spec authoring | null | null | Only `propose_patch` and `apply_proposed_patch` may be public; atomic contained application and the exact-name-first `.specs/**` direct-write policy still require real end-to-end proof. |
+| LATER | Expanded read queries | null | null | null |
+| LATER | Editor navigation | null | null | null |
+| LATER | Evidence queries | null | null | null |
+| LATER | Impact reporting | null | null | null |
+| LATER | Manual exact-content plan validation | null | null | null |
 
-Codes are exhaustive for v0.1.0: `SPECS_ABSENT`, `SPECS_NOT_DIRECTORY`, `SPEC_SLUG_INVALID`, `SPEC_DUPLICATE_SLUG`, `SPEC_UNREADABLE`, `SPEC_INCOMPLETE`, `SPEC_ENTRY_INVALID`, `PATH_ESCAPE_BLOCKED`, `SYMLINK_ESCAPE_BLOCKED`, `LIMIT_REACHED`, `DIAGNOSTIC_LIMIT_REACHED`, `REQUEST_ABORTED`, `PERMISSION_DENIED`, `UNSUPPORTED_SCHEMA_VERSION`, `INVALID_REQUEST`, and `INTERNAL_ERROR_REDACTED`.
+## Shipment proof rule
 
-Errors are mapped to these codes; raw exception messages, stacks, absolute paths, environment values, and file contents are never returned.
+For SHIPPED, the proof file is consumed as an opaque bounded release receipt. Product status reads only the released version and installed identity needed to match the row. It does not copy artifact ancestry or owner-specific verification fields. Without readable matching proof, the row is invalid and SHALL NOT be SHIPPED; tasks, scenarios, specifications, and older receipts do not substitute.
 
-## 9. Distribution producer receipt and claim matrix
+## Safe authoring exit condition
 
-Distribution evidence is a bundle of content-addressed producer receipts used for structural diagnostics. It is never inferred from a stage name, a free-form `claims` list, `.feature` text, or an aggregate eligibility object, and it is not current release authority.
+The NEXT row may move to SHIPPED only when one current end-to-end proof shows all of the following for the same product build:
 
-`omp-spec-kit-distribution-evidence@1` has the exact candidate identity fields,
-`ompRevision`, closed `platform { os, architecture, fixtureDigest }`,
-`applicability`, `mriDiscoveryDigest`, and `records`. Each record has exactly
-`requirement`, `claim`, and `receipt`; `receipt` is `{ status: "present", path,
-digest }` and binds a copied regular producer artifact below the evidence root.
+- public mutation names are exactly `propose_patch` and `apply_proposed_patch`;
+- an allowlisted MCP authoring call applies atomically inside repository containment;
+- a non-MCP read, search, enumeration, shell, edit, or write targeting canonical .specs/** is refused;
+- a link or reparse escape is refused;
+- each refusal has a bounded reason.
 
-Each bound artifact is `omp-spec-kit-distribution-producer-receipt@1` with exact
-candidate identity, `requirement`, one `claim`, `fixtureDigest`, `ompRevision`,
-`platform`, `applicability`, `lifecycle`, `producer { workflow:
-"distribution-lifecycle", runId }`, and a non-empty unique `observations` list.
-Every observation has exact `id`, `outcome: "passed"`, bounded public `summary`,
-and the same `fixtureDigest` as `platform.fixtureDigest`. The evaluator reads the
-artifact only through canonical containment: the evidence root, every parent, and
-the leaf must be non-symlinks; the leaf's realpath must remain under the root; and
-its SHA-256 must equal the record reference.
+## OMP 18 staged lifecycle
 
-`workflow`, `runId`, and `observations` remain self-authored JSON metadata:
-their bytes are diagnostics, never attacker-proof authority. Two trust roots
-exist for the closed input `{ schema:
-omp-spec-kit-distribution-evidence-input@1, trust, receipt }`. With
-`trust: "untrusted-self-attested"` the evaluator always emits
-`distribution-producer-provenance-untrusted:no-independent-trust-root`.
-With `trust: "github-artifact-attestation"` the evaluator additionally spawns
-the independent verifier
-`gh attestation verify <evidence.json> --repo OWNER/REPO --signer-workflow
-OWNER/REPO/.github/workflows/distribution-evidence.yml --source-ref
-refs/tags/<candidate tag>` after full structural matrix validation. The
-signer-workflow path `.github/workflows/distribution-evidence.yml` is a fixed
-constant, the source ref is always the candidate tag, and the `OWNER/REPO`
-trust root is pinned: it comes from the GitHub Actions environment
-(`GITHUB_REPOSITORY`) or from an explicitly set strict `OWNER/REPO` variable
-(`OMP_SPEC_KIT_ATTESTATION_REPO`); it is never derived from local git config,
-and outside those sources the evaluator emits
-`distribution-producer-attestation-unverified:trust-root-unpinned`. Any missing
-`gh`, spawn failure, non-zero exit, or timeout yields
-`distribution-producer-attestation-unverified:<short reason>` (fail closed).
-The certificate identity (Fulcio signer bound to that workflow) and its
-timestamps are the trustworthy parts of an attestation; predicate contents are
-not attacker-proof and are treated as bounded diagnostics. `gh` availability is
-a maintainer CI context obligation, never a plugin-payload dependency.
-No supplied JSON can select eligibility by itself; only a verifier-passing
-attestation over structurally complete evidence can.
+The current v0.3.2 profile is read-only. The planned releases are OMP 18 maintenance, read complete (23 MCP tools), evidence/navigation (25), safe authoring (49), and automatic exact-plan gating. Each stage requires its own installed runtime and behavioral receipt.
 
-### 9.1 Mandatory evidence matrix
+---
 
-| Requirement | Mandatory claims for every release | Additional candidate-aware claims |
-|---|---|---|
-| FR-1 | `marketplace-shape` | none |
-| FR-2 | `package-shape` | none |
-| FR-3 | `inventory` | none |
-| FR-4 | `install`, `reload`, `fresh-session-activation`, `inventory` | none |
-| FR-5 | `clean-build`, `package-shape`, `deps-absent` | none |
-| FR-6 | `inventory-containment` | none |
-| FR-7 | `version-consistency` | `upgrade` after the first release |
-| FR-8 | `uninstall-preservation`, `reinstall` | `rollback` after the first release |
-| FR-9 | `public-safety` | none |
-| FR-10 | `release-transaction` | none |
-| FR-11 | `evidence-honesty` | none |
-| FR-12 | `schema-containment` | none |
+## MCP release-integrity schema (merged)
 
-Lifecycle axes on each receipt reflect honest per-receipt proof state: an axis
-is `passed` only when THIS receipt's own claim IS that lifecycle proof (claims
-`upgrade`, `rollback`, `reinstall`), `inapplicable` when the candidate profile
-makes the axis out of scope, and otherwise `not-run` because no lifecycle
-producer ran for that claim. The evaluator computes the same mapping from the
-claim and profile and blocks any deviation. A missing, duplicate, foreign,
-unexpected, non-passed, fixture-mismatched, unprovenanced, invalid-observation,
-or self-attested record is blocked.
+## Shared scalars
 
-## 10. `distribution-release-eligibility@1`
+`Sha256` is 64 lowercase hexadecimal characters. `Commit` is 40 lowercase hexadecimal characters. Paths are unique repository-relative POSIX paths to regular files beneath the declared root. Content is digested before parsing. Symlink, junction, reparse, or realpath escape is invalid.
 
-This is a closed computed result, never a receipt. `evidenceByRequirement` has
-every FR-1 through FR-12 and lists the unique digest of each matrix producer
-artifact. Structural validation checks the complete matrix, matching candidate and
-platform identity, and verified artifact digests. While the input trust is
-`untrusted-self-attested`, or `github-artifact-attestation` without a
-verifier-passing attestation, the implementation emits `outcome: "blocked"`
-(with `distribution-producer-provenance-untrusted:no-independent-trust-root`
-or `distribution-producer-attestation-unverified:<reason>` respectively). The
-eligible outcome is reachable only when the input trust is
-`github-artifact-attestation`, the full FR-1..FR-12 structural matrix passes,
-and the Sigstore attestation from the fixed signer workflow at tag
-`refs/tags/<candidate>` verifies; a supplied JSON cannot select that outcome.
+## Runtime result provenance
 
-## 11. Pinned compatibility boundary
+```ts
+type RootMode = "active-project" | "explicit-absolute-override";
 
-The v0.1.0 implementation authority is OMP v17.3.7 at commit `8500092296621a6826b7136e840f8a59ea338958`; the catalog schema URI is `https://anthropic.com/claude-code/marketplace.schema.json`. Repository validators deliberately enforce the narrower closed product profile regardless of whether the upstream parser preserves additional fields. The child declares no `omp` property beyond `extensions`, and the only supported OMP compatibility row is exact v17.3.7.
+interface ResponseProvenance {
+  serverName: "omp-spec-kit";
+  resolvedRootId: Sha256;
+  activeProjectRootId: Sha256;
+  rootMode: RootMode;
+  matchesActiveProject: boolean;
+}
+```
 
-Pinned source establishes recursive relative-source copying and extension discovery, but source inspection alone is not fresh-session runtime evidence. Structured `details` behavior and closed-profile loader acceptance remain release-proof obligations for the pinned lifecycle fixture; absence of those receipts keeps release eligibility blocked without weakening the schemas above.
+`ResponseProvenance` is adapter metadata, not kernel graph content. `resolvedRootId` and `activeProjectRootId` are domain-separated SHA-256 identities of canonical physical roots. They are opaque, stable for one physical root, and contain no absolute path, environment value, credential, or document bytes. Every stdio `QueryEnvelope` and legacy OMP `spec_inventory` result SHALL carry one `provenance: ResponseProvenance`. A missing override produces equal IDs, `active-project`, and `true`; an accepted absolute override produces `explicit-absolute-override` and `false` when it differs from the active cwd. Human summaries SHALL expose the mode and mismatch without exposing the IDs' source paths.
 
-## 12. Executable v0.3.1 evidence envelopes
 
-`omp-spec-kit-release-evidence@3` is the closed assembler output. Its exact fields are
-`schema`, candidate identity (`version`, `tag`, `commit`, `candidateDigest`,
-`packageTreeDigest`, `archiveSha256`, `catalogDigest`), `mri`, and `distribution`.
-It replaces the unqualified v2 `frReceipts` object; no bare `FR-N` key is valid at
-this boundary.
+## Candidate manifest
 
-`mri` is `omp-spec-kit-mri-evidence@1`: exact fields `schema`, `checks`,
-`frReceipts`, and `discovery`. Its six receipt keys are exactly
-`mcp-release-integrity:FR-1` through `mcp-release-integrity:FR-6`. `discovery` is a
-content-addressed copy of `docs/validation/omp-discovery-v17.3.7.md`; it must prove
-the pinned v17.3.7 manager connection and eight-tool handoff. MRI produces only
-`mri-release-eligibility@1`; it does not attest `plugin-distribution:FR-13`.
+```ts
+interface ReleaseCandidateV1 {
+  schema: "omp-spec-kit-release-candidate@1";
+  version: string;                 // MAJOR.MINOR.PATCH
+  tag: string;                     // exact v<version>
+  commit: Commit;                  // peeled tag commit
+  packageTreeDigest: Sha256;
+  archive: { file: string; bytes: number; sha256: Sha256 };
+  files: { path: string; mode: number; bytes: number; sha256: Sha256 }[];
+  candidateDigest: Sha256;
+}
+```
 
-`distribution` is the closed assembler input `{ schema:
-"omp-spec-kit-distribution-evidence-input@1", trust, receipt }`, where `trust`
-is exactly `untrusted-self-attested` or `github-artifact-attestation`, and
-`receipt` is either `{ status: "missing" }` or a content-addressed
-`omp-spec-kit-distribution-evidence@1` manifest. The producer names every
-receipt `receipts/distribution/<record index>-<digest>.json`, so the assembler
-copies each referenced producer receipt into the same canonical name and its
-reference is already final: copied bytes are byte-identical to the attested
-subject (same bytes written, same canonical form, digest re-verified at copy
-time). Only legacy bundles whose receipt paths use other schemes get their
-references rewritten to the canonical target; those were never attested.
-Copying does not attest anything. The verifier rejects a symlinked root,
-parent, or leaf; a realpath escape; a non-regular file; a digest mismatch; or
-any missing matrix cell. With `untrusted-self-attested` the input remains
-blocked with `distribution-producer-provenance-untrusted:no-independent-trust-root`.
-With `github-artifact-attestation` and a structurally complete matrix, the
-verifier spawns `gh attestation verify` against the copied evidence subject,
-the fixed signer workflow `.github/workflows/distribution-evidence.yml`, and
-source ref `refs/tags/<candidate tag>`; any failure adds
-`distribution-producer-attestation-unverified:<short reason>` without echoing
-subject bytes. Certificate identity and timestamps are the trusted parts of
-the attestation; predicate bytes remain diagnostics.
+`files` is lexical and unique. The POSIX launcher retains executable mode. Candidate creation refuses dirty package bytes or `HEAD` different from the peeled tag commit. `candidateDigest` hashes canonical manifest JSON before that field is added.
 
-The composed evaluator result is `public-release-eligibility@1` with the candidate
-identity, `mri`, `distribution`, `eligible`, and namespaced `blocking`. A
-supplied distribution bundle alone never produces eligibility: an eligible
-result requires eligible MRI, a structurally complete FR-1..FR-12 matrix, and a
-verifier-passing `github-artifact-attestation` trust root over the exact
-evidence subject.
+## Forward MRI run
+
+```ts
+type MriCheck =
+  | "active-project"
+  | "protocol-recovery"
+  | "historical-eight-tools"
+  | "public-tree-safety"
+  | "lifecycle";
+
+interface LifecycleObservation {
+  action: "install" | "upgrade" | "rollback" | "uninstall" | "reinstall";
+  fromVersion: string | null;
+  toVersion: string | null;
+  observedFreshSessionVersion: string | null;
+  projectHashBefore: Sha256;
+  projectHashAfter: Sha256;
+  passed: boolean;
+}
+
+interface MriRunV1 {
+  schema: "omp-spec-kit-mri-run@1";
+  candidateDigest: Sha256;
+  archiveSha256: Sha256;
+  featureDigest: Sha256;
+  stepDefinitionsDigest: Sha256;
+  sourceInputManifestDigest: Sha256;
+  messageDigest: Sha256;
+  producer: { name: "Cucumber"; version: string; imageDigest: Sha256 };
+  unfiltered: true;
+  checks: { name: MriCheck; passed: boolean; evidenceRef: string }[];
+  lifecycle: LifecycleObservation[];
+  outcome: "passed" | "blocked";
+  reasons: string[];
+}
+```
+
+A passed run has one passed entry for every `MriCheck`, includes install, upgrade, rollback, uninstall, and reinstall observations, reports equal project hashes for each action, and contains no reason. `checks` names observable groups, not scenario counts. `reasons` are bounded redacted explanations, not a closed public error taxonomy.
+
+A trusted current-run pointer may advance only after a successful unfiltered producer run. A failed, malformed, meta-only, tag-scoped, or name-scoped run is retained only as diagnostic output and cannot replace it.
+
+## Publication input
+
+The release workflow consumes:
+
+- one `ReleaseCandidateV1`;
+- one passed `MriRunV1` with matching `candidateDigest` and `archiveSha256`;
+- native `gh attestation verify` success for the exact archive subject, repository, signer workflow, and `refs/tags/<candidate.tag>`;
+- a freshly downloaded archive whose SHA-256 equals `candidate.archive.sha256`.
+
+No MRI-defined distribution or public eligibility object exists. Before release mutation, every required identity must match. Existing release idempotence additionally requires the expected asset name, byte size, and SHA-256.
+
+## Historical v0.3.2 reader
+
+The file `docs/validation/release-status-v0.3.2.json` is accepted only as immutable historical readback with these fixed identities:
+
+| Field | Value |
+|---|---|
+| version/tag | `0.3.2` / `v0.3.2` |
+| tag commit | `2938389e34e2d06bdd497291ed01e0a2d89146c9` |
+| candidate digest | `526ef6ff94ea682a116a43e4de0b5f622686b8ef36648b7884c830ba1eac25b4` |
+| package-tree digest | `e8d53934122a495e1003f17126785dcd181f5d6d5f417270844e17fc25f12f92` |
+| archive | `omp-spec-kit-0.3.2.tar` |
+| archive SHA-256 | `26a2ebadd7d1888c10dc9bdbdc25e11fecf5a7dcc7515b15c7e3bb363a0cbea9` |
+
+Historical evidence@3, manager-discovery, lifecycle, distribution-attestation, and eligibility shapes remain readable exactly as recorded. They are sealed and SHALL NOT be accepted as the forward `MriRunV1` schema or regenerated after feature/step changes.
+
+## Current OMP 18 profile
+
+The current manager handoff was observed on OMP 18.0.10 and may expose the project plugin server as omp-spec-kit:omp-spec-kit. This is a non-authoritative compatibility observation. The eight v0.3.2 MCP names remain the compatibility set; later stage counts are additive and separately dogfooded.

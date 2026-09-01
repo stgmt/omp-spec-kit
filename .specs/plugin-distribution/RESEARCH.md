@@ -1,89 +1,131 @@
 # Research
 
-## Hypotheses formulated before research
+## Findings used by this contract
 
-| ID | Hypothesis | Expected proof | Fallback |
-|---|---|---|---|
-| H1 | OMP prefers one root `.omp-plugin/marketplace.json` and supports a relative child source. | Official marketplace guide plus official example. | `[UNVERIFIED]` and block catalog design. |
-| H2 | Installed plugin extensions are declared by child `package.json#omp.extensions`. | Marketplace and extension-loading guides plus official example. | `[UNVERIFIED]` and block manifest design. |
-| H3 | Installation/reload and extension activation are distinct lifecycle stages. | Official marketplace lifecycle text and loader model. | `[UNVERIFIED]` and require runtime experiment. |
-| H4 | Extension factories register tools during load and runtime actions are unavailable then. | Official extensions guide and loader contract. | `[UNVERIFIED]` and forbid implementation. |
-| H5 | Catalog/package schema, copy behavior, and release update semantics are exhaustive enough in current docs for v0.1.0. | Pinned field tables and loader/cache implementation at OMP v17.3.7 commit `8500092296621a6826b7136e840f8a59ea338958`. | `[SINGLE_SOURCE]`; encode a closed product profile and keep unproven compatibility claims blocked. |
+### R-1 — Relative marketplace children are supported
 
-## Findings
+`[VERIFIED: pinned OMP marketplace guide + mini-marketplace example]`
 
-### R-1 — Marketplace location, identity, and source
+OMP locates a catalog at `.omp-plugin/marketplace.json` and supports relative child sources beginning with `./`. This product selects `omp-spec-kit` at `./plugins/omp-spec-kit`; OMP remains the authority for other accepted catalog fields.
 
-`[VERIFIED: official marketplace guide + official mini-marketplace layout/example]`
+### R-2 — Installed extensions come from the child manifest
 
-The marketplace guide states: “A marketplace catalog lives at `.omp-plugin/marketplace.json` in the repository root” and says to prefer this path when OMP is the only consumer. It also requires relative string sources to start with `./` and resolve inside the marketplace root. The official mini-marketplace independently demonstrates one catalog, one relative child plugin, and one child package.
+`[VERIFIED: pinned marketplace guide + extension-loading guide + example package]`
 
-Implication: this product uses only `.omp-plugin/marketplace.json`, contains one plugin entry, and fixes its source to `./plugins/omp-spec-kit`. The Claude-compatible fallback catalog is intentionally absent.
+Installed plugin entries are resolved from the child package's `omp.extensions`. This product checks only its candidate version and contained `./dist/extension.js`; it does not copy OMP's complete manifest grammar into this specification.
 
-### R-2 — Catalog fields and updates
+### R-3 — Reload is not activation
 
-`[SINGLE_SOURCE: official marketplace guide; implementation confirmation required at pinned OMP commit]`
+`[VERIFIED: pinned marketplace lifecycle + extension-loading guide]`
 
-The marketplace guide enumerates required top-level fields (`name`, `owner.name`, `plugins`), optional `metadata.description`, `metadata.version`, `metadata.pluginRoot`, and the plugin-entry surface. It states: “`/marketplace update [name]` refreshes catalogs only; it does not reinstall plugins,” while `plugin upgrade` performs installation changes.
+Catalog update, plugin installation, `/reload-plugins`, and extension activation are distinct. A fresh session invoking the installed candidate is the release proof boundary.
 
-Implication: the product defines a closed v0.1.0 catalog profile in `plugin-distribution_SCHEMA.md`, uses an explicit entry version, and proves update and upgrade separately. Fields accepted by upstream OMP but unused here are enumerated and forbidden by the product profile rather than silently ignored.
+### R-4 — Relative child sources are recursively copied
 
-### R-3 — Child manifest and extension discovery
+`[VERIFIED: pinned marketplace guide + cache implementation]`
 
-`[VERIFIED: marketplace guide + extension-loading guide + official example package]`
+OMP v17.3.7 recursively copies the selected child. Therefore the child is a closed public payload, and source/test/evidence files or links must not enter it.
 
-The marketplace guide says marketplace installs load modules declared by `package.json` `omp.extensions`. The loader guide says installed-plugin extension entries come from `omp.extensions`/legacy `pi.extensions`, resolve relative to the package, and support explicit `.js` entries. The example package contains an `omp.extensions` array.
+### R-5 — Host and runtime schemas have separate owners
 
-Implication: one child `package.json` declares exactly one entry, `./dist/extension.js`. The legacy `pi` key and nested package manifests are forbidden.
+`[VERIFIED for the v17.3.7 smoke; compatibility beyond the pin is not assumed]`
 
-### R-4 — Reload is not fresh-session extension proof
+OMP owns marketplace, extension, and MCP parsing. The kernel owns read-only request/result/error semantics. Distribution validates compatibility by installing and invoking the tagged bytes against the supported OMP pin, not by maintaining parallel exhaustive schemas.
 
-`[VERIFIED: marketplace lifecycle guide + extension-loading guide + extensions runtime guide]`
+## Pinned sources
 
-The marketplace guide states that TUI mutations “do not refresh the active session,” `/reload-plugins` refreshes skills, commands, and MCP servers, and a session restart is required for tools, hooks, or extension modules. The loading guide describes installed plugin entries as startup discovery input. The extensions guide describes import/factory execution before runner initialization.
+1. https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/marketplace.md
+2. https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/extensions.md
+3. https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/extension-loading.md
+4. https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/extensibility/plugins/marketplace/cache.ts
+5. https://github.com/can1357/oh-my-pi/tree/8500092296621a6826b7136e840f8a59ea338958/docs/skills/examples/mini-marketplace
+6. `docs/omp-v17.3.7-contract.md`
+7. `IMPORT_MANIFEST.yaml`, `MIGRATION_MATRIX.md`, and `docs/upstream/dev-pomogator/`
 
-Implication: evidence records reload and fresh-session activation as different observations. A tool invoked only after reload in the pre-install session is not accepted as proof.
+Re-run the installed smoke when the OMP pin, catalog loader, extension loader, MCP manager, child entrypoints, or release workflow changes.
 
-### R-5 — Registration-only factory
+---
 
-`[VERIFIED: extensions guide + extension-loading factory contract + official example architecture]`
+## Product lifecycle domain (merged)
 
-The extensions guide states: “register first; perform runtime behavior from events/commands/tools” and documents `pi.registerTool`. The loading guide requires a default factory function and isolates per-path load errors.
+## Boundary
 
-Implication: the one factory may register `spec_inventory` and labels only. It must not scan `.specs`, write, spawn, call the network, call a model, or send session messages during load.
+This research supports public product identity, shipment truth, and roadmap clarity. Detailed packaging, authoring, enforcement, editor, evidence, and plan behavior remains in owner contracts.
 
-### R-6 — Public schema uncertainty
+## Sources
 
-`[SINGLE_SOURCE]`
+| Source | What it establishes |
+|---|---|
+| [`IMPORT_MANIFEST.yaml`](../../IMPORT_MANIFEST.yaml) and [`source-freeze.md`](../../docs/validation/source-freeze.md) | Historical public-init import provenance: immutable source commit, copied paths, exclusions, and byte checks. |
+| [`LICENSE-ATTESTATION.md`](../../docs/upstream/dev-pomogator/LICENSE-ATTESTATION.md) | Historical source-owner license coverage for the imported snapshot. |
+| [`publication-receipt.md`](../../docs/validation/publication-receipt.md) | Historical public repository/tree readback. |
+| [`release-status-v0.3.2.json`](../../docs/validation/release-status-v0.3.2.json) | Current public/installable v0.3.2 identity, artifact digests, release workflow, and attestation receipts. |
+| [OMP marketplace documentation](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/marketplace.md) | Installed `name@marketplace` identity and project-scoped plugin lifecycle. |
 
-No separate OMP-owned JSON Schema for child `package.json#omp` was established from the cited documentation. The catalog example references an Anthropic marketplace schema, while OMP documents extra runtime behavior. The exact structured tool-result `details` stability across OMP versions is also not declared as a compatibility guarantee in these sources.
+## Verified conclusions
 
-Implication: implementation must pin an exact OMP release/commit, validate the documented fields against that implementation, and keep `details` additive while treating textual content as human-facing. Release is blocked until this compatibility experiment is captured.
+1. Public init began without runtime proof; that is history, not current status.
+2. The imported source and license decision have durable historical provenance.
+3. v0.3.2 is public and project-installable with one bounded current release proof.
+4. One marketplace/plugin/extension identity is a deliberate product invariant.
+5. Specification text, task state, and Gherkin do not prove shipment.
+6. Safe authoring is useful only when atomic application and direct-write protection ship together.
+7. A manager needs SHIPPED, NEXT, and LATER; owner-specific readiness details do not belong in product status.
 
-### R-7 — Relative marketplace sources are copied recursively
+## Risks and treatment
 
-`[VERIFIED: pinned marketplace guide + cachePlugin source at OMP v17.3.7 commit 8500092296621a6826b7136e840f8a59ea338958]`
-
-For a relative catalog source, the pinned marketplace cache resolves the child directory and copies it recursively with `fs.cp`. The copy path does not consult `package.json#files` to assemble or filter the installed tree.
-
-Implication: `plugins/omp-spec-kit/` is the complete installable payload. Runtime sources live at `src/v0.1/`, build and validation programs live in repository-root `scripts/`, and the build generates only `dist/{extension.js,inventory.js,manifest.json}` into the child. A closed-tree validator rejects source, build, test, evidence, nested manifest, dependency, unexpected, non-regular, and symlink payload entries.
-
-## Exhaustive researched surfaces
-
-The complete product profiles, including every documented catalog plugin-entry field and every public inventory request/result field, are enumerated in [plugin-distribution_SCHEMA.md](plugin-distribution_SCHEMA.md). No omitted field is implicitly accepted by this specification.
-
-## Sources and provenance
-
-1. OMP marketplace guide at the implementation pin: https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/marketplace.md
-2. OMP extensions guide at the implementation pin: https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/extensions.md
-3. OMP extension-loading guide at the implementation pin: https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/extension-loading.md
-4. OMP marketplace cache implementation at the implementation pin: https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/extensibility/plugins/marketplace/cache.ts
-5. Official mini-marketplace at the implementation pin: https://github.com/can1357/oh-my-pi/tree/8500092296621a6826b7136e840f8a59ea338958/docs/skills/examples/mini-marketplace
-6. Validated migration decisions: [repository decision record](../../docs/decisions/omp-spec-kit-public-init.md)
-7. Pinned upstream provenance inputs: `IMPORT_MANIFEST.yaml`, `MIGRATION_MATRIX.md`, and `docs/upstream/dev-pomogator/`
-
-The plan and generated specification documents are decision/provenance inputs, not independent confirmation of OMP behavior.
+| Risk | Treatment |
+|---|---|
+| A future row inherits the v0.3.2 proof | Require a current proof naming the exact new release identity. |
+| Product identity fragments | Refuse a second marketplace, package, extension, or writer. |
+| Direct writes bypass safe authoring | Check the exact authoring-name allowlist first, then refuse other canonical `.specs/**` writes with real containment. |
+| Roadmap prose becomes a promise | Keep one NEXT row, plain LATER outcomes, and proof-before-SHIPPED. |
+| Fixture drift hides false proof | Capture real producer output, retain provenance and digests, and trim only with reconciled ground truth. |
 
 ## Re-research triggers
 
-Recheck all upstream claims before implementation when OMP is pinned, when the catalog parser or extension loader changes, when a second public capability is proposed, or when the GitHub Actions release environment changes. Unresolved items remain release blockers rather than assumptions promoted to facts.
+Re-check the relevant owner contract when the installed identity, OMP pin, authoring tool names, containment behavior, or current release proof changes.
+
+---
+
+## MCP release-integrity domain (merged)
+
+## Verified runtime boundary
+
+historical OMP v17.3.7 resolves a path-like MCP command relative to the installed package and uses the active project when `cwd` is omitted:
+
+- [`omp-plugins.ts`](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/discovery/omp-plugins.ts#L274-L344)
+- [`stdio.ts`](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/packages/coding-agent/src/mcp/transports/stdio.ts#L578-L609)
+- [`mcp-config.md`](https://github.com/can1357/oh-my-pi/blob/8500092296621a6826b7136e840f8a59ea338958/docs/mcp-config.md#L377-L425)
+
+The observable contract is active-project behavior. OMP manager classes, provider names, server-registration cardinality, and private launcher environment variables are implementation details.
+
+## Verified shipped behavior
+
+The installed v0.3.2 package launches from the active project, returns terminal JSON-RPC errors, recovers on the same process, and exposes the eight read-only historical eight-tool contract names. MRI checks the installed boundary. Full graph/query semantics remain kernel-owned.
+
+## Real producer evidence
+
+`tests/fixtures/release-candidate/cucumber-messages.ndjson` came from the real Docker Cucumber 13.2.1 producer. Its stream hash, image digest, command, capture date, and source-input manifest are closed provenance. Historical scenario and step counts are descriptive only. A source change requires a newly captured successful unfiltered run; the old stream must never be relabeled.
+
+The forward MRI contract checks parseability, a successful unfiltered terminal run, source/feature/step binding, and one bounded negative showing that meta-only or failed output cannot become trusted. Detailed Cucumber envelope error codes belong to the producer adapter, not release policy.
+
+## Root provenance and cross-surface consistency
+
+The repository runtime audit found two distinct risks. The stdio query envelope and legacy inventory result expose content and graph identity but no physical project identity; the same server name can therefore serve two roots without a client-visible source marker. Separately, the OMP extension inventory used `ctx.cwd` while the seven query tools honored `OMP_SPEC_KIT_ROOT`, so a cwd plus absolute override could split one extension across two projects.
+
+The bounded fix is adapter-owned rather than kernel-owned: the pure kernel continues to exclude transport and host state from its content fingerprint, while the shared adapter root context adds `serverName`, opaque canonical-root IDs, `rootMode`, and `matchesActiveProject` to every result. The explicit absolute override remains a diagnostic capability, but its mismatch is visible in both structured output and one-line text. No absolute path or environment value is returned.
+
+Evidence inputs are the current source/test inspection, the built-artifact two-root smoke, and the installed extension mixed-cwd/override smoke. The required regression scenarios are `SCEN-mri-response-provenance` and `SCEN-mri-extension-root-consistency`; a changed source input requires a fresh unfiltered Cucumber capture before a run can become trusted evidence.
+
+## Candidate and publication facts
+
+Candidate bytes are assembled once from a clean peeled tag in lexical order with regular contained paths and preserved executable mode. Publication downloads and re-hashes the same archive. Native GitHub Artifact Attestation verification binds the exact subject to repository, signer workflow, and tag ref. MRI does not revalidate a distribution producer's internal claim matrix.
+
+## Historical v0.3.2 evidence
+
+[`release-status-v0.3.2.json`](../../docs/validation/release-status-v0.3.2.json) is immutable readback evidence for tag `v0.3.2`, commit `2938389e34e2d06bdd497291ed01e0a2d89146c9`, candidate digest `526ef6ff94ea682a116a43e4de0b5f622686b8ef36648b7884c830ba1eac25b4`, package-tree digest `e8d53934122a495e1003f17126785dcd181f5d6d5f417270844e17fc25f12f92`, and archive SHA-256 `26a2ebadd7d1888c10dc9bdbdc25e11fecf5a7dcc7515b15c7e3bb363a0cbea9`. Its evidence@3 and attestation fields remain readable historical bytes; they are not the schema for future candidates.
+
+## Decision
+
+Future MRI produces one compact candidate run result. The release workflow may compose that result with native artifact-attestation output, but MRI defines no nested MRI/distribution/public eligibility lattice and no custom blocker taxonomy.

@@ -1,258 +1,242 @@
-# Specification text only. No scenario in this file is claimed to have executed or passed.
-@plugin-distribution @specification-only
-Feature: Distribute omp-spec-kit as one proven OMP plugin
-  The first release is published only after one marketplace, one child package,
-  one extension entry, one bounded read-only tool, and the complete lifecycle are proven.
+Feature: Publish the omp-spec-kit plugin from verified installed bytes
+  The distribution contract selects one contained target, builds it once,
+  proves the installed lifecycle, and publishes the same digest with one final attestation.
 
-  Background:
-    Given release evidence applicability is determined from the candidate version
-    And the marketplace identity is "omp-spec-kit"
-    And the plugin identity is "omp-spec-kit@omp-spec-kit"
-    And no lifecycle receipt is assumed to pass
+  @feature1 @FR-1 @AC-1.1 @id:SCEN-select-contained-target-plugin
+  Scenario: Select the contained target plugin without policing unrelated entries
+    Given a catalog contains one entry named omp-spec-kit at ./plugins/omp-spec-kit
+    And its declared entrypoints resolve beneath that child
+    When the distribution target is selected
+    Then the target identity is accepted
+    And unrelated catalog entries do not affect the result
+    But a duplicate target name or escaping path is rejected
 
-  @id:SCEN-reject-marketplace-topology @feature1 @FR-1 @AC-1.1
-  Scenario Outline: Reject marketplace cardinality and containment violations
-    Given the complete repository contains topology variant "<variant>"
-    When the root marketplace topology is validated
-    Then the topology outcome is "<outcome>"
-    And no build or release is started for a rejected topology
+  @feature2 @FR-2 @AC-2.1 @id:SCEN-build-deterministic-child-payload
+  Scenario: Build deterministic child bytes
+    Given the immutable tag commit and a clean output directory
+    When the candidate is built twice
+    Then the package-tree digests match
+    And the archive digests match
+    And unexpected or linked payload files are rejected
 
-    Examples:
-      | variant                                                   | outcome  |
-      | one .omp-plugin catalog with one exact relative child     | accepted |
-      | a second marketplace catalog                              | rejected |
-      | a second plugin entry                                     | rejected |
-      | a nested marketplace                                      | rejected |
-      | an external source object                                 | rejected |
-      | a relative source escaping the repository root            | rejected |
+  @feature3 @FR-3 @AC-3.1 @id:SCEN-invoke-installed-candidate
+  Scenario: Invoke the installed candidate through the supported host
+    Given the exact archive is installed project-scope
+    When a fresh supported OMP session sends a canonical read-only request
+    Then the response identifies the candidate version
+    And the declared surface matches the candidate manifest
+    And runtime request semantics are delegated to the kernel contract
 
-  @id:SCEN-reject-child-package-topology @feature2 @FR-2 @AC-2.1
-  Scenario Outline: Reject child package and extension cardinality violations
-    Given the child package variant is "<variant>"
-    When the child manifest and resolved extension paths are validated
-    Then the package outcome is "<outcome>"
+  @feature4 @FR-4 @AC-4.1 @id:SCEN-require-fresh-session-activation
+  Scenario: Reload does not replace fresh activation proof
+    Given discovery install and reload have completed
+    When the pre-install session remains active
+    Then activation is not proven
+    When that session ends and a fresh session invokes the candidate
+    Then activation is proven
 
-    Examples:
-      | variant                                      | outcome  |
-      | one package with ./dist/extension.js         | accepted |
-      | a second omp.extensions entry                | rejected |
-      | a nested plugin package                      | rejected |
-      | a legacy pi.extensions entry                 | rejected |
-      | an extension path into src                   | rejected |
-      | an install lifecycle script                  | rejected |
-      | an MCP declaration in v0.1.0                 | rejected |
-      | an extension symlink escaping the package    | rejected |
+  @feature5 @FR-5 @AC-5.1 @id:SCEN-run-without-ambient-dependencies
+  Scenario: Run without ambient dependencies
+    Given the installed payload is isolated from the checkout and external node_modules
+    When the extension and MCP launcher are started
+    Then the canonical invocation succeeds
+    And no undeclared runtime dependency is used
 
-  @id:SCEN-bound-inventory-to-project-root @feature3 @FR-3 @AC-3.1
-  Scenario Outline: Bound inventory to the active project root
-    Given a fresh installed session whose tool context root is the fixture project
-    And the inventory request uses "<request>"
-    And the fixture condition is "<condition>"
-    When spec_inventory is invoked
-    Then only safe direct entries below ".specs" are inspected
-    And the result status is "<status>"
-    And the result is lexical, bounded, project-relative, and schema version 1
-    And repository writes are zero
+  @feature6 @FR-6 @AC-6.1 @id:SCEN-contain-installed-invocation
+  Scenario: Contain the installed invocation
+    Given the active project differs from the package directory
+    When the installed candidate is invoked
+    Then it resolves the active project
+    And project hashes remain unchanged
+    And no credential network model or background access occurs
 
-    Examples:
-      | request                         | condition                         | status  |
-      | defaults                        | one valid direct spec             | ok      |
-      | maxSpecs 2                      | three valid direct specs          | partial |
-      | maxSpecs 200                    | more than the hard cap            | partial |
-      | defaults                        | package cwd differs from ctx.cwd   | ok      |
-      | defaults                        | a child link escapes project root  | partial |
+  @feature7 @FR-7 @AC-7.1 @id:SCEN-upgrade-from-real-public-release
+  Scenario: Upgrade from a real public predecessor
+    Given exact public predecessor bytes and a newer candidate
+    When the predecessor is installed and then upgraded
+    Then a fresh session observes the candidate version
+    And catalog child tag commit and archive identities agree
 
-  @id:SCEN-distinguish-reload-from-activation @feature4 @FR-4 @AC-4.1 @AC-4.2
-  Scenario: Distinguish reload from fresh-session extension activation
-    Given the candidate version is "0.1.0"
-    And the marketplace is added and the plugin is discovered
-    When the plugin is installed at project scope
-    And the installed version is recorded
-    And /reload-plugins completes in the pre-install session
-    Then reload completion is recorded without an extension activation claim
-    When the pre-install session ends
-    And a fresh OMP session starts in the fixture project
-    And spec_inventory is invoked from the installed extension
-    Then fresh-session activation is eligible for a passed receipt
-    And the installed tool reports plugin version "0.1.0"
+  @feature8 @FR-8 @AC-8.1 @id:SCEN-recover-with-exact-artifacts
+  Scenario: Recover with uninstall reinstall and rollback
+    Given the candidate is installed
+    When it is uninstalled reinstalled and rolled back with exact artifacts
+    Then fresh sessions observe absence candidate and predecessor in order
+    And non-OMP-managed project hashes remain unchanged
 
-  @id:SCEN-run-clean-payload-without-ambient-dependencies @feature5 @FR-5 @AC-5.1
-  Scenario: Execute the clean-built payload without ambient dependencies
-    Given previous dist output is absent
-    And a clean build assembles the allowlisted child payload
-    And the artifact digest is recorded
-    And repository-root node_modules and the source checkout are unavailable
-    When the exact artifact is installed project-scope
-    And a fresh OMP session invokes spec_inventory
-    Then no undeclared or ambient dependency is resolved
-    And the invoked extension bytes match the recorded artifact digest
+  @feature9 @FR-9 @AC-9.1 @id:SCEN-block-unsafe-public-artifact
+  Scenario: Block an unsafe public artifact
+    Given one public-safety check fails
+    When release eligibility is evaluated
+    Then no public asset is created
+    And the protected value is absent from diagnostics
 
-  @id:SCEN-contain-read-only-inventory-failures @feature6 @FR-6 @AC-6.1
-  Scenario Outline: Contain read-only inventory failures
-    Given the fixture condition is "<condition>"
-    When spec_inventory is invoked in a fresh installed session
-    Then the diagnostic code is "<code>"
-    And result and diagnostics remain within hard caps
-    And repository writes, network calls, process spawns, model calls, timers, and credential reads are zero
-    And the OMP session remains usable
+  @feature10 @FR-10 @AC-10.1 @id:SCEN-publish-same-digest-with-final-attestation
+  Scenario: Publish the same digest with one final attestation
+    Given every named check passed for a qualifying tag
+    When the release is published
+    Then the public archive digest equals the verified build digest
+    And one final GitHub Artifact Attestation names that archive digest
+    And no rebuild or different replacement asset is allowed
 
-    Examples:
-      | condition                          | code                       |
-      | .specs is absent                   | SPECS_ABSENT               |
-      | .specs is a regular file           | SPECS_NOT_DIRECTORY        |
-      | a spec entry is unreadable         | SPEC_UNREADABLE            |
-      | a spec is incomplete               | SPEC_INCOMPLETE            |
-      | diagnostics exceed the hard cap    | DIAGNOSTIC_LIMIT_REACHED   |
-      | the request is aborted             | REQUEST_ABORTED            |
-      | an unexpected internal error       | INTERNAL_ERROR_REDACTED    |
+  @feature11 @FR-11 @AC-11.1 @id:SCEN-write-compact-distribution-status
+  Scenario: Write a compact distribution status
+    Given publication and final attestation succeeded
+    When the distribution record is written
+    Then it contains candidate checks lifecycle asset and attestation identity
+    And it contains no product capability decision
 
-  @id:SCEN-enforce-release-version-consistency @feature7 @FR-7 @AC-7.1
-  Scenario Outline: Require one exact version across every authority
-    Given the candidate version is "<candidate>"
-    And catalog, package, runtime, installed tool, artifact, and tag declare "<authorities>"
-    When release version consistency is evaluated
-    Then the version consistency outcome is "<outcome>"
+  @feature12 @FR-12 @AC-12.1 @id:SCEN-block-on-named-check-failure
+  Scenario: Block on a named check failure
+    Given one of target build install invoke dependencyAbsent lifecycle or publicSafety failed
+    When the release decision is made
+    Then publication stops
+    And CI diagnostics name the failed check
+    And no extra receipt envelope is required
 
-    Examples:
-      | candidate | authorities              | outcome  |
-      | 0.1.0     | 0.1.0 and tag v0.1.0     | accepted |
-      | 0.1.0     | one authority mismatches | rejected |
-      | 0.1.1     | 0.1.1 and tag v0.1.1     | accepted |
+  @feature13 @FR-13 @AC-13.1 @id:SCEN-use-one-practical-release-path
+  Scenario: Use one practical release path
+    Given a next candidate is ready for evaluation
+    When distribution processes the candidate
+    Then it validates the target and builds once
+    And it runs installed lifecycle and public-safety checks
+    And it publishes the same digest and attests the public archive
+    And it does not emit distribution-release-eligibility at 2
 
-  @id:SCEN-upgrade-from-prior-release-after-first-release @feature7 @FR-7 @AC-7.2
-  Scenario Outline: Require upgrade from a real prior release only after v0.1.0
-    Given candidate version "<candidate>" has release position "<position>"
-    And prior-version state is "<prior>"
-    When the catalog is updated and the project-scoped plugin upgrade is attempted
-    And plugin metadata is reloaded
-    And a fresh session observes the installed tool version
-    Then the upgrade proof outcome is "<outcome>"
+  # Product lifecycle scenarios
+  @feature14 @FR-14 @AC-14.1 @id:SCEN-product-current-release-proof
+  Scenario: Current release proof supports the single shipped row
+    Given the roadmap contains the v0.3.2 read-only MCP baseline
+    And the bounded release proof names version 0.3.2 and identity omp-spec-kit@omp-spec-kit
+    When the public status is evaluated
+    Then exactly one row is SHIPPED
+    And it names the v0.2 graph/query kernel and eight working read-only MCP tools
 
-    Examples:
-      | candidate | position   | prior                             | outcome       |
-      | 0.1.0     | first      | no prior release                  | inapplicable  |
-      | 0.1.1     | subsequent | released 0.1.0 installed          | accepted      |
-      | 0.1.1     | subsequent | locally relabeled 0.1.0 candidate | rejected      |
-      | 0.1.1     | subsequent | released 0.1.1 installed          | rejected      |
-      | 0.1.1     | subsequent | stale-session-only observation    | rejected      |
+  @feature15 @FR-15 @AC-15.1 @id:SCEN-product-one-product-identity
+  Scenario: One product identity remains visible
+    Given the marketplace, package, and extension are inspected
+    When installed identities are counted
+    Then exactly one product identity is omp-spec-kit@omp-spec-kit
+    And no competing specification writer is present
 
-  @id:SCEN-uninstall-and-reinstall-candidate @feature8 @FR-8 @AC-8.1
-  Scenario Outline: Prove candidate uninstall and reinstall without a prior-release dependency
-    Given project preservation hashes exist before lifecycle mutation
-    And the verified candidate artifact version "<candidate>" is installed project-scope
-    When the candidate is uninstalled
-    And a fresh session checks that the capability is absent
-    And the exact same "<candidate>" artifact is reinstalled project-scope
-    And plugin metadata is reloaded
-    And another fresh session invokes spec_inventory
-    Then the installed tool reports plugin version "<candidate>"
-    And every non-OMP-managed project hash equals baseline
+  @feature16 @FR-16 @AC-16.1 @id:SCEN-product-missing-proof-is-not-shipped
+  Scenario: Missing current proof prevents shipment
+    Given a roadmap outcome has no current proof for its released identity
+    When public status is evaluated
+    Then that outcome is NEXT or LATER
+    And it is not SHIPPED
 
-    Examples:
-      | candidate |
-      | 0.1.0     |
-      | 0.1.1     |
+  @feature16 @FR-16 @AC-16.2 @id:SCEN-product-unexecuted-text-is-not-proof
+  Scenario: Unexecuted text does not prove shipment
+    Given an outcome has only a specification, task state, or Gherkin scenario
+    When public status is evaluated
+    Then that outcome is not SHIPPED
 
-  @id:SCEN-rollback-to-prior-release-after-first-release @feature8 @FR-8 @AC-8.2
-  Scenario Outline: Require rollback to a real prior release only after v0.1.0
-    Given candidate version "0.1.1" is installed project-scope
-    And project preservation hashes exist before lifecycle mutation
-    When the operator performs "<operation>"
-    And plugin metadata is reloaded
-    And a fresh session checks capability and version state
-    Then the lifecycle observation is "<observation>"
-    And every non-OMP-managed project hash equals baseline
+  @feature17 @FR-17 @AC-17.1 @id:SCEN-product-authoring-tools-are-bounded
+  Scenario: Public authoring has two mutation tools
+    Given the public mutation inventory is inspected
+    Then its names are exactly propose_patch and apply_proposed_patch
+    And helper operations are internal
 
-    Examples:
-      | operation                                  | observation               |
-      | explicit install of released version 0.1.0 | prior version 0.1.0 invoked |
-      | marketplace removal only                   | insufficient as rollback  |
-      | cache deletion only                        | insufficient as rollback  |
+  @feature17 @FR-17 @AC-17.2 @id:SCEN-product-direct-spec-write-is-refused
+  Scenario: Non-allowlisted direct spec writes are refused
+    Given a write-capable tool_call is not in the exact authoring-name allowlist
+    And its canonically resolved target is under .specs
+    When the path policy runs
+    Then the call is refused with a bounded reason
+    And a link or reparse escape fails closed
 
-  @id:SCEN-block-unsafe-public-artifacts @feature9 @FR-9 @AC-9.1
-  Scenario Outline: Block unsafe public artifacts
-    Given public-safety input "<violation>"
-    When provenance, license, secret, diff, and package gates run
-    Then publication eligibility is "blocked"
-    And no public artifact or release is created
+  @feature18 @FR-18 @AC-18.1 @id:SCEN-product-roadmap-has-three-buckets
+  Scenario: Roadmap uses only three public buckets
+    When a manager reads product status
+    Then the only buckets are SHIPPED, NEXT, and LATER
+    And there is one SHIPPED v0.3.2 row
+    And there is one NEXT safe-authoring row
+    And later outcomes are plain labels
 
-    Examples:
-      | violation                                      |
-      | Authorization Bearer synthetic sentinel is packaged |
-      | credential=synthetic sentinel is packaged      |
-      | Cookie synthetic sentinel is packaged          |
-      | PEM private-key synthetic sentinel is packaged |
-      | known token-prefix synthetic sentinel is packaged |
-      | an imported license is unknown                 |
-      | a user OMP state path is packaged              |
-      | an evidence or log file is packaged            |
-      | the public diff contains an unapproved file    |
-      | the package exceeds its positive allowlist     |
+  # MCP release-integrity scenarios
+  @feature19 @FR-19 @AC-19.1 @id:SCEN-mri-active-project-root @release-evidence
+  Scenario: Installed launcher uses the active project root
+    Given project-a, project-b, and package-decoy have distinct specifications
+    When the installed package launcher serves project-a without an override
+    Then the MCP overview contains only project-a specifications
+    And relative unresolved or package-root overrides cannot select package-decoy
+    When an explicit validated absolute override selects project-b
+    Then the MCP inventory contains only project-b specifications
+    And launcher startup from package cwd is refused before serving
 
-  @id:SCEN-enforce-github-release-transaction @feature10 @FR-10 @AC-10.1
-  Scenario Outline: Publish only through the GitHub Actions release transaction
-    Given the workflow event is "<event>"
-    And required verification jobs are "<jobs>"
-    And release artifact identity is "<identity>"
-    And FR-13 aggregate eligibility is "<eligibility>"
-    When the release workflow evaluates publication
-    Then the publication outcome is "<outcome>"
+  @feature20 @FR-20 @AC-20.1 @id:SCEN-mri-terminal-json-rpc @release-evidence
+  Scenario: Invalid JSON-RPC requests have one terminal response
+    Given an installed MCP server is running
+    When the client sends JSON-RPC 1.0 with id 7 and then a valid request
+    Then the first response is -32600 for id 7
+    And the valid request returns one canonical envelope with no extra stdout frames
+    When the client sends an unknown method with id 8 and an unknown tool with id 9
+    Then the responses are -32601 for id 8 and -32602 for id 9
 
-    Examples:
-      | event          | jobs         | identity                          | eligibility | outcome     |
-      | pull_request   | all passed   | matching                          | blocked  | verify-only |
-      | push           | all passed   | matching                          | blocked  | verify-only |
-      | tag v0.1.0     | one failed   | matching                          | blocked     | blocked     |
-      | tag v0.1.0     | all passed   | version mismatch                  | blocked     | blocked     |
-      | tag v0.1.0     | all passed   | digest differs from verified      | blocked     | blocked     |
-      | tag v0.1.0     | all passed   | existing release different digest | blocked  | blocked     |
-      | tag v0.1.0     | all passed   | matching verified digest          | blocked  | blocked     |
-      | tag v0.1.0     | all passed   | structurally complete self-attested matrix | blocked  | blocked     |
+  @feature20 @FR-20 @AC-20.1 @id:SCEN-mri-malformed-json-recovery
+  Scenario: Malformed JSON has one parse error and recovery
+    Given an installed MCP server is running
+    When the client sends malformed JSON and then a valid request
+    Then the first response is -32700 with null id
+    And the valid request returns one canonical envelope with no extra stdout frames
 
-  @id:SCEN-refuse-readiness-without-evidence @feature11 @FR-11 @AC-11.1
-  Scenario Outline: Refuse readiness claims without current evidence
-    Given the proposed public claim is "<claim>"
-    And supporting evidence is "<evidence>"
-    When claim eligibility is evaluated
-    Then public status is "<status>"
+  @feature21 @FR-21 @AC-21.1 @id:SCEN-mri-all-tool-parity @release-evidence
+  Scenario: Every historical packaged MCP handler executes
+    Given a copied package has no source checkout or ambient dependencies
+    When every historical eight-tool contract tool is called with its valid arguments
+    Then each structured result equals the direct service envelope
+    And the served corpus is byte-for-byte unchanged
+
+  @feature22 @FR-22 @AC-22.1 @id:SCEN-mri-public-eligibility-separation @release-evidence
+  Scenario: Meta-only producer output cannot become trusted evidence
+    Given a v0.3.2 candidate and complete evidence record
+    When the candidate message artifact contains only meta
+    Then the candidate is refused for nonsemantic Cucumber evidence
+
+  @feature23 @FR-23 @AC-23.1 @id:SCEN-mri-executable-launcher-archive
+  Scenario: Candidate archive preserves the executable launcher
+    Given a v0.3.2 candidate and complete evidence record
+    When the candidate archive is extracted into a clean project
+    Then the extracted launcher is executable and serves the active project
+
+  @feature23 @FR-23 @AC-23.1 @id:SCEN-mri-symlinked-evidence-refusal
+  Scenario Outline: Linked evidence parents cannot escape containment
+    Given a v0.3.2 candidate and complete evidence record
+    When the evidence "<directory>" directory has a symlinked parent
+    Then the release evaluator reports "EVIDENCE_SYMLINK_COMPONENT" before reading evidence bytes
 
     Examples:
-      | claim                    | evidence                              | status              |
-      | installable              | feature text only                     | SPEC_ONLY/NOT_READY |
-      | extension activated      | install and reload only               | SPEC_ONLY/NOT_READY |
-      | dependency independent   | receipt from another commit           | SPEC_ONLY/NOT_READY |
-      | upgradeable              | first subsequent release lacks prior-upgrade observation | SPEC_ONLY/NOT_READY |
-      | releasable               | structurally complete self-attested FR-13 aggregate | SPEC_ONLY/NOT_READY |
+      | directory |
+      | receipts  |
+      | messages  |
 
-  @id:SCEN-fail-closed-on-unsafe-contract-data @feature12 @FR-12 @AC-12.1
-  Scenario Outline: Fail closed on unsafe request or public result data
-    Given the inventory contract condition is "<condition>"
-    When the request is validated or the result is serialized
-    Then the public outcome is "<outcome>"
-    And no absolute path, username, environment value, file content, credential, or stack trace is disclosed
+  @feature23 @FR-23 @AC-23.1 @id:SCEN-mri-artifact-mismatch-refusal @release-evidence
+  Scenario: Publication refuses different archive bytes
+    Given the bounded current v0.3.2 public release status record
+    When the recorded publication identities are reconciled
+    Then the bounded record contains one exact published archive identity without a rebuild claim
+    Given a candidate artifact without live distribution provenance
+    When the publish verification sees a different archive or existing release asset
+    Then publication is refused before release mutation
 
-    Examples:
-      | condition                         | outcome                    |
-      | unknown request property          | INVALID_REQUEST            |
-      | maxSpecs above 200                | INVALID_REQUEST            |
-      | unsupported schema version        | UNSUPPORTED_SCHEMA_VERSION |
-      | duplicate normalized spec slug    | SPEC_DUPLICATE_SLUG        |
-      | unsafe project-relative path       | PATH_ESCAPE_BLOCKED        |
-      | result exceeds hard byte bounds    | LIMIT_REACHED              |
-      | raw exception contains host path   | INTERNAL_ERROR_REDACTED    |
+  @feature24 @FR-24 @AC-24.1 @id:SCEN-mri-public-communication-proof @release-evidence
+  Scenario: Public communication reflects immutable v0.3.2 evidence
+    Given the bounded current v0.3.2 public release status record
+    When the recorded publication identities are reconciled
+    Then the bounded record proves a trusted public release for the exact candidate
+    And current public guidance and captured release notes match v0.3.2 and retain the v0.3.0 advisory
 
-  @id:SCEN-require-complete-release-evidence @feature13 @FR-13 @AC-13.1
-  Scenario Outline: Require complete candidate-aware evidence for release eligibility
-    Given release candidate "<candidate>" has mandatory evidence "<evidence>"
-    When aggregate release eligibility is evaluated
-    Then release eligibility is "<outcome>"
+  @feature25 @FR-25 @AC-25.1 @id:SCEN-mri-response-provenance
+  Scenario: Every installed MCP result identifies its server and root
+    Given project-a, project-b, and package-decoy have distinct specifications
+    When the installed package launcher probes every MCP tool for project-a without an override
+    Then every installed result identifies the active project root and server
+    When the installed package launcher probes every MCP tool with project-b as an explicit override
+    Then every installed result identifies project-b as an explicit root and marks the active-project mismatch
 
-    Examples:
-      | candidate | evidence                                                                       | outcome  |
-      | 0.1.0     | complete self-attested producer receipt matrix with matching platform fixture and inapplicable upgrade/rollback | blocked |
-      | 0.1.0     | arbitrary `claims` placeholders without producer artifacts                         | blocked  |
-      | 0.1.0     | every receipt except FR-5 dependency-absent producer proof                          | blocked  |
-      | 0.1.1     | complete self-attested producer receipt matrix including upgrade and rollback       | blocked |
-      | 0.1.1     | receipt fixture digest differs from platform fixture                                | blocked  |
-      | 0.1.1     | symlinked producer receipt or realpath escape                                       | blocked  |
-      | 0.1.1     | passing stage summaries without producer receipts                                   | blocked  |
+  @feature25 @FR-25 @AC-25.1 @id:SCEN-mri-extension-root-consistency
+  Scenario: OMP extension inventory and query tools share one root
+    Given project-a, project-b, and package-decoy have distinct specifications
+    When the OMP extension runs with project-a as cwd and project-b as an explicit root override
+    Then its inventory and query results identify the same project-b root and server
