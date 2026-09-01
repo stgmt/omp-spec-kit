@@ -497,7 +497,7 @@ async function main() {
   }
 
   {
-    const failClosedIds = ["SCEN-fail-closed-on-unsafe-contract-data", "SCEN-mcp-fail-closed"];
+    const failClosedIds = ["SCEN-fail-closed-on-unsafe-contract-data", "SCEN-mcp-fail-closed", "SCEN-mri-malformed-json-recovery"];
     let passedIds = [];
     if (args["--cucumber-messages"]) {
       const messagesBytes = await readFile(path.resolve(args["--cucumber-messages"]));
@@ -515,7 +515,7 @@ async function main() {
       claim: "schema-containment",
       ok: passedIds.length > 0,
       missingReason: args["--cucumber-messages"]
-        ? "FR-12 schema-containment evidence requires a passing SCEN-fail-closed / SCEN-mcp-fail-closed scenario in this invocation's cucumber messages"
+        ? "FR-12 schema-containment evidence requires a passing malformed-request scenario in this invocation's cucumber messages"
         : "FR-12 schema-containment evidence requires --cucumber-messages with this invocation's Docker BDD output",
       observations: baseObservations(
         "schema-containment-verified",
