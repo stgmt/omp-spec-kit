@@ -27,3 +27,57 @@ This is the implementation map for the simplified contract. It does not claim th
 ## Historical boundary
 
 v0.1–v0.3.2 evidence files, release assets, tags, and receipts are not deleted or regenerated. Simplifying the forward workflow changes no published digest and does not reinterpret the historical internal evidence attestation as the required next-release trust path.
+
+---
+
+## Product lifecycle domain (merged)
+
+This map records the small product-status surface. Owner specifications retain implementation detail.
+
+## Current product paths
+
+| Path | State | Purpose | Trace |
+|---|---|---|---|
+| `README.md` | current | Public install identity and concise status. | `plugin-distribution:FR-14`, `plugin-distribution:FR-15`, `plugin-distribution:FR-18` |
+| `README.md` | current | SHIPPED/NEXT/LATER roadmap. | `plugin-distribution:FR-16`, `plugin-distribution:FR-17`, `plugin-distribution:FR-18` |
+| `README.md` | current | Canonical manager-readable product status. | `plugin-distribution:FR-14` through `plugin-distribution:FR-18` |
+| `docs/validation/release-status-v0.3.2.json` | immutable current proof | Bounded v0.3.2 release identity and producer receipts. | `plugin-distribution:FR-14`, `plugin-distribution:FR-16` |
+| `.omp-plugin/marketplace.json` | current | Single marketplace identity. | `plugin-distribution:FR-15` |
+| `plugins/omp-spec-kit/package.json` | current | Single package and extension identity. | `plugin-distribution:FR-15` |
+| `CHANGELOG.md` | current | Repository release history; specification edits do not imply a release. | `plugin-distribution:FR-16`, `plugin-distribution:FR-18` |
+
+
+## Prohibited additions
+
+The product SHALL NOT add a second marketplace, plugin package, extension, public mutation tool beyond `propose_patch` and `apply_proposed_patch`, raw specification writer, user-global secret/state dependency, or alternate product identity.
+
+---
+
+## MCP release-integrity domain (merged)
+
+| Path | Action | Reason |
+|---|---|---|
+| `plugins/omp-spec-kit/.mcp.json` | edit | Keep package-relative command with active-project cwd behavior for FR-19. |
+| `plugins/omp-spec-kit/bin/omp-spec-kit-mcp` | edit | Launch the packaged server without choosing the data root. |
+| `plugins/omp-spec-kit/bin/omp-spec-kit-mcp.cmd` | edit | Preserve the same Windows installed behavior. |
+| `src/adapters/query-service.js` | edit | Create the shared canonical root context, opaque root identities, provenance projection, and mismatch visibility for every query result. |
+| `src/mcp/server.js` | edit | Pass one startup root context to the stdio server and retain the exact eight-tool protocol surface. |
+| `src/v0.1/extension.js` | edit | Give legacy inventory and the seven query tools the same resolved root context. |
+| `src/v0.1/inventory.js` | edit | Carry the shared server/root provenance in the legacy inventory result without absolute-path disclosure. |
+| `src/adapters/tool-contracts.js` | edit | Keep the exact historical v0.3.2 eight-tool table while exposing the provenance-bearing result contract. |
+| `scripts/docker-bdd.sh` | edit | Produce and atomically promote only successful unfiltered real Cucumber Messages. |
+| `tests/helpers/mcp-world.mjs` | edit | Drive copied installed package, raw frames, provenance, corpus snapshots, and all eight handlers. |
+| `tests/step-definitions/mcp-release-integrity.steps.mjs` | edit | Implement FR-19 through FR-21 and FR-25 black-box root/provenance scenarios. |
+| `tests/features/spec-mcp.feature` | edit | Assert the built extension/MCP envelope contract and provenance on the real package surface. |
+| `tests/helpers/release-candidate-world.mjs` | edit | Drive one compact MRI run and same-byte candidate checks. |
+| `scripts/create-release-candidate.mjs` | edit | Assemble deterministic contained clean-tag bytes. |
+| `scripts/verify-public-tree.mjs` | edit | Enforce no-credential outcome with redacted findings. |
+| `scripts/verify-release.mjs` | edit | Consume one MRI run and native attestation result; remove nested authority lattices. |
+| `.github/workflows/verify.yml` | edit | Run the candidate profile and retain its exact artifacts. |
+| `.github/workflows/release.yml` | edit | Download, re-hash, and publish the verified archive without rebuild. |
+| `scripts/render-release-notes.mjs` | edit | Render claims only from verified current candidate identities. |
+| `docs/validation/release-status-v0.3.2.json` | edit | Keep immutable historical evidence reader compatibility; do not rewrite recorded bytes. |
+| `docs/advisories/v0.3.0-mcp-root.md` | edit | Retain reversible recovery guidance. |
+| `README.md` | edit | Keep current v0.3.2 and fresh-session guidance accurate. |
+| `plugins/omp-spec-kit/README.md` | edit | Keep installed package guidance accurate. |
+| `CHANGELOG.md` | edit | Preserve v0.3.0/v0.3.1/v0.3.2 history. |
