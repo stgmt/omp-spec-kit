@@ -2,15 +2,18 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 0.4.0 — 2026-09-01
+
+Published safe-authoring release for OMP `18.0.11`; v0.3.2 remains the read-only predecessor.
+
+- Keeps the eight bounded read tools and adds exactly two proposal-first tools: `propose_patch` and `apply_proposed_patch`.
+- Adds deterministic proposal preview, approval-bound apply, document-level CAS, replay-safe receipts, rollback-on-failure, and strict `.specs` access gating.
+- Verifies a provenance-bound 45-document corpus, installed OMP manager execution, lifecycle install/upgrade/rollback producers, Docker BDD, nine closed MRI receipts, and digest-bound GitHub release assets.
+- Published release proof: `docs/validation/release-status-v0.4.0.json`.
+
 ## Unreleased
 
-v0.4.0 candidate preparation; v0.3.2 remains the only published package baseline.
-
-- Pins the candidate discovery runtime to OMP `18.0.11` at immutable commit `33cc6b9a043a74e00a157e72ca909272796d8461`.
-- Keeps the eight-tool read-only MCP surface and exposes exactly two safe-authoring tools: `propose_patch` and `apply_proposed_patch`.
-- Adds deterministic proposal preview, approval-bound apply, document-level CAS, replay-safe receipts, rollback-on-failure, and strict spec-target access gating.
-- Adds a provenance-bound 45-document corpus, live authoring/access BDD scenarios, and tag-time capture of the real OMP manager-handoff receipt.
-- Publication remains fail-closed until the v0.4.0 tag, runtime receipt, lifecycle producers, Docker BDD, and attested evidence exist.
+No unreleased changes recorded.
 
 ## 0.3.2 — 2026-08-28
 
