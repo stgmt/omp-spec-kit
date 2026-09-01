@@ -105,6 +105,10 @@ jobs:
         run: |
           archive="$(node -p "require('./dist-candidate/candidate.json').archive.file")"
           node scripts/smoke-release-archive.mjs --archive "dist-candidate/$archive"
+      - name: Smoke explicit safe-authoring compatibility stage
+        run: |
+          archive="$(node -p "require('./dist-candidate/candidate.json').archive.file")"
+          node scripts/smoke-release-archive.mjs --archive "dist-candidate/$archive" --stage safe-authoring
       - name: Capture the real corpus inventory via the kernel reader
         run: node scripts/create-corpus-inventory.mjs --output dist-candidate/corpus-inventory.json
       - name: Extract the real v0.3.2 prior release for lifecycle producers

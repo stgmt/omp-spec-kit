@@ -23,7 +23,7 @@ const EXPECTED_TOOLS = Object.freeze([
 ]);
 
 const { values } = parseArgs({
-  options: { archive: { type: "string" } },
+  options: { archive: { type: "string" }, stage: { type: "string" } },
   strict: true,
 });
 if (!values.archive) throw new Error("--archive is required");
@@ -47,7 +47,8 @@ try {
   const command = windows ? path.join(packageRoot, "bin", "omp-spec-kit-mcp.cmd") : launcher;
   const args = [];
   const env = { ...process.env };
-  delete env.OMP_SPEC_KIT_STAGE;
+  if (values.stage) env.OMP_SPEC_KIT_STAGE = values.stage;
+  else delete env.OMP_SPEC_KIT_STAGE;
   delete env.OMP_SPEC_KIT_PACKAGE_ROOT;
   delete env.OMP_SPEC_KIT_ROOT;
   child = spawn(command, args, {
@@ -116,8 +117,8 @@ try {
   assert.equal(overview.error, undefined, JSON.stringify(overview));
   assert.equal(overview.result.isError, false, JSON.stringify(overview));
   const fingerprint = overview.result.structuredContent.graph.fingerprint;
+  assert.deepStrictEqual(JSON.parse(overview.result.content[0].text), overview.result.structuredContent);
   assert.equal(typeof fingerprint, "string");
-
   const proposal = await send({
     jsonrpc: "2.0",
     id: 4,
@@ -137,9 +138,9 @@ try {
   assert.equal(proposal.error, undefined, JSON.stringify(proposal));
   assert.equal(proposal.result.isError, false, JSON.stringify(proposal));
   assert.equal(proposal.result.structuredContent.ok, true, JSON.stringify(proposal));
+  assert.deepStrictEqual(JSON.parse(proposal.result.content[0].text), proposal.result.structuredContent);
   assert.equal(frames.length, 0, "the launcher must not emit unsolicited stdout frames");
-
-  console.log(JSON.stringify({ result: "passed", packageVersion: packageManifest.version, toolCount: toolNames.length, toolNames }));
+  console.log(JSON.stringify({ result: "passed", packageVersion: packageManifest.version, stage: values.stage ?? "default", toolCount: toolNames.length, toolNames }));
 } finally {
   if (child && !child.killed) child.kill();
   await rm(tempRoot, { recursive: true, force: true, maxRetries: 3 });
