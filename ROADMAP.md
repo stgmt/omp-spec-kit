@@ -21,13 +21,13 @@ Outcome: current OMP users can install the package with the supported OMP 18 run
 
 Proof: immutable runtime compatibility metadata, project install and cache records, fresh-session discovery, and upgrade/rollback lifecycle observations.
 
-## v0.4.0 — read complete
+## v0.4.0 — shipped
 
-Outcome: agents can enumerate specifications and documents, read a contained document or attachment, inspect task phases and statuses, validate anchors and requirement metadata, query policy, inspect orphan findings, and obtain archival proof without opening repository files manually.
+Outcome: agents can enumerate specifications and documents, read contained documents and attachments, inspect graph and policy state, and safely propose and apply reviewed specification changes through the trusted host path.
 
-The eight compatibility tools remain. The read-complete registry contains 23 tools and uses the same graph and containment rules.
+The eight compatibility tools remain. The release adds exactly two proposal-first authoring tools, for a total of ten MCP tools. Direct untrusted writes under `.specs` are refused.
 
-Proof: one runtime call for every registered tool on a real corpus, bounded pagination and error cases, installed-package execution, and Docker BDD coverage.
+Proof: package construction, public-safety verification, installed OMP 18.0.11 execution, current-corpus manager and lifecycle producer evidence, Docker BDD, nine closed MRI receipts, and digest-bound GitHub release assets.
 
 ## v0.5.0 — evidence and navigation
 
