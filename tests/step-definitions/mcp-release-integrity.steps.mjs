@@ -60,10 +60,12 @@ function toolArguments(tool) {
 
 async function startInstalledServer(state, env = {}) {
   if (state.server !== null) await state.server.close();
+  const windows = process.platform === "win32";
   state.server = spawnMcpServer({
-    command: state.launcher,
+    command: windows ? process.execPath : state.launcher,
+    args: windows ? [path.join(state.packageRoot, "dist", "mcp", "server.js")] : undefined,
     cwd: state.projectA,
-    env,
+    env: { OMP_SPEC_KIT_PACKAGE_ROOT: state.packageRoot, ...env },
     root: env.OMP_SPEC_KIT_ROOT,
   });
   state.initialize = await state.server.request("initialize", INITIALIZE_PARAMS);
@@ -208,7 +210,12 @@ Then("the MCP inventory contains only project-b specifications", function () {
 });
 
 Then("launcher startup from package cwd is refused before serving", async function () {
-  const server = spawnMcpServer({ command: this.mri.launcher, cwd: this.mri.packageRoot });
+  const server = spawnMcpServer({
+    command: process.platform === "win32" ? process.execPath : this.mri.launcher,
+    args: process.platform === "win32" ? [path.join(this.mri.packageRoot, "dist", "mcp", "server.js")] : undefined,
+    cwd: this.mri.packageRoot,
+    env: { OMP_SPEC_KIT_PACKAGE_ROOT: this.mri.packageRoot },
+  });
   await assert.rejects(
     server.request("initialize", INITIALIZE_PARAMS, 1000),
     /PACKAGE_ROOT_REFUSED/u,

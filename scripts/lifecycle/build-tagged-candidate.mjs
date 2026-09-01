@@ -5,7 +5,7 @@
 // verifies every extracted file against the tag's own dist manifest.
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -124,6 +124,7 @@ async function main() {
 		const target = path.join(outputRoot, ...relativeInsidePackage.split("/"));
 		mkdirSync(path.dirname(target), { recursive: true });
 		writeFileSync(target, bytes);
+			if (relativeInsidePackage.startsWith("bin/")) chmodSync(target, 0o755);
 		written.push({ relative: relativeInsidePackage, bytes: bytes.length });
 	}
 	// Validate the extracted MCP declaration against the tree it ships with.
@@ -156,7 +157,18 @@ async function main() {
 			fail(`extracted tree is missing its declared entrypoint ${declaredEntry.join("/")} and ${tag} does not provide it`);
 		}
 		mkdirSync(path.dirname(path.join(outputRoot, ...declaredEntry)), { recursive: true });
-		writeFileSync(path.join(outputRoot, ...declaredEntry), tagged);
+			const entryPath = path.join(outputRoot, ...declaredEntry);
+			writeFileSync(entryPath, tagged);
+			chmodSync(entryPath, 0o755);
+	}
+	if (server.command === "./bin/omp-spec-kit-mcp") {
+		const windowsEntry = ["bin", "omp-spec-kit-mcp.cmd"];
+		try {
+			const taggedWindowsEntry = gitShow(tag, path.posix.join(packagePrefix, ...windowsEntry));
+			writeFileSync(path.join(outputRoot, ...windowsEntry), taggedWindowsEntry);
+		} catch {
+			// POSIX-only predecessors remain valid on Linux.
+		}
 	}
 
 

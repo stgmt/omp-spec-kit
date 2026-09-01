@@ -10,7 +10,7 @@
 // imported in-process here.
 
 import { spawn, spawnSync } from "node:child_process";
-import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
@@ -37,7 +37,7 @@ export {
   writeCorpus,
 };
 
-export const PLUGIN_VERSION = "0.3.2";
+export const PLUGIN_VERSION = "0.4.0";
 export const EXTENSION_SCHEMA_VERSION = "1";
 export const EXTENSION_LABEL = "OMP Spec Kit";
 
@@ -73,22 +73,25 @@ function sameBytes(left, right) {
  * participate in this comparison.
  */
 export async function loadPinnedCorpusGraph(repositoryRoot) {
-  const frozen = await loadFrozenRealCorpus(repositoryRoot);
-  const read = await readRepositorySpecs({ root: frozen.fixtureRoot });
-  if (read.error) throw new Error(`frozen corpus reader failed: ${read.error.code}`);
-  if (read.files.length !== frozen.manifest.documents.length) {
-    throw new Error(`frozen corpus reader offered ${read.files.length}, expected ${frozen.manifest.documents.length} files`);
+  const manifest = JSON.parse(await readFile(path.join(repositoryRoot, "tests", "fixtures", "kernel", "authoring-real-corpus-manifest.json"), "utf8"));
+  if (manifest.schema !== "omp-spec-kit-authoring-real-corpus@1" || manifest.documentCount !== 45) {
+    throw new Error("current authoring corpus manifest must contain 45 documents");
   }
-  const byPath = new Map(frozen.files.map((file) => [file.path, file]));
+  const fixtureRoot = path.join(repositoryRoot, "tests", "fixtures", "kernel", "authoring-real-corpus");
+  const read = await readRepositorySpecs({ root: fixtureRoot });
+  if (read.error) throw new Error("current corpus reader failed: " + read.error.code);
+  if (read.files.length !== manifest.documents.length) {
+    throw new Error("current corpus reader offered " + read.files.length + ", expected " + manifest.documents.length + " files");
+  }
+  const byPath = new Map(manifest.documents.map((file) => [file.path, file]));
   for (const file of read.files) {
     const pinned = byPath.get(file.path);
-    if (pinned === undefined || !sameBytes(file.bytes, pinned.bytes)) throw new Error(`frozen corpus reader byte drifted: ${file.path}`);
+    if (pinned === undefined) throw new Error("current corpus reader returned an unknown file: " + file.path);
+    if (sha256Hex(file.bytes) !== pinned.sha256 || file.bytes.byteLength !== pinned.bytes) throw new Error("current corpus reader byte drifted: " + file.path);
   }
   const built = buildKernelGraph({ files: read.files });
-  if (built.graph.valid !== true) {
-    throw new Error("frozen corpus must build a valid graph before MCP parity comparison");
-  }
-  return { manifest: frozen.manifest, graph: built.graph, files: read.files };
+  if (built.graph.valid !== true) throw new Error("current corpus must build a valid graph before MCP parity comparison");
+  return { manifest, graph: built.graph, files: read.files, fixtureRoot };
 }
 
 /**
@@ -158,7 +161,7 @@ export function spawnMcpServer({ command = process.execPath, args, serverPath, r
         if (error !== undefined && error !== null) {
           clearTimeout(timer);
           pending.delete(id);
-          reject(error);
+          reject(new Error(stderrText.trim() || error.message));
         }
       });
     });
@@ -175,7 +178,7 @@ export function spawnMcpServer({ command = process.execPath, args, serverPath, r
         if (error !== undefined && error !== null) {
           clearTimeout(timer);
           pending.delete(id);
-          reject(error);
+          reject(new Error(stderrText.trim() || error.message));
         }
       });
     });

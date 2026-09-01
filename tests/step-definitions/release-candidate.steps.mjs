@@ -108,7 +108,7 @@ async function seedCandidate(world) {
   world.release = await createCandidateWorld(repositoryRoot(), world.releaseTempRoot, world.verifiedCucumberFixture);
 }
 
-Before({ tags: "@mcp-release-integrity" }, async function () {
+Before({ tags: "@release-candidate-regression" }, async function () {
   this.releaseTempRoot = await mkdtemp(path.join(tmpdir(), "omp-spec-kit-release-bdd-"));
   this.verifiedCucumberFixture = await readVerifiedCucumberFixture(repositoryRoot());
   this.release = null;
@@ -116,7 +116,7 @@ Before({ tags: "@mcp-release-integrity" }, async function () {
   this.publicTreeOriginal = null;
 });
 
-After({ tags: "@mcp-release-integrity" }, async function () {
+After({ tags: "@release-candidate-regression" }, async function () {
   if (this.publicTreeOriginal !== null) await writeFile(this.publicTreeOriginal.path, this.publicTreeOriginal.bytes);
   if (this.releaseServer !== null) await this.releaseServer.close();
   if (this.releaseTempRoot !== null) await rm(this.releaseTempRoot, { recursive: true, force: true, maxRetries: 3 });

@@ -24,7 +24,7 @@ COPY tests/ tests/
 RUN node scripts/build-plugin.mjs \
  && node scripts/verify-marketplace.mjs \
  && node scripts/verify-package.mjs \
- && cp scripts/probe-omp-discovery-v18.0.10.mjs tests/fixtures/omp-discovery-runtime/probe-omp-discovery-v18.0.10.mjs
+ && cp scripts/probe-omp-discovery-v18.0.11.mjs tests/fixtures/omp-discovery-runtime/probe-omp-discovery-v18.0.11.mjs
 
 ENV OMP_SPEC_KIT_BDD_CONTAINER=1
 CMD ["node", "scripts/run-bdd-container.mjs"]

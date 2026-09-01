@@ -36,7 +36,9 @@ jobs:
         run: cd tests/fixtures/omp-discovery-runtime && bun install --frozen-lockfile --ignore-scripts --no-progress
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify frozen corpus provenance before release execution
-        run: node scripts/refresh-real-corpus-manifest.mjs --check
+        run: |
+          node scripts/refresh-real-corpus-manifest.mjs --check
+          node scripts/refresh-authoring-real-corpus-manifest.mjs --check
       - run: npm run build
       - run: npm run verify
       - name: Assemble candidate from peeled tag checkout

@@ -177,14 +177,14 @@ async function main() {
 
   // --- Platform fixture digest -------------------------------------------
   // Derived deterministically from the exact inputs every claim below reads:
-  // the frozen-corpus preflight manifest plus the three package authorities.
-  const corpusManifestPath = path.join(repositoryRoot, "tests", "fixtures", "kernel", "real-corpus-manifest.json");
-  const corpusManifest = await readJsonFile(corpusManifestPath, "frozen corpus manifest");
-  if (corpusManifest.provenance?.fixtureSha256 === undefined) fail("frozen corpus manifest has no aggregate fixture digest");
+  // the current authoring corpus manifest plus the three package authorities.
+  const corpusManifestPath = path.join(repositoryRoot, "tests", "fixtures", "kernel", "authoring-real-corpus-manifest.json");
+  const corpusManifest = await readJsonFile(corpusManifestPath, "authoring corpus manifest");
+  if (corpusManifest.aggregateSha256 === undefined) fail("authoring corpus manifest has no aggregate fixture digest");
   const marketplaceMarker = await assertRegularFile(path.resolve(args["--marketplace-marker"]), "marketplace success marker");
   const packageMarker = await assertRegularFile(path.resolve(args["--package-marker"]), "package success marker");
   const fixtureParts = {
-    corpusFixtureSha256: corpusManifest.provenance.fixtureSha256,
+    corpusFixtureSha256: corpusManifest.aggregateSha256,
     distManifestSha256: sha256(await readFile(path.resolve(args["--dist-manifest"]))),
     marketplaceMarkerSha256: sha256(await readFile(marketplaceMarker)),
     packageMarkerSha256: sha256(await readFile(packageMarker)),
@@ -198,7 +198,7 @@ async function main() {
   await assertRegularFile(inventoryOutputPath, "inventory output");
   const inventoryRun = await readJsonFile(inventoryOutputPath, "inventory run output");
   requireKeys(inventoryRun, ["corpusFixtureSha256", "documentCount", "observedSpecs", "returnedSpecs", "schema", "specs"], "inventory run output");
-  if (inventoryRun.corpusFixtureSha256 !== corpusManifest.provenance.fixtureSha256) {
+  if (inventoryRun.corpusFixtureSha256 !== corpusManifest.aggregateSha256) {
     fail("inventory run output was produced against a different corpus fixture");
   }
 
