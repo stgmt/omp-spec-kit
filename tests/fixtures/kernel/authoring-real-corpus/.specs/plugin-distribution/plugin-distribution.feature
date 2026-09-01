@@ -155,7 +155,7 @@ Feature: Publish the omp-spec-kit plugin from verified installed bytes
     And later outcomes are plain labels
 
   # MCP release-integrity scenarios
-  @feature19 @FR-19 @AC-19.1 @id:SCEN-mri-active-project-root @release-evidence
+  @mcp-release-integrity @feature19 @FR-19 @AC-19.1 @id:SCEN-mri-active-project-root @release-evidence
   Scenario: Installed launcher uses the active project root
     Given project-a, project-b, and package-decoy have distinct specifications
     When the installed package launcher serves project-a without an override
@@ -165,7 +165,7 @@ Feature: Publish the omp-spec-kit plugin from verified installed bytes
     Then the MCP inventory contains only project-b specifications
     And launcher startup from package cwd is refused before serving
 
-  @feature20 @FR-20 @AC-20.1 @id:SCEN-mri-terminal-json-rpc @release-evidence
+  @mcp-release-integrity @feature20 @FR-20 @AC-20.1 @id:SCEN-mri-terminal-json-rpc @release-evidence
   Scenario: Invalid JSON-RPC requests have one terminal response
     Given an installed MCP server is running
     When the client sends JSON-RPC 1.0 with id 7 and then a valid request
@@ -174,14 +174,14 @@ Feature: Publish the omp-spec-kit plugin from verified installed bytes
     When the client sends an unknown method with id 8 and an unknown tool with id 9
     Then the responses are -32601 for id 8 and -32602 for id 9
 
-  @feature20 @FR-20 @AC-20.1 @id:SCEN-mri-malformed-json-recovery
+  @mcp-release-integrity @feature20 @FR-20 @AC-20.1 @id:SCEN-mri-malformed-json-recovery
   Scenario: Malformed JSON has one parse error and recovery
     Given an installed MCP server is running
     When the client sends malformed JSON and then a valid request
     Then the first response is -32700 with null id
     And the valid request returns one canonical envelope with no extra stdout frames
 
-  @feature21 @FR-21 @AC-21.1 @id:SCEN-mri-all-tool-parity @release-evidence
+  @mcp-release-integrity @feature21 @FR-21 @AC-21.1 @id:SCEN-mri-all-tool-parity @release-evidence
   Scenario: Every historical packaged MCP handler executes
     Given a copied package has no source checkout or ambient dependencies
     When every historical eight-tool contract tool is called with its valid arguments
@@ -227,7 +227,7 @@ Feature: Publish the omp-spec-kit plugin from verified installed bytes
     Then the bounded record proves a trusted public release for the exact candidate
     And current public guidance and captured release notes match v0.3.2 and retain the v0.3.0 advisory
 
-  @feature25 @FR-25 @AC-25.1 @id:SCEN-mri-response-provenance
+  @mcp-release-integrity @feature25 @FR-25 @AC-25.1 @id:SCEN-mri-response-provenance
   Scenario: Every installed MCP result identifies its server and root
     Given project-a, project-b, and package-decoy have distinct specifications
     When the installed package launcher probes every MCP tool for project-a without an override
@@ -235,7 +235,7 @@ Feature: Publish the omp-spec-kit plugin from verified installed bytes
     When the installed package launcher probes every MCP tool with project-b as an explicit override
     Then every installed result identifies project-b as an explicit root and marks the active-project mismatch
 
-  @feature25 @FR-25 @AC-25.1 @id:SCEN-mri-extension-root-consistency
+  @mcp-release-integrity @feature25 @FR-25 @AC-25.1 @id:SCEN-mri-extension-root-consistency
   Scenario: OMP extension inventory and query tools share one root
     Given project-a, project-b, and package-decoy have distinct specifications
     When the OMP extension runs with project-a as cwd and project-b as an explicit root override

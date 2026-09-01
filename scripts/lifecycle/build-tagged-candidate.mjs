@@ -139,7 +139,12 @@ async function main() {
 			? server.args[0].split("/")
 			: null;
 	if (!declaredEntry) fail(`extracted .mcp.json declares an unsupported command shape: ${JSON.stringify(server.command)}`);
-	const entryBytes = readFileSync(path.join(outputRoot, ...declaredEntry));
+	let entryBytes;
+	try {
+		entryBytes = readFileSync(path.join(outputRoot, ...declaredEntry));
+	} catch {
+		entryBytes = Buffer.alloc(0);
+	}
 	if (entryBytes.length === 0) {
 		// The declared entrypoint is not part of the committed payload (the
 		// bin/ launchers postdate v0.3.0): take its exact bytes from the tag.
