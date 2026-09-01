@@ -5,7 +5,7 @@
 @lifecycle-producers @specification-only
 Feature: Produce real distribution lifecycle evidence through the pinned OMP runtime
   Every release-blocking lifecycle claim is produced by driving PluginManager
-  and the MCP manager from the pinned 17.3.7 runtime inside an isolated HOME,
+  and the MCP manager from the pinned 18.0.10 runtime inside an isolated HOME,
   and every raw producer output is validated before it may enter the
   attested evidence bundle.
 

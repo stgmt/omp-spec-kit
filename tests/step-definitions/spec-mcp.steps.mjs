@@ -26,12 +26,12 @@ const INITIALIZE_PARAMS = Object.freeze({
   clientInfo: { name: "bdd-mcp-client", version: "0.0.0" },
 });
 const GET_NODE_ARGS = Object.freeze({
-  canonicalId: "product:FR-1",
+  canonicalId: "plugin-distribution:FR-1",
   projection: "full",
   includeIncidentCounts: true,
 });
 const TRACE_ARGS = Object.freeze({
-  canonicalId: "product:FR-1",
+  canonicalId: "plugin-distribution:FR-1",
   direction: "out",
   types: [],
   maxDepth: 8,
@@ -40,6 +40,51 @@ const TRACE_ARGS = Object.freeze({
   limit: 50,
   cursor: null,
 });
+
+const PROVENANCE_CALLS = Object.freeze([
+  ["spec_inventory", { specSlugs: [], includeDocuments: false, limit: 10, cursor: null }],
+  ["spec_get_node", { canonicalId: "plugin-distribution:FR-1", projection: "summary", includeIncidentCounts: true }],
+  ["spec_find_nodes", {
+    specSlugs: [],
+    kinds: [],
+    canonicalIds: [],
+    text: null,
+    projection: "summary",
+    limit: 10,
+    cursor: null,
+  }],
+  ["spec_get_edges", {
+    canonicalId: "plugin-distribution:FR-1",
+    direction: "out",
+    types: [],
+    aggregate: false,
+    limit: 10,
+    cursor: null,
+  }],
+  ["spec_trace", { ...TRACE_ARGS, limit: 10 }],
+  ["spec_diagnostics", {
+    severities: [],
+    codes: [],
+    specSlugs: [],
+    paths: [],
+    limit: 10,
+    cursor: null,
+  }],
+  ["spec_overview", { specSlugs: [] }],
+  ["spec_markdown_inventory", {
+    specSlugs: [],
+    mode: "all",
+    focusPath: null,
+    focusAnchor: null,
+    direction: "both",
+    outcomes: [],
+    includeHeadings: true,
+    includeLinks: true,
+    limit: 10,
+    cursor: null,
+  }],
+]);
+
 const SORTED_TOOL_NAMES = Object.freeze([...MCP_TOOL_NAMES].sort());
 
 Before({ tags: "@spec-mcp" }, function () {
@@ -121,7 +166,7 @@ Then("the tool list is exactly the eight SCHEMA-11 read-only tools", function ()
   }
 });
 
-When('the client calls "spec_get_node" on "product:FR-1"', async function () {
+When('the client calls "spec_get_node" on "plugin-distribution:FR-1"', async function () {
   this.mcp.lastArgs = GET_NODE_ARGS;
   this.mcp.lastToolCall = await this.mcp.server.request("tools/call", {
     name: "spec_get_node",
@@ -129,7 +174,7 @@ When('the client calls "spec_get_node" on "product:FR-1"', async function () {
   });
 });
 
-When('the client calls "spec_trace" from "product:FR-1" direction "out"', async function () {
+When('the client calls "spec_trace" from "plugin-distribution:FR-1" direction "out"', async function () {
   this.mcp.lastArgs = TRACE_ARGS;
   this.mcp.lastToolCall = await this.mcp.server.request("tools/call", {
     name: "spec_trace",
@@ -289,6 +334,7 @@ Given("a temporary repository holding only a copied product specification and no
   await cp(
     path.join(this.mcp.repositoryRoot, ".specs", "product"),
     path.join(this.mcp.tempRoot, ".specs", "product"),
+
     { recursive: true },
   );
   this.mcp.bareSnapshot = await snapshotTree(this.mcp.tempRoot);
@@ -333,4 +379,125 @@ Then("the overview succeeds over exactly the copied product documents", function
   assert.equal(envelope.data.counts.rejectedDocuments, 0);
   const frCount = envelope.data.nodeKinds.find((entry) => entry.kind === "FUNCTIONAL_REQUIREMENT");
   assert.ok(frCount !== undefined && frCount.count > 0, "the product spec copy must expose functional requirements");
+});
+// ---------------------------------------------------------------------------
+// Scenario: response provenance
+// ---------------------------------------------------------------------------
+
+Given("two byte-exact temporary project replicas for provenance checks", async function () {
+  this.mcp.tempRoot = await mkdtemp(path.join(tmpdir(), "omp-spec-kit-mcp-provenance-active-"));
+  this.mcp.provenanceOverrideRoot = await mkdtemp(path.join(tmpdir(), "omp-spec-kit-mcp-provenance-override-"));
+  await writeCorpus(this.mcp.tempRoot, this.mcp.files);
+  await writeCorpus(this.mcp.provenanceOverrideRoot, this.mcp.files);
+  const activeSnapshot = await snapshotTree(this.mcp.tempRoot);
+  const overrideSnapshot = await snapshotTree(this.mcp.provenanceOverrideRoot);
+  assert.deepStrictEqual(
+    activeSnapshot,
+    overrideSnapshot,
+    "provenance replicas must have identical corpus bytes before root selection is tested",
+  );
+});
+
+When("the real MCP server probes every tool with project-b as an explicit override while cwd is project-a", async function () {
+  this.mcp.server = spawnMcpServer({
+    serverPath: path.join(this.mcp.repositoryRoot, ...SERVER_SEGMENTS),
+    root: this.mcp.provenanceOverrideRoot,
+    cwd: this.mcp.tempRoot,
+  });
+  assert.equal(PROVENANCE_CALLS.length, MCP_TOOL_NAMES.length, "provenance must exercise the complete tool set");
+  this.mcp.provenanceResponses = [];
+  for (const [name, args] of PROVENANCE_CALLS) {
+    const response = await this.mcp.server.request("tools/call", {
+      name,
+      arguments: { ...args, requestId: `bdd-provenance-${name}` },
+    });
+    this.mcp.provenanceResponses.push({ name, response });
+  }
+});
+
+Then("every result identifies one project-b root, the omp-spec-kit server, and an active-project mismatch", function () {
+  const responses = this.mcp.provenanceResponses;
+  assert.ok(Array.isArray(responses), "provenance calls must produce a response collection");
+  assert.equal(responses.length, PROVENANCE_CALLS.length, "every registered tool must return one response");
+  const rootIds = new Set();
+  const activeRootIds = new Set();
+  for (const { name, response } of responses) {
+    assert.equal(response.error, undefined, `${name} must return a tools/call result`);
+    const result = response.result;
+    assert.equal(result.isError, false, `${name} must succeed on the byte-exact replica`);
+    const envelope = result.structuredContent;
+    assert.deepStrictEqual(Object.keys(envelope).sort(), [...QUERY_ENVELOPE_KEYS]);
+    assert.equal(envelope.ok, true, `${name} envelope must be successful`);
+    assert.deepStrictEqual(Object.keys(envelope.provenance).sort(), [
+      "activeProjectRootId",
+      "matchesActiveProject",
+      "resolvedRootId",
+      "rootMode",
+      "serverName",
+    ]);
+    assert.equal(envelope.provenance.serverName, "omp-spec-kit");
+    assert.equal(envelope.provenance.rootMode, "explicit-absolute-override");
+    assert.equal(envelope.provenance.matchesActiveProject, false);
+    assert.match(envelope.provenance.resolvedRootId, /^[0-9a-f]{64}$/);
+    assert.match(envelope.provenance.activeProjectRootId, /^[0-9a-f]{64}$/);
+    assert.notEqual(
+      envelope.provenance.resolvedRootId,
+      envelope.provenance.activeProjectRootId,
+      `${name} must distinguish project-b from cwd project-a`,
+    );
+    assert.match(result.content[0].text, /active-project-mismatch/);
+    rootIds.add(envelope.provenance.resolvedRootId);
+    activeRootIds.add(envelope.provenance.activeProjectRootId);
+  }
+  assert.equal(rootIds.size, 1, "all MCP tools must use one project-b root identity");
+  assert.equal(activeRootIds.size, 1, "all MCP tools must use one project-a root identity");
+});
+
+When("the real OMP extension probes inventory and overview with project-b as an explicit override while cwd is project-a", async function () {
+  this.mcp.extensionProbe = await runExtensionProbe({
+    extensionPath: path.join(this.mcp.repositoryRoot, ...EXTENSION_SEGMENTS),
+    cwd: this.mcp.tempRoot,
+    env: { OMP_SPEC_KIT_ROOT: this.mcp.provenanceOverrideRoot },
+    queries: [
+      {
+        name: "spec_inventory",
+        params: { maxSpecs: 50, maxDiagnostics: 25, includeDocumentCounts: true },
+        cwd: this.mcp.tempRoot,
+      },
+      {
+        name: "spec_overview",
+        params: { specSlugs: [] },
+        cwd: this.mcp.tempRoot,
+      },
+    ],
+  });
+});
+
+Then("both extension results identify project-b and the active-project mismatch", function () {
+  const results = this.mcp.extensionProbe.queryResults;
+  assert.ok(Array.isArray(results), "the extension probe must return query results");
+  assert.deepStrictEqual(results.map((entry) => entry.name), ["spec_inventory", "spec_overview"]);
+  const provenances = results.map((entry) => entry.result.details.provenance);
+  assert.equal(provenances.length, 2);
+  for (const [index, provenance] of provenances.entries()) {
+    assert.deepStrictEqual(Object.keys(provenance).sort(), [
+      "activeProjectRootId",
+      "matchesActiveProject",
+      "resolvedRootId",
+      "rootMode",
+      "serverName",
+    ], `extension result ${index} must expose the complete provenance shape`);
+    assert.equal(provenance.serverName, "omp-spec-kit");
+    assert.equal(provenance.rootMode, "explicit-absolute-override");
+    assert.equal(provenance.matchesActiveProject, false);
+    assert.match(provenance.resolvedRootId, /^[0-9a-f]{64}$/);
+    assert.match(provenance.activeProjectRootId, /^[0-9a-f]{64}$/);
+    assert.notEqual(provenance.resolvedRootId, provenance.activeProjectRootId);
+    assert.equal(JSON.stringify(results[index].result).includes(this.mcp.tempRoot), false);
+    assert.equal(JSON.stringify(results[index].result).includes(this.mcp.provenanceOverrideRoot), false);
+  }
+  assert.equal(provenances[0].resolvedRootId, provenances[1].resolvedRootId);
+  assert.equal(provenances[0].activeProjectRootId, provenances[1].activeProjectRootId);
+  assert.match(results[0].result.content[0].text, /active-project-mismatch/);
+  assert.match(results[1].result.content[0].text, /active-project-mismatch/);
 });

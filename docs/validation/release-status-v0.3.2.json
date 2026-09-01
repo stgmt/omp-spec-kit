@@ -1,0 +1,86 @@
+{
+  "schema": "omp-spec-kit-public-release-status@1",
+  "version": "0.3.2",
+  "tag": "v0.3.2",
+  "releaseUrl": "https://github.com/stgmt/omp-spec-kit/releases/tag/v0.3.2",
+  "publishedAt": "2026-08-28T10:30:21Z",
+  "tagCommit": "2938389e34e2d06bdd497291ed01e0a2d89146c9",
+  "candidateDigest": "526ef6ff94ea682a116a43e4de0b5f622686b8ef36648b7884c830ba1eac25b4",
+  "packageTreeDigest": "e8d53934122a495e1003f17126785dcd181f5d6d5f417270844e17fc25f12f92",
+  "archive": {
+    "name": "omp-spec-kit-0.3.2.tar",
+    "bytes": 271360,
+    "sha256": "26a2ebadd7d1888c10dc9bdbdc25e11fecf5a7dcc7515b15c7e3bb363a0cbea9"
+  },
+  "releaseAssets": [
+    {
+      "name": "candidate.json",
+      "bytes": 6204,
+      "sha256": "90b3d36fb97ec891e06e2f108c1f8dfb0e2be50bf2b65d23fe64994719818873"
+    },
+    {
+      "name": "evidence.json",
+      "bytes": 3304,
+      "sha256": "043458f1e8dd79e8573cdcc8f2808c05e33b0e6234f4d2bab97ece9ebc44776d"
+    },
+    {
+      "name": "omp-spec-kit-0.3.2.tar",
+      "bytes": 271360,
+      "sha256": "26a2ebadd7d1888c10dc9bdbdc25e11fecf5a7dcc7515b15c7e3bb363a0cbea9"
+    }
+  ],
+  "attestation": {
+    "verified": true,
+    "workflow": "https://github.com/stgmt/omp-spec-kit/.github/workflows/release.yml@refs/tags/v0.3.2",
+    "workflowCommit": "2938389e34e2d06bdd497291ed01e0a2d89146c9",
+    "run": "https://github.com/stgmt/omp-spec-kit/actions/runs/33163329416/attempts/2",
+    "transparencyLog": "https://rekor.sigstore.dev",
+    "verifiedAt": "2026-08-28T10:30:22Z"
+  },
+  "distributionAttestation": {
+    "verified": true,
+    "subject": "distribution-evidence.json",
+    "subjectSha256": "46deadb5ccb26413942bf96c046516231e1c98d217d95353b90574922365f5d7",
+    "repository": "stgmt/omp-spec-kit",
+    "signerWorkflow": "https://github.com/stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml@refs/tags/v0.3.2",
+    "sourceRef": "refs/tags/v0.3.2",
+    "workflowCommit": "2938389e34e2d06bdd497291ed01e0a2d89146c9",
+    "run": "https://github.com/stgmt/omp-spec-kit/actions/runs/33163329402/attempts/1",
+    "transparencyLog": "https://rekor.sigstore.dev",
+    "transparencyLogIndex": "2624698726",
+    "integratedAt": "2026-08-28T13:27:50+03:00",
+    "verifiedAt": "2026-08-29"
+  },
+  "evidence": {
+    "schema": "omp-spec-kit-release-evidence@3",
+    "catalogDigest": "f091f46e666ff975eb5008c919519d0ae60f7c491b147645a80a617c7749b732",
+    "publicSafetyDigest": "d318eea8188962c84d19154af23bb4ad64b03080f32ac0aea1118ff19854125e",
+    "dockerBddDigest": "d52340879d5c8023e9ecc6e668ce48765f0172e29fd75e4ed9d1c3c574141fa6",
+    "priorV030Digest": "a76965be487d54bd0eea31c366fb06da4874237986c6a5abf33d2191eae0c3d1",
+    "upgradeFromV030Digest": "0940519e597e71d2db00e4a95eb34299f3cde9e1c77df2c52c52be584a272abc",
+    "rollbackToV030Digest": "26c8b5e0481beb7375b3d39d80775a2ec9ce1b85a0d010f7368d2a1cc53893aa",
+    "managerDiscoveryDigest": "5354dd55cf9bf83ad827d5a22d6aaec43278b218ef577f08ddc4f52e547cb5f0",
+    "distributionReceiptDigest": "46deadb5ccb26413942bf96c046516231e1c98d217d95353b90574922365f5d7"
+  },
+  "status": {
+    "public": true,
+    "installable": true,
+    "state": "SHIPPED",
+    "surface": "READ_ONLY_MCP",
+    "toolCount": 8
+  },
+  "provenance": {
+    "releaseMetadataCommand": "gh release view v0.3.2 --repo stgmt/omp-spec-kit",
+    "attestationCommand": "gh attestation verify candidate.json --repo stgmt/omp-spec-kit --format json",
+    "distributionRunCommand": "gh run download 33163329402 --repo stgmt/omp-spec-kit --name omp-spec-kit-distribution-evidence-v0.3.2",
+    "distributionAttestationCommand": "gh attestation verify distribution-evidence.json --repo stgmt/omp-spec-kit --signer-workflow stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml --source-ref refs/tags/v0.3.2 --format json",
+    "capturedOn": "2026-08-29"
+  },
+  "releaseNotes": {
+    "source": "https://github.com/stgmt/omp-spec-kit/releases/tag/v0.3.2",
+    "captureCommand": "gh release view v0.3.2 --repo stgmt/omp-spec-kit --json body --jq .body",
+    "capturedOn": "2026-08-29",
+    "bodySha256": "536aedab8341ec5749e861a2809cf53fb0916516e87144f0d05c3dbfbbc24f83",
+    "body": "# omp-spec-kit v0.3.2\n\n## Included correction\n\n- MCP launches against the active OMP project rather than package cwd.\n- Invalid JSON-RPC request objects receive terminal protocol errors.\n- The read-only MCP surface remains exactly eight tools.\n\n## Verified candidate\n\n- Candidate digest: `526ef6ff94ea682a116a43e4de0b5f622686b8ef36648b7884c830ba1eac25b4`\n- Package tree digest: `e8d53934122a495e1003f17126785dcd181f5d6d5f417270844e17fc25f12f92`\n- Archive SHA-256: `26a2ebadd7d1888c10dc9bdbdc25e11fecf5a7dcc7515b15c7e3bb363a0cbea9`\n- Peelled tag commit: `2938389e34e2d06bdd497291ed01e0a2d89146c9`\n\nInstall or upgrade at project scope, reload plugin metadata, then start a fresh OMP session before invoking MCP tools.\n"
+  }
+}

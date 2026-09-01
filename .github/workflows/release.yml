@@ -6,9 +6,8 @@ on:
       - "v*.*.*"
 
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  actions: read
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -45,6 +44,8 @@ jobs:
       - name: Verify candidate public safety
         run: node scripts/verify-public-tree.mjs --candidate release-candidate/candidate.json --output release-candidate/public-safety.json
       - run: mkdir -p .dev-pomogator/bdd-results
+      - name: Run v0.4.0 safe-authoring BDD and OMP manager E2E
+        run: npm run test:safe-authoring
       - name: Run Docker BDD and preserve canonical Cucumber messages
         run: |
           set -o pipefail
@@ -79,7 +80,10 @@ jobs:
               echo "::error::attested distribution evidence artifact is missing dist-evidence/mri-receipts; refusing pre-tag-committed receipts" >&2
             fi
             # Positively bind the downloaded bundle to THIS candidate before
-            # any trust is stamped: candidate digests must match.
+            if [ ! -f dist-evidence/mri-discovery/omp-discovery-v18.0.11.md ]; then
+              echo "::error::attested distribution evidence artifact is missing the live OMP discovery receipt" >&2
+              identity_ok=""
+            fi
             downloaded="$(node -p "JSON.parse(require('fs').readFileSync('dist-evidence/distribution-evidence.json','utf8')).candidateDigest")"
             expected="$(node -p "require('./release-candidate/candidate.json').candidateDigest")"
             if [ -n "$downloaded" ] && [ "$downloaded" = "$expected" ]; then
@@ -109,7 +113,7 @@ jobs:
               --public-safety release-candidate/public-safety.json \
               --cucumber-messages release-candidate/cucumber.ndjson \
               --lifecycle-dir "$LIFECYCLE_DIR" \
-              --mri-discovery docs/validation/omp-discovery-v17.3.7.md \
+              --mri-discovery dist-evidence/mri-discovery/omp-discovery-v18.0.11.md \
               --distribution-evidence dist-evidence/distribution-evidence.json \
               --distribution-trust github-artifact-attestation \
               --output release-candidate
@@ -119,7 +123,7 @@ jobs:
               --public-safety release-candidate/public-safety.json \
               --cucumber-messages release-candidate/cucumber.ndjson \
               --lifecycle-dir "$LIFECYCLE_DIR" \
-              --mri-discovery docs/validation/omp-discovery-v17.3.7.md \
+              --mri-discovery dist-evidence/mri-discovery/omp-discovery-v18.0.11.md \
               --output release-candidate
           fi
 
@@ -134,6 +138,11 @@ jobs:
           if-no-files-found: error
 
   publish:
+    permissions:
+      actions: read
+      attestations: write
+      contents: write
+      id-token: write
     needs: verify
     runs-on: ubuntu-latest
     # Least privilege: the job token exists only so `gh` can reverify and

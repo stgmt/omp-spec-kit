@@ -4,7 +4,13 @@ All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
 ## Unreleased
 
-Specification note, not a release: product and public docs now treat the eight SCHEMA-11 MCP tools as the v0.3 first slice of the generator-port door, not the destination registry. Shipped 0.3.x eight-tool evidence is unchanged.
+v0.4.0 candidate preparation; v0.3.2 remains the only published package baseline.
+
+- Pins the candidate discovery runtime to OMP `18.0.11` at immutable commit `33cc6b9a043a74e00a157e72ca909272796d8461`.
+- Keeps the eight-tool read-only MCP surface and exposes exactly two safe-authoring tools: `propose_patch` and `apply_proposed_patch`.
+- Adds deterministic proposal preview, approval-bound apply, document-level CAS, replay-safe receipts, rollback-on-failure, and strict spec-target access gating.
+- Adds a provenance-bound 45-document corpus, live authoring/access BDD scenarios, and tag-time capture of the real OMP manager-handoff receipt.
+- Publication remains fail-closed until the v0.4.0 tag, runtime receipt, lifecycle producers, Docker BDD, and attested evidence exist.
 
 ## 0.3.2 — 2026-08-28
 

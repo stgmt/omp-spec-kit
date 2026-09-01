@@ -1,21 +1,51 @@
 {
   "schema": "omp-spec-kit-dist-manifest@1",
-  "pluginVersion": "0.3.2",
+  "pluginVersion": "0.4.0",
   "files": {
+    "adapters/document-service.js": {
+      "sha256": "3f3a836ea60e9feba9673b2e9203dd15620ca01c3cf937caa247f189737b2dac"
+    },
     "adapters/omp/register-spec-tools.js": {
-      "sha256": "e9e70714cb5c8236e100df5f8056346f3aeaafa9a6ac92efe6aba85cec902109"
+      "sha256": "06238bd924475045e8d46770eac22e895e7ba32b6b23a03663283e74a1c12f3f"
     },
     "adapters/query-service.js": {
-      "sha256": "b148e5b0a909d80b75f12cdf8549dbdc99af001cd1007c6e403c1daa73adc53b"
+      "sha256": "cdff58b3b117b77d4f6a92da724dd544cdf43cbdf1986e558ebb07f893f31189"
     },
     "adapters/tool-contracts.js": {
-      "sha256": "ef4d30478a5db7165a36bf2b57a45168da38485c13da265ce0f1d9dd20a531af"
+      "sha256": "f7c376fe5767d8df35c0658eba503ec139b00b22832fd700a8e139050200981c"
+    },
+    "authoring/proposals.js": {
+      "sha256": "75ac167dcc99dd5221e8714a5f2db910c65d4469ed4d19436514cf6b593517cb"
+    },
+    "authoring/service.js": {
+      "sha256": "e2e51303b775e47a09c017473a9ddc7ae543ca5f326451e62e948504ecf9d908"
+    },
+    "authoring/transactions.js": {
+      "sha256": "7ef5258d7c171ac932470dc54f627e6bd111902fda60a3a1282d0295dc7f669a"
+    },
+    "enforcement/adapter.js": {
+      "sha256": "99df996ce1e08c08318d1be5799b262a8609de5e535d9a639cc4babc3556660a"
+    },
+    "enforcement/classifier.js": {
+      "sha256": "d0f443066d815a86a14a89683a4e220be0450e4d74d4420b0cd50a0defe5bfea"
+    },
+    "enforcement/resolve-targets.js": {
+      "sha256": "8161a4d3e22b0767c989a944fe2641c0fa67a129181f6d94bbdd4ff5adbaf57c"
+    },
+    "evidence/service.js": {
+      "sha256": "395f474c0a24777e7e4fa325f5d4432788deac1b8fcda49a393fb308579a8f34"
     },
     "extension.js": {
-      "sha256": "bb66cd370ea155844406c80254c0929ab31f92bf1d7c3db02708086a118bef83"
+      "sha256": "19af03d65c23b4bcfcbbfca4fc27ed97be9d033dd325278fbc7e4b74aea68188"
+    },
+    "gate/automatic-adapter.js": {
+      "sha256": "82c385544c2aa793679512b93ef150cfd382722f0cbcc1dd28b99b710e3d3ed8"
+    },
+    "gate/validator.js": {
+      "sha256": "4541d470c5266c7ed22f24c69b2916a0f0f2c9918b013e7bd475c70cf2ee39cd"
     },
     "inventory.js": {
-      "sha256": "c4244fd999af8cbeb2ca7b21b400de6e90eca86e72405f538f35bc37f9910afc"
+      "sha256": "3fe24da9b445584302095ccb966c2e1ed6b914255cf5c339c06e882866a57e5c"
     },
     "kernel/adapters/fs.js": {
       "sha256": "31e338483be6ebcea53588efd832fa0153febf8e098e55f614206f007abcc38e"
@@ -62,6 +92,9 @@
     "kernel/query/cursor.js": {
       "sha256": "6149e4ad947bc49544d59f78a04b55c410145245ba369b323ce221be29675942"
     },
+    "kernel/query/extended.js": {
+      "sha256": "6c04d2628f0d31326a2219ddd820f7385cd447bf81ee20772f53d041aa24f34b"
+    },
     "kernel/query/service.js": {
       "sha256": "254119bb02dc746807b910d352801070081335039702b66dae32a426abb4e0af"
     },
@@ -69,7 +102,7 @@
       "sha256": "ff1a46bba6a1940a5a1aff16d5c3b0e5799790c1418f6b5ae18bceec3a2da883"
     },
     "mcp/server.js": {
-      "sha256": "deb03fe15b5e212ea67f50a4cbdafa1f10e39be15006d615403e596274b485ee"
+      "sha256": "cd1e90a90f5136a064cdfc0a5b4a9d1034901b5c5be51ef6c2e7ccadf69d31dc"
     }
   }
 }

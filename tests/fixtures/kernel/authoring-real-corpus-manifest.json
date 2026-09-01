@@ -1,0 +1,288 @@
+{
+  "schema": "omp-spec-kit-authoring-real-corpus@1",
+  "sourceCommit": "b9b5744325aedbaa39273c675e76b3fc6b05e881",
+  "sourceCommand": "git show <commit>:.specs/<spec>/<document>",
+  "fixtureDirectory": "tests/fixtures/kernel/authoring-real-corpus/.specs",
+  "selectedSpecs": [
+    "plugin-distribution",
+    "spec-mcp-access-gate",
+    "spec-mcp-operations"
+  ],
+  "selectedPaths": [
+    ".specs/plugin-distribution/ACCEPTANCE_CRITERIA.md",
+    ".specs/plugin-distribution/CHANGELOG.md",
+    ".specs/plugin-distribution/DESIGN.md",
+    ".specs/plugin-distribution/FILE_CHANGES.md",
+    ".specs/plugin-distribution/FIXTURES.md",
+    ".specs/plugin-distribution/FR.md",
+    ".specs/plugin-distribution/NFR.md",
+    ".specs/plugin-distribution/README.md",
+    ".specs/plugin-distribution/REQUIREMENTS.md",
+    ".specs/plugin-distribution/RESEARCH.md",
+    ".specs/plugin-distribution/TASKS.md",
+    ".specs/plugin-distribution/USER_STORIES.md",
+    ".specs/plugin-distribution/USE_CASES.md",
+    ".specs/plugin-distribution/plugin-distribution.feature",
+    ".specs/plugin-distribution/plugin-distribution_SCHEMA.md",
+    ".specs/spec-mcp-access-gate/ACCEPTANCE_CRITERIA.md",
+    ".specs/spec-mcp-access-gate/CHANGELOG.md",
+    ".specs/spec-mcp-access-gate/DESIGN.md",
+    ".specs/spec-mcp-access-gate/FILE_CHANGES.md",
+    ".specs/spec-mcp-access-gate/FIXTURES.md",
+    ".specs/spec-mcp-access-gate/FR.md",
+    ".specs/spec-mcp-access-gate/NFR.md",
+    ".specs/spec-mcp-access-gate/README.md",
+    ".specs/spec-mcp-access-gate/REQUIREMENTS.md",
+    ".specs/spec-mcp-access-gate/RESEARCH.md",
+    ".specs/spec-mcp-access-gate/TASKS.md",
+    ".specs/spec-mcp-access-gate/USER_STORIES.md",
+    ".specs/spec-mcp-access-gate/USE_CASES.md",
+    ".specs/spec-mcp-access-gate/spec-mcp-access-gate.feature",
+    ".specs/spec-mcp-access-gate/spec-mcp-access-gate_SCHEMA.md",
+    ".specs/spec-mcp-operations/ACCEPTANCE_CRITERIA.md",
+    ".specs/spec-mcp-operations/CHANGELOG.md",
+    ".specs/spec-mcp-operations/DESIGN.md",
+    ".specs/spec-mcp-operations/FILE_CHANGES.md",
+    ".specs/spec-mcp-operations/FIXTURES.md",
+    ".specs/spec-mcp-operations/FR.md",
+    ".specs/spec-mcp-operations/NFR.md",
+    ".specs/spec-mcp-operations/README.md",
+    ".specs/spec-mcp-operations/REQUIREMENTS.md",
+    ".specs/spec-mcp-operations/RESEARCH.md",
+    ".specs/spec-mcp-operations/TASKS.md",
+    ".specs/spec-mcp-operations/USER_STORIES.md",
+    ".specs/spec-mcp-operations/USE_CASES.md",
+    ".specs/spec-mcp-operations/spec-mcp-operations.feature",
+    ".specs/spec-mcp-operations/spec-mcp-operations_SCHEMA.md"
+  ],
+  "documentCount": 45,
+  "documents": [
+    {
+      "path": ".specs/plugin-distribution/ACCEPTANCE_CRITERIA.md",
+      "bytes": 12077,
+      "sha256": "5b2c9713e90767c23f209bace4d13692bb328daabf153aed7d7c42ec524f037f"
+    },
+    {
+      "path": ".specs/plugin-distribution/CHANGELOG.md",
+      "bytes": 4856,
+      "sha256": "78df75ad5e3776881e3de0310361a7cb5d3bf67b6d7e9e481b06f63c7e723a31"
+    },
+    {
+      "path": ".specs/plugin-distribution/DESIGN.md",
+      "bytes": 15478,
+      "sha256": "d27051410bff7b72247ef6871445d11fb32bb9fb3bae8d1cbd464c420839b6b4"
+    },
+    {
+      "path": ".specs/plugin-distribution/FILE_CHANGES.md",
+      "bytes": 7816,
+      "sha256": "041dd6ba280e866cf5a7780367b561faea90b75869beefcf8d59d2b903708725"
+    },
+    {
+      "path": ".specs/plugin-distribution/FIXTURES.md",
+      "bytes": 8184,
+      "sha256": "a973511b27027d40a4207bec3ddfba796d628adea67a1d6ee8f5a0cc24cc3ec1"
+    },
+    {
+      "path": ".specs/plugin-distribution/FR.md",
+      "bytes": 26697,
+      "sha256": "6f281f4ef2a074618d1c86079d95eda838d30cfdd97ca67caa9e213bf40fa9fc"
+    },
+    {
+      "path": ".specs/plugin-distribution/NFR.md",
+      "bytes": 5473,
+      "sha256": "21900555b84f85c2cb2f3909080bc33249bf2f90e8e9108814b86ee3346c6449"
+    },
+    {
+      "path": ".specs/plugin-distribution/README.md",
+      "bytes": 7030,
+      "sha256": "d9d45d13f267345b310738d6aaa0d254aa6161432424086cfb269211772a14b2"
+    },
+    {
+      "path": ".specs/plugin-distribution/REQUIREMENTS.md",
+      "bytes": 16499,
+      "sha256": "a0a27c1722977bce0e64b4a186aad0e6ba2177b725b92bcda8eba362600bfef4"
+    },
+    {
+      "path": ".specs/plugin-distribution/RESEARCH.md",
+      "bytes": 9864,
+      "sha256": "cba29eb3e544eeac9c4bfe8a431e6d4698c489cf565d048fb9c9dcc8973e147d"
+    },
+    {
+      "path": ".specs/plugin-distribution/TASKS.md",
+      "bytes": 12958,
+      "sha256": "ca222fa877ece62c6b834519a99cdb88d0809f07b9d447bb03b5200383ade3e3"
+    },
+    {
+      "path": ".specs/plugin-distribution/USER_STORIES.md",
+      "bytes": 3297,
+      "sha256": "8cc5bbfbdd4ee4ce3e9a43b668dbcaa58fa0e5ecf6937519a76894876163e8f6"
+    },
+    {
+      "path": ".specs/plugin-distribution/USE_CASES.md",
+      "bytes": 6800,
+      "sha256": "a5757519a46da457617cd233209433f62072d55b7fbeb85c136e5075688c8d47"
+    },
+    {
+      "path": ".specs/plugin-distribution/plugin-distribution.feature",
+      "bytes": 12822,
+      "sha256": "05323047f35ccb0bb13ae43790eb179bc8a0cac5267afc0d92d045c18b96ddad"
+    },
+    {
+      "path": ".specs/plugin-distribution/plugin-distribution_SCHEMA.md",
+      "bytes": 13842,
+      "sha256": "dac4e286cf2a4633b96ec65a9f92c8389250625dd0d6be84358c8b0cf2f422ea"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/ACCEPTANCE_CRITERIA.md",
+      "bytes": 4030,
+      "sha256": "a86fa98bb97ffd410048db01a9ceb0ac2dcf35ff796613c9bb705387d9da8ac3"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/CHANGELOG.md",
+      "bytes": 1127,
+      "sha256": "047b4e9d1aed75cbbdbfb9e6920af1f757424c959d935c3600e3bdf31de8a144"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/DESIGN.md",
+      "bytes": 3922,
+      "sha256": "f81c34bd29af462c45462be12a2c6930692949238685aceb2074f3bd43345d37"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/FILE_CHANGES.md",
+      "bytes": 2207,
+      "sha256": "e5588350f993bcc462e6089be0a8ce99498b1e780e6f0d264c3022bb94c0d787"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/FIXTURES.md",
+      "bytes": 2578,
+      "sha256": "aa53aa32dd7d06958944d49ab226e544b481de04180d11e129943756a97b7653"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/FR.md",
+      "bytes": 4790,
+      "sha256": "5c8cb0fa012c5ca2329096484c506bca0eb08c310fc839ddaa60f5ea4dccf1f5"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/NFR.md",
+      "bytes": 1988,
+      "sha256": "5a8e8502a6a0fb4656725d18a16cf45b6311c26739b5962e12a02ec677646215"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/README.md",
+      "bytes": 2240,
+      "sha256": "d549a22957cd6c97df46801c80e6d78d8b5ee992650606ec8d75bcd1483686d1"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/REQUIREMENTS.md",
+      "bytes": 4635,
+      "sha256": "bc9b4f0711a81db1c0bd0734db6e1eb6d8ec12b2fda076bd5964ae1942548723"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/RESEARCH.md",
+      "bytes": 4614,
+      "sha256": "936c020bc94d6379933daedbfb793965b01892957fa272fdc3f5141c9ea18453"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/TASKS.md",
+      "bytes": 5124,
+      "sha256": "3c34d625524e0b04f75824f705d944d9054de954c3140af23f6f15df2835e25b"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/USER_STORIES.md",
+      "bytes": 2839,
+      "sha256": "83aa63083657eccb421cfdfe2d9ccf8c47eaadcab418de4cd294d48c6d83c3c3"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/USE_CASES.md",
+      "bytes": 4403,
+      "sha256": "5bd055552cec36f91d6332192fe5fed9a3027fe4bc70dc9ab1f2ce16e3423d25"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/spec-mcp-access-gate.feature",
+      "bytes": 5016,
+      "sha256": "db8ac846a859a8db9728e353dbb9bc1f4fa29a717561b773748ee631af9d0076"
+    },
+    {
+      "path": ".specs/spec-mcp-access-gate/spec-mcp-access-gate_SCHEMA.md",
+      "bytes": 4702,
+      "sha256": "18356022655d033a1569d4c3e724a77e1d573feeebb58fb847052df28e302525"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/ACCEPTANCE_CRITERIA.md",
+      "bytes": 15973,
+      "sha256": "38c294a17db3022aad0a56a7ea33347c4aae327253db876ba877ddc342c67c73"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/CHANGELOG.md",
+      "bytes": 5166,
+      "sha256": "3df9e7f89893a8432313b65dc79f4a2aaa4148aab38cf25297ada3fa7ecf23af"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/DESIGN.md",
+      "bytes": 12307,
+      "sha256": "a7dec4b2f6a7251b57ab269cd551524e7399a10b9757fea0676d94745747e410"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/FILE_CHANGES.md",
+      "bytes": 7178,
+      "sha256": "b27b8fcb3169478ebe4a3f45e607a0113f663156927c12812862c51bd923b06b"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/FIXTURES.md",
+      "bytes": 10267,
+      "sha256": "5d5ae451e6b7663e459ca034b402c42bba3735d51b329989cb3eae7e81f7f3d3"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/FR.md",
+      "bytes": 24741,
+      "sha256": "33b0b2166d9d05082f07b12872dcf087254f8666a8ad9db098c6ab592dc4fe9a"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/NFR.md",
+      "bytes": 7569,
+      "sha256": "bd5b726aef42cebfff0114d07fe08616fb5db0bb49508a6a72250823874ee9cc"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/README.md",
+      "bytes": 1933,
+      "sha256": "0407035f1d0483963e03c7f1d24d059b190d6e65e9ecc2473fc67310406fab27"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/REQUIREMENTS.md",
+      "bytes": 18525,
+      "sha256": "961954ff6728ad9a394ae5ad10b6410aab6c6284d4f747ee157781f20802a9aa"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/RESEARCH.md",
+      "bytes": 10013,
+      "sha256": "021756635df80bdab81dee507512e9b83f0c999bc258af271cdfc27ce26d1d9a"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/TASKS.md",
+      "bytes": 13808,
+      "sha256": "f9cc8e5fa9ece944b72749bd398e7caf52ce5c40443641d6c0f2668d150e4a41"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/USER_STORIES.md",
+      "bytes": 6290,
+      "sha256": "cf7430021456c68d1cf05f3d490262506d1dfe6064b32a31d6f60773fb4330c8"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/USE_CASES.md",
+      "bytes": 8070,
+      "sha256": "0d9590fae5aad4c386ad45bec0b77cc2c1b2ace53c6546c4fb4ef8128e022c22"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/spec-mcp-operations.feature",
+      "bytes": 15192,
+      "sha256": "c65287f7067dc5bd80e8883e7f54372e41bd9d169e75231297202a2521895a9e"
+    },
+    {
+      "path": ".specs/spec-mcp-operations/spec-mcp-operations_SCHEMA.md",
+      "bytes": 17196,
+      "sha256": "797fa84338ac3fd0d5deeac750e28e62a599ba8491c5d4fe54078765a5e00a42"
+    }
+  ],
+  "aggregateSha256": "51042578984220dc47c40aa7ce2009be2e0ba1c9fe19ee6a42f3bbb2aa357a86",
+  "licenseDisposition": "Copied from the repository's MIT-licensed specification corpus for release verification; no external content added."
+}

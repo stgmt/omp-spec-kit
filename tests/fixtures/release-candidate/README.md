@@ -1,18 +1,22 @@
 # Cucumber Message fixture
 
-`cucumber-messages.ndjson` is an unmodified real Cucumber Message stream captured from the repository's Docker BDD container. It is read-only: semantic rejection scenarios mutate parsed envelopes only in memory.
+`cucumber-messages.ndjson` is an unmodified real Cucumber Message stream captured by the repository's unfiltered Docker BDD producer. Semantic rejection scenarios mutate parsed envelopes only in memory.
 
-`cucumber-messages.provenance.json` is a closed immutable provenance record. The BDD fixture loader verifies every field, the SHA-256 of the raw fixture bytes, and the documented scenario and completed-step counts before either the release-candidate oracle or any mutation is used.
+`cucumber-messages.provenance.json` is a closed v2 receipt. `cucumber-messages.inputs.json` lists every content-addressed producer input outside this fixture directory. The fixture loader re-hashes the stream, source manifest, every listed current input, and the aggregate before any release oracle or mutation is used. `parentFixtureSha256` records the prior real stream used by the self-hosting mutation scenarios during capture; it is not relabeled as current output.
 
 | Field | Value |
 |---|---|
-| Fixture SHA-256 | `3f748539baa884a29b3c99e94d98087a1e8876257d924719238e89ab64f44335` |
-| Repository commit | `86a80f59d600d6c6f2c581c93d55fd3981a92989` |
-| Docker image digest | `sha256:75680db26398fa5250cbb349f523d8d481ed50aa91fa758c8b6e1c7298f6daab` |
+| Fixture SHA-256 | `c568d98c1137688950286d57271b3d9a3aa0de5114bc18de5185d923246717dd` |
+| Repository base commit | `843b40af742592a74964f101f41d7dfa6cf3223b` |
+| Source state | `working-tree-content-addressed` |
+| Parent fixture SHA-256 | `eadb0c0ec669ecef114d49371886f53b6fa6ee0c496291d21ba932650a20424e` |
+| Source inputs | 186 files; aggregate `d3c32661aedddd1f74cb278eb35cb0f7e75d283ae0cabd7a142e3b2cfcf2a2b3` |
+| Source manifest SHA-256 | `4b09cf6c6abe572d36d1e54c8592127b6859acbed6c1c4bf4117fb05d3425751` |
+| Docker image digest | `sha256:48633e327b2e8ff30f38ebc0a5710165b62b37e9dc46a1758d1ffc9147fcdae9` |
 | Cucumber version | `@cucumber/cucumber` `13.2.1` |
-| Capture command | `wsl.exe -e bash -lc "docker run --rm --env OMP_SPEC_KIT_BDD_MESSAGE_STDOUT=1 omp-spec-kit-bdd:local"` |
-| Capture date | `2026-08-24` |
-| Scenario count | `38` |
-| Completed-step count | `302` |
+| Capture command | `bash scripts/docker-bdd.sh` |
+| Capture date | `2026-08-31` |
+| Executed scenarios | 58 |
+| Completed steps | 493 |
 
-Ground truth: the stream contains a complete passing execution chain for every release-evidence-tagged scenario: `pickle`, `testCase`, `testCaseStarted`, `testStepFinished` with `PASSED`, and exactly one `testCaseFinished` for each start. The evaluator rejects meta-only, malformed, duplicate-terminal, retry-only, missing-chain, and non-passing-terminal-step evidence with a named `CucumberEvidenceError` code.
+Ground truth: the stream contains all 11 MRI scenario IDs and all 12 source-derived MRI pickle executions. Every required pickle has one test case and a complete passing terminal chain; the stream has one final successful `testRunFinished`. The evaluator rejects malformed/meta-only, missing or duplicate chain members, missing non-first outline expansions, retry-only and non-passing evidence with named `CucumberEvidenceError` codes.

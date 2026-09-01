@@ -1,6 +1,6 @@
 // Shared helpers for the real distribution lifecycle producers. Every helper
-// drives the pinned OMP 17.3.7 runtime exactly the way
-// scripts/probe-omp-discovery-v17.3.7.mjs does: bounded phases, fresh HOME
+// drives the pinned OMP 18.0.10 runtime exactly the way
+// scripts/probe-omp-discovery-v18.0.10.mjs does: bounded phases, fresh HOME
 // isolation supplied by the caller, and no fabricated observations.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -9,6 +9,10 @@ import { pathToFileURL } from "node:url";
 
 function fail(message) {
 	throw new Error(`lifecycle: ${message}`);
+}
+function targetConfigName(configs, sources, targetName) {
+	const names = Object.keys(configs);
+	return names.find((name) => (name === targetName || name.endsWith(`:${targetName}`)) && Object.hasOwn(sources, name));
 }
 export const DEFAULT_PHASE_TIMEOUT_MS = 30000;
 export const MAX_PHASE_TIMEOUT_MS = 120000;
@@ -100,13 +104,15 @@ export async function reloadCapability(cwd, targetName, modules, timeoutMs = DEF
 		const capability = await modules.discovery.loadCapability(modules.mcpCapability.id, { cwd });
 		const configLoad = await modules.loadAllMCPConfigs(cwd, { enableProjectConfig: true, filterExa: true, filterBrowser: false });
 		const loadedNames = Object.keys(configLoad.configs).sort();
-		if (!(targetName in configLoad.configs) || !(targetName in configLoad.sources)) {
+		const resolvedName = targetConfigName(configLoad.configs, configLoad.sources, targetName);
+		if (!resolvedName) {
 			fail(`reloaded config/source missing ${targetName}; loaded: ${loadedNames.join(", ") || "<none>"}`);
 		}
 		return {
 			capability,
-			targetConfigs: { [targetName]: configLoad.configs[targetName] },
-			targetSources: { [targetName]: configLoad.sources[targetName] },
+			targetName: resolvedName,
+			targetConfigs: { [resolvedName]: configLoad.configs[resolvedName] },
+			targetSources: { [resolvedName]: configLoad.sources[resolvedName] },
 			loadedNames,
 		};
 	});
@@ -134,14 +140,15 @@ export async function loadAndConnect(cwd, targetName, targetConfigs, targetSourc
 	const manager = new modules.MCPManager(cwd);
 	const result = await phase("connect", timeoutMs, async () => {
 		const connectionResult = await manager.connectServers(targetConfigs, targetSources, () => {});
-		if (!(connectionResult.connectedServers ?? []).includes(targetName)) {
-			throw new Error(`server ${targetName} did not connect; connected: ${(connectionResult.connectedServers ?? []).join(", ") || "<none>"}`);
+		const resolvedName = targetConfigName(targetConfigs, targetSources, targetName) ?? targetName;
+		if (!(connectionResult.connectedServers ?? []).includes(resolvedName)) {
+			throw new Error(`server ${resolvedName} did not connect; connected: ${(connectionResult.connectedServers ?? []).join(", ") || "<none>"}`);
 		}
 		const tool = manager.getTools().find((candidate) =>
-			candidate.mcpServerName === targetName && candidate.mcpToolName === "spec_inventory",
+			candidate.mcpServerName === resolvedName && candidate.mcpToolName === "spec_inventory",
 		);
-		if (!tool) throw new Error(`OMP manager did not expose ${targetName}/spec_inventory`);
-		return { tool, toolCount: connectionResult.tools.length };
+		if (!tool) throw new Error(`OMP manager did not expose ${resolvedName}/spec_inventory`);
+		return { tool, toolCount: connectionResult.tools.length, serverName: resolvedName };
 	});
 	if (!result.ok) throw new Error(`connect failed: ${result.error.message}`);
 	return { manager, ...result.value };

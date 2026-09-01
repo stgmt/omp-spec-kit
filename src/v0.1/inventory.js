@@ -1,7 +1,7 @@
 import { lstat, opendir, realpath } from "node:fs/promises";
 import path from "node:path";
 
-export const PLUGIN_VERSION = "0.3.2";
+export const PLUGIN_VERSION = "0.4.0";
 export const SCHEMA_VERSION = "1";
 export const HARD_MAX_SPECS = 200;
 export const HARD_MAX_DIAGNOSTICS = 100;
@@ -846,5 +846,9 @@ export async function inventorySpecs(projectRoot, request = {}, signal, runtimeH
 export function summarizeInventory(result) {
   const observed = result.counts.observedSpecs === null ? "unknown" : String(result.counts.observedSpecs);
   const suffix = result.truncated ? " (truncated)" : "";
-  return `spec_inventory ${result.status}: returned ${result.counts.returnedSpecs} of ${observed} observed specs; ${result.counts.returnedDiagnostics} diagnostics${suffix}.`;
+  const mismatch =
+    result.provenance?.matchesActiveProject === false
+      ? " source=explicit-absolute-override, active-project-mismatch"
+      : "";
+  return `spec_inventory ${result.status}: returned ${result.counts.returnedSpecs} of ${observed} observed specs; ${result.counts.returnedDiagnostics} diagnostics${suffix}.${mismatch}`;
 }

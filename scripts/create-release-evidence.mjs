@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertCandidateShape, canonicalJson, fail, isSha256, parseArgs, readStrictJson, resolveContainedRegularFile, sha256 } from "./release-candidate-utils.mjs";
 
-const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, index) => `mcp-release-integrity:FR-${index + 1}`));
+const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, index) => `plugin-distribution:FR-${index + 19}`));
 
 export class CucumberEvidenceError extends Error {
   constructor(code, message) {
@@ -78,28 +78,64 @@ export async function copyUntrustedDistributionEvidenceBundle(source, outputDire
   return { status: "present", path: targetRelative, digest: sha256(bytes) };
 }
 
-function requiredScenarioIds(featureSource) {
-  const ids = [];
-  let tags = [];
-  for (const line of featureSource.split(/\r?\n/u)) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("@")) {
-      tags = trimmed.split(/\s+/u).filter((tag) => tag.startsWith("@"));
+export function requiredScenarioMultiplicity(featureSource) {
+  const required = new Map();
+  let pendingTags = [];
+  let current = null;
+
+  const finish = () => {
+    if (current === null) return;
+    const count = current.outline ? current.exampleRows : 1;
+    if (count < 1) fail(`release-evidence outline ${current.scenarioId} has no example rows`);
+    if (required.has(current.scenarioId)) fail(`duplicate release-evidence scenario id ${current.scenarioId}`);
+    required.set(current.scenarioId, count);
+    current = null;
+  };
+
+  for (const rawLine of featureSource.split(/\r?\n/u)) {
+    const trimmed = rawLine.trim();
+    const indent = rawLine.length - rawLine.trimStart().length;
+    if (trimmed.startsWith("@") && indent <= 2) {
+      finish();
+      pendingTags = trimmed.split(/\s+/u).filter((tag) => tag.startsWith("@"));
       continue;
     }
-    if (!/^Scenario(?: Outline)?:/u.test(trimmed)) continue;
-    if (tags.includes("@release-evidence")) {
-      const id = tags.find((tag) => tag.startsWith("@id:"))?.slice(4);
-      if (!id) fail(`release-evidence scenario has no id near ${trimmed}`);
-      ids.push(id);
+    const scenario = trimmed.match(/^Scenario( Outline)?:/u);
+    if (scenario) {
+      finish();
+      if (pendingTags.includes("@release-evidence")) {
+        const scenarioId = pendingTags.find((tag) => tag.startsWith("@id:"))?.slice(4);
+        if (!scenarioId) fail(`release-evidence scenario has no id near ${trimmed}`);
+        current = { scenarioId, outline: scenario[1] !== undefined, exampleRows: 0, inExamples: false, headerSeen: false };
+      }
+      pendingTags = [];
+      continue;
     }
-    tags = [];
+    if (current === null || !current.outline) continue;
+    if (/^Examples:/u.test(trimmed)) {
+      current.inExamples = true;
+      current.headerSeen = false;
+      continue;
+    }
+    if (current.inExamples && trimmed.startsWith("|")) {
+      if (current.headerSeen) current.exampleRows += 1;
+      else current.headerSeen = true;
+    }
   }
-  if (ids.length === 0 || new Set(ids).size !== ids.length) fail("release BDD feature must contain unique release-evidence scenario ids");
-  return ids.sort();
+  finish();
+  if (required.size === 0) fail("release BDD feature must contain release-evidence scenarios");
+  return new Map([...required.entries()].sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0));
 }
 
-export function cucumberMessages(bytes, requiredIds) {
+export function cucumberMessages(bytes, requiredScenarioCounts) {
+  const required = requiredScenarioCounts instanceof Map
+    ? new Map(requiredScenarioCounts)
+    : new Map([...requiredScenarioCounts].map((scenarioId) => [scenarioId, 1]));
+  for (const [scenarioId, count] of required) {
+    if (typeof scenarioId !== "string" || !Number.isInteger(count) || count < 1) {
+      cucumberEvidenceFail("INVALID_REQUIRED_SCENARIO_SET", `has invalid required multiplicity for ${String(scenarioId)}`);
+    }
+  }
   const messages = [];
   for (const [index, line] of bytes.toString("utf8").split(/\r?\n/u).entries()) {
     if (!line.trim()) continue;
@@ -126,10 +162,16 @@ export function cucumberMessages(bytes, requiredIds) {
   const finished = new Map();
   const runStarts = new Map();
   const runFinished = [];
+  const setUnique = (map, id, value, code, label) => {
+    if (typeof id !== "string" || id.length === 0 || map.has(id)) {
+      cucumberEvidenceFail(code, `has duplicate or missing ${label} id ${String(id)}`);
+    }
+    map.set(id, value);
+  };
   for (const [sequence, envelope] of messages.entries()) {
-    if (envelope.pickle) pickles.set(envelope.pickle.id, envelope.pickle);
-    if (envelope.testCase) testCases.set(envelope.testCase.id, envelope.testCase);
-    if (envelope.testCaseStarted) starts.set(envelope.testCaseStarted.id, { ...envelope.testCaseStarted, sequence });
+    if (envelope.pickle) setUnique(pickles, envelope.pickle.id, envelope.pickle, "DUPLICATE_PICKLE", "pickle");
+    if (envelope.testCase) setUnique(testCases, envelope.testCase.id, envelope.testCase, "DUPLICATE_TEST_CASE", "testCase");
+    if (envelope.testCaseStarted) setUnique(starts, envelope.testCaseStarted.id, { ...envelope.testCaseStarted, sequence }, "DUPLICATE_TEST_CASE_STARTED", "testCaseStarted");
     if (envelope.testStepFinished) {
       const id = envelope.testStepFinished.testCaseStartedId;
       const list = statuses.get(id) ?? [];
@@ -141,7 +183,7 @@ export function cucumberMessages(bytes, requiredIds) {
       if (finished.has(id)) cucumberEvidenceFail("DUPLICATE_TEST_CASE_FINISHED", `has duplicate testCaseFinished for ${id}`);
       finished.set(id, envelope.testCaseFinished);
     }
-    if (envelope.testRunStarted) runStarts.set(envelope.testRunStarted.id, envelope.testRunStarted);
+    if (envelope.testRunStarted) setUnique(runStarts, envelope.testRunStarted.id, envelope.testRunStarted, "DUPLICATE_TEST_RUN_STARTED", "testRunStarted");
     if (envelope.testRunFinished) runFinished.push({ ...envelope.testRunFinished, sequence });
   }
   if (runFinished.length > 1) cucumberEvidenceFail("DUPLICATE_TEST_RUN_FINISHED", "has more than one testRunFinished");
@@ -155,24 +197,42 @@ export function cucumberMessages(bytes, requiredIds) {
   }
 
   const passed = [];
-  for (const scenarioId of requiredIds) {
-    const pickle = [...pickles.values()].find((value) => value.tags?.some((tag) => tag.name === `@id:${scenarioId}`));
-    if (!pickle) cucumberEvidenceFail("MISSING_PICKLE", `has no pickle for ${scenarioId}`);
-    const testCase = [...testCases.values()].find((value) => value.pickleId === pickle.id);
-    if (!testCase) cucumberEvidenceFail("MISSING_TEST_CASE", `has no testCase for ${scenarioId}`);
-    const attempts = [...starts.entries()].filter(([, start]) => start.testCaseId === testCase.id);
-    if (attempts.length === 0) cucumberEvidenceFail("MISSING_TEST_CASE_STARTED", `has no testCaseStarted for ${scenarioId}`);
-    const completedAttempts = attempts.filter(([startId]) => finished.has(startId));
-    if (completedAttempts.length === 0) cucumberEvidenceFail("MISSING_TEST_CASE_FINISHED", `has no testCaseFinished for ${scenarioId}`);
-    const terminalAttempts = completedAttempts
-      .filter(([startId]) => finished.get(startId).willBeRetried === false)
-      .sort(([, left], [, right]) => (right.attempt ?? 0) - (left.attempt ?? 0) || right.sequence - left.sequence);
-    if (terminalAttempts.length === 0) cucumberEvidenceFail("RETRY_ONLY_TERMINAL_PATH", `has no non-retried terminal attempt for ${scenarioId}`);
-    if (terminalAttempts.length > 1) cucumberEvidenceFail("MULTIPLE_TERMINAL_ATTEMPTS", `has ${terminalAttempts.length} terminal attempts for ${scenarioId}`);
-    const [startId] = terminalAttempts[0];
-    const stepStatuses = statuses.get(startId) ?? [];
-    if (stepStatuses.length === 0) cucumberEvidenceFail("MISSING_TEST_STEP_FINISHED", `has no testStepFinished for ${scenarioId}`);
-    if (stepStatuses.some((status) => status !== "PASSED")) cucumberEvidenceFail("NON_PASSING_TERMINAL_STEP", `records a non-passing terminal step for ${scenarioId}`);
+  for (const [scenarioId, expectedPickleCount] of required) {
+    const scenarioPickles = [...pickles.values()].filter((value) =>
+      value.tags?.some((tag) => tag.name === `@id:${scenarioId}`),
+    );
+    if (scenarioPickles.length === 0) {
+      cucumberEvidenceFail("MISSING_PICKLE", `has no pickle for ${scenarioId}`);
+    }
+    if (scenarioPickles.length !== expectedPickleCount) {
+      cucumberEvidenceFail(
+        "SCENARIO_MULTIPLICITY_MISMATCH",
+        `expected ${expectedPickleCount} pickles for ${scenarioId} but found ${scenarioPickles.length}`,
+      );
+    }
+    for (const pickle of scenarioPickles) {
+      const matchingTestCases = [...testCases.values()].filter((value) => value.pickleId === pickle.id);
+      if (matchingTestCases.length === 0) {
+        cucumberEvidenceFail("MISSING_TEST_CASE", `has no testCase for ${scenarioId}`);
+      }
+      if (matchingTestCases.length > 1) {
+        cucumberEvidenceFail("DUPLICATE_TEST_CASE", `has ${matchingTestCases.length} testCases for ${scenarioId} pickle ${pickle.id}`);
+      }
+      const testCase = matchingTestCases[0];
+      const attempts = [...starts.entries()].filter(([, start]) => start.testCaseId === testCase.id);
+      if (attempts.length === 0) cucumberEvidenceFail("MISSING_TEST_CASE_STARTED", `has no testCaseStarted for ${scenarioId}`);
+      const completedAttempts = attempts.filter(([startId]) => finished.has(startId));
+      if (completedAttempts.length === 0) cucumberEvidenceFail("MISSING_TEST_CASE_FINISHED", `has no testCaseFinished for ${scenarioId}`);
+      const terminalAttempts = completedAttempts
+        .filter(([startId]) => finished.get(startId).willBeRetried === false)
+        .sort(([, left], [, right]) => (right.attempt ?? 0) - (left.attempt ?? 0) || right.sequence - left.sequence);
+      if (terminalAttempts.length === 0) cucumberEvidenceFail("RETRY_ONLY_TERMINAL_PATH", `has no non-retried terminal attempt for ${scenarioId}`);
+      if (terminalAttempts.length > 1) cucumberEvidenceFail("MULTIPLE_TERMINAL_ATTEMPTS", `has ${terminalAttempts.length} terminal attempts for ${scenarioId}`);
+      const [startId] = terminalAttempts[0];
+      const stepStatuses = statuses.get(startId) ?? [];
+      if (stepStatuses.length === 0) cucumberEvidenceFail("MISSING_TEST_STEP_FINISHED", `has no testStepFinished for ${scenarioId}`);
+      if (stepStatuses.some((status) => status !== "PASSED")) cucumberEvidenceFail("NON_PASSING_TERMINAL_STEP", `records a non-passing terminal step for ${scenarioId}`);
+    }
     passed.push(scenarioId);
   }
   return passed;
@@ -193,9 +253,9 @@ export async function createReleaseEvidence({
   const candidate = assertCandidateShape(await readStrictJson(candidatePath, "candidate manifest"), "candidate manifest");
   await mkdir(outputDirectory, { recursive: true });
   const catalogDigest = sha256(await readFile(path.join(repositoryRoot, ".omp-plugin", "marketplace.json")));
-  const requiredIds = requiredScenarioIds(await readFile(path.join(repositoryRoot, ".specs", "mcp-release-integrity", "mcp-release-integrity.feature"), "utf8"));
+  const requiredScenarios = requiredScenarioMultiplicity(await readFile(path.join(repositoryRoot, ".specs", "plugin-distribution", "plugin-distribution.feature"), "utf8"));
   const sourceMessageBytes = await readFile(cucumberMessagesPath);
-  const scenarioIds = cucumberMessages(sourceMessageBytes, requiredIds);
+  const scenarioIds = cucumberMessages(sourceMessageBytes, requiredScenarios);
   const messageRelativePath = "messages/cucumber.ndjson";
   const messagePath = path.join(outputDirectory, messageRelativePath);
   await mkdir(path.dirname(messagePath), { recursive: true });
@@ -215,9 +275,9 @@ export async function createReleaseEvidence({
   const checks = {
     publicSafety: await copyReceipt(publicSafetyPath, outputDirectory, "public-safety.json"),
     dockerBdd: await copyReceipt(bddReceiptPath, outputDirectory, "docker-bdd-copy.json"),
-    priorV030: await copyReceipt(path.join(lifecycleDirectory, "prior-v0.3.0.json"), outputDirectory, "prior-v0.3.0.json"),
-    upgradeFromV030: await copyReceipt(path.join(lifecycleDirectory, "upgrade-from-v0.3.0.json"), outputDirectory, "upgrade-from-v0.3.0.json"),
-    rollbackToV030: await copyReceipt(path.join(lifecycleDirectory, "rollback-to-v0.3.0.json"), outputDirectory, "rollback-to-v0.3.0.json"),
+    priorV032: await copyReceipt(path.join(lifecycleDirectory, "prior-v0.3.2.json"), outputDirectory, "prior-v0.3.2.json"),
+    upgradeFromV032: await copyReceipt(path.join(lifecycleDirectory, "upgrade-from-v0.3.2.json"), outputDirectory, "upgrade-from-v0.3.2.json"),
+    rollbackToV032: await copyReceipt(path.join(lifecycleDirectory, "rollback-to-v0.3.2.json"), outputDirectory, "rollback-to-v0.3.2.json"),
   };
   const frReceipts = Object.create(null);
   for (const requirement of MRI_REQUIREMENTS) {

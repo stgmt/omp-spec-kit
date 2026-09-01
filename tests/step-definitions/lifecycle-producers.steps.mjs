@@ -70,7 +70,7 @@ After({ tags: "@lifecycle-producers" }, async function () {
 Given("the pinned omp-discovery-runtime fixture and its bun-installed dependencies exist", async function () {
 	assert.equal(process.env.OMP_SPEC_KIT_BDD_CONTAINER, "1", "lifecycle producers run only inside the BDD container");
 	const runtimePackage = await readJson(path.join(RUNTIME_ROOT, "package.json"));
-	assert.equal(runtimePackage.dependencies["@oh-my-pi/pi-coding-agent"], "17.3.7");
+	assert.equal(runtimePackage.dependencies["@oh-my-pi/pi-coding-agent"], "18.0.10");
 	assert.ok(
 		existsSync(path.join(RUNTIME_ROOT, "node_modules", "@oh-my-pi", "pi-coding-agent", "src", "discovery", "index.ts")),
 		"pinned runtime is not installed; the BDD image must run bun install first",
@@ -335,7 +335,7 @@ When("create-distribution-evidence runs with --lifecycle-receipts-dir", { timeou
 		}, null, 2)}\n`,
 	);
 
-	const discoveryDoc = path.join(REPOSITORY_ROOT, "docs", "validation", "omp-discovery-v17.3.7.md");
+	const discoveryDoc = path.join(REPOSITORY_ROOT, "docs", "validation", "omp-discovery-v18.0.10.md");
 	const { createHash } = await import("node:crypto");
 	const discoveryDigest = createHash("sha256").update(await readFile(discoveryDoc)).digest("hex");
 
@@ -589,8 +589,8 @@ Then("each FR receipt cites its own passing release-evidence scenario id", async
 		const receipt = JSON.parse(await readFile(path.join(out, "fr", `FR-${index}.json`), "utf8"));
 		exactKeySet(receipt, COMPOSER_FR_KEYS);
 		assert.equal(receipt.schema, "omp-spec-kit-fr-receipt@1");
-		assert.equal(receipt.requirement, `mcp-release-integrity:FR-${index}`);
-		assert.match(receipt.scenarioId, /^SCEN-MRI-\d{3}$/u, `FR-${index} scenario id must be an MRI scenario`);
+		assert.equal(receipt.requirement, `plugin-distribution:FR-${index + 18}`);
+		assert.match(receipt.scenarioId, /^SCEN-mri-[a-z0-9]+(?:-[a-z0-9]+)*$/u, `FR-${index} scenario id must use canonical lower-kebab MRI grammar`);
 	}
 	assert.ok(this.lifecycle.composerOutput.scenarioIds.length > 0, "composer summary must cite passing scenario ids");
 });

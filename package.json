@@ -1,6 +1,6 @@
 {
   "name": "omp-spec-kit-repository",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,12 +8,15 @@
   },
   "scripts": {
     "build": "node scripts/build-plugin.mjs",
-    "verify": "node scripts/verify-marketplace.mjs && node scripts/verify-package.mjs",
-    "check:spec-port": "node scripts/check-spec-generator-port-freeze.mjs",
-    "bdd:container": "node scripts/run-bdd-container.mjs",
+    "verify": "node scripts/verify-marketplace.mjs && node scripts/verify-package.mjs && npm run check:spec-corpus && npm run check:spec-port",
+    "check:spec-corpus": "node scripts/check-spec-corpus.mjs",
+    "check:spec-port": "node scripts/check-spec-port.mjs",
+    "dogfood:mcp": "node scripts/dogfood-mcp.mjs",
+    "dogfood:mcp:candidate": "node -e \"process.env.OMP_SPEC_KIT_STAGE='v0.4.0'; import('./scripts/dogfood-mcp.mjs')\"",
     "test:bdd": "bash scripts/docker-bdd.sh",
-    "test:bdd:omp-discovery": "bash scripts/docker-bdd.sh --tags '@id:SCEN-MRI-012 or @id:SCEN-MRI-013'",
-    "test": "npm run build && npm run verify && npm run test:bdd"
+    "test:bdd:omp-discovery": "bash scripts/docker-bdd.sh --tags '@id:SCEN-mri-active-project-manager-receipt or @id:SCEN-mri-missing-payload-refusal'",
+    "test": "npm run build && npm run verify && npm run dogfood:mcp:candidate && npm run test:safe-authoring && npm run test:bdd",
+    "test:safe-authoring": "npx cucumber-js --tags @safe-authoring --format progress"
   },
   "devDependencies": {
     "@cucumber/cucumber": "13.2.1"

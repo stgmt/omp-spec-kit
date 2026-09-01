@@ -6,7 +6,7 @@ COPY --from=pinned-bun /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /workspace
 ENV CI=1
 
-COPY package.json package-lock.json cucumber.mjs LICENSE ./
+COPY package.json package-lock.json cucumber.mjs LICENSE README.md CHANGELOG.md ./
 COPY tests/fixtures/omp-discovery-runtime/package.json tests/fixtures/omp-discovery-runtime/bun.lock ./tests/fixtures/omp-discovery-runtime/
 RUN npm ci --ignore-scripts --no-audit --no-fund \
  && cd tests/fixtures/omp-discovery-runtime \
@@ -14,7 +14,8 @@ RUN npm ci --ignore-scripts --no-audit --no-fund \
 
 COPY .omp-plugin/ .omp-plugin/
 COPY .specs/ .specs/
-COPY docs/validation/omp-discovery-v17.3.7.md docs/validation/omp-discovery-v17.3.7.md
+COPY docs/validation/omp-discovery-v18.0.10.md docs/validation/omp-discovery-v18.0.10.md
+COPY docs/validation/release-status-v0.3.2.json docs/validation/release-status-v0.3.2.json
 COPY docs/advisories/v0.3.0-mcp-root.md docs/advisories/v0.3.0-mcp-root.md
 COPY plugins/ plugins/
 COPY scripts/ scripts/
@@ -23,7 +24,7 @@ COPY tests/ tests/
 RUN node scripts/build-plugin.mjs \
  && node scripts/verify-marketplace.mjs \
  && node scripts/verify-package.mjs \
- && cp scripts/probe-omp-discovery-v17.3.7.mjs tests/fixtures/omp-discovery-runtime/probe-omp-discovery-v17.3.7.mjs
+ && cp scripts/probe-omp-discovery-v18.0.10.mjs tests/fixtures/omp-discovery-runtime/probe-omp-discovery-v18.0.10.mjs
 
 ENV OMP_SPEC_KIT_BDD_CONTAINER=1
 CMD ["node", "scripts/run-bdd-container.mjs"]

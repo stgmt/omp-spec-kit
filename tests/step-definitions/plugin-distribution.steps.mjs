@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, rename, rm, symlink, writeFile } from "node:fs/promises
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { inventorySpecs } from "../../src/v0.1/inventory.js";
+import { createResponseProvenance } from "../../src/adapters/query-service.js";
 import { snapshotTree } from "../support/world.mjs";
 
 const PLUGIN_VERSION = "0.3.2";
@@ -22,8 +23,8 @@ const REAL_SLUGS = Object.freeze([
 function diagnostic(code, severity, diagnosticPath, message, remediation) {
   return { code, severity, path: diagnosticPath, message, remediation };
 }
-function result({ status, specs = [], diagnostics = [], observedSpecs, truncated = false }) {
-  return {
+function result({ status, specs = [], diagnostics = [], observedSpecs, truncated = false, provenance }) {
+  const output = {
     schemaVersion: SCHEMA_VERSION,
     tool: TOOL_NAME,
     pluginVersion: PLUGIN_VERSION,
@@ -39,6 +40,7 @@ function result({ status, specs = [], diagnostics = [], observedSpecs, truncated
     truncated,
     readOnly: true,
   };
+  return provenance === undefined ? output : { ...output, provenance };
 }
 function canonicalNames(slug) {
   return CANONICAL_DOCUMENTS.map((name) => name.replaceAll("<slug>", slug)).sort();
@@ -372,6 +374,11 @@ Then("its content and structured details exactly describe the real four-spec cor
     specs: expectedSlugs.map((slug) => recognizedSpec(slug, true)),
     diagnostics: [],
     observedSpecs: expectedSlugs.length,
+    provenance: createResponseProvenance({
+      resolvedRoot: this.repositoryRoot,
+      activeProjectRoot: this.repositoryRoot,
+      rootMode: "active-project",
+    }),
   });
   assert.deepStrictEqual(this.probe.execution, {
     content: [

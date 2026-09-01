@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-const PROBE_FILE = "probe-omp-discovery-v17.3.7.mjs";
+const PROBE_FILE = "probe-omp-discovery-v18.0.10.mjs";
 
 /**
  * Runs the pinned OMP manager-handoff probe from the disposable Bun host

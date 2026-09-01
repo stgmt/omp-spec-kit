@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { After, Before, Given, Then, When } from "@cucumber/cucumber";
 import { createSpecService } from "../../src/adapters/query-service.js";
 import {
   MCP_TOOL_NAMES,
+  QUERY_ENVELOPE_KEYS,
   copyPluginPackage,
   loadPinnedCorpusGraph,
+  runExtensionProbe,
   spawnMcpServer,
   writeCorpus,
 } from "../helpers/mcp-world.mjs";
@@ -24,23 +26,23 @@ function toolArguments(tool) {
   const shared = { schemaVersion: "spec-kernel@1", requestId: `mri-${tool}` };
   switch (tool) {
     case "spec_inventory":
-      return { ...shared, specSlugs: ["product"], includeDocuments: false, limit: 50, cursor: null };
+      return { ...shared, specSlugs: ["plugin-distribution"], includeDocuments: false, limit: 50, cursor: null };
     case "spec_get_node":
-      return { ...shared, canonicalId: "product:FR-1", projection: "summary", includeIncidentCounts: false };
+      return { ...shared, canonicalId: "plugin-distribution:FR-1", projection: "summary", includeIncidentCounts: false };
     case "spec_find_nodes":
-      return { ...shared, specSlugs: ["product"], kinds: [], canonicalIds: [], text: null, projection: "summary", limit: 50, cursor: null };
+      return { ...shared, specSlugs: ["plugin-distribution"], kinds: [], canonicalIds: [], text: null, projection: "summary", limit: 50, cursor: null };
     case "spec_get_edges":
-      return { ...shared, canonicalId: "product:FR-1", direction: "out", types: [], aggregate: false, limit: 50, cursor: null };
+      return { ...shared, canonicalId: "plugin-distribution:FR-1", direction: "out", types: [], aggregate: false, limit: 50, cursor: null };
     case "spec_trace":
-      return { ...shared, canonicalId: "product:FR-1", direction: "out", types: [], maxDepth: 2, maxVisited: 50, projection: "summary", limit: 50, cursor: null };
+      return { ...shared, canonicalId: "plugin-distribution:FR-1", direction: "out", types: [], maxDepth: 2, maxVisited: 50, projection: "summary", limit: 50, cursor: null };
     case "spec_diagnostics":
-      return { ...shared, severities: [], codes: [], specSlugs: ["product"], paths: [], limit: 50, cursor: null };
+      return { ...shared, severities: [], codes: [], specSlugs: ["plugin-distribution"], paths: [], limit: 50, cursor: null };
     case "spec_overview":
-      return { ...shared, specSlugs: ["product"] };
+      return { ...shared, specSlugs: ["plugin-distribution"] };
     case "spec_markdown_inventory":
       return {
         ...shared,
-        specSlugs: ["product"],
+        specSlugs: ["plugin-distribution"],
         mode: "all",
         focusPath: null,
         focusAnchor: null,
@@ -58,9 +60,29 @@ function toolArguments(tool) {
 
 async function startInstalledServer(state, env = {}) {
   if (state.server !== null) await state.server.close();
-  state.server = spawnMcpServer({ command: state.launcher, cwd: state.projectA, env });
+  state.server = spawnMcpServer({
+    command: state.launcher,
+    cwd: state.projectA,
+    env,
+    root: env.OMP_SPEC_KIT_ROOT,
+  });
   state.initialize = await state.server.request("initialize", INITIALIZE_PARAMS);
   assert.equal(state.initialize.result.serverInfo.name, "omp-spec-kit");
+}
+
+async function collectInstalledResults(state) {
+  assert.equal(MCP_TOOL_NAMES.length, 8, "MRI provenance must cover the historical eight-tool surface");
+  const results = [];
+  for (const tool of MCP_TOOL_NAMES) {
+    results.push({
+      tool,
+      response: await state.server.request("tools/call", {
+        name: tool,
+        arguments: toolArguments(tool),
+      }),
+    });
+  }
+  return results;
 }
 
 Before({ tags: "@mcp-release-integrity" }, function () {
@@ -87,13 +109,20 @@ Given("an isolated v0.3.2 package and manifest-verified corpus exist", async fun
   await copyPluginPackage(repositoryRoot, packageRoot);
   await mkdir(path.join(packageRoot, ".specs", "package-decoy"), { recursive: true });
   await writeFile(path.join(packageRoot, ".specs", "package-decoy", "README.md"), "# Package Decoy\n");
+  const packageAlias = path.join(tempRoot, "package-decoy-alias");
+  await symlink(packageRoot, packageAlias, "dir");
   this.mri = {
     tempRoot,
     projectA,
     projectB,
     packageRoot,
+    packageAlias,
     launcher: path.join(packageRoot, "bin", "omp-spec-kit-mcp"),
     directService: createSpecService(projectA),
+    directServiceB: createSpecService(projectB, {
+      activeProjectRoot: projectA,
+      rootMode: "explicit-absolute-override",
+    }),
     specsBefore: await snapshotTree(path.join(projectA, ".specs")),
     server: null,
   };
@@ -110,7 +139,7 @@ When("the installed package launcher serves project-a without an override", asyn
     name: "spec_overview",
     arguments: toolArguments("spec_overview"),
   });
-  this.mri.overviewOracle = await this.mri.directService.runQuery("overview", { specSlugs: ["product"] }, {
+  this.mri.overviewOracle = await this.mri.directService.runQuery("overview", { specSlugs: ["plugin-distribution"] }, {
     requestId: "mri-spec_overview",
     schemaVersion: "spec-kernel@1",
   });
@@ -122,7 +151,7 @@ Then("the MCP overview contains only project-a specifications", function () {
   assert.equal(this.mri.overview.result.structuredContent.data.counts.acceptedDocuments, this.mri.specsBefore.entries.filter((entry) => entry.type === "file").length);
 });
 
-Then("a relative or unresolved root override cannot select package-decoy", async function () {
+Then("relative unresolved or package-root overrides cannot select package-decoy", async function () {
   await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: "package-decoy" });
   const relative = await this.mri.server.request("tools/call", {
     name: "spec_overview",
@@ -135,6 +164,56 @@ Then("a relative or unresolved root override cannot select package-decoy", async
     arguments: toolArguments("spec_overview"),
   });
   assert.deepStrictEqual(unresolved.result.structuredContent, this.mri.overviewOracle);
+  await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: this.mri.packageRoot });
+  const packageOverride = await this.mri.server.request("tools/call", {
+    name: "spec_overview",
+    arguments: toolArguments("spec_overview"),
+  });
+  assert.deepStrictEqual(packageOverride.result.structuredContent, this.mri.overviewOracle);
+  await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: this.mri.packageAlias });
+  const packageAliasOverride = await this.mri.server.request("tools/call", {
+    name: "spec_overview",
+    arguments: toolArguments("spec_overview"),
+  });
+  assert.deepStrictEqual(packageAliasOverride.result.structuredContent, this.mri.overviewOracle);
+});
+
+When("an explicit validated absolute override selects project-b", async function () {
+  await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: this.mri.projectB });
+  this.mri.projectBInventory = await this.mri.server.request("tools/call", {
+    name: "spec_inventory",
+    arguments: {
+      schemaVersion: "spec-kernel@1",
+      requestId: "mri-project-b-inventory",
+      specSlugs: ["project-b"],
+      includeDocuments: true,
+      limit: 50,
+      cursor: null,
+    },
+  });
+  this.mri.projectBInventoryOracle = await this.mri.directServiceB.runQuery(
+    "inventory",
+    { specSlugs: ["project-b"], includeDocuments: true, limit: 50, cursor: null },
+    { requestId: "mri-project-b-inventory", schemaVersion: "spec-kernel@1" },
+  );
+});
+
+Then("the MCP inventory contains only project-b specifications", function () {
+  assert.equal(this.mri.projectBInventory.result.isError, false);
+  assert.deepStrictEqual(this.mri.projectBInventory.result.structuredContent, this.mri.projectBInventoryOracle);
+  assert.deepStrictEqual(
+    this.mri.projectBInventory.result.structuredContent.data.specs.map((item) => item.specSlug),
+    ["project-b"],
+  );
+});
+
+Then("launcher startup from package cwd is refused before serving", async function () {
+  const server = spawnMcpServer({ command: this.mri.launcher, cwd: this.mri.packageRoot });
+  await assert.rejects(
+    server.request("initialize", INITIALIZE_PARAMS, 1000),
+    /PACKAGE_ROOT_REFUSED/u,
+  );
+  await server.close();
 });
 
 Given("an installed MCP server is running", async function () {
@@ -155,6 +234,30 @@ Then("the first response is -32600 for id 7", function () {
     jsonrpc: "2.0",
     id: 7,
     error: { code: -32600, message: "Invalid Request" },
+  });
+});
+
+When("the client sends an unknown method with id 8 and an unknown tool with id 9", async function () {
+  this.mri.unknownMethodResponse = await this.mri.server.sendFrame(
+    { jsonrpc: "2.0", id: 8, method: "unknown/method", params: {} },
+    1000,
+  );
+  this.mri.unknownToolResponse = await this.mri.server.sendFrame(
+    { jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "missing-tool", arguments: {} } },
+    1000,
+  );
+});
+
+Then("the responses are -32601 for id 8 and -32602 for id 9", function () {
+  assert.deepStrictEqual(this.mri.unknownMethodResponse, {
+    jsonrpc: "2.0",
+    id: 8,
+    error: { code: -32601, message: "Method not found: unknown/method" },
+  });
+  assert.deepStrictEqual(this.mri.unknownToolResponse, {
+    jsonrpc: "2.0",
+    id: 9,
+    error: { code: -32602, message: "Unknown tool: missing-tool" },
   });
 });
 
@@ -284,7 +387,7 @@ Then("the bounded receipt proves the isolated target-only manager query and copi
     },
   );
   assert.deepStrictEqual(receipt.provenance.runtime.name, "@oh-my-pi/pi-coding-agent");
-  assert.equal(receipt.provenance.runtime.version, "17.3.7");
+  assert.equal(receipt.provenance.runtime.version, "18.0.10");
   assert.equal(receipt.provenance.package.verification.distManifest.sha256, expectedDistManifestSha256);
   assert.equal(receipt.provenance.package.verification.distManifest.expectedSha256, expectedDistManifestSha256);
   assert.equal(receipt.provenance.package.verification.launcher.sha256, expectedLauncherSha256);
@@ -311,27 +414,27 @@ Then("the bounded receipt proves the isolated target-only manager query and copi
   assert.deepStrictEqual(receipt.enrollment.lockfile.contents.plugins, {
     "omp-spec-kit": { version: "0.3.2", enabledFeatures: null, enabled: true },
   });
-  assert.deepStrictEqual(receipt.capability.providers, ["omp-plugins"]);
-  assert.deepStrictEqual(receipt.capability.items.map(({ name }) => name), ["omp-spec-kit"]);
-  assert.deepStrictEqual(receipt.configLoad.inspection.loadedNames, ["omp-spec-kit"]);
-  assert.equal(receipt.configLoad.inspection.targetName, "omp-spec-kit");
-  assert.deepStrictEqual(Object.keys(receipt.configLoad.inspection.targetConfigs), ["omp-spec-kit"]);
-  assert.deepStrictEqual(Object.keys(receipt.configLoad.inspection.targetSources), ["omp-spec-kit"]);
-  assert.equal(receipt.configLoad.inspection.targetSources["omp-spec-kit"].provider, "omp-plugins");
-  assert.equal(Object.hasOwn(receipt.configLoad.inspection.targetConfigs["omp-spec-kit"], "cwd"), false);
-  assert.match(receipt.configLoad.inspection.targetConfigs["omp-spec-kit"].command, /\/bin\/omp-spec-kit-mcp$/);
-  assert.deepStrictEqual(receipt.manager.connectionResult.connectedServers, ["omp-spec-kit"]);
+  assert.deepStrictEqual(receipt.capability.providers, ["claude-plugins"]);
+  assert.deepStrictEqual(receipt.capability.items.map(({ name }) => name), ["omp-spec-kit:omp-spec-kit"]);
+  assert.deepStrictEqual(receipt.configLoad.inspection.loadedNames, ["omp-spec-kit:omp-spec-kit"]);
+  assert.equal(receipt.configLoad.inspection.targetName, "omp-spec-kit:omp-spec-kit");
+  assert.deepStrictEqual(Object.keys(receipt.configLoad.inspection.targetConfigs), ["omp-spec-kit:omp-spec-kit"]);
+  assert.deepStrictEqual(Object.keys(receipt.configLoad.inspection.targetSources), ["omp-spec-kit:omp-spec-kit"]);
+  assert.equal(receipt.configLoad.inspection.targetSources["omp-spec-kit:omp-spec-kit"].provider, "claude-plugins");
+  assert.equal(Object.hasOwn(receipt.configLoad.inspection.targetConfigs["omp-spec-kit:omp-spec-kit"], "cwd"), false);
+  assert.match(receipt.configLoad.inspection.targetConfigs["omp-spec-kit:omp-spec-kit"].command, /\/bin\/omp-spec-kit-mcp$/);
+  assert.deepStrictEqual(receipt.manager.connectionResult.connectedServers, ["omp-spec-kit:omp-spec-kit"]);
   assert.deepStrictEqual(receipt.manager.connectionResult.errors, {});
   assert.equal(receipt.manager.connectionResult.toolCount, 8);
   const managedQuery = receipt.manager.connectionResult.managedQuery;
-  assert.equal(managedQuery.tool.mcpServerName, "omp-spec-kit");
+  assert.equal(managedQuery.tool.mcpServerName, "omp-spec-kit:omp-spec-kit");
   assert.equal(managedQuery.tool.mcpToolName, "spec_inventory");
   assert.equal(managedQuery.result.isError, false);
   assert.deepStrictEqual(managedQuery.result.details, {
-    serverName: "omp-spec-kit",
+    serverName: "omp-spec-kit:omp-spec-kit",
     mcpToolName: "spec_inventory",
-    provider: "omp-plugins",
-    providerName: "OMP Extension Packages",
+    provider: "claude-plugins",
+    providerName: "Claude Code Marketplace",
   });
   const projectACounts = {
     returnedCount: this.mri.managerInventoryOracle.page.returned,
@@ -350,7 +453,7 @@ Then("the bounded receipt proves the isolated target-only manager query and copi
     text: `inventory ok, returned=${projectACounts.returnedCount}/${projectACounts.observedCount}`,
     ...projectACounts,
   });
-  assert.deepStrictEqual(receipt.manager.disconnect.before.serverNames, ["omp-spec-kit"]);
+  assert.deepStrictEqual(receipt.manager.disconnect.before.serverNames, ["omp-spec-kit:omp-spec-kit"]);
   assert.deepStrictEqual(receipt.manager.disconnect.after, { serverNames: [], servers: {} });
   assert.deepStrictEqual(receipt.manager.stateAfterDisconnect, { serverNames: [], servers: {} });
 });
@@ -372,4 +475,107 @@ Then("the invalid payload receipt fails before OMP enrollment", function () {
   assert.equal(receipt.capability, undefined);
   assert.equal(receipt.configLoad, undefined);
   assert.equal(receipt.manager, undefined);
+});
+
+When("the installed package launcher probes every MCP tool for project-a without an override", async function () {
+  await startInstalledServer(this.mri);
+  this.mri.provenanceActiveResults = await collectInstalledResults(this.mri);
+});
+
+Then("every installed result identifies the active project root and server", function () {
+  const results = this.mri.provenanceActiveResults;
+  assert.ok(Array.isArray(results), "the active-project probe must return a result collection");
+  assert.equal(results.length, MCP_TOOL_NAMES.length);
+  const resolvedRootIds = new Set();
+  const activeRootIds = new Set();
+  for (const { tool, response } of results) {
+    assert.equal(response.error, undefined, `${tool} must return a tools/call result`);
+    assert.equal(response.result.isError, false, `${tool} must succeed from project-a`);
+    const envelope = response.result.structuredContent;
+    assert.deepStrictEqual(Object.keys(envelope).sort(), [...QUERY_ENVELOPE_KEYS]);
+    assert.equal(envelope.provenance.serverName, "omp-spec-kit");
+    assert.equal(envelope.provenance.rootMode, "active-project");
+    assert.equal(envelope.provenance.matchesActiveProject, true);
+    assert.equal(envelope.provenance.resolvedRootId, envelope.provenance.activeProjectRootId);
+    assert.match(envelope.provenance.resolvedRootId, /^[0-9a-f]{64}$/);
+    assert.equal(JSON.stringify(response.result).includes(this.mri.projectA), false, `${tool} must not disclose project-a path`);
+    resolvedRootIds.add(envelope.provenance.resolvedRootId);
+    activeRootIds.add(envelope.provenance.activeProjectRootId);
+  }
+  assert.equal(resolvedRootIds.size, 1, "all active-project results must share one resolved root identity");
+  assert.equal(activeRootIds.size, 1, "all active-project results must share one active root identity");
+});
+
+When("the installed package launcher probes every MCP tool with project-b as an explicit override", async function () {
+  await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: this.mri.projectB });
+  this.mri.provenanceOverrideResults = await collectInstalledResults(this.mri);
+});
+
+Then("every installed result identifies project-b as an explicit root and marks the active-project mismatch", function () {
+  const results = this.mri.provenanceOverrideResults;
+  assert.ok(Array.isArray(results), "the explicit-override probe must return a result collection");
+  assert.equal(results.length, MCP_TOOL_NAMES.length);
+  const resolvedRootIds = new Set();
+  const activeRootIds = new Set();
+  for (const { tool, response } of results) {
+    assert.equal(response.error, undefined, `${tool} must return a tools/call result`);
+    assert.equal(typeof response.result.isError, "boolean", `${tool} must declare its result status`);
+    const envelope = response.result.structuredContent;
+    assert.deepStrictEqual(Object.keys(envelope).sort(), [...QUERY_ENVELOPE_KEYS]);
+    assert.equal(envelope.ok, !response.result.isError, `${tool} envelope status must match transport status`);
+    assert.equal(envelope.provenance.serverName, "omp-spec-kit");
+    assert.equal(envelope.provenance.rootMode, "explicit-absolute-override");
+    assert.equal(envelope.provenance.matchesActiveProject, false);
+    assert.notEqual(envelope.provenance.resolvedRootId, envelope.provenance.activeProjectRootId);
+    assert.match(envelope.provenance.resolvedRootId, /^[0-9a-f]{64}$/);
+    assert.match(envelope.provenance.activeProjectRootId, /^[0-9a-f]{64}$/);
+    assert.match(response.result.content[0].text, /active-project-mismatch/);
+    assert.equal(JSON.stringify(response.result).includes(this.mri.projectA), false, `${tool} must not disclose cwd path`);
+    assert.equal(JSON.stringify(response.result).includes(this.mri.projectB), false, `${tool} must not disclose override path`);
+    resolvedRootIds.add(envelope.provenance.resolvedRootId);
+    activeRootIds.add(envelope.provenance.activeProjectRootId);
+  }
+  assert.equal(resolvedRootIds.size, 1, "all explicit-override results must share project-b identity");
+  assert.equal(activeRootIds.size, 1, "all explicit-override results must share project-a identity");
+});
+
+When("the OMP extension runs with project-a as cwd and project-b as an explicit root override", async function () {
+  this.mri.extensionProbe = await runExtensionProbe({
+    extensionPath: path.join(this.mri.packageRoot, "dist", "extension.js"),
+    cwd: this.mri.projectA,
+    env: { OMP_SPEC_KIT_ROOT: this.mri.projectB },
+    queries: [
+      {
+        name: "spec_inventory",
+        params: { maxSpecs: 50, maxDiagnostics: 25, includeDocumentCounts: true },
+        cwd: this.mri.projectA,
+      },
+      {
+        name: "spec_overview",
+        params: { specSlugs: [] },
+        cwd: this.mri.projectA,
+      },
+    ],
+  });
+});
+
+Then("its inventory and query results identify the same project-b root and server", function () {
+  const results = this.mri.extensionProbe.queryResults;
+  assert.ok(Array.isArray(results), "the extension probe must return query results");
+  assert.deepStrictEqual(results.map((entry) => entry.name), ["spec_inventory", "spec_overview"]);
+  const provenances = results.map((entry) => entry.result.details.provenance);
+  assert.equal(provenances.length, 2);
+  for (const [index, provenance] of provenances.entries()) {
+    assert.equal(provenance.serverName, "omp-spec-kit");
+    assert.equal(provenance.rootMode, "explicit-absolute-override");
+    assert.equal(provenance.matchesActiveProject, false);
+    assert.match(provenance.resolvedRootId, /^[0-9a-f]{64}$/);
+    assert.match(provenance.activeProjectRootId, /^[0-9a-f]{64}$/);
+    assert.notEqual(provenance.resolvedRootId, provenance.activeProjectRootId);
+    assert.equal(JSON.stringify(results[index].result).includes(this.mri.projectA), false);
+    assert.equal(JSON.stringify(results[index].result).includes(this.mri.projectB), false);
+    assert.match(results[index].result.content[0].text, /active-project-mismatch/);
+  }
+  assert.equal(provenances[0].resolvedRootId, provenances[1].resolvedRootId);
+  assert.equal(provenances[0].activeProjectRootId, provenances[1].activeProjectRootId);
 });

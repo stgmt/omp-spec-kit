@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Composes the nine MRI lifecycle receipts (prior-v0.3.0, upgrade-from-v0.3.0,
-// rollback-to-v0.3.0, fr/FR-1..FR-6) at pipeline time from REAL producer
+// Composes the nine MRI lifecycle receipts (prior-v0.3.2, upgrade-from-v0.3.2,
+// rollback-to-v0.3.2, fr/FR-1..FR-6) at pipeline time from REAL producer
 // outputs, so create-release-evidence.mjs can copy them instead of requiring
 // pre-tag-committed receipts (a fixed-point impossibility for receipts that
 // embed the tagged commit).
@@ -19,11 +19,11 @@ import {
 	isCommit,
 	readStrictJson,
 } from "./release-candidate-utils.mjs";
-import { cucumberMessages } from "./create-release-evidence.mjs";
+import { cucumberMessages, requiredScenarioMultiplicity } from "./create-release-evidence.mjs";
 
-const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, index) => `mcp-release-integrity:FR-${index + 1}`));
-const PRIOR_TAG = "v0.3.0";
-const PRIOR_VERSION = "0.3.0";
+const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, index) => `plugin-distribution:FR-${index + 19}`));
+const PRIOR_TAG = "v0.3.2";
+const PRIOR_VERSION = "0.3.2";
 
 // Key sets mirror scripts/verify-release.mjs — the enforcement authority.
 const PRIOR_KEYS = Object.freeze(["commit", "schema", "source", "status", "tag"]);
@@ -60,12 +60,12 @@ function parseArgs(argv) {
 	return output;
 }
 
-// Parses the FR ↔ scenario-id map from the MRI feature exactly like
-// verify-release.mjs scenarioRequirements(): only @release-evidence scenarios
-// with one @id and one @FR tag map to mcp-release-integrity:FR-N.
+// Parses the FR ↔ scenario-id map and exact Scenario Outline multiplicities
+// from the same source bytes consumed by release assembly.
 async function scenarioRequirements(repositoryRoot) {
-	const text = await readFile(path.join(repositoryRoot, ".specs", "mcp-release-integrity", "mcp-release-integrity.feature"), "utf8");
-	const map = new Map();
+	const text = await readFile(path.join(repositoryRoot, ".specs", "plugin-distribution", "plugin-distribution.feature"), "utf8");
+	const multiplicities = requiredScenarioMultiplicity(text);
+	const requirements = new Map();
 	let tags = [];
 	for (const line of text.split(/\r?\n/u)) {
 		const trimmed = line.trim();
@@ -77,13 +77,18 @@ async function scenarioRequirements(repositoryRoot) {
 		if (tags.includes("@release-evidence")) {
 			const scenarioId = tags.find((tag) => tag.startsWith("@id:"))?.slice(4);
 			const local = tags.find((tag) => /^@FR-\d+$/u.test(tag))?.slice(1);
-			if (!scenarioId || !local || map.has(scenarioId)) throw new Error(`invalid MRI scenario tags near ${trimmed}`);
-			map.set(scenarioId, `mcp-release-integrity:${local}`);
+			if (!scenarioId || !local || requirements.has(scenarioId)) throw new Error(`invalid MRI scenario tags near ${trimmed}`);
+			requirements.set(scenarioId, `plugin-distribution:${local}`);
 		}
 		tags = [];
 	}
-	if (map.size === 0) throw new Error("no MRI release-evidence scenarios");
-	return map;
+	if (
+		requirements.size === 0 ||
+		JSON.stringify([...requirements.keys()].sort()) !== JSON.stringify([...multiplicities.keys()].sort())
+	) {
+		throw new Error("MRI requirement and release-evidence multiplicity sets differ");
+	}
+	return { requirements, multiplicities };
 }
 
 function requireKeys(value, keys, label) {
@@ -142,17 +147,17 @@ async function main() {
 	const messageBytes = await readFile(path.resolve(args["--cucumber-messages"]));
 	let scenarioIds;
 	try {
-		scenarioIds = cucumberMessages(messageBytes, [...required.keys()].sort());
+		scenarioIds = cucumberMessages(messageBytes, required.multiplicities);
 	} catch (error) {
 		fail(`cucumber messages are not release-grade evidence: ${error.message}`);
 	}
 
-	// 4a. prior-v0.3.0.json — tagged-source proof over the peeled prior tag.
+	// 4a. prior-v0.3.2.json — tagged-source proof over the peeled prior tag.
 	const priorReceipt = { schema: "omp-spec-kit-tagged-source-proof@1", status: "passed", tag: PRIOR_TAG, commit: priorCommit, source: "public-tag" };
 	const written = [];
-	written.push(["prior-v0.3.0.json", await writeAndSelfCheck(outputDirectory, "prior-v0.3.0.json", priorReceipt, PRIOR_KEYS, "prior-v0.3.0.json")]);
+	written.push(["prior-v0.3.2.json", await writeAndSelfCheck(outputDirectory, "prior-v0.3.2.json", priorReceipt, PRIOR_KEYS, "prior-v0.3.2.json")]);
 
-	// 4b. upgrade-from-v0.3.0.json — composed ONLY from the real FR-7 record.
+	// 4b. upgrade-from-v0.3.2.json — composed ONLY from the real FR-7 record.
 	const upgradeRaw = JSON.parse(await readFile(path.join(runnerDir, "upgrade.json"), "utf8"));
 	requireKeys(upgradeRaw, ["observedVersion"], "upgrade.json record");
 	if (upgradeRaw.requirement !== "plugin-distribution:FR-7" || upgradeRaw.claim !== "upgrade") fail("upgrade.json does not bind plugin-distribution:FR-7 to the upgrade claim");
@@ -180,9 +185,9 @@ async function main() {
 		toVersion: identity.version,
 		observedVersion: identity.version,
 	};
-	written.push(["upgrade-from-v0.3.0.json", await writeAndSelfCheck(outputDirectory, "upgrade-from-v0.3.0.json", upgradeReceipt, LIFECYCLE_KEYS, "upgrade-from-v0.3.0.json")]);
+	written.push(["upgrade-from-v0.3.2.json", await writeAndSelfCheck(outputDirectory, "upgrade-from-v0.3.2.json", upgradeReceipt, LIFECYCLE_KEYS, "upgrade-from-v0.3.2.json")]);
 
-	// 4c. rollback-to-v0.3.0.json — composed ONLY from the real FR-8 rollback
+	// 4c. rollback-to-v0.3.2.json — composed ONLY from the real FR-8 rollback
 	// record (same runner as uninstall/reinstall).
 	const rollbackRaw = JSON.parse(await readFile(path.join(runnerDir, "rollback.json"), "utf8"));
 	requireKeys(rollbackRaw, ["expectedVersion"], "rollback.json record");
@@ -208,18 +213,18 @@ async function main() {
 		toVersion: PRIOR_VERSION,
 		observedVersion: PRIOR_VERSION,
 	};
-	written.push(["rollback-to-v0.3.0.json", await writeAndSelfCheck(outputDirectory, "rollback-to-v0.3.0.json", rollbackReceipt, LIFECYCLE_KEYS, "rollback-to-v0.3.0.json")]);
+	written.push(["rollback-to-v0.3.2.json", await writeAndSelfCheck(outputDirectory, "rollback-to-v0.3.2.json", rollbackReceipt, LIFECYCLE_KEYS, "rollback-to-v0.3.2.json")]);
 
 	// 4d. fr/FR-{1..6}.json — each requirement bound to ITS OWN passing id.
 	const byRequirement = new Map();
-	for (const [scenarioId, requirement] of required.entries()) {
+	for (const [scenarioId, requirement] of required.requirements.entries()) {
 		if (!byRequirement.has(requirement)) byRequirement.set(requirement, scenarioId);
 	}
 	const frWrites = [];
 	for (const requirement of MRI_REQUIREMENTS) {
 		const scenarioId = byRequirement.get(requirement);
 		if (!scenarioId || !scenarioIds.includes(scenarioId)) {
-			fail(`${requirement} has no matching passing scenario among ${JSON.stringify(scenarioIds)} (mapped ids: ${[...required.keys()].join(", ")})`);
+			fail(`${requirement} has no matching passing scenario among ${JSON.stringify(scenarioIds)} (mapped ids: ${[...required.requirements.keys()].join(", ")})`);
 		}
 		const localRequirement = requirement.slice(requirement.lastIndexOf(":") + 1);
 		const frReceipt = {

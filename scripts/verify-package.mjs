@@ -18,6 +18,10 @@ const sourceTrees = Object.freeze([
   { source: path.join(repositoryRoot, "src", "kernel"), output: "kernel" },
   { source: path.join(repositoryRoot, "src", "adapters"), output: "adapters" },
   { source: path.join(repositoryRoot, "src", "mcp"), output: "mcp" },
+  { source: path.join(repositoryRoot, "src", "evidence"), output: "evidence" },
+  { source: path.join(repositoryRoot, "src", "authoring"), output: "authoring" },
+  { source: path.join(repositoryRoot, "src", "enforcement"), output: "enforcement" },
+  { source: path.join(repositoryRoot, "src", "gate"), output: "gate" },
 ]);
 
 function fail(message) {
@@ -142,11 +146,13 @@ function importedSpecifiers(source) {
   return specifiers;
 }
 
-// The single documented build rewrite: flat extension sources live one
-// directory deeper in src than in dist, so adapter import specifiers rooted at
-// "../adapters/" are rebased to "./adapters/" at emission time.
+// Flat extension sources are one directory deeper in src than in dist. Keep
+// the emitted sibling-tree rewrites identical to build-plugin.mjs.
 function emitTransform(text) {
-  return text.replaceAll('"../adapters/', '"./adapters/');
+  return text
+    .replaceAll('"../adapters/', '"./adapters/')
+    .replaceAll('"../enforcement/', '"./enforcement/')
+    .replaceAll('"../gate/', '"./gate/');
 }
 
 function assertRuntimeImports(relativePath, source) {
@@ -157,17 +163,26 @@ function assertRuntimeImports(relativePath, source) {
     // dist/extension.js may import its flat siblings and the adapters subtree.
     if (
       relativePath === "dist/extension.js" &&
-      (specifier === "./inventory.js" || specifier.startsWith("./adapters/") || specifier.startsWith("./kernel/"))
+      (specifier === "./inventory.js" ||
+        specifier.startsWith("./adapters/") ||
+        specifier.startsWith("./kernel/") ||
+        specifier.startsWith("./evidence/") ||
+        specifier.startsWith("./authoring/") ||
+        specifier.startsWith("./enforcement/") ||
+        specifier.startsWith("./gate/"))
     ) {
       continue;
     }
     // Tree modules may import sibling modules within their own subtree and
-    // across dist subtrees (e.g. dist/mcp/server.js -> ../kernel/...), but
-    // never outside the closed dist payload.
+    // across dist subtrees, but never outside the closed dist payload.
     if (
       (relativePath.startsWith("dist/kernel/") ||
         relativePath.startsWith("dist/adapters/") ||
-        relativePath.startsWith("dist/mcp/")) &&
+        relativePath.startsWith("dist/mcp/") ||
+        relativePath.startsWith("dist/evidence/") ||
+        relativePath.startsWith("dist/authoring/") ||
+        relativePath.startsWith("dist/enforcement/") ||
+        relativePath.startsWith("dist/gate/")) &&
       (specifier.startsWith("./") || specifier.startsWith("../"))
     ) {
       continue;
@@ -182,9 +197,9 @@ async function verifyMcpJson() {
   assertExactKeys(mcpJson, ["$schema", "mcpServers"], ".mcp.json", fail);
   if (
     mcpJson.$schema !==
-    "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json"
+    "https://raw.githubusercontent.com/can1357/oh-my-pi/33cc6b9a043a74e00a157e72ca909272796d8461/packages/coding-agent/src/config/mcp-schema.json"
   ) {
-    fail(".mcp.json $schema must reference the pinned OMP mcp-schema.json");
+    fail(".mcp.json $schema must reference the pinned OMP v18.0.11 mcp-schema.json");
   }
   assertExactKeys(mcpJson.mcpServers, ["omp-spec-kit"], ".mcp.json servers", fail);
   const server = mcpJson.mcpServers["omp-spec-kit"];
@@ -246,8 +261,7 @@ async function verifyPackage() {
   if (manifest.license !== "MIT" || manifest.type !== "module") fail("package license/type mismatch");
   if (!sameStrings(manifest.files, packageFiles)) fail(`package files must be exactly: ${packageFiles.join(", ")}`);
   assertExactKeys(manifest.engines, ["omp"], "package engines", fail);
-  if (manifest.engines.omp !== "17.3.7") fail("package must pin OMP 17.3.7");
-  assertExactKeys(manifest.omp, ["extensions"], "package omp", fail);
+  if (manifest.engines.omp !== "18.0.11") fail("package must pin OMP 18.0.11");
   if (!sameStrings(manifest.omp.extensions, ["./dist/extension.js"])) fail("package must contain one extension entry");
 
   const distManifestPath = path.join(pluginRoot, "dist", "manifest.json");

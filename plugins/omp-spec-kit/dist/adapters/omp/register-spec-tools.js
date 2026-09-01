@@ -1,22 +1,22 @@
-// FC-6: registers the seven kernel-backed read-only OMP tools listed in
-// SCHEMA-11 (minus spec_inventory — the v0.1 extension entry owns that name in
-// the OMP registry). Each tool mirrors its query operation's closed args via
-// the shared contract table, declares approval "read", and returns exactly one
-// canonical QueryEnvelope as `details` plus a one-line text summary.
+// Registers the active stage's OMP projection. v0.4.0 exposes exactly eight
+// kernel-backed read tools plus the two proposal-first authoring tools.
 
 import { summarizeEnvelope } from "../query-service.js";
-import { OMP_TOOL_CONTRACTS as TOOL_CONTRACTS, zodParametersFor } from "../tool-contracts.js";
+import { ompToolContractsForStage, zodParametersFor } from "../tool-contracts.js";
 
-export function registerSpecTools(pi, getService) {
+const WRITE_OPERATIONS = new Set(["applyProposedPatch", "applySpecChange", "applySpecTransaction", "applySpecRepairs"]);
+
+export function registerSpecTools(pi, getService, stage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE) {
   const z = pi.zod;
-  for (const contract of TOOL_CONTRACTS) {
+  const toolContracts = ompToolContractsForStage(stage);
+  for (const contract of toolContracts) {
     const parameters = zodParametersFor(contract, z);
     pi.registerTool({
       name: contract.tool,
       label: contract.label,
       description: contract.description,
       parameters,
-      approval: "read",
+      approval: WRITE_OPERATIONS.has(contract.operation) ? "write" : "read",
       strict: true,
       async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
         const service = getService(ctx);

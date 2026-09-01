@@ -52,6 +52,7 @@ function makeHost() {
         union: (options) => schemaNode("union", { options }),
         null: () => schemaNode("null"),
         object: (shape) => schemaNode("object", { shape }),
+        unknown: () => schemaNode("unknown"),
       },
       setLabel: (label) => registration.labels.push(label),
       registerTool: (tool) => registration.tools.push(tool),

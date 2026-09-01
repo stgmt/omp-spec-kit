@@ -3,7 +3,7 @@ import { copyFile, lstat, mkdir, readFile, readdir, rm, writeFile } from "node:f
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const PLUGIN_VERSION = "0.3.2";
+const PLUGIN_VERSION = "0.4.0";
 const MANIFEST_SCHEMA = "omp-spec-kit-dist-manifest@1";
 // Flat extension sources copied to the dist root.
 const SOURCE_FILES = Object.freeze(["extension.js", "inventory.js"]);
@@ -12,6 +12,10 @@ const SOURCE_TREES = Object.freeze([
   { source: "src/kernel", output: "kernel" },
   { source: "src/adapters", output: "adapters" },
   { source: "src/mcp", output: "mcp" },
+  { source: "src/evidence", output: "evidence" },
+  { source: "src/authoring", output: "authoring" },
+  { source: "src/enforcement", output: "enforcement" },
+  { source: "src/gate", output: "gate" },
 ]);
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -98,18 +102,18 @@ for (const tree of SOURCE_TREES) {
 
 await rm(distRoot, { recursive: true, force: true });
 await mkdir(distRoot, { recursive: true });
-
-const manifestFiles = {};
-
 // Flat extension sources live one directory deeper in src (src/v0.1) than in
-// dist, so exactly one deterministic rewrite is applied: adapter import
-// specifiers rooted at "../adapters/" are rebased to "./adapters/". Nothing
-// else is transformed; verify-package applies the same rule before comparing.
+// dist, so deterministic rewrites rebase sibling runtime trees to the dist
+// root. Nothing else is transformed.
 async function emitFlatSource(name) {
-  const text = (await readFile(path.join(sourceRoot, name), "utf8")).replaceAll('"../adapters/', '"./adapters/');
+  const text = (await readFile(path.join(sourceRoot, name), "utf8"))
+    .replaceAll('"../adapters/', '"./adapters/')
+    .replaceAll('"../enforcement/', '"./enforcement/')
+    .replaceAll('"../gate/', '"./gate/');
   return Buffer.from(text, "utf8");
 }
 
+const manifestFiles = {};
 for (const name of SOURCE_FILES) {
   const bytes = await emitFlatSource(name);
   await writeFile(path.join(distRoot, name), bytes);
