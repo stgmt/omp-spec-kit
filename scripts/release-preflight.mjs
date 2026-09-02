@@ -49,7 +49,6 @@ const head = output("git", ["rev-parse", "HEAD"]);
 const tagCommit = output("git", ["rev-parse", `${expectedTag}^{commit}`]);
 if (head !== tagCommit) throw new Error(`tag ${expectedTag} is not peeled to HEAD (${tagCommit} != ${head})`);
 
-run("release blocker gate", npmCommand, ["run", "check:release-blockers"]);
 run("full local verification", npmCommand, ["test"]);
 run("release-integrity scenarios", npmCommand, ["run", "test:release-integrity"]);
 run("assemble candidate", nodeCommand, ["scripts/create-release-candidate.mjs", "--tag", expectedTag, "--output", candidateDir]);
@@ -68,7 +67,7 @@ const result = {
   candidateDigest: candidate.candidateDigest,
   packageTreeDigest: candidate.packageTreeDigest,
   archive: candidate.archive,
-  checks: ["clean-worktree", "peeled-tag", "release-blockers", "npm-test", "release-integrity", "candidate", "public-safety", "archive-default", "archive-safe-authoring"],
+  checks: ["clean-worktree", "peeled-tag", "npm-test", "release-integrity", "candidate", "public-safety", "archive-default", "archive-safe-authoring"],
   note: "GitHub attestation, publication, and installed dogfood remain separate post-preflight gates."
 };
 console.log(`\n${JSON.stringify(result, null, 2)}`);

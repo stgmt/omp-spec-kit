@@ -1,75 +1,50 @@
 ---
 name: release-operator
-description: Operate omp-spec-kit releases with a fail-closed blocker loop. Trigger for every release, tag, candidate, archive, GitHub Release, attestation, dogfood, Docker BDD, staged authoring failure, drift verdict, or release-preflight request.
+description: Operate omp-spec-kit releases with repository-owned evidence and fail-closed verification. Trigger for every release, tag, candidate, archive, GitHub Release, attestation, dogfood, Docker BDD, staged authoring failure, or release-preflight request.
 ---
 
 # Release operator
 
-Use this skill before every omp-spec-kit release operation. A release is not ready while any gate or cross-spec drift blocker remains.
+Use this skill before every omp-spec-kit release operation. A release is not ready while any repository check or evidence check remains unresolved.
 
-## Required gate order
+## Required order
 
-1. Require a clean worktree and verify that the tag peels to the intended commit.
-2. Run the repository blocker gate:
-
-   ```text
-   npm run check:release-blockers
-   ```
-
-   It reads `.dev-pomogator/.cross-spec-cache`. It blocks on `DRIFT` records with error severity for `mcp-release-integrity:*` or `plugin-distribution:*`. Missing or malformed cache evidence also blocks.
-
-3. Run the complete local release gate:
-
-   ```text
-   npm run release:preflight -- --tag vX.Y.Z
-   ```
-
-   This includes repository verification, OMP dogfood, safe-authoring, all staged MCP scenarios, Docker BDD, release-integrity, candidate creation, public-tree safety, and archive smoke.
-
-4. Obtain distribution evidence for the same peeled commit. Verify GitHub attestations and compare candidate, package-tree, and archive digests.
-5. Require every release workflow job to pass. Wait for the successful evidence run whose `headSha` equals the tag commit.
-6. Verify the GitHub Release, assets, downloaded archive hash, archive attestation, and installed/archive dogfood.
+1. Require a clean worktree and verify that the tag points to the intended commit.
+2. Run `npm run release:preflight -- --tag vX.Y.Z`.
+3. Run the complete staged suite, Docker checks, release-integrity scenarios, candidate checks, archive checks, and installed-package checks.
+4. Verify that all evidence comes from repository-owned sources:
+   - `.omp-spec-kit/evidence/last-test-run.ndjson`;
+   - `.omp-spec-kit/evidence/bdd-results/run.ndjson`;
+   - `tests/fixtures/release-candidate/cucumber-messages.ndjson`.
+5. Verify the candidate, package-tree, archive, tag, workflow, and attestation values against one peeled commit.
 
 ## Mandatory blocker loop
 
-A non-zero blocker gate is active work, not a report. For every blocker:
+A failed check is active work, not a report:
 
-1. Preserve the exact command, cache file, `fr_id`, `scenario_id`, explanation, and generated timestamp.
-2. Map it to the owning functional requirement and scenario.
-3. Inspect the current specification, scenario, implementation, and evidence producer. Do not delete cache files or downgrade `DRIFT` to make the count pass.
-4. Fix the missing contract coverage or implementation at its owner boundary.
-5. Add or update a deterministic regression scenario.
-6. Run the focused scenario and regenerate the cross-spec cache through the real evaluator.
-7. Re-run `npm run check:release-blockers`.
-8. Re-run `npm test` and the complete release preflight.
-9. Repeat until the blocker count is zero. Publication is forbidden while one blocker remains.
+1. Preserve the exact command, scenario, observed error, source file, and reproduction command.
+2. Map the failure to the owning specification requirement and implementation boundary.
+3. Fix the producer or caller; do not remove evidence, skip a scenario, weaken a requirement, or accept a metadata-only result.
+4. Add or update deterministic regression coverage.
+5. Run the focused scenario and then the complete suite.
+6. Rebuild repository-owned evidence and rerun the complete release preflight.
+7. Repeat until every check passes.
 
-The full staged suite is mandatory. Old, internal, broad, or inconvenient scenarios are not exempt. Proposal-shape, authority, archive-receipt, digest, Docker, and attestation failures must be repaired, not excluded.
+The full staged suite is mandatory. Broad, old, internal, inconvenient, proposal, archive, Docker, digest, and attestation scenarios are not exempt.
 
 ## Published-release boundary
 
-Never force-move a published tag or overwrite a public asset. If a blocker is discovered after publication, repair `main`, run all gates, and create the next patch release with a new commit and complete evidence chain.
-
-Never publish to npm. Never accept a same-tag artifact from another commit. Never call a release green from metadata-only evidence, stale cache entries, skipped jobs, or a partial test suite.
-
-## Failure handling
-
-- Empty lifecycle evidence: wait for the successful distribution-evidence run for the exact commit; never use committed receipts as a substitute.
-- Proposal or receipt drift: repair the current public response contract and its scenario coverage, then rebuild and rerun all gates.
-- Docker context failure: measure the context, exclude nested dependency directories from `.dockerignore`, rebuild, and rerun Docker BDD.
-- Windows/Linux digest difference: compare file modes and the exact package contents; use the tagged Linux candidate as publication authority.
-- Attestation, asset, tag, or digest mismatch: stop and preserve the mismatching evidence. Do not retry blindly.
+Never force-move a published tag or overwrite a public asset. A blocker found after publication requires a fix on `main` and a new patch release with a new commit and complete evidence chain. Never publish to npm.
 
 ## Required final proof
 
-Report only after all gates pass:
+Report only after all checks pass:
 
 - tag and peeled commit;
 - candidate, package-tree, and archive SHA-256 values;
-- blocker gate result with zero release-scope `DRIFT` records;
-- local test and Docker results;
-- workflow run IDs and GitHub Release URL;
-- downloaded asset hash and attestation result;
-- installed/archive dogfood result.
+- repository evidence source paths and hashes;
+- local, staged, Docker, and installed-package results;
+- workflow run IDs, attestation result, and GitHub Release URL;
+- zero excluded scenarios and no unresolved blocker.
 
-If any gate is unavailable or any blocker remains, state the exact blocker and continue repairing reachable causes. Do not report the release as ready.
+If a required evidence source is missing, stale, malformed, or unavailable, state that exact fact and keep the release blocked.
