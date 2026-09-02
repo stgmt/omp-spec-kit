@@ -1,0 +1,7 @@
+{"ompSpecKitEvidence":{"binding":{"graphFingerprint":"__GRAPH_FINGERPRINT__","scenarioContentHash":"__SCENARIO_CONTENT_HASH__"}}}
+{"pickle":{"id":"v05-pickle","tags":[{"name":"@id:SCEN-specification-only-init"}]}}
+{"testCase":{"id":"v05-case","pickleId":"v05-pickle","testSteps":[{"id":"v05-step"}]}}
+{"testCaseStarted":{"id":"v05-start","testCaseId":"v05-case"}}
+{"testStepFinished":{"testCaseStartedId":"v05-start","testStepId":"v05-step","testStepResult":{"status":"PASSED"}}}
+{"testCaseFinished":{"testCaseStartedId":"v05-start","timestamp":{"seconds":1700000000,"nanos":0}}}
+{"testRunFinished":{}}

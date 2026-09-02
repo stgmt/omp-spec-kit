@@ -21,6 +21,8 @@ tmp/
 # Logs, test evidence, and mutable state
 *.log
 *.ndjson
+!tests/fixtures/evidence/
+!tests/fixtures/evidence/*.ndjson
 *.sqlite
 *.sqlite3
 .dev-*/

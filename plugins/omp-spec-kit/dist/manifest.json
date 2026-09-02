@@ -1,6 +1,6 @@
 {
   "schema": "omp-spec-kit-dist-manifest@1",
-  "pluginVersion": "0.5.1",
+  "pluginVersion": "0.5.2",
   "files": {
     "adapters/document-service.js": {
       "sha256": "7a348f913477556528adf8b6f92ea2e48f8de78ee94b19bd15175009c9b0f939"
@@ -36,7 +36,7 @@
       "sha256": "56e7e622ff072e292894d88811e668edf06de1a1613408b4e42dec9c6ef6cf60"
     },
     "extension.js": {
-      "sha256": "bccfde0ba81a06f57431de183a6295b8ded9fbdba24a019dbc7bf5439f744a54"
+      "sha256": "0f321264dd524028a0da1e083a9f3d4f1cb6aff899d0218a3c5e1027bac436de"
     },
     "gate/automatic-adapter.js": {
       "sha256": "82c385544c2aa793679512b93ef150cfd382722f0cbcc1dd28b99b710e3d3ed8"
@@ -45,7 +45,7 @@
       "sha256": "4541d470c5266c7ed22f24c69b2916a0f0f2c9918b013e7bd475c70cf2ee39cd"
     },
     "inventory.js": {
-      "sha256": "774c85eaf6ddc73885254b49eca6732bbbcbeb942a96e4d0eccb6865caf3a982"
+      "sha256": "63bec68f2bac96614d4079e72a3c918ded3e8731b6c596a89a976f0af109b3e6"
     },
     "kernel/adapters/fs.js": {
       "sha256": "31e338483be6ebcea53588efd832fa0153febf8e098e55f614206f007abcc38e"

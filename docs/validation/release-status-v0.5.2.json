@@ -1,0 +1,41 @@
+{
+  "schema": "omp-spec-kit-public-release-status@1",
+  "version": "0.5.2",
+  "tag": "v0.5.2",
+  "releaseUrl": "https://github.com/stgmt/omp-spec-kit/releases/tag/v0.5.2",
+  "status": {
+    "public": false,
+    "installable": false,
+    "state": "CANDIDATE",
+    "surface": "EVIDENCE_NAVIGATION",
+    "toolCount": 27
+  },
+  "verification": {
+    "sourceBuild": "npm run build",
+    "packageVerification": "npm run verify",
+    "safeAuthoring": "npm run test:safe-authoring",
+    "stagedMcp": "npm run test:staged",
+    "toolE2E": "npm run test:tool-e2e",
+    "evidenceSources": [
+      ".omp-spec-kit/evidence/last-test-run.ndjson",
+      ".omp-spec-kit/evidence/bdd-results/run.ndjson",
+      "tests/fixtures/release-candidate/cucumber-messages.ndjson"
+    ],
+    "evidenceFixtures": [
+      "tests/fixtures/evidence/v05-passing.ndjson",
+      "tests/fixtures/evidence/v05-failed.ndjson",
+      "tests/fixtures/evidence/v05-incomplete.ndjson"
+    ]
+  },
+  "release": {
+    "published": false,
+    "candidateDigest": null,
+    "packageTreeDigest": null,
+    "archive": {
+      "file": "omp-spec-kit-0.5.2.tar",
+      "sha256": null,
+      "bytes": null
+    },
+    "attestation": null
+  }
+}

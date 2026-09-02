@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
+## 0.5.2 — 2026-09-02
+
+Corrective release for the v0.5 evidence and navigation surface.
+
+- Tracks the repository-owned passing, failed, and incomplete evidence fixtures required by the complete tool-E2E matrix and release archive smoke.
+- Fixes clean-checkout release verification so the official GitHub workflow can build, attest, and publish the exact candidate archive.
+
 
 ## 0.5.0 — 2026-09-01
 

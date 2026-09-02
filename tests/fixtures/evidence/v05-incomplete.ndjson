@@ -1,0 +1,4 @@
+{"pickle":{"id":"v05-pickle","tags":[{"name":"@id:SCEN-specification-only-init"}]}}
+{"testCase":{"id":"v05-case","pickleId":"v05-pickle","testSteps":[{"id":"v05-step"}]}}
+{"testCaseStarted":{"id":"v05-start","testCaseId":"v05-case"}}
+{"testCaseFinished":{"testCaseStartedId":"v05-start"}}
