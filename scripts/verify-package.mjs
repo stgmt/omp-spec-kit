@@ -68,7 +68,7 @@ const allTreeDistDirectories = [
 ].sort();
 
 const expectedDirectories = Object.freeze([
-  ...new Set(["bin", "commands", "dist", "skills", "skills/spec-inventory", ...allTreeDistDirectories]),
+  ...new Set(["bin", "commands", "dist", "skills", "skills/release-operator", "skills/spec-inventory", ...allTreeDistDirectories]),
 ]);
 const expectedFiles = Object.freeze([
   ".mcp.json",
@@ -81,6 +81,7 @@ const expectedFiles = Object.freeze([
   "dist/inventory.js",
   "dist/manifest.json",
   "package.json",
+  "skills/release-operator/SKILL.md",
   "skills/spec-inventory/SKILL.md",
   ...treeSources.flatMap((tree) => tree.files.map((name) => `dist/${tree.output}/${name}`)),
 ]);

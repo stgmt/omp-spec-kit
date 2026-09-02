@@ -20,6 +20,7 @@
     "test:staged": "npx cucumber-js tests/features/staged-mcp.feature --format progress",
     "test:release-archive": "node scripts/smoke-release-archive.mjs",
     "test:release-integrity": "npx cucumber-js tests/features/release-evidence.feature --tags @mcp-release-integrity --format progress",
+    "check:release-blockers": "node scripts/check-release-blockers.mjs",
     "release:preflight": "node scripts/release-preflight.mjs"
   },
   "devDependencies": {
