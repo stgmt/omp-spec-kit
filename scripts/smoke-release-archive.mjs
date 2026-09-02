@@ -24,6 +24,7 @@ const V06_TOOLS = Object.freeze([...V06_ALL_TOOL_NAMES].sort());
 const { values } = parseArgs({ options: { archive: { type: "string" }, stage: { type: "string" } }, strict: true });
 if (!values.archive) throw new Error("--archive is required");
 const expectedTools = values.stage === "safe-authoring" ? SAFE_AUTHORING_TOOLS : values.stage === "v0.5.0" ? V05_TOOLS : V06_TOOLS;
+const archivePath = path.resolve(values.archive);
 const tempRoot = await mkdtemp(path.join(tmpdir(), "omp-spec-kit-release-smoke-"));
 const packageRoot = path.join(tempRoot, "package");
 const projectRoot = path.join(tempRoot, "project");
