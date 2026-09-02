@@ -29,9 +29,13 @@
   },
   "release": {
     "published": false,
-    "candidateDigest": null,
-    "packageTreeDigest": null,
-    "archive": null,
+    "candidateDigest": "8c6e0de00f728b167fb3518be75407ab6026b26f5913c72bd6ba959a45d44cda",
+    "packageTreeDigest": "374b7ec6722325a2a8e30d1fb5bf294355d638ea0f493a513631d92b6bb5bcf2",
+    "archive": {
+      "file": "omp-spec-kit-0.5.1.tar",
+      "sha256": "a44880f8e02b1f131503e56d879faf8a89048105799f97b353d270c80a604584",
+      "bytes": 442368
+    },
     "attestation": null
   }
 }
