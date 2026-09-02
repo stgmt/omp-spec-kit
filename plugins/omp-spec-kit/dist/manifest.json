@@ -18,7 +18,7 @@
       "sha256": "75ac167dcc99dd5221e8714a5f2db910c65d4469ed4d19436514cf6b593517cb"
     },
     "authoring/service.js": {
-      "sha256": "e2e51303b775e47a09c017473a9ddc7ae543ca5f326451e62e948504ecf9d908"
+      "sha256": "072ba69c9530dbcf2f67bca75d778ab311a23363a6d30af62a45db151aff33ae"
     },
     "authoring/transactions.js": {
       "sha256": "7ef5258d7c171ac932470dc54f627e6bd111902fda60a3a1282d0295dc7f669a"
@@ -27,7 +27,7 @@
       "sha256": "99df996ce1e08c08318d1be5799b262a8609de5e535d9a639cc4babc3556660a"
     },
     "enforcement/classifier.js": {
-      "sha256": "d0f443066d815a86a14a89683a4e220be0450e4d74d4420b0cd50a0defe5bfea"
+      "sha256": "7349b34b741d52323b4e219cde7711484ef1b52e3cacb63ed627b3e0f02dddc4"
     },
     "enforcement/resolve-targets.js": {
       "sha256": "8161a4d3e22b0767c989a944fe2641c0fa67a129181f6d94bbdd4ff5adbaf57c"

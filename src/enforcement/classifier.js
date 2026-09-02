@@ -1,7 +1,7 @@
 import { TOOL_AUTHORITY_ABI } from "../adapters/tool-contracts.js";
 import { decidePathPolicy } from "./resolve-targets.js";
 
-const AUTHORING_TOOL_NAMES = new Set(["propose_patch", "apply_proposed_patch"]);
+const AUTHORING_TOOL_NAMES = new Set(["propose_patch", "apply_proposed_patch", "propose_spec_change", "apply_spec_change", "apply_spec_transaction", "apply_spec_repairs"]);
 const DIRECT_MUTATION_TOOLS = new Set(["write", "edit", "bash", "apply_patch", "delete", "rename"]);
 const PATH_KEYS = new Set(["path", "paths", "file", "files", "document", "documents", "cwd", "command", "text"]);
 const AUTHORITY_PROVIDER_KINDS = new Set(["builtin", "extension", "mcp", "sdk", "unknown"]);
@@ -39,14 +39,14 @@ function boundedReason(code, relativePath = null) {
   return Buffer.byteLength(reason, "utf8") <= 512 ? reason : `${reason.slice(0, 500)}…`;
 }
 
-function blocked(toolName, code, resolutions = []) {
+function blocked(toolName, code, resolutions = [], mismatchField = null) {
   const relativePath = resolutions.find((item) => typeof item.relativePath === "string")?.relativePath ?? null;
   return {
     action: "block",
     code,
     toolName,
     touchesSpecs: code !== "TARGET_INDETERMINATE" || resolutions.length > 0,
-    mismatchField: code === "UNREGISTERED_AUTHORING_CALL" ? "authority" : null,
+    mismatchField: mismatchField ?? (code === "UNREGISTERED_AUTHORING_CALL" ? "authority" : null),
     reason: boundedReason(code, relativePath),
   };
 }
@@ -61,7 +61,7 @@ export function classifyToolCall(event, options = {}) {
 
   if (authoring) {
     const mismatchField = authorityMismatch(toolName, authorityName, event?.authority);
-    if (mismatchField) return blocked(toolName, "UNREGISTERED_AUTHORING_CALL");
+    if (mismatchField) return blocked(toolName, "UNREGISTERED_AUTHORING_CALL", [], mismatchField);
     if (options.requireApproval !== false && authorityName === "apply_proposed_patch" && input.approval !== "approve") {
       return blocked(toolName, "APPROVAL_REQUIRED");
     }

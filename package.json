@@ -15,8 +15,9 @@
     "dogfood:mcp:candidate": "node -e \"process.env.OMP_SPEC_KIT_STAGE='v0.5.0'; import('./scripts/dogfood-mcp.mjs')\"",
     "test:bdd": "bash scripts/docker-bdd.sh",
     "test:bdd:omp-discovery": "bash scripts/docker-bdd.sh --tags '@id:SCEN-mri-active-project-manager-receipt or @id:SCEN-mri-missing-payload-refusal'",
-    "test": "npm run build && npm run verify && npm run dogfood:mcp:candidate && npm run test:safe-authoring && npm run test:bdd",
+    "test": "npm run build && npm run verify && npm run dogfood:mcp:candidate && npm run test:safe-authoring && npm run test:staged && npm run test:bdd",
     "test:safe-authoring": "npx cucumber-js tests/features/safe-authoring.feature --tags @safe-authoring --format progress",
+    "test:staged": "npx cucumber-js tests/features/staged-mcp.feature --format progress",
     "test:release-archive": "node scripts/smoke-release-archive.mjs",
     "test:release-integrity": "npx cucumber-js tests/features/release-evidence.feature --tags @mcp-release-integrity --format progress",
     "release:preflight": "node scripts/release-preflight.mjs"

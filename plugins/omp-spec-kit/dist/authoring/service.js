@@ -214,6 +214,7 @@ export function createAuthoringService(root, getGraph, refreshGraph, options = {
             reason: input.reason,
             ...(input.actorRef ? { actorRef: input.actorRef } : {}),
             changedDocuments: [],
+            archivedSpec: { from: archived.from, to: archived.to, digest: archived.digest },
             findings: [],
           };
           return { ok: true, data: { schemaVersion: "spec-mcp-operations-apply@1", requestId, proposalHash, outcome: "APPLIED", receipt } };

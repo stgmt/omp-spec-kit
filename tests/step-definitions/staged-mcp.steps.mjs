@@ -83,14 +83,14 @@ When("an authoring proposal is created and explicitly approved", async function 
   });
   const proposal = proposalResponse.result.structuredContent;
   assert.equal(proposal.ok, true, JSON.stringify(proposal));
-  const expectedDocuments = proposal.data.proposal.documents.map((document) => ({ document: document.document, sha256: document.beforeSha256 }));
+  const expectedDocuments = proposal.data.operations.map((operation) => ({ path: operation.path, beforeSha256: operation.beforeSha256 }));
   const applied = await this.stagedMcp.server.request("tools/call", {
     name: "apply_proposed_patch",
     arguments: {
       schemaVersion: "spec-kernel@1",
       requestId: "bdd-apply",
-      proposalId: proposal.data.proposal.proposalId,
-      proposalSha256: proposal.data.proposal.proposalSha256,
+      proposalId: proposal.data.proposalId,
+      proposalSha256: proposal.data.proposalHash,
       expectedDocuments,
       reason: "approve exact proposal",
       approval: "approve",
@@ -111,14 +111,14 @@ When("an authoring proposal is created and explicitly approved", async function 
   });
   const appendProposal = append.result.structuredContent;
   assert.equal(appendProposal.ok, true, JSON.stringify(appendProposal));
-  const appendExpectedDocuments = appendProposal.data.proposal.documents.map((document) => ({ document: document.document, sha256: document.beforeSha256 }));
+  const appendExpectedDocuments = appendProposal.data.operations.map((operation) => ({ path: operation.path, beforeSha256: operation.beforeSha256 }));
   const appendApplied = await this.stagedMcp.server.request("tools/call", {
     name: "apply_proposed_patch",
     arguments: {
       schemaVersion: "spec-kernel@1",
       requestId: "bdd-append-apply",
-      proposalId: appendProposal.data.proposal.proposalId,
-      proposalSha256: appendProposal.data.proposal.proposalSha256,
+      proposalId: appendProposal.data.proposalId,
+      proposalSha256: appendProposal.data.proposalHash,
       expectedDocuments: appendExpectedDocuments,
       reason: "approve section append",
       approval: "approve",
@@ -142,14 +142,14 @@ When("an authoring proposal is created and explicitly approved", async function 
   });
   const renameProposal = renameProposalResponse.result.structuredContent;
   assert.equal(renameProposal.ok, true, JSON.stringify(renameProposal));
-  const renameExpectedDocuments = renameProposal.data.proposal.documents.map((document) => ({ document: document.document, sha256: document.beforeSha256 }));
+  const renameExpectedDocuments = renameProposal.data.operations.map((operation) => ({ path: operation.path, beforeSha256: operation.beforeSha256 }));
   const renameApplied = await this.stagedMcp.server.request("tools/call", {
     name: "apply_proposed_patch",
     arguments: {
       schemaVersion: "spec-kernel@1",
       requestId: "bdd-rename-apply",
-      proposalId: renameProposal.data.proposal.proposalId,
-      proposalSha256: renameProposal.data.proposal.proposalSha256,
+      proposalId: renameProposal.data.proposalId,
+      proposalSha256: renameProposal.data.proposalHash,
       expectedDocuments: renameExpectedDocuments,
       reason: "approve heading rename",
       approval: "approve",
@@ -170,7 +170,7 @@ Then("the approved proposal changes the temporary document, section edits preser
   assert.equal((content.match(/^## Current product status$/gmu) ?? []).length, 0, "heading rename must replace the old heading");
   const blocked = classifyToolCall({ toolName: "write", input: { path: ".specs/plugin-distribution/README.md", content: "bypass" } });
   assert.equal(blocked.action, "block");
-  assert.equal(blocked.mismatchField, "toolName");
+  assert.equal(blocked.mismatchField, null);
   const authority = {
     abi: "tool-call-authority-abi@1",
     providerKind: "mcp",
@@ -317,14 +317,14 @@ When("a new specification is created and archived through the proposal door", as
     arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-archive-create", spec: "archive-bdd", reason: "create archive fixture", title: "Archive BDD" },
   });
   const createdProposal = created.result.structuredContent;
-  const createdExpectedDocuments = createdProposal.data.proposal.documents.map((document) => ({ document: document.document, sha256: document.beforeSha256 }));
+  const createdExpectedDocuments = createdProposal.data.operations.map((operation) => ({ path: operation.path, beforeSha256: operation.beforeSha256 }));
   const createdApply = await this.stagedMcp.server.request("tools/call", {
     name: "apply_proposed_patch",
     arguments: {
       schemaVersion: "spec-kernel@1",
       requestId: "bdd-archive-create-apply",
-      proposalId: createdProposal.data.proposal.proposalId,
-      proposalSha256: createdProposal.data.proposal.proposalSha256,
+      proposalId: createdProposal.data.proposalId,
+      proposalSha256: createdProposal.data.proposalHash,
       expectedDocuments: createdExpectedDocuments,
       reason: "approve archive fixture",
       approval: "approve",
