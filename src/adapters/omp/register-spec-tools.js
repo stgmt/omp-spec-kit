@@ -1,7 +1,6 @@
-// Registers the active stage's OMP projection. v0.4.0 exposes exactly eight
+// Registers the active stage's OMP projection. v0.4.1 exposes exactly eight
 // kernel-backed read tools plus the two proposal-first authoring tools.
 
-import { summarizeEnvelope } from "../query-service.js";
 import { ompToolContractsForStage, zodParametersFor } from "../tool-contracts.js";
 
 const WRITE_OPERATIONS = new Set(["applyProposedPatch", "applySpecChange", "applySpecTransaction", "applySpecRepairs"]);
@@ -26,7 +25,7 @@ export function registerSpecTools(pi, getService, stage = globalThis.process?.en
           schemaVersion,
         });
         return {
-          content: [{ type: "text", text: summarizeEnvelope(envelope) }],
+          content: [{ type: "text", text: JSON.stringify(envelope) }],
           details: envelope,
         };
       },

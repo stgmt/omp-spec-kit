@@ -196,11 +196,14 @@ async function managedTool(name) {
 async function executeManagedTool(name, args, callId) {
 	const tool = await managedTool(name);
 	const result = await tool.execute(callId, args, undefined, {});
-	const text = result.content?.[0]?.type === "text" ? result.content[0].text : "";
-	if (result.isError || text.length === 0) throw new Error("OMP-managed " + name + " returned an error or empty text result");
-	let envelope;
-	try { envelope = JSON.parse(text); } catch (error) { throw new Error("OMP-managed " + name + " did not expose its structured result: " + error.message); }
-	if (!envelope || typeof envelope !== "object") throw new Error("OMP-managed " + name + " returned a non-object envelope");
+	const directEnvelope = result.structuredContent ?? (result.details?.graph || result.details?.ok ? result.details : null);
+	const provider = result.details && typeof result.details === "object" && "rawContent" in result.details ? result.details : result;
+	const rawContent = provider.rawContent ?? provider.content ?? [];
+	const rawText = Array.isArray(rawContent) ? rawContent.find(item => item?.type === "text")?.text ?? "" : typeof rawContent === "string" ? rawContent : "";
+	if (result.isError || provider.isError || (rawText.length === 0 && !directEnvelope)) throw new Error("OMP-managed " + name + " returned an error or empty structured result");
+	const envelope = directEnvelope ?? (() => {
+		try { return JSON.parse(rawText); } catch (error) { throw new Error("OMP-managed " + name + " did not expose its structured result: " + error.message); }
+	})();
 	return { tool, result, envelope };
 }
 
@@ -308,7 +311,7 @@ if (!terminalPhase) {
 		if (!packageServer || typeof packageServer.command !== "string") {
 			throw new Error("Verified package MCP declaration missing " + packageManifest.name);
 		}
-		const targetConfigs = { [targetName]: { ...packageServer, command: path.resolve(packageRoot, packageServer.command), env: { ...(packageServer.env ?? {}), OMP_SPEC_KIT_STAGE: "v0.4.0" } } };
+		const targetConfigs = { [targetName]: { ...packageServer, command: path.resolve(packageRoot, packageServer.command), env: { ...(packageServer.env ?? {}) } } };
 		const targetSources = { [targetName]: configLoad.sources[targetName] ?? { provider: "probe", providerName: "verified-package-copy", path: path.join(packageRoot, ".mcp.json"), level: "project" } };
 		configInspection = {
 			targetName,
@@ -409,7 +412,7 @@ if (!terminalPhase) {
 if (!terminalPhase) {
 	const managedAuthoringResult = await phase("managed-authoring", async () => {
 		const overviewCall = await executeManagedTool("spec_overview", { schemaVersion: "spec-kernel@1", requestId: "omp-manager-overview", specSlugs: [] }, "omp-manager-overview");
-		if (!overviewCall.envelope.ok || typeof overviewCall.envelope.graph?.fingerprint !== "string") throw new Error("OMP-managed spec_overview did not return a graph fingerprint");
+		if (!overviewCall.envelope.ok || typeof overviewCall.envelope.graph?.fingerprint !== "string") throw new Error("OMP-managed spec_overview did not return a graph fingerprint; keys=" + Object.keys(overviewCall.envelope).join(",") + "; dataKeys=" + Object.keys(overviewCall.envelope.data ?? {}).join(","));
 		const proposalCall = await executeManagedTool("propose_patch", {
 			schemaVersion: "spec-kernel@1",
 			requestId: "omp-manager-proposal",

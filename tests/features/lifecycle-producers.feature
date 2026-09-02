@@ -14,7 +14,7 @@ Feature: Produce real distribution lifecycle evidence through the pinned OMP run
   @id:SCEN-LC-001 @lifecycle-producers
   Scenario: Install, reload, fresh-session activation, and bounded inventory
     Given an isolated temp project containing one valid spec corpus
-    And the built candidate package root and expected version 0.4.0
+    And the built candidate package root and expected version 0.4.1
     When the install-reload-fresh-session lifecycle runner completes successfully
     Then the runner wrote passing records for install, reload, fresh-session-activation, and inventory
     And each record binds requirement "plugin-distribution:FR-4" to its own claim
@@ -24,16 +24,16 @@ Feature: Produce real distribution lifecycle evidence through the pinned OMP run
   @id:SCEN-LC-002 @lifecycle-producers @slow
   Scenario: Upgrade from the extracted v0.3.2 prior release
     Given an isolated temp project containing one valid spec corpus
-    And the candidate package root with expected version 0.4.0
+    And the candidate package root with expected version 0.4.1
     And the v0.3.2 prior release extracted by build-tagged-candidate
     When the upgrade lifecycle runner completes successfully
     Then the runner wrote a passing upgrade record binding plugin-distribution:FR-7
-    And the upgrade details observe version 0.3.2 in one fresh session and 0.4.0 in another
+    And the upgrade details observe version 0.3.2 in one fresh session and 0.4.1 in another
 
   @id:SCEN-LC-003 @lifecycle-producers
   Scenario: Uninstall preserves the project tree byte-for-byte and reinstall restores service
     Given an isolated temp project containing one valid spec corpus
-    And the built candidate package root and expected version 0.4.0
+    And the built candidate package root and expected version 0.4.1
     When the uninstall-reinstall lifecycle runner completes successfully
     Then the runner wrote passing records for uninstall-preservation and reinstall
     And each record binds requirement "plugin-distribution:FR-8" to its own claim
@@ -43,7 +43,7 @@ Feature: Produce real distribution lifecycle evidence through the pinned OMP run
   @id:SCEN-LC-004 @lifecycle-producers @slow
   Scenario: Rollback returns the project to the prior released version
     Given an isolated temp project containing one valid spec corpus
-    And the candidate package root with expected version 0.4.0
+    And the candidate package root with expected version 0.4.1
     And the v0.3.2 prior release extracted by build-tagged-candidate
     When the uninstall-reinstall lifecycle runner completes with rollback enabled
     Then the runner additionally wrote a passing rollback record binding plugin-distribution:FR-8

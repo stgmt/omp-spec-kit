@@ -2,6 +2,16 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 0.4.1 — 2026-09-01
+
+Corrective safe-authoring release for OMP 18.0.11; v0.4.0 is superseded because the normal shipped launcher exposed the historical eight-tool profile unless an ambient stage variable was injected.
+
+### Fixed
+
+- Shipped POSIX and Windows launchers select the v0.4.1 ten-tool surface themselves; OMP extension discovery and direct server startup also default to v0.4.1 when no stage override is present.
+- Added an exact-release-archive smoke that extracts the candidate archive, unsets OMP_SPEC_KIT_STAGE, OMP_SPEC_KIT_PACKAGE_ROOT, and OMP_SPEC_KIT_ROOT, exercises JSON-RPC, and rejects unsolicited stdout.
+- Release verification now runs release-integrity BDD, verifies GitHub artifact attestations with gh attestation verify, binds distribution evidence to the peeled tag commit, and compares existing releases against the peeled tag commit rather than GitHub targetCommitish metadata.
+
 ## 0.4.0 — 2026-09-01
 
 Published safe-authoring release for OMP `18.0.11`; v0.3.2 remains the read-only predecessor.

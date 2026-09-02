@@ -2,7 +2,7 @@ import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const PLUGIN_VERSION = "0.4.0";
+export const PLUGIN_VERSION = "0.4.1";
 export const MARKETPLACE_SCHEMA = "https://anthropic.com/claude-code/marketplace.schema.json";
 export const REPOSITORY_URL = "https://github.com/stgmt/omp-spec-kit";
 export const REPOSITORY_GIT_URL = `${REPOSITORY_URL}.git`;

@@ -129,7 +129,7 @@ function normalizeArguments(rawArguments) {
   return { ok: true, args: normalized };
 }
 
-const requestedStage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE;
+const requestedStage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE ?? "v0.4.1";
 const activeStage = activeStageForEnvironment(requestedStage);
 const activeContracts = toolContractsForStage(activeStage);
 const contractsByName = new Map(activeContracts.map((contract) => [contract.tool, contract]));
@@ -154,7 +154,7 @@ function argumentErrorEnvelope(operation, requestId, validation) {
 }
 
 function respondTool(id, envelope) {
-  const contentText = activeStage === "v0.4.0" && ["overview", "proposePatch", "applyProposedPatch"].includes(envelope.operation)
+  const contentText = ["v0.4.0", "v0.4.1", "safe-authoring"].includes(activeStage) && ["overview", "proposePatch", "applyProposedPatch"].includes(envelope.operation)
     ? JSON.stringify(envelope)
     : summarizeEnvelope(envelope);
   respond(id, {
