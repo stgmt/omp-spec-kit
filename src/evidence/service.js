@@ -153,7 +153,13 @@ export async function executeEvidenceOperation(root, graph, operation, args = {}
   const resolved = findScenario(graph, args.scenarioId, args.spec ?? undefined);
   if (resolved.error) return resolved.error;
   const files = await evidenceFiles(root);
-  const parsedFiles = files.map((file) => ({ ...file, result: resultForScenario(parseMessages(file.bytes), resolved.node.localId) }));
+  const parsedFiles = files.map((file) => {
+    const frames = parseMessages(file.bytes);
+    const result = frames.length === 0
+      ? { result: "UNKNOWN", stale: true, runId: null, lastRunAt: null, failingStep: null, traceStatus: "missing", source: null, captureBinding: null }
+      : resultForScenario(frames, resolved.node.localId);
+    return { ...file, result };
+  });
   const withSource = (entry, file) => {
     const captureBinding = entry.result.captureBinding;
     const bindingMismatch = captureBinding && (

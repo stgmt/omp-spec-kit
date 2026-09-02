@@ -77,4 +77,4 @@ export class DistributionWorld {
   }
 }
 
-setWorldConstructor(DistributionWorld);
+if (process.argv.some((argument) => argument.includes("cucumber"))) setWorldConstructor(DistributionWorld);

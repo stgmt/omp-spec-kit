@@ -12,6 +12,7 @@ Use this skill before every omp-spec-kit release operation. A release is not rea
 1. Require a clean worktree and verify that the tag points to the intended commit.
 2. Run `npm run release:preflight -- --tag vX.Y.Z`.
 3. Run the complete staged suite, Docker checks, release-integrity scenarios, candidate checks, archive checks, and installed-package checks.
+   If the release includes any changed MCP tool, tool contract, handler, evidence parser, launcher, or registry, run the complete @tool-e2e matrix for all affected tools against both the built server and the extracted archive launcher. Archive inventory alone is insufficient.
 4. Verify that all evidence comes from repository-owned sources:
    - `.omp-spec-kit/evidence/last-test-run.ndjson`;
    - `.omp-spec-kit/evidence/bdd-results/run.ndjson`;
@@ -31,6 +32,7 @@ A failed check is active work, not a report:
 7. Repeat until every check passes.
 
 The full staged suite is mandatory. Broad, old, internal, inconvenient, proposal, archive, Docker, digest, and attestation scenarios are not exempt.
+The tool-E2E matrix is mandatory for every changed tool surface. It MUST include semantic success, closed-schema invalid input, operation-specific boundaries, typed errors, read-only byte snapshots, and deliberate copied-state mutations. Skipped rows or envelope-only assertions do not constitute proof.
 
 ## Published-release boundary
 

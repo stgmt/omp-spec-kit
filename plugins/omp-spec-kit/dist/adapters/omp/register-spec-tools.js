@@ -2,6 +2,7 @@
 // navigation, evidence, and safe-authoring surface.
 
 import { ompToolContractsForStage, zodParametersFor } from "../tool-contracts.js";
+import { summarizeEnvelope } from "../query-service.js";
 
 const WRITE_OPERATIONS = new Set(["applyProposedPatch", "applySpecChange", "applySpecTransaction", "applySpecRepairs"]);
 
@@ -25,7 +26,7 @@ export function registerSpecTools(pi, getService, stage = globalThis.process?.en
           schemaVersion,
         });
         return {
-          content: [{ type: "text", text: JSON.stringify(envelope) }],
+          content: [{ type: "text", text: summarizeEnvelope(envelope) }],
           details: envelope,
         };
       },

@@ -5,12 +5,13 @@ import path from "node:path";
 import { Given, Then, When, After } from "@cucumber/cucumber";
 import { classifyToolCall } from "../../src/enforcement/classifier.js";
 import { createTempRepo, loadFrozenRealCorpus, writeCorpus } from "../helpers/kernel-world.mjs";
+import { runV05ToolE2E, prepareV05ToolE2EFixtures } from "../helpers/v05-tool-e2e.mjs";
 import { runExtensionProbe, spawnMcpServer } from "../helpers/mcp-world.mjs";
 
 const REPOSITORY_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const SERVER_PATH = path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit", "dist", "mcp", "server.js");
 
-const READ_STAGE_CALLS = Object.freeze([
+const READ_COMPLETE_CALLS = Object.freeze([
   ["find_by_tags", { tags: ["@feature1"] }],
   ["list_tasks", { spec: "product", statuses: ["planned", "todo", "ready", "in-progress", "blocked"], limit: 20 }],
   ["list_phase_tasks", { spec: "product", phase: "missing-phase", limit: 20 }],
@@ -32,7 +33,14 @@ async function startWorld() {
   const root = await createTempRepo();
   const frozen = await loadFrozenRealCorpus(REPOSITORY_ROOT);
   await writeCorpus(root, frozen.files);
-  return { root, server: spawnMcpServer({ serverPath: SERVER_PATH, root, cwd: root, env: { OMP_SPEC_KIT_STAGE: "read-complete" } }) };
+  await prepareV05ToolE2EFixtures(root);
+  const outsideRoot = path.join(path.dirname(root), path.basename(root) + "-outside");
+  await mkdir(outsideRoot, { recursive: true });
+  await writeFile(path.join(outsideRoot, "secret.md"), "outside secret", "utf8");
+  await writeFile(path.join(outsideRoot, "secret.bin"), Buffer.from("outside-bytes", "utf8"));
+  await mkdir(path.join(root, ".omp-spec-kit", "evidence"), { recursive: true });
+  await symlink(outsideRoot, path.join(root, ".omp-spec-kit", "evidence", "outside-link"), "junction");
+  return { root, outsideRoot, server: spawnMcpServer({ serverPath: SERVER_PATH, root, cwd: root, env: { OMP_SPEC_KIT_STAGE: "read-complete" } }) };
 }
 
 Given("a real staged MCP corpus and packaged server", async function () {
@@ -45,7 +53,7 @@ When("the read-complete registry and every staged handler are called", async fun
   const listed = await this.stagedMcp.server.request("tools/list");
   this.stagedMcp.listedNames = listed.result.tools.map((tool) => tool.name);
   this.stagedMcp.results = [];
-  for (const [name, arguments_] of READ_STAGE_CALLS) {
+  for (const [name, arguments_] of READ_COMPLETE_CALLS) {
     const response = await this.stagedMcp.server.request("tools/call", { name, arguments: { schemaVersion: "spec-kernel@1", requestId: `bdd-${name}`, ...arguments_ } });
     this.stagedMcp.results.push({ name, response });
   }
@@ -55,7 +63,7 @@ Then("the read-complete registry has exactly 23 names and every call has a bound
   assert.equal(this.stagedMcp.listedNames.length, 23);
   assert.equal(new Set(this.stagedMcp.listedNames).size, 23);
   for (const name of ["spec_inventory", "spec_get_node", "spec_find_nodes", "spec_get_edges", "spec_trace", "spec_diagnostics", "spec_overview", "spec_markdown_inventory"]) assert.ok(this.stagedMcp.listedNames.includes(name), `${name} must remain registered`);
-  assert.equal(this.stagedMcp.results.length, READ_STAGE_CALLS.length);
+  assert.equal(this.stagedMcp.results.length, READ_COMPLETE_CALLS.length);
   for (const { name, response } of this.stagedMcp.results) {
     assert.ok(response.result, `${name} must return a JSON-RPC result`);
     assert.equal(response.result.content.length, 1, `${name} must return one summary content item`);
@@ -404,9 +412,64 @@ Then("applied authoring tools require write approval and proposals remain read-o
   assert.equal(proposal.requestId, "omp-probe-request-id");
 });
 
+async function runToolE2EPhase(world, phase) {
+  await world.server.close();
+  world.server = spawnMcpServer({ serverPath: SERVER_PATH, root: world.root, cwd: world.root, env: { OMP_SPEC_KIT_STAGE: "v0.5.0" } });
+  const initialized = await world.server.request("initialize", { protocolVersion: "2025-03-26" });
+  assert.equal(initialized.result.serverInfo.name, "omp-spec-kit");
+  return runV05ToolE2E({
+    listTools: () => world.server.request("tools/list"),
+    callTool: (name, arguments_) => world.server.request("tools/call", { name, arguments: arguments_ }),
+    projectRoot: world.root,
+    repositoryRoot: REPOSITORY_ROOT,
+    surface: { phase, outsideRoot: world.outsideRoot, restart: async () => {
+      await world.server.close();
+      world.server = spawnMcpServer({ serverPath: SERVER_PATH, root: world.root, cwd: world.root, env: { OMP_SPEC_KIT_STAGE: "v0.5.0" } });
+      await world.server.request("initialize", { protocolVersion: "2025-03-26" });
+    } },
+  });
+}
+
+When("the v0.5 tool inventory matrix is exercised", async function () {
+  this.toolE2E = await runToolE2EPhase(this.stagedMcp, "inventory");
+});
+Then("the v0.5 inventory contains the exact 27-tool surface", function () {
+  assert.deepEqual(this.toolE2E, ["spec_inventory", "spec_get_node", "spec_find_nodes", "spec_get_edges", "spec_trace", "spec_diagnostics", "spec_overview", "spec_markdown_inventory", "propose_patch", "apply_proposed_patch", "find_by_tags", "list_tasks", "list_phase_tasks", "find_orphans", "validate_anchor", "list_specs", "validate_requirement_metadata", "policy_query_requirements", "get_archival_proof", "validate_spec", "get_spec_status", "mcp_preflight", "list_spec_docs", "read_spec_doc", "read_attachment", "get_test_result", "get_scenario_trace"]);
+});
+
+When("the v0.5 semantic success matrix is exercised", async function () {
+  this.toolE2E = await runToolE2EPhase(this.stagedMcp, "success");
+});
+Then("every v0.5 tool returns its semantic success contract", function () {
+  assert.equal(this.toolE2E, undefined);
+});
+
+When("the v0.5 invalid and containment matrix is exercised", async function () {
+  this.toolE2E = await runToolE2EPhase(this.stagedMcp, "invalid");
+  await runToolE2EPhase(this.stagedMcp, "boundary");
+});
+Then("every v0.5 tool rejects closed-schema and boundary violations", function () {
+  assert.equal(this.toolE2E, undefined);
+});
+
+When("the v0.5 mutation and freshness matrix is exercised", async function () {
+  this.toolE2E = await runToolE2EPhase(this.stagedMcp, "mutation");
+});
+Then("every v0.5 evidence and corpus mutation is detected", function () {
+  assert.equal(this.toolE2E, undefined);
+});
+
+When("the v0.5 read-only matrix is exercised", async function () {
+  this.toolE2E = await runToolE2EPhase(this.stagedMcp, "success");
+});
+Then("every v0.5 read-only call preserves the project byte snapshot", function () {
+  assert.equal(this.toolE2E, undefined);
+});
+
 After({ tags: "@staged-mcp" }, async function () {
   if (this.stagedMcp?.server) await this.stagedMcp.server.close();
   if (this.stagedMcp?.root) await rm(this.stagedMcp.root, { recursive: true, force: true });
+  if (this.stagedMcp?.outsideRoot) await rm(this.stagedMcp.outsideRoot, { recursive: true, force: true });
 });
 When("the v0.5 additive registry, evidence states, and safe authoring are exercised", async function () {
   await this.stagedMcp.server.close();
@@ -420,14 +483,6 @@ When("the v0.5 additive registry, evidence states, and safe authoring are exerci
   assert.equal(initialized.result.serverInfo.name, "omp-spec-kit");
   const listed = await this.stagedMcp.server.request("tools/list");
   this.stagedMcp.v05Names = listed.result.tools.map((tool) => tool.name);
-  this.stagedMcp.v05Results = [];
-  for (const [name, arguments_] of READ_STAGE_CALLS) {
-    const response = await this.stagedMcp.server.request("tools/call", {
-      name,
-      arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-" + name, ...arguments_ },
-    });
-    this.stagedMcp.v05Results.push({ name, response });
-  }
   const overview = await this.stagedMcp.server.request("tools/call", {
     name: "spec_overview",
     arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-overview", specSlugs: [] },
@@ -516,10 +571,6 @@ Then("v0.5 exposes 27 bounded tools, preserves authoring, and refuses stale evid
     "list_spec_docs", "read_spec_doc", "read_attachment", "get_test_result", "get_scenario_trace",
   ];
   assert.deepEqual(this.stagedMcp.v05Names, expectedNames);
-  for (const { name, response } of this.stagedMcp.v05Results) {
-    assert.equal(response.result.content.length, 1, name);
-    assert.equal(typeof response.result.structuredContent.ok, "boolean", name);
-  }
   const result = this.stagedMcp.v05;
   assert.equal(result.passing.result.structuredContent.data.result, "PASSED");
   assert.equal(result.passing.result.structuredContent.data.stale, false);
