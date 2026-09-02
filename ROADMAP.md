@@ -29,13 +29,13 @@ The eight compatibility tools remain. The release adds exactly two proposal-firs
 
 Proof: package construction, public-safety verification, exact archive launch with all stage/root overrides unset, installed OMP 18.0.11 execution, current-corpus manager and lifecycle producer evidence, Docker BDD, nine closed MRI receipts, and digest-bound GitHub release assets plus attestations.
 
-## v0.5.0 — evidence and navigation candidate
+## v0.5.4 — shipped corrective release
 
 Outcome: agents can retrieve the latest result for a scenario and follow its runtime trace, including freshness, failure, and expired-trace states.
 
 The additive v0.5 surface retains the 10-tool compatibility profile and adds 15 navigation/validation tools plus two evidence tools, for 27 direct MCP tools. Result rows remain separate from authored scenario and task nodes.
 
-Proof: repository-owned producer fixtures, content-addressed evidence, stale-result refusal after scenario mutation, happy/fault/incomplete paths for both evidence tools, the complete navigation matrix, exact installed-package dogfood, and safe authoring under the additive stage. Publication remains gated by the immutable tag, archive, and attestation checks.
+Proof: repository-owned producer fixtures, content-addressed evidence, stale-result refusal after scenario mutation, happy/fault/incomplete paths for both evidence tools, the complete navigation matrix, exact installed-package dogfood, safe authoring under the additive stage, and successful publication with commit-bound attestations.
 
 ## v0.6.0 — safe authoring
 
