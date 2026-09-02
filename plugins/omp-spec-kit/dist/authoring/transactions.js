@@ -3,6 +3,8 @@ import { lstat, mkdir, open, readFile, readdir, realpath, rename, rm, rmdir, wri
 import path from "node:path";
 import { FIXED_DOCUMENT_FILES } from "../kernel/types.js";
 import { isValidSpecSlug } from "../kernel/identity.js";
+import { readRepositorySpecs } from "../kernel/adapters/fs.js";
+import { buildKernelGraph } from "../kernel/index.js";
 
 const LOCK_FILE = ".omp-spec-kit-write.lock";
 const STAGING_DIRECTORY = ".omp-spec-kit-staging";
@@ -70,6 +72,7 @@ async function tryStat(absolute) {
     return null;
   }
 }
+
 function isInsidePath(root, candidate) {
   const rootPath = path.resolve(root).split(path.sep).join("/");
   const candidatePath = path.resolve(candidate).split(path.sep).join("/");
@@ -78,6 +81,7 @@ function isInsidePath(root, candidate) {
   const right = normalize(candidatePath);
   return right === left || right.startsWith(`${left}/`);
 }
+
 async function syncFile(absolute) {
   let handle;
   try {
@@ -192,8 +196,9 @@ export async function specificationDirectoryExists(root, spec) {
   if (!checked.ok) return checked;
   return { ok: true, exists: checked.specReal !== undefined, specDir: checked.specDir };
 }
+
 async function collectDirectoryFiles(directory, rootReal, relative = "", files = []) {
-  const entries = (await readdir(directory, { withFileTypes: true })).sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
+  const entries = (await readdir(directory, { withFileTypes: true })).sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
   for (const entry of entries) {
     const childRelative = relative ? `${relative}/${entry.name}` : entry.name;
     const child = path.join(directory, entry.name);
@@ -222,64 +227,6 @@ export async function specificationDirectoryDigest(root, spec) {
   return { ok: true, spec, absolute: checked.specDir, digest: sha256(Buffer.from(material, "utf8")), files: collected.files };
 }
 
-export async function commitArchive(root, requestId, spec, expectedDigest) {
-  const source = await specificationDirectoryDigest(root, spec);
-  if (!source.ok) throw Object.assign(new Error(source.message), { code: source.code });
-  if (source.digest !== expectedDigest) throw Object.assign(new Error("specification changed after archival proof"), { code: "CONFLICT" });
-  const specsDir = path.join(root, ".specs");
-  const archiveDir = path.join(specsDir, "archive");
-  const destination = path.join(archiveDir, spec);
-  let archiveStat;
-  try {
-    archiveStat = await lstat(archiveDir);
-  } catch (error) {
-    if (error?.code !== "ENOENT") throw Object.assign(new Error("archive directory cannot be inspected"), { code: "PATH_FORBIDDEN" });
-  }
-  if (archiveStat && (archiveStat.isSymbolicLink() || !archiveStat.isDirectory())) throw Object.assign(new Error("archive directory must be a regular directory"), { code: "PATH_FORBIDDEN" });
-  if (!archiveStat) await mkdir(archiveDir);
-  const archiveReal = await realpath(archiveDir);
-  const rootReal = await realpath(root);
-  if (!isInsidePath(rootReal, archiveReal)) throw Object.assign(new Error("archive directory escapes the repository"), { code: "PATH_FORBIDDEN" });
-  let destinationStat;
-  try {
-    destinationStat = await lstat(destination);
-  } catch (error) {
-    if (error?.code !== "ENOENT") throw Object.assign(new Error("archive destination cannot be inspected"), { code: "PATH_FORBIDDEN" });
-  }
-  if (destinationStat) throw Object.assign(new Error(`archive destination already exists: ${spec}`), { code: "DEST_EXISTS" });
-  const sourceCheck = await specificationDirectoryDigest(root, spec);
-  if (!sourceCheck.ok) throw Object.assign(new Error(sourceCheck.message), { code: sourceCheck.code });
-  if (sourceCheck.digest !== expectedDigest) throw Object.assign(new Error("specification changed after archival proof"), { code: "CONFLICT" });
-  let moved = false;
-  try {
-    await rename(source.absolute, destination);
-    moved = true;
-    await syncDirectory(path.dirname(source.absolute));
-    await syncDirectory(archiveDir);
-    const movedStat = await lstat(destination);
-    if (movedStat.isSymbolicLink() || !movedStat.isDirectory()) throw Object.assign(new Error("archive destination is not a regular directory"), { code: "PATH_FORBIDDEN" });
-    const movedReal = await realpath(destination);
-    if (!isInsidePath(archiveReal, movedReal)) throw Object.assign(new Error("archive destination escapes the repository"), { code: "PATH_FORBIDDEN" });
-    return { ok: true, from: `.specs/${spec}`, to: `.specs/archive/${spec}`, digest: expectedDigest };
-  } catch (error) {
-    if (moved) {
-      try {
-        const movedStat = await lstat(destination);
-        if (!movedStat.isSymbolicLink() && movedStat.isDirectory()) {
-          await rename(destination, source.absolute);
-          await syncDirectory(path.dirname(source.absolute));
-          await syncDirectory(archiveDir);
-        }
-      } catch (restoreError) {
-        const recovery = new Error("archival rollback could not restore the original specification");
-        recovery.code = "RECOVERY_REQUIRED";
-        recovery.cause = restoreError;
-        throw recovery;
-      }
-    }
-    throw error;
-  }
-}
 function processAlive(pid) {
   if (!Number.isSafeInteger(pid) || pid < 1) return true;
   try {
@@ -301,6 +248,14 @@ async function lstatOrNull(absolute) {
 
 async function committedGenerationValid(root, journal) {
   for (const change of journal.changes ?? []) {
+    if (change.destination) {
+      const destPath = path.join(root, change.destination);
+      const destStat = await lstatOrNull(destPath);
+      if (!destStat || !destStat.isFile()) return false;
+      const bytes = await readFile(destPath);
+      if (sha256(bytes) !== change.destinationSha256) return false;
+      continue;
+    }
     const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
     if (!checked.ok) throw Object.assign(new Error(checked.message), { code: checked.code });
     if (change.deleteAfter) {
@@ -316,6 +271,20 @@ async function committedGenerationValid(root, journal) {
 
 async function rollbackInterruptedGeneration(root, stageRoot, journal) {
   for (const change of [...(journal.changes ?? [])].reverse()) {
+    if (change.destination) {
+      const destPath = path.join(root, change.destination);
+      await rm(destPath, { force: true }).catch(() => {});
+      const backup = path.join(stageRoot, ".backup", change.spec, change.document);
+      const backupStat = await lstatOrNull(backup);
+      if (backupStat?.isFile()) {
+        const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
+        if (checked.ok) {
+          await mkdir(path.dirname(checked.absolute), { recursive: true });
+          await rename(backup, checked.absolute);
+        }
+      }
+      continue;
+    }
     const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
     if (!checked.ok) throw Object.assign(new Error(checked.message), { code: "RECOVERY_REQUIRED" });
     const targetStat = await lstatOrNull(checked.absolute);
@@ -352,18 +321,21 @@ async function recoverInterruptedTransactions(root, lockPath, lockMetadata) {
       } catch (error) {
         throw Object.assign(new Error(`transaction journal is unreadable: ${error.message}`), { code: "RECOVERY_REQUIRED" });
       }
-      if (journal?.schema !== "omp-spec-kit-authoring-transaction@1" || journal.requestId !== lockMetadata.requestId || !Array.isArray(journal.changes)) {
+      if (journal?.schema !== "omp-spec-kit-authoring-transaction@1" || (lockMetadata && journal.requestId !== lockMetadata.requestId) || !Array.isArray(journal.changes)) {
         throw Object.assign(new Error("transaction journal identity is invalid"), { code: "RECOVERY_REQUIRED" });
       }
-      if (journal.phase !== "committed" || !(await committedGenerationValid(root, journal))) await rollbackInterruptedGeneration(root, stageRoot, journal);
+      if (journal.phase !== "committed" || !(await committedGenerationValid(root, journal))) {
+        await rollbackInterruptedGeneration(root, stageRoot, journal);
+      }
       await rm(stageRoot, { recursive: true, force: true });
     }
     await rmdir(stagingParent).catch(() => {});
   }
-  await rm(lockPath, { force: true });
+  if (lockPath) {
+    await rm(lockPath, { force: true });
+  }
   return true;
 }
-
 
 async function acquireLock(root, requestId) {
   const lockPath = path.join(root, ".specs", LOCK_FILE);
@@ -435,10 +407,15 @@ export async function withWriteLock(root, requestId, operation) {
   }
 }
 
-/** Commit a complete set of changed document bytes with rollback on failure. */
 function injectFault(options, point) {
-  if (options?.faultAt === point) throw Object.assign(new Error("deterministic transaction fault"), { code: "INTERNAL_ERROR" });
+  if (options?.faultAt === point) {
+    const error = new Error(`deterministic transaction fault at ${point}`);
+    error.code = "INTERNAL_ERROR";
+    throw error;
+  }
 }
+
+/** Commit a complete set of changed document bytes with rollback on failure. */
 export async function commitDocuments(root, requestId, changes, options = {}) {
   if (!Array.isArray(changes) || changes.length === 0) throw Object.assign(new Error("transaction needs at least one document"), { code: "INVALID_REQUEST" });
   const stagingParent = path.join(root, ".specs", STAGING_DIRECTORY);
@@ -450,38 +427,46 @@ export async function commitDocuments(root, requestId, changes, options = {}) {
     schema: "omp-spec-kit-authoring-transaction@1",
     requestId,
     phase: "prepared",
-    changes: changes.map((change) => ({ spec: change.spec, document: change.document, afterSha256: sha256(change.afterBytes), deleteAfter: change.deleteAfter === true })),
+    changes: changes.map((change) => ({
+      spec: change.spec,
+      document: change.document,
+      afterSha256: sha256(change.afterBytes),
+      deleteAfter: change.deleteAfter === true,
+      destination: change.destination ?? null,
+      destinationSha256: change.destination ? sha256(change.beforeBytes) : null,
+    })),
     installed: [],
   };
+
   try {
-    const rootCheck = await inspectAuthoringTarget(root, changes[0].spec, changes[0].document, { allowMissing: true });
+    const firstSpec = changes[0].spec;
+    const rootCheck = await inspectAuthoringTarget(root, firstSpec, changes[0].document, { allowMissing: true });
     if (!rootCheck.ok) throw Object.assign(new Error(rootCheck.message), { code: rootCheck.code });
-    let stagingStat;
-    try {
-      stagingStat = await lstat(stagingParent);
-    } catch (error) {
-      if (error?.code !== "ENOENT") throw Object.assign(new Error("transaction staging parent cannot be inspected"), { code: "PATH_FORBIDDEN" });
-    }
+    let stagingStat = await tryStat(stagingParent);
     if (stagingStat && (stagingStat.isSymbolicLink() || !stagingStat.isDirectory())) throw Object.assign(new Error("transaction staging parent must be a regular directory"), { code: "PATH_FORBIDDEN" });
-    let stageStat;
-    try {
-      stageStat = await lstat(stageRoot);
-    } catch (error) {
-      if (error?.code !== "ENOENT") throw Object.assign(new Error("transaction staging directory cannot be inspected"), { code: "PATH_FORBIDDEN" });
-    }
+    let stageStat = await tryStat(stageRoot);
     if (stageStat) throw Object.assign(new Error("transaction staging directory already exists"), { code: "CONFLICT" });
     await mkdir(stageRoot, { recursive: true });
     await writeJournal(journalPath, journal);
+
+    // Phase 1: Staging files
     for (const change of changes) {
+      if (change.destination) {
+        const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
+        if (!checked.ok || checked.missing) throw Object.assign(new Error(checked.message ?? "document not found"), { code: checked.code ?? "DOC_NOT_FOUND" });
+        const sourceBytes = await readFile(checked.absolute);
+        const stageDestDir = path.join(stageRoot, "dest", path.dirname(change.destination));
+        await mkdir(stageDestDir, { recursive: true });
+        const stageDestPath = path.join(stageDestDir, path.basename(change.destination));
+        await writeFile(stageDestPath, sourceBytes);
+        await syncFile(stageDestPath);
+        continue;
+      }
       const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
       if (!checked.ok) throw Object.assign(new Error(checked.message), { code: checked.code });
       const stageSpecDir = path.join(stageRoot, change.spec);
-      const stageSpecStat = await tryStat(stageSpecDir);
-      if (stageSpecStat && (stageSpecStat.isSymbolicLink() || !stageSpecStat.isDirectory())) throw Object.assign(new Error("staged specification directory must be a regular directory"), { code: "PATH_FORBIDDEN" });
       await mkdir(stageSpecDir, { recursive: true });
       const stagePath = path.join(stageSpecDir, change.document);
-      const existingStage = await tryStat(stagePath);
-      if (existingStage && (existingStage.isSymbolicLink() || !existingStage.isFile())) throw Object.assign(new Error("staged document must be a regular file"), { code: "PATH_FORBIDDEN" });
       await writeFile(stagePath, change.afterBytes);
       await syncFile(stagePath);
       await syncDirectory(stageSpecDir);
@@ -490,7 +475,33 @@ export async function commitDocuments(root, requestId, changes, options = {}) {
     journal.phase = "ready";
     await writeJournal(journalPath, journal);
     injectFault(options, "after-staging");
+
+    // Phase 2: Installing/Swapping
+    injectFault(options, "before-swap");
     for (const change of changes) {
+      if (change.destination) {
+        const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
+        if (!checked.ok) throw Object.assign(new Error(checked.message), { code: checked.code });
+        const sourcePath = checked.absolute;
+        const destPath = path.join(root, change.destination);
+        const backup = path.join(stageRoot, ".backup", change.spec, change.document);
+        await mkdir(path.dirname(backup), { recursive: true });
+        await rename(sourcePath, backup);
+        await syncFile(backup);
+        const originalBytes = await readFile(backup);
+        backups.push({ target: sourcePath, backup, spec: change.spec, document: change.document, beforeSha256: sha256(originalBytes) });
+        injectFault(options, "during-swap");
+
+        const stageDestPath = path.join(stageRoot, "dest", path.dirname(change.destination), path.basename(change.destination));
+        await mkdir(path.dirname(destPath), { recursive: true });
+        await rename(stageDestPath, destPath);
+        await syncFile(destPath);
+        await syncDirectory(path.dirname(destPath));
+        installed.push({ target: destPath, isArchiveDest: true });
+        injectFault(options, "after-install");
+        continue;
+      }
+
       const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
       if (!checked.ok) throw Object.assign(new Error(checked.message), { code: checked.code });
       const target = checked.absolute;
@@ -499,34 +510,65 @@ export async function commitDocuments(root, requestId, changes, options = {}) {
       const backup = path.join(stageRoot, ".backup", change.spec, change.document);
       if (existing?.isSymbolicLink() || (existing && !existing.isFile())) throw Object.assign(new Error("target document must be a regular file"), { code: "PATH_FORBIDDEN" });
       if (existing?.isFile()) {
+        const originalBytes = await readFile(target);
         await mkdir(path.dirname(backup), { recursive: true });
         await rename(target, backup);
         await syncDirectory(path.dirname(target));
         await syncFile(backup);
-        backups.push({ target, backup, spec: change.spec, document: change.document });
+        backups.push({ target, backup, spec: change.spec, document: change.document, beforeSha256: sha256(originalBytes) });
         injectFault(options, "during-swap");
       }
-      const beforeInstall = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
-      if (!beforeInstall.ok) throw Object.assign(new Error(beforeInstall.message), { code: beforeInstall.code });
       await mkdir(path.dirname(target), { recursive: true });
       if (change.deleteAfter) {
-        const afterRemove = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
-        if (!afterRemove.ok || !afterRemove.missing) throw Object.assign(new Error("deleted document remained after removal"), { code: "WRITE_FAILED" });
+        // Document deleted: backup already holds the prior file
       } else {
         await rename(stagePath, target);
         await syncFile(target);
         await syncDirectory(path.dirname(target));
-        const afterInstall = await inspectAuthoringTarget(root, change.spec, change.document);
-        if (!afterInstall.ok) throw Object.assign(new Error(afterInstall.message), { code: afterInstall.code });
       }
       installed.push({ target, spec: change.spec, document: change.document });
       journal.installed.push({ spec: change.spec, document: change.document, deleteAfter: change.deleteAfter === true });
       journal.phase = "installing";
       await writeJournal(journalPath, journal);
+      injectFault(options, "after-install");
     }
+
+    // Phase 3: Post-installation verification before commit
+    injectFault(options, "before-commit");
+    for (const change of changes) {
+      if (change.destination) {
+        const destPath = path.join(root, change.destination);
+        const destStat = await lstatOrNull(destPath);
+        if (!destStat || !destStat.isFile()) {
+          throw Object.assign(new Error(`destination verification failed for ${change.destination}`), { code: "WRITE_FAILED" });
+        }
+        continue;
+      }
+      const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
+      if (!checked.ok) throw Object.assign(new Error(checked.message), { code: checked.code });
+      if (change.deleteAfter) {
+        if (!checked.missing) throw Object.assign(new Error("deleted document remained after installation"), { code: "WRITE_FAILED" });
+      } else {
+        if (checked.missing) throw Object.assign(new Error("installed document missing"), { code: "WRITE_FAILED" });
+        const bytes = await readFile(checked.absolute);
+        if (sha256(bytes) !== sha256(change.afterBytes)) throw Object.assign(new Error("installed document hash mismatch"), { code: "WRITE_FAILED" });
+      }
+    }
+
+    // Commit
     journal.phase = "committed";
     await writeJournal(journalPath, journal);
     await syncDirectory(path.dirname(stageRoot));
+
+    // If archiving, remove empty source spec directory
+    for (const change of changes) {
+      if (change.destination) {
+        const specDir = path.join(root, ".specs", change.spec);
+        await rm(specDir, { recursive: true, force: true }).catch(() => {});
+        break;
+      }
+    }
+
     injectFault(options, "during-cleanup");
     await rm(stageRoot, { recursive: true, force: true });
     await rmdir(stagingParent).catch(() => {});
@@ -534,34 +576,129 @@ export async function commitDocuments(root, requestId, changes, options = {}) {
   } catch (error) {
     let rollbackError;
     try {
-      for (const change of installed) {
-        const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
-        if (!checked.ok) throw Object.assign(new Error(checked.message), { code: checked.code });
-        await rm(checked.absolute, { force: true });
+      injectFault(options, "during-rollback");
+      for (const inst of installed) {
+        if (inst.isArchiveDest) {
+          await rm(inst.target, { force: true }).catch(() => {});
+        } else {
+          await rm(inst.target, { force: true }).catch(() => {});
+        }
       }
       for (const backup of backups) {
-        const checked = await inspectAuthoringTarget(root, backup.spec, backup.document, { allowMissing: true });
-        if (!checked.ok) throw Object.assign(new Error(checked.message), { code: checked.code });
-        const backupStat = await lstat(backup.backup);
-        if (backupStat.isSymbolicLink() || !backupStat.isFile()) throw Object.assign(new Error("transaction backup is not a regular file"), { code: "RECOVERY_REQUIRED" });
-        await mkdir(path.dirname(checked.absolute), { recursive: true });
-        await rename(backup.backup, checked.absolute);
-        await syncFile(checked.absolute);
-        await syncDirectory(path.dirname(checked.absolute));
+        await mkdir(path.dirname(backup.target), { recursive: true });
+        await rename(backup.backup, backup.target);
+        await syncFile(backup.target);
+        await syncDirectory(path.dirname(backup.target));
+        // Verify restored bytes match beforeSha256
+        const restoredBytes = await readFile(backup.target);
+        if (sha256(restoredBytes) !== backup.beforeSha256) {
+          throw new Error(`restored file hash mismatch on rollback: ${backup.target}`);
+        }
       }
       await rm(stageRoot, { recursive: true, force: true });
       await rmdir(stagingParent).catch(() => {});
     } catch (restoreError) {
       rollbackError = restoreError;
     }
+
     if (rollbackError) {
-      const recovery = new Error("transaction rollback could not prove a complete old generation");
-      recovery.code = "RECOVERY_REQUIRED";
-      recovery.cause = rollbackError;
-      throw recovery;
+      try {
+        journal.phase = "rollback_failed";
+        journal.rollbackError = rollbackError.message;
+        await writeJournal(journalPath, journal);
+      } catch {}
+      const failure = new Error("transaction rollback could not prove a complete old generation: " + rollbackError.message);
+      failure.code = "ROLLBACK_FAILED";
+      failure.retryable = true;
+      failure.cause = rollbackError;
+      throw failure;
     }
     throw error;
   }
+}
+
+async function isLockedByOther(lockPath) {
+  const stat = await tryStat(lockPath);
+  if (!stat) return false;
+  try {
+    const text = await readFile(lockPath, "utf8");
+    const meta = JSON.parse(text);
+    if (meta?.pid === process.pid) return false;
+    return processAlive(meta?.pid);
+  } catch {
+    return true;
+  }
+}
+
+/** Consistent reader of repository specifications. */
+export async function readConsistentRepositorySpecs({ root, maxRetries = 5 } = {}) {
+  const stagingParent = path.join(root, ".specs", STAGING_DIRECTORY);
+  const stagingStat = await tryStat(stagingParent);
+  if (stagingStat?.isDirectory()) {
+    try {
+      const entries = await readdir(stagingParent, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const journalPath = path.join(stagingParent, entry.name, "transaction.json");
+        const journalStat = await tryStat(journalPath);
+        if (journalStat?.isFile()) {
+          try {
+            const journal = JSON.parse(await readFile(journalPath, "utf8"));
+            if (journal?.phase && journal.phase !== "committed") {
+              const err = new Error("transaction recovery is required before reading specification corpus");
+              err.code = "RECOVERY_REQUIRED";
+              err.retryable = true;
+              return { error: err };
+            }
+          } catch {}
+        }
+      }
+    } catch {}
+  }
+
+  const lockPath = path.join(root, ".specs", LOCK_FILE);
+  let attempts = 0;
+  while (attempts < maxRetries) {
+    attempts++;
+    if (await isLockedByOther(lockPath)) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      continue;
+    }
+    const snapA = await readRepositorySpecs({ root });
+    if (snapA.error) return snapA;
+
+    if (await isLockedByOther(lockPath)) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      continue;
+    }
+    const snapB = await readRepositorySpecs({ root });
+    if (snapB.error) return snapB;
+
+    if (await isLockedByOther(lockPath)) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      continue;
+    }
+    const filesA = [...snapA.files].sort((l, r) => l.path.localeCompare(r.path));
+    const filesB = [...snapB.files].sort((l, r) => l.path.localeCompare(r.path));
+    if (filesA.length === filesB.length) {
+      let identical = true;
+      for (let i = 0; i < filesA.length; i++) {
+        if (filesA[i].path !== filesB[i].path || sha256(filesA[i].bytes) !== sha256(filesB[i].bytes)) {
+          identical = false;
+          break;
+        }
+      }
+      if (identical) {
+        return snapB;
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+
+  const conflict = new Error("specification corpus changed concurrently during read; please retry");
+  conflict.code = "CONCURRENT_READ";
+  conflict.retryable = true;
+  return { error: conflict };
 }
 
 export function changedDocumentHash(document, beforeBytes, afterBytes) {

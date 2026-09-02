@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 import { toolContractsForStage } from "../src/adapters/tool-contracts.js";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const stage = process.env.OMP_SPEC_KIT_STAGE;
-if (stage !== "v0.5.0") throw new Error("dogfood requires OMP_SPEC_KIT_STAGE=v0.5.0");
+const stage = process.env.OMP_SPEC_KIT_STAGE ?? "v0.6.0";
+if (stage !== "v0.6.0" && stage !== "v0.5.0") throw new Error("dogfood requires OMP_SPEC_KIT_STAGE=v0.6.0 or v0.5.0");
 const contracts = toolContractsForStage(stage);
 const serverPath = path.join(repositoryRoot, "src", "mcp", "server.js");
 

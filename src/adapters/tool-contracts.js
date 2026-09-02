@@ -230,50 +230,6 @@ export function validateContractArguments(contract, args) {
   return { ok: true };
 }
 
-// OMP zod parameters derived from the same table. register-spec-tools filters
-// out spec_inventory before calling this — that name stays owned by the v0.1
-// extension entry in the OMP registry.
-export function zodParametersFor(contract, z) {
-  const shape = {};
-  for (const entry of contract.fields) {
-    let schema;
-    switch (entry.kind) {
-      case "string":
-        schema = z.string();
-        break;
-      case "boolean":
-        schema = z.boolean();
-        break;
-      case "integer":
-        schema = z.number().int().min(1);
-        break;
-      case "nullableString":
-        schema = z.union([z.string(), z.null()]);
-        break;
-      case "enum":
-        schema = z.enum([...entry.values]);
-        break;
-      case "enumArray":
-        schema = z.array(z.enum([...entry.values]));
-        break;
-      case "stringArray":
-        schema = z.array(z.string());
-        break;
-      case "json":
-        schema = z.unknown();
-        break;
-      default:
-        throw new Error(`unknown tool contract field kind: ${entry.kind}`);
-    }
-    shape[entry.name] = entry.optional ? schema.optional() : schema;
-  }
-  // Common SCHEMA-11 transport fields stay optional at both surfaces; an
-  // absent schemaVersion means the current kernel contract. A contract-owned
-  // requestId remains required when the operation explicitly declares it.
-  if (shape.schemaVersion === undefined) shape.schemaVersion = z.string().optional();
-  if (shape.requestId === undefined) shape.requestId = z.union([z.string(), z.null()]).optional();
-  return z.object(shape).strict();
-}
 
 const TASK_STATUS_VALUES = ["planned", "todo", "ready", "in-progress", "blocked", "done", "deferred", "unknown"];
 const VERIFICATION_METHOD_VALUES = ["test", "analysis", "review", "inspection", "demonstration"];
@@ -465,10 +421,10 @@ export const AUTHORING_TOOL_CONTRACTS = Object.freeze([
       field("requestId", "string"),
       field("proposalId", "string"),
       field("proposalSha256", "string"),
+      field("expectedDocuments", "json"),
       field("reason", "string"),
-      optionalField("expectedDocuments", "json"),
+      field("approval", "enum", ["approve"]),
       optionalField("actorRef", "nullableString"),
-      optionalField("approval", "enum", ["approve"]),
     ],
   ),
   futureContract(
@@ -504,7 +460,15 @@ export const AUTHORING_TOOL_CONTRACTS = Object.freeze([
     "Apply Specification Transaction",
     "applySpecTransaction",
     "Apply a proposal-backed multi-document transaction through the central writer.",
-    [field("requestId", "string"), field("proposalId", "string"), field("reason", "string"), optionalField("approval", "enum", ["approve"])],
+    [
+      field("requestId", "string"),
+      field("proposalId", "string"),
+      field("proposalSha256", "string"),
+      field("expectedDocuments", "json"),
+      field("reason", "string"),
+      field("approval", "enum", ["approve"]),
+      optionalField("actorRef", "nullableString"),
+    ],
   ),
   futureContract(
     "append_to_section",
@@ -553,7 +517,7 @@ export const AUTHORING_TOOL_CONTRACTS = Object.freeze([
     "Add Task Phase",
     "addPhase",
     "Compile a task phase into a proposal.",
-    [field("spec", "string"), field("title", "string"), field("reason", "string"), optionalField("phase", "string")],
+    [field("spec", "string"), field("title", "string"), field("reason", "string")],
   ),
   futureContract(
     "set_entity_status",
@@ -588,14 +552,22 @@ export const AUTHORING_TOOL_CONTRACTS = Object.freeze([
     "Propose Specification Repairs",
     "proposeSpecRepairs",
     "Create a dry-run proposal for bounded mechanical repairs.",
-    [field("spec", "string"), field("reason", "string"), optionalField("repairs", "json")],
+    [field("spec", "string"), field("reason", "string"), field("repairs", "json")],
   ),
   futureContract(
     "apply_spec_repairs",
     "Apply Specification Repairs",
     "applySpecRepairs",
     "Apply a previously reviewed repair proposal through the central writer.",
-    [field("requestId", "string"), field("proposalId", "string"), field("proposalSha256", "string"), field("expectedDocuments", "json"), field("reason", "string"), optionalField("approval", "enum", ["approve"])],
+    [
+      field("requestId", "string"),
+      field("proposalId", "string"),
+      field("proposalSha256", "string"),
+      field("expectedDocuments", "json"),
+      field("reason", "string"),
+      field("approval", "enum", ["approve"]),
+      optionalField("actorRef", "nullableString"),
+    ],
   ),
   futureContract(
     "delete_spec_doc",
@@ -653,37 +625,26 @@ export const V05_TOOL_CONTRACTS = Object.freeze([
   ...EVIDENCE_TOOL_CONTRACTS.slice(READ_COMPLETE_TOOL_CONTRACTS.length),
 ]);
 
+export const MUTATING_TOOL_NAMES = Object.freeze(new Set([
+  "apply_proposed_patch",
+  "apply_spec_change",
+  "apply_spec_transaction",
+  "apply_spec_repairs",
+]));
+
+export const MUTATING_OPERATION_NAMES = Object.freeze(new Set([
+  "applyProposedPatch",
+  "applySpecChange",
+  "applySpecTransaction",
+  "applySpecRepairs",
+]));
+
 export function toolContractsForStage(stage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE) {
   const value = typeof stage === "string" ? stage.trim().toLowerCase() : "";
+  if (value === "v0.1.0" || value === "v0.2.0" || value === "v0.3.0" || value === "v0.3.2") return TOOL_CONTRACTS;
   if (value === "v0.4.0" || value === "v0.4.1" || value === "safe-authoring") return SAFE_AUTHORING_TOOL_CONTRACTS;
   if (value === "read-complete" || value === "v0.4.0-read-complete") return READ_COMPLETE_TOOL_CONTRACTS;
   if (value === "evidence" || value === "v0.5.0") return V05_TOOL_CONTRACTS;
-  if (value === "authoring" || value === "v0.6.0" || value === "v0.7.0") return AUTHORING_TOOL_CONTRACTS;
-  if (value === "" || value === "v0.3.2") return TOOL_CONTRACTS;
+  if (value === "" || value === "v0.6.0" || value === "authoring") return AUTHORING_TOOL_CONTRACTS;
   throw new Error("unsupported OMP_SPEC_KIT_STAGE: " + value);
-}
-
-export function ompToolContractsForStage(stage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE) {
-  return Object.freeze(toolContractsForStage(stage).filter((contract) => contract.tool !== "spec_inventory"));
-}
-
-// The seven tools registered on the OMP side (spec_inventory excluded)
-// for the historical v0.3.2 compatibility profile.
-export const OMP_TOOL_CONTRACTS = Object.freeze(TOOL_CONTRACTS.filter((c) => c.tool !== "spec_inventory"));
-
-export const TOOL_AUTHORITY_ABI = "tool-call-authority-abi@1";
-
-export function authorityProfileAccepted(env = globalThis.process?.env) {
-  if (env?.OMP_SPEC_KIT_INTERNAL_DOGFOOD === "1") return true;
-  return (
-    env?.OMP_SPEC_KIT_AUTHORITY_ACCEPTED === "1" &&
-    env?.OMP_SPEC_KIT_AUTHORITY_ABI === TOOL_AUTHORITY_ABI &&
-    env?.OMP_SPEC_KIT_ENFORCEMENT_ACCEPTED === "1"
-  );
-}
-
-export function activeStageForEnvironment(stage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE, env = globalThis.process?.env) {
-  const normalized = typeof stage === "string" ? stage.trim().toLowerCase() : "";
-  if (["authoring", "v0.6.0", "v0.7.0", "plan-gate"].includes(normalized) && !authorityProfileAccepted(env)) return "v0.3.2";
-  return normalized || stage;
 }

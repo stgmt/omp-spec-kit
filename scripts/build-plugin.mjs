@@ -3,10 +3,10 @@ import { copyFile, lstat, mkdir, readFile, readdir, rm, writeFile } from "node:f
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const PLUGIN_VERSION = "0.5.4";
+const PLUGIN_VERSION = "0.6.0";
 const MANIFEST_SCHEMA = "omp-spec-kit-dist-manifest@1";
 // Flat extension sources copied to the dist root.
-const SOURCE_FILES = Object.freeze(["extension.js", "inventory.js"]);
+const SOURCE_FILES = Object.freeze(["extension.js"]);
 // Source trees byte-copied into same-named dist subtrees.
 const SOURCE_TREES = Object.freeze([
   { source: "src/kernel", output: "kernel" },

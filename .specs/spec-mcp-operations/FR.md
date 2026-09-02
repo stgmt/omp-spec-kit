@@ -224,12 +224,11 @@ Runtime identities are qualified as `spec-mcp-operations:FR-N`. Product state is
 
 ## FR-23: Two-tool public boundary
 
-The future MCP authoring surface SHALL contain exactly `propose_patch` and `apply_proposed_patch`. Domain helpers SHALL compile internally to the same edit-operation representation and SHALL NOT register public tools. The current-host `tool_call` policy SHALL compare the exact two-name allowlist first; every other mutating call whose resolved target is under canonical `.specs/**` SHALL be denied before execution. Calls outside that path remain subject to normal host policy.
+The v0.6.0 MCP authoring surface SHALL expose all 24 authoring operations as public tools: 20 proposal tools returning a deterministic Proposal structure, and 4 transactional apply tools executing with CAS verification and atomic rollback. The current-host `tool_call` policy SHALL verify minted MCP tool names; every other mutating call whose resolved target is under canonical `.specs/**` SHALL be denied before execution. Calls outside that path remain subject to normal host policy.
 
-**Contract card:** kind `boundary`; subject `authoring-public-surface`; observables: exact tools/list names, path-policy decision, handler route; negative cases: helper registration, alternate writer, non-allowlisted `.specs/**` target; verification: installed MCP inventory and tool-call policy integration tests, pending.
-**Acceptance:** [AC-23.1](ACCEPTANCE_CRITERIA.md#ac-231), [AC-23.2](ACCEPTANCE_CRITERIA.md#ac-232)
+**Acceptance:** [AC-23.1](ACCEPTANCE_CRITERIA.md#ac-231)
+
 **Scenario:** `@feature23`
-**Story / use case:** [US-10](USER_STORIES.md#us-10-review-exact-changes-before-mutation), [US-13](USER_STORIES.md#us-13-contain-the-write-boundary), [UC-12](USE_CASES.md#uc-12-reject-an-escaping-or-raw-write)
 
 ## FR-24: Pure deterministic proposal
 

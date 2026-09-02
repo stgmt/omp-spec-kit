@@ -2,5 +2,5 @@
 setlocal
 set "LAUNCHER_DIR=%~dp0"
 for %%I in ("%LAUNCHER_DIR%..") do set "OMP_SPEC_KIT_PACKAGE_ROOT=%%~fI"
-if not defined OMP_SPEC_KIT_STAGE set "OMP_SPEC_KIT_STAGE=v0.5.0"
+if not defined OMP_SPEC_KIT_STAGE set "OMP_SPEC_KIT_STAGE=v0.6.0"
 node "%LAUNCHER_DIR%..\dist\mcp\server.js" %*

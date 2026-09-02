@@ -12,7 +12,8 @@ export function createSpecEnforcementHandler(options = {}) {
 /** Register the enforcement handler on an OMP extension API. */
 export function registerSpecEnforcement(pi, options = {}) {
   if (typeof pi?.on !== "function") return undefined;
-  const handler = createSpecEnforcementHandler(options);
+  const getAllTools = typeof pi.getAllTools === "function" ? () => pi.getAllTools() : undefined;
+  const handler = createSpecEnforcementHandler({ ...options, pi, getAllTools });
   pi.on("tool_call", handler);
   return handler;
 }

@@ -17,7 +17,7 @@ The gate is an OMP host boundary, not a second MCP server and not an operating-s
 
 ## OMP boundary
 
-The installed OMP contract is grounded in docs/omp-v17.3.7-contract.md and the pinned runtime at commit 8500092296621a6826b7136e840f8a59ea338958. The implementation phase must attach exact source-line evidence for the tool_call event, standard tool variants, namespaced MCP names, timeout behavior, and unknown/custom tools. This gate does not claim to stop an unrelated external process or OS user from reading the disk.
+The installed OMP contract is grounded in OMP v18.0.11 pinned at commit 33cc6b9a043a74e00a157e72ca909272796d8461 (audit report audit-reports/omp-spec-kit-v0.6.0-omp-authority-2026-09-02.md). In v0.6.0, all 49 tools are served exclusively via MCP; the extension registers zero direct tools and provides one fail-closed tool_call hook. Minted tool names mcp__omp_spec_kit_<op> and mcp__omp_spec_kit_omp_spec_kit_<op> are validated via pi.getAllTools() provenance.
 
 ## Documents
 

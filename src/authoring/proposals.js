@@ -8,14 +8,33 @@ import {
 } from "./transactions.js";
 import { buildKernelGraph } from "../kernel/index.js";
 import { readRepositorySpecs } from "../kernel/adapters/fs.js";
-
+import { detectSecret } from "./secrets.js";
 import { FIXED_DOCUMENT_FILES } from "../kernel/types.js";
 const MAX_PROPOSALS = 128;
 const MAX_REASON_BYTES = 512;
 const MAX_DIFF_BYTES = 64 * 1024;
 const PROPOSAL_TTL_MS = 10 * 60 * 1000;
 
-const WRITE_ERROR_CODES = new Set(["INVALID_REQUEST", "PATH_FORBIDDEN", "VALIDATION_FAILED", "CONFLICT", "RECOVERY_REQUIRED", "DEADLINE_EXCEEDED", "INTERNAL_ERROR"]);
+const WRITE_ERROR_CODES = new Set([
+  "INVALID_REQUEST",
+  "PATH_FORBIDDEN",
+  "VALIDATION_FAILED",
+  "CONFLICT",
+  "RECOVERY_REQUIRED",
+  "DEADLINE_EXCEEDED",
+  "CONCURRENT_READ",
+  "ROLLBACK_FAILED",
+  "INTERNAL_ERROR",
+]);
+function isRetryable(code) {
+  return (
+    code === "CONFLICT" ||
+    code === "DEADLINE_EXCEEDED" ||
+    code === "CONCURRENT_READ" ||
+    code === "RECOVERY_REQUIRED" ||
+    code === "ROLLBACK_FAILED"
+  );
+}
 function safeErrorCode(code) {
   if (WRITE_ERROR_CODES.has(code)) return code;
   if (code === "DOC_NOT_FOUND" || code === "NOT_FOUND") return "PATH_FORBIDDEN";
@@ -28,7 +47,7 @@ function error(code, message, extra = {}) {
     error: {
       code: normalizedCode,
       message,
-      retryable: normalizedCode === "CONFLICT" || normalizedCode === "DEADLINE_EXCEEDED",
+      retryable: isRetryable(normalizedCode),
       requestId: extra.requestId ?? null,
       proposalHash: extra.proposalHash ?? null,
       changedPaths: extra.changedPaths ?? [],
@@ -243,7 +262,7 @@ function publicOperationKind(operation) {
 }
 
 function publicProposal(proposal, requestId) {
-  return {
+  const result = {
     schemaVersion: "spec-mcp-operations-proposal@1",
     requestId,
     proposalId: proposal.proposalId,
@@ -263,6 +282,15 @@ function publicProposal(proposal, requestId) {
       message: finding.message,
     })),
   };
+  if (proposal.archive) {
+    result.archive = {
+      spec: proposal.archive.spec,
+      destination: proposal.archive.destination,
+      fileCount: proposal.archive.fileCount,
+      sourceDigest: proposal.archive.sourceDigest,
+    };
+  }
+  return result;
 }
   async function proposePatch(input = {}) {
     const requestId = input.requestId;
@@ -295,10 +323,18 @@ function publicProposal(proposal, requestId) {
       if (!operation || typeof operation.document !== "string") return error("INVALID_REQUEST", "every operation needs a document");
       if (operation.spec !== undefined && operation.spec !== spec) return error("INVALID_REQUEST", "mixed-spec operations are forbidden");
       if (documents.has(operation.document)) return error("INVALID_REQUEST", "duplicate document target: " + operation.document);
+      const secretCategory = detectSecret(operation.content) ?? detectSecret(operation.text) ?? detectSecret(operation.newText);
+      if (secretCategory) {
+        return error("VALIDATION_FAILED", `proposed edit contains secret-like content: ${secretCategory}`);
+      }
       if (operation.kind === "rename_document") {
         if (typeof operation.newDocument !== "string" || operation.newDocument === operation.document || documents.has(operation.newDocument)) return error("INVALID_REQUEST", "rename_document needs a distinct newDocument");
         const current = await loadDocument(root, spec, operation.document, false);
         if (!current.ok) return error(current.code, current.message);
+        const expectedSha = operation.expectedDocumentSha256 ?? operation.expectedSha;
+        if (typeof expectedSha === "string" && expectedSha.length > 0 && current.sha256 !== expectedSha) {
+          return error("CONFLICT", `document ${operation.document} hash ${current.sha256} does not match expectedSha ${expectedSha}`);
+        }
         const target = await loadDocument(root, spec, operation.newDocument, true);
         if (!target.ok) return error(target.code, target.message);
         if (target.bytes.length > 0) return error("CONFLICT", `rename target already exists: ${operation.newDocument}`);
@@ -311,6 +347,10 @@ function publicProposal(proposal, requestId) {
       }
       const current = await loadDocument(root, spec, operation.document, operation.kind === "replace_document");
       if (!current.ok) return error(current.code, current.message);
+      const expectedSha = operation.expectedDocumentSha256 ?? operation.expectedSha;
+      if (typeof expectedSha === "string" && expectedSha.length > 0 && current.sha256 !== expectedSha) {
+        return error("CONFLICT", `document ${operation.document} hash ${current.sha256} does not match expectedSha ${expectedSha}`);
+      }
       const transformed = applyOperation(current.bytes.toString("utf8"), operation);
       if (!transformed.ok) return error(transformed.code, transformed.message, { document: operation.document });
       const newline = current.bytes.toString("utf8").includes("\r\n") ? "\r\n" : "\n";
@@ -381,6 +421,22 @@ function publicProposal(proposal, requestId) {
     if (!source.ok) return error(source.code, source.message);
     const normalizedOperations = [{ kind: "archive_spec", spec }];
     const archive = { spec, sourceDigest: source.digest, fileCount: source.files.length, destination: `.specs/archive/${spec}` };
+    const changes = source.files.map((file) => ({
+      spec,
+      document: file.path,
+      beforeBytes: Buffer.alloc(0),
+      afterBytes: Buffer.alloc(0),
+      operation: { kind: "archive_document", document: file.path, spec },
+      deleteAfter: true,
+      destination: `.specs/archive/${spec}/${file.path}`,
+      preview: {
+        document: file.path,
+        beforeSha256: file.sha256,
+        afterSha256: null,
+        unifiedDiff: `--- .specs/${spec}/${file.path}\n+++ .specs/archive/${spec}/${file.path}`,
+        diffTruncated: false,
+      },
+    }));
     const proposalMaterial = { kind: "archive_spec", requestId, repositoryRootFingerprint: graph.fingerprint, spec, reason, normalizedOperations, archive };
     const proposalSha256 = sha256(canonicalJson(proposalMaterial));
     const proposal = {
@@ -390,18 +446,17 @@ function publicProposal(proposal, requestId) {
       spec,
       baseSnapshotSha256: graph.fingerprint,
       normalizedOperations,
-      documents: [],
+      documents: changes.map((c) => c.preview),
       affectedNodeIds: graph.nodes.filter((node) => node.specSlug === spec).map((node) => node.canonicalId).sort(),
       findings: [],
       complete: true,
       expiresAt: Date.now() + PROPOSAL_TTL_MS,
-      changes: [],
+      changes,
       archive,
     };
     pruneStore(proposals);
     proposals.set(proposalSha256, proposal);
-    terminalRequests.set(requestId, proposalSha256);
-    return success({ requestId, proposal: { ...proposal, expiresAt: undefined, changes: undefined } });
+    return success(publicProposal(proposal, requestId));
   }
 
   function getProposal(proposalId) {
@@ -409,9 +464,5 @@ function publicProposal(proposal, requestId) {
     return proposals.get(proposalId);
   }
 
-  function consumeRequest(requestId) {
-    return terminalRequests.get(requestId);
-  }
-
-  return { proposePatch, proposeArchive, getProposal, consumeRequest, proposals };
+  return { proposePatch, proposeArchive, getProposal, proposals };
 }

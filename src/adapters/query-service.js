@@ -14,6 +14,7 @@ import { EXTENDED_OPERATIONS, executeExtendedQuery } from "../kernel/query/exten
 import { DOCUMENT_OPERATIONS, executeDocumentOperation } from "./document-service.js";
 import { EVIDENCE_OPERATIONS, executeEvidenceOperation } from "../evidence/service.js";
 import { AUTHORING_OPERATIONS, createAuthoringService } from "../authoring/service.js";
+import { readConsistentRepositorySpecs } from "../authoring/transactions.js";
 
 export { KERNEL_SCHEMA_VERSION };
 
@@ -239,7 +240,7 @@ export function createSpecService(root, context = {}) {
       settled = (async () => {
         let read;
         try {
-          read = await readRepositorySpecs({ root: resolvedRoot });
+          read = await readConsistentRepositorySpecs({ root: resolvedRoot });
         } catch {
           read = {
             error: {
@@ -274,12 +275,16 @@ export function createSpecService(root, context = {}) {
     authoring = createAuthoringService(
       resolvedRoot,
       async () => {
+        refresh();
         const state = await ensure();
-        if (state.status === "error") throw new Error(state.readerError.code);
+        if (state.status === "error") throw Object.assign(new Error(state.readerError.message || state.readerError.code), { code: state.readerError.code });
         return state.graph;
       },
       async () => {
         refresh();
+        const state = await ensure();
+        if (state.status === "error") throw Object.assign(new Error(state.readerError.message || state.readerError.code), { code: state.readerError.code });
+        return state.graph;
       },
     );
     return authoring;
@@ -359,12 +364,32 @@ export function createSpecService(root, context = {}) {
     }
     if (AUTHORING_OPERATIONS.includes(operation)) {
       try {
+        refresh();
+        const freshState = await ensure();
+        if (freshState.status === "error") {
+          const summaries = adapterDiagnosticSummaries(freshState.readerError);
+          const firstCode = typeof freshState.readerError?.diagnostics?.[0]?.code === "string" ? freshState.readerError.diagnostics[0].code : null;
+          return withProvenance(
+            makeErrorEnvelope({
+              operation,
+              requestId,
+              code: freshState.readerError.code ?? "ADAPTER_READ_ERROR",
+              message: freshState.readerError.message ?? `spec repository is unavailable (${freshState.readerError.code})`,
+              extra: {
+                causeCode: firstCode,
+                retryable: freshState.readerError.retryable === true,
+                diagnosticIds: summaries.map((summary) => summary.diagnosticId),
+              },
+              summaries,
+            }),
+          );
+        }
         const authoredInput = args && typeof args === "object" && !Array.isArray(args) ? { ...args } : {};
         if (requestId !== null && authoredInput.requestId === undefined) authoredInput.requestId = requestId;
         const authored = await getAuthoring().compileFacade(operation, authoredInput);
         const envelope = authored.ok
           ? makeSuccessEnvelope({
-              graph: state.graph,
+              graph: freshState.graph,
               operation,
               requestId,
               data: authored.data,
@@ -377,13 +402,13 @@ export function createSpecService(root, context = {}) {
               extra: authored.error,
             });
         return withProvenance({ ...envelope, requestId: requestId ?? null });
-      } catch {
+      } catch (err) {
         return withProvenance(
           makeErrorEnvelope({
             operation,
             requestId,
-            code: "INTERNAL_INVARIANT_ERROR",
-            message: "authoring adapter failed before filesystem mutation",
+            code: err?.code ?? "INTERNAL_INVARIANT_ERROR",
+            message: err?.message ?? "authoring adapter failed before filesystem mutation",
           }),
         );
       }

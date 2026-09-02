@@ -179,21 +179,11 @@ Then("the approved proposal changes the temporary document, section edits preser
   const blocked = classifyToolCall({ toolName: "write", input: { path: ".specs/plugin-distribution/README.md", content: "bypass" } });
   assert.equal(blocked.action, "block");
   assert.equal(blocked.mismatchField, null);
-  const authority = {
-    abi: "tool-call-authority-abi@1",
-    providerKind: "mcp",
-    registeredName: "apply_spec_change",
-    serverId: "omp-spec-kit:omp-spec-kit",
-    sourceToolName: "apply_spec_change",
-    inputSchemaSha256: "0".repeat(64),
-    registrySnapshotSha256: "1".repeat(64),
-    sourcePath: "<mcp:omp-spec-kit:omp-spec-kit>",
-  };
-  const allowed = classifyToolCall({ toolName: "apply_spec_change", input: { path: ".specs/plugin-distribution/FR.md", approval: "approve" }, authority });
-  const spoofed = classifyToolCall({ toolName: "apply_spec_change", input: { path: ".specs/plugin-distribution/FR.md", approval: "approve" }, authority: { ...authority, abi: "spoofed" } });
+  const allowed = classifyToolCall({ toolName: "mcp__omp_spec_kit_apply_spec_change", input: { path: ".specs/plugin-distribution/FR.md", approval: "approve" } });
+  const rawBlocked = classifyToolCall({ toolName: "apply_spec_change", input: { path: ".specs/plugin-distribution/FR.md", approval: "approve" } });
   assert.equal(allowed.action, "allow");
-  assert.equal(spoofed.action, "block");
-  assert.equal(spoofed.mismatchField, "abi");
+  assert.equal(rawBlocked.action, "block");
+  assert.equal(rawBlocked.code, "UNREGISTERED_AUTHORING_CALL");
 });
 
 When("authoring safety guards are exercised", async function () {
@@ -251,7 +241,7 @@ When("the read server receives alias and unknown-field calls", async function ()
     serverPath: SERVER_PATH,
     root: this.stagedMcp.root,
     cwd: this.stagedMcp.root,
-    env: { OMP_SPEC_KIT_STAGE: "authoring" },
+    env: { OMP_SPEC_KIT_STAGE: "v0.3.2" },
   });
   const hidden = await this.stagedMcp.server.request("tools/list");
   this.stagedMcp.inputResults = {
@@ -348,9 +338,9 @@ When("a new specification is created and archived through the proposal door", as
     arguments: {
       schemaVersion: "spec-kernel@1",
       requestId: "bdd-archive-apply",
-      proposalId: archiveProposal.data.proposal.proposalId,
-      proposalSha256: archiveProposal.data.proposal.proposalSha256,
-      expectedDocuments: [],
+      proposalId: archiveProposal.data.proposalId,
+      proposalSha256: archiveProposal.data.proposalHash,
+      expectedDocuments: archiveProposal.data.operations.map((op) => ({ path: op.path, beforeSha256: op.beforeSha256 })),
       reason: "approve archive move",
       approval: "approve",
     },
@@ -363,10 +353,11 @@ Then("the archive move is committed and the original directory is absent", async
   assert.equal(this.stagedMcp.archive.createdApply.ok, true, JSON.stringify(this.stagedMcp.archive.createdApply));
   assert.equal(this.stagedMcp.archive.archive.ok, true, JSON.stringify(this.stagedMcp.archive.archive));
   assert.equal(this.stagedMcp.archive.archivedApply.ok, true, JSON.stringify(this.stagedMcp.archive.archivedApply));
-  assert.deepStrictEqual(this.stagedMcp.archive.archivedApply.data.receipt.archivedSpec, {
-    from: ".specs/archive-bdd",
-    to: ".specs/archive/archive-bdd",
-    digest: this.stagedMcp.archive.archive.data.proposal.archive.sourceDigest,
+  assert.deepStrictEqual(this.stagedMcp.archive.archivedApply.data.receipt.archive, {
+    spec: "archive-bdd",
+    destination: ".specs/archive/archive-bdd",
+    fileCount: this.stagedMcp.archive.archive.data.archive.fileCount,
+    sourceDigest: this.stagedMcp.archive.archive.data.archive.sourceDigest,
   });
   await assert.rejects(
     readdir(path.join(this.stagedMcp.root, ".specs", "archive-bdd")),
@@ -378,38 +369,33 @@ Then("the archive move is committed and the original directory is absent", async
 });
 
 When("the staged OMP extension registry is inspected", async function () {
-  const overview = await this.stagedMcp.server.request("tools/call", {
-    name: "spec_overview",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-omp-overview", specSlugs: [] },
-  });
-  const fingerprint = overview.result.structuredContent.graph.fingerprint;
   this.stagedMcp.extensionProbe = await runExtensionProbe({
     extensionPath: path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit", "dist", "extension.js"),
     cwd: this.stagedMcp.root,
-    env: { OMP_SPEC_KIT_STAGE: "authoring", OMP_SPEC_KIT_INTERNAL_DOGFOOD: "1" },
-    queries: [{
-      name: "propose_patch",
-      params: {
-        schemaVersion: "spec-kernel@1",
-        requestId: "omp-probe-request-id",
-        repositoryRootFingerprint: fingerprint,
-        spec: "product",
-        reason: "verify OMP request identity",
-        operations: [{ kind: "insert_at_eof", document: "README.md", text: "OMP proposal probe" }],
-      },
-    }],
+    env: { OMP_SPEC_KIT_STAGE: "v0.6.0" },
   });
+  await this.stagedMcp.server.close();
+  this.stagedMcp.server = spawnMcpServer({
+    serverPath: SERVER_PATH,
+    root: this.stagedMcp.root,
+    cwd: this.stagedMcp.root,
+    env: { OMP_SPEC_KIT_STAGE: "v0.6.0" },
+  });
+  const listed = await this.stagedMcp.server.request("tools/list");
+  this.stagedMcp.mcpTools = listed.result.tools;
 });
+
 Then("applied authoring tools require write approval and proposals remain read-only", function () {
-  const tools = new Map(this.stagedMcp.extensionProbe.tools.map((tool) => [tool.name, tool]));
-  assert.equal(tools.size, 49);
-  assert.equal(tools.get("apply_proposed_patch")?.approval, "write");
-  assert.equal(tools.get("apply_spec_change")?.approval, "write");
-  assert.equal(tools.get("propose_patch")?.approval, "read");
-  assert.equal(tools.get("create_spec")?.approval, "read");
-  const proposal = this.stagedMcp.extensionProbe.queryResults[0].result.details;
-  assert.equal(proposal.ok, true, JSON.stringify(proposal));
-  assert.equal(proposal.requestId, "omp-probe-request-id");
+  assert.equal(this.stagedMcp.extensionProbe.tools.length, 0, "extension must register 0 direct tools in MCP-only architecture");
+  assert.ok(this.stagedMcp.extensionProbe.registeredEvents?.includes("tool_call"), "extension must register tool_call hook");
+  const tools = new Map(this.stagedMcp.mcpTools.map((tool) => [tool.name, tool]));
+  assert.equal(tools.size, 49, "MCP server must expose 49 tools");
+  assert.equal(tools.get("apply_proposed_patch")?.annotations?.readOnlyHint, false);
+  assert.equal(tools.get("apply_spec_change")?.annotations?.readOnlyHint, false);
+  assert.equal(tools.get("apply_spec_transaction")?.annotations?.readOnlyHint, false);
+  assert.equal(tools.get("apply_spec_repairs")?.annotations?.readOnlyHint, false);
+  assert.equal(tools.get("propose_patch")?.annotations?.readOnlyHint, true);
+  assert.equal(tools.get("create_spec")?.annotations?.readOnlyHint, true);
 });
 
 async function runToolE2EPhase(world, phase) {

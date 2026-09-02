@@ -15,14 +15,7 @@ import {
 } from "./release-candidate-utils.mjs";
 
 const FORBIDDEN_PATH_SEGMENTS = new Set([".env", ".git", "node_modules", "tests", "docs", "src", ".specs"]);
-const SECRET_PATTERNS = Object.freeze([
-  ["authorization", /\b(?:proxy-)?authorization\s*:\s*(?:bearer|basic|token)\s+[^\s"']+/iu],
-  ["bearer-token", /\b(?:bearer|token)\s+[A-Za-z0-9._~+/=-]{12,}/iu],
-  ["cookie", /\b(?:set-)?cookie\s*:\s*[^;\r\n=]+=[^;\r\n]+/iu],
-  ["pem-private-key", /-----BEGIN(?: [A-Z0-9]+)? PRIVATE KEY-----/u],
-  ["generic-secret", /\b(?:(?:[A-Za-z][A-Za-z0-9]*[_-])+)?(?:api[_-]?key|access[_-]?token|client[_-]?secret|secret|password|passwd|credential)\s*[:=]\s*[^\s"']+/iu],
-  ["known-secret", /\b(?:gh[pousr]_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{12,}|sk-[A-Za-z0-9_-]{12,}|AKIA[A-Z0-9]{16}|xox[baprs]-[A-Za-z0-9-]{12,})\b/u],
-]);
+import { SECRET_PATTERNS } from "../src/authoring/secrets.js";
 
 export async function verifyPublicTree(candidatePath) {
   const candidate = assertCandidateShape(await readStrictJson(candidatePath, "candidate manifest"), "candidate manifest");

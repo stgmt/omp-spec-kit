@@ -245,7 +245,7 @@ function schemaSnapshot(schema) {
 }
 
 function makeHost() {
-  const registration = { labels: [], tools: [] };
+  const registration = { labels: [], tools: [], events: [] };
   return {
     registration,
     pi: {
@@ -263,6 +263,8 @@ function makeHost() {
       },
       setLabel: (label) => registration.labels.push(label),
       registerTool: (tool) => registration.tools.push(tool),
+      on: (event, handler) => registration.events.push(event),
+      getAllTools: () => [],
     },
   };
 }
@@ -297,6 +299,7 @@ process.stdout.write(JSON.stringify({
     defaultType: typeof extensionModule.default,
   },
   labels: registration.labels,
+  registeredEvents: registration.events,
   tools: registration.tools.map((tool) => ({
     name: tool.name,
     label: tool.label,

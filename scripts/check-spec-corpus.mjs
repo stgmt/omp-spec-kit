@@ -287,7 +287,6 @@ function validateCurrentStatus() {
     ["catalog metadata", catalog.metadata?.version],
     ["catalog plugin", catalogPlugin?.version],
     ["embedded extension", embeddedVersion("src/v0.1/extension.js", /PLUGIN_VERSION\s*=\s*["']([^"']+)["']/u)],
-    ["embedded inventory", embeddedVersion("src/v0.1/inventory.js", /PLUGIN_VERSION\s*=\s*["']([^"']+)["']/u)],
   ];
   for (const [label, actual] of authorities) {
     if (actual !== version) fail(`${label} version ${String(actual)} differs from release status ${version}`);
@@ -301,6 +300,17 @@ function validateCurrentStatus() {
     fail("release status is absent or identity-drifted");
   }
   if (status.status.state === "CANDIDATE") {
+    if (version === "0.6.0") {
+      if (
+        status.status.public !== false ||
+        status.status.installable !== false ||
+        status.status.surface !== "SAFE_AUTHORING" ||
+        status.status.toolCount !== 49
+      ) {
+        fail("v0.6 candidate status is not the 49-tool safe authoring surface");
+      }
+      return version;
+    }
     if (status.status.public !== false || status.status.installable !== false || status.status.surface !== "EVIDENCE_NAVIGATION" || status.status.toolCount !== 27) {
       fail("v0.5 candidate status is not the additive evidence/navigation surface");
     }

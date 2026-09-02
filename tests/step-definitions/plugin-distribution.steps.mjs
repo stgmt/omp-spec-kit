@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { inventorySpecs } from "../../src/v0.1/inventory.js";
+import { inventorySpecs } from "../fixtures/kernel/v0.3.0/dist/inventory.js";
 import { createResponseProvenance } from "../../src/adapters/query-service.js";
 import { snapshotTree } from "../support/world.mjs";
 

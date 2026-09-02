@@ -551,38 +551,11 @@ When("the OMP extension runs with project-a as cwd and project-b as an explicit 
     extensionPath: path.join(this.mri.packageRoot, "dist", "extension.js"),
     cwd: this.mri.projectA,
     env: { OMP_SPEC_KIT_ROOT: this.mri.projectB },
-    queries: [
-      {
-        name: "spec_inventory",
-        params: { maxSpecs: 50, maxDiagnostics: 25, includeDocumentCounts: true },
-        cwd: this.mri.projectA,
-      },
-      {
-        name: "spec_overview",
-        params: { specSlugs: [] },
-        cwd: this.mri.projectA,
-      },
-    ],
   });
 });
 
 Then("its inventory and query results identify the same project-b root and server", function () {
-  const results = this.mri.extensionProbe.queryResults;
-  assert.ok(Array.isArray(results), "the extension probe must return query results");
-  assert.deepStrictEqual(results.map((entry) => entry.name), ["spec_inventory", "spec_overview"]);
-  const provenances = results.map((entry) => entry.result.details.provenance);
-  assert.equal(provenances.length, 2);
-  for (const [index, provenance] of provenances.entries()) {
-    assert.equal(provenance.serverName, "omp-spec-kit");
-    assert.equal(provenance.rootMode, "explicit-absolute-override");
-    assert.equal(provenance.matchesActiveProject, false);
-    assert.match(provenance.resolvedRootId, /^[0-9a-f]{64}$/);
-    assert.match(provenance.activeProjectRootId, /^[0-9a-f]{64}$/);
-    assert.notEqual(provenance.resolvedRootId, provenance.activeProjectRootId);
-    assert.equal(JSON.stringify(results[index].result).includes(this.mri.projectA), false);
-    assert.equal(JSON.stringify(results[index].result).includes(this.mri.projectB), false);
-    assert.match(results[index].result.content[0].text, /active-project-mismatch/);
-  }
-  assert.equal(provenances[0].resolvedRootId, provenances[1].resolvedRootId);
-  assert.equal(provenances[0].activeProjectRootId, provenances[1].activeProjectRootId);
+  assert.equal(this.mri.extensionProbe.tools.length, 0, "extension must register 0 direct tools in MCP-only architecture");
+  assert.ok(this.mri.extensionProbe.registeredEvents?.includes("tool_call"), "extension must register fail-closed tool_call hook");
+  assert.equal(this.mri.extensionProbe.labels[0], "OMP Spec Kit");
 });

@@ -120,11 +120,12 @@ When("the v0.4.1 scenario {string} runs", async function (scenario) {
   if (scenario === "access-gate") {
     const blocked = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: ".specs/plugin-distribution/README.md" } }, { root: this.root });
     const direct = classifyToolCall({ toolName: "write", cwd: this.root, input: { path: ".specs/plugin-distribution/README.md" } }, { root: this.root });
-    const authority = { abi: "tool-call-authority-abi@1", providerKind: "mcp", sourcePath: "mcp://omp-spec-kit", registeredName: "propose_patch", serverId: "omp-spec-kit", sourceToolName: "propose_patch", inputSchemaSha256: "0".repeat(64), registrySnapshotSha256: "1".repeat(64) };
-    const allowed = classifyToolCall({ toolName: "propose_patch", input: {}, authority }, { root: this.root });
+    const allowed = classifyToolCall({ toolName: "mcp__omp_spec_kit_propose_patch", input: {} }, { root: this.root });
+    const rawDirect = classifyToolCall({ toolName: "propose_patch", input: {} }, { root: this.root });
     assert.equal(blocked.code, "RAW_SPEC_WRITE");
     assert.equal(direct.code, "RAW_SPEC_WRITE");
     assert.equal(allowed.code, "AUTHORING_TOOL_ALLOWED");
+    assert.equal(rawDirect.code, "UNREGISTERED_AUTHORING_CALL");
     assert.ok(Buffer.byteLength(blocked.reason, "utf8") <= 512);
     this.result = true;
     return;
@@ -192,10 +193,9 @@ When("the v0.4.1 scenario {string} runs", async function (scenario) {
     const receipt = await runExtensionProbe({ extensionPath: path.join(REPOSITORY_ROOT, "plugins/omp-spec-kit/dist/extension.js"), cwd: this.root, env: { OMP_SPEC_KIT_STAGE: "v0.4.1" } });
     const names = receipt.tools.map((tool) => tool.name).sort();
     assert.equal(receipt.exports.pluginVersion, PACKAGE_VERSION);
-    assert.equal(names.length, 10);
-    assert.equal(new Set(names).size, 10);
-    assert.equal(receipt.tools.find((tool) => tool.name === "propose_patch").approval, "read");
-    assert.equal(receipt.tools.find((tool) => tool.name === "apply_proposed_patch").approval, "write");
+    assert.equal(names.length, 0, "installed extension must register 0 direct tools in MCP-only architecture");
+    assert.ok(receipt.registeredEvents?.includes("tool_call"), "extension must register tool_call hook");
+    assert.equal(receipt.labels[0], "OMP Spec Kit");
     this.result = true;
     return;
   }
@@ -280,7 +280,7 @@ When("the v0.4.1 scenario {string} runs", async function (scenario) {
     }
     assert.equal(receipt.provenance.runtime.version, "18.0.11");
     assert.deepEqual(receipt.manager.connectionResult.connectedServers, ["omp-spec-kit:omp-spec-kit"]);
-    assert.equal(receipt.manager.connectionResult.toolCount, 27);
+    assert.equal(receipt.manager.connectionResult.toolCount, 49);
     assert.deepEqual(receipt.manager.connectionResult.managedAuthoring.toolNames, ["spec_overview", "propose_patch", "apply_proposed_patch"]);
     assert.equal(receipt.manager.connectionResult.managedAuthoring.applyOutcome, "APPLIED");
     assert.equal(receipt.manager.connectionResult.managedAuthoring.finalDocumentContainsMarker, true);

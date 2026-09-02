@@ -17,7 +17,7 @@ import {
   resolveRepositoryContext,
   summarizeEnvelope,
 } from "../adapters/query-service.js";
-import { activeStageForEnvironment, toolContractsForStage, jsonSchemaFor, validateContractArguments } from "../adapters/tool-contracts.js";
+import { MUTATING_TOOL_NAMES, toolContractsForStage, jsonSchemaFor, validateContractArguments } from "../adapters/tool-contracts.js";
 
 const PROTOCOL_VERSION_FALLBACK = "2025-03-26";
 const SERVER_NAME = "omp-spec-kit";
@@ -129,14 +129,13 @@ function normalizeArguments(rawArguments) {
   return { ok: true, args: normalized };
 }
 
-const requestedStage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE ?? "v0.5.0";
-const activeStage = activeStageForEnvironment(requestedStage);
+const activeStage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE ?? "v0.6.0";
 const activeContracts = toolContractsForStage(activeStage);
 const contractsByName = new Map(activeContracts.map((contract) => [contract.tool, contract]));
 const rootContext = resolveRepositoryContext();
 const service = createSpecService(rootContext.resolvedRoot, {
   ...rootContext,
-  stage: activeStage ?? "v0.3.2",
+  stage: activeStage,
 });
 function argumentErrorEnvelope(operation, requestId, validation) {
   const envelope = internalErrorEnvelope(operation, requestId, service.provenance);
@@ -199,15 +198,7 @@ async function handleMessage(message) {
         description: contract.description,
         inputSchema: jsonSchemaFor(contract),
         annotations: {
-          readOnlyHint:
-            !contract.operation.startsWith("apply") &&
-            !contract.operation.startsWith("set") &&
-            !contract.operation.startsWith("delete") &&
-            !contract.operation.startsWith("rename") &&
-            !contract.operation.startsWith("create") &&
-            !contract.operation.startsWith("archive") &&
-            !contract.operation.startsWith("add") &&
-            !contract.operation.startsWith("register"),
+          readOnlyHint: !MUTATING_TOOL_NAMES.has(contract.tool),
         },
       })),
     });

@@ -9,6 +9,7 @@ import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import { loadFrozenRealCorpus, writeCorpus } from "../tests/helpers/kernel-world.mjs";
 import { prepareV05ToolE2EFixtures, runV05ToolE2E } from "../tests/helpers/v05-tool-e2e.mjs";
+import { V06_ALL_TOOL_NAMES, runV06ToolE2E, prepareV06ToolE2EFixtures } from "../tests/helpers/v06-tool-e2e.mjs";
 
 const execFile = promisify(execFileCallback);
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
@@ -18,11 +19,11 @@ const SAFE_AUTHORING_TOOLS = Object.freeze([
 const V05_TOOLS = Object.freeze([
   "apply_proposed_patch", "find_by_tags", "find_orphans", "get_archival_proof", "get_scenario_trace", "get_spec_status", "get_test_result", "list_phase_tasks", "list_spec_docs", "list_specs", "list_tasks", "mcp_preflight", "policy_query_requirements", "propose_patch", "read_attachment", "read_spec_doc", "spec_diagnostics", "spec_find_nodes", "spec_get_edges", "spec_get_node", "spec_inventory", "spec_markdown_inventory", "spec_overview", "spec_trace", "validate_anchor", "validate_requirement_metadata", "validate_spec",
 ]);
+const V06_TOOLS = Object.freeze([...V06_ALL_TOOL_NAMES].sort());
 
 const { values } = parseArgs({ options: { archive: { type: "string" }, stage: { type: "string" } }, strict: true });
 if (!values.archive) throw new Error("--archive is required");
-const expectedTools = values.stage === "safe-authoring" ? SAFE_AUTHORING_TOOLS : V05_TOOLS;
-const archivePath = path.resolve(values.archive);
+const expectedTools = values.stage === "safe-authoring" ? SAFE_AUTHORING_TOOLS : values.stage === "v0.5.0" ? V05_TOOLS : V06_TOOLS;
 const tempRoot = await mkdtemp(path.join(tmpdir(), "omp-spec-kit-release-smoke-"));
 const packageRoot = path.join(tempRoot, "package");
 const projectRoot = path.join(tempRoot, "project");
@@ -32,7 +33,7 @@ let outsideRoot = null;
 if (values.stage === undefined) {
   const frozen = await loadFrozenRealCorpus(repositoryRoot);
   await writeCorpus(projectRoot, frozen.files);
-  await prepareV05ToolE2EFixtures(projectRoot);
+  await prepareV06ToolE2EFixtures(projectRoot);
   outsideRoot = path.join(path.dirname(projectRoot), path.basename(projectRoot) + "-outside");
   await mkdir(outsideRoot, { recursive: true });
   await mkdir(path.join(projectRoot, ".omp-spec-kit", "evidence"), { recursive: true });
@@ -103,21 +104,11 @@ try {
       assert.equal(response.error, undefined, JSON.stringify(response));
       return response;
     };
-    await runV05ToolE2E({
+    await runV06ToolE2E({
       listTools,
       callTool,
       projectRoot,
       repositoryRoot,
-      surface: {
-        phase: "all",
-        outsideRoot,
-        restart: async () => {
-          await client.close();
-          client = start();
-          const restarted = await client.send("initialize", { protocolVersion: "2025-03-26" });
-          assert.equal(restarted.error, undefined, JSON.stringify(restarted));
-        },
-      },
     });
   } else {
     const overview = await client.send("tools/call", { name: "spec_overview", arguments: { schemaVersion: "spec-kernel@1", requestId: "release-smoke-overview", specSlugs: [] } });

@@ -78,7 +78,6 @@ const expectedFiles = Object.freeze([
   "bin/omp-spec-kit-mcp.cmd",
   "commands/spec-inventory.md",
   "dist/extension.js",
-  "dist/inventory.js",
   "dist/manifest.json",
   "package.json",
   "skills/release-operator/SKILL.md",
@@ -161,12 +160,10 @@ function assertRuntimeImports(relativePath, source) {
   if (/\brequire\s*\(/u.test(source)) fail(`${relativePath} uses CommonJS require`);
   for (const specifier of importedSpecifiers(source)) {
     if (specifier.startsWith("node:")) continue;
-    if (relativePath === "dist/extension.js" && specifier === "./inventory.js") continue;
     // dist/extension.js may import its flat siblings and the adapters subtree.
     if (
       relativePath === "dist/extension.js" &&
-      (specifier === "./inventory.js" ||
-        specifier.startsWith("./adapters/") ||
+      (specifier.startsWith("./adapters/") ||
         specifier.startsWith("./kernel/") ||
         specifier.startsWith("./evidence/") ||
         specifier.startsWith("./authoring/") ||
@@ -274,13 +271,12 @@ async function verifyPackage() {
   }
   const expectedManifestKeys = [
     "extension.js",
-    "inventory.js",
     ...treeSources.flatMap((entry) => entry.files.map((name) => `${entry.output}/${name}`)),
   ];
   assertExactKeys(distManifest.files, expectedManifestKeys, "dist manifest files", fail);
 
   // Flat extension sources: emitted with emitTransform applied.
-  for (const name of ["extension.js", "inventory.js"]) {
+  for (const name of ["extension.js"]) {
     assertExactKeys(distManifest.files[name], ["sha256"], `dist manifest ${name}`, fail);
     const bytes = await readFile(path.join(pluginRoot, "dist", name));
     const sourceText = await readFile(path.join(sourceRoot, name), "utf8");

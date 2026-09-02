@@ -206,7 +206,7 @@ function metadataFromNode(node) {
   return Object.keys(metadata).length > 0 ? metadata : null;
 }
 
-function validateMetadata(metadata) {
+export function validateMetadata(metadata) {
   const issues = [];
   if (!isPlainObject(metadata)) return { valid: false, issues: [{ field: "metadata", message: "metadata must be an object" }] };
   if (metadata.schemaVersion !== undefined && metadata.schemaVersion !== 1 && metadata.schemaVersion !== "1") {

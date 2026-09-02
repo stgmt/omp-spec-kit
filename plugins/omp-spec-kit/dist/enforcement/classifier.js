@@ -1,10 +1,15 @@
-import { TOOL_AUTHORITY_ABI } from "../adapters/tool-contracts.js";
+import { AUTHORING_TOOL_CONTRACTS, toolContractsForStage } from "../adapters/tool-contracts.js";
 import { decidePathPolicy } from "./resolve-targets.js";
 
-const AUTHORING_TOOL_NAMES = new Set(["propose_patch", "apply_proposed_patch", "propose_spec_change", "apply_spec_change", "apply_spec_transaction", "apply_spec_repairs"]);
-const DIRECT_MUTATION_TOOLS = new Set(["write", "edit", "bash", "apply_patch", "delete", "rename"]);
-const PATH_KEYS = new Set(["path", "paths", "file", "files", "document", "documents", "cwd", "command", "text"]);
-const AUTHORITY_PROVIDER_KINDS = new Set(["builtin", "extension", "mcp", "sdk", "unknown"]);
+const ALL_SHORT_NAMES = Object.freeze(new Set(AUTHORING_TOOL_CONTRACTS.map((contract) => contract.tool)));
+const APPLY_SHORT_NAMES = Object.freeze(new Set([
+  "apply_proposed_patch",
+  "apply_spec_change",
+  "apply_spec_transaction",
+  "apply_spec_repairs",
+]));
+const DIRECT_MUTATION_TOOLS = Object.freeze(new Set(["write", "edit", "bash", "apply_patch", "delete", "rename"]));
+const PATH_KEYS = Object.freeze(new Set(["path", "paths", "file", "files", "document", "documents", "cwd", "command", "text"]));
 
 function textValues(value, key = "") {
   if (typeof value === "string") return PATH_KEYS.has(key) || key === "" ? [value] : [];
@@ -13,22 +18,74 @@ function textValues(value, key = "") {
   return [];
 }
 
-function hasLexicalSpecTarget(values) {
-  return values.some((value) => /(?:^|[\\/])\.specs(?:[\\/]|$)/u.test(value) || value.includes(".specs/"));
+function sanitizeMCPToolNamePart(part) {
+  return part.replace(/[^a-zA-Z0-9_-]/gu, "_").replace(/[-_]+/gu, "_");
 }
 
-function authorityMismatch(registeredName, logicalName, authority) {
-  if (!authority) return "authority";
-  if (authority.abi !== TOOL_AUTHORITY_ABI) return "abi";
-  if (!AUTHORITY_PROVIDER_KINDS.has(authority.providerKind)) return "providerKind";
-  if (authority.providerKind !== "mcp") return "providerKind";
-  if (typeof authority.sourcePath !== "string" || authority.sourcePath.trim() === "") return "sourcePath";
-  if (authority.registeredName !== registeredName) return "registeredName";
-  if (authority.serverId !== "omp-spec-kit" && authority.serverId !== "omp-spec-kit:omp-spec-kit") return "serverId";
-  if (authority.sourceToolName !== logicalName) return "sourceToolName";
-  if (!/^[0-9a-f]{64}$/u.test(authority.inputSchemaSha256)) return "inputSchemaSha256";
-  if (!/^[0-9a-f]{64}$/u.test(authority.registrySnapshotSha256)) return "registrySnapshotSha256";
-  return null;
+export function createMCPToolName(serverName, toolName) {
+  const sanitizedServerName = sanitizeMCPToolNamePart(serverName);
+  const sanitizedToolName = sanitizeMCPToolNamePart(toolName);
+  const prefixWithUnderscore = `${sanitizedServerName}_`;
+  let normalizedToolName = sanitizedToolName;
+  if (sanitizedToolName.startsWith(prefixWithUnderscore)) {
+    normalizedToolName = sanitizedToolName.slice(prefixWithUnderscore.length);
+  }
+  const fullName = `mcp__${sanitizedServerName}_${normalizedToolName}`;
+  if (fullName.length <= 64) return fullName;
+  return `${fullName.slice(0, 56)}_${Buffer.from(fullName).toString("hex").slice(0, 7)}`;
+}
+
+function getActiveFamilies(stage) {
+  const contracts = toolContractsForStage(stage);
+  const tools = contracts.map((c) => c.tool);
+  const familyA = new Map(tools.map((tool) => [createMCPToolName("omp-spec-kit", tool), tool]));
+  const familyB = new Map(tools.map((tool) => [createMCPToolName("omp-spec-kit:omp-spec-kit", tool), tool]));
+  return { tools, familyA, familyB };
+}
+
+function resolveAuthority(toolName, allTools, familyA, familyB, expectedCount) {
+  if (!Array.isArray(allTools)) {
+    if (familyA.has(toolName)) return { ok: true, logicalName: familyA.get(toolName) };
+    if (familyB.has(toolName)) return { ok: true, logicalName: familyB.get(toolName) };
+    return { ok: false, code: "UNREGISTERED_AUTHORING_CALL", reason: "tool is not an authorized MCP tool" };
+  }
+
+  let countA = 0;
+  let countB = 0;
+
+  for (const tool of allTools) {
+    const isA = familyA.has(tool.name);
+    const isB = familyB.has(tool.name);
+    if (isA) {
+      countA++;
+      if (tool.sourceInfo?.source !== "mcp" || tool.sourceInfo?.path !== `<mcp:${tool.name}>`) {
+        return { ok: false, code: "AMBIGUOUS_TOOL_AUTHORITY", reason: "tool provenance spoof detected" };
+      }
+    }
+    if (isB) {
+      countB++;
+      if (tool.sourceInfo?.source !== "mcp" || tool.sourceInfo?.path !== `<mcp:${tool.name}>`) {
+        return { ok: false, code: "AMBIGUOUS_TOOL_AUTHORITY", reason: "tool provenance spoof detected" };
+      }
+    }
+  }
+
+  const validA = countA === expectedCount && countB === 0;
+  const validB = countB === expectedCount && countA === 0;
+
+  if (!validA && !validB) {
+    return {
+      ok: false,
+      code: "AMBIGUOUS_TOOL_AUTHORITY",
+      reason: `expected exactly one complete tool family (observed A=${countA}, B=${countB}, expected=${expectedCount})`,
+    };
+  }
+
+  const activeFamily = validA ? familyA : familyB;
+  if (!activeFamily.has(toolName)) {
+    return { ok: false, code: "UNREGISTERED_AUTHORING_CALL", reason: "tool is not in active MCP family" };
+  }
+  return { ok: true, logicalName: activeFamily.get(toolName) };
 }
 
 function boundedReason(code, relativePath = null) {
@@ -54,28 +111,42 @@ function blocked(toolName, code, resolutions = [], mismatchField = null) {
 export function classifyToolCall(event, options = {}) {
   const toolName = typeof event?.toolName === "string" ? event.toolName : "";
   const input = event?.input ?? {};
-  const authorityName = typeof event?.authority?.sourceToolName === "string" ? event.authority.sourceToolName : toolName;
-  const authoring = AUTHORING_TOOL_NAMES.has(toolName) || AUTHORING_TOOL_NAMES.has(authorityName);
-  const directMutation = DIRECT_MUTATION_TOOLS.has(toolName) || toolName.includes("_spec_") || toolName.includes("spec_");
-  const targets = textValues(input);
 
-  if (authoring) {
-    const mismatchField = authorityMismatch(toolName, authorityName, event?.authority);
-    if (mismatchField) return blocked(toolName, "UNREGISTERED_AUTHORING_CALL", [], mismatchField);
-    if (options.requireApproval !== false && authorityName === "apply_proposed_patch" && input.approval !== "approve") {
-      return blocked(toolName, "APPROVAL_REQUIRED");
-    }
-    return { action: "allow", code: "AUTHORING_TOOL_ALLOWED", toolName, touchesSpecs: true, mismatchField: null };
+  // Direct short-name invocation of authoring tools is forbidden in MCP-only mode
+  if (ALL_SHORT_NAMES.has(toolName)) {
+    return blocked(toolName, "UNREGISTERED_AUTHORING_CALL", [], "shortNameDirectCallForbidden");
   }
 
-  if (!directMutation && targets.length === 0) return { action: "continue", toolName, touchesSpecs: false, mismatchField: null };
+  const stage = options.stage ?? globalThis.process?.env?.OMP_SPEC_KIT_STAGE ?? "v0.6.0";
+  const { tools, familyA, familyB } = getActiveFamilies(stage);
+
+  const isCandidateMcp = familyA.has(toolName) || familyB.has(toolName);
+  if (isCandidateMcp) {
+    const allTools = options.allTools ?? (typeof options.getAllTools === "function" ? options.getAllTools() : typeof options.pi?.getAllTools === "function" ? options.pi.getAllTools() : null);
+    const auth = resolveAuthority(toolName, allTools, familyA, familyB, tools.length);
+    if (!auth.ok) {
+      return blocked(toolName, auth.code, [], auth.reason);
+    }
+    const logicalName = auth.logicalName;
+    if (options.requireApproval !== false && APPLY_SHORT_NAMES.has(logicalName) && input.approval !== "approve") {
+      return blocked(toolName, "APPROVAL_REQUIRED");
+    }
+    return { action: "allow", code: "AUTHORING_TOOL_ALLOWED", toolName, logicalName, touchesSpecs: true, mismatchField: null };
+  }
+
+  const targets = textValues(input);
+  if (targets.length === 0 && !DIRECT_MUTATION_TOOLS.has(toolName)) {
+    return { action: "continue", toolName, touchesSpecs: false, mismatchField: null };
+  }
+
   const policy = decidePathPolicy(options.root ?? event?.cwd ?? process.cwd(), targets);
   if (policy.decision === "ALLOW") {
-    return directMutation
+    return DIRECT_MUTATION_TOOLS.has(toolName)
       ? { action: "continue", code: "NON_SPEC_ALLOWED", toolName, touchesSpecs: false, mismatchField: null }
       : { action: "continue", toolName, touchesSpecs: false, mismatchField: null };
   }
+
   return blocked(toolName, policy.code, policy.resolutions);
 }
 
-export { AUTHORING_TOOL_NAMES, DIRECT_MUTATION_TOOLS };
+export { ALL_SHORT_NAMES, APPLY_SHORT_NAMES, DIRECT_MUTATION_TOOLS };
