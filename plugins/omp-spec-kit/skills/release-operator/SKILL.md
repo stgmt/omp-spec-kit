@@ -16,7 +16,7 @@ Use this skill before every omp-spec-kit release operation. A release is not rea
    npm run check:release-blockers
    ```
 
-   It reads `.dev-pomodoro/.cross-spec-cache` when present, otherwise `.dev-pomogator/.cross-spec-cache`. It blocks on `DRIFT` records with error severity for `mcp-release-integrity:*` or `plugin-distribution:*`. Missing or malformed cache evidence also blocks.
+   It reads `.dev-pomogator/.cross-spec-cache`. It blocks on `DRIFT` records with error severity for `mcp-release-integrity:*` or `plugin-distribution:*`. Missing or malformed cache evidence also blocks.
 
 3. Run the complete local release gate:
 

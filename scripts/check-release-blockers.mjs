@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const DEFAULT_CACHE_DIRS = [".dev-pomodoro/.cross-spec-cache", ".dev-pomogator/.cross-spec-cache"];
+const DEFAULT_CACHE_DIRS = [".dev-pomogator/.cross-spec-cache"];
 const RELEASE_SCOPES = ["mcp-release-integrity", "plugin-distribution"];
 const MAX_RECORDS = 512;
 
