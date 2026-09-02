@@ -13,6 +13,7 @@ import { runExtensionProbe, spawnMcpServer } from "../helpers/mcp-world.mjs";
 const REPOSITORY_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const SERVER_PATH = path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit", "dist", "mcp", "server.js");
 const SCHEMA_VERSION = "spec-kernel@1";
+const PACKAGE_VERSION = JSON.parse(await readFile(path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit", "package.json"), "utf8")).version;
 
 async function call(world, name, arguments_ = {}) {
   const response = await world.server.request("tools/call", {
@@ -190,7 +191,7 @@ When("the v0.4.1 scenario {string} runs", async function (scenario) {
   if (scenario === "installed-factory") {
     const receipt = await runExtensionProbe({ extensionPath: path.join(REPOSITORY_ROOT, "plugins/omp-spec-kit/dist/extension.js"), cwd: this.root, env: { OMP_SPEC_KIT_STAGE: "v0.4.1" } });
     const names = receipt.tools.map((tool) => tool.name).sort();
-    assert.equal(receipt.exports.pluginVersion, "0.5.1");
+    assert.equal(receipt.exports.pluginVersion, PACKAGE_VERSION);
     assert.equal(names.length, 10);
     assert.equal(new Set(names).size, 10);
     assert.equal(receipt.tools.find((tool) => tool.name === "propose_patch").approval, "read");

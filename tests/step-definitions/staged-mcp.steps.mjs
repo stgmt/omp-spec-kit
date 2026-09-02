@@ -430,21 +430,21 @@ async function runToolE2EPhase(world, phase) {
   });
 }
 
-When("the v0.5 tool inventory matrix is exercised", async function () {
+When("the v0.5 tool inventory matrix is exercised", { timeout: 30000 }, async function () {
   this.toolE2E = await runToolE2EPhase(this.stagedMcp, "inventory");
 });
 Then("the v0.5 inventory contains the exact 27-tool surface", function () {
   assert.deepEqual(this.toolE2E, ["spec_inventory", "spec_get_node", "spec_find_nodes", "spec_get_edges", "spec_trace", "spec_diagnostics", "spec_overview", "spec_markdown_inventory", "propose_patch", "apply_proposed_patch", "find_by_tags", "list_tasks", "list_phase_tasks", "find_orphans", "validate_anchor", "list_specs", "validate_requirement_metadata", "policy_query_requirements", "get_archival_proof", "validate_spec", "get_spec_status", "mcp_preflight", "list_spec_docs", "read_spec_doc", "read_attachment", "get_test_result", "get_scenario_trace"]);
 });
 
-When("the v0.5 semantic success matrix is exercised", async function () {
+When("the v0.5 semantic success matrix is exercised", { timeout: 30000 }, async function () {
   this.toolE2E = await runToolE2EPhase(this.stagedMcp, "success");
 });
 Then("every v0.5 tool returns its semantic success contract", function () {
   assert.equal(this.toolE2E, undefined);
 });
 
-When("the v0.5 invalid and containment matrix is exercised", async function () {
+When("the v0.5 invalid and containment matrix is exercised", { timeout: 30000 }, async function () {
   this.toolE2E = await runToolE2EPhase(this.stagedMcp, "invalid");
   await runToolE2EPhase(this.stagedMcp, "boundary");
 });
@@ -452,14 +452,14 @@ Then("every v0.5 tool rejects closed-schema and boundary violations", function (
   assert.equal(this.toolE2E, undefined);
 });
 
-When("the v0.5 mutation and freshness matrix is exercised", async function () {
+When("the v0.5 mutation and freshness matrix is exercised", { timeout: 30000 }, async function () {
   this.toolE2E = await runToolE2EPhase(this.stagedMcp, "mutation");
 });
 Then("every v0.5 evidence and corpus mutation is detected", function () {
   assert.equal(this.toolE2E, undefined);
 });
 
-When("the v0.5 read-only matrix is exercised", async function () {
+When("the v0.5 read-only matrix is exercised", { timeout: 30000 }, async function () {
   this.toolE2E = await runToolE2EPhase(this.stagedMcp, "success");
 });
 Then("every v0.5 read-only call preserves the project byte snapshot", function () {

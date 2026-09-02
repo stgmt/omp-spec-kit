@@ -14,7 +14,7 @@ import {
 import { registerSpecEnforcement } from "../enforcement/adapter.js";
 import { registerAutomaticPlanGate } from "../gate/automatic-adapter.js";
 
-export const PLUGIN_VERSION = "0.5.2";
+export const PLUGIN_VERSION = "0.5.3";
 export const SCHEMA_VERSION = "1";
 
 // OMP 18.0.11 extension contract pinned at the active release runtime

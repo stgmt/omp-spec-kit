@@ -1,6 +1,14 @@
 # Changelog
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
+## 0.5.3 — 2026-09-02
+
+Corrective release: clean-checkout publication and deterministic E2E proof.
+
+- Tracks the repository-owned evidence fixtures required by archive verification.
+- Makes installed-version assertions follow the package version instead of a stale literal.
+- Gives the complete tool-E2E staged scenarios a bounded runtime in CI.
+
 ## 0.5.2 — 2026-09-02
 
 Corrective release for the v0.5 evidence and navigation surface.
