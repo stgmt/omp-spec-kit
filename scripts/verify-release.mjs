@@ -90,12 +90,17 @@ async function scenarioRequirements(repositoryRoot) {
   }
   return { requirements, multiplicities };
 }
-function validDiscovery(bytes, blocking) {
+function expectedManagerToolCount(version) {
+  if (version === "0.5.0") return 27;
+  if (version === "0.4.1") return 10;
+  return 8;
+}
+function validDiscovery(bytes, blocking, expectedToolCount) {
   const match = bytes.toString("utf8").match(/```json\s*\n([\s\S]*?)\n```/u);
   if (!match) { add(blocking, "invalid-mri-discovery-receipt:no-json-receipt"); return false; }
   try {
     const receipt = JSON.parse(match[1]);
-    const valid = receipt.schema === "omp-manager-handoff-probe@2" && receipt.result === "completed" && receipt.provenance?.runtime?.name === "@oh-my-pi/pi-coding-agent" && receipt.provenance?.runtime?.version === "18.0.11" && receipt.manager?.connectionResult?.toolCount === 10 && JSON.stringify(receipt.manager?.connectionResult?.connectedServers) === JSON.stringify(["omp-spec-kit:omp-spec-kit"]) && Object.keys(receipt.manager?.connectionResult?.errors ?? {}).length === 0;
+    const valid = receipt.schema === "omp-manager-handoff-probe@2" && receipt.result === "completed" && receipt.provenance?.runtime?.name === "@oh-my-pi/pi-coding-agent" && receipt.provenance?.runtime?.version === "18.0.11" && receipt.manager?.connectionResult?.toolCount === expectedToolCount && JSON.stringify(receipt.manager?.connectionResult?.connectedServers) === JSON.stringify(["omp-spec-kit:omp-spec-kit"]) && Object.keys(receipt.manager?.connectionResult?.errors ?? {}).length === 0;
     if (!valid) add(blocking, "invalid-mri-discovery-receipt:pin-or-manager-contract");
     return valid;
   } catch (error) { add(blocking, `invalid-mri-discovery-receipt:${error.message}`); return false; }
@@ -104,7 +109,7 @@ async function evaluateMri(evidence, evidenceDirectory, id, repositoryRoot, reso
   const blocking = []; const mri = asObject(evidence.mri);
   if (!mri || !exact(mri, ["schema", "checks", "frReceipts", "discovery"]) || mri.schema !== "omp-spec-kit-mri-evidence@1") return { blocking: ["mri-evidence-shape-mismatch"], discoveryDigest: null };
   const discovery = await readReceipt(mri.discovery, "mri-discovery", evidenceDirectory, blocking, false);
-  const discoveryDigest = discovery?.digest ?? null; if (discovery) validDiscovery(discovery.bytes, blocking);
+  const discoveryDigest = discovery?.digest ?? null; if (discovery) validDiscovery(discovery.bytes, blocking, expectedManagerToolCount(id.version));
   let required = { requirements: new Map(), multiplicities: new Map() }; try { required = await scenarioRequirements(repositoryRoot); } catch (error) { add(blocking, `invalid-mri-scenario-map:${error.message}`); }
   const checks = asObject(mri.checks); let dockerBdd = null;
   if (!checks || !exact(checks, REQUIRED_CHECKS)) add(blocking, "mri-check-set-mismatch");

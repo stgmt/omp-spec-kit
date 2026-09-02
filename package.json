@@ -18,7 +18,8 @@
     "test": "npm run build && npm run verify && npm run dogfood:mcp:candidate && npm run test:safe-authoring && npm run test:bdd",
     "test:safe-authoring": "npx cucumber-js tests/features/safe-authoring.feature --tags @safe-authoring --format progress",
     "test:release-archive": "node scripts/smoke-release-archive.mjs",
-    "test:release-integrity": "npx cucumber-js tests/features/release-evidence.feature --tags @mcp-release-integrity --format progress"
+    "test:release-integrity": "npx cucumber-js tests/features/release-evidence.feature --tags @mcp-release-integrity --format progress",
+    "release:preflight": "node scripts/release-preflight.mjs"
   },
   "devDependencies": {
     "@cucumber/cucumber": "13.2.1"

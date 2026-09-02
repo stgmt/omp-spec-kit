@@ -73,12 +73,17 @@ jobs:
           # successful run whose headSha IS that commit — never a stale
           # artifact left over from an earlier tag of the same name.
           COMMIT="$(git rev-parse "$TAG^{commit}")"
-          run_id="$(gh run list --repo "$GITHUB_REPOSITORY" \
-            --workflow distribution-evidence.yml \
-            --limit 50 \
-            --json databaseId,headSha,status,conclusion \
-            --jq ".[] | select(.conclusion == \"success\" and .headSha == \"$COMMIT\") | .databaseId" \
-            | head -n 1 || true)"
+          run_id=""
+          for attempt in $(seq 1 30); do
+            run_id="$(gh run list --repo "$GITHUB_REPOSITORY" \
+              --workflow distribution-evidence.yml \
+              --limit 50 \
+              --json databaseId,headSha,status,conclusion \
+              --jq ".[] | select(.conclusion == \"success\" and .headSha == \"$COMMIT\") | .databaseId" \
+              | head -n 1 || true)"
+            if [ -n "$run_id" ]; then break; fi
+            if [ "$attempt" -lt 30 ]; then sleep 10; fi
+          done
           identity_ok=""
           if [ -n "$run_id" ]; then
             mkdir dist-evidence
