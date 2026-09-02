@@ -12,7 +12,7 @@ These criteria define future verification obligations. Scenario text alone is no
 
 ## AC-2.1: Only the two exact authoring names bypass path denial
 
-**EARS:** WHEN the hook-visible name is exactly propose_patch or apply_proposed_patch AND the host-generated authority is a registered omp-spec-kit MCP authority THEN the handler SHALL ALLOW AUTHORING_TOOL_ALLOWED before containment; WHEN the exact name has no valid registered authority THEN it SHALL BLOCK UNREGISTERED_AUTHORING_CALL; WHEN the name differs by case prefix suffix qualification or embedding THEN it SHALL not receive the authoring allowance.
+**EARS:** WHEN the hook-visible tool name matches an authorized minted MCP tool name in the active omp-spec-kit tool family verified through pi.getAllTools() THEN the handler SHALL ALLOW AUTHORING_TOOL_ALLOWED before containment; WHEN a raw short name is called directly without MCP namespace THEN it SHALL BLOCK UNREGISTERED_AUTHORING_CALL; WHEN apply operations are called without explicit approval="approve" THEN the handler SHALL BLOCK APPROVAL_REQUIRED.
 
 **Requirement:** [FR-2](FR.md#fr-2-exact-two-name-authoring-allowlist)
 

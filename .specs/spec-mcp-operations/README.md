@@ -10,7 +10,7 @@ The Read domain owns the shipped eight-tool compatibility surface, the determini
 
 ## Write domain
 
-The Write domain owns exactly two public mutation tools: propose_patch and apply_proposed_patch. Internal helpers compile to the same operation model and are not public tools. The OMP non-MCP access boundary is owned by [MCP access gate](../spec-mcp-access-gate/README.md).
+The Write domain owns all 24 authoring operations as public MCP tools under v0.6.0: 20 dry-run proposal operations that do not modify disk bytes and return a unified Proposal schema, and 4 transactional apply operations that commit changes atomically under write lock with rollback on failure. The OMP non-MCP access boundary is owned by [MCP access gate](../spec-mcp-access-gate/README.md).
 
 ## Operation census
 

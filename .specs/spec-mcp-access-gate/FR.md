@@ -12,7 +12,7 @@ The existing `omp-spec-kit` extension factory SHALL register exactly one pre-exe
 
 ## FR-2: Exact two-name authoring allowlist
 
-The handler SHALL first validate the host-generated MCP authority envelope. Only a valid registered omp-spec-kit authority with the exact case-sensitive hook-visible name propose_patch or apply_proposed_patch SHALL return ALLOW AUTHORING_TOOL_ALLOWED before target resolution. An exact name without valid registered authority SHALL BLOCK UNREGISTERED_AUTHORING_CALL; prefix, suffix, case, qualification, or embedded-name variants SHALL continue to the direct-mutation path policy.
+The handler SHALL validate the caller against the active MCP tool family minted by OMP. In v0.6.0, all 49 tools are served exclusively via MCP. Calling any short name directly without OMP namespace SHALL BLOCK UNREGISTERED_AUTHORING_CALL. Authorized MCP calls matching mcp__omp_spec_kit_<op> or mcp__omp_spec_kit_omp_spec_kit_<op> verified through pi.getAllTools() SHALL return ALLOW AUTHORING_TOOL_ALLOWED. All four apply operations require approval=approve.
 
 **Acceptance:** [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-only-the-two-exact-authoring-names-bypass-path-denial)
 
