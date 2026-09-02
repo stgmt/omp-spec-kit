@@ -26,7 +26,7 @@ function commandText(command, args) {
 }
 function run(label, command, args) {
   console.log(`\n[release-preflight] ${label}: ${commandText(command, args)}`);
-  const result = spawnSync(command, args, { cwd: repositoryRoot, stdio: "inherit", shell: false });
+  const result = spawnSync(command, args, { cwd: repositoryRoot, stdio: "inherit", shell: process.platform === "win32" && command === npmCommand });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`${label} failed with exit code ${result.status}`);
 }
