@@ -20,11 +20,11 @@ Update an existing project install with:
 omp plugin upgrade omp-spec-kit@omp-spec-kit --scope project
 ```
 
-This v0.5.0 release candidate targets OMP 18.0.11 and provides the additive evidence and navigation surface. The v0.4.1 compatibility profile remains available through explicit stage selection.
+This v0.5.4 release provides the additive evidence and navigation surface for OMP 18.0.11. The v0.4.1 compatibility profile remains available through explicit stage selection.
 
 ## Available today
 
-The v0.5.0 release exposes exactly 27 MCP tools: the eight bounded reads, two safe-authoring tools, 15 navigation and validation tools, and two evidence tools.
+The v0.5.4 release exposes exactly 27 MCP tools: the eight bounded reads, two safe-authoring tools, 15 navigation and validation tools, and two evidence tools.
 
 | Need | Tools |
 |---|---|
@@ -56,11 +56,11 @@ The next releases add capabilities without removing the eight compatibility tool
 
 - **v0.3.2 — shipped predecessor:** bounded, read-only graph queries.
 - **v0.4.1 — shipped:** eight bounded reads plus proposal-first safe authoring; exactly 10 MCP tools, with the shipped launcher selecting this surface by default.
-- **v0.5.0 — candidate:** additive evidence and navigation surface with 27 direct MCP tools; publication follows the release gates.
+- **v0.5.4 — shipped corrective release:** additive evidence and navigation surface with 27 direct MCP tools; the exact archive and installed package are verified.
 - **v0.6.0 — planned:** additional authoring helpers remain internal and are not public tools.
 - **v0.7.0 — automatic plan gate:** validate the exact plan selected by OMP before approval in interactive and ACP sessions.
 
-The v0.4.1 corrective release is published with an exact archive smoke from unset environment, independent package/lifecycle/Docker BDD/OMP manager evidence, and commit-bound attestations. See ROADMAP.md for release proof and sequencing.
+The v0.5.4 release is published with accurate release notes, an exact archive smoke from unset environment, independent package/lifecycle/Docker BDD/OMP manager evidence, and commit-bound attestations. See ROADMAP.md for release proof and sequencing.
 
 ## Safety and boundaries
 
@@ -74,6 +74,6 @@ The MCP server reads the active OMP project. It does not use editor LSP as a sub
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution workflow
 - [`CHANGELOG.md`](CHANGELOG.md) — release history
 - [`ROADMAP.md`](ROADMAP.md) — user-visible delivery sequence
-- docs/validation/release-status-v0.5.0.json — current candidate status and verification record
+- docs/validation/release-status-v0.5.4.json — current shipped release status and verification record
 
 License: MIT.

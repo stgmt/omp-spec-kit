@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
+## 0.5.4 — 2026-09-02
+
+Corrective release: accurate evidence and navigation release notes.
+
+- Generates release notes for the actual additive v0.5 27-tool surface instead of the superseded ten-tool text.
+- Keeps published candidate, archive, evidence, and tag identities in the release receipt.
+
 ## 0.5.3 — 2026-09-02
 
 Corrective release: clean-checkout publication and deterministic E2E proof.
