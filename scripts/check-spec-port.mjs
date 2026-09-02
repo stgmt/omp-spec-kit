@@ -2,7 +2,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { AUTHORING_TOOL_CONTRACTS, EVIDENCE_TOOL_CONTRACTS, READ_COMPLETE_TOOL_CONTRACTS, SAFE_AUTHORING_TOOL_CONTRACTS, TOOL_CONTRACTS } from "../src/adapters/tool-contracts.js";
+import { AUTHORING_TOOL_CONTRACTS, EVIDENCE_TOOL_CONTRACTS, READ_COMPLETE_TOOL_CONTRACTS, SAFE_AUTHORING_TOOL_CONTRACTS, TOOL_CONTRACTS, V05_TOOL_CONTRACTS } from "../src/adapters/tool-contracts.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const decisionPath = path.join(root, "docs", "decisions", "spec-generator-port.md");
@@ -39,5 +39,5 @@ for (const row of rows) {
 }
 for (const [stage, count] of expectedStages) if (stageCounts.get(stage) !== count) fail(`${stage} has ${stageCounts.get(stage) ?? 0} rows, expected ${count}`);
 if (![...firstSlice].every((name) => text.includes(`| \`${name}\` |`))) fail("a historical first-slice name is missing");
-if (TOOL_CONTRACTS.length !== 8 || SAFE_AUTHORING_TOOL_CONTRACTS.length !== 10 || READ_COMPLETE_TOOL_CONTRACTS.length !== 23 || EVIDENCE_TOOL_CONTRACTS.length !== 25 || AUTHORING_TOOL_CONTRACTS.length !== 49) fail("stage contract counts drifted from 8/10/23/25/49");
-console.log("verified spec port: census=46; contracts=8/10/23/25/49");
+if (TOOL_CONTRACTS.length !== 8 || SAFE_AUTHORING_TOOL_CONTRACTS.length !== 10 || READ_COMPLETE_TOOL_CONTRACTS.length !== 23 || V05_TOOL_CONTRACTS.length !== 27 || EVIDENCE_TOOL_CONTRACTS.length !== 25 || AUTHORING_TOOL_CONTRACTS.length !== 49) fail("stage contract counts drifted from 8/10/23/27/25/49");
+console.log("verified spec port: census=46; contracts=8/10/23/27/25/49");

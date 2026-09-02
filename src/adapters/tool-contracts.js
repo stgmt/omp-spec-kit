@@ -646,11 +646,18 @@ export const SAFE_AUTHORING_TOOL_CONTRACTS = Object.freeze([
   ...TOOL_CONTRACTS,
   ...AUTHORING_TOOL_CONTRACTS.filter((contract) => SAFE_AUTHORING_NAMES.has(contract.tool)),
 ]);
+
+export const V05_TOOL_CONTRACTS = Object.freeze([
+  ...SAFE_AUTHORING_TOOL_CONTRACTS,
+  ...READ_COMPLETE_TOOL_CONTRACTS.slice(TOOL_CONTRACTS.length),
+  ...EVIDENCE_TOOL_CONTRACTS.slice(READ_COMPLETE_TOOL_CONTRACTS.length),
+]);
+
 export function toolContractsForStage(stage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE) {
   const value = typeof stage === "string" ? stage.trim().toLowerCase() : "";
   if (value === "v0.4.0" || value === "v0.4.1" || value === "safe-authoring") return SAFE_AUTHORING_TOOL_CONTRACTS;
   if (value === "read-complete" || value === "v0.4.0-read-complete") return READ_COMPLETE_TOOL_CONTRACTS;
-  if (value === "evidence" || value === "v0.5.0") return EVIDENCE_TOOL_CONTRACTS;
+  if (value === "evidence" || value === "v0.5.0") return V05_TOOL_CONTRACTS;
   if (value === "authoring" || value === "v0.6.0" || value === "v0.7.0") return AUTHORING_TOOL_CONTRACTS;
   if (value === "" || value === "v0.3.2") return TOOL_CONTRACTS;
   throw new Error("unsupported OMP_SPEC_KIT_STAGE: " + value);

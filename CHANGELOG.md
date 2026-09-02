@@ -2,6 +2,13 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 0.5.0 — 2026-09-01
+
+Evidence and navigation release candidate for OMP 18.0.11.
+
+- Adds an additive 27-tool direct MCP surface: the v0.4.1 ten-tool compatibility profile, 15 bounded navigation/validation tools, and get_test_result plus get_scenario_trace.
+- Keeps evidence storage and parsing repository-owned, with SHA-256 source identity and graph/scenario binding that rejects stale passing evidence after corpus mutation.
+- Verifies passing, failed, incomplete, unknown, invalid-input, safe-authoring apply, and stale-conflict paths against a disposable real specification corpus.
 ## 0.4.1 — 2026-09-01
 
 Corrective safe-authoring release for OMP 18.0.11; v0.4.0 is superseded because the normal shipped launcher exposed the historical eight-tool profile unless an ambient stage variable was injected.

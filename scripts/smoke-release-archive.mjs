@@ -9,7 +9,7 @@ import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 
 const execFile = promisify(execFileCallback);
-const EXPECTED_TOOLS = Object.freeze([
+const SAFE_AUTHORING_TOOLS = Object.freeze([
   "apply_proposed_patch",
   "propose_patch",
   "spec_diagnostics",
@@ -21,13 +21,42 @@ const EXPECTED_TOOLS = Object.freeze([
   "spec_overview",
   "spec_trace",
 ]);
+const V05_TOOLS = Object.freeze([
+  "apply_proposed_patch",
+  "find_by_tags",
+  "find_orphans",
+  "get_archival_proof",
+  "get_scenario_trace",
+  "get_spec_status",
+  "get_test_result",
+  "list_phase_tasks",
+  "list_spec_docs",
+  "list_specs",
+  "list_tasks",
+  "mcp_preflight",
+  "policy_query_requirements",
+  "propose_patch",
+  "read_attachment",
+  "read_spec_doc",
+  "spec_diagnostics",
+  "spec_find_nodes",
+  "spec_get_edges",
+  "spec_get_node",
+  "spec_inventory",
+  "spec_markdown_inventory",
+  "spec_overview",
+  "spec_trace",
+  "validate_anchor",
+  "validate_requirement_metadata",
+  "validate_spec",
+]);
 
 const { values } = parseArgs({
   options: { archive: { type: "string" }, stage: { type: "string" } },
   strict: true,
 });
 if (!values.archive) throw new Error("--archive is required");
-
+const expectedTools = values.stage === "safe-authoring" ? SAFE_AUTHORING_TOOLS : V05_TOOLS;
 const archivePath = path.resolve(values.archive);
 const tempRoot = await mkdtemp(path.join(tmpdir(), "omp-spec-kit-release-smoke-"));
 const packageRoot = path.join(tempRoot, "package");
@@ -103,7 +132,7 @@ try {
   assert.equal(initialize.error, undefined, JSON.stringify(initialize));
   const listed = await send({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
   const toolNames = listed.result.tools.map((tool) => tool.name).sort();
-  assert.deepEqual(toolNames, EXPECTED_TOOLS, "the shipped launcher must expose the v0.4.x ten-tool surface");
+  assert.deepEqual(toolNames, expectedTools, "the launcher must expose the selected stage surface");
 
   const overview = await send({
     jsonrpc: "2.0",

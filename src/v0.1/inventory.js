@@ -1,7 +1,7 @@
 import { lstat, opendir, realpath } from "node:fs/promises";
 import path from "node:path";
 
-export const PLUGIN_VERSION = "0.4.1";
+export const PLUGIN_VERSION = "0.5.0";
 export const SCHEMA_VERSION = "1";
 export const HARD_MAX_SPECS = 200;
 export const HARD_MAX_DIAGNOSTICS = 100;

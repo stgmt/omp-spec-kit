@@ -37,3 +37,7 @@ Feature: Exercise staged MCP releases through the packaged server
     Given a real staged MCP corpus and packaged server
     When the staged OMP extension registry is inspected
     Then applied authoring tools require write approval and proposals remain read-only
+  Scenario: v0.5 keeps safe authoring and binds producer evidence
+    Given a real staged MCP corpus and packaged server
+    When the v0.5 additive registry, evidence states, and safe authoring are exercised
+    Then v0.5 exposes 27 bounded tools, preserves authoring, and refuses stale evidence

@@ -276,19 +276,19 @@ Then("aliases work, unknown fields fail, and unaccepted authoring stays hidden",
 
 When("an incomplete evidence stream is queried", async function () {
   await this.stagedMcp.server.close();
-  await mkdir(path.join(this.stagedMcp.root, ".dev-pomogator"), { recursive: true });
+  await mkdir(path.join(this.stagedMcp.root, ".omp-spec-kit", "evidence"), { recursive: true });
   const frames = [
     { pickle: { id: "bdd-pickle", tags: [{ name: "@id:SCEN-specification-only-init" }] } },
     { testCase: { id: "bdd-case", pickleId: "bdd-pickle", testSteps: [{ id: "bdd-step" }] } },
     { testCaseStarted: { id: "bdd-start", testCaseId: "bdd-case" } },
     { testCaseFinished: { testCaseStartedId: "bdd-start" } },
   ];
-  await writeFile(path.join(this.stagedMcp.root, ".dev-pomogator", ".last-test-run.ndjson"), `${frames.map((frame) => JSON.stringify(frame)).join("\n")}\n`);
+  await writeFile(path.join(this.stagedMcp.root, ".omp-spec-kit", "evidence", "last-test-run.ndjson"), frames.map((frame) => JSON.stringify(frame)).join("\n") + "\n");
   this.stagedMcp.server = spawnMcpServer({
     serverPath: SERVER_PATH,
     root: this.stagedMcp.root,
     cwd: this.stagedMcp.root,
-    env: { OMP_SPEC_KIT_STAGE: "evidence" },
+    env: { OMP_SPEC_KIT_STAGE: "v0.5.0" },
   });
   const result = await this.stagedMcp.server.request("tools/call", {
     name: "get_test_result",
@@ -407,4 +407,138 @@ Then("applied authoring tools require write approval and proposals remain read-o
 After({ tags: "@staged-mcp" }, async function () {
   if (this.stagedMcp?.server) await this.stagedMcp.server.close();
   if (this.stagedMcp?.root) await rm(this.stagedMcp.root, { recursive: true, force: true });
+});
+When("the v0.5 additive registry, evidence states, and safe authoring are exercised", async function () {
+  await this.stagedMcp.server.close();
+  this.stagedMcp.server = spawnMcpServer({
+    serverPath: SERVER_PATH,
+    root: this.stagedMcp.root,
+    cwd: this.stagedMcp.root,
+    env: { OMP_SPEC_KIT_STAGE: "v0.5.0" },
+  });
+  const initialized = await this.stagedMcp.server.request("initialize", { protocolVersion: "2025-03-26" });
+  assert.equal(initialized.result.serverInfo.name, "omp-spec-kit");
+  const listed = await this.stagedMcp.server.request("tools/list");
+  this.stagedMcp.v05Names = listed.result.tools.map((tool) => tool.name);
+  this.stagedMcp.v05Results = [];
+  for (const [name, arguments_] of READ_STAGE_CALLS) {
+    const response = await this.stagedMcp.server.request("tools/call", {
+      name,
+      arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-" + name, ...arguments_ },
+    });
+    this.stagedMcp.v05Results.push({ name, response });
+  }
+  const overview = await this.stagedMcp.server.request("tools/call", {
+    name: "spec_overview",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-overview", specSlugs: [] },
+  });
+  const nodeResponse = await this.stagedMcp.server.request("tools/call", {
+    name: "spec_get_node",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-node", canonicalId: "product:SCEN-specification-only-init", projection: "summary", includeIncidentCounts: false },
+  });
+  const binding = {
+    graphFingerprint: overview.result.structuredContent.graph.fingerprint,
+    scenarioContentHash: nodeResponse.result.structuredContent.data.node.contentHash,
+  };
+  const evidenceDir = path.join(this.stagedMcp.root, ".omp-spec-kit", "evidence");
+  await mkdir(evidenceDir, { recursive: true });
+  const fixture = await readFile(path.join(REPOSITORY_ROOT, "tests", "fixtures", "evidence", "v05-passing.ndjson"), "utf8");
+  await writeFile(path.join(evidenceDir, "last-test-run.ndjson"), fixture
+    .replace("__GRAPH_FINGERPRINT__", binding.graphFingerprint)
+    .replace("__SCENARIO_CONTENT_HASH__", binding.scenarioContentHash));
+  const evidenceRequest = (name, requestId) => this.stagedMcp.server.request("tools/call", {
+    name,
+    arguments: { schemaVersion: "spec-kernel@1", requestId, scenarioId: "product:SCEN-specification-only-init" },
+  });
+  const passing = await evidenceRequest("get_test_result", "v05-passing");
+  const trace = await evidenceRequest("get_scenario_trace", "v05-trace");
+  const failedFixture = await readFile(path.join(REPOSITORY_ROOT, "tests", "fixtures", "evidence", "v05-failed.ndjson"), "utf8");
+  await writeFile(path.join(evidenceDir, "last-test-run.ndjson"), failedFixture);
+  const failed = await evidenceRequest("get_test_result", "v05-failed");
+  const incompleteFixture = await readFile(path.join(REPOSITORY_ROOT, "tests", "fixtures", "evidence", "v05-incomplete.ndjson"), "utf8");
+  await writeFile(path.join(evidenceDir, "last-test-run.ndjson"), incompleteFixture);
+  const incomplete = await evidenceRequest("get_test_result", "v05-incomplete");
+  const unknownScenario = await this.stagedMcp.server.request("tools/call", {
+    name: "get_test_result",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-unknown-scenario", scenarioId: "product:SCEN-unknown" },
+  });
+  const invalid = await this.stagedMcp.server.request("tools/call", {
+    name: "get_test_result",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-invalid" },
+  });
+  await writeFile(path.join(evidenceDir, "last-test-run.ndjson"), fixture
+    .replace("__GRAPH_FINGERPRINT__", binding.graphFingerprint)
+    .replace("__SCENARIO_CONTENT_HASH__", binding.scenarioContentHash));
+  const scenarioPath = path.join(this.stagedMcp.root, ".specs", "product", "product.feature");
+  const originalScenario = await readFile(scenarioPath, "utf8");
+  const beforeMutation = await evidenceRequest("get_test_result", "v05-before-mutation");
+  await writeFile(scenarioPath, originalScenario.replace("Scenario: Specification-only init reports no installable plugin", "Scenario: Specification-only init reports no installable plugin changed"));
+  await this.stagedMcp.server.close();
+  this.stagedMcp.server = spawnMcpServer({ serverPath: SERVER_PATH, root: this.stagedMcp.root, cwd: this.stagedMcp.root, env: { OMP_SPEC_KIT_STAGE: "v0.5.0" } });
+  const afterMutation = await evidenceRequest("get_test_result", "v05-after-mutation");
+  const changedOverview = await this.stagedMcp.server.request("tools/call", {
+    name: "spec_overview",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-changed-overview", specSlugs: [] },
+  });
+  const proposalResponse = await this.stagedMcp.server.request("tools/call", {
+    name: "propose_patch",
+    arguments: {
+      schemaVersion: "spec-kernel@1",
+      requestId: "v05-proposal",
+      repositoryRootFingerprint: changedOverview.result.structuredContent.graph.fingerprint,
+      spec: "product",
+      reason: "verify v0.5 safe authoring",
+      operations: [{ kind: "insert_at_eof", document: "README.md", text: "v0.5 authoring marker" }],
+    },
+  });
+  const proposal = proposalResponse.result.structuredContent;
+  assert.equal(proposal.ok, true, JSON.stringify(proposal));
+  const expectedDocuments = proposal.data.operations.map((operation) => ({ path: operation.path, beforeSha256: operation.beforeSha256 }));
+  const applyArguments = {
+    schemaVersion: "spec-kernel@1",
+    requestId: "v05-apply",
+    proposalId: proposal.data.proposalId,
+    proposalSha256: proposal.data.proposalHash,
+    expectedDocuments,
+    reason: "approve v0.5 proposal",
+    approval: "approve",
+  };
+  const applied = await this.stagedMcp.server.request("tools/call", { name: "apply_proposed_patch", arguments: applyArguments });
+  const replay = await this.stagedMcp.server.request("tools/call", { name: "apply_proposed_patch", arguments: { ...applyArguments, requestId: "v05-replay" } });
+  this.stagedMcp.v05 = { passing, trace, failed, incomplete, unknownScenario, invalid, beforeMutation, afterMutation, proposal, applied, replay };
+});
+
+Then("v0.5 exposes 27 bounded tools, preserves authoring, and refuses stale evidence", async function () {
+  const expectedNames = [
+    "spec_inventory", "spec_get_node", "spec_find_nodes", "spec_get_edges", "spec_trace", "spec_diagnostics", "spec_overview", "spec_markdown_inventory",
+    "propose_patch", "apply_proposed_patch", "find_by_tags", "list_tasks", "list_phase_tasks", "find_orphans", "validate_anchor", "list_specs",
+    "validate_requirement_metadata", "policy_query_requirements", "get_archival_proof", "validate_spec", "get_spec_status", "mcp_preflight",
+    "list_spec_docs", "read_spec_doc", "read_attachment", "get_test_result", "get_scenario_trace",
+  ];
+  assert.deepEqual(this.stagedMcp.v05Names, expectedNames);
+  for (const { name, response } of this.stagedMcp.v05Results) {
+    assert.equal(response.result.content.length, 1, name);
+    assert.equal(typeof response.result.structuredContent.ok, "boolean", name);
+  }
+  const result = this.stagedMcp.v05;
+  assert.equal(result.passing.result.structuredContent.data.result, "PASSED");
+  assert.equal(result.passing.result.structuredContent.data.stale, false);
+  assert.equal(result.trace.result.structuredContent.data.trace.status, "bounded");
+  assert.equal(result.failed.result.structuredContent.data.result, "FAILED");
+  assert.equal(result.incomplete.result.structuredContent.data.result, "UNKNOWN");
+  assert.equal(result.unknownScenario.result.structuredContent.ok, false);
+  assert.equal(result.unknownScenario.result.structuredContent.error.code, "SCENARIO_NOT_FOUND");
+  assert.equal(result.invalid.result.structuredContent.ok, false);
+  assert.equal(result.invalid.result.structuredContent.error.code, "INVALID_REQUEST");
+  assert.equal(result.beforeMutation.result.structuredContent.data.result, "PASSED");
+  assert.equal(result.afterMutation.result.structuredContent.data.result, "UNKNOWN");
+  assert.equal(result.afterMutation.result.structuredContent.data.stale, true);
+  assert.notEqual(result.beforeMutation.result.structuredContent.data.evidenceBinding.graphFingerprint, result.afterMutation.result.structuredContent.data.evidenceBinding.graphFingerprint);
+  assert.equal(result.proposal.ok, true, JSON.stringify(result.proposal));
+  assert.equal(result.applied.result.structuredContent.ok, true, JSON.stringify(result.applied));
+  assert.equal(result.replay.result.structuredContent.ok, true, JSON.stringify(result.replay));
+  assert.equal(result.replay.result.structuredContent.data.outcome, "REFUSED", JSON.stringify(result.replay));
+  assert.equal(result.replay.result.structuredContent.data.error.code, "CONFLICT", JSON.stringify(result.replay));
+  const content = await readFile(path.join(this.stagedMcp.root, ".specs", "product", "README.md"), "utf8");
+  assert.equal((content.match(/v0.5 authoring marker/g) ?? []).length, 1);
 });

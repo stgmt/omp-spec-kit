@@ -172,15 +172,15 @@ jobs:
       # Release-grade MRI receipts must cite semantic Cucumber evidence from
       # THIS checkout, so capture the canonical Messages stream the same way
       # the release verify job does instead of trusting any stale fixture.
-      # v0.4.1 smoke runs before lifecycle composition.
-      - name: Run v0.4.1 safe-authoring BDD and OMP manager E2E
+      # v0.5.0 smoke runs before lifecycle composition.
+      - name: Run v0.5.0 safe-authoring BDD and OMP manager E2E
         run: npm run test:safe-authoring
-      - name: Run v0.4.1 release-integrity BDD
+      - name: Run v0.5.0 release-integrity BDD
         run: npm run test:release-integrity
       - name: Run Docker BDD and preserve semantic Cucumber messages
         run: |
           set -o pipefail
-          mkdir -p .dev-pomogator/bdd-results
+          mkdir -p .omp-spec-kit/evidence/bdd-results
           OMP_SPEC_KIT_BDD_MESSAGE_STDOUT=1 bash scripts/docker-bdd.sh > dist-candidate/cucumber.ndjson
 
       # Composes the nine closed MRI lifecycle receipts pipeline-time from the

@@ -276,12 +276,11 @@ function embeddedVersion(relativePath, pattern) {
 
 function validateCurrentStatus() {
   const rootPackage = readJson("package.json");
-  if (rootPackage.version === "0.4.1") return rootPackage.version;
-  const status = readJson("docs/validation/release-status-v0.3.2.json");
+  const version = rootPackage.version;
+  const status = readJson("docs/validation/release-status-v" + version + ".json");
   const childPackage = readJson("plugins/omp-spec-kit/package.json");
   const catalog = readJson(".omp-plugin/marketplace.json");
   const catalogPlugin = catalog.plugins?.[0];
-  const version = status.version;
   const authorities = [
     ["root package", rootPackage.version],
     ["child package", childPackage.version],
@@ -294,14 +293,18 @@ function validateCurrentStatus() {
     if (actual !== version) fail(`${label} version ${String(actual)} differs from release status ${version}`);
   }
   if (
-    status.tag !== `v${version}` ||
-    status.status?.public !== true ||
-    status.status?.installable !== true ||
-    status.status?.state !== "SHIPPED" ||
-    status.status?.surface !== "READ_ONLY_MCP" ||
-    status.status?.toolCount !== 8
+    status.tag !== "v" + version ||
+    !["SHIPPED", "CANDIDATE"].includes(status.status?.state) ||
+    typeof status.status?.surface !== "string" ||
+    !Number.isInteger(status.status?.toolCount)
   ) {
-    fail("release status is not the shipped eight-tool read-only v0.3.2 release");
+    fail("release status is absent or identity-drifted");
+  }
+  if (status.status.state === "CANDIDATE") {
+    if (status.status.public !== false || status.status.installable !== false || status.status.surface !== "EVIDENCE_NAVIGATION" || status.status.toolCount !== 27) {
+      fail("v0.5 candidate status is not the additive evidence/navigation surface");
+    }
+    return version;
   }
   const releaseNotes = status.releaseNotes;
   const releaseNotesDigest =
@@ -337,7 +340,7 @@ function validateCurrentStatus() {
   }
 
   const requiredStatusMarkers = [
-    ["README.md", [`v${version}`, "release-status-v0.3.2.json", "--scope project"]],
+    ["README.md", ["v" + version, "release-status-v" + version + ".json", "--scope project"]],
   ];
   for (const [relativePath, markers] of requiredStatusMarkers) {
     const text = readText(relativePath).toLowerCase();

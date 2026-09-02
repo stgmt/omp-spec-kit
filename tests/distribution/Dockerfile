@@ -16,6 +16,7 @@ COPY .omp-plugin/ .omp-plugin/
 COPY .specs/ .specs/
 COPY docs/validation/omp-discovery-v18.0.10.md docs/validation/omp-discovery-v18.0.10.md
 COPY docs/validation/release-status-v0.3.2.json docs/validation/release-status-v0.3.2.json
+COPY docs/validation/release-status-v0.5.0.json docs/validation/release-status-v0.5.0.json
 COPY docs/advisories/v0.3.0-mcp-root.md docs/advisories/v0.3.0-mcp-root.md
 COPY plugins/ plugins/
 COPY scripts/ scripts/

@@ -1,5 +1,5 @@
-// Registers the active stage's OMP projection. v0.4.1 exposes exactly eight
-// kernel-backed read tools plus the two proposal-first authoring tools.
+// Registers the active stage's OMP projection. v0.5.0 exposes the additive
+// navigation, evidence, and safe-authoring surface.
 
 import { ompToolContractsForStage, zodParametersFor } from "../tool-contracts.js";
 

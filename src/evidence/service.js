@@ -5,9 +5,8 @@ import path from "node:path";
 const MAX_EVIDENCE_FILES = 32;
 const MAX_EVIDENCE_BYTES = 16 * 1024 * 1024;
 const EVIDENCE_NAMES = Object.freeze([
-  ".dev-pomogator/.last-test-run.ndjson",
-  ".dev-pomogator/bdd-results/run.ndjson",
-  "bdd-results/run.ndjson",
+  ".omp-spec-kit/evidence/last-test-run.ndjson",
+  ".omp-spec-kit/evidence/bdd-results/run.ndjson",
   "tests/fixtures/release-candidate/cucumber-messages.ndjson",
 ]);
 
@@ -83,7 +82,9 @@ function resultForScenario(frames, localId) {
   const starts = new Map();
   const stepResults = new Map();
   const finished = new Map();
+  let captureBinding = null;
   for (const frame of frames) {
+    if (isObject(frame.ompSpecKitEvidence) && isObject(frame.ompSpecKitEvidence.binding)) captureBinding = frame.ompSpecKitEvidence.binding;
     if (isObject(frame.pickle)) {
       const id = scenarioIdFromTags(frame.pickle.tags);
       if (id === localId && typeof frame.pickle.id === "string") pickles.set(frame.pickle.id, frame.pickle);
@@ -101,7 +102,7 @@ function resultForScenario(frames, localId) {
   const matchingCases = [...testCases.values()].filter((testCase) => pickleIds.has(testCase.pickleId));
   const matchingCaseIds = new Set(matchingCases.map((testCase) => testCase.id));
   const matchingStarts = [...starts.values()].filter((start) => matchingCaseIds.has(start.testCaseId));
-  if (matchingStarts.length === 0) return { result: "NOT_RUN", stale: true, runId: null, lastRunAt: null, failingStep: null, traceStatus: "missing", source: null };
+  if (matchingStarts.length === 0) return { result: "NOT_RUN", stale: true, runId: null, lastRunAt: null, failingStep: null, traceStatus: "missing", source: null, captureBinding };
   const latest = matchingStarts[matchingStarts.length - 1];
   const results = stepResults.get(latest.id) ?? [];
   const finishedRecord = finished.get(latest.id);
@@ -134,6 +135,7 @@ function resultForScenario(frames, localId) {
     failingStep: failed ? { stepId: failed.testStepId ?? null, message: failed.testStepResult?.message ?? null } : null,
     traceStatus: results.length > 0 ? "available" : "missing",
     source: { scenarioId: localId, pickleId: matchingCases[matchingCases.length - 1]?.pickleId ?? null },
+    captureBinding,
   };
 }
 
@@ -152,7 +154,16 @@ export async function executeEvidenceOperation(root, graph, operation, args = {}
   if (resolved.error) return resolved.error;
   const files = await evidenceFiles(root);
   const parsedFiles = files.map((file) => ({ ...file, result: resultForScenario(parseMessages(file.bytes), resolved.node.localId) }));
-  const withSource = (entry, file) => ({ ...entry.result, source: { ...(entry.result.source ?? {}), path: file.relative, sha256: file.sha256 } });
+  const withSource = (entry, file) => {
+    const captureBinding = entry.result.captureBinding;
+    const bindingMismatch = captureBinding && (
+      captureBinding.graphFingerprint !== graph.fingerprint ||
+      captureBinding.scenarioContentHash !== resolved.node.contentHash
+    );
+    const result = bindingMismatch ? { ...entry.result, result: "UNKNOWN", stale: true, traceStatus: "missing" } : entry.result;
+    const { captureBinding: _captureBinding, ...withoutBinding } = result;
+    return { ...withoutBinding, source: { ...(result.source ?? {}), path: file.relative, sha256: file.sha256 } };
+  };
   const evidence = parsedFiles.length === 0
     ? { result: "NOT_RUN", stale: true, runId: null, lastRunAt: null, failingStep: null, traceStatus: "missing", source: null }
     : parsedFiles.map((entry) => withSource(entry, entry)).find((item) => item.result !== "NOT_RUN") ?? withSource(parsedFiles[parsedFiles.length - 1], parsedFiles[parsedFiles.length - 1]);

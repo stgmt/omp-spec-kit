@@ -190,7 +190,7 @@ When("the v0.4.1 scenario {string} runs", async function (scenario) {
   if (scenario === "installed-factory") {
     const receipt = await runExtensionProbe({ extensionPath: path.join(REPOSITORY_ROOT, "plugins/omp-spec-kit/dist/extension.js"), cwd: this.root, env: { OMP_SPEC_KIT_STAGE: "v0.4.1" } });
     const names = receipt.tools.map((tool) => tool.name).sort();
-    assert.equal(receipt.exports.pluginVersion, "0.4.1");
+    assert.equal(receipt.exports.pluginVersion, "0.5.0");
     assert.equal(names.length, 10);
     assert.equal(new Set(names).size, 10);
     assert.equal(receipt.tools.find((tool) => tool.name === "propose_patch").approval, "read");
@@ -279,7 +279,7 @@ When("the v0.4.1 scenario {string} runs", async function (scenario) {
     }
     assert.equal(receipt.provenance.runtime.version, "18.0.11");
     assert.deepEqual(receipt.manager.connectionResult.connectedServers, ["omp-spec-kit:omp-spec-kit"]);
-    assert.equal(receipt.manager.connectionResult.toolCount, 10);
+    assert.equal(receipt.manager.connectionResult.toolCount, 27);
     assert.deepEqual(receipt.manager.connectionResult.managedAuthoring.toolNames, ["spec_overview", "propose_patch", "apply_proposed_patch"]);
     assert.equal(receipt.manager.connectionResult.managedAuthoring.applyOutcome, "APPLIED");
     assert.equal(receipt.manager.connectionResult.managedAuthoring.finalDocumentContainsMarker, true);

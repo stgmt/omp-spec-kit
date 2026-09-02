@@ -39,8 +39,8 @@ is_unfiltered_run() {
   [[ "$#" -eq 0 ]]
 }
 
-RESULTS_DIR="$ROOT/.dev-pomogator/bdd-results"
-CANONICAL_RESULT="$ROOT/.dev-pomogator/.last-test-run.ndjson"
+RESULTS_DIR="$ROOT/.omp-spec-kit/evidence/bdd-results"
+CANONICAL_RESULT="$ROOT/.omp-spec-kit/evidence/last-test-run.ndjson"
 CONTAINER_RESULTS_DIR="/omp-spec-kit-bdd-results"
 mkdir -p "$RESULTS_DIR"
 HOST_RUN_FILE="$(mktemp "$RESULTS_DIR/run.XXXXXX.ndjson")"

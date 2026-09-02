@@ -1,5 +1,6 @@
 .git
 node_modules
+**/node_modules/
 .omp
 .tmp
 tmp
@@ -9,7 +10,7 @@ coverage
 !tests/fixtures/release-candidate/cucumber-messages.ndjson
 *.sqlite
 *.sqlite3
-.dev-pomogator
+.dev-*
 .env
 .env.*
 .npmrc

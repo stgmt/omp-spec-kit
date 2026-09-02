@@ -23,7 +23,7 @@ tmp/
 *.ndjson
 *.sqlite
 *.sqlite3
-.dev-pomogator/
+.dev-*/
 .test-results*
 .progress.json
 .omp/
