@@ -207,19 +207,7 @@ export async function runToolE2E({ listTools, callTool, projectRoot, repositoryR
     const setReqMetaVal = structured(setReqMetaRes);
     assert.equal(setReqMetaVal.ok, true);
 
-    // 9. propose_requirement_contract
-    const propContractRes = await callTool("propose_requirement_contract", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-prop-contract",
-      spec: "e2e-spec",
-      requirement: "FR-1",
-      contract: { schemaVersion: 1, contract: { version: 1, kind: "behavior" } },
-      reason: "v06 req contract test",
-    });
-    const propContractVal = structured(propContractRes);
-    assert.equal(propContractVal.ok, true);
-
-    // 10. delete_spec_doc
+    // 9. delete_spec_doc
     const delDocRes = await callTool("delete_spec_doc", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-del-doc",
@@ -230,7 +218,7 @@ export async function runToolE2E({ listTools, callTool, projectRoot, repositoryR
     const delDocVal = structured(delDocRes);
     assert.equal(delDocVal.ok, true);
 
-    // 11. rename_spec_doc
+    // 10. rename_spec_doc
     const renameDocRes = await callTool("rename_spec_doc", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-rename-doc",
@@ -242,7 +230,7 @@ export async function runToolE2E({ listTools, callTool, projectRoot, repositoryR
     const renameDocVal = structured(renameDocRes);
     assert.equal(renameDocVal.ok, true);
 
-    // 12. create_spec
+    // 11. create_spec
     const createSpecRes = await callTool("create_spec", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-create-spec",
@@ -253,7 +241,7 @@ export async function runToolE2E({ listTools, callTool, projectRoot, repositoryR
     const createSpecVal = structured(createSpecRes);
     assert.equal(createSpecVal.ok, true);
 
-    // 13. archive_spec
+    // 12. archive_spec
     const archiveSpecRes = await callTool("archive_spec", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-archive-spec",
@@ -264,7 +252,7 @@ export async function runToolE2E({ listTools, callTool, projectRoot, repositoryR
     assert.equal(archiveSpecVal.ok, true);
     assert.ok(archiveSpecVal.data.archive);
 
-    // 14. add_backlog_task
+    // 13. add_backlog_task
     const addBacklogRes = await callTool("add_backlog_task", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-add-backlog",
@@ -276,7 +264,7 @@ export async function runToolE2E({ listTools, callTool, projectRoot, repositoryR
     const addBacklogVal = structured(addBacklogRes);
     assert.equal(addBacklogVal.ok, true);
 
-    // 15. register_incident_backlog
+    // 14. register_incident_backlog
     const regIncidentRes = await callTool("register_incident_backlog", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-reg-incident",
@@ -288,9 +276,9 @@ export async function runToolE2E({ listTools, callTool, projectRoot, repositoryR
     const regIncidentVal = structured(regIncidentRes);
     assert.equal(regIncidentVal.ok, true);
 
-    // Check tree unchanged after all 20 proposal calls
+    // Check tree unchanged after all 14 proposal calls
     const afterState = await snapshotTree(projectRoot);
-    assert.deepEqual(afterState, beforeState, "all 15 proposal operations must be strictly read-only");
+    assert.deepEqual(afterState, beforeState, "all 14 proposal operations must be strictly read-only");
   }
 
   // Phase 4: Apply operations and Replay Verification

@@ -24,7 +24,7 @@ const projectRoot = path.join(tempRoot, "project");
 await mkdir(packageRoot, { recursive: true });
 await mkdir(projectRoot, { recursive: true });
 let outsideRoot = null;
-if (values.stage === undefined) {
+{
   const frozen = await loadFrozenRealCorpus(repositoryRoot);
   await writeCorpus(projectRoot, frozen.files);
   await prepareToolE2EFixtures(projectRoot);

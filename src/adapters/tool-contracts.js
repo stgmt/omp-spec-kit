@@ -1,4 +1,4 @@
-// Single source of truth for the single 39-tool MCP surface. The
+// Single source of truth for the single 38-tool MCP surface. The
 // `spec_inventory` NAME COLLISION applies only to the OMP extension registry,
 // where the v0.1 entry owns that name — the MCP surface has its own namespace,
 // so spec_inventory IS one of the eight MCP tools per SCHEMA-11 while

@@ -71,7 +71,7 @@ Single surface since v0.8.0: every row below is served; historical stage values 
 | 34 | `add_backlog_task` | spec-mcp-operations / Write | single surface  | task facade |
 | 35 | `register_incident_backlog` | spec-mcp-operations / Write | single surface  | task facade |
 
-Count: 46. No silent DROP.
+Count: 35. No silent DROP.
 
 ## MCP versus LSP
 

@@ -55,7 +55,7 @@ Proof: `spec-mcp-access-gate` FR-8/FR-9 with AC-8.1/AC-9.1, extended `read-selec
 
 ## v0.8.0 — single 38-tool surface
 
-Outcome: agents see one tool surface with no duplicates and no release-stage selection: 38 tools (25 reads, 12 workflow compilers plus propose/apply, lifecycle operations), one apply verb, one proposal engine.
+Outcome: agents see one tool surface with no duplicates and no release-stage selection: 38 tools (24 reads, 12 workflow compilers plus propose/apply, lifecycle operations), one apply verb, one proposal engine.
 
 Proof: 38-tool inventory with registration order, consolidated proposal/apply/evidence matrices, Docker BDD, release preflight, archive smoke, attestation, and installed-package proof.
 

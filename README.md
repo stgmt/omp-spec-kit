@@ -60,7 +60,7 @@ The next releases add capabilities without removing the eight compatibility tool
 - **v0.6.0 — shipped:** single MCP server exposing all 49 tools with 24 authoring operations and fail-closed OMP enforcement hook.
 - **v0.7.0 — shipped:** hardened safe authoring with documented Windows selectors and execution-payload guard; same 49 tools.
 - **v0.8.0 — unreleased:** single 38-tool surface; duplicate verbs and release stages removed.
-- **v0.8.0 — automatic plan gate:** validate the exact plan selected by OMP before approval in interactive and ACP sessions.
+- **v0.9.0 — automatic plan gate:** validate the exact plan selected by OMP before approval in interactive and ACP sessions.
 
 The v0.8.0 candidate is tested with accurate release notes, an exact archive smoke from unset environment, independent package/lifecycle/Docker BDD/OMP manager evidence, and commit-bound attestations. See ROADMAP.md for release proof and sequencing.
 ## Safety and boundaries
