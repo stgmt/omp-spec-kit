@@ -1,1 +1,87 @@
-{"schema": "omp-spec-kit-public-release-status@1", "status": {"installable": false, "public": false, "state": "CANDIDATE", "surface": "SAFE_AUTHORING", "toolCount": 49}, "tag": "v0.7.0", "version": "0.7.0"}
+{
+  "schema": "omp-spec-kit-public-release-status@1",
+  "version": "0.7.0",
+  "tag": "v0.7.0",
+  "releaseUrl": "https://github.com/stgmt/omp-spec-kit/releases/tag/v0.7.0",
+  "publishedAt": "2026-09-03T17:57:28Z",
+  "tagCommit": "06b18fc8f67a1fc8c7588b1c7789eec40bb7bf76",
+  "candidateDigest": "bcc994db4e2cb039757020fc7b76792b0ac841c1e4f6e96389c9b0b7866502d3",
+  "packageTreeDigest": "47898e172fd36b9e7b8814dc649a2b56a59460ba41797d6ffa4044f21df8bfd3",
+  "archive": {
+    "name": "omp-spec-kit-0.7.0.tar",
+    "bytes": 425984,
+    "sha256": "fecafea404ddae3d04b1b1262d038b24c14036fdbd4f822ef0c2f717d1bac10d"
+  },
+  "releaseAssets": [
+    {
+      "name": "candidate.json",
+      "bytes": 8390,
+      "sha256": "9fa0c8862426c3ad30456b0540e333938eefeccbb430e5e12d63a579224e3350"
+    },
+    {
+      "name": "evidence.json",
+      "bytes": 3304,
+      "sha256": "982048cbefcbef6c70a1e3e22add8a038035ed9fdc99a198334b9209269e8e08"
+    },
+    {
+      "name": "omp-spec-kit-0.7.0.tar",
+      "bytes": 425984,
+      "sha256": "fecafea404ddae3d04b1b1262d038b24c14036fdbd4f822ef0c2f717d1bac10d"
+    }
+  ],
+  "attestation": {
+    "verified": true,
+    "workflow": "https://github.com/stgmt/omp-spec-kit/.github/workflows/release.yml@refs/tags/v0.7.0",
+    "workflowCommit": "06b18fc8f67a1fc8c7588b1c7789eec40bb7bf76",
+    "run": "https://github.com/stgmt/omp-spec-kit/actions/runs/33787380407/attempts/1",
+    "subjectNames": [
+      "omp-spec-kit-0.7.0.tar",
+      "candidate.json",
+      "evidence.json"
+    ]
+  },
+  "distributionAttestation": {
+    "verified": true,
+    "subject": "distribution-evidence.json",
+    "subjectSha256": "1eac60229acf5cf16d219da5cc7beaa691e1887ecf9854b63d4bd7820a78a9dc",
+    "repository": "stgmt/omp-spec-kit",
+    "signerWorkflow": "https://github.com/stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml@refs/tags/v0.7.0",
+    "sourceRef": "refs/tags/v0.7.0",
+    "workflowCommit": "06b18fc8f67a1fc8c7588b1c7789eec40bb7bf76",
+    "run": "https://github.com/stgmt/omp-spec-kit/actions/runs/33787380526/attempts/1"
+  },
+  "evidence": {
+    "schema": "omp-spec-kit-release-evidence@3",
+    "catalogDigest": "9df9e2891766af5bb66237c5a288cfe96fe6f0ab56be4c2a62bfdf82b0c65a77",
+    "publicSafetyDigest": "7d4a9071f6d77afb67a980aae89cad5976c738c6a3b7d185775f4a231ae9d359",
+    "dockerBddDigest": "0b192311d37b58aeb4a0cc2a44759a7e83704b840d157f69fff8b503d83f4be0",
+    "priorV032Digest": "27bb47ac617586620a09eea0a9de31c8f1d557cc610acaf63841e8206be342a3",
+    "upgradeFromV032Digest": "2394d82d23fb4f5a348461206986a5c6858670f8591fae20fb5c1341d46c6802",
+    "rollbackToV032Digest": "9c4325eb03fe06bcc17af5f6bd43030316672781a3c9bb4ca7342a48e536ba55",
+    "managerDiscoveryDigest": "a600586c758ec9559a681ca7b47982dab860112a4ed6c3b68706bb5918cecc2a",
+    "distributionReceiptDigest": "1eac60229acf5cf16d219da5cc7beaa691e1887ecf9854b63d4bd7820a78a9dc"
+  },
+  "status": {
+    "public": true,
+    "installable": true,
+    "state": "SHIPPED",
+    "surface": "SAFE_AUTHORING",
+    "toolCount": 49
+  },
+  "provenance": {
+    "releaseMetadataCommand": "gh release view v0.7.0 --repo stgmt/omp-spec-kit",
+    "assetDownloadCommand": "gh release download v0.7.0 --repo stgmt/omp-spec-kit",
+    "archiveSmokeCommand": "npm run test:release-archive -- --archive omp-spec-kit-0.7.0.tar",
+    "candidateAttestationCommand": "gh attestation verify candidate.json --repo stgmt/omp-spec-kit --format json",
+    "distributionRunCommand": "gh run download 33787380526 --repo stgmt/omp-spec-kit --name omp-spec-kit-distribution-evidence-v0.7.0",
+    "distributionAttestationCommand": "gh attestation verify distribution-evidence.json --repo stgmt/omp-spec-kit --format json",
+    "capturedOn": "2026-09-04"
+  },
+  "releaseNotes": {
+    "source": "https://github.com/stgmt/omp-spec-kit/releases/tag/v0.7.0",
+    "captureCommand": "gh release view v0.7.0 --repo stgmt/omp-spec-kit --json body --jq .body",
+    "capturedOn": "2026-09-04",
+    "bodySha256": "240e06f917efa933dfafefa078d1321ccca2b53ed333bc0156b855a60a2dd9a7",
+    "body": "# omp-spec-kit v0.7.0\n\n## Included changes\n\n- Hardened safe-authoring minor for OMP 18.0.11: same 49-tool surface as v0.6.0, no tool added or removed.\n- Windows read selectors are a documented gate feature (FR-8): `:1`, ranges, `+`, `..`, lists, `L`-prefixes, `:raw`, `:conflicts`, and combos strip before path policy for `read` only.\n- Execution-payload specification guard (FR-9): obvious `.specs` references in `code`/`command` block with `RAW_SPEC_WRITE` (lexical guard, not a shell parser).\n- Fixes the stale `plugin: \"0.5.0\"` version literal, accepts the `v0.7.0` stage across launchers/server/contracts (`v0.6.0` retained), and closes the `audit-reports` dangling links.\n\n## Verified release\n\n- Candidate digest: `bcc994db4e2cb039757020fc7b76792b0ac841c1e4f6e96389c9b0b7866502d3`\n- Package tree digest: `47898e172fd36b9e7b8814dc649a2b56a59460ba41797d6ffa4044f21df8bfd3`\n- Archive SHA-256: `fecafea404ddae3d04b1b1262d038b24c14036fdbd4f822ef0c2f717d1bac10d`\n- Peeled tag commit: `06b18fc8f67a1fc8c7588b1c7789eec40bb7bf76`\n- OMP runtime: `18.0.11`\n- Distribution evidence: lifecycle producers, Docker BDD, manager discovery, and nine closed MRI receipts.\n\nInstall or upgrade at project scope, reload plugin metadata, then start a fresh OMP session before invoking MCP tools.\n"
+  }
+}
