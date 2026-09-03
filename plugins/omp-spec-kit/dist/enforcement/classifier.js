@@ -10,6 +10,61 @@ const APPLY_SHORT_NAMES = Object.freeze(new Set([
 ]));
 const DIRECT_MUTATION_TOOLS = Object.freeze(new Set(["write", "edit", "bash", "apply_patch", "delete", "rename"]));
 const PATH_KEYS = Object.freeze(new Set(["path", "paths", "file", "files", "document", "documents", "cwd", "command", "text"]));
+const SPEC_PATH_REFERENCE = /(?:^|[^a-z0-9])\.specs(?:$|[^a-z0-9])/iu;
+
+function validReadRangeChunk(chunk) {
+  const match = /^L?([1-9]\d*)(?:(-|\+|\.\.)L?([1-9]\d*)?)?$/iu.exec(chunk);
+  if (!match) return false;
+  const start = Number(match[1]);
+  const end = match[3] === undefined ? undefined : Number(match[3]);
+  if (!Number.isSafeInteger(start) || (end !== undefined && !Number.isSafeInteger(end))) return false;
+  if (match[2] === "+") return end !== undefined;
+  return end === undefined || end >= start;
+}
+
+function validReadSelectorPart(part) {
+  if (/^(?:raw|conflicts)$/iu.test(part)) return true;
+  return part.length > 0 && part.split(",").every(validReadRangeChunk);
+}
+
+function isReadSelector(selector) {
+  const parts = selector.split(":");
+  if (parts.length === 1) return validReadSelectorPart(parts[0]);
+  if (parts.length !== 2) return false;
+  const [first, second] = parts;
+  return (first.toLowerCase() === "raw" && validReadSelectorPart(second))
+    || (second.toLowerCase() === "raw" && validReadSelectorPart(first));
+}
+
+function stripReadSelector(raw) {
+  if (process.platform !== "win32" || typeof raw !== "string") return raw;
+  const colon = raw.lastIndexOf(":");
+  if (colon <= 0) return raw;
+  const candidate = raw.slice(colon + 1);
+  if (!isReadSelector(candidate)) return raw;
+  let basePath = raw.slice(0, colon);
+  const innerColon = basePath.lastIndexOf(":");
+  if (innerColon > 0) {
+    const inner = basePath.slice(innerColon + 1);
+    const innerIsRaw = inner.toLowerCase() === "raw";
+    const outerIsRaw = candidate.toLowerCase() === "raw";
+    const innerIsRange = inner.length > 0 && inner.split(",").every(validReadRangeChunk);
+    const outerIsRange = candidate.length > 0 && candidate.split(",").every(validReadRangeChunk);
+    if ((innerIsRaw && outerIsRange) || (innerIsRange && outerIsRaw)) basePath = basePath.slice(0, innerColon);
+  }
+  return basePath;
+}
+
+function readTargets(toolName, targets) {
+  return toolName === "read" ? targets.map(stripReadSelector) : targets;
+}
+
+function hasEmbeddedSpecReference(value, key = "") {
+  if (typeof value === "string") return (key === "code" || key === "command") && SPEC_PATH_REFERENCE.test(value);
+  if (Array.isArray(value)) return value.some((entry) => hasEmbeddedSpecReference(entry, key));
+  if (value !== null && typeof value === "object") return Object.entries(value).some(([name, entry]) => hasEmbeddedSpecReference(entry, name));
+  return false;
+}
 
 function textValues(value, key = "") {
   if (typeof value === "string") return PATH_KEYS.has(key) || key === "" ? [value] : [];
@@ -134,7 +189,8 @@ export function classifyToolCall(event, options = {}) {
     return { action: "allow", code: "AUTHORING_TOOL_ALLOWED", toolName, logicalName, touchesSpecs: true, mismatchField: null };
   }
 
-  const targets = textValues(input);
+  if (hasEmbeddedSpecReference(input)) return blocked(toolName, "RAW_SPEC_WRITE");
+  const targets = readTargets(toolName, textValues(input));
   if (targets.length === 0 && !DIRECT_MUTATION_TOOLS.has(toolName)) {
     return { action: "continue", toolName, touchesSpecs: false, mismatchField: null };
   }

@@ -73,6 +73,15 @@ Feature: v0.4.1 safe specification authoring
     When the v0.4.1 scenario "access-edges" runs
     Then the v0.4.1 scenario passes
 
+  Scenario: Read selectors preserve safe-path decisions
+    Given a disposable real authoring corpus and live v0.4.1 MCP server
+    When the v0.4.1 scenario "read-selectors" runs
+    Then the v0.4.1 scenario passes
+
+  Scenario: Executable payloads fail closed on specification references
+    Given a disposable real authoring corpus and live v0.4.1 MCP server
+    When the v0.4.1 scenario "execution-edges" runs
+    Then the v0.4.1 scenario passes
   Scenario: OMP manager executes proposal and apply tools
     Given a disposable real authoring corpus and live v0.4.1 MCP server
     When the v0.4.1 scenario "omp-manager-authoring" runs

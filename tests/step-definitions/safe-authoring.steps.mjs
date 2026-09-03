@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { access, cp, mkdtemp, readFile, rm } from "node:fs/promises";
+import { access, cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -229,19 +229,19 @@ When("the v0.4.1 scenario {string} runs", async function (scenario) {
     const target = path.join(this.root, ".specs/plugin-distribution/README.md");
     const before = sha256Hex(await readFile(target));
     const cases = [
-      ["empty operations", { operations: [] }],
-      ["empty reason", { reason: "" }],
-      ["bad fingerprint", { repositoryRootFingerprint: "bad-fingerprint" }],
-      ["unknown document", { operations: [{ kind: "insert_at_eof", document: "MISSING.md", text: "x" }] }],
-      ["unsupported operation", { operations: [{ kind: "bogus_edit", document: "README.md" }] }],
-      ["duplicate target", { operations: [{ kind: "insert_at_eof", document: "README.md", text: "a" }, { kind: "insert_at_eof", document: "README.md", text: "b" }] }],
-      ["cross-spec path", { operations: [{ kind: "insert_at_eof", document: "../spec-mcp-access-gate/README.md", text: "x" }] }],
+      ["empty operations", "INVALID_REQUEST", { operations: [] }],
+      ["empty reason", "INVALID_REQUEST", { reason: "" }],
+      ["bad fingerprint", "CONFLICT", { repositoryRootFingerprint: "bad-fingerprint" }],
+      ["unknown document", "PATH_FORBIDDEN", { operations: [{ kind: "insert_at_eof", document: "MISSING.md", text: "x" }] }],
+      ["unsupported operation", "VALIDATION_FAILED", { operations: [{ kind: "bogus_edit", document: "README.md" }] }],
+      ["duplicate target", "INVALID_REQUEST", { operations: [{ kind: "insert_at_eof", document: "README.md", text: "a" }, { kind: "insert_at_eof", document: "README.md", text: "b" }] }],
+      ["cross-spec path", "PATH_FORBIDDEN", { operations: [{ kind: "insert_at_eof", document: "../spec-mcp-access-gate/README.md", text: "x" }] }],
     ];
-    for (const [label, overrides] of cases) {
+    for (const [label, expectedCode, overrides] of cases) {
       const args = { ...proposalArgs(this, graph.graph.fingerprint, "safe-edge-" + label.replaceAll(" ", "-")), ...overrides };
       const response = (await this.server.request("tools/call", { name: "propose_patch", arguments: args })).result.structuredContent;
       assert.equal(response.ok, false, label + ": " + JSON.stringify(response));
-      assert.equal(["INVALID_REQUEST", "VALIDATION_FAILED", "CONFLICT", "PATH_FORBIDDEN"].includes(response.error.code), true, label + ": " + JSON.stringify(response));
+      assert.equal(response.error.code, expectedCode, label + ": " + JSON.stringify(response));
       assert.equal(sha256Hex(await readFile(target)), before, label + " changed bytes");
     }
     try { await access(path.join(this.root, ".specs", ".omp-spec-kit-staging")); assert.fail("staging residue"); } catch (error) { assert.equal(error.code, "ENOENT"); }
@@ -268,6 +268,62 @@ When("the v0.4.1 scenario {string} runs", async function (scenario) {
     assert.equal(linked.code, "RAW_SPEC_WRITE", JSON.stringify(linked));
     const unregistered = classifyToolCall({ toolName: "propose_patch", cwd: this.root, input: {} }, { root: this.root });
     assert.equal(unregistered.code, "UNREGISTERED_AUTHORING_CALL", JSON.stringify(unregistered));
+    this.result = true;
+    return;
+  }
+  if (scenario === "read-selectors") {
+    const outsidePath = path.join(this.root, "outside-readable.txt");
+    await writeFile(outsidePath, "safe file\n", "utf8");
+    const externalPath = path.join(REPOSITORY_ROOT, "src", "enforcement", "classifier.js");
+    const specPath = path.join(this.root, ".specs", "plugin-distribution", "README.md");
+    const selectors = [":1", ":1-2", ":1+2", ":1-", ":1..2", ":raw", ":conflicts", ":raw:1-2", ":1-2:raw"];
+    for (const basePath of [outsidePath, externalPath]) {
+      for (const suffix of selectors) {
+        const safe = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: basePath + suffix } }, { root: this.root });
+        assert.equal(safe.action, "continue", basePath + suffix + ": " + JSON.stringify(safe));
+        assert.equal(safe.touchesSpecs, false, basePath + suffix + ": " + JSON.stringify(safe));
+      }
+    }
+    for (const suffix of selectors) {
+      const spec = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: specPath + suffix } }, { root: this.root });
+      assert.equal(spec.code, "RAW_SPEC_WRITE", suffix + ": " + JSON.stringify(spec));
+      assert.equal(spec.action, "block", suffix + ": " + JSON.stringify(spec));
+    }
+    const directWrite = classifyToolCall({ toolName: "write", cwd: this.root, input: { path: outsidePath + ":1-2" } }, { root: this.root });
+    if (process.platform === "win32") {
+      assert.equal(directWrite.code, "TARGET_INDETERMINATE", JSON.stringify(directWrite));
+      const alternateDataStream = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: outsidePath + ":secret" } }, { root: this.root });
+      assert.equal(alternateDataStream.code, "TARGET_INDETERMINATE", JSON.stringify(alternateDataStream));
+      const invalidSelector = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: outsidePath + ":0" } }, { root: this.root });
+      assert.equal(invalidSelector.code, "TARGET_INDETERMINATE", JSON.stringify(invalidSelector));
+    }
+    this.result = true;
+    return;
+  }
+  if (scenario === "execution-edges") {
+    const specPath = path.join(this.root, ".specs", "plugin-distribution", "README.md");
+    const blocked = [
+      { toolName: "eval", input: { code: `readFile(${JSON.stringify(specPath)})` } },
+      { toolName: "mcp__context_mode_ctx_execute", input: { code: `open(${JSON.stringify(specPath)})` } },
+      { toolName: "bash", input: { command: `type "${specPath}"` } },
+      { toolName: "bash", input: { command: "root=.specs && type \"$root/plugin-distribution/README.md\"" } },
+    ];
+    for (const event of blocked) {
+      const result = classifyToolCall(event, { root: this.root });
+      assert.equal(result.action, "block", JSON.stringify(result));
+      assert.equal(result.code, "RAW_SPEC_WRITE", JSON.stringify(result));
+      assert.equal(result.touchesSpecs, true, JSON.stringify(result));
+    }
+    const allowed = [
+      { toolName: "eval", input: { code: "return 1" } },
+      { toolName: "mcp__context_mode_ctx_execute", input: { code: "console.log(1)" } },
+      { toolName: "bash", input: { command: "node --version" } },
+    ];
+    for (const event of allowed) {
+      const result = classifyToolCall(event, { root: this.root });
+      assert.equal(result.action, "continue", JSON.stringify(result));
+      assert.equal(result.touchesSpecs, false, JSON.stringify(result));
+    }
     this.result = true;
     return;
   }

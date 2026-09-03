@@ -3,7 +3,7 @@
   "pluginVersion": "0.6.0",
   "files": {
     "adapters/document-service.js": {
-      "sha256": "7a348f913477556528adf8b6f92ea2e48f8de78ee94b19bd15175009c9b0f939"
+      "sha256": "e0cffba053453778a1df59556fbe3d17bc2e4a88e13ea6fffcf51df2a20d723c"
     },
     "adapters/query-service.js": {
       "sha256": "16af70efa232ac120fa888e9b531afb78490c85f84a8da02e47ce57f2c6bd093"
@@ -27,7 +27,7 @@
       "sha256": "aa13e9ba61773b9ea028501081d3a2e64cfbe60ea72b8dbeeba8da2831e4eb53"
     },
     "enforcement/classifier.js": {
-      "sha256": "3b3f77162fc56b05a6275cd3b43b06d1f7ddd53a7bce585c4bfd644430f0f081"
+      "sha256": "32630d03fb5882dd7aaf0a0832214120447310e89a071cfab0a610e60f6738a2"
     },
     "enforcement/resolve-targets.js": {
       "sha256": "8161a4d3e22b0767c989a944fe2641c0fa67a129181f6d94bbdd4ff5adbaf57c"
