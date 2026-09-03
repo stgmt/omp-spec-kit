@@ -645,6 +645,6 @@ export function toolContractsForStage(stage = globalThis.process?.env?.OMP_SPEC_
   if (value === "v0.4.0" || value === "v0.4.1" || value === "safe-authoring") return SAFE_AUTHORING_TOOL_CONTRACTS;
   if (value === "read-complete" || value === "v0.4.0-read-complete") return READ_COMPLETE_TOOL_CONTRACTS;
   if (value === "evidence" || value === "v0.5.0") return V05_TOOL_CONTRACTS;
-  if (value === "" || value === "v0.6.0" || value === "authoring") return AUTHORING_TOOL_CONTRACTS;
+  if (value === "" || value === "v0.6.0" || value === "v0.7.0" || value === "authoring") return AUTHORING_TOOL_CONTRACTS;
   throw new Error("unsupported OMP_SPEC_KIT_STAGE: " + value);
 }

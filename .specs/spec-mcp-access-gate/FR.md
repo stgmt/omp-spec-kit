@@ -56,3 +56,19 @@ The OMP gate SHALL inspect every supported tool-call variant that can read, enum
 
 **Acceptance:** [AC-7.1](ACCEPTANCE_CRITERIA.md#ac-71-non-mcp-specification-access-is-blocked)
 **Scenario:** @feature7 / SCEN-mcp-access-gate-non-mcp-spec-access
+
+## FR-8: Windows read-selector support
+
+The gate SHALL recognize OMP read selectors on win32 before path policy: `:1`, `:1-2`, `:1+2` (open end allowed as `:1-`), `:1..2`, comma lists, `L`-prefixed numbers, `:raw`, `:conflicts`, and `raw:<range>` / `<range>:raw` combos. The selector SHALL be stripped only for `toolName === "read"`; `write` and other mutators SHALL NOT receive selector stripping. `:0` and malformed selectors SHALL NOT strip and fall through to normal containment.
+
+**Acceptance:** [AC-8.1](ACCEPTANCE_CRITERIA.md#ac-81-windows-read-selectors)
+
+**Scenario:** `SCEN-read-selectors`
+
+## FR-9: Execution-payload specification guard with stated limits
+
+The gate SHALL recursively inspect `code` and `command` string values for an obvious `.specs` path-segment reference and BLOCK with `RAW_SPEC_WRITE`, including inside eval, context-mode, and shell invocations. Ordinary payloads without such a reference SHALL remain allowed. This guard is lexical, not a shell parser: dynamically assembled paths via variables or concatenation are a stated non-goal and SHALL be documented as such.
+
+**Acceptance:** [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-execution-guard-limits)
+
+**Scenario:** `SCEN-execution-edges`

@@ -129,7 +129,7 @@ function normalizeArguments(rawArguments) {
   return { ok: true, args: normalized };
 }
 
-const activeStage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE ?? "v0.6.0";
+const activeStage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE ?? "v0.7.0";
 const activeContracts = toolContractsForStage(activeStage);
 const contractsByName = new Map(activeContracts.map((contract) => [contract.tool, contract]));
 const rootContext = resolveRepositoryContext();

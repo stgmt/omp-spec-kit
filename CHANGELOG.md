@@ -1,6 +1,35 @@
 # Changelog
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
+## 0.7.0 — 2026-09-04
+
+Hardened safe-authoring minor for OMP 18.0.11. Same 49-tool surface as v0.6.0; no tool added or removed.
+
+### Added
+
+- Windows read selectors are a documented gate feature: `:1`, `:1-2`, `:1+2`, `:1-`, `:1..2`, comma lists, `L`-prefixed numbers, `:raw`, `:conflicts`, and `raw:<range>` / `<range>:raw` combos. Selectors strip only for `read`; `write` and other mutators receive no stripping. `:0` and malformed selectors fall through to normal containment.
+- Execution-payload specification guard: recursive inspection of `code` and `command` values for an obvious `.specs` path segment, blocked with `RAW_SPEC_WRITE` for eval, context-mode, and shell calls. Lexical guard, not a shell parser; dynamically assembled paths are an explicit non-goal.
+- `spec-mcp-access-gate` FR-8/FR-9 with AC-8.1/AC-9.1, requirements trace, and BDD `read-selectors` / `execution-edges` matrices (now with `L`-prefix, list, and nested-payload cases).
+
+### Fixed
+
+- `src/adapters/document-service.js` reported `plugin: "0.5.0"`; now follows the package version (`0.7.0`).
+- `spec-mcp-access-gate` README and FILE_CHANGES no longer reference deleted `audit-reports/` paths; they point at `docs/validation/release-status-v0.6.0.json` and pinned OMP sources.
+- `spec-mcp-access-gate` TASK-5/TASK-6 headings use canonical `TASK-N:` form so status transitions parse.
+- `toolContractsForStage` accepts the `v0.7.0` stage alongside `v0.6.0`; launchers, MCP server, classifier default, and dogfood accept `v0.7.0` with `v0.6.0` retained for backward compatibility.
+
+### Removed
+
+- Local-only `audit-reports/` (13 tracked files), reference `package/package.json`, and the unconnected `src/hooks/skill-gate.js` + `tests/enforcement/skill-gate-live-omp.test.mjs` prototype pair. No runtime, build, or CI input referenced them.
+
+## 0.6.0 — 2026-09-02
+
+Safe-authoring release for OMP 18.0.11 (shipped; changelog entry recorded retroactively in 0.7.0).
+
+- Single 49-tool MCP server with enforcement-only extension; proposal-first mutations with CAS, atomic apply, and rollback.
+- Strict `.specs` access gating for non-MCP reads, searches, enumeration, shell, edits, and writes.
+- Published release proof: `docs/validation/release-status-v0.6.0.json`.
+
 ## 0.5.4 — 2026-09-02
 
 Corrective release: accurate evidence and navigation release notes.

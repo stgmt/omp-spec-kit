@@ -37,7 +37,7 @@ The additive v0.5 surface retains the 10-tool compatibility profile and adds 15 
 
 Proof: repository-owned producer fixtures, content-addressed evidence, stale-result refusal after scenario mutation, happy/fault/incomplete paths for both evidence tools, the complete navigation matrix, exact installed-package dogfood, safe authoring under the additive stage, and successful publication with commit-bound attestations.
 
-## v0.6.0 — safe authoring
+## v0.6.0 — shipped safe authoring
 
 Outcome: authors can preview a specification change, review the exact before/after result, and apply only that reviewed proposal atomically.
 
@@ -45,13 +45,23 @@ The complete destination surface contains 49 tools. Every mutation is proposal-f
 
 Proof: real create/read/review/edit/status/rename/delete flows, concurrent-change refusal, same-name authority refusal, all-or-nothing transaction checks, and fresh installed-package execution.
 
-## v0.7.0 — automatic plan gate
+## v0.7.0 — hardened safe authoring
+
+Outcome: Windows users can read files with OMP line selectors without false blocks, and executable payloads carrying obvious specification references fail closed with a bounded reason.
+
+The 49-tool surface is unchanged. Windows `read` selectors (`:1`, ranges, `+`, `..`, lists, `L`-prefixes, `:raw`, `:conflicts`, combos) strip before path policy; `write` receives no stripping. `code`/`command` values with an obvious `.specs` segment block with `RAW_SPEC_WRITE` (lexical guard, not a shell parser). The `v0.6.0` stage remains accepted for backward compatibility.
+
+Proof: `spec-mcp-access-gate` FR-8/FR-9 with AC-8.1/AC-9.1, extended `read-selectors` / `execution-edges` BDD matrices, full build/verify/dogfood/staged/Docker suite, release preflight, archive smoke, attestation, and installed-package proof.
+
+## v0.8.0 — automatic plan gate
 
 Outcome: the agent's plan is checked after OMP has selected the exact plan bytes and before the interactive or ACP approval UI opens.
 
 Interactive and ACP sessions use one shared gate. A failed, timed-out, or unavailable check keeps plan mode active and shows a bounded reason; no directory scan guesses which plan was selected.
 
 Proof: valid, invalid, changed-content, error, and timeout cases in both approval modes, with the exact selected path, title, content, and digest.
+
+Tracked as backlog: https://github.com/stgmt/omp-spec-kit/issues/28.
 
 ## Boundaries
 

@@ -300,14 +300,14 @@ function validateCurrentStatus() {
     fail("release status is absent or identity-drifted");
   }
   if (status.status.state === "CANDIDATE") {
-    if (version === "0.6.0") {
+    if (version === "0.6.0" || version === "0.7.0") {
       if (
         status.status.public !== false ||
         status.status.installable !== false ||
         status.status.surface !== "SAFE_AUTHORING" ||
         status.status.toolCount !== 49
       ) {
-        fail("v0.6 candidate status is not the 49-tool safe authoring surface");
+        fail("candidate status is not the 49-tool safe authoring surface");
       }
       return version;
     }

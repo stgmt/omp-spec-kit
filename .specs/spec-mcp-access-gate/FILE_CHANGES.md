@@ -20,4 +20,4 @@ The change adds no public tool and no second writer. It only blocks non-allowlis
 
 | src/enforcement/decision.js | extend | Apply the same closed resolver to read, search, shell, custom, and write-capable OMP calls |
 | tests/enforcement/non-mcp-access.test.js | create | Real tool-call coverage for every supported bypass class |
-| audit-reports/mcp-access-gate-*.md | create | Pinned OMP source evidence, failure modes, probes, and rejected alternatives |
+| docs/validation/release-status-v0.6.0.json | reference | Pinned OMP source evidence and release proof |

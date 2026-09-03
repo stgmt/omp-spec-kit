@@ -172,7 +172,7 @@ export function classifyToolCall(event, options = {}) {
     return blocked(toolName, "UNREGISTERED_AUTHORING_CALL", [], "shortNameDirectCallForbidden");
   }
 
-  const stage = options.stage ?? globalThis.process?.env?.OMP_SPEC_KIT_STAGE ?? "v0.6.0";
+  const stage = options.stage ?? globalThis.process?.env?.OMP_SPEC_KIT_STAGE ?? "v0.7.0";
   const { tools, familyA, familyB } = getActiveFamilies(stage);
 
   const isCandidateMcp = familyA.has(toolName) || familyB.has(toolName);

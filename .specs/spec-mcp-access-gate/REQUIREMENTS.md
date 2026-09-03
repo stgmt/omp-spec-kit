@@ -11,6 +11,8 @@
 | [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results) | [AC-5.1](ACCEPTANCE_CRITERIA.md#ac-51-blocks-are-bounded-visible-and-stateless) | `@feature5`, `SCEN-bounded-stateless-block` | CHK-FR5-01 | TASK-1, TASK-3, TASK-4 | Specified |
 | [FR-6](FR.md#fr-6-single-factory-installed-delivery) | [AC-6.1](ACCEPTANCE_CRITERIA.md#ac-61-installed-artifact-uses-one-factory) | @feature6, SCEN-single-factory-installed-policy | CHK-FR6-01 | TASK-3, TASK-4 | Specified |
 | [FR-7](FR.md#fr-7-non-mcp-read-and-execution-denial) | [AC-7.1](ACCEPTANCE_CRITERIA.md#ac-71-non-mcp-specification-access-is-blocked) | @feature7, SCEN-mcp-access-gate-non-mcp-spec-access | CHK-FR7-01, CHK-FR7-02 | TASK-5, TASK-6 | Specified |
+| [FR-8](FR.md#fr-8-windows-read-selector-support) | [AC-8.1](ACCEPTANCE_CRITERIA.md#ac-81-windows-read-selectors) | SCEN-read-selectors | CHK-FR8-01 | TASK-6 | Specified |
+| [FR-9](FR.md#fr-9-execution-payload-specification-guard-with-stated-limits) | [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-execution-guard-limits) | SCEN-execution-edges | CHK-FR9-01 | TASK-6 | Specified |
 
 ## Contract checks
 

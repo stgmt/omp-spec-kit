@@ -276,7 +276,7 @@ When("the v0.4.1 scenario {string} runs", async function (scenario) {
     await writeFile(outsidePath, "safe file\n", "utf8");
     const externalPath = path.join(REPOSITORY_ROOT, "src", "enforcement", "classifier.js");
     const specPath = path.join(this.root, ".specs", "plugin-distribution", "README.md");
-    const selectors = [":1", ":1-2", ":1+2", ":1-", ":1..2", ":raw", ":conflicts", ":raw:1-2", ":1-2:raw"];
+    const selectors = [":1", ":5", ":1-2", ":10-10", ":1+2", ":1-", ":1..2", ":L1", ":L1-L5", ":1-2,5", ":raw", ":conflicts", ":raw:1-2", ":1-2:raw", ":raw:L1-2", ":L1-2:raw"];
     for (const basePath of [outsidePath, externalPath]) {
       for (const suffix of selectors) {
         const safe = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: basePath + suffix } }, { root: this.root });
@@ -307,6 +307,7 @@ When("the v0.4.1 scenario {string} runs", async function (scenario) {
       { toolName: "mcp__context_mode_ctx_execute", input: { code: `open(${JSON.stringify(specPath)})` } },
       { toolName: "bash", input: { command: `type "${specPath}"` } },
       { toolName: "bash", input: { command: "root=.specs && type \"$root/plugin-distribution/README.md\"" } },
+      { toolName: "eval", input: { args: { code: "open " + specPath } } },
     ];
     for (const event of blocked) {
       const result = classifyToolCall(event, { root: this.root });

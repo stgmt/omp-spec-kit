@@ -1,6 +1,6 @@
 {
   "name": "omp-spec-kit-repository",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -12,7 +12,7 @@
     "check:spec-corpus": "node scripts/check-spec-corpus.mjs",
     "check:spec-port": "node scripts/check-spec-port.mjs",
     "dogfood:mcp": "node scripts/dogfood-mcp.mjs",
-    "dogfood:mcp:candidate": "node -e \"process.env.OMP_SPEC_KIT_STAGE='v0.6.0'; import('./scripts/dogfood-mcp.mjs')\"",
+    "dogfood:mcp:candidate": "node -e \"process.env.OMP_SPEC_KIT_STAGE='v0.7.0'; import('./scripts/dogfood-mcp.mjs')\"",
     "test:bdd": "bash scripts/docker-bdd.sh",
     "test:bdd:omp-discovery": "bash scripts/docker-bdd.sh --tags '@id:SCEN-mri-active-project-manager-receipt or @id:SCEN-mri-missing-payload-refusal'",
     "test": "npm run build && npm run verify && npm run dogfood:mcp:candidate && npm run test:safe-authoring && npm run test:staged && npm run test:bdd",

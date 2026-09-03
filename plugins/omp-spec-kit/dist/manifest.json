@@ -1,15 +1,15 @@
 {
   "schema": "omp-spec-kit-dist-manifest@1",
-  "pluginVersion": "0.6.0",
+  "pluginVersion": "0.7.0",
   "files": {
     "adapters/document-service.js": {
-      "sha256": "e0cffba053453778a1df59556fbe3d17bc2e4a88e13ea6fffcf51df2a20d723c"
+      "sha256": "27f6edc8ded15c918fe6586a3141e1b189279b40c2d1b1835f2419f60e423ac9"
     },
     "adapters/query-service.js": {
       "sha256": "16af70efa232ac120fa888e9b531afb78490c85f84a8da02e47ce57f2c6bd093"
     },
     "adapters/tool-contracts.js": {
-      "sha256": "a185f5e46b952a833079de1ca68c2b0e37e5e534b8f839789ac285a3a4ce87a5"
+      "sha256": "2fce0cc858b0fd87d20df7f58e028fc7daac1e443c541dfc38ae18034a61364b"
     },
     "authoring/proposals.js": {
       "sha256": "a389ad7233e3757c1ad9124b0665189143c356a53aac5f92bcbe38b10534feaf"
@@ -27,7 +27,7 @@
       "sha256": "aa13e9ba61773b9ea028501081d3a2e64cfbe60ea72b8dbeeba8da2831e4eb53"
     },
     "enforcement/classifier.js": {
-      "sha256": "32630d03fb5882dd7aaf0a0832214120447310e89a071cfab0a610e60f6738a2"
+      "sha256": "329a4aa628ef55ca0b6d7db8471d792a657f484c58fd1466afd2a33fe9da9b9e"
     },
     "enforcement/resolve-targets.js": {
       "sha256": "8161a4d3e22b0767c989a944fe2641c0fa67a129181f6d94bbdd4ff5adbaf57c"
@@ -36,7 +36,7 @@
       "sha256": "56e7e622ff072e292894d88811e668edf06de1a1613408b4e42dec9c6ef6cf60"
     },
     "extension.js": {
-      "sha256": "23a34c5738ff9ab09a7d2a173cd7340a3a0b1339d5ea820084cd5419f47cd07c"
+      "sha256": "f5b6dab8994227ded209d8406b3f45bdb986cb2756e817c55555125f77167eb1"
     },
     "gate/automatic-adapter.js": {
       "sha256": "82c385544c2aa793679512b93ef150cfd382722f0cbcc1dd28b99b710e3d3ed8"
@@ -99,7 +99,7 @@
       "sha256": "ff1a46bba6a1940a5a1aff16d5c3b0e5799790c1418f6b5ae18bceec3a2da883"
     },
     "mcp/server.js": {
-      "sha256": "7fe41bab58400d41ddbb6cdc9cdb43e1eb5dcdbd4c883459ae081fc7ef9c0120"
+      "sha256": "2532812da722b84a8e00e39e8b7312a7af6ccd17590898dec3c2cb0bb32d16d7"
     }
   }
 }
