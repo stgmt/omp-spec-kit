@@ -11,9 +11,6 @@
     "adapters/tool-contracts.js": {
       "sha256": "eb1e606a53272da7da12340db8f32f633e53b178527c23c4f5e3701f68d1639a"
     },
-    "adapters/tool-retirements.js": {
-      "sha256": "8fc9a07eea62a930ced95ddabafb1e5c6c3bb1bd8a3022657fff86b6f2752cd9"
-    },
     "authoring/proposals.js": {
       "sha256": "a389ad7233e3757c1ad9124b0665189143c356a53aac5f92bcbe38b10534feaf"
     },
@@ -102,7 +99,7 @@
       "sha256": "ff1a46bba6a1940a5a1aff16d5c3b0e5799790c1418f6b5ae18bceec3a2da883"
     },
     "mcp/server.js": {
-      "sha256": "404ccbd7fbb8c471aaf196c462bdaf2c57b0eda8b13d47fced0d14c43a270bf9"
+      "sha256": "74e56862f8b57c3bcc8024bb0e71a381f73235420682350755729d6ea07dd268"
     }
   }
 }

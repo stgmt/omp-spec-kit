@@ -209,7 +209,6 @@ When("the scenario {string} runs", async function (scenario) {
     for (const removed of ["apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) assert.equal(names.includes(removed), false, removed + " must stay unknown");
     const unknown = await this.server.request("tools/call", { name: "apply_spec_change", arguments: { schemaVersion: "spec-kernel@1", requestId: "safe-removed-verb" } });
     assert.equal(unknown.error?.code, -32602, "removed tools must be unknown, not gated");
-    assert.ok(String(unknown.error?.message ?? "").includes("apply_proposed_patch"), "removed tools must point at the replacement");
     this.result = true;
     return;
   }

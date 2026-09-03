@@ -18,7 +18,6 @@ import {
   summarizeEnvelope,
 } from "../adapters/query-service.js";
 import { MUTATING_TOOL_NAMES, TOOL_CONTRACTS as activeContracts, jsonSchemaFor, validateContractArguments } from "../adapters/tool-contracts.js";
-import { retiredToolHint } from "../adapters/tool-retirements.js";
 
 const PROTOCOL_VERSION_FALLBACK = "2025-03-26";
 const SERVER_NAME = "omp-spec-kit";
@@ -206,7 +205,7 @@ async function handleMessage(message) {
     const params = isPlainObject(message.params) ? message.params : {};
     const contract = typeof params.name === "string" ? contractsByName.get(params.name) : undefined;
     if (!contract) {
-      respondError(id, -32602, (retiredToolHint(typeof params.name === "string" ? params.name : "") ?? `Unknown tool: ${typeof params.name === "string" ? params.name : "<missing>"}`));
+      respondError(id, -32602, `Unknown tool: ${typeof params.name === "string" ? params.name : "<missing>"}`);
       return;
     }
     const hasArguments = Object.prototype.hasOwnProperty.call(params, "arguments");
