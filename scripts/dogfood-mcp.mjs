@@ -3,12 +3,10 @@ import { spawnSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { toolContractsForStage } from "../src/adapters/tool-contracts.js";
+import { TOOL_CONTRACTS } from "../src/adapters/tool-contracts.js";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const stage = process.env.OMP_SPEC_KIT_STAGE ?? "v0.6.0";
-if (stage !== "v0.7.0" && stage !== "v0.6.0" && stage !== "v0.5.0") throw new Error("dogfood requires OMP_SPEC_KIT_STAGE=v0.7.0, v0.6.0 or v0.5.0");
-const contracts = toolContractsForStage(stage);
+const contracts = TOOL_CONTRACTS;
 const serverPath = path.join(repositoryRoot, "src", "mcp", "server.js");
 
 function valueForField(entry, index) {
@@ -77,8 +75,6 @@ const child = spawnSync(process.execPath, [serverPath], {
   env: {
     ...process.env,
     OMP_SPEC_KIT_ROOT: repositoryRoot,
-    OMP_SPEC_KIT_STAGE: stage,
-    ...(stage.toLowerCase().startsWith("authoring") || ["v0.6.0", "v0.7.0", "plan-gate"].includes(stage.toLowerCase()) ? { OMP_SPEC_KIT_INTERNAL_DOGFOOD: "1" } : {}),
   },
   input: `${callMessages().map((message) => JSON.stringify(message)).join("\n")}\n`,
   encoding: "utf8",
@@ -114,7 +110,7 @@ const rows = contracts.map((contract, index) => {
 });
 const report = {
   schema: "omp-spec-kit-mcp-runtime-census@1",
-  stage,
+  stage: "single-surface",
   root: repositoryRoot,
   registryCount: names.length,
   rows,

@@ -1,11 +1,11 @@
 import { registerSpecEnforcement } from "../enforcement/adapter.js";
 
-export const PLUGIN_VERSION = "0.7.0";
+export const PLUGIN_VERSION = "0.8.0";
 export const SCHEMA_VERSION = "1";
 
 // OMP 18.0.11 extension contract pinned at the active release runtime
 // 33cc6b9a043a74e00a157e72ca909272796d8461.
-// In v0.6.0+, all 49 tools are served strictly through MCP.
+// All 38 tools are served strictly through MCP.
 // This extension registers ZERO direct tools and only registers the
 // fail-closed .specs access gate enforcement hook.
 export default function ompSpecKitExtension(pi) {

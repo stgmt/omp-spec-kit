@@ -1,4 +1,4 @@
-// Single source of truth for all eight SCHEMA-11 read-only tools. The
+// Single source of truth for the single 39-tool MCP surface. The
 // `spec_inventory` NAME COLLISION applies only to the OMP extension registry,
 // where the v0.1 entry owns that name — the MCP surface has its own namespace,
 // so spec_inventory IS one of the eight MCP tools per SCHEMA-11 while
@@ -34,6 +34,12 @@ function optionalField(name, kind, values) {
   return { ...field(name, kind, values), optional: true };
 }
 
+const TASK_STATUS_VALUES = ["planned", "todo", "ready", "in-progress", "blocked", "done", "deferred", "unknown"];
+const VERIFICATION_METHOD_VALUES = ["test", "analysis", "review", "inspection", "demonstration"];
+const SAFETY_CLASS_VALUES = ["critical", "major", "minor"];
+const DELIVERY_VALUES = ["NOT_DECLARED", "DELIVERED", "INCOMPLETE"];
+const SPEC_STATUS_VALUES = ["active", "backlog"];
+const READINESS_VIEW_VALUES = ["status", "summary", "counts", "coverage"];
 export const TOOL_CONTRACTS = Object.freeze([
   {
     tool: "spec_inventory",
@@ -146,8 +152,252 @@ export const TOOL_CONTRACTS = Object.freeze([
       field("cursor", "nullableString"),
     ],
   },
+  futureContract(
+    "find_by_tags",
+    "Find Scenarios By Tags",
+    "findByTags",
+    "List scenarios whose tag set contains every requested tag.",
+    [field("tags", "stringArray")],
+  ),
+  futureContract(
+    "list_tasks",
+    "List Spec Tasks",
+    "listTasks",
+    "List bounded tasks for one specification, with status, phase, requirement, and cursor filters.",
+    [
+      field("spec", "string"),
+      optionalField("statuses", "enumArray", TASK_STATUS_VALUES),
+      optionalField("phase", "nullableString"),
+      optionalField("requirement", "nullableString"),
+      optionalField("includeComments", "boolean"),
+      optionalField("limit", "integer"),
+      optionalField("cursor", "nullableString"),
+    ],
+  ),
+  futureContract(
+    "find_orphans",
+    "Find Orphaned Spec Nodes",
+    "findOrphans",
+    "Return structural orphan findings for uncovered requirements, tasks, and scenarios.",
+    [],
+  ),
+  futureContract(
+    "validate_anchor",
+    "Validate Spec Anchor",
+    "validateAnchor",
+    "Validate a canonical node ID or Markdown heading anchor without writing.",
+    [field("anchor", "string"), optionalField("spec", "nullableString")],
+  ),
+  futureContract(
+    "list_specs",
+    "List Specifications",
+    "listSpecs",
+    "Enumerate specification slugs present in the current graph.",
+    [],
+  ),
+  futureContract(
+    "validate_requirement_metadata",
+    "Validate Requirement Metadata",
+    "validateRequirementMetadata",
+    "Validate a typed requirement metadata object without writing.",
+    [field("metadata", "json")],
+  ),
+  futureContract(
+    "policy_query_requirements",
+    "Query Requirement Policy",
+    "policyQueryRequirements",
+    "Filter requirements by verification method, safety class, missing metadata, and delivery.",
+    [
+      optionalField("spec", "nullableString"),
+      optionalField("verificationMethod", "enum", VERIFICATION_METHOD_VALUES),
+      optionalField("safetyClass", "enum", SAFETY_CLASS_VALUES),
+      optionalField("verificationMethodMissing", "boolean"),
+      optionalField("delivery", "enum", DELIVERY_VALUES),
+    ],
+  ),
+  futureContract(
+    "get_archival_proof",
+    "Get Archival Proof",
+    "getArchivalProof",
+    "Check whether a specification has live inbound references from other specifications.",
+    [field("spec", "string")],
+  ),
+  futureContract(
+    "validate_spec",
+    "Validate Specification",
+    "validateSpec",
+    "Run the bounded graph validation for one specification without writing.",
+    [field("spec", "string")],
+  ),
+  futureContract(
+    "get_spec_status",
+    "Get Specification Status",
+    "getSpecStatus",
+    "Read status, counts, or structural coverage for one specification or the corpus. START HERE to orient before reading documents.",
+    [optionalField("spec", "nullableString"), optionalField("view", "enum", READINESS_VIEW_VALUES)],
+  ),
+  futureContract(
+    "mcp_preflight",
+    "MCP Preflight",
+    "mcpPreflight",
+    "Read redacted root, version, lock, and dependency admission facts. Call first to confirm the environment.",
+    [optionalField("declaredWorktree", "nullableString")],
+  ),
+  futureContract(
+    "list_spec_docs",
+    "List Specification Documents",
+    "listSpecDocs",
+    "List readable documents and binary attachments under one specification.",
+    [field("spec", "string")],
+  ),
+  futureContract(
+    "read_spec_doc",
+    "Read Specification Document",
+    "readSpecDoc",
+    "Read one contained specification document, optionally by section or bounded line window.",
+    [
+      field("spec", "string"),
+      field("doc", "string"),
+      optionalField("section", "nullableString"),
+      optionalField("offset", "integer"),
+      optionalField("limit", "integer"),
+      optionalField("readForEdit", "boolean"),
+    ],
+  ),
+  futureContract(
+    "read_attachment",
+    "Read Specification Attachment",
+    "readAttachment",
+    "Read one contained binary attachment as a bounded base64 payload.",
+    [field("spec", "string"), field("path", "string")],
+  ),
+  futureContract(
+    "get_test_result",
+    "Get Scenario Test Result",
+    "getTestResult",
+    "Read the last recorded result and freshness fields for one scenario.",
+    [field("scenarioId", "string"), optionalField("spec", "nullableString")],
+  ),
+  futureContract(
+    "get_scenario_trace",
+    "Get Scenario Trace",
+    "getScenarioTrace",
+    "Read one scenario result with its hash-bound runtime trace metadata.",
+    [field("scenarioId", "string"), optionalField("spec", "nullableString")],
+  ),
+  futureContract(
+    "propose_patch",
+    "Propose Specification Patch",
+    "proposePatch",
+    "Build a reviewable multi-operation patch proposal over spec docs (append, insert, replace, rename, delete, status, and metadata kinds); returns a proposalId for apply_proposed_patch. Use for ANY spec edit. Writes nothing by itself.",
+    [
+      field("requestId", "string"),
+      field("repositoryRootFingerprint", "string"),
+      field("spec", "string"),
+      field("reason", "string"),
+      field("operations", "json"),
+    ],
+  ),
+  futureContract(
+    "apply_proposed_patch",
+    "Apply Proposed Specification Patch",
+    "applyProposedPatch",
+    "Apply a reviewed proposal by ID after hash recheck; approval approve is required. This is the ONLY write path. Use only after the proposal diff was reviewed.",
+    [
+      field("requestId", "string"),
+      field("proposalId", "string"),
+      field("proposalSha256", "string"),
+      field("expectedDocuments", "json"),
+      field("reason", "string"),
+      field("approval", "enum", ["approve"]),
+      optionalField("actorRef", "nullableString"),
+    ],
+  ),
+  futureContract(
+    "amend_requirement",
+    "Amend Requirement",
+    "amendRequirement",
+    "Propose amendment text appended to an FR section. Use to extend an existing requirement; use propose_patch for anything else.",
+    [field("spec", "string"), field("requirement", "string"), field("body", "string"), field("reason", "string"), optionalField("expectedSha", "nullableString")],
+  ),
+  futureContract(
+    "add_acceptance_criterion",
+    "Add Acceptance Criterion",
+    "addAcceptanceCriterion",
+    "Propose a canonical acceptance criterion appended for one requirement. Use when an FR needs a new testable criterion.",
+    [field("spec", "string"), field("requirement", "string"), field("criterion", "string"), field("reason", "string")],
+  ),
+  futureContract(
+    "add_phase",
+    "Add Task Phase",
+    "addPhase",
+    "Propose a task phase heading appended to TASKS.md. Use to structure delivery phases.",
+    [field("spec", "string"), field("title", "string"), field("reason", "string")],
+  ),
+  futureContract(
+    "set_entity_status",
+    "Set Entity Status",
+    "setEntityStatus",
+    "Propose a validated task status transition. Use for task progress updates; unknown transitions are rejected.",
+    [field("spec", "string"), field("entity", "string"), field("status", "enum", TASK_STATUS_VALUES), field("reason", "string")],
+  ),
+  futureContract(
+    "set_spec_status",
+    "Set Specification Status",
+    "setSpecStatus",
+    "Propose a specification status line. Use to record spec lifecycle state.",
+    [field("spec", "string"), field("status", "enum", SPEC_STATUS_VALUES), field("reason", "string")],
+  ),
+  futureContract(
+    "set_requirement_metadata",
+    "Set Requirement Metadata",
+    "setRequirementMetadata",
+    "Propose validated typed metadata (verification method, safety class, delivery) for a requirement. Unknown metadata is rejected.",
+    [field("spec", "string"), field("requirement", "string"), field("metadata", "json"), field("reason", "string")],
+  ),
+  futureContract(
+    "delete_spec_doc",
+    "Delete Specification Document",
+    "deleteSpecDoc",
+    "Propose deletion of one contained spec document. Use to remove obsolete docs.",
+    [field("spec", "string"), field("doc", "string"), field("reason", "string"), optionalField("expectedSha", "nullableString")],
+  ),
+  futureContract(
+    "rename_spec_doc",
+    "Rename Specification Document",
+    "renameSpecDoc",
+    "Propose a contained document rename. Refused when inbound Markdown links would break; fix callers first.",
+    [field("spec", "string"), field("doc", "string"), field("newDoc", "string"), field("reason", "string")],
+  ),
+  futureContract(
+    "create_spec",
+    "Create Specification",
+    "createSpec",
+    "Propose a full canonical scaffold (15 docs plus feature and schema) for a new spec slug. START HERE to create a specification.",
+    [field("spec", "string"), field("reason", "string"), optionalField("title", "nullableString")],
+  ),
+  futureContract(
+    "archive_spec",
+    "Archive Specification",
+    "archiveSpec",
+    "Propose archival of a spec after proving no live inbound references. Use to retire specs; refused otherwise.",
+    [field("spec", "string"), field("reason", "string")],
+  ),
+  futureContract(
+    "add_backlog_task",
+    "Add Backlog Task",
+    "addBacklogTask",
+    "Propose a traced backlog task. Use for future work items.",
+    [field("spec", "string"), field("title", "string"), field("reason", "string"), optionalField("requirements", "json")],
+  ),
+  futureContract(
+    "register_incident_backlog",
+    "Register Incident Backlog",
+    "registerIncidentBacklog",
+    "Propose a traced incident task. Use for incident follow-ups.",
+    [field("spec", "string"), field("summary", "string"), field("reason", "string"), optionalField("requirements", "json")],
+  ),
 ]);
-
 const JSON_SCHEMA_TYPES = {
   string: () => ({ type: "string" }),
   boolean: () => ({ type: "boolean" }),
@@ -231,420 +481,14 @@ export function validateContractArguments(contract, args) {
 }
 
 
-const TASK_STATUS_VALUES = ["planned", "todo", "ready", "in-progress", "blocked", "done", "deferred", "unknown"];
-const VERIFICATION_METHOD_VALUES = ["test", "analysis", "review", "inspection", "demonstration"];
-const SAFETY_CLASS_VALUES = ["critical", "major", "minor"];
-const DELIVERY_VALUES = ["NOT_DECLARED", "DELIVERED", "INCOMPLETE"];
-const SPEC_STATUS_VALUES = ["active", "backlog"];
-const READINESS_VIEW_VALUES = ["status", "summary", "counts", "coverage"];
 
 function futureContract(tool, label, operation, description, fields) {
   return { tool, label, operation, description, fields };
 }
-
-export const READ_COMPLETE_TOOL_CONTRACTS = Object.freeze([
-  ...TOOL_CONTRACTS,
-  futureContract(
-    "find_by_tags",
-    "Find Scenarios By Tags",
-    "findByTags",
-    "List scenarios whose tag set contains every requested tag.",
-    [field("tags", "stringArray")],
-  ),
-  futureContract(
-    "list_tasks",
-    "List Spec Tasks",
-    "listTasks",
-    "List bounded tasks for one specification, with status, phase, requirement, and cursor filters.",
-    [
-      field("spec", "string"),
-      optionalField("statuses", "enumArray", TASK_STATUS_VALUES),
-      optionalField("phase", "nullableString"),
-      optionalField("requirement", "nullableString"),
-      optionalField("includeComments", "boolean"),
-      optionalField("limit", "integer"),
-      optionalField("cursor", "nullableString"),
-    ],
-  ),
-  futureContract(
-    "list_phase_tasks",
-    "List Phase Tasks",
-    "listPhaseTasks",
-    "List tasks under one exact canonical task phase.",
-    [
-      field("spec", "string"),
-      field("phase", "string"),
-      optionalField("statuses", "enumArray", TASK_STATUS_VALUES),
-      optionalField("includeComments", "boolean"),
-      optionalField("limit", "integer"),
-      optionalField("cursor", "nullableString"),
-    ],
-  ),
-  futureContract(
-    "find_orphans",
-    "Find Orphaned Spec Nodes",
-    "findOrphans",
-    "Return structural orphan findings for uncovered requirements, tasks, and scenarios.",
-    [],
-  ),
-  futureContract(
-    "validate_anchor",
-    "Validate Spec Anchor",
-    "validateAnchor",
-    "Validate a canonical node ID or Markdown heading anchor without writing.",
-    [field("anchor", "string"), optionalField("spec", "nullableString")],
-  ),
-  futureContract(
-    "list_specs",
-    "List Specifications",
-    "listSpecs",
-    "Enumerate specification slugs present in the current graph.",
-    [],
-  ),
-  futureContract(
-    "validate_requirement_metadata",
-    "Validate Requirement Metadata",
-    "validateRequirementMetadata",
-    "Validate a typed requirement metadata object without writing.",
-    [field("metadata", "json")],
-  ),
-  futureContract(
-    "policy_query_requirements",
-    "Query Requirement Policy",
-    "policyQueryRequirements",
-    "Filter requirements by verification method, safety class, missing metadata, and delivery.",
-    [
-      optionalField("spec", "nullableString"),
-      optionalField("verificationMethod", "enum", VERIFICATION_METHOD_VALUES),
-      optionalField("safetyClass", "enum", SAFETY_CLASS_VALUES),
-      optionalField("verificationMethodMissing", "boolean"),
-      optionalField("delivery", "enum", DELIVERY_VALUES),
-    ],
-  ),
-  futureContract(
-    "get_archival_proof",
-    "Get Archival Proof",
-    "getArchivalProof",
-    "Check whether a specification has live inbound references from other specifications.",
-    [field("spec", "string")],
-  ),
-  futureContract(
-    "validate_spec",
-    "Validate Specification",
-    "validateSpec",
-    "Run the bounded graph validation for one specification without writing.",
-    [field("spec", "string")],
-  ),
-  futureContract(
-    "get_spec_status",
-    "Get Specification Status",
-    "getSpecStatus",
-    "Read status, counts, or structural coverage for one specification or the corpus.",
-    [optionalField("spec", "nullableString"), optionalField("view", "enum", READINESS_VIEW_VALUES)],
-  ),
-  futureContract(
-    "mcp_preflight",
-    "MCP Preflight",
-    "mcpPreflight",
-    "Read redacted root, version, lock, and dependency admission facts.",
-    [optionalField("declaredWorktree", "nullableString")],
-  ),
-  futureContract(
-    "list_spec_docs",
-    "List Specification Documents",
-    "listSpecDocs",
-    "List readable documents and binary attachments under one specification.",
-    [field("spec", "string")],
-  ),
-  futureContract(
-    "read_spec_doc",
-    "Read Specification Document",
-    "readSpecDoc",
-    "Read one contained specification document, optionally by section or bounded line window.",
-    [
-      field("spec", "string"),
-      field("doc", "string"),
-      optionalField("section", "nullableString"),
-      optionalField("offset", "integer"),
-      optionalField("limit", "integer"),
-      optionalField("readForEdit", "boolean"),
-    ],
-  ),
-  futureContract(
-    "read_attachment",
-    "Read Specification Attachment",
-    "readAttachment",
-    "Read one contained binary attachment as a bounded base64 payload.",
-    [field("spec", "string"), field("path", "string")],
-  ),
-]);
-
-export const EVIDENCE_TOOL_CONTRACTS = Object.freeze([
-  ...READ_COMPLETE_TOOL_CONTRACTS,
-  futureContract(
-    "get_test_result",
-    "Get Scenario Test Result",
-    "getTestResult",
-    "Read the last recorded result and freshness fields for one scenario.",
-    [field("scenarioId", "string"), optionalField("spec", "nullableString")],
-  ),
-  futureContract(
-    "get_scenario_trace",
-    "Get Scenario Trace",
-    "getScenarioTrace",
-    "Read one scenario result with its hash-bound runtime trace metadata.",
-    [field("scenarioId", "string"), optionalField("spec", "nullableString")],
-  ),
-]);
-
-export const AUTHORING_TOOL_CONTRACTS = Object.freeze([
-  ...EVIDENCE_TOOL_CONTRACTS,
-  futureContract(
-    "propose_spec_change",
-    "Propose Specification Change",
-    "proposeSpecChange",
-    "Create a dry-run proposal for one document change; no bytes are written.",
-    [
-      field("spec", "string"),
-      field("doc", "string"),
-      field("change", "json"),
-      field("reason", "string"),
-      optionalField("expectedSha", "nullableString"),
-    ],
-  ),
-  futureContract(
-    "apply_spec_change",
-    "Apply Proposed Specification Change",
-    "applySpecChange",
-    "Apply an existing proposal through the central transactional writer.",
-    [
-      field("requestId", "string"),
-      field("proposalId", "string"),
-      field("proposalSha256", "string"),
-      field("expectedDocuments", "json"),
-      field("reason", "string"),
-      field("approval", "enum", ["approve"]),
-      optionalField("actorRef", "nullableString"),
-    ],
-  ),
-  futureContract(
-    "propose_patch",
-    "Propose Specification Patch",
-    "proposePatch",
-    "Create a complete proposal for a set of specification operations; no bytes are written.",
-    [
-      field("requestId", "string"),
-      field("repositoryRootFingerprint", "string"),
-      field("spec", "string"),
-      field("reason", "string"),
-      field("operations", "json"),
-    ],
-  ),
-  futureContract(
-    "apply_proposed_patch",
-    "Apply Proposed Specification Patch",
-    "applyProposedPatch",
-    "Apply a previously reviewed patch after rechecking its proposal and document hashes.",
-    [
-      field("requestId", "string"),
-      field("proposalId", "string"),
-      field("proposalSha256", "string"),
-      field("expectedDocuments", "json"),
-      field("reason", "string"),
-      field("approval", "enum", ["approve"]),
-      optionalField("actorRef", "nullableString"),
-    ],
-  ),
-  futureContract(
-    "apply_spec_transaction",
-    "Apply Specification Transaction",
-    "applySpecTransaction",
-    "Apply a proposal-backed multi-document transaction through the central writer.",
-    [
-      field("requestId", "string"),
-      field("proposalId", "string"),
-      field("proposalSha256", "string"),
-      field("expectedDocuments", "json"),
-      field("reason", "string"),
-      field("approval", "enum", ["approve"]),
-      optionalField("actorRef", "nullableString"),
-    ],
-  ),
-  futureContract(
-    "append_to_section",
-    "Append To Section",
-    "appendToSection",
-    "Compile an append operation into a proposal; direct writes are refused.",
-    [field("spec", "string"), field("doc", "string"), field("heading", "string"), field("text", "string"), field("reason", "string"), optionalField("expectedSha", "nullableString")],
-  ),
-  futureContract(
-    "insert_after_heading",
-    "Insert After Heading",
-    "insertAfterHeading",
-    "Compile an insertion operation into a proposal; direct writes are refused.",
-    [field("spec", "string"), field("doc", "string"), field("heading", "string"), field("text", "string"), field("reason", "string"), optionalField("expectedSha", "nullableString")],
-  ),
-  futureContract(
-    "insert_at_eof",
-    "Insert At End Of Document",
-    "insertAtEof",
-    "Compile an end-of-file insertion into a proposal; direct writes are refused.",
-    [field("spec", "string"), field("doc", "string"), field("text", "string"), field("reason", "string"), optionalField("expectedSha", "nullableString")],
-  ),
-  futureContract(
-    "replace_in_section",
-    "Replace In Section",
-    "replaceInSection",
-    "Compile a bounded section replacement into a proposal; direct writes are refused.",
-    [field("spec", "string"), field("doc", "string"), field("heading", "string"), field("oldText", "string"), field("newText", "string"), field("reason", "string"), optionalField("replaceAll", "boolean"), optionalField("expectedSha", "nullableString")],
-  ),
-  futureContract(
-    "amend_requirement",
-    "Amend Requirement",
-    "amendRequirement",
-    "Compile a requirement amendment into a proposal; direct writes are refused.",
-    [field("spec", "string"), field("requirement", "string"), field("body", "string"), field("reason", "string"), optionalField("expectedSha", "nullableString")],
-  ),
-  futureContract(
-    "add_acceptance_criterion",
-    "Add Acceptance Criterion",
-    "addAcceptanceCriterion",
-    "Compile a canonical acceptance criterion into a proposal.",
-    [field("spec", "string"), field("requirement", "string"), field("criterion", "string"), field("reason", "string")],
-  ),
-  futureContract(
-    "add_phase",
-    "Add Task Phase",
-    "addPhase",
-    "Compile a task phase into a proposal.",
-    [field("spec", "string"), field("title", "string"), field("reason", "string")],
-  ),
-  futureContract(
-    "set_entity_status",
-    "Set Entity Status",
-    "setEntityStatus",
-    "Compile a validated task status transition into a proposal.",
-    [field("spec", "string"), field("entity", "string"), field("status", "enum", TASK_STATUS_VALUES), field("reason", "string")],
-  ),
-  futureContract(
-    "set_spec_status",
-    "Set Specification Status",
-    "setSpecStatus",
-    "Compile an explicit specification status change into a proposal.",
-    [field("spec", "string"), field("status", "enum", SPEC_STATUS_VALUES), field("reason", "string")],
-  ),
-  futureContract(
-    "set_requirement_metadata",
-    "Set Requirement Metadata",
-    "setRequirementMetadata",
-    "Validate and compile a typed requirement metadata block into a proposal.",
-    [field("spec", "string"), field("requirement", "string"), field("metadata", "json"), field("reason", "string")],
-  ),
-  futureContract(
-    "propose_requirement_contract",
-    "Propose Requirement Contract",
-    "proposeRequirementContract",
-    "Create a proposal-backed typed requirement contract.",
-    [field("spec", "string"), field("requirement", "string"), field("contract", "json"), field("reason", "string")],
-  ),
-  futureContract(
-    "propose_spec_repairs",
-    "Propose Specification Repairs",
-    "proposeSpecRepairs",
-    "Create a dry-run proposal for bounded mechanical repairs.",
-    [field("spec", "string"), field("reason", "string"), field("repairs", "json")],
-  ),
-  futureContract(
-    "apply_spec_repairs",
-    "Apply Specification Repairs",
-    "applySpecRepairs",
-    "Apply a previously reviewed repair proposal through the central writer.",
-    [
-      field("requestId", "string"),
-      field("proposalId", "string"),
-      field("proposalSha256", "string"),
-      field("expectedDocuments", "json"),
-      field("reason", "string"),
-      field("approval", "enum", ["approve"]),
-      optionalField("actorRef", "nullableString"),
-    ],
-  ),
-  futureContract(
-    "delete_spec_doc",
-    "Delete Specification Document",
-    "deleteSpecDoc",
-    "Compile a contained document deletion into a proposal.",
-    [field("spec", "string"), field("doc", "string"), field("reason", "string"), optionalField("expectedSha", "nullableString")],
-  ),
-  futureContract(
-    "rename_spec_doc",
-    "Rename Specification Document",
-    "renameSpecDoc",
-    "Compile a contained document rename into a proposal; refuse when inbound Markdown links would break.",
-    [field("spec", "string"), field("doc", "string"), field("newDoc", "string"), field("reason", "string")],
-  ),
-  futureContract(
-    "create_spec",
-    "Create Specification",
-    "createSpec",
-    "Compile a complete canonical specification scaffold into a proposal.",
-    [field("spec", "string"), field("reason", "string"), optionalField("title", "nullableString")],
-  ),
-  futureContract(
-    "archive_spec",
-    "Archive Specification",
-    "archiveSpec",
-    "Compile an archival move after live inbound-reference proof.",
-    [field("spec", "string"), field("reason", "string")],
-  ),
-  futureContract(
-    "add_backlog_task",
-    "Add Backlog Task",
-    "addBacklogTask",
-    "Compile a traced backlog task into a proposal.",
-    [field("spec", "string"), field("title", "string"), field("reason", "string"), optionalField("requirements", "json")],
-  ),
-  futureContract(
-    "register_incident_backlog",
-    "Register Incident Backlog",
-    "registerIncidentBacklog",
-    "Compile a traced incident task into a proposal.",
-    [field("spec", "string"), field("summary", "string"), field("reason", "string"), optionalField("requirements", "json")],
-  ),
-]);
-
-const SAFE_AUTHORING_NAMES = new Set(["propose_patch", "apply_proposed_patch"]);
-export const SAFE_AUTHORING_TOOL_CONTRACTS = Object.freeze([
-  ...TOOL_CONTRACTS,
-  ...AUTHORING_TOOL_CONTRACTS.filter((contract) => SAFE_AUTHORING_NAMES.has(contract.tool)),
-]);
-
-export const V05_TOOL_CONTRACTS = Object.freeze([
-  ...SAFE_AUTHORING_TOOL_CONTRACTS,
-  ...READ_COMPLETE_TOOL_CONTRACTS.slice(TOOL_CONTRACTS.length),
-  ...EVIDENCE_TOOL_CONTRACTS.slice(READ_COMPLETE_TOOL_CONTRACTS.length),
-]);
-
 export const MUTATING_TOOL_NAMES = Object.freeze(new Set([
   "apply_proposed_patch",
-  "apply_spec_change",
-  "apply_spec_transaction",
-  "apply_spec_repairs",
 ]));
 
 export const MUTATING_OPERATION_NAMES = Object.freeze(new Set([
   "applyProposedPatch",
-  "applySpecChange",
-  "applySpecTransaction",
-  "applySpecRepairs",
 ]));
-
-export function toolContractsForStage(stage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE) {
-  const value = typeof stage === "string" ? stage.trim().toLowerCase() : "";
-  if (value === "v0.1.0" || value === "v0.2.0" || value === "v0.3.0" || value === "v0.3.2") return TOOL_CONTRACTS;
-  if (value === "v0.4.0" || value === "v0.4.1" || value === "safe-authoring") return SAFE_AUTHORING_TOOL_CONTRACTS;
-  if (value === "read-complete" || value === "v0.4.0-read-complete") return READ_COMPLETE_TOOL_CONTRACTS;
-  if (value === "evidence" || value === "v0.5.0") return V05_TOOL_CONTRACTS;
-  if (value === "" || value === "v0.6.0" || value === "v0.7.0" || value === "authoring") return AUTHORING_TOOL_CONTRACTS;
-  throw new Error("unsupported OMP_SPEC_KIT_STAGE: " + value);
-}

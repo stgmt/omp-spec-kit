@@ -15,24 +15,14 @@ import {
 } from "./transactions.js";
 
 const AUTHORING_OPERATIONS = Object.freeze([
-  "proposeSpecChange",
-  "applySpecChange",
   "proposePatch",
   "applyProposedPatch",
-  "applySpecTransaction",
-  "appendToSection",
-  "insertAfterHeading",
-  "insertAtEof",
-  "replaceInSection",
   "amendRequirement",
   "addAcceptanceCriterion",
   "addPhase",
   "setEntityStatus",
   "setSpecStatus",
   "setRequirementMetadata",
-  "proposeRequirementContract",
-  "proposeSpecRepairs",
-  "applySpecRepairs",
   "deleteSpecDoc",
   "renameSpecDoc",
   "createSpec",
@@ -120,33 +110,6 @@ function operationForFacade(name, input) {
   const reason = reasonFor(input);
   const document = input.doc ?? input.document;
 
-  if (name === "proposeSpecChange") {
-    if (typeof document !== "string" || !isObject(input.change)) return error("INVALID_REQUEST", "proposeSpecChange requires doc and a change object");
-    const operation = {
-      ...input.change,
-      kind: input.change.kind ?? input.change.operation ?? "replace_document",
-      document,
-      expectedSha: typeof input.expectedSha === "string" ? input.expectedSha : undefined,
-    };
-    if (operation.kind === "replace_document" && typeof operation.content !== "string") return error("INVALID_REQUEST", "replace_document change requires content");
-    return { spec, reason, operations: [operation] };
-  }
-
-  if (name === "appendToSection" || name === "insertAfterHeading") {
-    if (typeof document !== "string" || typeof input.heading !== "string" || typeof input.text !== "string") return error("INVALID_REQUEST", `${name} requires doc, heading, and text`);
-    return { spec, reason, operations: [{ kind: name === "appendToSection" ? "append_to_section" : "insert_after_heading", document, heading: input.heading, text: input.text, expectedSha: typeof input.expectedSha === "string" ? input.expectedSha : undefined }] };
-  }
-
-  if (name === "insertAtEof") {
-    if (typeof document !== "string" || typeof input.text !== "string") return error("INVALID_REQUEST", "insertAtEof requires doc and text");
-    return { spec, reason, operations: [{ kind: "insert_at_eof", document, text: input.text, expectedSha: typeof input.expectedSha === "string" ? input.expectedSha : undefined }] };
-  }
-
-  if (name === "replaceInSection") {
-    if (typeof document !== "string" || typeof input.heading !== "string" || typeof input.oldText !== "string" || typeof input.newText !== "string") return error("INVALID_REQUEST", "replaceInSection requires doc, heading, oldText, and newText");
-    return { spec, reason, operations: [{ kind: "replace_in_section", document, heading: input.heading, oldText: input.oldText, newText: input.newText, replaceAll: input.replaceAll === true, expectedSha: typeof input.expectedSha === "string" ? input.expectedSha : undefined }] };
-  }
-
   if (name === "amendRequirement") {
     if (typeof input.requirement !== "string" || typeof input.body !== "string") return error("INVALID_REQUEST", "amendRequirement requires requirement and body");
     return { spec, reason, operations: [{ kind: "append_to_section", document: "FR.md", heading: input.requirement, text: input.body, expectedSha: typeof input.expectedSha === "string" ? input.expectedSha : undefined }] };
@@ -174,7 +137,7 @@ function operationForFacade(name, input) {
     return { spec, reason, operations: [{ kind: "append_to_section", document: "README.md", heading: "Current status", text: `Status: ${input.status}` }] };
   }
 
-  if (name === "setRequirementMetadata" || name === "proposeRequirementContract") {
+  if (name === "setRequirementMetadata") {
     const payload = input.metadata ?? input.contract;
     if (!isObject(payload) || typeof input.requirement !== "string") return error("INVALID_REQUEST", `${name} requires requirement and an object payload`);
     const validation = validateMetadata(payload);
@@ -230,11 +193,6 @@ function operationForFacade(name, input) {
     docs.push({ kind: "replace_document", document: `${spec}.feature`, content: `Feature: ${title}\n` });
     docs.push({ kind: "replace_document", document: `${spec}_SCHEMA.md`, content: `# ${title} Schema\n\nStatus: DRAFT\n` });
     return { spec, reason, operations: docs };
-  }
-
-  if (name === "proposeSpecRepairs") {
-    if (!Array.isArray(input.repairs) || input.repairs.length === 0) return error("INVALID_REQUEST", "proposeSpecRepairs requires a non-empty repairs array");
-    return { spec, reason, operations: input.repairs };
   }
 
   return error("INVALID_REQUEST", `no operation compiler for ${name}`);
@@ -394,7 +352,7 @@ export function createAuthoringService(root, getGraph, refreshGraph, options = {
   async function compileFacade(name, input = {}) {
     if (!AUTHORING_OPERATIONS.includes(name)) return error("UNKNOWN_OPERATION", `unknown authoring operation: ${name}`);
     if (name === "proposePatch") return proposePatch(input);
-    if (name === "applyProposedPatch" || name === "applySpecChange" || name === "applySpecTransaction" || name === "applySpecRepairs") {
+    if (name === "applyProposedPatch") {
       return applyProposedPatch(input);
     }
     if (typeof refreshGraph === "function") await refreshGraph();

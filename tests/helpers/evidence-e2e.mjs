@@ -6,7 +6,6 @@ import { snapshotTree } from "../support/world.mjs";
 export const V05_NEW_TOOL_NAMES = Object.freeze([
   "find_by_tags",
   "list_tasks",
-  "list_phase_tasks",
   "find_orphans",
   "validate_anchor",
   "list_specs",
@@ -23,17 +22,11 @@ export const V05_NEW_TOOL_NAMES = Object.freeze([
   "get_scenario_trace",
 ]);
 
-const V05_ALL_TOOL_NAMES = Object.freeze([
-  "spec_inventory", "spec_get_node", "spec_find_nodes", "spec_get_edges", "spec_trace", "spec_diagnostics", "spec_overview", "spec_markdown_inventory",
-  "propose_patch", "apply_proposed_patch", ...V05_NEW_TOOL_NAMES,
-]);
-
 const OPERATIONS = Object.freeze({
   spec_overview: "overview",
   spec_get_node: "getNode",
   find_by_tags: "findByTags",
   list_tasks: "listTasks",
-  list_phase_tasks: "listPhaseTasks",
   find_orphans: "findOrphans",
   validate_anchor: "validateAnchor",
   list_specs: "listSpecs",
@@ -132,24 +125,6 @@ async function writeEvidence({ projectRoot, repositoryRoot, fixtureName, graphFi
   );
 }
 
-async function runInventory({ listTools, projectRoot, repositoryRoot }) {
-  const listed = await listTools();
-  const tools = listed?.result?.tools;
-  assert.ok(Array.isArray(tools), JSON.stringify(listed));
-  const names = tools.map((tool) => tool.name);
-  assert.deepEqual(names, V05_ALL_TOOL_NAMES, "v0.5 registration order is part of the contract");
-  assert.equal(new Set(names).size, 27);
-  for (const name of V05_NEW_TOOL_NAMES) {
-    const tool = tools.find((candidate) => candidate.name === name);
-    assert.equal(tool.inputSchema.type, "object", name);
-    assert.equal(tool.inputSchema.additionalProperties, false, name);
-    assert.ok(tool.inputSchema.properties && typeof tool.inputSchema.properties === "object", name);
-  }
-  assert.equal(path.isAbsolute(projectRoot), true);
-  assert.equal(path.isAbsolute(repositoryRoot), true);
-  return names;
-}
-
 async function runSuccessMatrix({ callTool, projectRoot, repositoryRoot }) {
   const V05_NEW_TOOL_CASES = Object.freeze([
     ["find_by_tags", { tags: ["@feature1"] }, (data) => {
@@ -160,11 +135,6 @@ async function runSuccessMatrix({ callTool, projectRoot, repositoryRoot }) {
     ["list_tasks", { spec: "product", limit: 20 }, (data) => {
       assert.equal(data.kind, "tasks");
       for (const task of data.tasks) assert.equal(task.specSlug, "product");
-    }],
-    ["list_phase_tasks", { spec: "product", phase: "tool-e2e", limit: 20 }, (data) => {
-      assert.equal(data.kind, "tasks");
-      assert.ok(data.tasks.length > 0);
-      for (const task of data.tasks) assert.equal(task.phase, "tool-e2e");
     }],
     ["find_orphans", {}, (data) => {
       assert.equal(data.kind, "orphans");
@@ -211,9 +181,9 @@ async function runSuccessMatrix({ callTool, projectRoot, repositoryRoot }) {
     }],
     ["mcp_preflight", {}, (data) => {
       assert.equal(data.kind, "mcp-preflight");
-      assert.equal(data.lockMode, "read-only");
-      assert.equal(data.writeMode, "disabled");
-      assert.equal(data.mutationReady, false);
+      assert.equal(data.lockMode, "owner");
+      assert.equal(data.writeMode, "proposal-first");
+      assert.equal(data.mutationReady, true);
       assert.equal(data.worktree.matchesResolvedRoot, true);
     }],
     ["list_spec_docs", { spec: "product" }, (data) => {
@@ -258,7 +228,7 @@ async function runInvalidMatrix({ callTool, projectRoot, repositoryRoot }) {
   const cases = [
     ["find_by_tags", { tags: [] }, "INVALID_PARAMETER"],
     ["list_tasks", { spec: "product", limit: 201 }, "LIMIT_EXCEEDED"],
-    ["list_phase_tasks", { spec: "product" }, "INVALID_REQUEST"],
+    ["list_tasks", { spec: "product", limit: 0 }, "INVALID_REQUEST"],
     ["find_orphans", { unexpected: true }, "UNKNOWN_FIELD"],
     ["validate_anchor", { anchor: "" }, "INVALID_PARAMETER"],
     ["list_specs", { unexpected: true }, "UNKNOWN_FIELD"],
@@ -408,24 +378,23 @@ async function runMutationMatrix({ callTool, projectRoot, repositoryRoot, surfac
   await rm(evidencePath, { force: true });
 }
 
-export async function prepareV05ToolE2EFixtures(projectRoot) {
+export async function prepareEvidenceFixtures(projectRoot) {
   const productRoot = path.join(projectRoot, ".specs", "product");
   await writeFile(path.join(productRoot, "tool-e2e.bin"), Buffer.from("tool-e2e-bytes\n", "utf8"));
   await writeFile(path.join(productRoot, "TASKS.md"), `${await readFile(path.join(productRoot, "TASKS.md"), "utf8")}\n## TASK-99 — Tool E2E fixture\n\n- **Status:** Planned\n- **Phase:** tool-e2e\n`, "utf8");
 }
 
-export async function runV05ToolE2E({ listTools, callTool, projectRoot, repositoryRoot, surface = "built" }) {
+export async function runEvidenceE2E({ listTools, callTool, projectRoot, repositoryRoot, surface = "built" }) {
   const phase = phaseOf(surface);
   const outsideRoot = typeof surface === "object" && surface !== null ? surface.outsideRoot : null;
-  if (phase === "inventory") return runInventory({ listTools, projectRoot, repositoryRoot });
+  if (phase === "inventory") throw new Error("inventory moved to tool-e2e matrix");
   if (phase === "success") return runSuccessMatrix({ callTool, projectRoot, repositoryRoot });
   if (phase === "invalid") return runInvalidMatrix({ callTool, projectRoot, repositoryRoot });
   if (phase === "boundary") return runBoundaryMatrix({ callTool, projectRoot, repositoryRoot, outsideRoot });
   if (phase === "mutation") return runMutationMatrix({ callTool, projectRoot, repositoryRoot, surface });
-  await runInventory({ listTools, projectRoot, repositoryRoot });
   await runSuccessMatrix({ callTool, projectRoot, repositoryRoot });
   await runInvalidMatrix({ callTool, projectRoot, repositoryRoot });
   await runBoundaryMatrix({ callTool, projectRoot, repositoryRoot, outsideRoot });
   await runMutationMatrix({ callTool, projectRoot, repositoryRoot, surface });
-  return { toolCount: 27, newToolCount: V05_NEW_TOOL_NAMES.length };
+  return { toolCount: 38 };
 }

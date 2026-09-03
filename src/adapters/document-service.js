@@ -216,14 +216,14 @@ function mcpPreflight(root, args, context) {
   const declared = args.declaredWorktree;
   const declaredAbsolute = typeof declared === "string" && path.isAbsolute(declared) ? path.resolve(declared) : null;
   const matches = declaredAbsolute === null || (process.platform === "win32" ? declaredAbsolute.toLowerCase() === root.toLowerCase() : declaredAbsolute === root);
-  const authoring = ["authoring", "v0.6.0", "v0.7.0"].includes(context.stage);
+  const authoring = true;
   return operationSuccess({
     kind: "mcp-preflight",
     resolvedRootId: rootId(root),
     worktree: { declared: declaredAbsolute === null ? null : rootId(declaredAbsolute), matchesResolvedRoot: matches },
     lockMode: authoring ? "owner" : "read-only",
     writeMode: authoring ? "proposal-first" : "disabled",
-    versions: { mcp: KERNEL_SCHEMA_VERSION, plugin: "0.7.0", omp: "18.0.11" },
+    versions: { mcp: KERNEL_SCHEMA_VERSION, plugin: "0.8.0", omp: "18.0.11" },
     dependencies: { graph: "ready", watcher: "disabled", lock: authoring ? "available" : "disabled", sqlite: "disabled" },
     mutationReady: authoring && matches,
   });

@@ -105,10 +105,6 @@ jobs:
         run: |
           archive="$(node -p "require('./dist-candidate/candidate.json').archive.file")"
           node scripts/smoke-release-archive.mjs --archive "dist-candidate/$archive"
-      - name: Smoke explicit safe-authoring compatibility stage
-        run: |
-          archive="$(node -p "require('./dist-candidate/candidate.json').archive.file")"
-          node scripts/smoke-release-archive.mjs --archive "dist-candidate/$archive" --stage safe-authoring
       - name: Capture the real corpus inventory via the kernel reader
         run: node scripts/create-corpus-inventory.mjs --output dist-candidate/corpus-inventory.json
       - name: Extract the real v0.3.2 prior release for lifecycle producers
@@ -173,9 +169,9 @@ jobs:
       # THIS checkout, so capture the canonical Messages stream the same way
       # the release verify job does instead of trusting any stale fixture.
       # v0.5.0 smoke runs before lifecycle composition.
-      - name: Run v0.5.0 safe-authoring BDD and OMP manager E2E
+      - name: Run safe-authoring BDD and OMP manager E2E
         run: npm run test:safe-authoring
-      - name: Run v0.5.0 release-integrity BDD
+      - name: Run release-integrity BDD
         run: npm run test:release-integrity
       - name: Run Docker BDD and preserve semantic Cucumber messages
         run: |

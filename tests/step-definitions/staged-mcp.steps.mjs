@@ -5,7 +5,8 @@ import path from "node:path";
 import { Given, Then, When, After } from "@cucumber/cucumber";
 import { classifyToolCall } from "../../src/enforcement/classifier.js";
 import { createTempRepo, loadFrozenRealCorpus, writeCorpus } from "../helpers/kernel-world.mjs";
-import { runV05ToolE2E, prepareV05ToolE2EFixtures } from "../helpers/v05-tool-e2e.mjs";
+import { runEvidenceE2E, prepareEvidenceFixtures } from "../helpers/evidence-e2e.mjs";
+import { runToolE2E, ALL_TOOL_NAMES, prepareToolE2EFixtures } from "../helpers/tool-e2e.mjs";
 import { runExtensionProbe, spawnMcpServer } from "../helpers/mcp-world.mjs";
 
 const REPOSITORY_ROOT = path.resolve(import.meta.dirname, "..", "..");
@@ -14,7 +15,7 @@ const SERVER_PATH = path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit", "dist"
 const READ_COMPLETE_CALLS = Object.freeze([
   ["find_by_tags", { tags: ["@feature1"] }],
   ["list_tasks", { spec: "product", statuses: ["planned", "todo", "ready", "in-progress", "blocked"], limit: 20 }],
-  ["list_phase_tasks", { spec: "product", phase: "missing-phase", limit: 20 }],
+  ["list_tasks", { spec: "product", phase: "missing-phase", limit: 20 }],
   ["find_orphans", {}],
   ["validate_anchor", { anchor: "plugin-distribution:FR-1" }],
   ["list_specs", {}],
@@ -33,21 +34,21 @@ async function startWorld() {
   const root = await createTempRepo();
   const frozen = await loadFrozenRealCorpus(REPOSITORY_ROOT);
   await writeCorpus(root, frozen.files);
-  await prepareV05ToolE2EFixtures(root);
+  await prepareEvidenceFixtures(root);
   const outsideRoot = path.join(path.dirname(root), path.basename(root) + "-outside");
   await mkdir(outsideRoot, { recursive: true });
   await writeFile(path.join(outsideRoot, "secret.md"), "outside secret", "utf8");
   await writeFile(path.join(outsideRoot, "secret.bin"), Buffer.from("outside-bytes", "utf8"));
   await mkdir(path.join(root, ".omp-spec-kit", "evidence"), { recursive: true });
   await symlink(outsideRoot, path.join(root, ".omp-spec-kit", "evidence", "outside-link"), "junction");
-  return { root, outsideRoot, server: spawnMcpServer({ serverPath: SERVER_PATH, root, cwd: root, env: { OMP_SPEC_KIT_STAGE: "read-complete" } }) };
+  return { root, outsideRoot, server: spawnMcpServer({ serverPath: SERVER_PATH, root, cwd: root, env: {} }) };
 }
 
 Given("a real staged MCP corpus and packaged server", async function () {
   this.stagedMcp = await startWorld();
 });
 
-When("the read-complete registry and every staged handler are called", async function () {
+When("the registry and every handler are called", async function () {
   const initialized = await this.stagedMcp.server.request("initialize", { protocolVersion: "2025-03-26" });
   assert.equal(initialized.result.serverInfo.name, "omp-spec-kit");
   const listed = await this.stagedMcp.server.request("tools/list");
@@ -59,9 +60,9 @@ When("the read-complete registry and every staged handler are called", async fun
   }
 });
 
-Then("the read-complete registry has exactly 23 names and every call has a bounded envelope", function () {
-  assert.equal(this.stagedMcp.listedNames.length, 23);
-  assert.equal(new Set(this.stagedMcp.listedNames).size, 23);
+Then("the registry has exactly 38 names and every call has a bounded envelope", function () {
+  assert.equal(this.stagedMcp.listedNames.length, 38);
+  assert.equal(new Set(this.stagedMcp.listedNames).size, 38);
   for (const name of ["spec_inventory", "spec_get_node", "spec_find_nodes", "spec_get_edges", "spec_trace", "spec_diagnostics", "spec_overview", "spec_markdown_inventory"]) assert.ok(this.stagedMcp.listedNames.includes(name), `${name} must remain registered`);
   assert.equal(this.stagedMcp.results.length, READ_COMPLETE_CALLS.length);
   for (const { name, response } of this.stagedMcp.results) {
@@ -73,9 +74,8 @@ Then("the read-complete registry has exactly 23 names and every call has a bound
 });
 
 When("an authoring proposal is created and explicitly approved", async function () {
-  this.stagedMcp.serverEnv = { OMP_SPEC_KIT_STAGE: "authoring" };
   await this.stagedMcp.server.close();
-  this.stagedMcp.server = spawnMcpServer({ serverPath: SERVER_PATH, root: this.stagedMcp.root, cwd: this.stagedMcp.root, env: { OMP_SPEC_KIT_STAGE: "authoring", OMP_SPEC_KIT_INTERNAL_DOGFOOD: "1" } });
+  this.stagedMcp.server = spawnMcpServer({ serverPath: SERVER_PATH, root: this.stagedMcp.root, cwd: this.stagedMcp.root, env: {} });
   const overview = await this.stagedMcp.server.request("tools/call", { name: "spec_overview", arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-overview", specSlugs: [] } });
   const fingerprint = overview.result.structuredContent.graph.fingerprint;
   const proposalResponse = await this.stagedMcp.server.request("tools/call", {
@@ -105,16 +105,17 @@ When("an authoring proposal is created and explicitly approved", async function 
     },
   });
   this.stagedMcp.apply = applied.result.structuredContent;
+  const appendOverview = await this.stagedMcp.server.request("tools/call", { name: "spec_overview", arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-append-overview", specSlugs: [] } });
+  const appendFingerprint = appendOverview.result.structuredContent.graph.fingerprint;
   const append = await this.stagedMcp.server.request("tools/call", {
-    name: "append_to_section",
+    name: "propose_patch",
     arguments: {
       schemaVersion: "spec-kernel@1",
       requestId: "bdd-append",
+      repositoryRootFingerprint: appendFingerprint,
       spec: "product",
-      doc: "README.md",
-      heading: "Current product status",
-      text: "BDD append marker",
       reason: "verify section append preserves the document",
+      operations: [{ kind: "append_to_section", document: "README.md", heading: "Current product status", text: "BDD append marker" }],
     },
   });
   const appendProposal = append.result.structuredContent;
@@ -179,11 +180,13 @@ Then("the approved proposal changes the temporary document, section edits preser
   const blocked = classifyToolCall({ toolName: "write", input: { path: ".specs/plugin-distribution/README.md", content: "bypass" } });
   assert.equal(blocked.action, "block");
   assert.equal(blocked.mismatchField, null);
-  const allowed = classifyToolCall({ toolName: "mcp__omp_spec_kit_apply_spec_change", input: { path: ".specs/plugin-distribution/FR.md", approval: "approve" } });
-  const rawBlocked = classifyToolCall({ toolName: "apply_spec_change", input: { path: ".specs/plugin-distribution/FR.md", approval: "approve" } });
+  const allowed = classifyToolCall({ toolName: "mcp__omp_spec_kit_apply_proposed_patch", input: { approval: "approve" } });
+  const removedMinted = classifyToolCall({ toolName: "mcp__omp_spec_kit_apply_spec_change", input: { approval: "approve" } });
+  const removedShort = classifyToolCall({ toolName: "apply_spec_change", input: { approval: "approve" } });
   assert.equal(allowed.action, "allow");
-  assert.equal(rawBlocked.action, "block");
-  assert.equal(rawBlocked.code, "UNREGISTERED_AUTHORING_CALL");
+  assert.equal(allowed.code, "AUTHORING_TOOL_ALLOWED");
+  assert.notEqual(removedMinted.action, "allow");
+  assert.notEqual(removedShort.action, "allow");
 });
 
 When("authoring safety guards are exercised", async function () {
@@ -195,7 +198,7 @@ When("authoring safety guards are exercised", async function () {
     serverPath: SERVER_PATH,
     root: this.stagedMcp.root,
     cwd: this.stagedMcp.root,
-    env: { OMP_SPEC_KIT_STAGE: "authoring", OMP_SPEC_KIT_INTERNAL_DOGFOOD: "1" },
+    env: {},
   });
   const linked = await this.stagedMcp.server.request("tools/call", {
     name: "create_spec",
@@ -222,7 +225,7 @@ When("the read server receives alias and unknown-field calls", async function ()
     serverPath: SERVER_PATH,
     root: this.stagedMcp.root,
     cwd: this.stagedMcp.root,
-    env: { OMP_SPEC_KIT_STAGE: "read-complete" },
+    env: {},
   });
   const alias = await this.stagedMcp.server.request("tools/call", {
     name: "spec_inventory",
@@ -241,7 +244,7 @@ When("the read server receives alias and unknown-field calls", async function ()
     serverPath: SERVER_PATH,
     root: this.stagedMcp.root,
     cwd: this.stagedMcp.root,
-    env: { OMP_SPEC_KIT_STAGE: "v0.3.2" },
+    env: {},
   });
   const hidden = await this.stagedMcp.server.request("tools/list");
   this.stagedMcp.inputResults = {
@@ -252,7 +255,7 @@ When("the read server receives alias and unknown-field calls", async function ()
   };
 });
 
-Then("aliases work, unknown fields fail, and unaccepted authoring stays hidden", function () {
+Then("aliases work, unknown fields fail, and removed tools stay unknown", function () {
   assert.equal(this.stagedMcp.inputResults.alias.ok, true, JSON.stringify(this.stagedMcp.inputResults.alias));
   assert.equal(this.stagedMcp.inputResults.alias.data.kind, "inventory");
   assert.equal(this.stagedMcp.inputResults.unknown.ok, false, JSON.stringify(this.stagedMcp.inputResults.unknown));
@@ -260,16 +263,9 @@ Then("aliases work, unknown fields fail, and unaccepted authoring stays hidden",
   assert.equal(this.stagedMcp.inputResults.invalidShape.ok, false, JSON.stringify(this.stagedMcp.inputResults.invalidShape));
   assert.equal(this.stagedMcp.inputResults.invalidShape.error.code, "INVALID_REQUEST");
   assert.equal(this.stagedMcp.inputResults.invalidShape.error.receivedType, "array");
-  assert.deepStrictEqual([...this.stagedMcp.inputResults.hiddenNames].sort(), [
-    "spec_diagnostics",
-    "spec_find_nodes",
-    "spec_get_edges",
-    "spec_get_node",
-    "spec_inventory",
-    "spec_markdown_inventory",
-    "spec_overview",
-    "spec_trace",
-  ]);
+  assert.equal(this.stagedMcp.inputResults.hiddenNames.includes("propose_patch"), true, "propose_patch must be registered");
+  assert.equal(this.stagedMcp.inputResults.hiddenNames.includes("apply_proposed_patch"), true, "apply_proposed_patch must be registered");
+  for (const removed of ["apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) assert.equal(this.stagedMcp.inputResults.hiddenNames.includes(removed), false, removed + " must be gone");
 });
 
 When("an incomplete evidence stream is queried", async function () {
@@ -286,7 +282,7 @@ When("an incomplete evidence stream is queried", async function () {
     serverPath: SERVER_PATH,
     root: this.stagedMcp.root,
     cwd: this.stagedMcp.root,
-    env: { OMP_SPEC_KIT_STAGE: "v0.5.0" },
+    env: {},
   });
   const result = await this.stagedMcp.server.request("tools/call", {
     name: "get_test_result",
@@ -308,7 +304,7 @@ When("a new specification is created and archived through the proposal door", as
     serverPath: SERVER_PATH,
     root: this.stagedMcp.root,
     cwd: this.stagedMcp.root,
-    env: { OMP_SPEC_KIT_STAGE: "authoring", OMP_SPEC_KIT_INTERNAL_DOGFOOD: "1" },
+    env: {},
   });
   const created = await this.stagedMcp.server.request("tools/call", {
     name: "create_spec",
@@ -372,14 +368,14 @@ When("the staged OMP extension registry is inspected", async function () {
   this.stagedMcp.extensionProbe = await runExtensionProbe({
     extensionPath: path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit", "dist", "extension.js"),
     cwd: this.stagedMcp.root,
-    env: { OMP_SPEC_KIT_STAGE: "v0.6.0" },
+    env: {},
   });
   await this.stagedMcp.server.close();
   this.stagedMcp.server = spawnMcpServer({
     serverPath: SERVER_PATH,
     root: this.stagedMcp.root,
     cwd: this.stagedMcp.root,
-    env: { OMP_SPEC_KIT_STAGE: "v0.6.0" },
+    env: {},
   });
   const listed = await this.stagedMcp.server.request("tools/list");
   this.stagedMcp.mcpTools = listed.result.tools;
@@ -389,66 +385,74 @@ Then("applied authoring tools require write approval and proposals remain read-o
   assert.equal(this.stagedMcp.extensionProbe.tools.length, 0, "extension must register 0 direct tools in MCP-only architecture");
   assert.ok(this.stagedMcp.extensionProbe.registeredEvents?.includes("tool_call"), "extension must register tool_call hook");
   const tools = new Map(this.stagedMcp.mcpTools.map((tool) => [tool.name, tool]));
-  assert.equal(tools.size, 49, "MCP server must expose 49 tools");
+  assert.equal(tools.size, 38, "MCP server must expose the single 38-tool surface");
   assert.equal(tools.get("apply_proposed_patch")?.annotations?.readOnlyHint, false);
-  assert.equal(tools.get("apply_spec_change")?.annotations?.readOnlyHint, false);
-  assert.equal(tools.get("apply_spec_transaction")?.annotations?.readOnlyHint, false);
-  assert.equal(tools.get("apply_spec_repairs")?.annotations?.readOnlyHint, false);
   assert.equal(tools.get("propose_patch")?.annotations?.readOnlyHint, true);
   assert.equal(tools.get("create_spec")?.annotations?.readOnlyHint, true);
 });
 
 async function runToolE2EPhase(world, phase) {
   await world.server.close();
-  world.server = spawnMcpServer({ serverPath: SERVER_PATH, root: world.root, cwd: world.root, env: { OMP_SPEC_KIT_STAGE: "v0.5.0" } });
+  world.server = spawnMcpServer({ serverPath: SERVER_PATH, root: world.root, cwd: world.root, env: {} });
   const initialized = await world.server.request("initialize", { protocolVersion: "2025-03-26" });
   assert.equal(initialized.result.serverInfo.name, "omp-spec-kit");
-  return runV05ToolE2E({
+  return runEvidenceE2E({
     listTools: () => world.server.request("tools/list"),
     callTool: (name, arguments_) => world.server.request("tools/call", { name, arguments: arguments_ }),
     projectRoot: world.root,
     repositoryRoot: REPOSITORY_ROOT,
     surface: { phase, outsideRoot: world.outsideRoot, restart: async () => {
       await world.server.close();
-      world.server = spawnMcpServer({ serverPath: SERVER_PATH, root: world.root, cwd: world.root, env: { OMP_SPEC_KIT_STAGE: "v0.5.0" } });
+      world.server = spawnMcpServer({ serverPath: SERVER_PATH, root: world.root, cwd: world.root, env: {} });
       await world.server.request("initialize", { protocolVersion: "2025-03-26" });
     } },
   });
 }
 
-When("the v0.5 tool inventory matrix is exercised", { timeout: 30000 }, async function () {
-  this.toolE2E = await runToolE2EPhase(this.stagedMcp, "inventory");
+When("the tool inventory matrix is exercised", { timeout: 30000 }, async function () {
+  await this.stagedMcp.server.close();
+  this.stagedMcp.server = spawnMcpServer({ serverPath: SERVER_PATH, root: this.stagedMcp.root, cwd: this.stagedMcp.root, env: {} });
+  await this.stagedMcp.server.request("initialize", { protocolVersion: "2025-03-26" });
+  await runToolE2E({
+    listTools: () => this.stagedMcp.server.request("tools/list"),
+    callTool: (name, arguments_) => this.stagedMcp.server.request("tools/call", { name, arguments: arguments_ }),
+    projectRoot: this.stagedMcp.root,
+    repositoryRoot: REPOSITORY_ROOT,
+    phase: "inventory",
+  });
+  const listed = await this.stagedMcp.server.request("tools/list");
+  this.toolE2E = listed.result.tools.map((tool) => tool.name);
 });
-Then("the v0.5 inventory contains the exact 27-tool surface", function () {
-  assert.deepEqual(this.toolE2E, ["spec_inventory", "spec_get_node", "spec_find_nodes", "spec_get_edges", "spec_trace", "spec_diagnostics", "spec_overview", "spec_markdown_inventory", "propose_patch", "apply_proposed_patch", "find_by_tags", "list_tasks", "list_phase_tasks", "find_orphans", "validate_anchor", "list_specs", "validate_requirement_metadata", "policy_query_requirements", "get_archival_proof", "validate_spec", "get_spec_status", "mcp_preflight", "list_spec_docs", "read_spec_doc", "read_attachment", "get_test_result", "get_scenario_trace"]);
+Then("the inventory contains the exact 38-tool surface", function () {
+  assert.deepEqual(this.toolE2E, [...ALL_TOOL_NAMES]);
 });
 
-When("the v0.5 semantic success matrix is exercised", { timeout: 30000 }, async function () {
+When("the semantic success matrix is exercised", { timeout: 30000 }, async function () {
   this.toolE2E = await runToolE2EPhase(this.stagedMcp, "success");
 });
-Then("every v0.5 tool returns its semantic success contract", function () {
+Then("every tool returns its semantic success contract", function () {
   assert.equal(this.toolE2E, undefined);
 });
 
-When("the v0.5 invalid and containment matrix is exercised", { timeout: 30000 }, async function () {
+When("the invalid and containment matrix is exercised", { timeout: 30000 }, async function () {
   this.toolE2E = await runToolE2EPhase(this.stagedMcp, "invalid");
   await runToolE2EPhase(this.stagedMcp, "boundary");
 });
-Then("every v0.5 tool rejects closed-schema and boundary violations", function () {
+Then("every tool rejects closed-schema and boundary violations", function () {
   assert.equal(this.toolE2E, undefined);
 });
 
-When("the v0.5 mutation and freshness matrix is exercised", { timeout: 30000 }, async function () {
+When("the mutation and freshness matrix is exercised", { timeout: 30000 }, async function () {
   this.toolE2E = await runToolE2EPhase(this.stagedMcp, "mutation");
 });
-Then("every v0.5 evidence and corpus mutation is detected", function () {
+Then("every evidence and corpus mutation is detected", function () {
   assert.equal(this.toolE2E, undefined);
 });
 
-When("the v0.5 read-only matrix is exercised", { timeout: 30000 }, async function () {
+When("the read-only matrix is exercised", { timeout: 30000 }, async function () {
   this.toolE2E = await runToolE2EPhase(this.stagedMcp, "success");
 });
-Then("every v0.5 read-only call preserves the project byte snapshot", function () {
+Then("every read-only call preserves the project byte snapshot", function () {
   assert.equal(this.toolE2E, undefined);
 });
 
@@ -457,13 +461,13 @@ After({ tags: "@staged-mcp" }, async function () {
   if (this.stagedMcp?.root) await rm(this.stagedMcp.root, { recursive: true, force: true });
   if (this.stagedMcp?.outsideRoot) await rm(this.stagedMcp.outsideRoot, { recursive: true, force: true });
 });
-When("the v0.5 additive registry, evidence states, and safe authoring are exercised", async function () {
+When("the additive registry, evidence states, and safe authoring are exercised", async function () {
   await this.stagedMcp.server.close();
   this.stagedMcp.server = spawnMcpServer({
     serverPath: SERVER_PATH,
     root: this.stagedMcp.root,
     cwd: this.stagedMcp.root,
-    env: { OMP_SPEC_KIT_STAGE: "v0.5.0" },
+    env: {},
   });
   const initialized = await this.stagedMcp.server.request("initialize", { protocolVersion: "2025-03-26" });
   assert.equal(initialized.result.serverInfo.name, "omp-spec-kit");
@@ -515,7 +519,7 @@ When("the v0.5 additive registry, evidence states, and safe authoring are exerci
   const beforeMutation = await evidenceRequest("get_test_result", "v05-before-mutation");
   await writeFile(scenarioPath, originalScenario.replace("Scenario: Specification-only init reports no installable plugin", "Scenario: Specification-only init reports no installable plugin changed"));
   await this.stagedMcp.server.close();
-  this.stagedMcp.server = spawnMcpServer({ serverPath: SERVER_PATH, root: this.stagedMcp.root, cwd: this.stagedMcp.root, env: { OMP_SPEC_KIT_STAGE: "v0.5.0" } });
+  this.stagedMcp.server = spawnMcpServer({ serverPath: SERVER_PATH, root: this.stagedMcp.root, cwd: this.stagedMcp.root, env: {} });
   const afterMutation = await evidenceRequest("get_test_result", "v05-after-mutation");
   const changedOverview = await this.stagedMcp.server.request("tools/call", {
     name: "spec_overview",
@@ -529,7 +533,7 @@ When("the v0.5 additive registry, evidence states, and safe authoring are exerci
       repositoryRootFingerprint: changedOverview.result.structuredContent.graph.fingerprint,
       spec: "product",
       reason: "verify v0.5 safe authoring",
-      operations: [{ kind: "insert_at_eof", document: "README.md", text: "v0.5 authoring marker" }],
+      operations: [{ kind: "insert_at_eof", document: "README.md", text: "authoring marker" }],
     },
   });
   const proposal = proposalResponse.result.structuredContent;
@@ -549,14 +553,8 @@ When("the v0.5 additive registry, evidence states, and safe authoring are exerci
   this.stagedMcp.v05 = { passing, trace, failed, incomplete, unknownScenario, invalid, beforeMutation, afterMutation, proposal, applied, replay };
 });
 
-Then("v0.5 exposes 27 bounded tools, preserves authoring, and refuses stale evidence", async function () {
-  const expectedNames = [
-    "spec_inventory", "spec_get_node", "spec_find_nodes", "spec_get_edges", "spec_trace", "spec_diagnostics", "spec_overview", "spec_markdown_inventory",
-    "propose_patch", "apply_proposed_patch", "find_by_tags", "list_tasks", "list_phase_tasks", "find_orphans", "validate_anchor", "list_specs",
-    "validate_requirement_metadata", "policy_query_requirements", "get_archival_proof", "validate_spec", "get_spec_status", "mcp_preflight",
-    "list_spec_docs", "read_spec_doc", "read_attachment", "get_test_result", "get_scenario_trace",
-  ];
-  assert.deepEqual(this.stagedMcp.v05Names, expectedNames);
+Then("the surface exposes 38 bounded tools, preserves authoring, and refuses stale evidence", async function () {
+  assert.deepEqual(this.stagedMcp.v05Names, [...ALL_TOOL_NAMES]);
   const result = this.stagedMcp.v05;
   assert.equal(result.passing.result.structuredContent.data.result, "PASSED");
   assert.equal(result.passing.result.structuredContent.data.stale, false);
@@ -577,5 +575,5 @@ Then("v0.5 exposes 27 bounded tools, preserves authoring, and refuses stale evid
   assert.equal(result.replay.result.structuredContent.data.outcome, "REFUSED", JSON.stringify(result.replay));
   assert.equal(result.replay.result.structuredContent.data.error.code, "CONFLICT", JSON.stringify(result.replay));
   const content = await readFile(path.join(this.stagedMcp.root, ".specs", "product", "README.md"), "utf8");
-  assert.equal((content.match(/v0.5 authoring marker/g) ?? []).length, 1);
+  assert.equal((content.match(/authoring marker/g) ?? []).length, 1);
 });

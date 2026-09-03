@@ -300,6 +300,17 @@ function validateCurrentStatus() {
     fail("release status is absent or identity-drifted");
   }
   if (status.status.state === "CANDIDATE") {
+    if (version === "0.8.0") {
+      if (
+        status.status.public !== false ||
+        status.status.installable !== false ||
+        status.status.surface !== "SAFE_AUTHORING" ||
+        status.status.toolCount !== 38
+      ) {
+        fail("candidate status is not the 38-tool single surface");
+      }
+      return version;
+    }
     if (version === "0.6.0" || version === "0.7.0") {
       if (
         status.status.public !== false ||

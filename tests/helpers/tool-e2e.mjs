@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { readFile, rm, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { snapshotTree } from "../support/world.mjs";
-import { prepareV05ToolE2EFixtures } from "./v05-tool-e2e.mjs";
-import { MUTATING_TOOL_NAMES, AUTHORING_TOOL_CONTRACTS } from "../../src/adapters/tool-contracts.js";
+import { prepareEvidenceFixtures } from "./evidence-e2e.mjs";
+import { MUTATING_TOOL_NAMES, TOOL_CONTRACTS } from "../../src/adapters/tool-contracts.js";
 
-export const V06_ALL_TOOL_NAMES = Object.freeze(AUTHORING_TOOL_CONTRACTS.map((contract) => contract.tool));
+export const ALL_TOOL_NAMES = Object.freeze(TOOL_CONTRACTS.map((contract) => contract.tool));
 
-export async function prepareV06ToolE2EFixtures(projectRoot) {
-  await prepareV05ToolE2EFixtures(projectRoot);
+export async function prepareToolE2EFixtures(projectRoot) {
+  await prepareEvidenceFixtures(projectRoot);
   const testSpecDir = path.join(projectRoot, ".specs", "e2e-spec");
   await mkdir(testSpecDir, { recursive: true });
   await writeFile(
@@ -63,15 +63,15 @@ function assertRelativePaths(value) {
   }
 }
 
-export async function runV06ToolE2E({ listTools, callTool, projectRoot, repositoryRoot, phase = "all", restart = null }) {
+export async function runToolE2E({ listTools, callTool, projectRoot, repositoryRoot, phase = "all", restart = null }) {
   // Phase 1: Inventory
   if (phase === "all" || phase === "inventory") {
     const listed = await listTools();
     const tools = listed?.result?.tools;
     assert.ok(Array.isArray(tools), JSON.stringify(listed));
     const names = tools.map((tool) => tool.name);
-    assert.deepEqual(names, V06_ALL_TOOL_NAMES, "v0.6 registration order is part of the contract");
-    assert.equal(names.length, 49, "v0.6 exposes exactly 49 tools");
+    assert.deepEqual(names, ALL_TOOL_NAMES, "registration order is part of the contract");
+    assert.equal(names.length, 38, "single surface exposes exactly 38 tools");
 
     for (const tool of tools) {
       assert.equal(tool.inputSchema.type, "object", tool.name);
@@ -101,7 +101,7 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     assert.equal(inv.ok, true);
   }
 
-  // Phase 3: Proposal tools (all 20 proposal tools must not mutate files on disk)
+  // Phase 3: Proposal tools (all proposal calls must not mutate files on disk)
   if (phase === "all" || phase === "proposals") {
     const beforeState = await snapshotTree(projectRoot);
     const overviewRes = await callTool("spec_overview", { schemaVersion: "spec-kernel@1", requestId: "v06-proposal-overview", specSlugs: [] });
@@ -120,72 +120,24 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     assert.equal(patchVal.ok, true);
     assert.ok(patchVal.data.proposalHash);
 
-    // 2. propose_spec_change
-    const changeRes = await callTool("propose_spec_change", {
+    // 2. multi-operation propose_patch (append, insert, eof, replace op kinds)
+    const multiRes = await callTool("propose_patch", {
       schemaVersion: "spec-kernel@1",
-      requestId: "v06-propose-change",
+      requestId: "v06-multi-ops",
+      repositoryRootFingerprint: fingerprint,
       spec: "e2e-spec",
-      doc: "README.md",
-      reason: "v06 e2e change",
-      change: { kind: "insert_at_eof", text: "\n<!-- change test -->\n" },
+      reason: "v06 multi-op test",
+      operations: [
+        { kind: "append_to_section", document: "README.md", heading: "Section One", text: "\nAppended note.\n" },
+        { kind: "insert_after_heading", document: "TASKS.md", heading: "TASK-1 \u2014 E2E Task", text: "\nInserted note.\n" },
+        { kind: "insert_at_eof", document: "ACCEPTANCE_CRITERIA.md", text: "\n<!-- eof -->\n" },
+        { kind: "replace_in_section", document: "FR.md", heading: "FR-1 \u2014 E2E Requirement", oldText: "Requirement details", newText: "Requirement details consolidated", replaceAll: false },
+      ],
     });
-    const changeVal = structured(changeRes);
-    assert.equal(changeVal.ok, true);
+    const multiVal = structured(multiRes);
+    assert.equal(multiVal.ok, true);
 
-    // 3. append_to_section
-    const appendRes = await callTool("append_to_section", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-append-section",
-      spec: "e2e-spec",
-      doc: "README.md",
-      heading: "Section One",
-      text: "\nAppended note.\n",
-      reason: "v06 append test",
-    });
-    const appendVal = structured(appendRes);
-    assert.equal(appendVal.ok, true);
-
-    // 4. insert_after_heading
-    const insertHRes = await callTool("insert_after_heading", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-insert-heading",
-      spec: "e2e-spec",
-      doc: "README.md",
-      heading: "Section One",
-      text: "\nInserted note.\n",
-      reason: "v06 insert heading test",
-    });
-    const insertHVal = structured(insertHRes);
-    assert.equal(insertHVal.ok, true);
-
-    // 5. insert_at_eof
-    const insertEofRes = await callTool("insert_at_eof", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-insert-eof",
-      spec: "e2e-spec",
-      doc: "README.md",
-      text: "\n<!-- eof -->\n",
-      reason: "v06 eof test",
-    });
-    const insertEofVal = structured(insertEofRes);
-    assert.equal(insertEofVal.ok, true);
-
-    // 6. replace_in_section
-    const replaceRes = await callTool("replace_in_section", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-replace-section",
-      spec: "e2e-spec",
-      doc: "README.md",
-      heading: "Section One",
-      oldText: "Content 1",
-      newText: "Content 1",
-      replaceAll: false,
-      reason: "v06 replace test",
-    });
-    const replaceVal = structured(replaceRes);
-    assert.equal(replaceVal.ok, true);
-
-    // 7. amend_requirement
+    // 3. amend_requirement
     const amendRes = await callTool("amend_requirement", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-amend-req",
@@ -197,7 +149,7 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     const amendVal = structured(amendRes);
     assert.equal(amendVal.ok, true);
 
-    // 8. add_acceptance_criterion
+    // 4. add_acceptance_criterion
     const addAcRes = await callTool("add_acceptance_criterion", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-add-ac",
@@ -209,7 +161,7 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     const addAcVal = structured(addAcRes);
     assert.equal(addAcVal.ok, true);
 
-    // 9. add_phase
+    // 5. add_phase
     const addPhaseRes = await callTool("add_phase", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-add-phase",
@@ -220,7 +172,7 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     const addPhaseVal = structured(addPhaseRes);
     assert.equal(addPhaseVal.ok, true);
 
-    // 10. set_entity_status
+    // 6. set_entity_status
     const setEntityRes = await callTool("set_entity_status", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-set-entity",
@@ -232,7 +184,7 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     const setEntityVal = structured(setEntityRes);
     assert.equal(setEntityVal.ok, true);
 
-    // 11. set_spec_status
+    // 7. set_spec_status
     const setSpecStatusRes = await callTool("set_spec_status", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-set-spec-status",
@@ -243,7 +195,7 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     const setSpecStatusVal = structured(setSpecStatusRes);
     assert.equal(setSpecStatusVal.ok, true);
 
-    // 12. set_requirement_metadata
+    // 8. set_requirement_metadata
     const setReqMetaRes = await callTool("set_requirement_metadata", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-set-req-meta",
@@ -255,7 +207,7 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     const setReqMetaVal = structured(setReqMetaRes);
     assert.equal(setReqMetaVal.ok, true);
 
-    // 13. propose_requirement_contract
+    // 9. propose_requirement_contract
     const propContractRes = await callTool("propose_requirement_contract", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-prop-contract",
@@ -267,18 +219,7 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     const propContractVal = structured(propContractRes);
     assert.equal(propContractVal.ok, true);
 
-    // 14. propose_spec_repairs
-    const propRepairsRes = await callTool("propose_spec_repairs", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-prop-repairs",
-      spec: "e2e-spec",
-      reason: "v06 repairs test",
-      repairs: [{ kind: "insert_at_eof", document: "README.md", text: "\n<!-- repaired -->\n" }],
-    });
-    const propRepairsVal = structured(propRepairsRes);
-    assert.equal(propRepairsVal.ok, true);
-
-    // 15. delete_spec_doc
+    // 10. delete_spec_doc
     const delDocRes = await callTool("delete_spec_doc", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-del-doc",
@@ -289,7 +230,7 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     const delDocVal = structured(delDocRes);
     assert.equal(delDocVal.ok, true);
 
-    // 16. rename_spec_doc
+    // 11. rename_spec_doc
     const renameDocRes = await callTool("rename_spec_doc", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-rename-doc",
@@ -301,7 +242,7 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     const renameDocVal = structured(renameDocRes);
     assert.equal(renameDocVal.ok, true);
 
-    // 17. create_spec
+    // 12. create_spec
     const createSpecRes = await callTool("create_spec", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-create-spec",
@@ -312,7 +253,7 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     const createSpecVal = structured(createSpecRes);
     assert.equal(createSpecVal.ok, true);
 
-    // 18. archive_spec
+    // 13. archive_spec
     const archiveSpecRes = await callTool("archive_spec", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-archive-spec",
@@ -323,7 +264,7 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     assert.equal(archiveSpecVal.ok, true);
     assert.ok(archiveSpecVal.data.archive);
 
-    // 19. add_backlog_task
+    // 14. add_backlog_task
     const addBacklogRes = await callTool("add_backlog_task", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-add-backlog",
@@ -335,7 +276,7 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     const addBacklogVal = structured(addBacklogRes);
     assert.equal(addBacklogVal.ok, true);
 
-    // 20. register_incident_backlog
+    // 15. register_incident_backlog
     const regIncidentRes = await callTool("register_incident_backlog", {
       schemaVersion: "spec-kernel@1",
       requestId: "v06-reg-incident",
@@ -349,7 +290,7 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
 
     // Check tree unchanged after all 20 proposal calls
     const afterState = await snapshotTree(projectRoot);
-    assert.deepEqual(afterState, beforeState, "all 20 proposal operations must be strictly read-only");
+    assert.deepEqual(afterState, beforeState, "all 15 proposal operations must be strictly read-only");
   }
 
   // Phase 4: Apply operations and Replay Verification
@@ -432,5 +373,5 @@ export async function runV06ToolE2E({ listTools, callTool, projectRoot, reposito
     assert.ok(secretVal.error?.message?.includes("secret-like content"));
   }
 
-  return { ok: true, toolsCount: 49 };
+  return { ok: true, toolsCount: 38 };
 }

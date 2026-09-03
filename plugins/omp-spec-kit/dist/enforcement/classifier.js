@@ -1,12 +1,9 @@
-import { AUTHORING_TOOL_CONTRACTS, toolContractsForStage } from "../adapters/tool-contracts.js";
+import { TOOL_CONTRACTS } from "../adapters/tool-contracts.js";
 import { decidePathPolicy } from "./resolve-targets.js";
 
-const ALL_SHORT_NAMES = Object.freeze(new Set(AUTHORING_TOOL_CONTRACTS.map((contract) => contract.tool)));
+const ALL_SHORT_NAMES = Object.freeze(new Set(TOOL_CONTRACTS.map((contract) => contract.tool)));
 const APPLY_SHORT_NAMES = Object.freeze(new Set([
   "apply_proposed_patch",
-  "apply_spec_change",
-  "apply_spec_transaction",
-  "apply_spec_repairs",
 ]));
 const DIRECT_MUTATION_TOOLS = Object.freeze(new Set(["write", "edit", "bash", "apply_patch", "delete", "rename"]));
 const PATH_KEYS = Object.freeze(new Set(["path", "paths", "file", "files", "document", "documents", "cwd", "command", "text"]));
@@ -90,9 +87,8 @@ export function createMCPToolName(serverName, toolName) {
   return `${fullName.slice(0, 56)}_${Buffer.from(fullName).toString("hex").slice(0, 7)}`;
 }
 
-function getActiveFamilies(stage) {
-  const contracts = toolContractsForStage(stage);
-  const tools = contracts.map((c) => c.tool);
+function getActiveFamilies() {
+  const tools = TOOL_CONTRACTS.map((c) => c.tool);
   const familyA = new Map(tools.map((tool) => [createMCPToolName("omp-spec-kit", tool), tool]));
   const familyB = new Map(tools.map((tool) => [createMCPToolName("omp-spec-kit:omp-spec-kit", tool), tool]));
   return { tools, familyA, familyB };
@@ -172,8 +168,7 @@ export function classifyToolCall(event, options = {}) {
     return blocked(toolName, "UNREGISTERED_AUTHORING_CALL", [], "shortNameDirectCallForbidden");
   }
 
-  const stage = options.stage ?? globalThis.process?.env?.OMP_SPEC_KIT_STAGE ?? "v0.7.0";
-  const { tools, familyA, familyB } = getActiveFamilies(stage);
+  const { tools, familyA, familyB } = getActiveFamilies();
 
   const isCandidateMcp = familyA.has(toolName) || familyB.has(toolName);
   if (isCandidateMcp) {

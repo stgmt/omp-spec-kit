@@ -223,9 +223,7 @@ export function createSpecService(root, context = {}) {
     activeProjectRoot: context.activeProjectRoot ?? resolvedRoot,
     rootMode: context.rootMode,
   });
-  const stage = typeof context.stage === "string"
-    ? context.stage
-    : globalThis.process?.env?.OMP_SPEC_KIT_STAGE ?? "v0.3.2";
+  const stage = "single-surface";
   let settled = null;
 
   function withProvenance(envelope) {

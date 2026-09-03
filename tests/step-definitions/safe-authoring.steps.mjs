@@ -75,7 +75,7 @@ async function runCandidateManagerE2E() {
     await rm(probeHome, { recursive: true, force: true });
   }
 }
-Given("a disposable real authoring corpus and live v0.4.1 MCP server", async function () {
+Given("a disposable real authoring corpus and live MCP server", async function () {
   this.root = await createTempRepo();
   this.corpus = await loadAuthoringRealCorpus(REPOSITORY_ROOT);
   await writeCorpus(this.root, this.corpus.files);
@@ -83,15 +83,17 @@ Given("a disposable real authoring corpus and live v0.4.1 MCP server", async fun
     serverPath: SERVER_PATH,
     root: this.root,
     cwd: this.root,
-    env: { OMP_SPEC_KIT_STAGE: "v0.4.1" },
+    env: {},
   });
 });
 
-When("the v0.4.1 scenario {string} runs", async function (scenario) {
+When("the scenario {string} runs", async function (scenario) {
   if (scenario === "inventory") {
     const listed = await this.server.request("tools/list");
     const names = listed.result.tools.map((tool) => tool.name).sort();
-    assert.deepEqual(names, ["apply_proposed_patch", "propose_patch", "spec_diagnostics", "spec_find_nodes", "spec_get_edges", "spec_get_node", "spec_inventory", "spec_markdown_inventory", "spec_overview", "spec_trace"]);
+    assert.equal(names.length, 38, "single surface exposes exactly 38 tools");
+    for (const name of ["propose_patch", "apply_proposed_patch", "create_spec", "spec_inventory", "spec_overview"]) assert.equal(names.includes(name), true, name + " must be registered");
+    for (const removed of ["apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) assert.equal(names.includes(removed), false, removed + " must be gone");
     this.result = true;
     return;
   }
@@ -190,7 +192,7 @@ When("the v0.4.1 scenario {string} runs", async function (scenario) {
     return;
   }
   if (scenario === "installed-factory") {
-    const receipt = await runExtensionProbe({ extensionPath: path.join(REPOSITORY_ROOT, "plugins/omp-spec-kit/dist/extension.js"), cwd: this.root, env: { OMP_SPEC_KIT_STAGE: "v0.4.1" } });
+    const receipt = await runExtensionProbe({ extensionPath: path.join(REPOSITORY_ROOT, "plugins/omp-spec-kit/dist/extension.js"), cwd: this.root, env: {} });
     const names = receipt.tools.map((tool) => tool.name).sort();
     assert.equal(receipt.exports.pluginVersion, PACKAGE_VERSION);
     assert.equal(names.length, 0, "installed extension must register 0 direct tools in MCP-only architecture");
@@ -200,11 +202,13 @@ When("the v0.4.1 scenario {string} runs", async function (scenario) {
     return;
   }
   if (scenario === "future-hidden") {
-    await this.server.close();
-    this.server = spawnMcpServer({ serverPath: SERVER_PATH, root: this.root, cwd: this.root, env: { OMP_SPEC_KIT_STAGE: "v0.3.2" } });
     const listed = await this.server.request("tools/list");
-    assert.equal(listed.result.tools.some((tool) => tool.name === "propose_patch"), false);
-    assert.equal(listed.result.tools.some((tool) => tool.name === "apply_proposed_patch"), false);
+    const names = listed.result.tools.map((tool) => tool.name);
+    assert.equal(names.includes("propose_patch"), true);
+    assert.equal(names.includes("apply_proposed_patch"), true);
+    for (const removed of ["apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) assert.equal(names.includes(removed), false, removed + " must stay unknown");
+    const unknown = await this.server.request("tools/call", { name: "apply_spec_change", arguments: { schemaVersion: "spec-kernel@1", requestId: "safe-removed-verb" } });
+    assert.equal(unknown.error?.code, -32602, "removed tools must be unknown, not gated");
     this.result = true;
     return;
   }
@@ -337,7 +341,7 @@ When("the v0.4.1 scenario {string} runs", async function (scenario) {
     }
     assert.equal(receipt.provenance.runtime.version, "18.0.11");
     assert.deepEqual(receipt.manager.connectionResult.connectedServers, ["omp-spec-kit:omp-spec-kit"]);
-    assert.equal(receipt.manager.connectionResult.toolCount, 49);
+    assert.equal(receipt.manager.connectionResult.toolCount, 38);
     assert.deepEqual(receipt.manager.connectionResult.managedAuthoring.toolNames, ["spec_overview", "propose_patch", "apply_proposed_patch"]);
     assert.equal(receipt.manager.connectionResult.managedAuthoring.applyOutcome, "APPLIED");
     assert.equal(receipt.manager.connectionResult.managedAuthoring.finalDocumentContainsMarker, true);
@@ -348,7 +352,7 @@ When("the v0.4.1 scenario {string} runs", async function (scenario) {
   throw new Error("unknown safe-authoring scenario: " + scenario);
 });
 
-Then("the v0.4.1 scenario passes", function () {
+Then("the scenario passes", function () {
   assert.equal(this.result, true);
 });
 

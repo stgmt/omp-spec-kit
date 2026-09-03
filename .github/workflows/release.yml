@@ -49,14 +49,10 @@ jobs:
         run: |
           archive="$(node -p "require('./release-candidate/candidate.json').archive.file")"
           node scripts/smoke-release-archive.mjs --archive "release-candidate/$archive"
-      - name: Smoke explicit safe-authoring compatibility stage
-        run: |
-          archive="$(node -p "require('./release-candidate/candidate.json').archive.file")"
-          node scripts/smoke-release-archive.mjs --archive "release-candidate/$archive" --stage safe-authoring
       - run: mkdir -p .omp-spec-kit/evidence/bdd-results
-      - name: Run v0.5.0 safe-authoring BDD and OMP manager E2E
+      - name: Run safe-authoring BDD and OMP manager E2E
         run: npm run test:safe-authoring
-      - name: Run v0.5.0 release-integrity BDD
+      - name: Run release-integrity BDD
         run: npm run test:release-integrity
       - name: Run Docker BDD and preserve canonical Cucumber messages
         run: |

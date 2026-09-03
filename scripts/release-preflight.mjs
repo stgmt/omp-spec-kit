@@ -56,7 +56,6 @@ run("verify public tree", nodeCommand, ["scripts/verify-public-tree.mjs", "--can
 const candidate = readJson(`${candidateDir}/candidate.json`);
 const archivePath = path.join(candidateDir, candidate.archive.file);
 run("smoke default archive", nodeCommand, ["scripts/smoke-release-archive.mjs", "--archive", archivePath]);
-run("smoke safe-authoring compatibility", nodeCommand, ["scripts/smoke-release-archive.mjs", "--archive", archivePath, "--stage", "safe-authoring"]);
 
 const result = {
   schema: "omp-spec-kit-release-preflight@1",
@@ -67,7 +66,7 @@ const result = {
   candidateDigest: candidate.candidateDigest,
   packageTreeDigest: candidate.packageTreeDigest,
   archive: candidate.archive,
-  checks: ["clean-worktree", "peeled-tag", "npm-test", "release-integrity", "candidate", "public-safety", "archive-default", "archive-safe-authoring"],
+  checks: ["clean-worktree", "peeled-tag", "npm-test", "release-integrity", "candidate", "public-safety", "archive-default"],
   note: "GitHub attestation, publication, and installed dogfood remain separate post-preflight gates."
 };
 console.log(`\n${JSON.stringify(result, null, 2)}`);

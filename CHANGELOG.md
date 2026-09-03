@@ -1,6 +1,19 @@
 # Changelog
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
+## 0.8.0 — unreleased
+
+Single-surface minor: 49 tools cut to 38, release-stage abstraction removed.
+
+### Removed
+
+- Ten duplicate tools with zero unique logic: `apply_spec_change`, `apply_spec_transaction`, `apply_spec_repairs` (one shared apply function), `append_to_section`, `insert_after_heading`, `insert_at_eof`, `replace_in_section` (bare `propose_patch` operation kinds), `propose_spec_change`, `propose_spec_repairs` (pass-through wrappers), `propose_requirement_contract` (identical to `set_requirement_metadata`), `list_phase_tasks` (covered by the `list_tasks` phase filter).
+- Release-stage selection (`OMP_SPEC_KIT_STAGE`, staged contract sets): one 38-tool surface, no backward-compatible profiles. Multi-document apply stays available through `propose_patch` operations arrays.
+
+### Changed
+
+- Authoring descriptions rewritten to use-when form; `get_spec_status` and `mcp_preflight` marked as entry points.
+- Test matrices consolidated on the single surface (38-tool inventory, multi-operation proposal coverage, evidence matrices).
 ## 0.7.0 — 2026-09-04
 
 Hardened safe-authoring minor for OMP 18.0.11. Same 49-tool surface as v0.6.0; no tool added or removed.

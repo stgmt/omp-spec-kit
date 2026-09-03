@@ -17,7 +17,7 @@ import {
   resolveRepositoryContext,
   summarizeEnvelope,
 } from "../adapters/query-service.js";
-import { MUTATING_TOOL_NAMES, toolContractsForStage, jsonSchemaFor, validateContractArguments } from "../adapters/tool-contracts.js";
+import { MUTATING_TOOL_NAMES, TOOL_CONTRACTS as activeContracts, jsonSchemaFor, validateContractArguments } from "../adapters/tool-contracts.js";
 
 const PROTOCOL_VERSION_FALLBACK = "2025-03-26";
 const SERVER_NAME = "omp-spec-kit";
@@ -129,13 +129,10 @@ function normalizeArguments(rawArguments) {
   return { ok: true, args: normalized };
 }
 
-const activeStage = globalThis.process?.env?.OMP_SPEC_KIT_STAGE ?? "v0.7.0";
-const activeContracts = toolContractsForStage(activeStage);
 const contractsByName = new Map(activeContracts.map((contract) => [contract.tool, contract]));
 const rootContext = resolveRepositoryContext();
 const service = createSpecService(rootContext.resolvedRoot, {
   ...rootContext,
-  stage: activeStage,
 });
 function argumentErrorEnvelope(operation, requestId, validation) {
   const envelope = internalErrorEnvelope(operation, requestId, service.provenance);
