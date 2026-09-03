@@ -59,3 +59,19 @@ These criteria define future verification obligations. Scenario text alone is no
 **Check:** CHK-FR7-01, CHK-FR7-02
 
 **Scenario:** @feature7, @id:SCEN-mcp-access-gate-non-mcp-spec-access
+
+## AC-8.1: Windows read selectors
+
+**EARS:** WHEN a `read` call on win32 carries `:1`, `:1-2`, `:1+2`, `:1-`, `:1..2`, comma lists, `L`-prefixes, `:raw`, `:conflicts`, or `raw:<range>` / `<range>:raw` combos THEN the gate SHALL strip the selector before path policy and preserve the safe-path decision; WHEN the tool is not `read`, or the selector is `:0` or malformed, THEN no stripping SHALL occur.
+
+**Requirement:** [FR-8](FR.md#fr-8-windows-read-selector-support)
+
+**Scenario:** `SCEN-read-selectors`
+
+## AC-9.1: Execution guard limits
+
+**EARS:** WHEN `code` or `command` contains an obvious `.specs` segment THEN the gate SHALL BLOCK `RAW_SPEC_WRITE` for eval, context-mode, and shell calls; WHEN no such segment exists THEN the call SHALL NOT block on this rule. Dynamically assembled paths are an explicit non-goal.
+
+**Requirement:** [FR-9](FR.md#fr-9-execution-payload-specification-guard-with-stated-limits)
+
+**Scenario:** `SCEN-execution-edges`
