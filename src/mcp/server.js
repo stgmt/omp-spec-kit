@@ -149,6 +149,25 @@ function argumentErrorEnvelope(operation, requestId, validation) {
   };
 }
 
+const RETIRED_TOOL_HINTS = Object.freeze({
+  apply_spec_change: "use apply_proposed_patch instead (identical arguments)",
+  apply_spec_transaction: "use apply_proposed_patch instead (multi-document proposals apply in one call)",
+  apply_spec_repairs: "use apply_proposed_patch instead (identical arguments)",
+  append_to_section: "use propose_patch with operations: [{ kind: \"append_to_section\", document, heading, text }]",
+  insert_after_heading: "use propose_patch with operations: [{ kind: \"insert_after_heading\", document, heading, text }]",
+  insert_at_eof: "use propose_patch with operations: [{ kind: \"insert_at_eof\", document, text }]",
+  replace_in_section: "use propose_patch with operations: [{ kind: \"replace_in_section\", document, heading, oldText, newText }]",
+  propose_spec_change: "use propose_patch with operations: [{ kind, document, ...change }] (replace_document needs content)",
+  propose_spec_repairs: "use propose_patch with operations set to the repairs array",
+  propose_requirement_contract: "use set_requirement_metadata with metadata set to the contract object",
+  list_phase_tasks: "use list_tasks with the phase filter",
+});
+
+function unknownToolMessage(name) {
+  const hint = RETIRED_TOOL_HINTS[name];
+  return hint === undefined ? `Unknown tool: ${name}` : `Unknown tool: ${name} (removed in v0.8.0; ${hint})`;
+}
+
 function respondTool(id, envelope) {
   const text = envelope.operation === "inventory" ? summarizeEnvelope(envelope) : JSON.stringify(envelope);
   respond(id, {
@@ -205,7 +224,7 @@ async function handleMessage(message) {
     const params = isPlainObject(message.params) ? message.params : {};
     const contract = typeof params.name === "string" ? contractsByName.get(params.name) : undefined;
     if (!contract) {
-      respondError(id, -32602, `Unknown tool: ${typeof params.name === "string" ? params.name : "<missing>"}`);
+      respondError(id, -32602, unknownToolMessage(typeof params.name === "string" ? params.name : "<missing>"));
       return;
     }
     const hasArguments = Object.prototype.hasOwnProperty.call(params, "arguments");
