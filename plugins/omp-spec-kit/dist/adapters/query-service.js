@@ -14,7 +14,7 @@ import { readRepositorySpecs } from "../kernel/adapters/fs.js";
 import { EXTENDED_OPERATIONS, executeExtendedQuery } from "../kernel/query/extended.js";
 import { DOCUMENT_OPERATIONS, executeDocumentOperation } from "./document-service.js";
 import { EVIDENCE_OPERATIONS, executeEvidenceOperation } from "../evidence/service.js";
-import { AUTHORING_OPERATIONS, createAuthoringService } from "../authoring/service.js";
+import { createAuthoringService } from "../authoring/service.js";
 import { readConsistentRepositorySpecs } from "../authoring/transactions.js";
 
 export { KERNEL_SCHEMA_VERSION };

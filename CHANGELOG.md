@@ -1,6 +1,19 @@
 # Changelog
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
+## 0.10.2 — 2026-09-05
+
+Consolidates safe specification authoring into a single closed `spec_patch` tool with `dryRun` preview and atomic transaction semantics, eliminating the separate proposal and application lifecycle.
+
+### Changed
+
+- Replaced public tools `spec_propose_patch` and `apply_proposed_patch` with a single closed `spec_patch` tool (`specPatch` operation, `intent` discriminator).
+- Consolidated tool surface to exactly 10 tools: 9 read-only tools and 1 mutating tool (`spec_patch`).
+- Default `dryRun: true` (or omitted) performs pure in-memory preview with bounded unified diff and resulting-spec validation with zero filesystem modifications.
+- Explicit `dryRun: false` compiles the internal proposal, verifies snapshot fingerprint and document preimages under exclusive spec lock, and executes atomic commit via same-filesystem staging and rename swap.
+- Removed public proposal IDs, proposal hashes, expected document arrays, and the string `approval: "approve"` parameter from client input schemas.
+- Hard cut on all 38 superseded tool names: calls return standard protocol error `-32602` without custom migration hints or backward-compatibility fallbacks.
+
 ## 0.8.2 — 2026-09-04
 
 Corrective release unifying specification validation and diagnostics inspection into one task-oriented branch with self-describing `oneOf` input schemas.

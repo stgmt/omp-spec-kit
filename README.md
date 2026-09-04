@@ -20,11 +20,11 @@ Update an existing project install with:
 omp plugin upgrade omp-spec-kit@omp-spec-kit --scope project
 ```
 
-This v0.8.2 release provides the unified validation inspection and consolidated 11-tool MCP surface for OMP 18.0.11 and 18.1.6.
+This v0.10.2 release provides the single spec_patch authoring tool and consolidated 10-tool MCP surface for OMP 18.0.11 and 18.1.6.
 
 ## Available today
 
-The v0.8.2 release exposes exactly 11 task-oriented MCP tools: 10 bounded read-only tools and one transactional apply tool.
+The v0.10.2 release exposes exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool.
 
 | Need | Tool | Variant |
 |---|---|---|
@@ -64,10 +64,11 @@ The next releases add capabilities without removing the eight compatibility tool
 - **v0.6.0 — shipped:** single MCP server exposing all 49 tools with 24 authoring operations and fail-closed OMP enforcement hook.
 - **v0.7.0 — shipped:** hardened safe authoring with documented Windows selectors and execution-payload guard; same 49 tools.
 - **v0.8.1 — shipped:** single consolidated 11-tool surface; 27 superseded tools and release stages excised without backward-compatibility shims.
-- **v0.8.2 — shipped:** unified validation inspection branch in spec_inspect with pre-filter verdicts, scope counts, and self-describing oneOf schemas.
+- **v0.10.2 — shipped:** unified validation inspection branch in spec_inspect with pre-filter verdicts, scope counts, and self-describing oneOf schemas.
+- **v0.10.2 — shipped:** single spec_patch authoring tool with dryRun preview and atomic commit; hard tool cut to 10 tools without backward-compatibility shims.
 - **v0.9.0 — automatic plan gate:** validate the exact plan selected by OMP before approval in interactive and ACP sessions.
 
-The v0.8.2 release is tested with accurate release notes, an exact archive smoke from unset environment, independent package/lifecycle/Docker BDD/OMP manager evidence, and commit-bound attestations. See ROADMAP.md for release proof and sequencing.
+The v0.10.2 release is tested with accurate release notes, an exact archive smoke from unset environment, independent package/lifecycle/Docker BDD/OMP manager evidence, and commit-bound attestations. See ROADMAP.md for release proof and sequencing.
 ## Safety and boundaries
 
 The published v0.3.2 predecessor is read-only. The v0.4.1 release is proposal-first: preview and validate a change, then apply the exact reviewed proposal through the trusted host path. Direct untrusted writes to .specs are not an alternative API.
@@ -80,6 +81,6 @@ The MCP server reads the active OMP project. It does not use editor LSP as a sub
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution workflow
 - [`CHANGELOG.md`](CHANGELOG.md) — release history
 - [`ROADMAP.md`](ROADMAP.md) — user-visible delivery sequence
-- docs/validation/release-status-v0.8.2.json — current release status and verification record
+- docs/validation/release-status-v0.10.2.json — current release status and verification record
 
 License: MIT.
