@@ -68,7 +68,7 @@ The read adapter SHALL accept one explicit root and only regular, canonical docu
 
 ## FR-6: Historical eight-name compatibility
 
-The released v0.3.2 runtime SHALL remain **SHIPPED** through thin adapters with these exact MCP names: `spec_inventory`, `spec_get_node`, `spec_find_nodes`, `spec_get_edges`, `spec_trace`, `spec_diagnostics`, `spec_overview`, and `spec_markdown_inventory`. Each adapter SHALL project the shared core result without semantic reinterpretation. Historical decoders, serializers, and immutable fixture replay MAY retain released-format compatibility only. New core behavior is **NEXT**; speculative extensions are **LATER** or omitted.
+The released v0.3.2 runtime SHALL remain immutable in historical package receipts and replay fixtures with its exact eight names (`spec_inventory`, `spec_get_node`, `spec_find_nodes`, `spec_get_edges`, `spec_trace`, `spec_diagnostics`, `spec_overview`, and `spec_markdown_inventory`). These historical names SHALL NOT be required in the active runtime surface. Historical decoders, serializers, and immutable fixture replay MAY retain released-format compatibility only.
 
 **Acceptance:** [AC-6.1](ACCEPTANCE_CRITERIA.md#ac-61-historical-eight-name-compatibility)
 
@@ -222,18 +222,17 @@ The product release gate MAY consume ordinary `TaskEvidence` and `ScenarioEviden
 
 Runtime identities are qualified as `spec-mcp-operations:FR-N`. Product state is `NEXT` under `plugin-distribution:FR-17`; no paragraph claims runtime delivery.
 
-## FR-23: Two-tool public boundary
+## FR-23: Single-tool public boundary
 
-The future MCP authoring surface SHALL contain exactly `propose_patch` and `apply_proposed_patch`. Domain helpers SHALL compile internally to the same edit-operation representation and SHALL NOT register public tools. The current-host `tool_call` policy SHALL compare the exact two-name allowlist first; every other mutating call whose resolved target is under canonical `.specs/**` SHALL be denied before execution. Calls outside that path remain subject to normal host policy.
+The MCP authoring surface SHALL expose `spec_patch` as the single public authoring tool, consolidating in-memory proposal review and transactional application behind a single entry point. It SHALL support all 13 authoring intents (`patch`, `amendRequirement`, `addAcceptanceCriterion`, `addPhase`, `setEntityStatus`, `setSpecStatus`, `setRequirementMetadata`, `deleteSpecDoc`, `renameSpecDoc`, `createSpec`, `archiveSpec`, `addBacklogTask`, and `registerIncidentBacklog`). When `dryRun` is omitted or set to `true`, it SHALL perform verified in-memory preview without writing. When `dryRun` is `false`, it SHALL execute an internal transaction under an exclusive lock. The current-host `tool_call` policy SHALL verify minted MCP tool names; every other mutating call whose resolved target is under canonical `.specs/**` SHALL be denied before execution. Calls outside that path remain subject to normal host policy.
 
-**Contract card:** kind `boundary`; subject `authoring-public-surface`; observables: exact tools/list names, path-policy decision, handler route; negative cases: helper registration, alternate writer, non-allowlisted `.specs/**` target; verification: installed MCP inventory and tool-call policy integration tests, pending.
-**Acceptance:** [AC-23.1](ACCEPTANCE_CRITERIA.md#ac-231), [AC-23.2](ACCEPTANCE_CRITERIA.md#ac-232)
+**Acceptance:** [AC-23.1](ACCEPTANCE_CRITERIA.md#ac-231)
+
 **Scenario:** `@feature23`
-**Story / use case:** [US-10](USER_STORIES.md#us-10-review-exact-changes-before-mutation), [US-13](USER_STORIES.md#us-13-contain-the-write-boundary), [UC-12](USE_CASES.md#uc-12-reject-an-escaping-or-raw-write)
 
 ## FR-24: Pure deterministic proposal
 
-`propose_patch` SHALL accept canonical operations for exactly one spec, resolve them against one immutable kernel snapshot, apply them only in memory, and return a complete deterministic Proposal containing proposal identity/hash, spec identity, base snapshot hash, normalized operations, per-document before/after hashes, bounded unified diffs, affected node IDs, and ordered findings. Proposal creation SHALL write no repository, journal, review, or transaction state. Incomplete or truncated previews SHALL be invalid and unappliable.
+`spec_patch` with `dryRun: true` (or omitted) SHALL accept canonical operations or intent for exactly one spec, resolve them against one immutable kernel snapshot, apply them only in memory, and return a complete deterministic Proposal preview with outcome PREVIEW containing proposal hash, spec identity, base snapshot hash, normalized operations, per-document before/after hashes, bounded unified diffs, affected node IDs, and ordered findings. Proposal preview SHALL write no repository, journal, review, staging, or transaction state. Incomplete or truncated previews SHALL be invalid and unappliable.
 
 **Contract card:** kind `api`; subject `pure-proposal`; observables: Proposal and unchanged tree hashes; negative cases: mixed specs, duplicate target, invalid operation, exceeded preview bound; verification: deterministic no-write tests, pending.
 **Acceptance:** [AC-24.1](ACCEPTANCE_CRITERIA.md#ac-241), [AC-24.2](ACCEPTANCE_CRITERIA.md#ac-242)
@@ -251,7 +250,7 @@ Both public tools SHALL require one explicit canonical repository root and root-
 
 ## FR-26: Exact-proposal apply with CAS and revalidation
 
-`apply_proposed_patch` SHALL accept only an existing complete Proposal identity/hash, the expected current hash of every changed document, and a non-empty reason. It SHALL accept no raw operations or replacement bytes. Under one spec-scoped exclusive lock it SHALL re-resolve containment, verify the Proposal hash and document set, compare current hashes, rebuild the exact in-memory result, rerun every mandatory validator, compare hashes again immediately before commit, and refuse on any mismatch. It SHALL never auto-rebase. Replaying the same request identity and content SHALL not create a second commit.
+`spec_patch` with `dryRun: false` SHALL accept a non-empty reason and one specification's canonical operations or intent. Under one spec-scoped exclusive lock it SHALL re-resolve containment, verify the internally compiled Proposal hash and document set, compare current hashes with base snapshot and document preimages, rebuild the exact in-memory result, rerun every mandatory validator, compare hashes again immediately before commit, and refuse on any mismatch. It SHALL never auto-rebase. `proposalId`, `proposalSha256`, `expectedDocuments`, and `approval` are internal only and removed from the public input schema. Replaying the same request identity and content SHALL not create a second commit.
 
 **Contract card:** kind `behavior`; subject `cas-apply`; observables: one exact result or structured refusal; negative cases: missing/extra hash, stale base, proposal mismatch, concurrent change, request reuse with different content; verification: two-writer and replay tests, pending.
 **Acceptance:** [AC-26.1](ACCEPTANCE_CRITERIA.md#ac-261), [AC-26.2](ACCEPTANCE_CRITERIA.md#ac-262)
@@ -269,7 +268,7 @@ After successful revalidation, the writer SHALL stage a complete result generati
 
 ## FR-28: Byte conservation and compact redacted outcomes
 
-Every accepted edit SHALL preserve untouched bytes, source EOL style, encoding, and final-newline state; changed documents SHALL equal the Proposal after-hashes byte-for-byte. Proposal and Apply responses SHALL use the compact schema and seven error families defined in [spec-mcp-operations_SCHEMA.md](spec-mcp-operations_SCHEMA.md). A successful apply SHALL return one redacted MutationReceipt with request/proposal identity, outcome, reason and actor reference when available, changed relative document paths with before/after hashes, and findings. Responses SHALL exclude document bodies, full diffs from apply, credentials, environment values, authorization material, retained bytes, and unrelated paths.
+Every accepted edit SHALL preserve untouched bytes, source EOL style, encoding, and final-newline state; changed documents SHALL equal the Proposal after-hashes byte-for-byte. Spec patch responses SHALL use the compact schema and seven error families defined in [spec-mcp-operations_SCHEMA.md](spec-mcp-operations_SCHEMA.md). A successful preview SHALL return outcome PREVIEW with diff and before/after hashes; a successful apply SHALL return outcome APPLIED with one redacted MutationReceipt containing request identity, outcome, reason and actor reference when available, changed relative document paths with before/after hashes, and findings. Conflict outcomes return REFUSED with typed error. Responses SHALL exclude document bodies, full diffs from apply, credentials, environment values, authorization material, retained bytes, and unrelated paths.
 
 **Contract card:** kind `data`; subject `conservation-and-receipt`; observables: byte hashes, EOL/final-newline state, compact receipt; negative cases: accidental normalization, secret/body leak, stack trace; verification: byte corpus and redaction tests, pending.
 **Acceptance:** [AC-28.1](ACCEPTANCE_CRITERIA.md#ac-281), [AC-28.2](ACCEPTANCE_CRITERIA.md#ac-282)
@@ -284,3 +283,65 @@ Implementation SHALL be verified with provenance-recorded real kernel corpus cap
 **Acceptance:** [AC-29.1](ACCEPTANCE_CRITERIA.md#ac-291), [AC-29.2](ACCEPTANCE_CRITERIA.md#ac-292)
 **Scenario:** `@feature29`
 **Story / use case:** [US-11](USER_STORIES.md#us-11-reject-stale-edits), [US-12](USER_STORIES.md#us-12-commit-related-documents-together), [UC-11](USE_CASES.md#uc-11-resolve-a-concurrent-edit), [UC-14](USE_CASES.md#uc-14-survive-a-writer-fault)
+
+
+## FR-30: MCP discovery metadata and handshake
+
+The MCP server SHALL expose exactly 10 tools in the fixed contract order: `mcp_preflight`, `spec_catalog`, `spec_entities`, `spec_graph`, `spec_documents`, `spec_inspect`, `spec_tasks`, `spec_evidence`, `spec_markdown`, and `spec_patch`. Each `tools/list` entry SHALL publish a non-empty top-level `title` equal to the contract label, and publish exactly four boolean annotations: `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint`. The 9 non-mutating tools SHALL use `true, false, true, false` respectively; `spec_patch` SHALL use `false, true, true, false`. Each first description line SHALL be non-empty and no longer than 200 characters. `initialize` SHALL return one instructions paragraph defining the discovery, query, proposal, review, and approval workflow.
+
+**Contract card:** kind `functional`; subject `mcp-discovery`; observables: 10 ordered tools, titles, four annotations, description cap, initialize instructions; verification: direct JSON-RPC and staged BDD.
+**Acceptance:** [AC-30.1](ACCEPTANCE_CRITERIA.md#ac-301-mcp-discovery-metadata-and-handshake)
+**Scenario:** `@feature30 @FR-30 @AC-30.1 @id:SCEN-mcp-discovery-metadata`
+
+## FR-31: Declared result envelope and actionable recovery
+
+The MCP server MUST declare one stable output schema for every listed tool, return the same canonical envelope in the structured content and the text content, and expose bounded recovery guidance for stale cursors and optimistic-concurrency conflicts. A `repositoryRootFingerprint` conflict MUST use stable `causeCode` `REPOSITORY_ROOT_FINGERPRINT_MISMATCH`, mention that another project or a stale snapshot may be in use, expose only `activeProjectRootId` and `resolvedRootId` as root identities, and direct the caller to `mcp_preflight`. When those roots do not match, the caller MUST reconnect; otherwise it MUST refresh the `spec_catalog` overview and create a new proposal.
+
+
+## FR-32: Discriminated branch schemas and strict argument validation
+
+Consolidated MCP tools SHALL define input schemas with top-level discriminator fields and strict `oneOf` branches where `additionalProperties` is false. Each branch in `oneOf` SHALL publish its own title formatted as `<discriminator>: <variant>` and a descriptive description, while the top-level discriminator property description SHALL instruct the client to choose exactly one declared branch. Missing discriminators, unknown discriminators, cross-branch fields, and extraneous properties SHALL be rejected with typed `INVALID_REQUEST` validation errors before dispatch to query or authoring services.
+
+**Acceptance:** [AC-32.1](ACCEPTANCE_CRITERIA.md#ac-321-discriminated-branch-schemas-and-strict-argument-validation)
+
+**Scenario:** `@feature32 @FR-32 @AC-32.1 @id:SCEN-mcp-discriminated-variants`
+
+## FR-33: Domain type dictionary catalog
+
+`spec_catalog` with `view: "types"` SHALL return the authoritative domain type dictionary from the kernel containing exactly 15 entity kind descriptors and 7 edge type descriptors. Each descriptor SHALL include a canonical identifier, a Title Case display label, and a single-sentence description. Kernel enums, schema declarations, documentation, and catalog responses SHALL be derived from this single immutable source.
+
+**Acceptance:** [AC-33.1](ACCEPTANCE_CRITERIA.md#ac-331-domain-type-dictionary-catalog)
+
+**Scenario:** `@feature33 @FR-33 @AC-33.1 @id:SCEN-mcp-types-catalog`
+
+## FR-34: Surface blast limits and fail-closed measurement
+
+The MCP tool surface SHALL be bounded by automated measurement. In release candidates, tool count SHALL equal 10, catalog JSON size SHALL not exceed 25,499 bytes (60% of the 38-tool baseline), total description text SHALL not exceed 2,000 characters, and zero retired tool names SHALL appear. Automated verification SHALL fail closed whenever any bound is violated.
+
+**Acceptance:** [AC-34.1](ACCEPTANCE_CRITERIA.md#ac-341-surface-blast-limits-and-fail-closed-measurement)
+
+**Scenario:** `@feature34 @FR-34 @AC-34.1 @id:SCEN-mcp-surface-blast-limits`
+
+## FR-35: Hard tool retirement without backward-compatibility shims
+
+All 29 superseded tool names from the 38-tool surface (including `spec_propose_patch` and `apply_proposed_patch`) SHALL be excised from runtime discovery, query routing, active documentation, and test assertions. Unregistered calls to retired names SHALL return standard JSON-RPC protocol error `-32602` without custom migration hints, aliases, or backward-compatibility fallbacks.
+
+**Acceptance:** [AC-35.1](ACCEPTANCE_CRITERIA.md#ac-351-hard-tool-retirement-without-backward-compatibility-shims)
+
+**Scenario:** `@feature35 @FR-35 @AC-35.1 @id:SCEN-mcp-hard-retirement-no-shims`
+
+## FR-36: Deterministic mutation testing gate
+
+Tool contracts, validation rules, discriminator invariants, and annotation mappings SHALL be guarded by an in-memory deterministic mutation test gate. Mutation runs SHALL evaluate synthetic mutant variants against contract invariants and require zero surviving mutants (`survivors: 0`) before release.
+
+**Acceptance:** [AC-36.1](ACCEPTANCE_CRITERIA.md#ac-361-deterministic-mutation-testing-gate)
+
+**Scenario:** `@feature36 @FR-36 @AC-36.1 @id:SCEN-mcp-mutation-testing-gate`
+
+## FR-37: Unified specification and corpus validation inspection
+
+`spec_inspect` with `check: "validation"` SHALL serve as the single public entry point for structural specification and corpus validation, replacing the deprecated `specValidation` and `diagnostics` branches without backward-compatibility aliases. The operation SHALL accept optional `specSlugs` (empty or omitted means entire corpus; non-empty validates named specifications), `severities`, `codes`, `paths`, `limit`, and `cursor`. Unknown or malformed spec slugs SHALL fail closed with typed errors (`INVALID_PARAMETER` for malformed slug syntax, `NOT_FOUND` when a requested specification is absent from the corpus) before computing validation results. Membership in a specification's validation scope SHALL be determined solely by `diagnostic.specSlug`; diagnostics lacking `specSlug` SHALL be included in corpus validation and excluded from spec-specific scopes, and path prefix matching (`startsWith(".specs/<slug>/")`) SHALL NOT be used. Overall `valid`, `verdict` (`VALID` or `INVALID`), and scope counts (`errors`, `warnings`, `info`, `total`) SHALL be computed across all diagnostics in the selected scope prior to applying severity, code, or path filters. Filters SHALL only constrain the returned `items` array and `counts.matched`. Pagination via `limit` and `cursor` SHALL page `items` deterministically with cursor bound to graph fingerprint, scope, and filters.
+
+**Contract card:** kind `functional`; subject `spec-validation`; observables: unified validation check, scope filtering, pre-filter verdict and totals, matched counts, error on missing/malformed slug, removal of specValidation and diagnostics variants; verification: direct JSON-RPC and staged BDD.
+**Acceptance:** [AC-37.1](ACCEPTANCE_CRITERIA.md#ac-371-unified-specification-and-corpus-validation-inspection)
+**Scenario:** `@feature37 @FR-37 @AC-37.1 @id:SCEN-mcp-unified-validation`

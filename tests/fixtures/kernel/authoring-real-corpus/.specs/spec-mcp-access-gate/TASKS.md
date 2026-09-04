@@ -12,7 +12,7 @@ All tasks are future implementation work. Scenario text does not satisfy Done Wh
 
 **Depends On:** none
 
-**Requirements:** [FR-2](FR.md#fr-2-exact-two-name-authoring-allowlist), [FR-4](FR.md#fr-4-closed-path-policy-decision), [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results)
+**Requirements:** [FR-2](FR.md#fr-2-exact-authoring-allowlist), [FR-4](FR.md#fr-4-closed-path-policy-decision), [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results)
 
 **Done When:**
 - `decision.js` contains exactly the two authoring names and six public result codes.
@@ -67,7 +67,7 @@ All tasks are future implementation work. Scenario text does not satisfy Done Wh
 
 **Depends On:** TASK-3
 
-**Requirements:** [FR-2](FR.md#fr-2-exact-two-name-authoring-allowlist), [FR-3](FR.md#fr-3-filesystem-backed-containment), [FR-4](FR.md#fr-4-closed-path-policy-decision), [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results), [FR-6](FR.md#fr-6-single-factory-installed-delivery)
+**Requirements:** [FR-2](FR.md#fr-2-exact-authoring-allowlist), [FR-3](FR.md#fr-3-filesystem-backed-containment), [FR-4](FR.md#fr-4-closed-path-policy-decision), [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results), [FR-6](FR.md#fr-6-single-factory-installed-delivery)
 
 **Done When:**
 - Real OMP call captures and real POSIX/Windows filesystem trees carry the complete FIXTURES manifest.
@@ -84,7 +84,7 @@ All tasks are future implementation work. Scenario text does not satisfy Done Wh
 | TASK-3 | todo | Extension maintainer | Existing-factory installed policy |
 | TASK-4 | todo | Independent reviewer | Real cross-platform policy fixtures |
 
-## TASK-5 — Ground the pinned OMP tool-call contract
+## TASK-5: Ground the pinned OMP tool-call contract
 
 **Status:** todo
 
@@ -102,7 +102,7 @@ All tasks are future implementation work. Scenario text does not satisfy Done Wh
 
 **Done When:** Exact event fields, tool variants, namespacing, authority ABI, timeout, exception, and error semantics are captured from the pinned runtime and positive/negative probes reconcile with the schema.
 
-## TASK-6 — Cover all non-MCP specification access paths
+## TASK-6: Cover all non-MCP specification access paths
 
 **Status:** todo
 
@@ -112,7 +112,7 @@ All tasks are future implementation work. Scenario text does not satisfy Done Wh
 
 **Depends On:** TASK-2, TASK-4, TASK-5
 
-**Requirements:** [FR-3](FR.md#fr-3-filesystem-backed-containment), [FR-4](FR.md#fr-4-closed-path-policy-decision), [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results), [FR-7](FR.md#fr-7-non-mcp-read-and-execution-denial), [NFR-USE-2](NFR.md#nfr-use-2-cross-surface-agent-denial)
+**Requirements:** [FR-3](FR.md#fr-3-filesystem-backed-containment), [FR-4](FR.md#fr-4-closed-path-policy-decision), [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results), [FR-7](FR.md#fr-7-non-mcp-read-and-execution-denial), [FR-8](FR.md#fr-8-windows-read-selector-support), [FR-9](FR.md#fr-9-execution-payload-specification-guard-with-stated-limits), [NFR-USE-2](NFR.md#nfr-use-2-cross-surface-agent-denial)
 
 **Checks:** CHK-FR3-01, CHK-FR4-01, CHK-FR5-01, CHK-FR7-01, CHK-FR7-02
 

@@ -370,3 +370,38 @@ interface GetTestResultSuccessV1 {
 ```
 
 The public and destination operation registry is the 46-row map in docs/decisions/spec-generator-port.md: rows 1–22 are Read; rows 23–46 are Write. Public exposure is governed by the lifecycle profile, not by the existence of a destination row. Proposal, ApplyResult, MutationReceipt, and WriteError are compact, body-free response contracts; only Proposal carries the bounded edit diff.
+
+
+## SCHEMA-10: MCP discovery metadata
+
+The MCP discovery projection contains exactly 11 ordered `Tool` entries. Each entry preserves `name` and `inputSchema`, adds top-level `title`, and has exactly four boolean `annotations` keys: `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint`. The first description line is non-empty and at most 200 characters. The initialize result contains one instructions string for the cross-tool authoring workflow.
+
+### Declared MCP result envelope
+
+Every MCP tool MUST declare and return the stable `KernelEnvelope` shape with `schemaVersion`, `requestId`, `operation`, `ok`, `graph`, `page`, `data`, `error`, `diagnostics`, and `provenance`. The structured content and text content MUST be byte-equivalent JSON representations of that envelope. Error messages for stale cursors and conflicts MUST include actionable recovery; enforcement target-indeterminate reasons MUST remain bounded and repository-relative.
+
+
+## Consolidated 10-tool branch schemas
+
+Input schemas for `spec_catalog`, `spec_entities`, `spec_graph`, `spec_documents`, `spec_inspect`, `spec_evidence`, and `spec_patch` use top-level discriminator fields (`view`, `mode`, `action`, `check`, `intent`) and strict `oneOf` branches with `additionalProperties: false`.
+
+### Unified validation branch schema
+
+`spec_inspect` accepts `check: "validation"` with the following input schema:
+- `check`: `"validation"` (required string enum)
+- `specSlugs`: array of spec slug strings (optional; omitted or empty means corpus scope)
+- `severities`: array of `DIAGNOSTIC_SEVERITIES` strings (optional)
+- `codes`: array of `DIAGNOSTIC_CODES` strings (optional)
+- `paths`: array of path strings (optional)
+- `limit`: integer (optional)
+- `cursor`: nullable string (optional)
+
+Successful responses return payload `kind: "validation"` with:
+- `scope`: `{ mode: "corpus" | "specifications", specSlugs: string[] }`
+- `valid`: boolean
+- `verdict`: `"VALID"` | `"INVALID"`
+- `counts`: `{ errors: number, warnings: number, info: number, total: number, matched: number }`
+- `items`: array of `Diagnostic` objects
+- `snapshot`: `{ fingerprint: string, schemaVersion: "spec-kernel@1" }`
+
+All `oneOf` schema branches define `title: "<discriminator>: <variant>"` and `description: variant.description`. The top-level discriminator property carries a description instructing callers to select exactly one declared branch.

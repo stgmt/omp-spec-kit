@@ -3,6 +3,18 @@ import { lstatSync, realpathSync } from "node:fs";
 
 const INDETERMINATE_INPUT = /[\u0000]/u;
 const WINDOWS_UNSAFE_PATH = /^(?:[\\/]{2}(?:[?.]|$)|[a-z]:[^\\/]|.*:[^\\/]*$)/iu;
+const URI_SHAPED = /^[a-z][a-z0-9+.-]*:\/\//iu;
+const XD_PREFIX = "xd://";
+
+function isXdDeviceTarget(raw) {
+  if (typeof raw !== "string") return false;
+  const trimmed = raw.trim();
+  if (!trimmed.toLowerCase().startsWith(XD_PREFIX)) return false;
+  const name = trimmed.slice(XD_PREFIX.length);
+  if (name.length === 0) return true;
+  if (/[/?#]/.test(name)) return false;
+  return true;
+}
 
 function components(value) {
   return path.resolve(value).split(/[\\/]+/u).filter(Boolean).map((part) => part.toLowerCase());
@@ -21,6 +33,8 @@ function relativeTarget(root, absolute) {
 
 function unsafeTarget(raw) {
   if (typeof raw !== "string" || raw.trim() === "" || INDETERMINATE_INPUT.test(raw)) return true;
+  const trimmed = raw.trim();
+  if (trimmed.toLowerCase().startsWith(XD_PREFIX) || URI_SHAPED.test(trimmed)) return true;
   if (process.platform === "win32" && WINDOWS_UNSAFE_PATH.test(raw)) return true;
   return false;
 }
@@ -44,12 +58,25 @@ function resolvedExistingPath(absolute, ancestor) {
   return path.join(realpathSync.native(ancestor.absolute), path.relative(ancestor.absolute, absolute));
 }
 
-/** Resolve one raw tool target against the physical project and .specs roots. */
+function resolveSpecsRoot(projectRoot) {
+  const specsCandidate = path.join(projectRoot, ".specs");
+  try {
+    return realpathSync.native(specsCandidate);
+  } catch (error) {
+    if (error?.code === "ENOENT" || error?.code === "ENOTDIR") {
+      return specsCandidate;
+    }
+    throw error;
+  }
+}
+
+/** Resolve one raw tool target against the physical project and specification roots. */
 export function resolveTarget(root, raw) {
+  if (isXdDeviceTarget(raw)) return { resolution: "NON_SPEC", relativePath: null };
   if (unsafeTarget(raw)) return { resolution: "INDETERMINATE", relativePath: null };
   try {
     const projectRoot = realpathSync.native(path.resolve(root));
-    const specsRoot = realpathSync.native(path.join(projectRoot, ".specs"));
+    const specsRoot = resolveSpecsRoot(projectRoot);
     const absolute = path.isAbsolute(raw) ? path.normalize(raw) : path.resolve(projectRoot, raw);
     const ancestor = existingAncestor(absolute);
     if (!ancestor) return { resolution: "INDETERMINATE", relativePath: null };

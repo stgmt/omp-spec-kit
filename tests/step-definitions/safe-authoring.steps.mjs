@@ -288,6 +288,86 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     this.result = true;
     return;
   }
+  if (scenario === "path-root-regressions") {
+    const tempNoSpecs = await mkdtemp(path.join(tmpdir(), "omp-no-specs-test-"));
+    try {
+      // 1. Non-spec write in a project without spec root
+      const noteTarget = "notes.txt";
+      const noteWrite = classifyToolCall({ toolName: "write", cwd: tempNoSpecs, input: { path: noteTarget } }, { root: tempNoSpecs });
+      assert.equal(noteWrite.action, "continue", JSON.stringify(noteWrite));
+      assert.equal(noteWrite.code, "NON_SPEC_ALLOWED", JSON.stringify(noteWrite));
+      assert.equal(noteWrite.touchesSpecs, false, JSON.stringify(noteWrite));
+
+      // 2. Future spec target in a project without spec root
+      const futureSpecPath = path.join(".specs", "future", "FR.md");
+      const futureWrite = classifyToolCall({ toolName: "write", cwd: tempNoSpecs, input: { path: futureSpecPath } }, { root: tempNoSpecs });
+      assert.equal(futureWrite.action, "block", JSON.stringify(futureWrite));
+      assert.equal(futureWrite.code, "RAW_SPEC_WRITE", JSON.stringify(futureWrite));
+      assert.equal(futureWrite.touchesSpecs, true, JSON.stringify(futureWrite));
+      let futureExists = false;
+      try {
+        await access(path.join(tempNoSpecs, futureSpecPath));
+        futureExists = true;
+      } catch (err) {
+        assert.equal(err.code, "ENOENT");
+      }
+      assert.equal(futureExists, false, "future spec file must not be created");
+
+      // 3. Valid xd:// device URIs
+      const validXdTargets = [
+        "xd://",
+        "xd://propose",
+        "xd://resolve",
+        "xd://reject",
+        "xd://custom-device",
+        "XD://PROPOSE",
+      ];
+      for (const target of validXdTargets) {
+        const xdResult = classifyToolCall({ toolName: "write", cwd: tempNoSpecs, input: { path: target } }, { root: tempNoSpecs });
+        assert.equal(xdResult.action, "continue", target + ": " + JSON.stringify(xdResult));
+        assert.equal(xdResult.code, "NON_SPEC_ALLOWED", target + ": " + JSON.stringify(xdResult));
+        assert.equal(xdResult.touchesSpecs, false, target + ": " + JSON.stringify(xdResult));
+      }
+
+      // 4. Malformed xd and other URI schemes, NUL, ADS, inaccessible ancestor
+      const indeterminateTargets = [
+        "xd://bad/name",
+        "xd://bad?query",
+        "https://example.test",
+        "file://target",
+        "s3://bucket/key",
+        "invalid\u0000path",
+      ];
+      if (process.platform === "win32") {
+        indeterminateTargets.push("outside.txt:secret");
+      }
+      for (const target of indeterminateTargets) {
+        const indResult = classifyToolCall({ toolName: "write", cwd: tempNoSpecs, input: { path: target } }, { root: tempNoSpecs });
+        assert.equal(indResult.action, "block", target + ": " + JSON.stringify(indResult));
+        assert.equal(indResult.code, "TARGET_INDETERMINATE", target + ": " + JSON.stringify(indResult));
+      }
+
+      const nonExistentRoot = path.join(tempNoSpecs, "does-not-exist", "deeper");
+      const badAncestor = classifyToolCall({ toolName: "write", cwd: nonExistentRoot, input: { path: "file.txt" } }, { root: nonExistentRoot });
+      assert.equal(badAncestor.action, "block", JSON.stringify(badAncestor));
+      assert.equal(badAncestor.code, "TARGET_INDETERMINATE", JSON.stringify(badAncestor));
+
+      // 5. Preserve filesystem protection for relative, absolute paths
+      const absNote = path.join(tempNoSpecs, "abs-note.txt");
+      const absWrite = classifyToolCall({ toolName: "write", cwd: tempNoSpecs, input: { path: absNote } }, { root: tempNoSpecs });
+      assert.equal(absWrite.action, "continue", JSON.stringify(absWrite));
+      assert.equal(absWrite.code, "NON_SPEC_ALLOWED", JSON.stringify(absWrite));
+
+      const absSpec = path.join(tempNoSpecs, ".specs", "abs-future.md");
+      const absSpecWrite = classifyToolCall({ toolName: "write", cwd: tempNoSpecs, input: { path: absSpec } }, { root: tempNoSpecs });
+      assert.equal(absSpecWrite.action, "block", JSON.stringify(absSpecWrite));
+      assert.equal(absSpecWrite.code, "RAW_SPEC_WRITE", JSON.stringify(absSpecWrite));
+    } finally {
+      await rm(tempNoSpecs, { recursive: true, force: true });
+    }
+    this.result = true;
+    return;
+  }
   if (scenario === "read-selectors") {
     const outsidePath = path.join(this.root, "outside-readable.txt");
     await writeFile(outsidePath, "safe file\n", "utf8");

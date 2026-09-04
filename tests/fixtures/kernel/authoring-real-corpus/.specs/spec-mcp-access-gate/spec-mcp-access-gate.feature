@@ -19,12 +19,10 @@ Feature: OMP MCP access gate
 
     Examples:
       | name                         | result                                      |
-      | propose_patch                | ALLOW AUTHORING_TOOL_ALLOWED                 |
-      | apply_proposed_patch         | ALLOW AUTHORING_TOOL_ALLOWED                 |
-      | Propose_patch                | continue to direct-mutation path policy      |
-      | propose_patch_extra          | continue to direct-mutation path policy      |
-      | mcp__service__propose_patch  | continue to direct-mutation path policy      |
-      | xapply_proposed_patch        | continue to direct-mutation path policy      |
+      | spec_patch                   | ALLOW AUTHORING_TOOL_ALLOWED                 |
+      | Spec_patch                   | continue to direct-mutation path policy      |
+      | spec_patch_extra             | continue to direct-mutation path policy      |
+      | mcp__service__spec_patch     | continue to direct-mutation path policy      |
 
   @feature3 @FR-3 @AC-3.1 @id:SCEN-filesystem-containment
   Scenario Outline: Canonical containment handles path and filesystem boundaries
@@ -34,15 +32,19 @@ Feature: OMP MCP access gate
     Then resolution is "<resolution>"
 
     Examples:
-      | platform | condition                                      | resolution    |
-      | POSIX    | exact .specs root                              | SPEC          |
-      | POSIX    | descendant with slash and dot segments         | SPEC          |
-      | POSIX    | component named .specs2                        | NON_SPEC      |
-      | Windows  | mixed separators and case variant of .specs    | SPEC          |
-      | POSIX    | symlink whose real target is under .specs      | SPEC          |
-      | Windows  | reparse point whose real target is outside     | NON_SPEC      |
-      | POSIX    | new leaf under resolved .specs ancestor        | SPEC          |
-      | Windows  | unreadable or unstable ancestor                | INDETERMINATE |
+      | platform | condition                                          | resolution    |
+      | POSIX    | exact .specs root                                  | SPEC          |
+      | POSIX    | descendant with slash and dot segments             | SPEC          |
+      | POSIX    | component named .specs2                            | NON_SPEC      |
+      | Windows  | mixed separators and case variant of .specs        | SPEC          |
+      | POSIX    | symlink whose real target is under .specs          | SPEC          |
+      | Windows  | reparse point whose real target is outside         | NON_SPEC      |
+      | POSIX    | new leaf under resolved .specs ancestor            | SPEC          |
+      | Windows  | unreadable or unstable ancestor                    | INDETERMINATE |
+      | POSIX    | missing physical spec root with future spec target | SPEC          |
+      | POSIX    | missing physical spec root with external target    | NON_SPEC      |
+      | POSIX    | valid case-insensitive xd device uri              | NON_SPEC      |
+      | Windows  | malformed xd or other scheme uri                  | INDETERMINATE |
 
   @feature4 @FR-4 @AC-4.1 @id:SCEN-closed-path-policy
   Scenario Outline: Every direct mutator has one closed decision
@@ -65,8 +67,9 @@ Feature: OMP MCP access gate
     Given a direct spec target and a resolver fault variant
     When repeated tool_call decisions block
     Then each reason is at most 512 UTF-8 bytes
-    And the reason preserves the decision code and propose_patch then apply_proposed_patch redirect
+    And the reason preserves the decision code and spec_patch redirect
     And only a repository-relative target is shown when known
+    And TARGET_INDETERMINATE reasons include "Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply."
     And no absolute path environment credential stack or raw operating-system error is shown
     And no file log counter cache network subprocess credential read or alternate tool is created
 

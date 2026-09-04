@@ -5,12 +5,14 @@
 | Requirement | Acceptance criterion | Scenario | Contract check | Delivery task | State |
 |---|---|---|---|---|---|
 | [FR-1](FR.md#fr-1-current-tool-call-registration) | [AC-1.1](ACCEPTANCE_CRITERIA.md#ac-11-only-tool-call-is-registered) | `@feature1`, `SCEN-current-tool-call-registration` | CHK-FR1-01 | TASK-3 | Specified |
-| [FR-2](FR.md#fr-2-exact-two-name-authoring-allowlist) | [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-only-the-two-exact-authoring-names-bypass-path-denial) | `@feature2`, `SCEN-exact-authoring-allowlist` | CHK-FR2-01 | TASK-1, TASK-4 | Specified |
+| [FR-2](FR.md#fr-2-exact-authoring-allowlist) | [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-only-the-exact-authoring-allowlist-bypasses-path-denial) | `@feature2`, `SCEN-exact-authoring-allowlist` | CHK-FR2-01 | TASK-1, TASK-4 | Specified |
 | [FR-3](FR.md#fr-3-filesystem-backed-containment) | [AC-3.1](ACCEPTANCE_CRITERIA.md#ac-31-containment-covers-path-and-filesystem-boundaries) | `@feature3`, `SCEN-filesystem-containment` | CHK-FR3-01 | TASK-2, TASK-4 | Specified |
 | [FR-4](FR.md#fr-4-closed-path-policy-decision) | [AC-4.1](ACCEPTANCE_CRITERIA.md#ac-41-path-policy-matrix-is-closed) | `@feature4`, `SCEN-closed-path-policy` | CHK-FR4-01 | TASK-1, TASK-2, TASK-4 | Specified |
 | [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results) | [AC-5.1](ACCEPTANCE_CRITERIA.md#ac-51-blocks-are-bounded-visible-and-stateless) | `@feature5`, `SCEN-bounded-stateless-block` | CHK-FR5-01 | TASK-1, TASK-3, TASK-4 | Specified |
 | [FR-6](FR.md#fr-6-single-factory-installed-delivery) | [AC-6.1](ACCEPTANCE_CRITERIA.md#ac-61-installed-artifact-uses-one-factory) | @feature6, SCEN-single-factory-installed-policy | CHK-FR6-01 | TASK-3, TASK-4 | Specified |
 | [FR-7](FR.md#fr-7-non-mcp-read-and-execution-denial) | [AC-7.1](ACCEPTANCE_CRITERIA.md#ac-71-non-mcp-specification-access-is-blocked) | @feature7, SCEN-mcp-access-gate-non-mcp-spec-access | CHK-FR7-01, CHK-FR7-02 | TASK-5, TASK-6 | Specified |
+| [FR-8](FR.md#fr-8-windows-read-selector-support) | [AC-8.1](ACCEPTANCE_CRITERIA.md#ac-81-windows-read-selectors) | SCEN-read-selectors | CHK-FR8-01 | TASK-6 | Specified |
+| [FR-9](FR.md#fr-9-execution-payload-specification-guard-with-stated-limits) | [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-execution-guard-limits) | SCEN-execution-edges | CHK-FR9-01 | TASK-6 | Specified |
 
 ## Contract checks
 
@@ -36,7 +38,7 @@
 
 ## Global invariants
 
-1. Public authoring allowlist is exactly `propose_patch` and `apply_proposed_patch`.
+1. Public authoring allowlist is exactly `spec_patch`.
 2. Exact-name allowance precedes containment.
 3. Non-allowlisted direct `.specs` mutation blocks.
 4. Proven non-spec mutation passes.

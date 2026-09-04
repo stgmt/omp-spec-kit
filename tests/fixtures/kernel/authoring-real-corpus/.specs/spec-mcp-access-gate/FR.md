@@ -10,17 +10,17 @@ The existing `omp-spec-kit` extension factory SHALL register exactly one pre-exe
 
 **Scenario:** `@feature1` / `SCEN-current-tool-call-registration`
 
-## FR-2: Exact two-name authoring allowlist
+## FR-2: Exact authoring allowlist
 
-The handler SHALL first validate the host-generated MCP authority envelope. Only a valid registered omp-spec-kit authority with the exact case-sensitive hook-visible name propose_patch or apply_proposed_patch SHALL return ALLOW AUTHORING_TOOL_ALLOWED before target resolution. An exact name without valid registered authority SHALL BLOCK UNREGISTERED_AUTHORING_CALL; prefix, suffix, case, qualification, or embedded-name variants SHALL continue to the direct-mutation path policy.
+The handler SHALL validate the caller against the active MCP tool family minted by OMP. In v0.10.0, the single 10-tool surface is served exclusively via MCP. Calling any short name directly without OMP namespace SHALL BLOCK UNREGISTERED_AUTHORING_CALL. Authorized MCP calls matching mcp__omp_spec_kit_<op> or mcp__omp_spec_kit_omp_spec_kit_<op> for spec_patch verified through pi.getAllTools() SHALL return ALLOW AUTHORING_TOOL_ALLOWED. The approval field is removed.
 
-**Acceptance:** [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-only-the-two-exact-authoring-names-bypass-path-denial)
+**Acceptance:** [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-only-the-exact-authoring-allowlist-bypasses-path-denial)
 
 **Scenario:** `@feature2` / `SCEN-exact-authoring-allowlist`
 
 ## FR-3: Filesystem-backed containment
 
-For each non-allowlisted direct mutation target, the resolver SHALL reject NUL, alternate-data-stream, UNC/device, absolute, traversal, and unsupported-metadata inputs as INDETERMINATE; normalize separators, remove dot segments, anchor relative paths to the canonical project root, compare path components with Windows case-insensitivity and POSIX case-sensitivity, and treat .specs2 and similar names as outside .specs. Existing components SHALL be inspected with lstat and realpath; POSIX symlinks and Windows reparse points SHALL be resolved or produce INDETERMINATE. A new target SHALL be resolved through its nearest existing ancestor. Empty targets, resolver exceptions, and deadlines SHALL fail closed.
+For each non-allowlisted direct mutation target, a valid OMP internal device address `xd://` or `xd://<name>` SHALL be classified as NON_SPEC before filesystem normalization; scheme comparison SHALL be case-insensitive, an empty name SHALL be permitted, and a non-empty name SHALL NOT contain `/`, `?`, or `#`. A missing physical specifications root SHALL NOT render ordinary external files or future specification targets indeterminate: the logical `<projectRoot>/.specs` directory SHALL remain the boundary for uncreated paths. Other URI schemes and malformed xdev inputs SHALL NOT receive bypass resolution. The resolver SHALL reject NUL, alternate-data-stream, UNC/device, absolute, traversal, and unsupported-metadata inputs as INDETERMINATE; normalize separators, remove dot segments, anchor relative paths to the canonical project root, compare path components with Windows case-insensitivity and POSIX case-sensitivity, and treat .specs2 and similar names as outside .specs. Existing components SHALL be inspected with lstat and realpath; POSIX symlinks and Windows reparse points SHALL be resolved or produce INDETERMINATE. A new target SHALL be resolved through its nearest existing ancestor. Empty targets, resolver exceptions, and deadlines SHALL fail closed.
 
 **Acceptance:** [AC-3.1](ACCEPTANCE_CRITERIA.md#ac-31-containment-covers-path-and-filesystem-boundaries)
 
@@ -36,7 +36,7 @@ For a non-allowlisted direct mutator, an empty or indeterminate target SHALL BLO
 
 ## FR-5: Bounded visible and stateless results
 
-A blocked call SHALL return one deterministic reason no larger than 512 UTF-8 bytes. When known, it SHALL name only the normalized repository-relative target and SHALL direct the caller to `propose_patch` followed by `apply_proposed_patch`. It SHALL omit absolute paths, environment values, credentials, stack traces, and raw operating-system errors. The capability SHALL create no files, logs, counters, caches, network calls, subprocesses, credential reads, or alternate tools.
+A blocked call SHALL return one deterministic reason no larger than 512 UTF-8 bytes. When known, it SHALL name only the normalized repository-relative target and SHALL direct the caller to `spec_patch`. For `TARGET_INDETERMINATE`, the bounded reason SHALL include: `Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply.` It SHALL omit absolute paths, environment values, credentials, stack traces, and raw operating-system errors. The capability SHALL create no files, logs, counters, caches, network calls, subprocesses, credential reads, or alternate tools.
 
 **Acceptance:** [AC-5.1](ACCEPTANCE_CRITERIA.md#ac-51-blocks-are-bounded-visible-and-stateless)
 
@@ -56,3 +56,19 @@ The OMP gate SHALL inspect every supported tool-call variant that can read, enum
 
 **Acceptance:** [AC-7.1](ACCEPTANCE_CRITERIA.md#ac-71-non-mcp-specification-access-is-blocked)
 **Scenario:** @feature7 / SCEN-mcp-access-gate-non-mcp-spec-access
+
+## FR-8: Windows read-selector support
+
+The gate SHALL recognize OMP read selectors on win32 before path policy: `:1`, `:1-2`, `:1+2` (open end allowed as `:1-`), `:1..2`, comma lists, `L`-prefixed numbers, `:raw`, `:conflicts`, and `raw:<range>` / `<range>:raw` combos. The selector SHALL be stripped only for `toolName === "read"`; `write` and other mutators SHALL NOT receive selector stripping. `:0` and malformed selectors SHALL NOT strip and fall through to normal containment.
+
+**Acceptance:** [AC-8.1](ACCEPTANCE_CRITERIA.md#ac-81-windows-read-selectors)
+
+**Scenario:** `SCEN-read-selectors`
+
+## FR-9: Execution-payload specification guard with stated limits
+
+The gate SHALL recursively inspect every string value under fields named `code` and `command` for an obvious `.specs` path-segment reference and BLOCK with `RAW_SPEC_WRITE`, including inside eval, context-mode, and shell invocations. Ordinary command payloads without such a reference SHALL remain allowed. The lexical guard SHALL treat `cwd` and `text`, and ordinary command payloads without such a reference, as non-filesystem-target data for this rule. This guard is lexical, not a shell parser: dynamically assembled paths via variables or concatenation are a stated non-goal and SHALL be documented as such.
+
+**Acceptance:** [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-execution-guard-limits)
+
+**Scenario:** `SCEN-execution-edges`

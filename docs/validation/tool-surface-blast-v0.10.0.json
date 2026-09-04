@@ -1,6 +1,6 @@
 {
   "schema": "omp-spec-kit-tool-surface-blast@1",
-  "timestamp": "2026-09-04T20:33:36.207Z",
+  "timestamp": "2026-09-04T20:45:22.608Z",
   "serverPath": "plugins/omp-spec-kit/dist/mcp/server.js",
   "baseline": {
     "sha256": "c00fb06179047427e9ba43cc5df312a0740df04ff9a0087e35462bd7804c28ef",

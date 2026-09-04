@@ -170,7 +170,7 @@ Public product status SHALL use only SHIPPED, NEXT, and LATER. A row may enter S
 
 ## FR-17 — Next safe authoring outcome
 
-The roadmap SHALL contain exactly one NEXT row for safe spec authoring. Its public mutation surface and exact authoring-name allowlist SHALL both contain only propose_patch and apply_proposed_patch; helper operations compile internally. Before each tool_call, the access gate SHALL accept only registered MCP operations for specification access, then SHALL refuse every other read, search, enumeration, shell, edit, or write whose canonically resolved target is under .specs/**. Resolution SHALL enforce repository containment across real paths, links, and reparse points. Accepted application SHALL be atomic and refusal reasons SHALL be bounded. The row SHALL NOT enter SHIPPED without real end-to-end proof of both the mutation path and the non-MCP access refusal path.
+The roadmap SHALL contain exactly one NEXT row for safe spec authoring. Its public mutation surface and exact authoring-name allowlist SHALL both contain only spec_patch; helper operations compile internally. Before each tool_call, the access gate SHALL accept only registered MCP operations for specification access, then SHALL refuse every other read, search, enumeration, shell, edit, or write whose canonically resolved target is under .specs/**. Resolution SHALL enforce repository containment across real paths, links, and reparse points. Accepted application SHALL be atomic and refusal reasons SHALL be bounded. The row SHALL NOT enter SHIPPED without real end-to-end proof of both the mutation path and the non-MCP access refusal path.
 
 - **Priority:** Must
 - **Status:** Specified
@@ -334,7 +334,7 @@ contract:
 
 ## FR-23: Contained deterministic candidate and same-byte publication
 
-Candidate creation SHALL resolve a clean peeled semantic-version tag, enumerate allowlisted regular files in lexical order, preserve required executable mode, reject symlink/junction/reparse escape, and emit package-tree, archive, and candidate digests. Public-tree verification SHALL reject credential-bearing bytes with redacted bounded findings without exposing a secret-category ABI. Publication SHALL verify the exact artifact subject with GitHub Artifact Attestations, download and re-hash the verified archive, and publish those same bytes without rebuild. Existing releases are idempotent only when required asset name, size, and digest match.
+Candidate creation SHALL resolve a clean peeled semantic-version tag, enumerate allowlisted regular files in lexical order, canonicalize candidate file modes to 0755 under `bin/` and 0644 elsewhere independent of source modes, include those canonical modes in the package-tree digest and tar archive headers, reject symlink/junction/reparse escape, and emit package-tree, archive, and candidate digests. Public-tree verification SHALL reject credential-bearing bytes with redacted bounded findings without exposing a secret-category ABI. Publication SHALL verify the exact artifact subject with GitHub Artifact Attestations, download and re-hash the verified archive, and publish those same bytes without rebuild. Existing releases are idempotent only when required asset name, size, and digest match.
 
 ```yaml metadata
 schemaVersion: 1
@@ -404,7 +404,7 @@ contract:
 
 ## FR-25: Response source identity and root consistency
 
-The installed stdio MCP adapter and OMP extension SHALL resolve one canonical physical repository root through the same resolver. Every successful result and every typed read error SHALL include a `provenance` object with `serverName`, opaque `resolvedRootId`, opaque `activeProjectRootId`, `rootMode`, and `matchesActiveProject`. The two root IDs SHALL be lowercase SHA-256 identities of canonical physical roots and SHALL NOT disclose absolute paths, environment values, or document content. Without an override, `rootMode` SHALL be `active-project` and `matchesActiveProject` SHALL be true. An explicit absolute override MAY select another project only when `rootMode` is `explicit-absolute-override` and `matchesActiveProject` is false; the structured result and root identities SHALL identify the selected source without exposing absolute paths.
+The installed stdio MCP adapter and OMP extension SHALL resolve one canonical physical repository root through the same resolver. Every successful result and every typed read error SHALL include a `provenance` object with `serverName`, opaque `resolvedRootId`, opaque `activeProjectRootId`, `rootMode`, and `matchesActiveProject`. The two root IDs SHALL be lowercase SHA-256 identities of canonical physical roots and SHALL NOT disclose absolute paths, environment values, or document content. Without an override, `rootMode` SHALL be `active-project` and `matchesActiveProject` SHALL be true. An explicit absolute override MAY select another project only when `rootMode` is `explicit-absolute-override` and `matchesActiveProject` is false; the structured result SHALL expose the override identity without silently presenting it as the active project. A `repositoryRootFingerprint` conflict MUST use stable `causeCode` `REPOSITORY_ROOT_FINGERPRINT_MISMATCH`, mention that another project or a stale snapshot may be in use, expose only `activeProjectRootId` and `resolvedRootId` as root identities, and direct the caller to `mcp_preflight`. When those roots do not match, the caller MUST reconnect; otherwise it MUST refresh the `spec_catalog` overview and create a new proposal.
 
 ```yaml metadata
 schemaVersion: 1
@@ -440,3 +440,38 @@ contract:
 ```
 
 **Related AC:** [AC-25.1](ACCEPTANCE_CRITERIA.md#ac-251-response-source-identity-and-root-consistency). **Use Case:** [UC-17](USE_CASES.md#uc-17-distinguish-the-active-and-overridden-project).
+
+## FR-26: Consolidated 10-tool MCP discovery and release evidence
+
+The v0.10.0 release SHALL provide exactly 10 MCP tools, verified by release preflight, archive smoke test, and installed package discovery. Release assets and candidate validation SHALL prove 9 read-only and 1 mutating tool, zero deprecated tool names, and catalog size within the 25,499-byte limit.
+
+```yaml metadata
+schemaVersion: 1
+verificationMethod: test
+contract:
+  version: 1
+  kind: behavior
+  subject: Consolidated 10-tool MCP discovery
+  behavior:
+    actor: Release verifier
+    trigger: The v0.10.0 candidate package is discovered and inspected
+    preconditions: [The candidate build is complete, Baseline metrics are frozen]
+    observable_outcomes: [Exactly 10 tools are discovered, 9 read-only and 1 mutating tool are annotated, Catalog size does not exceed 25499 bytes]
+    forbidden_outcomes: [Any of the 29 retired tool names appears, Surface blast limits are exceeded]
+  observables:
+    - when: Tools are listed
+      then: Exactly 10 tools are returned matching the consolidated catalog
+  negative_cases:
+    - when: A retired tool name is present
+      then: Blast verification fails closed
+  verification:
+    method: bdd
+    required_evidence: [bdd, integration, implementation]
+    scenario:
+      refs: [SCEN-mri-consolidated-10-tools]
+    implementation_surface:
+      refs: [src/adapters/tool-contracts.js, src/mcp/server.js, scripts/measure-mcp-tool-blast.mjs]
+    evidence_policy: {source: runtime, freshness: current, independent: true}
+```
+
+**Related AC:** [AC-26.1](ACCEPTANCE_CRITERIA.md#ac-261-consolidated-10-tool-mcp-discovery-and-release-evidence). **Use Case:** [UC-18](USE_CASES.md#uc-18-discover-consolidated-10-tool-surface).

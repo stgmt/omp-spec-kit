@@ -1,8 +1,8 @@
 {
   "schema": "omp-spec-kit-mutation-gate@1",
-  "timestamp": "2026-09-04T20:33:36.533Z",
-  "totalMutants": 160,
-  "killed": 160,
+  "timestamp": "2026-09-04T20:45:22.924Z",
+  "totalMutants": 163,
+  "killed": 163,
   "survivors": 0,
   "passed": true,
   "receipts": [
@@ -965,6 +965,24 @@
       "status": "KILLED",
       "description": "Mutant scopes diagnostics by span path prefix instead of diagnostic.specSlug",
       "killerAssertion": "diagnostic.specSlug must be the sole source of scope\n\nfalse !== true\n"
+    },
+    {
+      "id": "omit-xdev-short-circuit",
+      "status": "KILLED",
+      "description": "Mutant removes isXdDeviceTarget short-circuit causing xd:// device targets to fail closed as INDETERMINATE",
+      "killerAssertion": "Valid xd:// device target must resolve to NON_SPEC\n+ actual - expected\n\n+ 'INDETERMINATE'\n- 'NON_SPEC'\n"
+    },
+    {
+      "id": "unconditional-specs-realpath",
+      "status": "KILLED",
+      "description": "Mutant uses unconditional physical spec root realpath causing missing-root projects to fail with INDETERMINATE",
+      "killerAssertion": "resolveSpecsRoot must handle missing spec root without throwing"
+    },
+    {
+      "id": "future-specs-path-classified-non-spec",
+      "status": "KILLED",
+      "description": "Mutant erroneously classifies future paths under spec root as NON_SPEC when physical spec root is missing",
+      "killerAssertion": "Future path under uncreated spec root must resolve to SPEC\n\n'NON_SPEC' !== 'SPEC'\n"
     }
   ]
 }

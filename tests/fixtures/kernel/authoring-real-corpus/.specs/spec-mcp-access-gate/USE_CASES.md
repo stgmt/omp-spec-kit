@@ -8,12 +8,12 @@
 
 **Flow:**
 1. The handler reads the exact hook-visible tool name.
-2. The name equals `propose_patch` or `apply_proposed_patch`.
+2. The name equals `spec_patch`.
 3. The handler returns ALLOW `AUTHORING_TOOL_ALLOWED` before target containment.
 
 **Postcondition:** The authoring MCP operation continues and remains responsible for validation and atomicity.
 
-**Related:** [FR-2](FR.md#fr-2-exact-two-name-authoring-allowlist), [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-only-the-two-exact-authoring-names-bypass-path-denial), `@feature2`
+**Related:** [FR-2](FR.md#fr-2-exact-authoring-allowlist), [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-only-the-exact-authoring-allowlist-bypasses-path-denial), `@feature2`
 
 ## UC-2: Block a direct spec write
 

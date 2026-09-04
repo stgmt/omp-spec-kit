@@ -118,7 +118,7 @@ These criteria define observable release behavior; prose and Gherkin alone are n
 
 ### AC-17.1 — Bounded public mutation surface
 
-**WHEN** the public mutation inventory is inspected **THEN** it SHALL contain exactly `propose_patch` and `apply_proposed_patch`; every helper SHALL remain internal.
+**WHEN** the public mutation inventory is inspected **THEN** it SHALL contain exactly `spec_patch`; every helper SHALL remain internal.
 
 **Scenario:** `@feature17`, `SCEN-product-authoring-tools-are-bounded`.
 
@@ -168,7 +168,7 @@ WHEN a future candidate is verified THEN one successful unfiltered real Docker C
 
 **Requirement:** [FR-23](FR.md#fr-23-contained-deterministic-candidate-and-same-byte-publication).
 
-WHEN a clean peeled-tag candidate is assembled THEN its contained lexical file manifest, executable mode, package-tree digest, archive digest, and candidate digest SHALL be deterministic; WHEN GitHub Artifact Attestations verifies the exact subject/repository/workflow/ref and publish downloads the archive THEN the downloaded and released SHA-256 SHALL equal the verified candidate archive; IF containment, safety, attestation, or asset identity differs THEN no release mutation SHALL occur.
+WHEN a clean peeled-tag candidate is assembled THEN every candidate file under `bin/` SHALL have canonical mode 0755 and every other file SHALL have canonical mode 0644 independent of source modes, and the contained lexical file manifest, package-tree digest, archive digest, candidate digest, package digest, and tar headers SHALL encode those canonical modes; WHEN GitHub Artifact Attestations verifies the exact subject/repository/workflow/ref and publish downloads the archive THEN the downloaded and released SHA-256 SHALL equal the verified candidate archive; IF containment, safety, attestation, or asset identity differs THEN no release mutation SHALL occur.
 
 ## AC-24.1: Public history remains honest
 
@@ -180,4 +180,12 @@ WHEN the bounded v0.3.2 record is read THEN tag, commit, candidate, package-tree
 
 **Requirement:** [FR-25](FR.md#fr-25-response-source-identity-and-root-consistency).
 
-WHEN the installed stdio MCP server serves the active project without an override THEN every one of the eight tool results SHALL identify `omp-spec-kit`, carry equal opaque resolved and active-project root identities, and declare `rootMode: active-project`; WHEN an explicit absolute override selects project-b THEN every result SHALL identify one project-b root identity, declare `rootMode: explicit-absolute-override`, and set `matchesActiveProject: false`; WHEN the OMP extension receives the same cwd and override THEN its legacy inventory result and every query-tool result SHALL carry the same provenance; IF any result exposes an absolute root path, environment value, document body, or silently mixes roots THEN the check SHALL fail.
+WHEN the installed stdio MCP server serves the active project without an override THEN every one of the eight tool results SHALL identify `omp-spec-kit`, carry equal opaque resolved and active-project root identities, and declare `rootMode: active-project`; WHEN an explicit absolute override selects project-b THEN every result SHALL identify one project-b root identity, declare `rootMode: explicit-absolute-override`, and set `matchesActiveProject: false`; WHEN a `repositoryRootFingerprint` conflict occurs THEN it SHALL use stable `causeCode` `REPOSITORY_ROOT_FINGERPRINT_MISMATCH`, state that another project or stale snapshot may be in use, expose only `activeProjectRootId` and `resolvedRootId`, and direct the caller to `mcp_preflight`; when those roots do not match the caller reconnects, otherwise it refreshes the `spec_catalog` overview and creates a new proposal; WHEN the OMP extension receives the same cwd and override THEN its legacy inventory result and every query-tool result SHALL carry the same provenance; IF any result exposes an absolute root path, environment value, document body, or silently mixes roots THEN the check SHALL fail.
+
+## AC-26.1: Consolidated 10-tool MCP discovery and release evidence
+
+**EARS:** WHEN the v0.10.0 candidate is validated THEN release preflight, archive smoke, and installed package discovery SHALL prove exactly 10 tools with the 9/1 annotation matrix and zero deprecated names.
+
+**Requirement:** [FR-26](FR.md#fr-26-consolidated-10-tool-mcp-discovery-and-release-evidence)
+
+**Scenario:** `@feature26`, `@id:SCEN-mri-consolidated-10-tools`

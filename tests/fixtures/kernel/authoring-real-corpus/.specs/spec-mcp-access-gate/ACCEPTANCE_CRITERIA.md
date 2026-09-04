@@ -10,17 +10,17 @@ These criteria define future verification obligations. Scenario text alone is no
 
 **Scenario:** `@feature1`, `@id:SCEN-current-tool-call-registration`
 
-## AC-2.1: Only the two exact authoring names bypass path denial
+## AC-2.1: Only the exact authoring allowlist bypasses path denial
 
-**EARS:** WHEN the hook-visible name is exactly propose_patch or apply_proposed_patch AND the host-generated authority is a registered omp-spec-kit MCP authority THEN the handler SHALL ALLOW AUTHORING_TOOL_ALLOWED before containment; WHEN the exact name has no valid registered authority THEN it SHALL BLOCK UNREGISTERED_AUTHORING_CALL; WHEN the name differs by case prefix suffix qualification or embedding THEN it SHALL not receive the authoring allowance.
+**EARS:** WHEN the hook-visible tool name matches an authorized minted MCP tool name in the active omp-spec-kit tool family verified through pi.getAllTools() for `spec_patch` THEN the handler SHALL ALLOW AUTHORING_TOOL_ALLOWED before containment; WHEN a raw short name is called directly without MCP namespace THEN it SHALL BLOCK UNREGISTERED_AUTHORING_CALL.
 
-**Requirement:** [FR-2](FR.md#fr-2-exact-two-name-authoring-allowlist)
+**Requirement:** [FR-2](FR.md#fr-2-exact-authoring-allowlist)
 
 **Scenario:** `@feature2`, `@id:SCEN-exact-authoring-allowlist`
 
 ## AC-3.1: Containment covers path and filesystem boundaries
 
-**EARS:** WHEN a non-allowlisted direct mutation target uses either separator, case variants on Windows, dot segments, exact .specs root, descendants, .specs2, a POSIX symlink, a Windows reparse point, a non-existing leaf, NUL, ADS, UNC/device, or absolute input THEN the resolver SHALL use canonical component-aware filesystem resolution and SHALL return exactly SPEC, NON_SPEC, or INDETERMINATE; empty targets and unsupported metadata SHALL be INDETERMINATE.
+**EARS:** WHEN a non-allowlisted direct mutation target is a valid case-insensitive `xd://` or `xd://<name>` without `/`, `?`, or `#` THEN the resolver SHALL return NON_SPEC before filesystem normalization; WHEN the physical specifications root is missing THEN an external target SHALL return NON_SPEC and a future target within the logical `.specs` root SHALL return SPEC; WHEN a target uses either separator, case variants on Windows, dot segments, exact .specs root, descendants, .specs2, a POSIX symlink, a Windows reparse point, a non-existing leaf, NUL, ADS, UNC/device, malformed xdev, other URI schemes, or absolute input THEN the resolver SHALL use canonical component-aware filesystem resolution and SHALL return exactly SPEC, NON_SPEC, or INDETERMINATE; empty targets, malformed schemes, and unsupported metadata SHALL be INDETERMINATE.
 
 **Requirement:** [FR-3](FR.md#fr-3-filesystem-backed-containment)
 
@@ -36,7 +36,7 @@ These criteria define future verification obligations. Scenario text alone is no
 
 ## AC-5.1: Blocks are bounded visible and stateless
 
-**EARS:** WHEN a call blocks THEN the reason SHALL be deterministic and at most 512 UTF-8 bytes, SHALL use only a repository-relative target when known, SHALL name the decision code, and SHALL redirect to `propose_patch` then `apply_proposed_patch`; AND repeated calls SHALL create no file log counter cache network subprocess credential access or alternate tool.
+**EARS:** WHEN a call blocks THEN the reason SHALL be deterministic and at most 512 UTF-8 bytes, SHALL use only a repository-relative target when known, SHALL name the decision code, and SHALL redirect to `spec_patch`; AND repeated calls SHALL create no file log counter cache network subprocess credential access or alternate tool; For `TARGET_INDETERMINATE`, the reason SHALL include: `Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply.`.
 
 **Requirement:** [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results)
 
@@ -59,3 +59,19 @@ These criteria define future verification obligations. Scenario text alone is no
 **Check:** CHK-FR7-01, CHK-FR7-02
 
 **Scenario:** @feature7, @id:SCEN-mcp-access-gate-non-mcp-spec-access
+
+## AC-8.1: Windows read selectors
+
+**EARS:** WHEN a `read` call on win32 carries `:1`, `:1-2`, `:1+2`, `:1-`, `:1..2`, comma lists, `L`-prefixes, `:raw`, `:conflicts`, or `raw:<range>` / `<range>:raw` combos THEN the gate SHALL strip the selector before path policy and preserve the safe-path decision; WHEN the tool is not `read`, or the selector is `:0` or malformed, THEN no stripping SHALL occur.
+
+**Requirement:** [FR-8](FR.md#fr-8-windows-read-selector-support)
+
+**Scenario:** `SCEN-read-selectors`
+
+## AC-9.1: Execution guard limits
+
+**EARS:** WHEN the gate recursively inspects string values under `code` and `command` and finds an obvious `.specs` segment THEN it SHALL BLOCK `RAW_SPEC_WRITE` for eval, context-mode, and shell calls; WHEN no such segment exists THEN ordinary command payloads SHALL remain allowed and `cwd` and `text` SHALL not be treated as filesystem targets by this rule. Dynamically assembled paths via variables or concatenation are an explicit non-goal.
+
+**Requirement:** [FR-9](FR.md#fr-9-execution-payload-specification-guard-with-stated-limits)
+
+**Scenario:** `SCEN-execution-edges`

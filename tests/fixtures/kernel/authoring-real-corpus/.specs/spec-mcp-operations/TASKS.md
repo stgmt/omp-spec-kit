@@ -243,16 +243,16 @@ All tasks are NEXT implementation work. Planned status is not execution evidence
 
 All tasks are `todo`; the feature state is `NEXT`. Estimates are planning units, not delivery claims. Each task owns concrete checks and may move only through the repository's ordinary task status mechanism; authoring defines no second task lifecycle.
 
-## TASK-15 — Register the two-tool boundary and host path policy — id: TASK-15
+## TASK-15 — Register single spec_patch boundary and host path policy — id: TASK-15
 
 - **Status:** todo
 - **Estimate:** 2 engineering days
 - **Owner:** MCP maintainer
 - **Depends on:** Existing MCP server and current-host `tool_call` policy hook
 - **Traces:** FR-23; AC-23.1, AC-23.2; CHK-WRITE-FR1-01, CHK-WRITE-FR1-02; Scenarios: `SCEN-mcp-write-authoring-two-tool-inventory`, `SCEN-mcp-write-authoring-path-policy-denies-raw-writer`
-- **Done When:** Installed tools/list exposes exactly the two public mutation names, internal helpers are absent, and real tool-call tests deny non-allowlisted `.specs/**` writes without blocking unrelated targets.
+- **Done When:** Installed tools/list exposes exactly the single public mutation tool spec_patch, internal helpers are absent, and real tool-call tests deny non-allowlisted `.specs/**` writes without blocking unrelated targets.
 
-_Requirements: [FR-23](FR.md#fr-23-two-tool-public-boundary)_
+_Requirements: [FR-23](FR.md#fr-23-single-tool-public-boundary)_
 
 ## TASK-16 — Implement canonical operations and pure proposal — id: TASK-16
 
@@ -331,3 +331,77 @@ _Requirements: [FR-28](FR.md#fr-28-byte-conservation-and-compact-redacted-outcom
 - **Done When:** Provenance-recorded Windows/POSIX, race, fault, anchor-rewrite, validation, rollback, and redaction runs execute; each protected-check omission causes a failing verification; no zero-scenario or source-text-only result is accepted.
 
 _Requirements: [FR-29](FR.md#fr-29-real-correctness-evidence)_
+
+
+## TASK-22: Publish bounded MCP discovery metadata
+
+Implement the four-hint annotation matrix, contract-label titles, initialize instructions, and first-line description cap. Extend direct JSON-RPC and staged BDD checks for the consolidated 10 entries.
+
+- [ ] Implement and verify the declared MCP result envelope, discovery metadata, and actionable recovery boundary for FR-31.
+
+
+## TASK-23 — Implement discriminated branch schemas and argument validation — id: TASK-23
+
+- **Status:** todo
+- **Estimate:** 2 engineering days
+- **Owner:** Adapter maintainer
+- **Depends on:** TASK-22
+- **Traces:** FR-32; AC-32.1; Scenarios: SCEN-mcp-discriminated-variants
+- **Done When:** Every consolidated tool validates discriminated branches with `additionalProperties: false` and rejects malformed or cross-branch parameters.
+
+_Requirements: [FR-32](FR.md#fr-32-discriminated-branch-schemas-and-strict-argument-validation)_
+
+## TASK-24 — Implement domain types catalog in kernel and query service — id: TASK-24
+
+- **Status:** todo
+- **Estimate:** 1 engineering day
+- **Owner:** Kernel maintainer
+- **Depends on:** TASK-23
+- **Traces:** FR-33; AC-33.1; Scenarios: SCEN-mcp-types-catalog
+- **Done When:** `spec_catalog(view: "types")` returns 15 entity kinds and 7 edge types from the kernel types module.
+
+_Requirements: [FR-33](FR.md#fr-33-domain-type-dictionary-catalog)_
+
+## TASK-25 — Enforce surface blast limits and blast measurement script — id: TASK-25
+
+- **Status:** todo
+- **Estimate:** 1 engineering day
+- **Owner:** Verification maintainer
+- **Depends on:** TASK-22, TASK-23
+- **Traces:** FR-34; AC-34.1; Scenarios: SCEN-mcp-surface-blast-limits
+- **Done When:** `scripts/measure-mcp-tool-blast.mjs` verifies 10 tools, <= 25,499 catalog bytes, <= 2,000 description characters, and 0 retired names.
+
+_Requirements: [FR-34](FR.md#fr-34-surface-blast-limits-and-fail-closed-measurement)_
+
+## TASK-26 — Hard-cut retired tools without backward compatibility shims — id: TASK-26
+
+- **Status:** todo
+- **Estimate:** 1 engineering day
+- **Owner:** Adapter maintainer
+- **Depends on:** TASK-22, TASK-25
+- **Traces:** FR-35; AC-35.1; Scenarios: SCEN-mcp-hard-retirement-no-shims
+- **Done When:** Calling any retired tool returns protocol -32602 without custom hints or aliases.
+
+_Requirements: [FR-35](FR.md#fr-35-hard-tool-retirement-without-backward-compatibility-shims)_
+
+## TASK-27 — Implement deterministic mutation testing gate with zero survivors — id: TASK-27
+
+- **Status:** todo
+- **Estimate:** 2 engineering days
+- **Owner:** Testing maintainer
+- **Depends on:** TASK-23, TASK-26
+- **Traces:** FR-36; AC-36.1; Scenarios: SCEN-mcp-mutation-testing-gate
+- **Done When:** `scripts/check-tool-surface-mutations.mjs` executes synthetic mutants against invariants and reports `survivors: 0`.
+
+_Requirements: [FR-36](FR.md#fr-36-deterministic-mutation-testing-gate)_
+
+## TASK-28 — Implement unified validation inspection in kernel and MCP adapter — id: TASK-28
+
+- **Status:** todo
+- **Estimate:** 2 engineering days
+- **Owner:** Adapter/kernel maintainer
+- **Depends on:** TASK-23
+- **Traces:** FR-37; AC-37.1; Scenarios: SCEN-mcp-unified-validation
+- **Done When:** `spec_inspect` supports `check: "validation"`, computes pre-filter verdict/totals, filters items, rejects unknown/malformed slugs, and removes `specValidation` and `diagnostics` branches.
+
+_Requirements: [FR-37](FR.md#fr-37-unified-specification-and-corpus-validation-inspection)_

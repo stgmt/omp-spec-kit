@@ -87,3 +87,7 @@ Feature: safe specification authoring
     Given a disposable real authoring corpus and live MCP server
     When the scenario "omp-manager-authoring" runs
     Then the scenario passes
+  Scenario: Internal devices and projects without a spec root stay usable
+    Given a disposable real authoring corpus and live MCP server
+    When the scenario "path-root-regressions" runs
+    Then the scenario passes

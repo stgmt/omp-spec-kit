@@ -85,3 +85,7 @@ This file records product-contract history. It does not claim that specification
 - Made explicit absolute-root overrides visible through opaque root identities and `matchesActiveProject`.
 - Required the legacy inventory tool and seven query tools to share one resolved root context.
 - Added regression scenarios for two-root MCP responses and mixed-cwd extension execution.
+## Unreleased — 11-tool consolidation
+
+- Consolidated safe authoring public mutation surface into `spec_patch`.
+- Added release evidence requirement FR-26 for the consolidated 10-tool MCP surface.

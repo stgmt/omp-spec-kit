@@ -135,7 +135,7 @@ Feature: Publish the omp-spec-kit plugin from verified installed bytes
   @feature17 @FR-17 @AC-17.1 @id:SCEN-product-authoring-tools-are-bounded
   Scenario: Public authoring has two mutation tools
     Given the public mutation inventory is inspected
-    Then its names are exactly propose_patch and apply_proposed_patch
+    Then its names are exactly spec_patch
     And helper operations are internal
 
   @feature17 @FR-17 @AC-17.2 @id:SCEN-product-direct-spec-write-is-refused
@@ -240,3 +240,20 @@ Feature: Publish the omp-spec-kit plugin from verified installed bytes
     Given project-a, project-b, and package-decoy have distinct specifications
     When the OMP extension runs with project-a as cwd and project-b as an explicit root override
     Then its inventory and query results identify the same project-b root and server
+
+
+  @feature26 @FR-26 @AC-26.1 @id:SCEN-mri-consolidated-10-tools
+  Scenario: Consolidated 10-tool surface is discovered and verified
+    Given a real packaged MCP server
+    When tools are listed
+    Then exactly 10 tools are present in contract order
+    And 10 tools are annotated read-only and 1 mutating
+    And no retired tool names are exposed
+
+  @feature23 @FR-23 @AC-23.1 @id:SCEN-mri-cross-platform-archive-modes
+  Scenario: Canonicalize archive modes across platforms
+    Given source files have arbitrary platform-specific modes
+    When a candidate is assembled
+    Then every file under bin/ has mode 0755 independent of its source mode
+    And every other file has mode 0644 independent of its source mode
+    And the package digest and tar headers encode those canonical modes

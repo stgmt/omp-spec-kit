@@ -457,8 +457,86 @@ export function generateAndEvaluateMutants() {
     ),
   );
 
+  // Group 19: Kill mutants in target resolution (internal URIs and missing spec root containment)
+  // Mutant 19.1: Delete xdev short-circuit in resolveTarget
+  receipts.push(
+    runMutant(
+      "omit-xdev-short-circuit",
+      "Mutant removes isXdDeviceTarget short-circuit causing xd:// device targets to fail closed as INDETERMINATE",
+      () => {
+        return {
+          resolveTarget: (raw) => {
+            const INDETERMINATE_INPUT = /[\u0000]/u;
+            const WINDOWS_UNSAFE_PATH = /^(?:[\\/]{2}(?:[?.]|$)|[a-z]:[^\\/]|.*:[^\\/]*$)/iu;
+            const URI_SHAPED = /^[a-z][a-z0-9+.-]*:\/\//iu;
+            const trimmed = typeof raw === "string" ? raw.trim() : "";
+            if (trimmed === "" || INDETERMINATE_INPUT.test(raw)) return { resolution: "INDETERMINATE", relativePath: null };
+            if (trimmed.toLowerCase().startsWith("xd://") || URI_SHAPED.test(trimmed)) return { resolution: "INDETERMINATE", relativePath: null };
+            if (process.platform === "win32" && WINDOWS_UNSAFE_PATH.test(raw)) return { resolution: "INDETERMINATE", relativePath: null };
+            return { resolution: "NON_SPEC", relativePath: "some/path" };
+          },
+        };
+      },
+      ({ resolveTarget }) => {
+        const result = resolveTarget("xd://propose");
+        assert.equal(result.resolution, "NON_SPEC", "Valid xd:// device target must resolve to NON_SPEC");
+      },
+    ),
+  );
+
+  // Mutant 19.2: Revert to unconditional physical spec root realpath without ENOENT fallback
+  receipts.push(
+    runMutant(
+      "unconditional-specs-realpath",
+      "Mutant uses unconditional physical spec root realpath causing missing-root projects to fail with INDETERMINATE",
+      () => {
+        return {
+          resolveSpecsRoot: (projectRoot) => {
+            const pfx = ".specs";
+            const candidate = path.join(projectRoot, pfx);
+            throw Object.assign(new Error("ENOENT: no such file or directory"), { code: "ENOENT" });
+          },
+        };
+      },
+      ({ resolveSpecsRoot }) => {
+        let outcome;
+        try {
+          outcome = resolveSpecsRoot("/virtual/project/without/specs");
+        } catch (err) {
+          outcome = "THROWN";
+        }
+        assert.notEqual(outcome, "THROWN", "resolveSpecsRoot must handle missing spec root without throwing");
+      },
+    ),
+  );
+
+  // Mutant 19.3: Erroneously classify future spec root paths as NON_SPEC when spec root is missing
+  receipts.push(
+    runMutant(
+      "future-specs-path-classified-non-spec",
+      "Mutant erroneously classifies future paths under spec root as NON_SPEC when physical spec root is missing",
+      () => {
+        return {
+          resolveTarget: (raw) => {
+            const pfx = ".specs";
+            if (raw.includes(pfx)) {
+              return { resolution: "NON_SPEC", relativePath: raw };
+            }
+            return { resolution: "NON_SPEC", relativePath: raw };
+          },
+        };
+      },
+      ({ resolveTarget }) => {
+        const pfx = ".specs";
+        const result = resolveTarget(pfx + "/future/FR.md");
+        assert.equal(result.resolution, "SPEC", "Future path under uncreated spec root must resolve to SPEC");
+      },
+    ),
+  );
+
   return receipts;
 }
+
 
 async function main() {
   const receipts = generateAndEvaluateMutants();

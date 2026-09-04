@@ -104,8 +104,8 @@ The evaluator first reads the roadmap rows. A SHIPPED row without readable match
 
 The NEXT outcome has one boring path:
 
-1. expose only `propose_patch` and `apply_proposed_patch` as public mutation tools;
-2. before a `tool_call`, accept the exact allowlist `{propose_patch, apply_proposed_patch}`;
+1. expose only `spec_patch` as public mutation tool;
+2. before a `tool_call`, accept the exact allowlist `{spec_patch}`;
 3. for every other write-capable call, canonically resolve targets and refuse those under `.specs/**`;
 4. fail closed on link, reparse, containment, or resolution uncertainty that may reach `.specs/**`;
 5. apply accepted patches atomically and return bounded reasons;

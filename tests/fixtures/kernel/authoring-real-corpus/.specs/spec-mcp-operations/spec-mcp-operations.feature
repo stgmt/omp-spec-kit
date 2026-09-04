@@ -171,10 +171,10 @@ Feature: MCP read and write operations
 # These scenarios are specification text and are not claimed as executed evidence.
 
   @id:SCEN-mcp-write-authoring-two-tool-inventory @feature23 @AC-23.1
-  Scenario: Authoring inventory contains only two public mutation tools
+  Scenario: Authoring inventory contains only one public mutation tool
     Given the installed omp-spec-kit MCP server
     When its public mutation inventory is listed
-    Then the mutation names are exactly propose_patch and apply_proposed_patch
+    Then the mutation names are exactly spec_patch
     And internal helper compilers are not registered
 
   @id:SCEN-mcp-write-authoring-path-policy-denies-raw-writer @feature23 @AC-23.2
@@ -187,14 +187,14 @@ Feature: MCP read and write operations
   @id:SCEN-mcp-write-authoring-proposal-deterministic-no-write @feature24 @AC-24.1
   Scenario: Equal proposals are deterministic and read-only
     Given identical canonical spec bytes and one-spec operations
-    When propose_patch runs twice
+    When spec_patch runs twice with dryRun true
     Then normalized operations findings diffs hashes and proposal identity are equal
     And every repository document hash is unchanged
 
   @id:SCEN-mcp-write-authoring-invalid-preview-refused @feature24 @AC-24.2
   Scenario: Incomplete or invalid preview cannot be applied
     Given operations that mix specs duplicate a target or exceed a bound
-    When propose_patch validates the request
+    When spec_patch validates the request
     Then it returns INVALID_REQUEST or VALIDATION_FAILED
     And no repository or durable review state is created
 
@@ -215,7 +215,7 @@ Feature: MCP read and write operations
   @id:SCEN-mcp-write-authoring-apply-exact-proposal @feature26 @AC-26.1
   Scenario: Apply commits only the exact current proposal
     Given a complete proposal whose expected hashes and validation still match
-    When apply_proposed_patch runs under the spec lock
+    When spec_patch runs with dryRun false under the spec lock
     Then committed bytes equal every proposal after-hash
     And replay of the same request does not create another commit
 
@@ -276,3 +276,54 @@ Feature: MCP read and write operations
       | anchor rewrite closure |
       | atomic rollback |
       | receipt redaction |
+
+
+@feature30 @FR-30 @AC-30.1 @id:SCEN-mcp-discovery-metadata
+Scenario: MCP discovery metadata is complete and bounded
+  Given a real packaged MCP server
+  When the client initializes and lists the tools
+  Then the server returns 10 existing tools with titles, four annotations, bounded descriptions, and one instructions paragraph
+
+@feature31 @FR-31 @AC-31.1 @id:SCEN-mcp-envelope-and-recovery
+Scenario: MCP envelopes and recovery guidance are declared and mirrored
+  Given a real staged MCP corpus and packaged server
+  When MCP envelope recovery cases are exercised
+  Then every result has one canonical envelope and actionable bounded recovery
+
+
+@feature32 @FR-32 @AC-32.1 @id:SCEN-mcp-discriminated-variants
+Scenario: Discriminated branches reject unexpected parameters
+  Given a real packaged MCP server
+  When a consolidated tool is called with cross-branch or unknown fields
+  Then the call is rejected before query dispatch with INVALID_REQUEST
+
+@feature33 @FR-33 @AC-33.1 @id:SCEN-mcp-types-catalog
+Scenario: Spec catalog returns domain type dictionary
+  Given a real packaged MCP server
+  When spec_catalog is called with view "types"
+  Then the response contains 15 entity kinds and 7 edge types
+
+@feature34 @FR-34 @AC-34.1 @id:SCEN-mcp-surface-blast-limits
+Scenario: Surface blast metrics stay within strict limits
+  Given a candidate MCP server
+  When measure-mcp-tool-blast evaluates the surface
+  Then candidate has 10 tools, <= 25499 bytes, and 0 retired names
+
+@feature35 @FR-35 @AC-35.1 @id:SCEN-mcp-hard-retirement-no-shims
+Scenario: Retired tools return protocol not found errors
+  Given a real packaged MCP server
+  When any retired tool name is invoked
+  Then the server returns protocol error -32602 without migration shims
+
+@feature36 @FR-36 @AC-36.1 @id:SCEN-mcp-mutation-testing-gate
+Scenario: Mutation testing gate eliminates all mutants
+  Given the tool contract registry and mutation harness
+  When check-tool-surface-mutations executes
+  Then zero mutants survive
+
+@feature37 @FR-37 @AC-37.1 @id:SCEN-mcp-unified-validation
+Scenario: Unified validation inspection evaluates corpus and specifications
+  Given a real packaged MCP server
+  When spec_inspect is called with check "validation"
+  Then the response returns unified validation verdict counts and filtered items
+  And retired check branches specValidation and diagnostics are rejected with INVALID_REQUEST

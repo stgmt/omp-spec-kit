@@ -56,7 +56,7 @@ The criteria describe the standalone graph core and its compatibility boundary. 
 
 ## AC-6.1: Historical eight-name compatibility
 
-**EARS:** WHEN the released v0.3.2 compatibility adapters are invoked THEN the exact eight historical MCP names SHALL project the same core result, while released-format decoders and fixture replay remain compatibility-only.
+**EARS:** WHEN historical v0.3.2 release verification runs THEN the eight historical MCP names SHALL remain immutable in released package receipts and fixture replay, but SHALL NOT be required in the active runtime tool registry.
 
 **Requirement:** [FR-6](FR.md#fr-6-historical-eight-name-compatibility)
 
@@ -206,33 +206,33 @@ These EARS criteria are specification text, not execution evidence.
 
 ## AC-23.1
 
-**Requirement:** [FR-23](FR.md#fr-23-two-tool-public-boundary)
+**Requirement:** [FR-23](FR.md#fr-23-single-tool-public-boundary)
 
-**WHEN** the installed MCP inventory is listed **THEN** its public mutation names SHALL be exactly `propose_patch` and `apply_proposed_patch`, internal helpers SHALL be absent, and the historical v0.3.2 read-only inventory SHALL remain historical evidence rather than a mutable authoring registry.
+**WHEN** the installed MCP inventory is listed **THEN** its public mutation name SHALL be exactly `spec_patch`, internal helpers and separate propose/apply tools SHALL be absent, and the historical v0.3.2 read-only inventory SHALL remain historical evidence rather than a mutable authoring registry.
 
 ## AC-23.2
 
-**Requirement:** [FR-23](FR.md#fr-23-two-tool-public-boundary)
+**Requirement:** [FR-23](FR.md#fr-23-single-tool-public-boundary)
 
-**WHEN** a current-host tool call can write and its resolved target is under canonical `.specs/**` **THEN** the path policy SHALL allow it only when the tool name is in the exact authoring allowlist and SHALL deny every non-allowlisted writer before execution.
+**WHEN** a current-host tool call can write and its resolved target is under canonical `.specs/**` **THEN** the path policy SHALL allow it only when the tool name is in the exact authoring allowlist (`spec_patch`) and SHALL deny every non-allowlisted writer before execution.
 
 ## AC-24.1
 
 **Requirement:** [FR-24](FR.md#fr-24-pure-deterministic-proposal)
 
-**WHEN** a valid one-spec request is proposed twice against identical bytes **THEN** both complete Proposals SHALL have equal normalized operations, finding order, diffs, before/after hashes, and Proposal hash, while all repository hashes remain unchanged.
+**WHEN** a valid one-spec request is previewed twice with `dryRun: true` (or omitted) against identical bytes **THEN** both complete previews SHALL have equal outcome PREVIEW, normalized operations, finding order, diffs, before/after hashes, and Proposal hash, while all repository hashes remain unchanged.
 
 ## AC-24.2
 
 **Requirement:** [FR-24](FR.md#fr-24-pure-deterministic-proposal)
 
-**IF** operations target multiple specs or duplicate documents, violate a bound, or produce an invalid or incomplete preview **THEN** proposal SHALL return `INVALID_REQUEST` or `VALIDATION_FAILED`, SHALL be unappliable, and SHALL create no repository or durable review/transaction state.
+**IF** operations target multiple specs or duplicate documents, violate a bound, or produce an invalid or incomplete preview **THEN** `spec_patch` SHALL return `INVALID_REQUEST` or `VALIDATION_FAILED`, SHALL not commit, and SHALL create no repository or durable review/transaction state.
 
 ## AC-25.1
 
 **Requirement:** [FR-25](FR.md#fr-25-containment-anchors-and-resulting-spec-validation)
 
-**IF** any root, spec, ancestor, or target is escaping, linked, reparse-backed, ambiguous, unsupported, normalization-colliding, or switched during resolution **THEN** both tools SHALL return `PATH_FORBIDDEN` before target mutation and SHALL report only bounded repository-relative diagnostics.
+**IF** any root, spec, ancestor, or target is escaping, linked, reparse-backed, ambiguous, unsupported, normalization-colliding, or switched during resolution **THEN** `spec_patch` SHALL return `PATH_FORBIDDEN` before target mutation and SHALL report only bounded repository-relative diagnostics.
 
 ## AC-25.2
 
@@ -244,13 +244,13 @@ These EARS criteria are specification text, not execution evidence.
 
 **Requirement:** [FR-26](FR.md#fr-26-exact-proposal-apply-with-cas-and-revalidation)
 
-**WHEN** Proposal identity, every expected document hash, containment, and full resulting-spec validation still match under the lock **THEN** apply SHALL commit bytes exactly equal to the Proposal after-hashes and return one receipt; equal request replay SHALL not commit again.
+**WHEN** `spec_patch` is invoked with `dryRun: false` and Proposal identity, containment, expected document hashes, and full resulting-spec validation still match under the lock **THEN** commit SHALL write bytes exactly equal to the Proposal after-hashes and return one receipt with outcome APPLIED; equal request replay SHALL not commit again.
 
 ## AC-26.2
 
 **Requirement:** [FR-26](FR.md#fr-26-exact-proposal-apply-with-cas-and-revalidation)
 
-**IF** any expected hash, Proposal hash, document set, path identity, or validation result changes before swap **THEN** apply SHALL return `CONFLICT` or `VALIDATION_FAILED`, SHALL not auto-rebase, and SHALL preserve the concurrently committed generation.
+**IF** any expected hash, Proposal hash, document set, path identity, or validation result changes before swap **THEN** `spec_patch` with `dryRun: false` SHALL return `CONFLICT` or `VALIDATION_FAILED`, SHALL not auto-rebase, and SHALL preserve the concurrently committed generation.
 
 ## AC-27.1
 
@@ -274,7 +274,7 @@ These EARS criteria are specification text, not execution evidence.
 
 **Requirement:** [FR-28](FR.md#fr-28-byte-conservation-and-compact-redacted-outcomes)
 
-**WHEN** proposal or apply succeeds or refuses **THEN** the response SHALL match the compact Proposal, ApplyResult, MutationReceipt, or Error shape; planted document bodies, secrets, environment values, stack traces, retained bytes, and unrelated absolute paths SHALL be absent.
+**WHEN** `spec_patch` preview or apply succeeds or refuses **THEN** the response SHALL match the compact Proposal preview, MutationReceipt, or Error shape; planted document bodies, secrets, environment values, stack traces, retained bytes, and unrelated absolute paths SHALL be absent; `proposalId` is not returned externally.
 
 ## AC-29.1
 
@@ -287,3 +287,70 @@ These EARS criteria are specification text, not execution evidence.
 **Requirement:** [FR-29](FR.md#fr-29-real-correctness-evidence)
 
 **WHEN** containment, CAS, resulting-spec validation, anchor rewrite, atomic rollback, or redaction is deliberately disabled one at a time **THEN** at least one concrete behavioral test SHALL fail for each omission; these checks SHALL remain CI evidence and SHALL NOT alter runtime availability or response shape.
+
+
+## AC-30.1: MCP discovery metadata and handshake
+
+Given the packaged MCP server, when a client initializes and lists tools, the response SHALL contain exactly 10 names in contract order. Every entry SHALL have a top-level title matching its contract label, exactly four boolean annotation keys with the specified 9/1 semantic matrix, and a non-empty first description line of at most 200 characters. The initialize result SHALL contain the single approved instructions paragraph.
+
+**Scenario:** `@feature30 @FR-30 @AC-30.1 @id:SCEN-mcp-discovery-metadata`
+**Verification:** direct JSON-RPC and staged BDD.
+
+## AC-31.1: Envelope schema and recovery are machine-actionable
+
+Given a real MCP server, tools/list declares the stable result schema and discovery metadata; a successful call mirrors one canonical envelope in structured and text content; stale cursor responses declare actionable recovery; and a `repositoryRootFingerprint` conflict has stable `causeCode` `REPOSITORY_ROOT_FINGERPRINT_MISMATCH`, states that another project or stale snapshot may be in use, exposes only `activeProjectRootId` and `resolvedRootId`, and directs the caller to `mcp_preflight`; when those roots do not match the caller reconnects, otherwise it refreshes the `spec_catalog` overview and creates a new proposal; target-indeterminate enforcement returns a bounded relative-target recovery without an absolute path.
+
+
+## AC-32.1: Discriminated branch schemas and strict argument validation
+
+**EARS:** WHEN an MCP call is received for a consolidated tool THEN the input arguments SHALL be validated against the exact discriminator branch schema with `additionalProperties: false`; each branch in `oneOf` SHALL publish its own title `<discriminator>: <variant>` and description, and the top-level discriminator property SHALL instruct the caller to select exactly one branch; ANY unknown field, cross-branch field, or invalid enum SHALL return `INVALID_REQUEST` before backend execution.
+
+**Requirement:** [FR-32](FR.md#fr-32-discriminated-branch-schemas-and-strict-argument-validation)
+
+**Scenario:** `@feature32 @FR-32 @AC-32.1 @id:SCEN-mcp-discriminated-variants`
+
+## AC-33.1: Domain type dictionary catalog
+
+**EARS:** WHEN `spec_catalog` is invoked with `view: "types"` THEN the response SHALL return exactly 15 entity kind descriptors and 7 edge type descriptors derived directly from the immutable kernel dictionary.
+
+**Requirement:** [FR-33](FR.md#fr-33-domain-type-dictionary-catalog)
+
+**Scenario:** `@feature33 @FR-33 @AC-33.1 @id:SCEN-mcp-types-catalog`
+
+## AC-34.1: Surface blast limits and fail-closed measurement
+
+**EARS:** WHEN `scripts/measure-mcp-tool-blast.mjs` evaluates the candidate MCP server THEN candidate tool count SHALL be 10, catalog bytes SHALL be <= 25,499, description characters SHALL be <= 2,000, and retired tool names SHALL be 0; OTHERWISE the measurement script SHALL exit with a fail-closed error.
+
+**Requirement:** [FR-34](FR.md#fr-34-surface-blast-limits-and-fail-closed-measurement)
+
+**Scenario:** `@feature34 @FR-34 @AC-34.1 @id:SCEN-mcp-surface-blast-limits`
+
+## AC-35.1: Hard tool retirement without backward-compatibility shims
+
+**EARS:** WHEN any of the 29 retired MCP tool names is called THEN the server SHALL return protocol error `-32602` without custom migration hints, aliases, or backward-compatibility fallbacks.
+
+**Requirement:** [FR-35](FR.md#fr-35-hard-tool-retirement-without-backward-compatibility-shims)
+
+**Scenario:** `@feature35 @FR-35 @AC-35.1 @id:SCEN-mcp-hard-retirement-no-shims`
+
+## AC-36.1: Deterministic mutation testing gate
+
+**EARS:** WHEN `scripts/check-tool-surface-mutations.mjs` runs against tool contracts and invariants THEN all synthetic mutants SHALL be eliminated resulting in `survivors: 0`.
+
+**Requirement:** [FR-36](FR.md#fr-36-deterministic-mutation-testing-gate)
+
+**Scenario:** `@feature36 @FR-36 @AC-36.1 @id:SCEN-mcp-mutation-testing-gate`
+
+## AC-37.1: Unified specification and corpus validation inspection
+
+**EARS:** WHEN `spec_inspect` is called with `check: "validation"`:
+1. IF `specSlugs` is omitted or empty THEN validation scope SHALL be the entire corpus;
+2. IF `specSlugs` contains unknown slugs THEN the server SHALL return `NOT_FOUND`, and IF slug syntax is malformed THEN the server SHALL return `INVALID_PARAMETER`;
+3. Diagnostic scope membership SHALL be determined solely by `diagnostic.specSlug` (diagnostics without `specSlug` belong to corpus scope only, and path prefix checking is prohibited);
+4. Overall `valid`, `verdict`, and counts (`errors`, `warnings`, `info`, `total`) SHALL be computed across all diagnostics in the resolved scope before applying `severities`, `codes`, or `paths` filters;
+5. The `items` array and `counts.matched` SHALL reflect only items matching the filters, paginated deterministically by `limit` and `cursor`;
+6. Calls with `check: "specValidation"` or `check: "diagnostics"` SHALL be rejected as `INVALID_REQUEST` without compatibility aliases.
+
+**Requirement:** [FR-37](FR.md#fr-37-unified-specification-and-corpus-validation-inspection)
+
+**Scenario:** `@feature37 @FR-37 @AC-37.1 @id:SCEN-mcp-unified-validation`

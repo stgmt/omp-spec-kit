@@ -3,11 +3,10 @@
 ## Constants
 
 ```ts
-type AuthoringToolName = "propose_patch" | "apply_proposed_patch";
+type AuthoringToolName = "spec_patch";
 
 const AUTHORING_TOOL_NAMES: readonly AuthoringToolName[] = [
-  "propose_patch",
-  "apply_proposed_patch",
+  "spec_patch",
 ];
 
 type ResolutionClass = "SPEC" | "NON_SPEC" | "INDETERMINATE";
@@ -22,7 +21,7 @@ type DecisionCode =
 
 ```
 
-The allowlist has exactly two entries. Comparison is exact and case-sensitive; no prefix, suffix, qualification, alias, or pattern match is valid.
+The allowlist has exactly one entry. Comparison is exact and case-sensitive; no prefix, suffix, qualification, alias, or pattern match is valid.
 
 ## Input
 
@@ -108,7 +107,7 @@ Decision order is normative:
 The block reason is deterministic, at most 512 UTF-8 bytes, and follows:
 
 ```text
-<CODE>: direct specification write blocked for <repo-relative-target-or-unknown>. Use propose_patch, then apply_proposed_patch.
+<CODE>: direct specification write blocked for <repo-relative-target-or-unknown>. Use spec_patch.
 ```
 
 It omits absolute paths, environment values, credentials, stacks, and raw operating-system errors.
