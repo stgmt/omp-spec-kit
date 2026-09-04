@@ -49,7 +49,7 @@ This map records the small product-status surface. Owner specifications retain i
 
 ## Prohibited additions
 
-The product SHALL NOT add a second marketplace, plugin package, extension, public mutation tool beyond `propose_patch` and `apply_proposed_patch`, raw specification writer, user-global secret/state dependency, or alternate product identity.
+The product SHALL NOT add a second marketplace, plugin package, extension, public mutation tool beyond `spec_patch`, raw specification writer, user-global secret/state dependency, or alternate product identity.
 
 ---
 

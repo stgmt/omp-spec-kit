@@ -222,9 +222,9 @@ The product release gate MAY consume ordinary `TaskEvidence` and `ScenarioEviden
 
 Runtime identities are qualified as `spec-mcp-operations:FR-N`. Product state is `NEXT` under `plugin-distribution:FR-17`; no paragraph claims runtime delivery.
 
-## FR-23: Two-tool public boundary
+## FR-23: Single-tool public boundary
 
-The v0.6.0 MCP authoring surface SHALL expose all 24 authoring operations as public tools: 20 proposal tools returning a deterministic Proposal structure, and 4 transactional apply tools executing with CAS verification and atomic rollback. The current-host `tool_call` policy SHALL verify minted MCP tool names; every other mutating call whose resolved target is under canonical `.specs/**` SHALL be denied before execution. Calls outside that path remain subject to normal host policy.
+The MCP authoring surface SHALL expose `spec_patch` as the single public authoring tool, consolidating in-memory proposal review and transactional application behind a single entry point. It SHALL support all 13 authoring intents (`patch`, `amendRequirement`, `addAcceptanceCriterion`, `addPhase`, `setEntityStatus`, `setSpecStatus`, `setRequirementMetadata`, `deleteSpecDoc`, `renameSpecDoc`, `createSpec`, `archiveSpec`, `addBacklogTask`, and `registerIncidentBacklog`). When `dryRun` is omitted or set to `true`, it SHALL perform verified in-memory preview without writing. When `dryRun` is `false`, it SHALL execute an internal transaction under an exclusive lock. The current-host `tool_call` policy SHALL verify minted MCP tool names; every other mutating call whose resolved target is under canonical `.specs/**` SHALL be denied before execution. Calls outside that path remain subject to normal host policy.
 
 **Acceptance:** [AC-23.1](ACCEPTANCE_CRITERIA.md#ac-231)
 
@@ -232,7 +232,7 @@ The v0.6.0 MCP authoring surface SHALL expose all 24 authoring operations as pub
 
 ## FR-24: Pure deterministic proposal
 
-`propose_patch` SHALL accept canonical operations for exactly one spec, resolve them against one immutable kernel snapshot, apply them only in memory, and return a complete deterministic Proposal containing proposal identity/hash, spec identity, base snapshot hash, normalized operations, per-document before/after hashes, bounded unified diffs, affected node IDs, and ordered findings. Proposal creation SHALL write no repository, journal, review, or transaction state. Incomplete or truncated previews SHALL be invalid and unappliable.
+`spec_patch` with `dryRun: true` (or omitted) SHALL accept canonical operations or intent for exactly one spec, resolve them against one immutable kernel snapshot, apply them only in memory, and return a complete deterministic Proposal preview with outcome PREVIEW containing proposal hash, spec identity, base snapshot hash, normalized operations, per-document before/after hashes, bounded unified diffs, affected node IDs, and ordered findings. Proposal preview SHALL write no repository, journal, review, staging, or transaction state. Incomplete or truncated previews SHALL be invalid and unappliable.
 
 **Contract card:** kind `api`; subject `pure-proposal`; observables: Proposal and unchanged tree hashes; negative cases: mixed specs, duplicate target, invalid operation, exceeded preview bound; verification: deterministic no-write tests, pending.
 **Acceptance:** [AC-24.1](ACCEPTANCE_CRITERIA.md#ac-241), [AC-24.2](ACCEPTANCE_CRITERIA.md#ac-242)
@@ -250,7 +250,7 @@ Both public tools SHALL require one explicit canonical repository root and root-
 
 ## FR-26: Exact-proposal apply with CAS and revalidation
 
-`apply_proposed_patch` SHALL accept only an existing complete Proposal identity/hash, the expected current hash of every changed document, and a non-empty reason. It SHALL accept no raw operations or replacement bytes. Under one spec-scoped exclusive lock it SHALL re-resolve containment, verify the Proposal hash and document set, compare current hashes, rebuild the exact in-memory result, rerun every mandatory validator, compare hashes again immediately before commit, and refuse on any mismatch. It SHALL never auto-rebase. Replaying the same request identity and content SHALL not create a second commit.
+`spec_patch` with `dryRun: false` SHALL accept a non-empty reason and one specification's canonical operations or intent. Under one spec-scoped exclusive lock it SHALL re-resolve containment, verify the internally compiled Proposal hash and document set, compare current hashes with base snapshot and document preimages, rebuild the exact in-memory result, rerun every mandatory validator, compare hashes again immediately before commit, and refuse on any mismatch. It SHALL never auto-rebase. `proposalId`, `proposalSha256`, `expectedDocuments`, and `approval` are internal only and removed from the public input schema. Replaying the same request identity and content SHALL not create a second commit.
 
 **Contract card:** kind `behavior`; subject `cas-apply`; observables: one exact result or structured refusal; negative cases: missing/extra hash, stale base, proposal mismatch, concurrent change, request reuse with different content; verification: two-writer and replay tests, pending.
 **Acceptance:** [AC-26.1](ACCEPTANCE_CRITERIA.md#ac-261), [AC-26.2](ACCEPTANCE_CRITERIA.md#ac-262)
@@ -268,7 +268,7 @@ After successful revalidation, the writer SHALL stage a complete result generati
 
 ## FR-28: Byte conservation and compact redacted outcomes
 
-Every accepted edit SHALL preserve untouched bytes, source EOL style, encoding, and final-newline state; changed documents SHALL equal the Proposal after-hashes byte-for-byte. Proposal and Apply responses SHALL use the compact schema and seven error families defined in [spec-mcp-operations_SCHEMA.md](spec-mcp-operations_SCHEMA.md). A successful apply SHALL return one redacted MutationReceipt with request/proposal identity, outcome, reason and actor reference when available, changed relative document paths with before/after hashes, and findings. Responses SHALL exclude document bodies, full diffs from apply, credentials, environment values, authorization material, retained bytes, and unrelated paths.
+Every accepted edit SHALL preserve untouched bytes, source EOL style, encoding, and final-newline state; changed documents SHALL equal the Proposal after-hashes byte-for-byte. Spec patch responses SHALL use the compact schema and seven error families defined in [spec-mcp-operations_SCHEMA.md](spec-mcp-operations_SCHEMA.md). A successful preview SHALL return outcome PREVIEW with diff and before/after hashes; a successful apply SHALL return outcome APPLIED with one redacted MutationReceipt containing request identity, outcome, reason and actor reference when available, changed relative document paths with before/after hashes, and findings. Conflict outcomes return REFUSED with typed error. Responses SHALL exclude document bodies, full diffs from apply, credentials, environment values, authorization material, retained bytes, and unrelated paths.
 
 **Contract card:** kind `data`; subject `conservation-and-receipt`; observables: byte hashes, EOL/final-newline state, compact receipt; negative cases: accidental normalization, secret/body leak, stack trace; verification: byte corpus and redaction tests, pending.
 **Acceptance:** [AC-28.1](ACCEPTANCE_CRITERIA.md#ac-281), [AC-28.2](ACCEPTANCE_CRITERIA.md#ac-282)
@@ -287,9 +287,9 @@ Implementation SHALL be verified with provenance-recorded real kernel corpus cap
 
 ## FR-30: MCP discovery metadata and handshake
 
-The MCP server SHALL expose exactly 11 tools in the fixed contract order: `mcp_preflight`, `spec_catalog`, `spec_entities`, `spec_graph`, `spec_documents`, `spec_inspect`, `spec_tasks`, `spec_evidence`, `spec_markdown`, `spec_propose_patch`, and `apply_proposed_patch`. Each `tools/list` entry SHALL publish a non-empty top-level `title` equal to the contract label, and publish exactly four boolean annotations: `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint`. The 10 non-mutating tools SHALL use `true, false, true, false` respectively; `apply_proposed_patch` SHALL use `false, true, true, false`. Each first description line SHALL be non-empty and no longer than 200 characters. `initialize` SHALL return one instructions paragraph defining the discovery, query, proposal, review, and approval workflow.
+The MCP server SHALL expose exactly 10 tools in the fixed contract order: `mcp_preflight`, `spec_catalog`, `spec_entities`, `spec_graph`, `spec_documents`, `spec_inspect`, `spec_tasks`, `spec_evidence`, `spec_markdown`, and `spec_patch`. Each `tools/list` entry SHALL publish a non-empty top-level `title` equal to the contract label, and publish exactly four boolean annotations: `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint`. The 9 non-mutating tools SHALL use `true, false, true, false` respectively; `spec_patch` SHALL use `false, true, true, false`. Each first description line SHALL be non-empty and no longer than 200 characters. `initialize` SHALL return one instructions paragraph defining the discovery, query, proposal, review, and approval workflow.
 
-**Contract card:** kind `functional`; subject `mcp-discovery`; observables: 11 ordered tools, titles, four annotations, description cap, initialize instructions; verification: direct JSON-RPC and staged BDD.
+**Contract card:** kind `functional`; subject `mcp-discovery`; observables: 10 ordered tools, titles, four annotations, description cap, initialize instructions; verification: direct JSON-RPC and staged BDD.
 **Acceptance:** [AC-30.1](ACCEPTANCE_CRITERIA.md#ac-301-mcp-discovery-metadata-and-handshake)
 **Scenario:** `@feature30 @FR-30 @AC-30.1 @id:SCEN-mcp-discovery-metadata`
 
@@ -316,7 +316,7 @@ Consolidated MCP tools SHALL define input schemas with top-level discriminator f
 
 ## FR-34: Surface blast limits and fail-closed measurement
 
-The MCP tool surface SHALL be bounded by automated measurement. In release candidates, tool count SHALL equal 11, catalog JSON size SHALL not exceed 25,499 bytes (60% of the 38-tool baseline), total description text SHALL not exceed 2,000 characters, and zero retired tool names SHALL appear. Automated verification SHALL fail closed whenever any bound is violated.
+The MCP tool surface SHALL be bounded by automated measurement. In release candidates, tool count SHALL equal 10, catalog JSON size SHALL not exceed 25,499 bytes (60% of the 38-tool baseline), total description text SHALL not exceed 2,000 characters, and zero retired tool names SHALL appear. Automated verification SHALL fail closed whenever any bound is violated.
 
 **Acceptance:** [AC-34.1](ACCEPTANCE_CRITERIA.md#ac-341-surface-blast-limits-and-fail-closed-measurement)
 
@@ -324,7 +324,7 @@ The MCP tool surface SHALL be bounded by automated measurement. In release candi
 
 ## FR-35: Hard tool retirement without backward-compatibility shims
 
-All 27 superseded tool names from the 38-tool surface SHALL be excised from runtime discovery, query routing, active documentation, and test assertions. Unregistered calls to retired names SHALL return standard JSON-RPC protocol error `-32602` without custom migration hints, aliases, or backward-compatibility fallbacks.
+All 29 superseded tool names from the 38-tool surface (including `spec_propose_patch` and `apply_proposed_patch`) SHALL be excised from runtime discovery, query routing, active documentation, and test assertions. Unregistered calls to retired names SHALL return standard JSON-RPC protocol error `-32602` without custom migration hints, aliases, or backward-compatibility fallbacks.
 
 **Acceptance:** [AC-35.1](ACCEPTANCE_CRITERIA.md#ac-351-hard-tool-retirement-without-backward-compatibility-shims)
 

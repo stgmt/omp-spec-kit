@@ -14,9 +14,9 @@ Pinned OMP v17.3.7 exposes a pre-execution `tool_call` event with the tool name 
 
 ### RF-2: Name equality is the complete authoring exception
 
-The requested product boundary has exactly two public mutation operations: `propose_patch` and `apply_proposed_patch`. The hook-visible name is compared by exact string equality before path resolution. Prefixes, suffixes, case changes, qualified lookalikes, and embedded names are not matches.
+The requested product boundary has exactly one public mutation operation: `spec_patch`. The hook-visible name is compared by exact string equality before path resolution. Prefixes, suffixes, case changes, qualified lookalikes, and embedded names are not matches.
 
-**Decision:** keep one two-string constant; do not add another identity or discovery mechanism.
+**Decision:** keep one single-string constant; do not add another identity or discovery mechanism.
 
 ### RF-3: Lexical matching is insufficient
 

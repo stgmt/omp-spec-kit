@@ -185,7 +185,7 @@ A roadmap is an ordered array of `RoadmapRow` with these invariants:
 | bucket | label | proof | observedRelease | whyNotShipped |
 |---|---|---|---|---|
 | SHIPPED | v0.3.2 read-only MCP baseline: v0.2 graph/query kernel plus eight working read-only MCP tools | `docs/validation/release-status-v0.3.2.json` | `{version: "0.3.2", installedIdentity: "omp-spec-kit@omp-spec-kit"}` | null |
-| NEXT | Safe spec authoring | null | null | Only `propose_patch` and `apply_proposed_patch` may be public; atomic contained application and the exact-name-first `.specs/**` direct-write policy still require real end-to-end proof. |
+| NEXT | Safe spec authoring | null | null | Only `spec_patch` may be public; atomic contained application and the exact-name-first `.specs/**` direct-write policy still require real end-to-end proof. |
 | LATER | Expanded read queries | null | null | null |
 | LATER | Editor navigation | null | null | null |
 | LATER | Evidence queries | null | null | null |
@@ -200,7 +200,7 @@ For SHIPPED, the proof file is consumed as an opaque bounded release receipt. Pr
 
 The NEXT row may move to SHIPPED only when one current end-to-end proof shows all of the following for the same product build:
 
-- public mutation names are exactly `propose_patch` and `apply_proposed_patch`;
+- public mutation name is exactly `spec_patch`;
 - an allowlisted MCP authoring call applies atomically inside repository containment;
 - a non-MCP read, search, enumeration, shell, edit, or write targeting canonical .specs/** is refused;
 - a link or reparse escape is refused;

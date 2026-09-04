@@ -151,10 +151,10 @@
 **Related:** [FR-25](FR.md#fr-25-response-source-identity-and-root-consistency), [AC-25.1](ACCEPTANCE_CRITERIA.md#ac-251-response-source-identity-and-root-consistency)
 
 
-## UC-18 — Discover consolidated 11-tool surface
+## UC-18 — Discover consolidated 10-tool surface
 
 - **Actor:** Plugin user / MCP client
 - **Preconditions:** Server initialized
 - **Trigger:** tools/list requested
-- **Main Success Scenario:** Exactly 11 consolidated tools are returned with valid schemas and annotations.
+- **Main Success Scenario:** Exactly 10 consolidated tools are returned with valid schemas and annotations.
 - **Postconditions:** Client invokes consolidated operations via discriminated variants.

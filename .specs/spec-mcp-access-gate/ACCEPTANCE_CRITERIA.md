@@ -10,11 +10,11 @@ These criteria define future verification obligations. Scenario text alone is no
 
 **Scenario:** `@feature1`, `@id:SCEN-current-tool-call-registration`
 
-## AC-2.1: Only the two exact authoring names bypass path denial
+## AC-2.1: Only the exact authoring allowlist bypasses path denial
 
-**EARS:** WHEN the hook-visible tool name matches an authorized minted MCP tool name in the active omp-spec-kit tool family verified through pi.getAllTools() THEN the handler SHALL ALLOW AUTHORING_TOOL_ALLOWED before containment; WHEN a raw short name is called directly without MCP namespace THEN it SHALL BLOCK UNREGISTERED_AUTHORING_CALL; WHEN apply operations are called without explicit approval="approve" THEN the handler SHALL BLOCK APPROVAL_REQUIRED.
+**EARS:** WHEN the hook-visible tool name matches an authorized minted MCP tool name in the active omp-spec-kit tool family verified through pi.getAllTools() for `spec_patch` THEN the handler SHALL ALLOW AUTHORING_TOOL_ALLOWED before containment; WHEN a raw short name is called directly without MCP namespace THEN it SHALL BLOCK UNREGISTERED_AUTHORING_CALL.
 
-**Requirement:** [FR-2](FR.md#fr-2-exact-two-name-authoring-allowlist)
+**Requirement:** [FR-2](FR.md#fr-2-exact-authoring-allowlist)
 
 **Scenario:** `@feature2`, `@id:SCEN-exact-authoring-allowlist`
 
@@ -36,7 +36,7 @@ These criteria define future verification obligations. Scenario text alone is no
 
 ## AC-5.1: Blocks are bounded visible and stateless
 
-**EARS:** WHEN a call blocks THEN the reason SHALL be deterministic and at most 512 UTF-8 bytes, SHALL use only a repository-relative target when known, SHALL name the decision code, and SHALL redirect to `spec_propose_patch` then `apply_proposed_patch`; AND repeated calls SHALL create no file log counter cache network subprocess credential access or alternate tool; For `TARGET_INDETERMINATE`, the reason SHALL include: `Recovery: provide one explicit repository-relative target, or use spec_propose_patch then apply_proposed_patch.`.
+**EARS:** WHEN a call blocks THEN the reason SHALL be deterministic and at most 512 UTF-8 bytes, SHALL use only a repository-relative target when known, SHALL name the decision code, and SHALL redirect to `spec_patch`; AND repeated calls SHALL create no file log counter cache network subprocess credential access or alternate tool; For `TARGET_INDETERMINATE`, the reason SHALL include: `Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply.`.
 
 **Requirement:** [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results)
 

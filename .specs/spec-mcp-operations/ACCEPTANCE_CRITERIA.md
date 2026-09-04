@@ -206,33 +206,33 @@ These EARS criteria are specification text, not execution evidence.
 
 ## AC-23.1
 
-**Requirement:** [FR-23](FR.md#fr-23-two-tool-public-boundary)
+**Requirement:** [FR-23](FR.md#fr-23-single-tool-public-boundary)
 
-**WHEN** the installed MCP inventory is listed **THEN** its public mutation names SHALL be exactly `propose_patch` and `apply_proposed_patch`, internal helpers SHALL be absent, and the historical v0.3.2 read-only inventory SHALL remain historical evidence rather than a mutable authoring registry.
+**WHEN** the installed MCP inventory is listed **THEN** its public mutation name SHALL be exactly `spec_patch`, internal helpers and separate propose/apply tools SHALL be absent, and the historical v0.3.2 read-only inventory SHALL remain historical evidence rather than a mutable authoring registry.
 
 ## AC-23.2
 
-**Requirement:** [FR-23](FR.md#fr-23-two-tool-public-boundary)
+**Requirement:** [FR-23](FR.md#fr-23-single-tool-public-boundary)
 
-**WHEN** a current-host tool call can write and its resolved target is under canonical `.specs/**` **THEN** the path policy SHALL allow it only when the tool name is in the exact authoring allowlist and SHALL deny every non-allowlisted writer before execution.
+**WHEN** a current-host tool call can write and its resolved target is under canonical `.specs/**` **THEN** the path policy SHALL allow it only when the tool name is in the exact authoring allowlist (`spec_patch`) and SHALL deny every non-allowlisted writer before execution.
 
 ## AC-24.1
 
 **Requirement:** [FR-24](FR.md#fr-24-pure-deterministic-proposal)
 
-**WHEN** a valid one-spec request is proposed twice against identical bytes **THEN** both complete Proposals SHALL have equal normalized operations, finding order, diffs, before/after hashes, and Proposal hash, while all repository hashes remain unchanged.
+**WHEN** a valid one-spec request is previewed twice with `dryRun: true` (or omitted) against identical bytes **THEN** both complete previews SHALL have equal outcome PREVIEW, normalized operations, finding order, diffs, before/after hashes, and Proposal hash, while all repository hashes remain unchanged.
 
 ## AC-24.2
 
 **Requirement:** [FR-24](FR.md#fr-24-pure-deterministic-proposal)
 
-**IF** operations target multiple specs or duplicate documents, violate a bound, or produce an invalid or incomplete preview **THEN** proposal SHALL return `INVALID_REQUEST` or `VALIDATION_FAILED`, SHALL be unappliable, and SHALL create no repository or durable review/transaction state.
+**IF** operations target multiple specs or duplicate documents, violate a bound, or produce an invalid or incomplete preview **THEN** `spec_patch` SHALL return `INVALID_REQUEST` or `VALIDATION_FAILED`, SHALL not commit, and SHALL create no repository or durable review/transaction state.
 
 ## AC-25.1
 
 **Requirement:** [FR-25](FR.md#fr-25-containment-anchors-and-resulting-spec-validation)
 
-**IF** any root, spec, ancestor, or target is escaping, linked, reparse-backed, ambiguous, unsupported, normalization-colliding, or switched during resolution **THEN** both tools SHALL return `PATH_FORBIDDEN` before target mutation and SHALL report only bounded repository-relative diagnostics.
+**IF** any root, spec, ancestor, or target is escaping, linked, reparse-backed, ambiguous, unsupported, normalization-colliding, or switched during resolution **THEN** `spec_patch` SHALL return `PATH_FORBIDDEN` before target mutation and SHALL report only bounded repository-relative diagnostics.
 
 ## AC-25.2
 
@@ -244,13 +244,13 @@ These EARS criteria are specification text, not execution evidence.
 
 **Requirement:** [FR-26](FR.md#fr-26-exact-proposal-apply-with-cas-and-revalidation)
 
-**WHEN** Proposal identity, every expected document hash, containment, and full resulting-spec validation still match under the lock **THEN** apply SHALL commit bytes exactly equal to the Proposal after-hashes and return one receipt; equal request replay SHALL not commit again.
+**WHEN** `spec_patch` is invoked with `dryRun: false` and Proposal identity, containment, expected document hashes, and full resulting-spec validation still match under the lock **THEN** commit SHALL write bytes exactly equal to the Proposal after-hashes and return one receipt with outcome APPLIED; equal request replay SHALL not commit again.
 
 ## AC-26.2
 
 **Requirement:** [FR-26](FR.md#fr-26-exact-proposal-apply-with-cas-and-revalidation)
 
-**IF** any expected hash, Proposal hash, document set, path identity, or validation result changes before swap **THEN** apply SHALL return `CONFLICT` or `VALIDATION_FAILED`, SHALL not auto-rebase, and SHALL preserve the concurrently committed generation.
+**IF** any expected hash, Proposal hash, document set, path identity, or validation result changes before swap **THEN** `spec_patch` with `dryRun: false` SHALL return `CONFLICT` or `VALIDATION_FAILED`, SHALL not auto-rebase, and SHALL preserve the concurrently committed generation.
 
 ## AC-27.1
 
@@ -274,7 +274,7 @@ These EARS criteria are specification text, not execution evidence.
 
 **Requirement:** [FR-28](FR.md#fr-28-byte-conservation-and-compact-redacted-outcomes)
 
-**WHEN** proposal or apply succeeds or refuses **THEN** the response SHALL match the compact Proposal, ApplyResult, MutationReceipt, or Error shape; planted document bodies, secrets, environment values, stack traces, retained bytes, and unrelated absolute paths SHALL be absent.
+**WHEN** `spec_patch` preview or apply succeeds or refuses **THEN** the response SHALL match the compact Proposal preview, MutationReceipt, or Error shape; planted document bodies, secrets, environment values, stack traces, retained bytes, and unrelated absolute paths SHALL be absent; `proposalId` is not returned externally.
 
 ## AC-29.1
 
@@ -291,7 +291,7 @@ These EARS criteria are specification text, not execution evidence.
 
 ## AC-30.1: MCP discovery metadata and handshake
 
-Given the packaged MCP server, when a client initializes and lists tools, the response SHALL contain exactly 11 names in contract order. Every entry SHALL have a top-level title matching its contract label, exactly four boolean annotation keys with the specified 10/1 semantic matrix, and a non-empty first description line of at most 200 characters. The initialize result SHALL contain the single approved instructions paragraph.
+Given the packaged MCP server, when a client initializes and lists tools, the response SHALL contain exactly 10 names in contract order. Every entry SHALL have a top-level title matching its contract label, exactly four boolean annotation keys with the specified 9/1 semantic matrix, and a non-empty first description line of at most 200 characters. The initialize result SHALL contain the single approved instructions paragraph.
 
 **Scenario:** `@feature30 @FR-30 @AC-30.1 @id:SCEN-mcp-discovery-metadata`
 **Verification:** direct JSON-RPC and staged BDD.
@@ -319,7 +319,7 @@ Given a real MCP server, tools/list declares the stable result schema and discov
 
 ## AC-34.1: Surface blast limits and fail-closed measurement
 
-**EARS:** WHEN `scripts/measure-mcp-tool-blast.mjs` evaluates the candidate MCP server THEN candidate tool count SHALL be 11, catalog bytes SHALL be <= 25,499, description characters SHALL be <= 2,000, and retired tool names SHALL be 0; OTHERWISE the measurement script SHALL exit with a fail-closed error.
+**EARS:** WHEN `scripts/measure-mcp-tool-blast.mjs` evaluates the candidate MCP server THEN candidate tool count SHALL be 10, catalog bytes SHALL be <= 25,499, description characters SHALL be <= 2,000, and retired tool names SHALL be 0; OTHERWISE the measurement script SHALL exit with a fail-closed error.
 
 **Requirement:** [FR-34](FR.md#fr-34-surface-blast-limits-and-fail-closed-measurement)
 
@@ -327,7 +327,7 @@ Given a real MCP server, tools/list declares the stable result schema and discov
 
 ## AC-35.1: Hard tool retirement without backward-compatibility shims
 
-**EARS:** WHEN any of the 27 retired MCP tool names is called THEN the server SHALL return protocol error `-32602` without custom deprecation hints or alias delegation.
+**EARS:** WHEN any of the 29 retired MCP tool names is called THEN the server SHALL return protocol error `-32602` without custom migration hints, aliases, or backward-compatibility fallbacks.
 
 **Requirement:** [FR-35](FR.md#fr-35-hard-tool-retirement-without-backward-compatibility-shims)
 

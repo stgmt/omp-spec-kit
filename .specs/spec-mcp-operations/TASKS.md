@@ -243,16 +243,16 @@ All tasks are NEXT implementation work. Planned status is not execution evidence
 
 All tasks are `todo`; the feature state is `NEXT`. Estimates are planning units, not delivery claims. Each task owns concrete checks and may move only through the repository's ordinary task status mechanism; authoring defines no second task lifecycle.
 
-## TASK-15 — Register the two-tool boundary and host path policy — id: TASK-15
+## TASK-15 — Register single spec_patch boundary and host path policy — id: TASK-15
 
 - **Status:** todo
 - **Estimate:** 2 engineering days
 - **Owner:** MCP maintainer
 - **Depends on:** Existing MCP server and current-host `tool_call` policy hook
 - **Traces:** FR-23; AC-23.1, AC-23.2; CHK-WRITE-FR1-01, CHK-WRITE-FR1-02; Scenarios: `SCEN-mcp-write-authoring-two-tool-inventory`, `SCEN-mcp-write-authoring-path-policy-denies-raw-writer`
-- **Done When:** Installed tools/list exposes exactly the two public mutation names, internal helpers are absent, and real tool-call tests deny non-allowlisted `.specs/**` writes without blocking unrelated targets.
+- **Done When:** Installed tools/list exposes exactly the single public mutation tool spec_patch, internal helpers are absent, and real tool-call tests deny non-allowlisted `.specs/**` writes without blocking unrelated targets.
 
-_Requirements: [FR-23](FR.md#fr-23-two-tool-public-boundary)_
+_Requirements: [FR-23](FR.md#fr-23-single-tool-public-boundary)_
 
 ## TASK-16 — Implement canonical operations and pure proposal — id: TASK-16
 
@@ -335,7 +335,7 @@ _Requirements: [FR-29](FR.md#fr-29-real-correctness-evidence)_
 
 ## TASK-22: Publish bounded MCP discovery metadata
 
-Implement the four-hint annotation matrix, contract-label titles, initialize instructions, and first-line description cap. Extend direct JSON-RPC and staged BDD checks for the consolidated 11 entries.
+Implement the four-hint annotation matrix, contract-label titles, initialize instructions, and first-line description cap. Extend direct JSON-RPC and staged BDD checks for the consolidated 10 entries.
 
 - [ ] Implement and verify the declared MCP result envelope, discovery metadata, and actionable recovery boundary for FR-31.
 
@@ -369,7 +369,7 @@ _Requirements: [FR-33](FR.md#fr-33-domain-type-dictionary-catalog)_
 - **Owner:** Verification maintainer
 - **Depends on:** TASK-22, TASK-23
 - **Traces:** FR-34; AC-34.1; Scenarios: SCEN-mcp-surface-blast-limits
-- **Done When:** `scripts/measure-mcp-tool-blast.mjs` verifies 11 tools, <= 25,499 catalog bytes, <= 2,000 description characters, and 0 retired names.
+- **Done When:** `scripts/measure-mcp-tool-blast.mjs` verifies 10 tools, <= 25,499 catalog bytes, <= 2,000 description characters, and 0 retired names.
 
 _Requirements: [FR-34](FR.md#fr-34-surface-blast-limits-and-fail-closed-measurement)_
 

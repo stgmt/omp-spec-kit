@@ -10,11 +10,11 @@ The existing `omp-spec-kit` extension factory SHALL register exactly one pre-exe
 
 **Scenario:** `@feature1` / `SCEN-current-tool-call-registration`
 
-## FR-2: Exact two-name authoring allowlist
+## FR-2: Exact authoring allowlist
 
-The handler SHALL validate the caller against the active MCP tool family minted by OMP. In v0.8.0, the single 11-tool surface is served exclusively via MCP. Calling any short name directly without OMP namespace SHALL BLOCK UNREGISTERED_AUTHORING_CALL. Authorized MCP calls matching mcp__omp_spec_kit_<op> or mcp__omp_spec_kit_omp_spec_kit_<op> verified through pi.getAllTools() SHALL return ALLOW AUTHORING_TOOL_ALLOWED. The single apply operation requires approval=approve.
+The handler SHALL validate the caller against the active MCP tool family minted by OMP. In v0.10.0, the single 10-tool surface is served exclusively via MCP. Calling any short name directly without OMP namespace SHALL BLOCK UNREGISTERED_AUTHORING_CALL. Authorized MCP calls matching mcp__omp_spec_kit_<op> or mcp__omp_spec_kit_omp_spec_kit_<op> for spec_patch verified through pi.getAllTools() SHALL return ALLOW AUTHORING_TOOL_ALLOWED. The approval field is removed.
 
-**Acceptance:** [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-only-the-two-exact-authoring-names-bypass-path-denial)
+**Acceptance:** [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-only-the-exact-authoring-allowlist-bypasses-path-denial)
 
 **Scenario:** `@feature2` / `SCEN-exact-authoring-allowlist`
 
@@ -36,7 +36,7 @@ For a non-allowlisted direct mutator, an empty or indeterminate target SHALL BLO
 
 ## FR-5: Bounded visible and stateless results
 
-A blocked call SHALL return one deterministic reason no larger than 512 UTF-8 bytes. When known, it SHALL name only the normalized repository-relative target and SHALL direct the caller to `spec_propose_patch` followed by `apply_proposed_patch`. For `TARGET_INDETERMINATE`, the bounded reason SHALL include: `Recovery: provide one explicit repository-relative target, or use spec_propose_patch then apply_proposed_patch.` It SHALL omit absolute paths, environment values, credentials, stack traces, and raw operating-system errors. The capability SHALL create no files, logs, counters, caches, network calls, subprocesses, credential reads, or alternate tools.
+A blocked call SHALL return one deterministic reason no larger than 512 UTF-8 bytes. When known, it SHALL name only the normalized repository-relative target and SHALL direct the caller to `spec_patch`. For `TARGET_INDETERMINATE`, the bounded reason SHALL include: `Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply.` It SHALL omit absolute paths, environment values, credentials, stack traces, and raw operating-system errors. The capability SHALL create no files, logs, counters, caches, network calls, subprocesses, credential reads, or alternate tools.
 
 **Acceptance:** [AC-5.1](ACCEPTANCE_CRITERIA.md#ac-51-blocks-are-bounded-visible-and-stateless)
 
