@@ -171,9 +171,9 @@ flowchart LR
 
 ## Decisions
 
-### D-1: Two public tools
+### D-1: Single public mutation tool
 
-The only public mutation names are `propose_patch` and `apply_proposed_patch`. Tool discovery is the availability contract. Unsupported or internal helper names are not published in a second manifest.
+The only public mutation name is `spec_patch`. Tool discovery is the availability contract. Unsupported or internal helper names are not published in a second manifest.
 
 ### D-2: Review is caller behavior
 
@@ -236,9 +236,9 @@ The host policy blocks raw `.specs/**` writers. The handler separately enforces 
 The MCP adapter owns concise tool descriptions, titles, annotations, the server instruction, and one declared output schema. The query boundary owns canonical envelope mirrors and actionable recovery text for stale cursors and conflicts; the enforcement boundary owns bounded relative-target recovery. Domain apply refusals retain their structured `REFUSED` receipt while the MCP transport marks the refusal as an error.
 
 
-## 11-tool consolidated architecture
+## 10-tool consolidated architecture
 
-The public MCP surface is consolidated into 11 task-oriented tools:
+The public MCP surface is consolidated into 10 task-oriented tools:
 - `spec_catalog`: discriminated on `view` (types, specs, inventory, overview, status)
 - `spec_entities`: discriminated on `mode` (get, find)
 - `spec_graph`: discriminated on `view` (edges, trace)
@@ -247,11 +247,10 @@ The public MCP surface is consolidated into 11 task-oriented tools:
 - `spec_tasks`: task listing with optional phase and requirement filters
 - `spec_evidence`: discriminated on `view` (result, trace)
 - `spec_markdown`: heading and link inventory
-- `spec_propose_patch`: discriminated on `intent` (patch plus 12 typed edit intents)
-- `apply_proposed_patch`: transactional CAS mutation
+- `spec_patch`: discriminated on `intent` (patch plus 12 typed edit intents) with optional `dryRun` (default `true`)
 - `mcp_preflight`: workspace preflight check
 
-Each branch enforces `additionalProperties: false`. All 27 retired tools are permanently removed with zero compatibility layers.
+Each branch enforces `additionalProperties: false`. All 29 retired tools are permanently removed without migration shims or fallback aliases.
 
 ### Unified validation inspection
 

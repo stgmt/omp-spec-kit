@@ -170,7 +170,7 @@ Public product status SHALL use only SHIPPED, NEXT, and LATER. A row may enter S
 
 ## FR-17 — Next safe authoring outcome
 
-The roadmap SHALL contain exactly one NEXT row for safe spec authoring. Its public mutation surface and exact authoring-name allowlist SHALL both contain only spec_propose_patch and apply_proposed_patch; helper operations compile internally. Before each tool_call, the access gate SHALL accept only registered MCP operations for specification access, then SHALL refuse every other read, search, enumeration, shell, edit, or write whose canonically resolved target is under .specs/**. Resolution SHALL enforce repository containment across real paths, links, and reparse points. Accepted application SHALL be atomic and refusal reasons SHALL be bounded. The row SHALL NOT enter SHIPPED without real end-to-end proof of both the mutation path and the non-MCP access refusal path.
+The roadmap SHALL contain exactly one NEXT row for safe spec authoring. Its public mutation surface and exact authoring-name allowlist SHALL both contain only spec_patch; helper operations compile internally. Before each tool_call, the access gate SHALL accept only registered MCP operations for specification access, then SHALL refuse every other read, search, enumeration, shell, edit, or write whose canonically resolved target is under .specs/**. Resolution SHALL enforce repository containment across real paths, links, and reparse points. Accepted application SHALL be atomic and refusal reasons SHALL be bounded. The row SHALL NOT enter SHIPPED without real end-to-end proof of both the mutation path and the non-MCP access refusal path.
 
 - **Priority:** Must
 - **Status:** Specified
@@ -441,9 +441,9 @@ contract:
 
 **Related AC:** [AC-25.1](ACCEPTANCE_CRITERIA.md#ac-251-response-source-identity-and-root-consistency). **Use Case:** [UC-17](USE_CASES.md#uc-17-distinguish-the-active-and-overridden-project).
 
-## FR-26: Consolidated 11-tool MCP discovery and release evidence
+## FR-26: Consolidated 10-tool MCP discovery and release evidence
 
-The v0.8.0 release SHALL provide exactly 11 MCP tools, verified by release preflight, archive smoke test, and installed package discovery. Release assets and candidate validation SHALL prove 10 read-only and 1 mutating tool, zero deprecated tool names, and catalog size within the 25,499-byte limit.
+The v0.10.0 release SHALL provide exactly 10 MCP tools, verified by release preflight, archive smoke test, and installed package discovery. Release assets and candidate validation SHALL prove 9 read-only and 1 mutating tool, zero deprecated tool names, and catalog size within the 25,499-byte limit.
 
 ```yaml metadata
 schemaVersion: 1
@@ -451,16 +451,16 @@ verificationMethod: test
 contract:
   version: 1
   kind: behavior
-  subject: Consolidated 11-tool MCP discovery
+  subject: Consolidated 10-tool MCP discovery
   behavior:
     actor: Release verifier
-    trigger: The v0.8.0 candidate package is discovered and inspected
+    trigger: The v0.10.0 candidate package is discovered and inspected
     preconditions: [The candidate build is complete, Baseline metrics are frozen]
-    observable_outcomes: [Exactly 11 tools are discovered, 10 read-only and 1 mutating tool are annotated, Catalog size does not exceed 25499 bytes]
-    forbidden_outcomes: [Any of the 27 retired tool names appears, Surface blast limits are exceeded]
+    observable_outcomes: [Exactly 10 tools are discovered, 9 read-only and 1 mutating tool are annotated, Catalog size does not exceed 25499 bytes]
+    forbidden_outcomes: [Any of the 29 retired tool names appears, Surface blast limits are exceeded]
   observables:
     - when: Tools are listed
-      then: Exactly 11 tools are returned matching the consolidated catalog
+      then: Exactly 10 tools are returned matching the consolidated catalog
   negative_cases:
     - when: A retired tool name is present
       then: Blast verification fails closed
@@ -468,10 +468,10 @@ contract:
     method: bdd
     required_evidence: [bdd, integration, implementation]
     scenario:
-      refs: [SCEN-mri-consolidated-11-tools]
+      refs: [SCEN-mri-consolidated-10-tools]
     implementation_surface:
       refs: [src/adapters/tool-contracts.js, src/mcp/server.js, scripts/measure-mcp-tool-blast.mjs]
     evidence_policy: {source: runtime, freshness: current, independent: true}
 ```
 
-**Related AC:** [AC-26.1](ACCEPTANCE_CRITERIA.md#ac-261-consolidated-11-tool-mcp-discovery-and-release-evidence). **Use Case:** [UC-18](USE_CASES.md#uc-18-discover-consolidated-11-tool-surface).
+**Related AC:** [AC-26.1](ACCEPTANCE_CRITERIA.md#ac-261-consolidated-10-tool-mcp-discovery-and-release-evidence). **Use Case:** [UC-18](USE_CASES.md#uc-18-discover-consolidated-10-tool-surface).

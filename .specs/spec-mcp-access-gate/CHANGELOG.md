@@ -21,4 +21,4 @@
 
 ## Unreleased — 11-tool consolidation
 
-- Updated authoring allowlist and recovery redirect to `spec_propose_patch` and `apply_proposed_patch` for the consolidated 11-tool MCP surface.
+- Updated authoring allowlist and recovery redirect to `spec_patch` for the consolidated 10-tool MCP surface.

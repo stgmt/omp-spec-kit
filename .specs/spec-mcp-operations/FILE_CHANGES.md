@@ -82,7 +82,7 @@ Implementation adds one read-only evidence capability after the SHIPPED v0.3.2 b
 | `src/authoring/proposal.js` | create (planned) | FR-24, FR-25 | Pure in-memory proposal, bounded diff, kernel validation and anchor expansion |
 | `src/authoring/transaction.js` | create (planned) | FR-26, FR-27, FR-28 | Spec lock, CAS, revalidation, same-filesystem stage, atomic swap, internal rollback, receipt |
 | `src/authoring/index.js` | create (planned) | FR-23–FR-28 | One internal service surface consumed only by the existing MCP server |
-| `src/mcp/server.js` | edit (planned) | FR-23, FR-26 | Register the exact two public mutation tools and delegate to the authoring core |
+| `src/mcp/server.js` | edit (planned) | FR-23, FR-26 | Register the exact single public mutation tool spec_patch and delegate to the authoring core |
 | `src/v0.1/extension.js` | edit (planned) | FR-23 | Current-host `tool_call` path policy: exact allowlist then deny raw `.specs/**` writers |
 | `scripts/build-plugin.mjs` | edit (planned) | FR-23–FR-28 | Include root authoring source in generated installed payload and fail on missing wiring |
 | `plugins/omp-spec-kit/dist/authoring/**` | create (generated) | FR-23–FR-28 | Dependency-safe installed output; never hand-edited authority |

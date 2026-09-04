@@ -51,7 +51,7 @@ This specification is the single owner of package distribution, public product i
 | Bucket | Outcome | Evidence or exit condition |
 |---|---|---|
 | **SHIPPED** | **v0.3.2 read-only MCP baseline** — project-installable `omp-spec-kit@omp-spec-kit`, with the v0.2 graph/query kernel and eight working read-only MCP tools. | [`release-status-v0.3.2.json`](../../docs/validation/release-status-v0.3.2.json) |
-| **NEXT** | **Safe spec authoring and MCP-only specification access** — only propose_patch and apply_proposed_patch are public mutation tools. | Ship only after atomic, containment-safe application and an OMP access gate that refuses every other read, search, enumeration, shell, edit, or write targeting canonical .specs/**, with real end-to-end proof. |
+| **NEXT** | **Safe spec authoring and MCP-only specification access** — only spec_patch is a public mutation tool. | Ship only after atomic, containment-safe application and an OMP access gate that refuses every other read, search, enumeration, shell, edit, or write targeting canonical .specs/**, with real end-to-end proof. |
 
 ## LATER
 

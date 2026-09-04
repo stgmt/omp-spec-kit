@@ -2,8 +2,8 @@ import { TOOL_CONTRACTS } from "../adapters/tool-contracts.js";
 import { decidePathPolicy } from "./resolve-targets.js";
 
 const ALL_SHORT_NAMES = Object.freeze(new Set(TOOL_CONTRACTS.map((contract) => contract.tool)));
-const APPLY_SHORT_NAMES = Object.freeze(new Set([
-  "apply_proposed_patch",
+const MUTATING_SHORT_NAMES = Object.freeze(new Set([
+  "spec_patch",
 ]));
 const DIRECT_PATH_MUTATION_TOOLS = Object.freeze(new Set(["write", "edit", "apply_patch", "delete", "rename"]));
 const PATH_KEYS = Object.freeze(new Set(["path", "paths", "file", "files", "document", "documents"]));
@@ -139,13 +139,13 @@ function resolveAuthority(toolName, allTools, familyA, familyB, expectedCount) {
   return { ok: true, logicalName: activeFamily.get(toolName) };
 }
 
-const TARGET_RECOVERY = "Recovery: provide one explicit repository-relative target, or use spec_propose_patch then apply_proposed_patch.";
+const TARGET_RECOVERY = "Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply.";
 
 function boundedReason(code, relativePath = null) {
   const target = typeof relativePath === "string" && relativePath !== "" && !/^[a-z]:[\\/]/iu.test(relativePath) && !relativePath.startsWith("/")
     ? " target=" + relativePath
     : "";
-  const recovery = code === "TARGET_INDETERMINATE" ? " " + TARGET_RECOVERY : " use spec_propose_patch then apply_proposed_patch";
+  const recovery = code === "TARGET_INDETERMINATE" ? " " + TARGET_RECOVERY : " use spec_patch with dryRun: true for preview or dryRun: false to apply";
   const reason = code + ":" + target + recovery;
   if (Buffer.byteLength(reason, "utf8") <= 512) return reason;
   let boundedTarget = target;
@@ -184,9 +184,6 @@ export function classifyToolCall(event, options = {}) {
       return blocked(toolName, auth.code, [], auth.reason);
     }
     const logicalName = auth.logicalName;
-    if (options.requireApproval !== false && APPLY_SHORT_NAMES.has(logicalName) && input.approval !== "approve") {
-      return blocked(toolName, "APPROVAL_REQUIRED");
-    }
     return { action: "allow", code: "AUTHORING_TOOL_ALLOWED", toolName, logicalName, touchesSpecs: true, mismatchField: null };
   }
 
@@ -206,4 +203,4 @@ export function classifyToolCall(event, options = {}) {
   return blocked(toolName, policy.code, policy.resolutions);
 }
 
-export { ALL_SHORT_NAMES, APPLY_SHORT_NAMES, DIRECT_PATH_MUTATION_TOOLS };
+export { ALL_SHORT_NAMES, MUTATING_SHORT_NAMES, DIRECT_PATH_MUTATION_TOOLS };

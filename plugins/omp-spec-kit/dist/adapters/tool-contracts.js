@@ -303,26 +303,28 @@ export const TOOL_CONTRACTS = Object.freeze([
     ],
   },
   {
-    tool: "spec_propose_patch",
-    label: "Spec Propose Patch",
-    operation: "proposePatch",
-    description: "Draft and review spec proposals in memory without writing.",
+    tool: "spec_patch",
+    label: "Spec Patch",
+    operation: "specPatch",
+    description: "Preview or apply specification patches in memory or atomically to disk.",
     discriminator: "intent",
     commonFields: Object.freeze([
       field("requestId", "string"),
       field("reason", "string"),
       field("spec", "string"),
+      optionalField("dryRun", "boolean"),
+      optionalField("actorRef", "nullableString"),
     ]),
     variants: Object.freeze({
       patch: Object.freeze({
-        description: "Create a complete proposal for an operations array against one specification.",
+        description: "Preview or apply a complete operations array against one specification.",
         fields: Object.freeze([
           field("repositoryRootFingerprint", "string"),
           field("operations", "operations"),
         ]),
       }),
       amendRequirement: Object.freeze({
-        description: "Compile a requirement amendment into a proposal.",
+        description: "Preview or apply a requirement amendment.",
         fields: Object.freeze([
           field("requirement", "string"),
           field("body", "string"),
@@ -330,86 +332,71 @@ export const TOOL_CONTRACTS = Object.freeze([
         ]),
       }),
       addAcceptanceCriterion: Object.freeze({
-        description: "Compile a canonical acceptance criterion into a proposal.",
+        description: "Preview or apply a canonical acceptance criterion.",
         fields: Object.freeze([
           field("requirement", "string"),
           field("criterion", "string"),
         ]),
       }),
       addPhase: Object.freeze({
-        description: "Compile a task phase into a proposal.",
+        description: "Preview or apply a task phase.",
         fields: Object.freeze([field("title", "string")]),
       }),
       setEntityStatus: Object.freeze({
-        description: "Compile a validated task status transition into a proposal.",
+        description: "Preview or apply a validated task status transition.",
         fields: Object.freeze([
           field("entity", "string"),
           field("status", "enum", TASK_STATUS_VALUES),
         ]),
       }),
       setSpecStatus: Object.freeze({
-        description: "Compile an explicit specification status change into a proposal.",
+        description: "Preview or apply an explicit specification status change.",
         fields: Object.freeze([field("status", "enum", SPEC_STATUS_VALUES)]),
       }),
       setRequirementMetadata: Object.freeze({
-        description: "Validate and compile a typed requirement metadata block into a proposal.",
+        description: "Preview or apply a typed requirement metadata block.",
         fields: Object.freeze([
           field("requirement", "string"),
           field("metadata", "json"),
         ]),
       }),
       deleteSpecDoc: Object.freeze({
-        description: "Compile a contained document deletion into a proposal.",
+        description: "Preview or apply a contained document deletion.",
         fields: Object.freeze([
           field("doc", "string"),
           optionalField("expectedSha", "string"),
         ]),
       }),
       renameSpecDoc: Object.freeze({
-        description: "Compile a contained document rename into a proposal.",
+        description: "Preview or apply a contained document rename.",
         fields: Object.freeze([
           field("doc", "string"),
           field("newDoc", "string"),
         ]),
       }),
       createSpec: Object.freeze({
-        description: "Compile a complete canonical specification scaffold into a proposal.",
+        description: "Preview or apply a complete canonical specification scaffold.",
         fields: Object.freeze([optionalField("title", "string")]),
       }),
       archiveSpec: Object.freeze({
-        description: "Compile an archival move after live inbound-reference proof.",
+        description: "Preview or apply an archival move after live inbound-reference proof.",
         fields: Object.freeze([]),
       }),
       addBacklogTask: Object.freeze({
-        description: "Compile a traced backlog task into a proposal.",
+        description: "Preview or apply a traced backlog task.",
         fields: Object.freeze([
           field("title", "string"),
           optionalField("requirements", "json"),
         ]),
       }),
       registerIncidentBacklog: Object.freeze({
-        description: "Compile a traced incident task into a proposal.",
+        description: "Preview or apply a traced incident task.",
         fields: Object.freeze([
           field("summary", "string"),
           optionalField("requirements", "json"),
         ]),
       }),
     }),
-  },
-  {
-    tool: "apply_proposed_patch",
-    label: "Apply Proposed Patch",
-    operation: "applyProposedPatch",
-    description: "Commit a verified proposal after hash and approval checks.",
-    fields: [
-      field("requestId", "string"),
-      field("proposalId", "string"),
-      field("proposalSha256", "string"),
-      field("expectedDocuments", "expectedDocuments"),
-      field("reason", "string"),
-      field("approval", "enum", ["approve"]),
-      optionalField("actorRef", "nullableString"),
-    ],
   },
 ]);
 
@@ -509,20 +496,6 @@ export const OPERATION_SCHEMAS = Object.freeze([
   }),
 ]);
 
-export const EXPECTED_DOCUMENTS_SCHEMA = Object.freeze({
-  type: "array",
-  minItems: 1,
-  items: {
-    type: "object",
-    additionalProperties: false,
-    required: ["path", "beforeSha256"],
-    properties: {
-      path: { type: "string" },
-      beforeSha256: { type: "string" },
-    },
-  },
-});
-
 export const OPERATIONS_SCHEMA = Object.freeze({
   type: "array",
   minItems: 1,
@@ -547,7 +520,7 @@ export const OPERATIONS_SCHEMA = Object.freeze({
 });
 
 function topSchemaType(f) {
-  if (f.kind === "operations" || f.kind === "expectedDocuments") return { type: "array" };
+  if (f.kind === "operations") return { type: "array" };
   switch (f.kind) {
     case "string": return { type: "string" };
     case "boolean": return { type: "boolean" };
@@ -571,7 +544,6 @@ function branchSchemaType(f) {
     case "enumArray": return { type: "array", items: { type: "string" } };
     case "stringArray": return { type: "array", items: { type: "string" } };
     case "operations": return OPERATIONS_SCHEMA;
-    case "expectedDocuments": return EXPECTED_DOCUMENTS_SCHEMA;
     case "json": return { type: "object" };
     default: return {};
   }
@@ -731,19 +703,6 @@ function validFieldValue(entry, value) {
       );
     case "operations":
       return Array.isArray(value) && value.length >= 1 && value.every(validateOperationObject);
-    case "expectedDocuments":
-      return (
-        Array.isArray(value) &&
-        value.length >= 1 &&
-        value.every(
-          (item) =>
-            item !== null &&
-            typeof item === "object" &&
-            !Array.isArray(item) &&
-            typeof (item.path ?? item.document) === "string" &&
-            typeof (item.beforeSha256 ?? item.sha256) === "string"
-        )
-      );
     case "json":
       return value !== null && typeof value === "object";
     default:
@@ -922,11 +881,11 @@ export function validateContractArguments(contract, args) {
 }
 
 export const MUTATING_TOOL_NAMES = Object.freeze(new Set([
-  "apply_proposed_patch",
+  "spec_patch",
 ]));
 
 export const MUTATING_OPERATION_NAMES = Object.freeze(new Set([
-  "applyProposedPatch",
+  "specPatch",
 ]));
 
 const READ_TOOL_ANNOTATIONS = Object.freeze({
@@ -949,7 +908,7 @@ export function annotationsFor(contract) {
     : READ_TOOL_ANNOTATIONS;
 }
 
-export const MCP_SERVER_INSTRUCTIONS = "Start with spec_catalog, then read the affected documents. Proposal tools never write: use spec_propose_patch to draft and review changes. Review the returned proposal, diff, and hashes before calling apply_proposed_patch, the only mutating tool, with approval=\"approve\".";
+export const MCP_SERVER_INSTRUCTIONS = "Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock.";
 
 export const KERNEL_ENVELOPE_OUTPUT_SCHEMA = Object.freeze({
   type: "object",
@@ -981,8 +940,8 @@ export const KERNEL_ENVELOPE_OUTPUT_SCHEMA = Object.freeze({
 });
 
 export function assertContractInvariants(contracts = TOOL_CONTRACTS) {
-  if (!Array.isArray(contracts) || contracts.length !== 11) {
-    throw new Error("Invariants failed: expected exactly 11 contracts, got " + contracts?.length);
+  if (!Array.isArray(contracts) || contracts.length !== 10) {
+    throw new Error("Invariants failed: expected exactly 10 contracts, got " + contracts?.length);
   }
   const toolNames = contracts.map((c) => c.tool);
   if (new Set(toolNames).size !== contracts.length) {
@@ -993,12 +952,12 @@ export function assertContractInvariants(contracts = TOOL_CONTRACTS) {
     throw new Error("Invariants failed: duplicate operation names in contracts");
   }
   const mutatingTools = contracts.filter((c) => MUTATING_TOOL_NAMES.has(c.tool));
-  if (mutatingTools.length !== 1 || mutatingTools[0].tool !== "apply_proposed_patch") {
-    throw new Error("Invariants failed: expected exactly one mutating tool 'apply_proposed_patch'");
+  if (mutatingTools.length !== 1 || mutatingTools[0].tool !== "spec_patch") {
+    throw new Error("Invariants failed: expected exactly one mutating tool 'spec_patch'");
   }
   const readOnlyTools = contracts.filter((c) => !MUTATING_TOOL_NAMES.has(c.tool));
-  if (readOnlyTools.length !== 10) {
-    throw new Error("Invariants failed: expected exactly 10 read-only tools");
+  if (readOnlyTools.length !== 9) {
+    throw new Error("Invariants failed: expected exactly 9 read-only tools");
   }
   for (const c of contracts) {
     if (typeof c.description !== "string" || c.description.trim().length === 0) {

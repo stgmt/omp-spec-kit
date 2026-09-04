@@ -133,7 +133,7 @@ function adapterDiagnosticSummaries(readerError) {
 
 const ERROR_RECOVERY = Object.freeze({
   STALE_CURSOR: "Recovery: retry the same list operation without cursor to obtain a fresh page, then continue with the returned nextCursor.",
-  CONFLICT: "Recovery: rerun spec_overview, resolve the reported conflict, create and review a fresh proposal, then call apply_proposed_patch with a new requestId.",
+  CONFLICT: "Recovery: refresh spec_catalog with overview view, resolve the reported conflict, review a fresh preview with dryRun: true, then call spec_patch with dryRun: false and a new requestId.",
 });
 
 function rootFingerprintRecoveryMessage(provenance) {
@@ -603,29 +603,26 @@ export function createSpecService(root, context = {}) {
       return withProvenance({ ...q, operation: "markdown", requestId });
     }
 
-    // 10. proposePatch
-    if (operation === "proposePatch") {
+    // 10. specPatch
+    if (operation === "specPatch") {
       refresh();
       const freshState = await ensure();
-      if (freshState.status === "error") return handleReaderError(freshState.readerError, "proposePatch", requestId);
+      if (freshState.status === "error") return handleReaderError(freshState.readerError, "specPatch", requestId);
 
       const authoredInput = { ...effectiveArgs };
       if (requestId !== null && authoredInput.requestId === undefined) authoredInput.requestId = requestId;
 
-      const intent = authoredInput.intent ?? "patch";
-      const targetOp = intent === "patch" ? "proposePatch" : intent;
-
       try {
-        const authored = await getAuthoring().compileFacade(targetOp, authoredInput);
+        const authored = await getAuthoring().execute(authoredInput);
         const envelope = authored.ok
           ? makeSuccessEnvelope({
               graph: freshState.graph,
-              operation: "proposePatch",
+              operation: "specPatch",
               requestId,
               data: authored.data,
             })
           : makeErrorEnvelope({
-              operation: "proposePatch",
+              operation: "specPatch",
               requestId,
               code: authored.error.code,
               message: authored.error.message,
@@ -635,48 +632,10 @@ export function createSpecService(root, context = {}) {
       } catch (err) {
         return withProvenance(
           makeErrorEnvelope({
-            operation: "proposePatch",
+            operation: "specPatch",
             requestId,
             code: err?.code ?? "INTERNAL_INVARIANT_ERROR",
-            message: err?.message ?? "authoring compile failed",
-          })
-        );
-      }
-    }
-
-    // 11. applyProposedPatch
-    if (operation === "applyProposedPatch") {
-      refresh();
-      const freshState = await ensure();
-      if (freshState.status === "error") return handleReaderError(freshState.readerError, "applyProposedPatch", requestId);
-
-      const authoredInput = { ...effectiveArgs };
-      if (requestId !== null && authoredInput.requestId === undefined) authoredInput.requestId = requestId;
-
-      try {
-        const authored = await getAuthoring().compileFacade("applyProposedPatch", authoredInput);
-        const envelope = authored.ok
-          ? makeSuccessEnvelope({
-              graph: freshState.graph,
-              operation: "applyProposedPatch",
-              requestId,
-              data: authored.data,
-            })
-          : makeErrorEnvelope({
-              operation: "applyProposedPatch",
-              requestId,
-              code: authored.error.code,
-              message: authored.error.message,
-              extra: authored.error,
-            });
-        return withProvenance({ ...envelope, requestId: requestId ?? null });
-      } catch (err) {
-        return withProvenance(
-          makeErrorEnvelope({
-            operation: "applyProposedPatch",
-            requestId,
-            code: err?.code ?? "INTERNAL_INVARIANT_ERROR",
-            message: err?.message ?? "apply failed",
+            message: err?.message ?? "spec patch failed",
           })
         );
       }

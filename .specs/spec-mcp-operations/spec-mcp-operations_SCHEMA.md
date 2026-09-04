@@ -381,9 +381,9 @@ The MCP discovery projection contains exactly 11 ordered `Tool` entries. Each en
 Every MCP tool MUST declare and return the stable `KernelEnvelope` shape with `schemaVersion`, `requestId`, `operation`, `ok`, `graph`, `page`, `data`, `error`, `diagnostics`, and `provenance`. The structured content and text content MUST be byte-equivalent JSON representations of that envelope. Error messages for stale cursors and conflicts MUST include actionable recovery; enforcement target-indeterminate reasons MUST remain bounded and repository-relative.
 
 
-## Consolidated 11-tool branch schemas
+## Consolidated 10-tool branch schemas
 
-Input schemas for `spec_catalog`, `spec_entities`, `spec_graph`, `spec_documents`, `spec_inspect`, `spec_evidence`, and `spec_propose_patch` use top-level discriminator fields (`view`, `mode`, `action`, `check`, `intent`) and strict `oneOf` branches with `additionalProperties: false`.
+Input schemas for `spec_catalog`, `spec_entities`, `spec_graph`, `spec_documents`, `spec_inspect`, `spec_evidence`, and `spec_patch` use top-level discriminator fields (`view`, `mode`, `action`, `check`, `intent`) and strict `oneOf` branches with `additionalProperties: false`.
 
 ### Unified validation branch schema
 

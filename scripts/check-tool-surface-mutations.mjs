@@ -22,7 +22,7 @@ import {
 import {
   computeMetrics,
   evaluateGates,
-  EXPECTED_11_TOOLS,
+  EXPECTED_10_TOOLS,
   LIMITS,
   RETIRED_TOOL_NAMES,
 } from "./measure-mcp-tool-blast.mjs";
@@ -54,8 +54,8 @@ function runMutant(id, description, mutantFn, oracleFn) {
 export function generateAndEvaluateMutants() {
   const receipts = [];
 
-  // Group 1: Delete each of the 11 tools (11 mutants)
-  for (const toolName of EXPECTED_11_TOOLS) {
+  // Group 1: Delete each of the 10 tools (10 mutants)
+  for (const toolName of EXPECTED_10_TOOLS) {
     const receipt = runMutant(
       `delete-tool-${toolName}`,
       `Remove tool ${toolName} from contracts`,
@@ -129,15 +129,15 @@ export function generateAndEvaluateMutants() {
     receipts.push(receipt);
   }
 
-  // Group 5: Invert annotations for apply_proposed_patch (1 mutant)
+  // Group 5: Invert annotations for spec_patch (1 mutant)
   receipts.push(
     runMutant(
-      "invert-apply-annotations-to-read-only",
-      "Invert apply_proposed_patch annotation to read-only",
+      "invert-patch-annotations-to-read-only",
+      "Invert spec_patch annotation to read-only",
       () => {
         const mutatedContracts = TOOL_CONTRACTS.map((c) => {
-          if (c.tool === "apply_proposed_patch") {
-            return { ...c, tool: "mutant_read_apply" };
+          if (c.tool === "spec_patch") {
+            return { ...c, tool: "mutant_read_patch" };
           }
           return c;
         });
@@ -149,19 +149,19 @@ export function generateAndEvaluateMutants() {
     ),
   );
 
-  // Group 6: Make proposal tool mutating (1 mutant)
+  // Group 6: Make read-only tool mutating (1 mutant)
   receipts.push(
     runMutant(
-      "proposal-as-mutating-tool",
-      "Add spec_propose_patch to MUTATING_TOOL_NAMES",
+      "catalog-as-mutating-tool",
+      "Add spec_catalog to MUTATING_TOOL_NAMES",
       () => {
-        const mutantMutators = new Set([...MUTATING_TOOL_NAMES, "spec_propose_patch"]);
+        const mutantMutators = new Set([...MUTATING_TOOL_NAMES, "spec_catalog"]);
         return { mutantMutators };
       },
       ({ mutantMutators }) => {
         const mutating = TOOL_CONTRACTS.filter((c) => mutantMutators.has(c.tool));
-        assert.equal(mutating.length, 1, "Only apply_proposed_patch can be mutating");
-        assert.equal(mutating[0].tool, "apply_proposed_patch");
+        assert.equal(mutating.length, 1, "Only spec_patch can be mutating");
+        assert.equal(mutating[0].tool, "spec_patch");
       },
     ),
   );
@@ -267,7 +267,7 @@ export function generateAndEvaluateMutants() {
   }
 
   // Group 11: Replace operations schema in patch variant with {}
-  const patchContract = TOOL_CONTRACTS.find((c) => c.tool === "spec_propose_patch");
+  const patchContract = TOOL_CONTRACTS.find((c) => c.tool === "spec_patch");
   receipts.push(
     runMutant(
       "permissive-operations-schema",
@@ -293,21 +293,21 @@ export function generateAndEvaluateMutants() {
     ),
   );
 
-  // Group 12: Replace expectedDocuments schema in apply_proposed_patch with {}
-  const applyContract = TOOL_CONTRACTS.find((c) => c.tool === "apply_proposed_patch");
+  // Group 12: Validate dryRun non-boolean parameter in spec_patch
   receipts.push(
     runMutant(
-      "permissive-expected-documents-schema",
-      "Pass empty expectedDocuments array to apply_proposed_patch",
+      "invalid-dryrun-type-schema",
+      "Pass non-boolean dryRun to spec_patch",
       () => ({
-        contract: applyContract,
+        contract: patchContract,
         args: {
+          intent: "patch",
+          spec: "plugin-distribution",
+          reason: "test",
           requestId: "req-1",
-          proposalId: "p",
-          proposalSha256: "h",
-          expectedDocuments: [],
-          reason: "r",
-          approval: "approve",
+          repositoryRootFingerprint: "0".repeat(64),
+          dryRun: "not-a-boolean",
+          operations: [{ kind: "insert_at_eof", document: "README.md", text: "t" }],
         },
       }),
       ({ contract, args }) => {

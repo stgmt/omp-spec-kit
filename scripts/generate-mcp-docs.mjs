@@ -12,8 +12,8 @@ import {
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputPath = path.join(repositoryRoot, "docs", "mcp-tools.html");
 
-if (TOOL_CONTRACTS.length !== 11) {
-  throw new Error(`Expected 11 MCP contracts, received ${TOOL_CONTRACTS.length}`);
+if (TOOL_CONTRACTS.length !== 10) {
+  throw new Error(`Expected 10 MCP contracts, received ${TOOL_CONTRACTS.length}`);
 }
 
 const catalog = {
@@ -165,11 +165,11 @@ const html = `<!doctype html>
 <body>
   <header class="hero">
     <div class="eyebrow">OMP Spec Kit · MCP reference</div>
-    <h1>11 MCP tool contracts</h1>
-    <p>Человекочитаемый каталог ровно тех 11 инструментов, которые публикуются сервером v0.8.1. Откройте карточку, чтобы увидеть назначение, варианты ветвления, параметры, машинные метки, примеры аргументов и точную JSON-схему.</p>
+    <h1>10 MCP tool contracts</h1>
+    <p>Человекочитаемый каталог ровно тех 10 инструментов, которые публикуются сервером v0.10.0. Откройте карточку, чтобы увидеть назначение, варианты ветвления, параметры, машинные метки, примеры аргументов и точную JSON-схему.</p>
     <div class="stats">
-      <div class="stat"><strong id="tool-count">11</strong><br>инструментов</div>
-      <div class="stat"><strong id="read-count">10</strong><br>без записи</div>
+      <div class="stat"><strong id="tool-count">10</strong><br>инструментов</div>
+      <div class="stat"><strong id="read-count">9</strong><br>без записи</div>
       <div class="stat"><strong id="mutating-count">1</strong><br>изменяющий</div>
       <div class="stat"><strong>200</strong><br>максимум первой строки описания</div>
     </div>
@@ -197,7 +197,7 @@ const html = `<!doctype html>
       <section class="notice">
         <h2>Как читать каталог</h2>
         <p><b>Назначение</b> — краткое объяснение задачи инструмента. <b>Дискриминатор ветки</b> — параметр выбора варианта запроса (<code>view</code>, <code>mode</code>, <code>action</code>, <code>check</code>, <code>intent</code>). <b>Варианты</b> — обязательные и опциональные аргументы конкретной ветки с минимальным JSON-примером.</p>
-        <p><b>Машинные метки</b>: ровно 10 инструментов безопасны для чтения; единственная операция изменения состояния — <code>apply_proposed_patch</code>.</p>
+        <p><b>Машинные метки</b>: ровно 9 инструментов безопасны для чтения; единственная операция изменения состояния — <code>spec_patch</code>.</p>
         <div class="instructions"><b>Инструкция сервера MCP</b><br><span id="instructions"></span></div>
       </section>
 

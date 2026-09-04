@@ -13,8 +13,7 @@ export const V05_NEW_TOOL_NAMES = Object.freeze([
   "spec_tasks",
   "spec_evidence",
   "spec_markdown",
-  "spec_propose_patch",
-  "apply_proposed_patch",
+  "spec_patch",
 ]);
 
 const OPERATIONS = Object.freeze({
@@ -27,8 +26,7 @@ const OPERATIONS = Object.freeze({
   spec_tasks: "tasks",
   spec_evidence: "evidence",
   spec_markdown: "markdown",
-  spec_propose_patch: "proposePatch",
-  apply_proposed_patch: "applyProposedPatch",
+  spec_patch: "specPatch",
 });
 
 const EVIDENCE_DIR = ".omp-spec-kit/evidence";
@@ -398,5 +396,5 @@ export async function runEvidenceE2E({ listTools, callTool, projectRoot, reposit
   await runInvalidMatrix({ callTool, projectRoot, repositoryRoot });
   await runBoundaryMatrix({ callTool, projectRoot, repositoryRoot, outsideRoot });
   await runMutationMatrix({ callTool, projectRoot, repositoryRoot, surface });
-  return { toolCount: 11 };
+  return { toolCount: 10 };
 }

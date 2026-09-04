@@ -1,6 +1,6 @@
 @safe-authoring @integration
 Feature: safe specification authoring
-  The live packaged MCP server exposes two proposal-first mutation tools over the
+  The live packaged MCP server exposes one safe spec_patch mutation tool over the
   current three-spec, 45-document corpus and never permits raw .specs writes.
 
   Scenario: Exact single-surface public inventory
@@ -8,12 +8,12 @@ Feature: safe specification authoring
     When the scenario "inventory" runs
     Then the scenario passes
 
-  Scenario: Deterministic read-only proposals
+  Scenario: Deterministic read-only spec patch preview with dryRun true or omitted
     Given a disposable real authoring corpus and live MCP server
     When the scenario "proposal" runs
     Then the scenario passes
 
-  Scenario: Invalid previews are refused
+  Scenario: Invalid previews and malformed parameters are refused
     Given a disposable real authoring corpus and live MCP server
     When the scenario "invalid-preview" runs
     Then the scenario passes
@@ -23,12 +23,12 @@ Feature: safe specification authoring
     When the scenario "access-gate" runs
     Then the scenario passes
 
-  Scenario: Exact proposal apply is CAS protected
+  Scenario: Exact spec patch apply with dryRun false is CAS protected
     Given a disposable real authoring corpus and live MCP server
     When the scenario "apply-cas" runs
     Then the scenario passes
 
-  Scenario: Concurrent stale apply conflicts
+  Scenario: Concurrent stale spec patch apply conflicts
     Given a disposable real authoring corpus and live MCP server
     When the scenario "concurrent-conflict" runs
     Then the scenario passes
@@ -82,7 +82,8 @@ Feature: safe specification authoring
     Given a disposable real authoring corpus and live MCP server
     When the scenario "execution-edges" runs
     Then the scenario passes
-  Scenario: OMP manager executes proposal and apply tools
+
+  Scenario: OMP manager executes spec patch tool
     Given a disposable real authoring corpus and live MCP server
     When the scenario "omp-manager-authoring" runs
     Then the scenario passes

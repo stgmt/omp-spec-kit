@@ -1,24 +1,24 @@
 {
   "schema": "omp-spec-kit-dist-manifest@1",
-  "pluginVersion": "0.8.2",
+  "pluginVersion": "0.10.0",
   "files": {
     "adapters/document-service.js": {
       "sha256": "72db36b17869103c2e70c8a0470d19ca802517618c791ad636d2a2a14325f700"
     },
     "adapters/query-service.js": {
-      "sha256": "b1486c3e017ccd856608668e88936f6cf7160117c04937cb43880698862dea51"
+      "sha256": "f94370f5643706d99bb8d0a90867a3f1013b1ae8d8213c29a6ee7f6f3f6b9c45"
     },
     "adapters/tool-contracts.js": {
-      "sha256": "0a0bed3ccf4e29db9375a22cc3a2d426322c2f74055ac3b525d25011b1839b07"
+      "sha256": "bba3b2e22f0ac77c685a0b0fb11d454284670110e9c9d5689d6134fdcb10ea53"
     },
     "authoring/proposals.js": {
-      "sha256": "3f97a915ae24e0008a2d92ef005f5f57c263e5ae7c9398e7757b92b2b9c7a9a9"
+      "sha256": "08f90a1a8c91af01698d2722c674f1e22f20c8bc2c866d25639972fffbd73560"
     },
     "authoring/secrets.js": {
       "sha256": "c6fc357b9e6954d3d7587190264bebed16afbb47ddd027045c0011d7c4f552f5"
     },
     "authoring/service.js": {
-      "sha256": "ea295cac4b474615dc2e2bae98b2075767da9b62863a2321b645bb09e84c79a3"
+      "sha256": "7c89bfec64ecfd86c11f8b9ba981824f5353efc16816c43088337214e8fbbd1e"
     },
     "authoring/transactions.js": {
       "sha256": "f04df1037f1c62e05a7fc3185ceba318c0f0c50e099ffef300f11a55be4133de"
@@ -27,7 +27,7 @@
       "sha256": "aa13e9ba61773b9ea028501081d3a2e64cfbe60ea72b8dbeeba8da2831e4eb53"
     },
     "enforcement/classifier.js": {
-      "sha256": "245efcb418c447c0e5ae92aa23f7d6f9870d72edc47cdae5503e559ef923cd26"
+      "sha256": "0f78d484211c24f2c5b97472a63b89b6ef8ef3e370f32b6615ebacd763c00d33"
     },
     "enforcement/resolve-targets.js": {
       "sha256": "8161a4d3e22b0767c989a944fe2641c0fa67a129181f6d94bbdd4ff5adbaf57c"
@@ -36,7 +36,7 @@
       "sha256": "56e7e622ff072e292894d88811e668edf06de1a1613408b4e42dec9c6ef6cf60"
     },
     "extension.js": {
-      "sha256": "70f12df55a54487660563fea5fc24cbf1512c0ef436a9a7a1ed4f8bc3a2e9708"
+      "sha256": "eda60b8c593bde4dc54fec98e8ba2c5bd7ceed825454413cc0e1a1803743dd33"
     },
     "gate/automatic-adapter.js": {
       "sha256": "82c385544c2aa793679512b93ef150cfd382722f0cbcc1dd28b99b710e3d3ed8"
@@ -99,7 +99,7 @@
       "sha256": "0d478535a9a7d1a0962071d974127d76d3c3fd315983c43033e7170347beed93"
     },
     "mcp/server.js": {
-      "sha256": "7ff6658024b177127f505af71b22285f74f0de8160c07071adfb1b627d5ade18"
+      "sha256": "54a508ac1db926829ee5f423084169a37a21980281378c963dbfcb8ecf861483"
     }
   }
 }

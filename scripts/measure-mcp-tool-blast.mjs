@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-export const EXPECTED_11_TOOLS = Object.freeze([
+export const EXPECTED_10_TOOLS = Object.freeze([
   "mcp_preflight",
   "spec_catalog",
   "spec_entities",
@@ -17,10 +17,8 @@ export const EXPECTED_11_TOOLS = Object.freeze([
   "spec_tasks",
   "spec_evidence",
   "spec_markdown",
-  "spec_propose_patch",
-  "apply_proposed_patch",
+  "spec_patch",
 ]);
-
 export const RETIRED_TOOL_NAMES = Object.freeze([
   "spec_inventory",
   "spec_get_node",
@@ -58,11 +56,13 @@ export const RETIRED_TOOL_NAMES = Object.freeze([
   "archive_spec",
   "add_backlog_task",
   "register_incident_backlog",
+  "spec_propose_patch",
+  "apply_proposed_patch",
 ]);
 
 export const LIMITS = Object.freeze({
-  toolCount: 11,
-  readOnlyCount: 10,
+  toolCount: 10,
+  readOnlyCount: 9,
   mutatingCount: 1,
   maxTotalCatalogBytes: 25499, // 60% of baseline 42499
   maxDescriptionChars: 2000,
@@ -124,11 +124,11 @@ export function computeDeltas(baselineMetrics, candidateMetrics) {
 export function evaluateGates(candidateMetrics, candidateTools) {
   const candidateNames = candidateTools.map((t) => t.name);
   const retiredPresent = RETIRED_TOOL_NAMES.filter((name) => candidateNames.includes(name));
-  const missingExpected = EXPECTED_11_TOOLS.filter((name) => !candidateNames.includes(name));
-  const unexpected = candidateNames.filter((name) => !EXPECTED_11_TOOLS.includes(name));
+  const missingExpected = EXPECTED_10_TOOLS.filter((name) => !candidateNames.includes(name));
+  const unexpected = candidateNames.filter((name) => !EXPECTED_10_TOOLS.includes(name));
 
-  const toolCountIs11 = candidateMetrics.toolCount === LIMITS.toolCount;
-  const readOnlyCountIs10 = candidateMetrics.readOnlyCount === LIMITS.readOnlyCount;
+  const toolCountIs10 = candidateMetrics.toolCount === LIMITS.toolCount;
+  const readOnlyCountIs9 = candidateMetrics.readOnlyCount === LIMITS.readOnlyCount;
   const mutatingCountIs1 = candidateMetrics.mutatingCount === LIMITS.mutatingCount;
   const noRetiredNames = retiredPresent.length === 0;
   const catalogBytesWithinLimit = candidateMetrics.totalCatalogBytes <= LIMITS.maxTotalCatalogBytes;
@@ -136,8 +136,8 @@ export function evaluateGates(candidateMetrics, candidateTools) {
   const exactToolsMatch = missingExpected.length === 0 && unexpected.length === 0;
 
   const passed =
-    toolCountIs11 &&
-    readOnlyCountIs10 &&
+    toolCountIs10 &&
+    readOnlyCountIs9 &&
     mutatingCountIs1 &&
     noRetiredNames &&
     catalogBytesWithinLimit &&
@@ -146,8 +146,8 @@ export function evaluateGates(candidateMetrics, candidateTools) {
 
   return {
     passed,
-    toolCountIs11,
-    readOnlyCountIs10,
+    toolCountIs10,
+    readOnlyCountIs9,
     mutatingCountIs1,
     noRetiredNames,
     retiredPresent,
@@ -192,7 +192,8 @@ async function main() {
   const args = process.argv.slice(2);
   let serverPath = path.resolve(repositoryRoot, "plugins", "omp-spec-kit", "dist", "mcp", "server.js");
   let baselinePath = path.resolve(repositoryRoot, "tests", "fixtures", "tool-surface", "38-tool-baseline.json");
-  let outputPath = path.resolve(repositoryRoot, "docs", "validation", "tool-surface-blast-v0.8.2.json");
+  const rootPkg = JSON.parse(await readFile(path.resolve(repositoryRoot, "package.json"), "utf8"));
+  let outputPath = path.resolve(repositoryRoot, "docs", "validation", `tool-surface-blast-v${rootPkg.version}.json`);
   let checkOnly = false;
   let useSrc = false;
 
@@ -253,8 +254,8 @@ async function main() {
 
   if (!gates.passed) {
     console.error("FAIL CLOSED: Tool surface blast gates failed:");
-    if (!gates.toolCountIs11) console.error(`  - Tool count is ${candidateMetrics.toolCount}, expected ${LIMITS.toolCount}`);
-    if (!gates.readOnlyCountIs10) console.error(`  - Read-only count is ${candidateMetrics.readOnlyCount}, expected ${LIMITS.readOnlyCount}`);
+    if (!gates.toolCountIs10) console.error(`  - Tool count is ${candidateMetrics.toolCount}, expected ${LIMITS.toolCount}`);
+    if (!gates.readOnlyCountIs9) console.error(`  - Read-only count is ${candidateMetrics.readOnlyCount}, expected ${LIMITS.readOnlyCount}`);
     if (!gates.mutatingCountIs1) console.error(`  - Mutating count is ${candidateMetrics.mutatingCount}, expected ${LIMITS.mutatingCount}`);
     if (!gates.noRetiredNames) console.error(`  - Retired tool names present: ${gates.retiredPresent.join(", ")}`);
     if (!gates.catalogBytesWithinLimit) console.error(`  - Catalog bytes ${candidateMetrics.totalCatalogBytes} exceeds limit ${LIMITS.maxTotalCatalogBytes}`);

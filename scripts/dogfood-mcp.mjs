@@ -35,7 +35,7 @@ function argumentsFor(contract, index) {
       return { view: "result", scenarioId: "SCEN-mri-active-project-root" };
     case "spec_markdown":
       return { specSlugs: ["plugin-distribution"] };
-    case "spec_propose_patch":
+    case "spec_patch":
       return {
         intent: "amendRequirement",
         spec: "plugin-distribution",
@@ -43,15 +43,7 @@ function argumentsFor(contract, index) {
         body: "dogfood probe note",
         reason: "dogfood probe reason",
         requestId: reqId,
-      };
-    case "apply_proposed_patch":
-      return {
-        requestId: reqId,
-        proposalId: "0".repeat(64),
-        proposalSha256: "0".repeat(64),
-        expectedDocuments: [{ path: ".specs/plugin-distribution/FR.md", beforeSha256: "0".repeat(64) }],
-        reason: "dogfood probe reason",
-        approval: "approve",
+        dryRun: true,
       };
     default:
       return {};

@@ -12,7 +12,7 @@ All tasks are future implementation work. Scenario text does not satisfy Done Wh
 
 **Depends On:** none
 
-**Requirements:** [FR-2](FR.md#fr-2-exact-two-name-authoring-allowlist), [FR-4](FR.md#fr-4-closed-path-policy-decision), [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results)
+**Requirements:** [FR-2](FR.md#fr-2-exact-authoring-allowlist), [FR-4](FR.md#fr-4-closed-path-policy-decision), [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results)
 
 **Done When:**
 - `decision.js` contains exactly the two authoring names and six public result codes.
@@ -67,7 +67,7 @@ All tasks are future implementation work. Scenario text does not satisfy Done Wh
 
 **Depends On:** TASK-3
 
-**Requirements:** [FR-2](FR.md#fr-2-exact-two-name-authoring-allowlist), [FR-3](FR.md#fr-3-filesystem-backed-containment), [FR-4](FR.md#fr-4-closed-path-policy-decision), [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results), [FR-6](FR.md#fr-6-single-factory-installed-delivery)
+**Requirements:** [FR-2](FR.md#fr-2-exact-authoring-allowlist), [FR-3](FR.md#fr-3-filesystem-backed-containment), [FR-4](FR.md#fr-4-closed-path-policy-decision), [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results), [FR-6](FR.md#fr-6-single-factory-installed-delivery)
 
 **Done When:**
 - Real OMP call captures and real POSIX/Windows filesystem trees carry the complete FIXTURES manifest.

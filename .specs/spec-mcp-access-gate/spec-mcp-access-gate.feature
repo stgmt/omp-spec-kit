@@ -19,12 +19,10 @@ Feature: OMP MCP access gate
 
     Examples:
       | name                         | result                                      |
-      | spec_propose_patch           | ALLOW AUTHORING_TOOL_ALLOWED                 |
-      | apply_proposed_patch         | ALLOW AUTHORING_TOOL_ALLOWED                 |
-      | Spec_propose_patch           | continue to direct-mutation path policy      |
-      | spec_propose_patch_extra     | continue to direct-mutation path policy      |
-      | mcp__service__spec_propose_patch | continue to direct-mutation path policy  |
-      | xapply_proposed_patch        | continue to direct-mutation path policy      |
+      | spec_patch                   | ALLOW AUTHORING_TOOL_ALLOWED                 |
+      | Spec_patch                   | continue to direct-mutation path policy      |
+      | spec_patch_extra             | continue to direct-mutation path policy      |
+      | mcp__service__spec_patch     | continue to direct-mutation path policy      |
 
   @feature3 @FR-3 @AC-3.1 @id:SCEN-filesystem-containment
   Scenario Outline: Canonical containment handles path and filesystem boundaries
@@ -65,9 +63,9 @@ Feature: OMP MCP access gate
     Given a direct spec target and a resolver fault variant
     When repeated tool_call decisions block
     Then each reason is at most 512 UTF-8 bytes
-    And the reason preserves the decision code and spec_propose_patch then apply_proposed_patch redirect
+    And the reason preserves the decision code and spec_patch redirect
     And only a repository-relative target is shown when known
-    And TARGET_INDETERMINATE reasons include "Recovery: provide one explicit repository-relative target, or use spec_propose_patch then apply_proposed_patch."
+    And TARGET_INDETERMINATE reasons include "Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply."
     And no absolute path environment credential stack or raw operating-system error is shown
     And no file log counter cache network subprocess credential read or alternate tool is created
 

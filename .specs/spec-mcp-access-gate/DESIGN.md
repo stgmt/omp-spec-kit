@@ -21,7 +21,7 @@ Only three small root-source modules are planned:
 ## Decision order
 
 1. Read `toolName` and current mutation targets from the `tool_call` adapter.
-2. If `toolName === "propose_patch" || toolName === "apply_proposed_patch"`, return ALLOW `AUTHORING_TOOL_ALLOWED` immediately.
+2. If `toolName === "spec_patch"`, return ALLOW `AUTHORING_TOOL_ALLOWED` immediately.
 3. For a non-allowlisted direct mutator, resolve every target.
 4. If any target is `INDETERMINATE`, return BLOCK `TARGET_INDETERMINATE`.
 5. Otherwise, if any target is `SPEC`, return BLOCK `RAW_SPEC_WRITE`.
@@ -46,10 +46,10 @@ The resolver does not infer safety from a tool name. The decision module does no
 Canonical form:
 
 ```text
-<CODE>: direct specification write blocked for <repo-relative-target-or-unknown>. Use spec_propose_patch, then apply_proposed_patch.
+<CODE>: direct specification write blocked for <repo-relative-target-or-unknown>. Use spec_patch.
 ```
 
-The formatter preserves the code and redirect when truncating to 512 UTF-8 bytes. It never renders an absolute path or raw exception. For `TARGET_INDETERMINATE`, the redirect is exactly `Recovery: provide one explicit repository-relative target, or use spec_propose_patch then apply_proposed_patch.`.
+The formatter preserves the code and redirect when truncating to 512 UTF-8 bytes. It never renders an absolute path or raw exception. For `TARGET_INDETERMINATE`, the redirect is exactly `Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply.`.
 
 ## Decisions
 

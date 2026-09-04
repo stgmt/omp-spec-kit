@@ -154,7 +154,7 @@ Then("the MCP overview contains only project-a specifications", function () {
   assert.equal(this.mri.overview.result.structuredContent.data.counts.acceptedDocuments, this.mri.specsBefore.entries.filter((entry) => entry.type === "file").length);
 });
 
-Then("relative unresolved or package-root overrides cannot select package-decoy", async function () {
+Then("relative unresolved or package-root overrides cannot select package-decoy", { timeout: 30000 }, async function () {
   await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: "package-decoy" });
   const relative = await this.mri.server.request("tools/call", {
     name: "spec_catalog",

@@ -419,35 +419,39 @@ if (!terminalPhase) {
 	const managedAuthoringResult = await phase("managed-authoring", async () => {
 		const overviewCall = await executeManagedTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "omp-manager-overview", view: "overview", specSlugs: [] }, "omp-manager-overview");
 		if (!overviewCall.envelope.ok || typeof overviewCall.envelope.graph?.fingerprint !== "string") throw new Error("OMP-managed spec_catalog did not return a graph fingerprint; keys=" + Object.keys(overviewCall.envelope).join(",") + "; dataKeys=" + Object.keys(overviewCall.envelope.data ?? {}).join(","));
-		const proposalCall = await executeManagedTool("spec_propose_patch", {
+		const target = path.join(cwd, "." + "specs", "plugin-distribution", "README.md");
+		const beforeBytes = await readFile(target, "utf8");
+		const previewCall = await executeManagedTool("spec_patch", {
 			schemaVersion: "spec-kernel@1",
 			intent: "patch",
-			requestId: "omp-manager-proposal",
+			requestId: "omp-manager-preview",
 			repositoryRootFingerprint: overviewCall.envelope.graph.fingerprint,
 			spec: "plugin-distribution",
 			reason: "OMP managed authoring proof",
-			operations: [{ kind: "insert_at_eof", document: "README.md", text: "OMP managed authoring proof" }],
-		}, "omp-manager-proposal");
-		if (!proposalCall.envelope.ok || !proposalCall.envelope.data?.proposalHash) throw new Error("OMP-managed spec_propose_patch did not return a Proposal");
-		const expectedDocuments = proposalCall.envelope.data.operations.map(operation => ({ path: operation.path, beforeSha256: operation.beforeSha256 }));
-		const applyCall = await executeManagedTool("apply_proposed_patch", {
+			dryRun: true,
+			operations: [{ kind: "insert_at_eof", document: "README.md", text: "\n<!-- OMP managed authoring proof -->\n" }],
+		}, "omp-manager-preview");
+		if (!previewCall.envelope.ok || previewCall.envelope.data?.outcome !== "PREVIEW") throw new Error("OMP-managed spec_patch did not return a preview");
+		const midBytes = await readFile(target, "utf8");
+		if (midBytes !== beforeBytes) throw new Error("OMP-managed preview changed project document on disk");
+		const applyCall = await executeManagedTool("spec_patch", {
 			schemaVersion: "spec-kernel@1",
+			intent: "patch",
 			requestId: "omp-manager-apply",
-			proposalId: proposalCall.envelope.data.proposalId,
-			proposalSha256: proposalCall.envelope.data.proposalHash,
-			expectedDocuments,
+			repositoryRootFingerprint: overviewCall.envelope.graph.fingerprint,
+			spec: "plugin-distribution",
 			reason: "OMP managed authoring proof",
-			approval: "approve",
+			dryRun: false,
+			operations: [{ kind: "insert_at_eof", document: "README.md", text: "\n<!-- OMP managed authoring proof -->\n" }],
 		}, "omp-manager-apply");
-		if (!applyCall.envelope.ok || applyCall.envelope.data?.outcome !== "APPLIED") throw new Error("OMP-managed apply_proposed_patch did not apply the Proposal");
-		const target = path.join(cwd, ".specs", "plugin-distribution", "README.md");
+		if (!applyCall.envelope.ok || applyCall.envelope.data?.outcome !== "APPLIED") throw new Error("OMP-managed spec_patch did not apply");
 		const finalBytes = await readFile(target, "utf8");
 		if (!finalBytes.includes("OMP managed authoring proof")) throw new Error("OMP-managed apply did not change the project document");
 		const finalOverview = await executeManagedTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "omp-manager-final-overview", view: "overview", specSlugs: [] }, "omp-manager-final-overview");
 		if (!finalOverview.envelope.ok || finalOverview.envelope.graph?.valid !== true) throw new Error("OMP-managed final spec_catalog did not return a valid graph");
 		managedAuthoring = {
-			toolNames: [overviewCall.tool.mcpToolName, proposalCall.tool.mcpToolName, applyCall.tool.mcpToolName],
-			proposalHash: proposalCall.envelope.data.proposalHash,
+			toolNames: [overviewCall.tool.mcpToolName, applyCall.tool.mcpToolName],
+			proposalHash: applyCall.envelope.data.proposalHash,
 			applyOutcome: applyCall.envelope.data.outcome,
 			changedDocuments: applyCall.envelope.data.receipt?.changedDocuments ?? [],
 			finalDocumentContainsMarker: true,

@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Safe OMP specification inventory and reviewable authoring tooling.",
-    "version": "0.8.2"
+    "version": "0.10.0"
   },
   "plugins": [
     {
       "name": "omp-spec-kit",
       "source": "./plugins/omp-spec-kit",
       "description": "Inventory and review exact .specs changes through the active OMP project.",
-      "version": "0.8.2",
+      "version": "0.10.0",
       "author": {
         "name": "stgmt"
       },

@@ -24,7 +24,7 @@ for (const [index, row] of rows.entries()) {
 }
 if (new Set(rows.map((row) => row.name)).size !== rows.length) fail("destination names are not unique");
 
-if (TOOL_CONTRACTS.length !== 11) fail(`single surface drifted from 11 tools, found ${TOOL_CONTRACTS.length}`);
+if (TOOL_CONTRACTS.length !== 10) fail(`single surface drifted from 10 tools, found ${TOOL_CONTRACTS.length}`);
 const annotationKeys = ["destructiveHint", "idempotentHint", "openWorldHint", "readOnlyHint"];
 const readAnnotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 const mutatingAnnotations = { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false };
@@ -69,20 +69,20 @@ const UPSTREAM_TO_CONSOLIDATED = Object.freeze({
   read_attachment: "spec_documents",
   get_test_result: "spec_evidence",
   get_scenario_trace: "spec_evidence",
-  propose_patch: "spec_propose_patch",
-  apply_proposed_patch: "apply_proposed_patch",
-  amend_requirement: "spec_propose_patch",
-  add_acceptance_criterion: "spec_propose_patch",
-  add_phase: "spec_propose_patch",
-  set_entity_status: "spec_propose_patch",
-  set_spec_status: "spec_propose_patch",
-  set_requirement_metadata: "spec_propose_patch",
-  delete_spec_doc: "spec_propose_patch",
-  rename_spec_doc: "spec_propose_patch",
-  create_spec: "spec_propose_patch",
-  archive_spec: "spec_propose_patch",
-  add_backlog_task: "spec_propose_patch",
-  register_incident_backlog: "spec_propose_patch",
+  propose_patch: "spec_patch",
+  apply_proposed_patch: "spec_patch",
+  amend_requirement: "spec_patch",
+  add_acceptance_criterion: "spec_patch",
+  add_phase: "spec_patch",
+  set_entity_status: "spec_patch",
+  set_spec_status: "spec_patch",
+  set_requirement_metadata: "spec_patch",
+  delete_spec_doc: "spec_patch",
+  rename_spec_doc: "spec_patch",
+  create_spec: "spec_patch",
+  archive_spec: "spec_patch",
+  add_backlog_task: "spec_patch",
+  register_incident_backlog: "spec_patch",
 });
 
 const contractedTools = new Set(TOOL_CONTRACTS.map((c) => c.tool));
@@ -93,4 +93,4 @@ for (const row of rows) {
   }
 }
 
-console.log("verified spec port: tools=11");
+console.log("verified spec port: tools=10");

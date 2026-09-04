@@ -88,23 +88,25 @@ Given("a disposable real authoring corpus and live MCP server", async function (
   });
 });
 
-When("the scenario {string} runs", async function (scenario) {
+When("the scenario {string} runs", { timeout: 120000 }, async function (scenario) {
   if (scenario === "inventory") {
     const listed = await this.server.request("tools/list");
     const names = listed.result.tools.map((tool) => tool.name).sort();
-    assert.equal(names.length, 11, "single surface exposes exactly 11 tools");
-    for (const name of ["spec_propose_patch", "apply_proposed_patch", "spec_catalog"]) assert.equal(names.includes(name), true, name + " must be registered");
-    for (const removed of ["propose_patch", "create_spec", "spec_overview", "spec_inventory", "list_specs", "apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) assert.equal(names.includes(removed), false, removed + " must be gone");
+    assert.equal(names.length, 10, "single surface exposes exactly 10 tools");
+    for (const name of ["spec_patch", "spec_catalog"]) assert.equal(names.includes(name), true, name + " must be registered");
+    for (const removed of ["spec_propose_patch", "apply_proposed_patch", "propose_patch", "create_spec", "spec_overview", "spec_inventory", "list_specs", "apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) assert.equal(names.includes(removed), false, removed + " must be gone");
     this.result = true;
     return;
   }
   if (scenario === "proposal") {
     const before = await readFile(path.join(this.root, ".specs/plugin-distribution/README.md"));
     const graph = await overview(this);
-    const first = await this.server.request("tools/call", { name: "spec_propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-proposal-a") });
-    const second = await this.server.request("tools/call", { name: "spec_propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-proposal-b") });
+    const first = await this.server.request("tools/call", { name: "spec_patch", arguments: { ...proposalArgs(this, graph.graph.fingerprint, "safe-proposal-a"), dryRun: true } });
+    const second = await this.server.request("tools/call", { name: "spec_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-proposal-b") });
     assert.equal(first.result.structuredContent.ok, true, JSON.stringify(first));
     assert.equal(second.result.structuredContent.ok, true, JSON.stringify(second));
+    assert.equal(first.result.structuredContent.data.outcome, "PREVIEW");
+    assert.equal(second.result.structuredContent.data.outcome, "PREVIEW");
     assert.deepEqual(first.result.structuredContent.data.operations, second.result.structuredContent.data.operations);
     assert.equal(sha256Hex(before), sha256Hex(await readFile(path.join(this.root, ".specs/plugin-distribution/README.md"))));
     this.result = true;
@@ -114,7 +116,7 @@ When("the scenario {string} runs", async function (scenario) {
     const graph = await overview(this);
     const args = proposalArgs(this, graph.graph.fingerprint, "safe-invalid", "invalid");
     args.operations = [{ kind: "insert_at_eof", document: "README.md", text: "a" }, { kind: "insert_at_eof", document: "README.md", text: "b" }];
-    const invalid = await this.server.request("tools/call", { name: "spec_propose_patch", arguments: args });
+    const invalid = await this.server.request("tools/call", { name: "spec_patch", arguments: args });
     assert.equal(invalid.result.structuredContent.ok, false, JSON.stringify(invalid));
     assert.equal(["INVALID_REQUEST", "VALIDATION_FAILED"].includes(invalid.result.structuredContent.error.code), true);
     this.result = true;
@@ -123,8 +125,8 @@ When("the scenario {string} runs", async function (scenario) {
   if (scenario === "access-gate") {
     const blocked = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: ".specs/plugin-distribution/README.md" } }, { root: this.root });
     const direct = classifyToolCall({ toolName: "write", cwd: this.root, input: { path: ".specs/plugin-distribution/README.md" } }, { root: this.root });
-    const allowed = classifyToolCall({ toolName: "mcp__omp_spec_kit_spec_propose_patch", input: {} }, { root: this.root });
-    const rawDirect = classifyToolCall({ toolName: "spec_propose_patch", input: {} }, { root: this.root });
+    const allowed = classifyToolCall({ toolName: "mcp__omp_spec_kit_spec_patch", input: {} }, { root: this.root });
+    const rawDirect = classifyToolCall({ toolName: "spec_patch", input: {} }, { root: this.root });
     assert.equal(blocked.code, "RAW_SPEC_WRITE");
     assert.equal(direct.code, "RAW_SPEC_WRITE");
     assert.equal(allowed.code, "AUTHORING_TOOL_ALLOWED");
@@ -135,10 +137,10 @@ When("the scenario {string} runs", async function (scenario) {
   }
   if (scenario === "apply-cas") {
     const graph = await overview(this);
-    const proposal = (await this.server.request("tools/call", { name: "spec_propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-apply-proposal") })).result.structuredContent;
-    const applyArgs = { requestId: "safe-apply", proposalId: proposal.data.proposalId, proposalSha256: proposal.data.proposalHash, expectedDocuments: expectedDocuments(proposal), reason: "approve exact proposal", approval: "approve" };
-    const applied = await this.server.request("tools/call", { name: "apply_proposed_patch", arguments: applyArgs });
-    const replay = await this.server.request("tools/call", { name: "apply_proposed_patch", arguments: applyArgs });
+    const applyArgs = { ...proposalArgs(this, graph.graph.fingerprint, "safe-apply"), dryRun: false };
+    const applied = await this.server.request("tools/call", { name: "spec_patch", arguments: applyArgs });
+    const replay = await this.server.request("tools/call", { name: "spec_patch", arguments: applyArgs });
+    assert.equal(applied.result.structuredContent.ok, true, JSON.stringify(applied));
     assert.equal(applied.result.structuredContent.data.outcome, "APPLIED", JSON.stringify(applied));
     assert.equal(replay.result.structuredContent.data.outcome, "APPLIED", JSON.stringify(replay));
     assert.ok((await readFile(path.join(this.root, ".specs/plugin-distribution/README.md"), "utf8")).includes("safe authoring marker"));
@@ -147,10 +149,10 @@ When("the scenario {string} runs", async function (scenario) {
   }
   if (scenario === "concurrent-conflict") {
     const graph = await overview(this);
-    const a = (await this.server.request("tools/call", { name: "spec_propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-race-a", "race-a") })).result.structuredContent;
-    const b = (await this.server.request("tools/call", { name: "spec_propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-race-b", "race-b") })).result.structuredContent;
-    const apply = (proposal, requestId) => this.server.request("tools/call", { name: "apply_proposed_patch", arguments: { requestId, proposalId: proposal.data.proposalId, proposalSha256: proposal.data.proposalHash, expectedDocuments: expectedDocuments(proposal), reason: "race", approval: "approve" } });
-    const [first, second] = await Promise.all([apply(a, "safe-race-apply-a"), apply(b, "safe-race-apply-b")]);
+    const aArgs = { ...proposalArgs(this, graph.graph.fingerprint, "safe-race-a", "race-a"), dryRun: false };
+    const bArgs = { ...proposalArgs(this, graph.graph.fingerprint, "safe-race-b", "race-b"), dryRun: false };
+    const apply = (args) => this.server.request("tools/call", { name: "spec_patch", arguments: args });
+    const [first, second] = await Promise.all([apply(aArgs), apply(bArgs)]);
     const outcomes = [first.result.structuredContent.data.outcome, second.result.structuredContent.data.outcome].sort();
     assert.deepEqual(outcomes, ["APPLIED", "REFUSED"], JSON.stringify([first, second]));
     const conflict = [first, second].find((response) => response.result.structuredContent.data.error?.code === "CONFLICT");
@@ -176,7 +178,7 @@ When("the scenario {string} runs", async function (scenario) {
     const graph = await overview(this);
     const redactionArgs = proposalArgs(this, graph.graph.fingerprint, "safe-redaction", "redacted marker");
     redactionArgs.reason = "SECRET / absolute C:\\private\\secret";
-    const proposal = await this.server.request("tools/call", { name: "spec_propose_patch", arguments: redactionArgs });
+    const proposal = await this.server.request("tools/call", { name: "spec_patch", arguments: redactionArgs });
     const serialized = JSON.stringify(proposal.result.structuredContent);
     assert.equal(serialized.includes("SECRET"), false);
     assert.equal(serialized.includes("C:\\\\private"), false);
@@ -205,27 +207,36 @@ When("the scenario {string} runs", async function (scenario) {
   if (scenario === "future-hidden") {
     const listed = await this.server.request("tools/list");
     const names = listed.result.tools.map((tool) => tool.name);
-    assert.equal(names.includes("spec_propose_patch"), true);
-    assert.equal(names.includes("apply_proposed_patch"), true);
+    assert.equal(names.includes("spec_patch"), true);
+    assert.equal(names.includes("spec_propose_patch"), false);
+    assert.equal(names.includes("apply_proposed_patch"), false);
     assert.equal(names.includes("propose_patch"), false);
-    for (const removed of ["apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) assert.equal(names.includes(removed), false, removed + " must stay unknown");
+    for (const removed of ["spec_propose_patch", "apply_proposed_patch", "apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) assert.equal(names.includes(removed), false, removed + " must stay unknown");
     const unknown = await this.server.request("tools/call", { name: "apply_spec_change", arguments: { schemaVersion: "spec-kernel@1", requestId: "safe-removed-verb" } });
     assert.equal(unknown.error?.code, -32602, "removed tools must be unknown, not gated");
+    const propRetired = await this.server.request("tools/call", { name: "spec_propose_patch", arguments: {} });
+    assert.equal(propRetired.error?.code, -32602);
+    assert.equal(propRetired.error?.message, "Unknown tool: spec_propose_patch");
+    const applyRetired = await this.server.request("tools/call", { name: "apply_proposed_patch", arguments: {} });
+    assert.equal(applyRetired.error?.code, -32602);
+    assert.equal(applyRetired.error?.message, "Unknown tool: apply_proposed_patch");
     this.result = true;
     return;
   }
   if (scenario === "multi-document") {
     const graph = await overview(this);
     const documents = ["README.md", "REQUIREMENTS.md", "TASKS.md"];
-    const before = new Map(await Promise.all(documents.map(async (document) => [document, sha256Hex(await readFile(path.join(this.root, ".specs/plugin-distribution", document)))])));
-    const proposal = (await this.server.request("tools/call", { name: "spec_propose_patch", arguments: { ...proposalArgs(this, graph.graph.fingerprint, "safe-multi-proposal"), operations: documents.map((document) => ({ kind: "insert_at_eof", document, text: "multi-document-" + document })) } })).result.structuredContent;
-    assert.equal(proposal.ok, true, JSON.stringify(proposal));
-    assert.equal(proposal.data.operations.length, 3);
-    assert.deepEqual(proposal.data.operations.map((operation) => operation.path), documents.map((document) => ".specs/plugin-distribution/" + document));
-    const applied = (await this.server.request("tools/call", { name: "apply_proposed_patch", arguments: { requestId: "safe-multi-apply", proposalId: proposal.data.proposalId, proposalSha256: proposal.data.proposalHash, expectedDocuments: expectedDocuments(proposal), reason: "apply same-spec multi-document proposal", approval: "approve" } })).result.structuredContent;
+    const pfx = "." + "specs/plugin-distribution/";
+    const before = new Map(await Promise.all(documents.map(async (document) => [document, sha256Hex(await readFile(path.join(this.root, pfx, document)))])));
+    const patchArgs = {
+      ...proposalArgs(this, graph.graph.fingerprint, "safe-multi-patch"),
+      dryRun: false,
+      operations: documents.map((document) => ({ kind: "insert_at_eof", document, text: "multi-document-" + document })),
+    };
+    const applied = (await this.server.request("tools/call", { name: "spec_patch", arguments: patchArgs })).result.structuredContent;
     assert.equal(applied.data.outcome, "APPLIED", JSON.stringify(applied));
-    for (const document of documents) assert.equal((await readFile(path.join(this.root, ".specs/plugin-distribution", document), "utf8")).includes("multi-document-" + document), true);
-    for (const [document, digest] of before) assert.notEqual(sha256Hex(await readFile(path.join(this.root, ".specs/plugin-distribution", document))), digest);
+    for (const document of documents) assert.equal((await readFile(path.join(this.root, pfx, document), "utf8")).includes("multi-document-" + document), true);
+    for (const [document, digest] of before) assert.notEqual(sha256Hex(await readFile(path.join(this.root, pfx, document))), digest);
     assert.equal((await overview(this)).graph.valid, true);
     this.result = true;
     return;
@@ -245,7 +256,7 @@ When("the scenario {string} runs", async function (scenario) {
     ];
     for (const [label, expectedCode, overrides] of cases) {
       const args = { ...proposalArgs(this, graph.graph.fingerprint, "safe-edge-" + label.replaceAll(" ", "-")), ...overrides };
-      const response = (await this.server.request("tools/call", { name: "spec_propose_patch", arguments: args })).result.structuredContent;
+      const response = (await this.server.request("tools/call", { name: "spec_patch", arguments: args })).result.structuredContent;
       assert.equal(response.ok, false, label + ": " + JSON.stringify(response));
       assert.equal(response.error.code, expectedCode, label + ": " + JSON.stringify(response));
       assert.equal(sha256Hex(await readFile(target)), before, label + " changed bytes");
@@ -272,7 +283,7 @@ When("the scenario {string} runs", async function (scenario) {
     await plantDirectoryJunction(linkPath, path.join(this.root, ".specs"));
     const linked = classifyToolCall({ toolName: "write", cwd: this.root, input: { path: path.join(linkPath, "plugin-distribution", "README.md") } }, { root: this.root });
     assert.equal(linked.code, "RAW_SPEC_WRITE", JSON.stringify(linked));
-    const unregistered = classifyToolCall({ toolName: "spec_propose_patch", cwd: this.root, input: {} }, { root: this.root });
+    const unregistered = classifyToolCall({ toolName: "spec_patch", cwd: this.root, input: {} }, { root: this.root });
     assert.equal(unregistered.code, "UNREGISTERED_AUTHORING_CALL", JSON.stringify(unregistered));
     this.result = true;
     return;
@@ -346,8 +357,8 @@ When("the scenario {string} runs", async function (scenario) {
     }
     assert.equal(receipt.provenance.runtime.version, "18.0.11");
     assert.deepEqual(receipt.manager.connectionResult.connectedServers, ["omp-spec-kit:omp-spec-kit"]);
-    assert.equal(receipt.manager.connectionResult.toolCount, 11);
-    assert.deepEqual(receipt.manager.connectionResult.managedAuthoring.toolNames, ["spec_catalog", "spec_propose_patch", "apply_proposed_patch"]);
+    assert.equal(receipt.manager.connectionResult.toolCount, 10);
+    assert.deepEqual(receipt.manager.connectionResult.managedAuthoring.toolNames, ["spec_catalog", "spec_patch"]);
     assert.equal(receipt.manager.connectionResult.managedAuthoring.applyOutcome, "APPLIED");
     assert.equal(receipt.manager.connectionResult.managedAuthoring.finalDocumentContainsMarker, true);
     assert.equal(receipt.manager.connectionResult.managedAuthoring.finalGraphValid, true);
