@@ -181,3 +181,11 @@ WHEN the bounded v0.3.2 record is read THEN tag, commit, candidate, package-tree
 **Requirement:** [FR-25](FR.md#fr-25-response-source-identity-and-root-consistency).
 
 WHEN the installed stdio MCP server serves the active project without an override THEN every one of the eight tool results SHALL identify `omp-spec-kit`, carry equal opaque resolved and active-project root identities, and declare `rootMode: active-project`; WHEN an explicit absolute override selects project-b THEN every result SHALL identify one project-b root identity, declare `rootMode: explicit-absolute-override`, and set `matchesActiveProject: false`; WHEN the OMP extension receives the same cwd and override THEN its legacy inventory result and every query-tool result SHALL carry the same provenance; IF any result exposes an absolute root path, environment value, document body, or silently mixes roots THEN the check SHALL fail.
+
+## AC-26.1: Consolidated 11-tool MCP discovery and release evidence
+
+**EARS:** WHEN the v0.8.0 candidate is validated THEN release preflight, archive smoke, and installed package discovery SHALL prove exactly 11 tools with the 10/1 annotation matrix and zero deprecated names.
+
+**Requirement:** [FR-26](FR.md#fr-26-consolidated-11-tool-mcp-discovery-and-release-evidence)
+
+**Scenario:** `@feature26`, `@id:SCEN-mri-consolidated-11-tools`

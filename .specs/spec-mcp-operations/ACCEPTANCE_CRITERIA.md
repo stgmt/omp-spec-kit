@@ -56,7 +56,7 @@ The criteria describe the standalone graph core and its compatibility boundary. 
 
 ## AC-6.1: Historical eight-name compatibility
 
-**EARS:** WHEN the released v0.3.2 compatibility adapters are invoked THEN the exact eight historical MCP names SHALL project the same core result, while released-format decoders and fixture replay remain compatibility-only.
+**EARS:** WHEN historical v0.3.2 release verification runs THEN the eight historical MCP names SHALL remain immutable in released package receipts and fixture replay, but SHALL NOT be required in the active runtime tool registry.
 
 **Requirement:** [FR-6](FR.md#fr-6-historical-eight-name-compatibility)
 
@@ -287,3 +287,56 @@ These EARS criteria are specification text, not execution evidence.
 **Requirement:** [FR-29](FR.md#fr-29-real-correctness-evidence)
 
 **WHEN** containment, CAS, resulting-spec validation, anchor rewrite, atomic rollback, or redaction is deliberately disabled one at a time **THEN** at least one concrete behavioral test SHALL fail for each omission; these checks SHALL remain CI evidence and SHALL NOT alter runtime availability or response shape.
+
+
+## AC-30.1: MCP discovery metadata and handshake
+
+Given the packaged MCP server, when a client initializes and lists tools, the response SHALL contain exactly 11 names in contract order. Every entry SHALL have a top-level title matching its contract label, exactly four boolean annotation keys with the specified 10/1 semantic matrix, and a non-empty first description line of at most 200 characters. The initialize result SHALL contain the single approved instructions paragraph.
+
+**Scenario:** `@feature30 @FR-30 @AC-30.1 @id:SCEN-mcp-discovery-metadata`
+**Verification:** direct JSON-RPC and staged BDD.
+
+## AC-31.1: Envelope schema and recovery are machine-actionable
+
+Given a real MCP server, tools/list declares the stable result schema and discovery metadata; a successful call mirrors one canonical envelope in structured and text content; stale cursor and conflict responses declare actionable recovery; and target-indeterminate enforcement returns a bounded relative-target recovery without an absolute path.
+
+
+## AC-32.1: Discriminated branch schemas and strict argument validation
+
+**EARS:** WHEN an MCP call is received for a consolidated tool THEN the input arguments SHALL be validated against the exact discriminator branch schema with `additionalProperties: false`; ANY unknown field, cross-branch field, or invalid enum SHALL return `INVALID_REQUEST` before backend execution.
+
+**Requirement:** [FR-32](FR.md#fr-32-discriminated-branch-schemas-and-strict-argument-validation)
+
+**Scenario:** `@feature32 @FR-32 @AC-32.1 @id:SCEN-mcp-discriminated-variants`
+
+## AC-33.1: Domain type dictionary catalog
+
+**EARS:** WHEN `spec_catalog` is invoked with `view: "types"` THEN the response SHALL return exactly 15 entity kind descriptors and 7 edge type descriptors derived directly from the immutable kernel dictionary.
+
+**Requirement:** [FR-33](FR.md#fr-33-domain-type-dictionary-catalog)
+
+**Scenario:** `@feature33 @FR-33 @AC-33.1 @id:SCEN-mcp-types-catalog`
+
+## AC-34.1: Surface blast limits and fail-closed measurement
+
+**EARS:** WHEN `scripts/measure-mcp-tool-blast.mjs` evaluates the candidate MCP server THEN candidate tool count SHALL be 11, catalog bytes SHALL be <= 25,499, description characters SHALL be <= 2,000, and retired tool names SHALL be 0; OTHERWISE the measurement script SHALL exit with a fail-closed error.
+
+**Requirement:** [FR-34](FR.md#fr-34-surface-blast-limits-and-fail-closed-measurement)
+
+**Scenario:** `@feature34 @FR-34 @AC-34.1 @id:SCEN-mcp-surface-blast-limits`
+
+## AC-35.1: Hard tool retirement without backward-compatibility shims
+
+**EARS:** WHEN any of the 27 retired MCP tool names is called THEN the server SHALL return protocol error `-32602` without custom deprecation hints or alias delegation.
+
+**Requirement:** [FR-35](FR.md#fr-35-hard-tool-retirement-without-backward-compatibility-shims)
+
+**Scenario:** `@feature35 @FR-35 @AC-35.1 @id:SCEN-mcp-hard-retirement-no-shims`
+
+## AC-36.1: Deterministic mutation testing gate
+
+**EARS:** WHEN `scripts/check-tool-surface-mutations.mjs` runs against tool contracts and invariants THEN all synthetic mutants SHALL be eliminated resulting in `survivors: 0`.
+
+**Requirement:** [FR-36](FR.md#fr-36-deterministic-mutation-testing-gate)
+
+**Scenario:** `@feature36 @FR-36 @AC-36.1 @id:SCEN-mcp-mutation-testing-gate`

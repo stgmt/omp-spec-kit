@@ -65,3 +65,18 @@ Earlier drafts explored broader facade, review, recovery, audit, lifecycle, and 
 ## Consolidation
 
 The former kernel, evidence, and authoring specifications now live as explicit Read/Core, Read/Evidence, and Write domains in this single MCP operations contract.
+
+
+## Unreleased — MCP discovery UX
+
+Added complete four-property tool annotations, contract-label titles, bounded first description lines, and initialize instructions for the 38-tool MCP surface.
+
+- Added declared MCP output schemas, concise discovery metadata, server instructions, canonical content mirrors, and actionable recovery guidance.
+
+## Unreleased — 11-tool surface consolidation
+
+- Consolidated 38 MCP tools into 11 task-oriented tools with discriminated `oneOf` branches.
+- Hard cutover removing all 27 superseded tools without backward-compatibility shims.
+- Added `spec_catalog(view: "types")` returning 15 entity kinds and 7 edge types.
+- Enforced surface blast caps: 11 tools, <= 25,499 bytes, <= 2,000 description characters.
+- Added deterministic mutation testing gate with zero surviving mutants.

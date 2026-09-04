@@ -18,3 +18,7 @@
 
 - Reframed direct-write enforcement as a full agent-mediated MCP access gate.
 - Preserved the original six enforcement requirements and scenarios.
+
+## Unreleased — 11-tool consolidation
+
+- Updated authoring allowlist and recovery redirect to `spec_propose_patch` and `apply_proposed_patch` for the consolidated 11-tool MCP surface.

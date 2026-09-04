@@ -225,3 +225,30 @@ A failure through step 8 preserves the old generation. An uncertain step 9 trigg
 ## Security boundary
 
 The host policy blocks raw `.specs/**` writers. The handler separately enforces containment because an allowlisted name does not make its arguments safe. Diagnostics use relative paths and bounded hashes; document bodies and secrets never enter the Apply result.
+
+
+## MCP discovery metadata
+
+`tool-contracts.js` remains the single source for labels, names, and input schemas. The MCP server maps each contract to a top-level title and one of two frozen four-hint annotation objects. Shared workflow guidance lives in the initialize instructions field; descriptions retain tool-specific purpose. The port checker and tool blast script own the consolidated 11-tool surface invariants.
+
+### MCP UX contract
+
+The MCP adapter owns concise tool descriptions, titles, annotations, the server instruction, and one declared output schema. The query boundary owns canonical envelope mirrors and actionable recovery text for stale cursors and conflicts; the enforcement boundary owns bounded relative-target recovery. Domain apply refusals retain their structured `REFUSED` receipt while the MCP transport marks the refusal as an error.
+
+
+## 11-tool consolidated architecture
+
+The public MCP surface is consolidated into 11 task-oriented tools:
+- `spec_catalog`: discriminated on `view` (types, specs, inventory, overview, status)
+- `spec_entities`: discriminated on `mode` (get, find)
+- `spec_graph`: discriminated on `view` (edges, trace)
+- `spec_documents`: discriminated on `action` (list, read, attachment)
+- `spec_inspect`: discriminated on `check` (scenariosByTags, orphans, anchor, requirementMetadata, requirementsPolicy, archivalProof, specValidation, diagnostics)
+- `spec_tasks`: task listing with optional phase and requirement filters
+- `spec_evidence`: discriminated on `view` (result, trace)
+- `spec_markdown`: heading and link inventory
+- `spec_propose_patch`: discriminated on `intent` (patch plus 12 typed edit intents)
+- `apply_proposed_patch`: transactional CAS mutation
+- `mcp_preflight`: workspace preflight check
+
+Each branch enforces `additionalProperties: false`. All 27 retired tools are permanently removed with zero compatibility layers.

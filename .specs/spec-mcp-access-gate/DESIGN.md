@@ -46,10 +46,10 @@ The resolver does not infer safety from a tool name. The decision module does no
 Canonical form:
 
 ```text
-<CODE>: direct specification write blocked for <repo-relative-target-or-unknown>. Use propose_patch, then apply_proposed_patch.
+<CODE>: direct specification write blocked for <repo-relative-target-or-unknown>. Use spec_propose_patch, then apply_proposed_patch.
 ```
 
-The formatter preserves the code and redirect when truncating to 512 UTF-8 bytes. It never renders an absolute path or raw exception.
+The formatter preserves the code and redirect when truncating to 512 UTF-8 bytes. It never renders an absolute path or raw exception. For `TARGET_INDETERMINATE`, the redirect is exactly `Recovery: provide one explicit repository-relative target, or use spec_propose_patch then apply_proposed_patch.`.
 
 ## Decisions
 

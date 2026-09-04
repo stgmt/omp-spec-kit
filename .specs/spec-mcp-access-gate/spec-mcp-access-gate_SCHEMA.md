@@ -3,10 +3,10 @@
 ## Constants
 
 ```ts
-type AuthoringToolName = "propose_patch" | "apply_proposed_patch";
+type AuthoringToolName = "spec_propose_patch" | "apply_proposed_patch";
 
 const AUTHORING_TOOL_NAMES: readonly AuthoringToolName[] = [
-  "propose_patch",
+  "spec_propose_patch",
   "apply_proposed_patch",
 ];
 
@@ -108,7 +108,7 @@ Decision order is normative:
 The block reason is deterministic, at most 512 UTF-8 bytes, and follows:
 
 ```text
-<CODE>: direct specification write blocked for <repo-relative-target-or-unknown>. Use propose_patch, then apply_proposed_patch.
+<CODE>: direct specification write blocked for <repo-relative-target-or-unknown>. Use spec_propose_patch, then apply_proposed_patch.
 ```
 
 It omits absolute paths, environment values, credentials, stacks, and raw operating-system errors.
