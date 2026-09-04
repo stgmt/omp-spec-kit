@@ -662,26 +662,6 @@ export function createSpecService(root, context = {}) {
     const state = await ensure();
     if (state.status === "error") return handleReaderError(state.readerError, operation, requestId);
 
-    if (AUTHORING_OPERATIONS.includes(operation)) {
-      try {
-        refresh();
-        const freshState = await ensure();
-        if (freshState.status === "error") return handleReaderError(freshState.readerError, operation, requestId);
-
-        const authoredInput = { ...effectiveArgs };
-        if (requestId !== null && authoredInput.requestId === undefined) authoredInput.requestId = requestId;
-        const authored = await getAuthoring().compileFacade(operation, authoredInput);
-        const envelope = authored.ok
-          ? makeSuccessEnvelope({ graph: freshState.graph, operation, requestId, data: authored.data })
-          : makeErrorEnvelope({ operation, requestId, code: authored.error.code, message: authored.error.message, extra: authored.error });
-        return withProvenance({ ...envelope, requestId: requestId ?? null });
-      } catch (err) {
-        return withProvenance(
-          makeErrorEnvelope({ operation, requestId, code: err?.code ?? "INTERNAL_INVARIANT_ERROR", message: err?.message ?? "authoring adapter failed" })
-        );
-      }
-    }
-
     if (EVIDENCE_OPERATIONS.includes(operation)) {
       const evidence = await executeEvidenceOperation(resolvedRoot, state.graph, operation, effectiveArgs);
       const envelope = evidence.ok

@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "./release-candidate-utils.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const CURRENT_CORPUS_SOURCE_COMMIT = "5a01a8ac76d87f4a8cc600f763cbb3228375c199";
+const CURRENT_CORPUS_SOURCE_COMMIT = "70468cc40f391d8fc8ecacc7a144b82328e62e03";
 const CURRENT_CORPUS_MANIFEST_SCHEMA = "omp-spec-kit-authoring-real-corpus@1";
 
 function sha256Hex(bytes) {

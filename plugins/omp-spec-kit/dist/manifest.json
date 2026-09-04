@@ -1,12 +1,12 @@
 {
   "schema": "omp-spec-kit-dist-manifest@1",
-  "pluginVersion": "0.10.0",
+  "pluginVersion": "0.10.1",
   "files": {
     "adapters/document-service.js": {
-      "sha256": "72db36b17869103c2e70c8a0470d19ca802517618c791ad636d2a2a14325f700"
+      "sha256": "45a731a0e3b9f20e8e27ecffa8a79486ad00f3e1470ea1f050da5128ce15c004"
     },
     "adapters/query-service.js": {
-      "sha256": "f94370f5643706d99bb8d0a90867a3f1013b1ae8d8213c29a6ee7f6f3f6b9c45"
+      "sha256": "31386f4e234c149ef755f23f5776a49021cce7cf4bbcca1374af65baab7167fe"
     },
     "adapters/tool-contracts.js": {
       "sha256": "bba3b2e22f0ac77c685a0b0fb11d454284670110e9c9d5689d6134fdcb10ea53"
@@ -36,7 +36,7 @@
       "sha256": "56e7e622ff072e292894d88811e668edf06de1a1613408b4e42dec9c6ef6cf60"
     },
     "extension.js": {
-      "sha256": "eda60b8c593bde4dc54fec98e8ba2c5bd7ceed825454413cc0e1a1803743dd33"
+      "sha256": "f1aec54f079f3e44f93e34fecc99b1c76b07add1d4e5a68131cb4fac79aaa46c"
     },
     "gate/automatic-adapter.js": {
       "sha256": "82c385544c2aa793679512b93ef150cfd382722f0cbcc1dd28b99b710e3d3ed8"

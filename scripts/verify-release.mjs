@@ -91,6 +91,7 @@ async function scenarioRequirements(repositoryRoot) {
   return { requirements, multiplicities };
 }
 function expectedManagerToolCount(version) {
+  if (version === "0.10.1" || version === "0.10.0") return 10;
   if (version === "0.6.0" || version === "0.7.0") return 49;
   if (version === "0.8.1" || version === "0.8.2") return 11;
   if (version === "0.5.4") return 27;

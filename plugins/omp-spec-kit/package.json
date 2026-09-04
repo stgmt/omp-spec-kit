@@ -1,6 +1,6 @@
 {
   "name": "omp-spec-kit",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Safe, reviewable specification queries and authoring for the active OMP project.",
   "homepage": "https://github.com/stgmt/omp-spec-kit",
   "repository": {
