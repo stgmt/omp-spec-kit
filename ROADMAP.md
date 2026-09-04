@@ -59,7 +59,7 @@ Outcome: agents see one task-oriented tool surface with 11 tools: 10 read-only t
 
 Proof: exact 11-tool discovery with 10/1 annotations, tool blast measurement <= 25,499 bytes and <= 2,000 description chars, zero surviving mutants gate, Docker BDD, release preflight, archive smoke, attestation, and installed-package proof.
 
-## v0.8.2 — unified validation inspection
+## v0.8.2 — shipped unified validation inspection
 
 Outcome: agents see one unified `spec_inspect.validation` branch combining graph validation and filtered diagnostics with pre-filter verdicts, scope counts, and self-describing `oneOf` input schemas.
 
