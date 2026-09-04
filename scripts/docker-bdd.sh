@@ -3,9 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-if [[ -z "${GITHUB_ACTIONS:-}" && -z "${DOCKER_HOST:-}" ]]; then
-  export DOCKER_HOST="tcp://127.0.0.1:2375"
-fi
+export DOCKER_HOST="${DOCKER_HOST:-}"
+
 
 if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
   if [[ -z "${OMP_SPEC_KIT_WSL_SHIM:-}" ]] && command -v wsl.exe >/dev/null 2>&1; then
@@ -45,6 +44,10 @@ CONTAINER_RESULTS_DIR="/omp-spec-kit-bdd-results"
 mkdir -p "$RESULTS_DIR"
 HOST_RUN_FILE="$(mktemp "$RESULTS_DIR/run.XXXXXX.ndjson")"
 CONTAINER_RUN_FILE="$CONTAINER_RESULTS_DIR/$(basename "$HOST_RUN_FILE")"
+DOCKER_MOUNT_SOURCE="$RESULTS_DIR"
+if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
+  DOCKER_MOUNT_SOURCE="$(cygpath -m "$RESULTS_DIR")"
+fi
 
 IMAGE="omp-spec-kit-bdd:local"
 if [[ "${OMP_SPEC_KIT_BDD_MESSAGE_STDOUT:-}" == "1" ]]; then
@@ -53,8 +56,8 @@ else
   docker build --file tests/distribution/Dockerfile --tag "$IMAGE" . >&2
 fi
 
-if ! docker run --rm \
-  --mount "type=bind,src=$RESULTS_DIR,dst=$CONTAINER_RESULTS_DIR" \
+if ! MSYS_NO_PATHCONV=1 docker run --rm \
+  --mount "type=bind,src=$DOCKER_MOUNT_SOURCE,dst=$CONTAINER_RESULTS_DIR" \
   --env OMP_SPEC_KIT_BDD_CONTAINER=1 \
   --env OMP_SPEC_KIT_BDD_MESSAGE_STDOUT="${OMP_SPEC_KIT_BDD_MESSAGE_STDOUT:-}" \
   --env OMP_SPEC_KIT_BDD_MESSAGE_PATH="$CONTAINER_RUN_FILE" \
@@ -69,8 +72,8 @@ if ! is_unfiltered_run "$@"; then
   exit 0
 fi
 
-if ! docker run --rm \
-  --mount "type=bind,src=$RESULTS_DIR,dst=$CONTAINER_RESULTS_DIR,readonly" \
+if ! MSYS_NO_PATHCONV=1 docker run --rm \
+  --mount "type=bind,src=$DOCKER_MOUNT_SOURCE,dst=$CONTAINER_RESULTS_DIR,readonly" \
   "$IMAGE" \
   node --input-type=module -e '
   import { readFileSync } from "node:fs";
