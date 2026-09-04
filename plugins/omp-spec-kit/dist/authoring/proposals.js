@@ -309,7 +309,7 @@ function publicProposal(proposal, requestId) {
       return error("INVALID_REQUEST", "requestId, spec, reason, and a non-empty operations array are required");
     }
     if (typeof input.repositoryRootFingerprint !== "string" || input.repositoryRootFingerprint !== graph.fingerprint) {
-      return error("CONFLICT", "repositoryRootFingerprint does not match the current graph snapshot");
+      return error("CONFLICT", "repositoryRootFingerprint does not match the current graph snapshot", { causeCode: "REPOSITORY_ROOT_FINGERPRINT_MISMATCH" });
     }
     const normalizedOperations = [];
     const documents = new Map();
@@ -417,7 +417,7 @@ function publicProposal(proposal, requestId) {
       return error("INVALID_REQUEST", "requestId, spec, and reason are required");
     }
     if (typeof repositoryRootFingerprint !== "string" || repositoryRootFingerprint !== graph.fingerprint) {
-      return error("CONFLICT", "repositoryRootFingerprint does not match the current graph snapshot");
+      return error("CONFLICT", "repositoryRootFingerprint does not match the current graph snapshot", { causeCode: "REPOSITORY_ROOT_FINGERPRINT_MISMATCH" });
     }
     if (!graph.nodes.some((node) => node.specSlug === spec)) return error("NOT_FOUND", `specification not found: ${spec}`);
     const references = archivalReferences(graph, spec);

@@ -298,7 +298,7 @@ Given the packaged MCP server, when a client initializes and lists tools, the re
 
 ## AC-31.1: Envelope schema and recovery are machine-actionable
 
-Given a real MCP server, tools/list declares the stable result schema and discovery metadata; a successful call mirrors one canonical envelope in structured and text content; stale cursor and conflict responses declare actionable recovery; and target-indeterminate enforcement returns a bounded relative-target recovery without an absolute path.
+Given a real MCP server, tools/list declares the stable result schema and discovery metadata; a successful call mirrors one canonical envelope in structured and text content; stale cursor responses declare actionable recovery; and a `repositoryRootFingerprint` conflict has stable `causeCode` `REPOSITORY_ROOT_FINGERPRINT_MISMATCH`, states that another project or stale snapshot may be in use, exposes only `activeProjectRootId` and `resolvedRootId`, and directs the caller to `mcp_preflight`; when those roots do not match the caller reconnects, otherwise it refreshes the `spec_catalog` overview and creates a new proposal; target-indeterminate enforcement returns a bounded relative-target recovery without an absolute path.
 
 
 ## AC-32.1: Discriminated branch schemas and strict argument validation

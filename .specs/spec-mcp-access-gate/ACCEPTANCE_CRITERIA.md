@@ -70,7 +70,7 @@ These criteria define future verification obligations. Scenario text alone is no
 
 ## AC-9.1: Execution guard limits
 
-**EARS:** WHEN `code` or `command` contains an obvious `.specs` segment THEN the gate SHALL BLOCK `RAW_SPEC_WRITE` for eval, context-mode, and shell calls; WHEN no such segment exists THEN the call SHALL NOT block on this rule. Dynamically assembled paths are an explicit non-goal.
+**EARS:** WHEN the gate recursively inspects string values under `code` and `command` and finds an obvious `.specs` segment THEN it SHALL BLOCK `RAW_SPEC_WRITE` for eval, context-mode, and shell calls; WHEN no such segment exists THEN ordinary command payloads SHALL remain allowed and `cwd` and `text` SHALL not be treated as filesystem targets by this rule. Dynamically assembled paths via variables or concatenation are an explicit non-goal.
 
 **Requirement:** [FR-9](FR.md#fr-9-execution-payload-specification-guard-with-stated-limits)
 

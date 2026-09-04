@@ -67,7 +67,7 @@ The gate SHALL recognize OMP read selectors on win32 before path policy: `:1`, `
 
 ## FR-9: Execution-payload specification guard with stated limits
 
-The gate SHALL recursively inspect `code` and `command` string values for an obvious `.specs` path-segment reference and BLOCK with `RAW_SPEC_WRITE`, including inside eval, context-mode, and shell invocations. Ordinary payloads without such a reference SHALL remain allowed. This guard is lexical, not a shell parser: dynamically assembled paths via variables or concatenation are a stated non-goal and SHALL be documented as such.
+The gate SHALL recursively inspect every string value under fields named `code` and `command` for an obvious `.specs` path-segment reference and BLOCK with `RAW_SPEC_WRITE`, including inside eval, context-mode, and shell invocations. Ordinary command payloads without such a reference SHALL remain allowed. The lexical guard SHALL treat `cwd` and `text`, and ordinary command payloads without such a reference, as non-filesystem-target data for this rule. This guard is lexical, not a shell parser: dynamically assembled paths via variables or concatenation are a stated non-goal and SHALL be documented as such.
 
 **Acceptance:** [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-execution-guard-limits)
 

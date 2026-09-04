@@ -1,9 +1,15 @@
 # Changelog
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
-## 0.8.0 — unreleased
+## 0.8.1 — 2026-09-04
 
 Consolidated 11-tool surface minor: 49/38 tools cut to 11 task-oriented tools with discriminated branches, zero compatibility shims, and fail-closed surface blast limits.
+
+### Fixed
+
+- Ordinary shell command text is no longer treated as a filesystem target by the specification access gate; explicit spec references and indeterminate direct paths remain fail-closed.
+- Root-fingerprint conflicts now carry a typed cause and bounded recovery with opaque root identities, preflight guidance, and no physical paths.
+- Candidate package, manifest, and deterministic tar modes are canonical across platforms: 0755 under bin/ and 0644 elsewhere; added Windows/Ubuntu capture-and-compare CI.
 
 ### Removed
 

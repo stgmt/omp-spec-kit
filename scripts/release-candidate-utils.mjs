@@ -57,6 +57,11 @@ export function relativeSafePath(value, label) {
   return normalized;
 }
 
+export function candidateFileMode(relativePath) {
+  const normalized = relativeSafePath(relativePath, "candidate file path");
+  return normalized === "bin" || normalized.startsWith("bin/") ? 0o755 : 0o644;
+}
+
 function containedPath(root, target) {
   const relative = path.relative(root, target);
   return relative !== "" && !relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative);
@@ -116,7 +121,7 @@ export async function collectRegularFiles(root) {
       }
       if (!stats.isFile()) fail(`non-regular candidate payload entry: ${relative}`);
       const bytes = await readFile(absolute);
-      rows.push({ path: relative, bytes: bytes.length, sha256: sha256(bytes), mode: stats.mode & 0o777, absolute });
+      rows.push({ path: relative, bytes: bytes.length, sha256: sha256(bytes), mode: candidateFileMode(relative), absolute });
     }
   }
   await visit(root);
@@ -125,7 +130,7 @@ export async function collectRegularFiles(root) {
 
 export function packageTreeDigest(files) {
   return sha256(
-    Buffer.from(JSON.stringify(files.map(({ path: filePath, bytes, sha256: digest, mode }) => [filePath, mode, bytes, digest]))),
+    Buffer.from(JSON.stringify(files.map(({ path: filePath, bytes, sha256: digest }) => [filePath, candidateFileMode(filePath), bytes, digest]))),
   );
 }
 
@@ -163,7 +168,7 @@ export async function createDeterministicTar(files) {
   const chunks = [];
   for (const file of files) {
     const bytes = await readFile(file.absolute);
-    chunks.push(tarHeader(file.path, bytes, file.mode), bytes);
+    chunks.push(tarHeader(file.path, bytes, candidateFileMode(file.path)), bytes);
     const padding = (512 - (bytes.length % 512)) % 512;
     if (padding > 0) chunks.push(Buffer.alloc(padding, 0));
   }
@@ -176,7 +181,7 @@ export function candidateDigest(candidateWithoutDigest) {
 }
 
 export function toPublicFileRows(files) {
-  return files.map(({ path: filePath, bytes, sha256: digest, mode }) => ({ path: filePath, mode, bytes, sha256: digest }));
+  return files.map(({ path: filePath, bytes, sha256: digest }) => ({ path: filePath, mode: candidateFileMode(filePath), bytes, sha256: digest }));
 }
 
 export function assertCandidateShape(candidate, label) {
@@ -205,9 +210,7 @@ export function assertCandidateShape(candidate, label) {
       !file ||
       typeof file !== "object" ||
       !relativeSafePath(file.path, `${label} file path`) ||
-      !Number.isInteger(file.mode) ||
-      file.mode < 0 ||
-      file.mode > 0o777 ||
+      file.mode !== candidateFileMode(file.path) ||
       !Number.isInteger(file.bytes) ||
       file.bytes < 0 ||
       !isSha256(file.sha256)

@@ -136,6 +136,10 @@ const ERROR_RECOVERY = Object.freeze({
   CONFLICT: "Recovery: rerun spec_overview, resolve the reported conflict, create and review a fresh proposal, then call apply_proposed_patch with a new requestId.",
 });
 
+function rootFingerprintRecoveryMessage(provenance) {
+  return "repositoryRootFingerprint may be from another project or stale snapshot. activeProjectRootId=" + provenance.activeProjectRootId + " resolvedRootId=" + provenance.resolvedRootId + ". Run mcp_preflight with the current working directory; reconnect if matchesResolvedRoot is false. Otherwise refresh spec_catalog with overview view and create a new proposal.";
+}
+
 function actionableErrorMessage(code, message) {
   const recovery = ERROR_RECOVERY[code];
   if (!recovery || message.includes(recovery)) return message;
@@ -240,10 +244,12 @@ export function createSpecService(root, context = {}) {
 
   function withProvenance(envelope) {
     if (!envelope.ok && envelope.error && typeof envelope.error.message === "string") {
-      return { ...envelope, error: { ...envelope.error, message: actionableErrorMessage(envelope.error.code, envelope.error.message) }, provenance };
+      const message = envelope.error.causeCode === "REPOSITORY_ROOT_FINGERPRINT_MISMATCH" ? rootFingerprintRecoveryMessage(provenance) : actionableErrorMessage(envelope.error.code, envelope.error.message);
+      return { ...envelope, error: { ...envelope.error, message }, provenance };
     }
     if (envelope.data?.outcome === "REFUSED" && envelope.data.error && typeof envelope.data.error.message === "string") {
-      return { ...envelope, data: { ...envelope.data, error: { ...envelope.data.error, message: actionableErrorMessage(envelope.data.error.code, envelope.data.error.message) } }, provenance };
+      const message = envelope.data.error.causeCode === "REPOSITORY_ROOT_FINGERPRINT_MISMATCH" ? rootFingerprintRecoveryMessage(provenance) : actionableErrorMessage(envelope.data.error.code, envelope.data.error.message);
+      return { ...envelope, data: { ...envelope.data, error: { ...envelope.data.error, message } }, provenance };
     }
     return { ...envelope, provenance };
   }

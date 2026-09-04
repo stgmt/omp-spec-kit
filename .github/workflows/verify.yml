@@ -38,3 +38,39 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Docker BDD (Docker-only suite)
         run: bash scripts/docker-bdd.sh
+
+  candidate-portability:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - run: node scripts/check-candidate-portability.mjs --capture candidate-portability.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candidate-portability-${{ matrix.os }}
+          path: candidate-portability.json
+
+  candidate-portability-compare:
+    needs: candidate-portability
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: candidate-portability-*
+          path: candidate-portability
+      - run: node scripts/check-candidate-portability.mjs --compare candidate-portability/candidate-portability-windows-latest/candidate-portability.json candidate-portability/candidate-portability-ubuntu-latest/candidate-portability.json

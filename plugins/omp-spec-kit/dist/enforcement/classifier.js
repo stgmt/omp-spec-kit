@@ -5,8 +5,8 @@ const ALL_SHORT_NAMES = Object.freeze(new Set(TOOL_CONTRACTS.map((contract) => c
 const APPLY_SHORT_NAMES = Object.freeze(new Set([
   "apply_proposed_patch",
 ]));
-const DIRECT_MUTATION_TOOLS = Object.freeze(new Set(["write", "edit", "bash", "apply_patch", "delete", "rename"]));
-const PATH_KEYS = Object.freeze(new Set(["path", "paths", "file", "files", "document", "documents", "cwd", "command", "text"]));
+const DIRECT_PATH_MUTATION_TOOLS = Object.freeze(new Set(["write", "edit", "apply_patch", "delete", "rename"]));
+const PATH_KEYS = Object.freeze(new Set(["path", "paths", "file", "files", "document", "documents"]));
 const SPEC_PATH_REFERENCE = /(?:^|[^a-z0-9])\.specs(?:$|[^a-z0-9])/iu;
 
 function validReadRangeChunk(chunk) {
@@ -192,13 +192,13 @@ export function classifyToolCall(event, options = {}) {
 
   if (hasEmbeddedSpecReference(input)) return blocked(toolName, "RAW_SPEC_WRITE");
   const targets = readTargets(toolName, textValues(input));
-  if (targets.length === 0 && !DIRECT_MUTATION_TOOLS.has(toolName)) {
+  if (targets.length === 0 && !DIRECT_PATH_MUTATION_TOOLS.has(toolName)) {
     return { action: "continue", toolName, touchesSpecs: false, mismatchField: null };
   }
 
   const policy = decidePathPolicy(options.root ?? event?.cwd ?? process.cwd(), targets);
   if (policy.decision === "ALLOW") {
-    return DIRECT_MUTATION_TOOLS.has(toolName)
+    return DIRECT_PATH_MUTATION_TOOLS.has(toolName)
       ? { action: "continue", code: "NON_SPEC_ALLOWED", toolName, touchesSpecs: false, mismatchField: null }
       : { action: "continue", toolName, touchesSpecs: false, mismatchField: null };
   }
@@ -206,4 +206,4 @@ export function classifyToolCall(event, options = {}) {
   return blocked(toolName, policy.code, policy.resolutions);
 }
 
-export { ALL_SHORT_NAMES, APPLY_SHORT_NAMES, DIRECT_MUTATION_TOOLS };
+export { ALL_SHORT_NAMES, APPLY_SHORT_NAMES, DIRECT_PATH_MUTATION_TOOLS };

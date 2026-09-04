@@ -325,6 +325,9 @@ When("the scenario {string} runs", async function (scenario) {
       { toolName: "eval", input: { code: "return 1" } },
       { toolName: "mcp__context_mode_ctx_execute", input: { code: "console.log(1)" } },
       { toolName: "bash", input: { command: "node --version" } },
+      { toolName: "bash", input: { command: "npm run check:spec-port" } },
+      { toolName: "bash", input: { command: 'npm run "check:spec-port"' } },
+      { toolName: "bash", input: { command: "npm run check:spec-port | cat" } },
     ];
     for (const event of allowed) {
       const result = classifyToolCall(event, { root: this.root });

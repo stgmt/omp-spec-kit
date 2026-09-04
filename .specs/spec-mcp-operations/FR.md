@@ -295,7 +295,7 @@ The MCP server SHALL expose exactly 11 tools in the fixed contract order: `mcp_p
 
 ## FR-31: Declared result envelope and actionable recovery
 
-The MCP server MUST declare one stable output schema for every listed tool, return the same canonical envelope in the structured content and the text content, and expose bounded recovery guidance for stale cursors and optimistic-concurrency conflicts.
+The MCP server MUST declare one stable output schema for every listed tool, return the same canonical envelope in the structured content and the text content, and expose bounded recovery guidance for stale cursors and optimistic-concurrency conflicts. A `repositoryRootFingerprint` conflict MUST use stable `causeCode` `REPOSITORY_ROOT_FINGERPRINT_MISMATCH`, mention that another project or a stale snapshot may be in use, expose only `activeProjectRootId` and `resolvedRootId` as root identities, and direct the caller to `mcp_preflight`. When those roots do not match, the caller MUST reconnect; otherwise it MUST refresh the `spec_catalog` overview and create a new proposal.
 
 
 ## FR-32: Discriminated branch schemas and strict argument validation
