@@ -1,6 +1,16 @@
 # Changelog
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
+
+## 1.0.0 — 2026-09-05
+
+Promotes the bounded 10-tool MCP surface and transactional `spec_patch` authoring path to the stable major release.
+
+### Changed
+
+- Published the stable 10-tool surface: 9 bounded read-only tools and one transactional `spec_patch` tool.
+- Preserved bounded entity, graph, document, evidence, and Markdown queries with pagination, projections, cursors, and traversal limits.
+- Promoted the v0.10.2 safe-authoring and release-integrity proof to v1.0.0 with exact archive and commit-bound attestation evidence.
 ## 0.10.2 — 2026-09-05
 
 Consolidates safe specification authoring into a single closed `spec_patch` tool with `dryRun` preview and atomic transaction semantics, eliminating the separate proposal and application lifecycle.

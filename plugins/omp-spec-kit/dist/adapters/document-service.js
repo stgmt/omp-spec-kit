@@ -223,7 +223,7 @@ function mcpPreflight(root, args, context) {
     worktree: { declared: declaredAbsolute === null ? null : rootId(declaredAbsolute), matchesResolvedRoot: matches },
     lockMode: authoring ? "owner" : "read-only",
     writeMode: authoring ? "proposal-first" : "disabled",
-    versions: { mcp: KERNEL_SCHEMA_VERSION, plugin: "0.10.2", omp: "18.0.11" },
+    versions: { mcp: KERNEL_SCHEMA_VERSION, plugin: "1.0.0", omp: "18.0.11" },
     dependencies: { graph: "ready", watcher: "disabled", lock: authoring ? "available" : "disabled", sqlite: "disabled" },
     mutationReady: authoring && matches,
   });
