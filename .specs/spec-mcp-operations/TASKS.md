@@ -394,3 +394,14 @@ _Requirements: [FR-35](FR.md#fr-35-hard-tool-retirement-without-backward-compati
 - **Done When:** `scripts/check-tool-surface-mutations.mjs` executes synthetic mutants against invariants and reports `survivors: 0`.
 
 _Requirements: [FR-36](FR.md#fr-36-deterministic-mutation-testing-gate)_
+
+## TASK-28 — Implement unified validation inspection in kernel and MCP adapter — id: TASK-28
+
+- **Status:** todo
+- **Estimate:** 2 engineering days
+- **Owner:** Adapter/kernel maintainer
+- **Depends on:** TASK-23
+- **Traces:** FR-37; AC-37.1; Scenarios: SCEN-mcp-unified-validation
+- **Done When:** `spec_inspect` supports `check: "validation"`, computes pre-filter verdict/totals, filters items, rejects unknown/malformed slugs, and removes `specValidation` and `diagnostics` branches.
+
+_Requirements: [FR-37](FR.md#fr-37-unified-specification-and-corpus-validation-inspection)_

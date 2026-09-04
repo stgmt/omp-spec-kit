@@ -243,7 +243,7 @@ The public MCP surface is consolidated into 11 task-oriented tools:
 - `spec_entities`: discriminated on `mode` (get, find)
 - `spec_graph`: discriminated on `view` (edges, trace)
 - `spec_documents`: discriminated on `action` (list, read, attachment)
-- `spec_inspect`: discriminated on `check` (scenariosByTags, orphans, anchor, requirementMetadata, requirementsPolicy, archivalProof, specValidation, diagnostics)
+- `spec_inspect`: discriminated on `check` (scenariosByTags, orphans, anchor, requirementMetadata, requirementsPolicy, archivalProof, validation)
 - `spec_tasks`: task listing with optional phase and requirement filters
 - `spec_evidence`: discriminated on `view` (result, trace)
 - `spec_markdown`: heading and link inventory
@@ -252,3 +252,7 @@ The public MCP surface is consolidated into 11 task-oriented tools:
 - `mcp_preflight`: workspace preflight check
 
 Each branch enforces `additionalProperties: false`. All 27 retired tools are permanently removed with zero compatibility layers.
+
+### Unified validation inspection
+
+`spec_inspect` consolidates graph validation and diagnostics into `check: "validation"`. The old `specValidation` and `diagnostics` check branches are permanently removed. The unified branch computes overall validation verdict (`VALID`/`INVALID`) and scope counts (`errors`, `warnings`, `info`, `total`) across all diagnostics in the resolved scope (`corpus` or `specifications`) prior to applying filters. `severities`, `codes`, and `paths` filters constrain only the returned `items` array and `counts.matched`. Each discriminated `oneOf` branch in tool input schemas exports its own `title` (`<discriminator>: <variant>`) and `description`, and the discriminator property description instructs the client to select exactly one branch.

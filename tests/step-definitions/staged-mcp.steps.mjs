@@ -28,7 +28,7 @@ const READ_COMPLETE_CALLS = Object.freeze([
   ["spec_documents", { action: "read", spec: "product", doc: "FR.md", offset: 1, limit: 20 }],
   ["spec_documents", { action: "attachment", spec: "product", path: "FR.md" }],
   ["spec_inspect", { check: "orphans" }],
-  ["spec_inspect", { check: "diagnostics", limit: 20 }],
+  ["spec_inspect", { check: "validation", limit: 20 }],
   ["spec_tasks", { spec: "product", limit: 20 }],
   ["spec_evidence", { view: "result", scenarioId: "product:SCEN-specification-only-init" }],
   ["spec_markdown", { specSlugs: ["product"] }],
@@ -763,8 +763,7 @@ When("all consolidated branches and all 13 proposal intents are exercised", { ti
     ["spec_inspect", { check: "requirementMetadata", metadata: {} }, "inspect", "requirement-metadata"],
     ["spec_inspect", { check: "requirementsPolicy" }, "inspect", "requirement-policy"],
     ["spec_inspect", { check: "archivalProof", spec: "product" }, "inspect", "archival-proof"],
-    ["spec_inspect", { check: "specValidation", spec: "product" }, "inspect", "spec-validation"],
-    ["spec_inspect", { check: "diagnostics", limit: 5 }, "inspect", "diagnostics"],
+    ["spec_inspect", { check: "validation", limit: 5 }, "inspect", "validation"],
 
     // 6. spec_tasks
     ["spec_tasks", { spec: "product", limit: 5 }, "tasks", "tasks"],

@@ -59,6 +59,14 @@ Outcome: agents see one task-oriented tool surface with 11 tools: 10 read-only t
 
 Proof: exact 11-tool discovery with 10/1 annotations, tool blast measurement <= 25,499 bytes and <= 2,000 description chars, zero surviving mutants gate, Docker BDD, release preflight, archive smoke, attestation, and installed-package proof.
 
+## v0.8.2 — unified validation inspection
+
+Outcome: agents see one unified `spec_inspect.validation` branch combining graph validation and filtered diagnostics with pre-filter verdicts, scope counts, and self-describing `oneOf` input schemas.
+
+Retired `specValidation` and `diagnostics` branches are permanently excised without backward-compatibility aliases. Each discriminated `oneOf` branch in tool input schemas exports its own `title` (`<discriminator>: <variant>`) and `description`, and the discriminator property description guides branch selection.
+
+Proof: unified validation query, 10 observable validation contract cases, expanded mutation gate with zero surviving mutants, real-server JSON-RPC E2E, Docker BDD, and fresh-session UX smoke.
+
 ## v0.9.0 — automatic plan gate
 
 Outcome: the agent's plan is checked after OMP has selected the exact plan bytes and before the interactive or ACP approval UI opens.

@@ -155,12 +155,15 @@ async function runSuccessMatrix({ callTool, projectRoot, repositoryRoot }) {
       assert.ok(["ARCHIVE", "KEEP_FALSE_POSITIVE"].includes(data.verdict));
       assert.equal(data.count, data.liveInboundReferences.length);
     }],
-    ["spec_inspect", { check: "specValidation", spec: "product" }, (data) => {
-      assert.equal(data.kind, "spec-validation");
-      assert.equal(data.spec, "product");
+    ["spec_inspect", { check: "validation", specSlugs: ["product"] }, (data) => {
+      assert.equal(data.kind, "validation");
+      assert.equal(data.scope.mode, "specifications");
+      assert.deepEqual(data.scope.specSlugs, ["product"]);
       assert.equal(typeof data.valid, "boolean");
-      assert.ok(data.snapshot && typeof data.snapshot === "object");
-      assertRelativePaths(data.findings);
+      assert.ok(["VALID", "INVALID"].includes(data.verdict));
+      assert.equal(typeof data.counts?.total, "number");
+      assert.equal(typeof data.counts?.matched, "number");
+      assert.ok(Array.isArray(data.items));
     }],
     ["spec_catalog", { view: "status", spec: "product", statusView: "summary" }, (data) => {
       assert.equal(data.kind, "summary");
@@ -222,7 +225,11 @@ async function runInvalidMatrix({ callTool, projectRoot, repositoryRoot }) {
     ["spec_catalog", { view: "specs", unexpected: true }, "UNKNOWN_FIELD"],
     ["spec_inspect", { check: "requirementsPolicy", verificationMethod: "bad" }, "INVALID_REQUEST"],
     ["spec_inspect", { check: "archivalProof", spec: "bad!" }, "INVALID_PARAMETER"],
-    ["spec_inspect", { check: "specValidation", spec: "bad!" }, "INVALID_PARAMETER"],
+    ["spec_inspect", { check: "validation", specSlugs: ["bad!"] }, "INVALID_PARAMETER"],
+    ["spec_inspect", { check: "validation", specSlugs: ["unknown-missing"] }, "NOT_FOUND"],
+    ["spec_inspect", { check: "specValidation", spec: "product" }, "INVALID_REQUEST"],
+    ["spec_inspect", { check: "diagnostics" }, "INVALID_REQUEST"],
+    ["spec_inspect", { check: "validation", spec: "product" }, "INVALID_REQUEST"],
     ["spec_catalog", { view: "status", spec: "product", statusView: "bad" }, "INVALID_REQUEST"],
     ["mcp_preflight", { unexpected: true }, "UNKNOWN_FIELD"],
     ["spec_documents", { action: "list", spec: "missing" }, "NOT_FOUND"],

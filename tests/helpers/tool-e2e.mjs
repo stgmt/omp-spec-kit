@@ -199,7 +199,7 @@ export async function runToolE2E({
     assert.equal(docRead.operation, "documents");
     assert.equal(docRead.data.kind, "document");
 
-    // 5. spec_inspect (orphans and diagnostics)
+    // 5. spec_inspect (orphans and validation)
     const inspectOrphans = structured(
       await callTool("spec_inspect", { schemaVersion: "spec-kernel@1", requestId: "v08-ins-orphans", check: "orphans" }),
     );
@@ -207,12 +207,36 @@ export async function runToolE2E({
     assert.equal(inspectOrphans.operation, "inspect");
     assert.equal(inspectOrphans.data.kind, "orphans");
 
-    const inspectDiag = structured(
-      await callTool("spec_inspect", { schemaVersion: "spec-kernel@1", requestId: "v08-ins-diag", check: "diagnostics", limit: 10 }),
+    const inspectVal = structured(
+      await callTool("spec_inspect", { schemaVersion: "spec-kernel@1", requestId: "v08-ins-val", check: "validation", limit: 10 }),
     );
-    assert.equal(inspectDiag.ok, true);
-    assert.equal(inspectDiag.operation, "inspect");
-    assert.equal(inspectDiag.data.kind, "diagnostics");
+    assert.equal(inspectVal.ok, true);
+    assert.equal(inspectVal.operation, "inspect");
+    assert.equal(inspectVal.data.kind, "validation");
+    assert.equal(typeof inspectVal.data.valid, "boolean");
+    assert.ok(["VALID", "INVALID"].includes(inspectVal.data.verdict));
+    assert.ok(inspectVal.data.counts && typeof inspectVal.data.counts.total === "number");
+    assert.ok(typeof inspectVal.data.counts.matched === "number");
+    assert.ok(Array.isArray(inspectVal.data.items));
+
+    // Refuse old check discriminators and old single spec field
+    const inspectOldDiag = structured(
+      await callTool("spec_inspect", { schemaVersion: "spec-kernel@1", requestId: "v08-ins-old-diag", check: "diagnostics" }),
+    );
+    assert.equal(inspectOldDiag.ok, false);
+    assert.equal(inspectOldDiag.error.code, "INVALID_REQUEST");
+
+    const inspectOldSpecVal = structured(
+      await callTool("spec_inspect", { schemaVersion: "spec-kernel@1", requestId: "v08-ins-old-specval", check: "specValidation", spec: "e2e-spec" }),
+    );
+    assert.equal(inspectOldSpecVal.ok, false);
+    assert.equal(inspectOldSpecVal.error.code, "INVALID_REQUEST");
+
+    const inspectOldSpecField = structured(
+      await callTool("spec_inspect", { schemaVersion: "spec-kernel@1", requestId: "v08-ins-old-spec-field", check: "validation", spec: "e2e-spec" }),
+    );
+    assert.equal(inspectOldSpecField.ok, false);
+    assert.equal(inspectOldSpecField.error.code, "INVALID_REQUEST");
 
     // 6. spec_tasks
     const tasksRes = structured(

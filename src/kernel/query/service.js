@@ -28,6 +28,7 @@ const OPERATION_ARG_FIELDS = {
   trace: ["canonicalId", "direction", "types", "maxDepth", "maxVisited", "projection", "limit", "cursor"],
   diagnostics: ["severities", "codes", "specSlugs", "paths", "limit", "cursor"],
   overview: ["specSlugs"],
+  validation: ["severities", "codes", "specSlugs", "paths", "limit", "cursor"],
   markdownInventory: [
     "specSlugs",
     "mode",
@@ -490,6 +491,13 @@ function validateRequest(graph, limits, request) {
     case "overview":
       v.enumArray("specSlugs", request.args.specSlugs, isValidSpecSlug, "<spec-slug>");
       break;
+    case "validation":
+      v.enumArray("severities", request.args.severities, (item) => DIAGNOSTIC_SEVERITIES.includes(item), "DiagnosticSeverity");
+      v.enumArray("codes", request.args.codes, (item) => DIAGNOSTIC_CODES.includes(item), "DiagnosticCode");
+      v.enumArray("specSlugs", request.args.specSlugs, isValidSpecSlug, "<spec-slug>");
+      v.enumArray("paths", request.args.paths, (item) => typeof item === "string", "string");
+      v.paging();
+      break;
     case "markdownInventory":
       validateMarkdownInventory(v, request.args, limits);
       break;
@@ -682,6 +690,8 @@ export function executeQuery(graph, request, limitsOverride) {
       return runOverview(graph, request, args, limits);
     case "markdownInventory":
       return runMarkdownInventory(graph, request, args, limits);
+    case "validation":
+      return runValidation(graph, request, args, limits);
     default:
       return errorEnvelope(graph, request, { code: "UNKNOWN_OPERATION", preGraph: true });
   }
@@ -1051,6 +1061,109 @@ function runTrace(graph, request, args, limits) {
   return successEnvelope(graph, request.requestId, "trace", data, makePage(args, pagination, dataBytes), summaries);
 }
 
+function runValidation(graph, request, args, limits) {
+  const knownSlugs = new Set();
+  for (const doc of graph.documents) knownSlugs.add(doc.specSlug);
+
+  const rawSlugs = args.specSlugs;
+  if (Array.isArray(rawSlugs) && rawSlugs.length > 0) {
+    for (const slug of rawSlugs) {
+      if (!isValidSpecSlug(slug)) {
+        return errorEnvelope(graph, request, {
+          code: "INVALID_PARAMETER",
+          parameter: "specSlugs",
+          message: `invalid spec slug syntax: ${slug}`,
+        });
+      }
+      if (!knownSlugs.has(slug)) {
+        return errorEnvelope(graph, request, {
+          code: "NOT_FOUND",
+          specSlug: slug,
+          message: `specification not found: ${slug}`,
+        });
+      }
+    }
+  }
+
+  const scope = Array.isArray(rawSlugs) && rawSlugs.length > 0
+    ? { mode: "specifications", specSlugs: [...new Set(rawSlugs)].sort() }
+    : { mode: "corpus", specSlugs: [] };
+
+  const severityFilter = new Set(args.severities);
+  const codeFilter = new Set(args.codes);
+  const pathFilter = new Set(args.paths);
+
+  let errors = 0;
+  let warnings = 0;
+  let info = 0;
+  let total = 0;
+  const matchedItems = [];
+
+  for (const diagnostic of graph.diagnostics) {
+    if (scope.mode === "specifications") {
+      if (diagnostic.specSlug === null || !scope.specSlugs.includes(diagnostic.specSlug)) {
+        continue;
+      }
+    }
+    total += 1;
+    if (diagnostic.severity === "ERROR") errors += 1;
+    else if (diagnostic.severity === "WARNING") warnings += 1;
+    else if (diagnostic.severity === "INFO") info += 1;
+
+    if (severityFilter.size > 0 && !severityFilter.has(diagnostic.severity)) continue;
+    if (codeFilter.size > 0 && !codeFilter.has(diagnostic.code)) continue;
+    if (pathFilter.size > 0 && !(diagnostic.span !== null && pathFilter.has(diagnostic.span.path))) continue;
+
+    matchedItems.push(diagnostic);
+  }
+
+  const valid = errors === 0;
+  const verdict = valid ? "VALID" : "INVALID";
+
+  const binding = { fingerprint: graph.fingerprint, operation: "validation", digest: filterDigest(args) };
+  const pagination = paginate(
+    matchedItems,
+    (diagnostic) => [
+      DIAGNOSTIC_SEVERITY_RANK[diagnostic.severity],
+      diagnostic.code,
+      diagnostic.span?.path ?? null,
+      diagnostic.span?.path ? (diagnostic.span?.startOffset ?? null) : null,
+      diagnostic.diagnosticId,
+    ],
+    args,
+    limits,
+    binding,
+    limits.maxResponseBytes - 2048,
+  );
+  if (pagination.cursorError) {
+    return errorEnvelope(graph, request, { code: pagination.cursorError, parameter: "cursor", message: pagination.cursorError });
+  }
+  if (pagination.oversizedSingleItem) {
+    return errorEnvelope(graph, request, { code: "RESPONSE_TOO_LARGE", message: "single diagnostic exceeds the response budget" });
+  }
+
+  const data = {
+    kind: "validation",
+    scope,
+    valid,
+    verdict,
+    counts: {
+      errors,
+      warnings,
+      info,
+      total,
+      matched: matchedItems.length,
+    },
+    items: pagination.slice,
+    snapshot: {
+      fingerprint: graph.fingerprint,
+      schemaVersion: graph.schemaVersion,
+    },
+  };
+  const dataBytes = Buffer.byteLength(JSON.stringify(data), "utf8");
+  return successEnvelope(graph, request.requestId, "validation", data, makePage(args, pagination, dataBytes));
+}
+
 function runDiagnostics(graph, request, args, limits) {
   const severityFilter = new Set(args.severities);
   const codeFilter = new Set(args.codes);
@@ -1069,7 +1182,7 @@ function runDiagnostics(graph, request, args, limits) {
     DIAGNOSTIC_SEVERITY_RANK[diagnostic.severity],
     diagnostic.code,
     diagnostic.span?.path ?? null,
-    diagnostic.span?.startOffset ?? null,
+    diagnostic.span?.path ? (diagnostic.span?.startOffset ?? null) : null,
     diagnostic.diagnosticId,
   ], args, limits, binding, limits.maxResponseBytes - 2048);
   if (pagination.cursorError) {

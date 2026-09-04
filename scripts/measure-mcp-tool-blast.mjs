@@ -192,7 +192,7 @@ async function main() {
   const args = process.argv.slice(2);
   let serverPath = path.resolve(repositoryRoot, "plugins", "omp-spec-kit", "dist", "mcp", "server.js");
   let baselinePath = path.resolve(repositoryRoot, "tests", "fixtures", "tool-surface", "38-tool-baseline.json");
-  let outputPath = path.resolve(repositoryRoot, "docs", "validation", "tool-surface-blast-v0.8.1.json");
+  let outputPath = path.resolve(repositoryRoot, "docs", "validation", "tool-surface-blast-v0.8.2.json");
   let checkOnly = false;
   let useSrc = false;
 

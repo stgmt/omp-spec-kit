@@ -516,8 +516,8 @@ export function createSpecService(root, context = {}) {
       const state = await ensure();
       if (state.status === "error") return handleReaderError(state.readerError, "inspect", requestId);
 
-      if (check === "diagnostics") {
-        const q = query(state.graph, "diagnostics", {
+      if (check === "validation") {
+        const q = query(state.graph, "validation", {
           severities: effectiveArgs.severities ?? [],
           codes: effectiveArgs.codes ?? [],
           specSlugs: effectiveArgs.specSlugs ?? [],
@@ -535,7 +535,6 @@ export function createSpecService(root, context = {}) {
       else if (check === "requirementMetadata") extOp = "validateRequirementMetadata";
       else if (check === "requirementsPolicy") extOp = "policyQueryRequirements";
       else if (check === "archivalProof") extOp = "getArchivalProof";
-      else if (check === "specValidation") extOp = "validateSpec";
 
       const ext = executeExtendedQuery(state.graph, extOp, effectiveArgs);
       return withProvenance(

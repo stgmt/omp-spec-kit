@@ -1,0 +1,2803 @@
+{
+  "schema": "omp-spec-kit-ux-smoke-receipt@1",
+  "timestamp": "2026-09-04T14:01:28.441Z",
+  "cases": [
+    {
+      "prompt": "почему эта спека невалидна? (plugin-distribution)",
+      "tool": "spec_inspect",
+      "args": {
+        "schemaVersion": "spec-kernel@1",
+        "check": "validation",
+        "specSlugs": [
+          "plugin-distribution"
+        ]
+      },
+      "response": {
+        "schemaVersion": "spec-kernel@1",
+        "requestId": null,
+        "operation": "inspect",
+        "ok": true,
+        "graph": {
+          "schemaVersion": "spec-kernel@1",
+          "fingerprint": "40dd43f96900bb1cdfe82def45b40c524fa5dd63721e1bdd1ee0e3608b1cc5a1",
+          "valid": true,
+          "specCount": 3,
+          "documentCount": 45,
+          "nodeCount": 495,
+          "edgeOccurrenceCount": 1071,
+          "unresolvedReferenceCount": 0,
+          "markdownHeadingOccurrenceCount": 755,
+          "markdownLinkOccurrenceCount": 554,
+          "diagnosticCount": 96
+        },
+        "page": {
+          "limit": 100,
+          "returned": 88,
+          "totalMatched": 88,
+          "cursor": null,
+          "nextCursor": null,
+          "truncated": false,
+          "responseBytes": 58537
+        },
+        "data": {
+          "kind": "validation",
+          "scope": {
+            "mode": "specifications",
+            "specSlugs": [
+              "plugin-distribution"
+            ]
+          },
+          "valid": true,
+          "verdict": "VALID",
+          "counts": {
+            "errors": 0,
+            "warnings": 88,
+            "info": 0,
+            "total": 88,
+            "matched": 88
+          },
+          "items": [
+            {
+              "diagnosticId": "0995e5ac70681a504a09e08a5cdf43c8362fcddbb8c5d0395081f995bb2bb15e",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-3-installed-canonical-invocation\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 30,
+                "startColumn": 19,
+                "endLine": 30,
+                "endColumn": 68,
+                "startOffset": 1171,
+                "endOffset": 1220
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "099e49305362f1f447de99b4619b12b17a9d55b1a6484d7896f6a4dda4e93c46",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-6-installed-containment-and-read-only-smoke\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 26,
+                "startColumn": 158,
+                "endLine": 26,
+                "endColumn": 218,
+                "startOffset": 1093,
+                "endOffset": 1153
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "0adb292f37b9213a46d20387521286c36e881715802748971601bf5d39123abc",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-1-target-plugin-identity-and-containment\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 13,
+                "startColumn": 14,
+                "endLine": 13,
+                "endColumn": 71,
+                "startOffset": 394,
+                "endOffset": 451
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "0aeb4c73c4b98ea0b7f72f1561fa58467cef13cdf70969bead7b913efa342ee9",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-172-direct-spec-write-policy\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 85,
+                "startColumn": 165,
+                "endLine": 85,
+                "endColumn": 230,
+                "startOffset": 8213,
+                "endOffset": 8278
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "0d54b607a6c656fc517e97e6c3e3f59b2683d7e5c301aeb030b16d4477804756",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-4-fresh-session-activation\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 26,
+                "startColumn": 65,
+                "endLine": 26,
+                "endColumn": 108,
+                "startOffset": 1000,
+                "endOffset": 1043
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "11102515c6c8e4fb9c8b86cede4670903779b1b3955e2212b841575ae9c7ff41",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-161-missing-proof-is-not-shipped\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 167,
+                "startColumn": 19,
+                "endLine": 167,
+                "endColumn": 88,
+                "startOffset": 9478,
+                "endOffset": 9547
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "119be682a41d141e289a13f0872eb66bf03c8f4500abe9f648588b906fc2c10e",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-172-direct-spec-write-policy\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 177,
+                "startColumn": 93,
+                "endLine": 177,
+                "endColumn": 158,
+                "startOffset": 10741,
+                "endOffset": 10806
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "137f5a75d25d64efba9e1dc3de6b31df389f20557edc715dbdbb02d8bf1953fa",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-162-unexecuted-text-is-not-proof\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 167,
+                "startColumn": 90,
+                "endLine": 167,
+                "endColumn": 159,
+                "startOffset": 9549,
+                "endOffset": 9618
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "14107d1ce996cb165241bea19068e0d759b8f0e17a7acd3b8a4da4795f431556",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-51-dependency-absent-execution\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 49,
+                "startColumn": 17,
+                "endLine": 49,
+                "endColumn": 83,
+                "startOffset": 2751,
+                "endOffset": 2817
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "15125b2c83d38ee983c4a65e7e0bf08406d06b28fb8a50c20451b004e3c3dee1",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-171-bounded-public-mutation-surface\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 177,
+                "startColumn": 19,
+                "endLine": 177,
+                "endColumn": 91,
+                "startOffset": 10667,
+                "endOffset": 10739
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "1a46d34c13c81a96b22be029d32ad9d5a6b3c5720dffeee87fd390e19fd23dd1",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"NFR.md#nfr-maintainability-1-owner-boundaries\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 64,
+                "startColumn": 3,
+                "endLine": 64,
+                "endColumn": 73,
+                "startOffset": 6640,
+                "endOffset": 6710
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "1ec5b0aea6e2e534084464ac5cec0f0b3b49ccf68bc7d487be2d9228c740a210",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-16-proof-before-shipped\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 84,
+                "startColumn": 3,
+                "endLine": 84,
+                "endColumn": 44,
+                "startOffset": 7785,
+                "endOffset": 7826
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "1f0bd93ccf9bc03b1cfcb852f5213467afec1fa23704df83467a22c31a3fdd30",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-12-compact-release-decision\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 75,
+                "startColumn": 75,
+                "endLine": 75,
+                "endColumn": 120,
+                "startOffset": 3192,
+                "endOffset": 3237
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "2088b0eb46fca2d1d43b0124939edcf3a82e6171132a10f5b5d475dc9ead7709",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-3-installed-canonical-invocation\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 26,
+                "startColumn": 14,
+                "endLine": 26,
+                "endColumn": 63,
+                "startOffset": 949,
+                "endOffset": 998
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "2b09b92f70ea094540de9b9684242efb23e14a7f1474b004accc46056cee4a8b",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-2-deterministic-child-payload\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 15,
+                "startColumn": 18,
+                "endLine": 15,
+                "endColumn": 64,
+                "startOffset": 885,
+                "endOffset": 931
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "2bf9328f1bb71446981b1d78fa70f24966c5f80ff9569b12443100af13d24956",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-18-plain-later-outcomes\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 86,
+                "startColumn": 3,
+                "endLine": 86,
+                "endColumn": 44,
+                "startOffset": 8330,
+                "endOffset": 8371
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "2c2400ddf578ece77c3d3b25dc517322d70897809ebd1401611c890044ae00b5",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"plugin-distribution.feature\" did not resolve (TARGET_DOCUMENT_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 30,
+                "startColumn": 276,
+                "endLine": 30,
+                "endColumn": 310,
+                "startOffset": 2039,
+                "endOffset": 2073
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "30311ea699248d8f215460337db73c9e4938078610c536f032e3dd0f20f0ebd8",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-10-build-once-publish-the-same-digest-attest-once\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 63,
+                "startColumn": 18,
+                "endLine": 63,
+                "endColumn": 85,
+                "startOffset": 3988,
+                "endOffset": 4055
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "30a589ac3347c5094597aa4eea6f99d20ea5827486f332799e131c414dd63361",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"../../docs/validation/publication-receipt.md\" did not resolve (TARGET_DOCUMENT_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 61,
+                "startColumn": 3,
+                "endLine": 61,
+                "endColumn": 75,
+                "startOffset": 3353,
+                "endOffset": 3425
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "33b5d372bf67d49b96c4d188dcb8c7e9e6a113073bb0f573ee5d22a93657a13f",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"NFR.md#nfr-security-1-least-privilege\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 58,
+                "startColumn": 3,
+                "endLine": 58,
+                "endColumn": 58,
+                "startOffset": 5691,
+                "endOffset": 5746
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "34e87a22af833eacc771f54ea0401220a59e0abd3eb4a9945bd86fa3f5f58445",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"../../docs/validation/release-status-v0.3.2.json\" did not resolve (TARGET_DOCUMENT_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 53,
+                "startColumn": 176,
+                "endLine": 53,
+                "endColumn": 256,
+                "startOffset": 3222,
+                "endOffset": 3302
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "3886aa21fc0c61db8f80ab3d7f63c659afce3ae893e3ed8c6c2d6fc96731d369",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-141-current-release-proof\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 82,
+                "startColumn": 85,
+                "endLine": 82,
+                "endColumn": 147,
+                "startOffset": 7483,
+                "endOffset": 7545
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "3926648947ac3d631489971e2febde95576bdf20156102cda189c4c70005df2c",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-1-target-plugin-identity-and-containment\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 9,
+                "startColumn": 18,
+                "endLine": 9,
+                "endColumn": 75,
+                "startOffset": 503,
+                "endOffset": 560
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "3af16e90d12073a022954ffc592a5c7812f861f4aae6deb077693f869e4d6be1",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-31-installed-canonical-invocation\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 29,
+                "startColumn": 17,
+                "endLine": 29,
+                "endColumn": 86,
+                "startOffset": 1726,
+                "endOffset": 1795
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "3c5015f2bc0bc83c9b0bdb12dfd8adf953476c30fb4cf2de3f597f30f344eb55",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-6-installed-containment-and-read-only-smoke\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 30,
+                "startColumn": 163,
+                "endLine": 30,
+                "endColumn": 223,
+                "startOffset": 1315,
+                "endOffset": 1375
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "40a87bb864f13671ad7483a21f72f8ee474985cfc5e90ff3f7132c7c8459ab94",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-5-dependency-absent-execution\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 33,
+                "startColumn": 18,
+                "endLine": 33,
+                "endColumn": 64,
+                "startOffset": 2016,
+                "endOffset": 2062
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "40e49570f195a508330904bc2b5b535d7a05906e9cfdb61f45642da96351a4c2",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-11-distribution-owned-release-status\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 69,
+                "startColumn": 18,
+                "endLine": 69,
+                "endColumn": 72,
+                "startOffset": 4401,
+                "endOffset": 4455
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "43b645ae6907ae69a9c5a737f0703adc666c9913bdf06930c46ac5455bcfef77",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-162-unexecuted-text-is-not-proof\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 84,
+                "startColumn": 148,
+                "endLine": 84,
+                "endColumn": 217,
+                "startOffset": 7930,
+                "endOffset": 7999
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "4beb366272b1662f1591595a2edc0eaff9bb0f9814d02f8ffa3968de38606d15",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-11-target-identity-and-containment\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 9,
+                "startColumn": 17,
+                "endLine": 9,
+                "endColumn": 87,
+                "startOffset": 534,
+                "endOffset": 604
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "4c48dd551d34c906a4e88954d774a371b044d41edfc8d8903ab16671bc14281b",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-41-fresh-session-activation\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 39,
+                "startColumn": 17,
+                "endLine": 39,
+                "endColumn": 80,
+                "startOffset": 2201,
+                "endOffset": 2264
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "5105efd00e33d810468636d24fc4d76cbfb92bfa4f0ba51f25df906282345a06",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-12-compact-release-decision\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 65,
+                "startColumn": 70,
+                "endLine": 65,
+                "endColumn": 115,
+                "startOffset": 2675,
+                "endOffset": 2720
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "5161a681f6b23514d268d430dd1ab0c9e84542e10cb37921b789a21fa5b70920",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-61-installed-containment-and-read-only-smoke\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 59,
+                "startColumn": 17,
+                "endLine": 59,
+                "endColumn": 97,
+                "startOffset": 3320,
+                "endOffset": 3400
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "62e3341b342d3d41fc6fa3310238b93bed40fecbb63f425b1a1a8c320ddf8d2a",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-5-dependency-absent-execution\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 26,
+                "startColumn": 110,
+                "endLine": 26,
+                "endColumn": 156,
+                "startOffset": 1045,
+                "endOffset": 1091
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "657689ae0e381c77d4959932649f2d08d1e1e85283b49b98a8ba036ff486b394",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-171-bounded-public-mutation-surface\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 85,
+                "startColumn": 91,
+                "endLine": 85,
+                "endColumn": 163,
+                "startOffset": 8139,
+                "endOffset": 8211
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "65abb8ba2cb6b47ea9dbe90d68d28598cd2844a106a656042a52f8838dfb0500",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-4-fresh-session-activation\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 30,
+                "startColumn": 70,
+                "endLine": 30,
+                "endColumn": 113,
+                "startOffset": 1222,
+                "endOffset": 1265
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "6881f6bb3ed0d78dfc21f5d5c792fef82ce9671b1f618201215567c3218237dc",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"NFR.md#nfr-supplychain-1-reproducible-exact-bytes\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 62,
+                "startColumn": 3,
+                "endLine": 62,
+                "endColumn": 73,
+                "startOffset": 6331,
+                "endOffset": 6401
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "695f22e1cd8fdfb13452ec66f539d38197ac130a0f052eee47eaadf331ef936b",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-15-one-product-identity\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 83,
+                "startColumn": 3,
+                "endLine": 83,
+                "endColumn": 44,
+                "startOffset": 7596,
+                "endOffset": 7637
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "69951ef4bac17fd85db6884d0a8c87a4bede77ff26b5295d53c20c590454d5d0",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-8-uninstall-reinstall-and-rollback\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 51,
+                "startColumn": 18,
+                "endLine": 51,
+                "endColumn": 69,
+                "startOffset": 3244,
+                "endOffset": 3295
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "6b82af144a6d75eb5adf96d61edd671cff897af7b924db118c2784a54657d294",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-7-version-consistency-and-upgrade\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 39,
+                "startColumn": 14,
+                "endLine": 39,
+                "endColumn": 64,
+                "startOffset": 1582,
+                "endOffset": 1632
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "6dc858d017750a66b9e6633b739473bdb185e2f189d0fac3591698d34f7efdaf",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"NFR.md#nfr-portability-1-installed-portability\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 60,
+                "startColumn": 3,
+                "endLine": 60,
+                "endColumn": 70,
+                "startOffset": 6022,
+                "endOffset": 6089
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "6e4f5afd330a056db39e5dbc71f2d8e4d96058d37e7fc506bcfdefdd6cb868a9",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-9-public-safety-gates\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 60,
+                "startColumn": 19,
+                "endLine": 60,
+                "endColumn": 57,
+                "startOffset": 2468,
+                "endOffset": 2506
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "76fd644d440b34853bddaa34bbdce15ba821a844ee8ddd3b76d1e8cb1326df4b",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-2-deterministic-child-payload\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 15,
+                "startColumn": 78,
+                "endLine": 15,
+                "endColumn": 124,
+                "startOffset": 581,
+                "endOffset": 627
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "788e51a8f6b0e81957c6e2d8822bf631cca61d867861ed0df918bbdcd6afa5e1",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"../../docs/validation/release-status-v0.3.2.json\" did not resolve (TARGET_DOCUMENT_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 127,
+                "startColumn": 1,
+                "endLine": 127,
+                "endColumn": 81,
+                "startOffset": 9048,
+                "endOffset": 9128
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "78d565baedff426db8bb435fc33d6b67c654c1b52b2bbf184cce1c6c47eaae61",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-181-three-bucket-roadmap\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 86,
+                "startColumn": 79,
+                "endLine": 86,
+                "endColumn": 140,
+                "startOffset": 8406,
+                "endOffset": 8467
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "7f91c81e75c91ab7f63bd3bf908b8009bc923817c00c0a4903ca61e99b0448d8",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-151-single-product-identity\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 83,
+                "startColumn": 77,
+                "endLine": 83,
+                "endColumn": 141,
+                "startOffset": 7670,
+                "endOffset": 7734
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "830788d63adf739ab3c312afe9aedf43aa4b12d5f23393296b5c27076b72f6fa",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-6-installed-containment-and-read-only-smoke\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 39,
+                "startColumn": 18,
+                "endLine": 39,
+                "endColumn": 78,
+                "startOffset": 2409,
+                "endOffset": 2469
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "839a386b31c9f84408a6b1f959cbc1dd5e0abf37d963fe3425af2c889b7630cf",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-8-uninstall-reinstall-and-rollback\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 39,
+                "startColumn": 66,
+                "endLine": 39,
+                "endColumn": 117,
+                "startOffset": 1634,
+                "endOffset": 1685
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "85b0472fa7840a3465361e4c78639b2c4072acbdaf74901fc1bc5c5021f1666e",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-81-uninstall-reinstall-and-rollback\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 79,
+                "startColumn": 17,
+                "endLine": 79,
+                "endColumn": 88,
+                "startOffset": 4425,
+                "endOffset": 4496
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "86304c1b52b7e531d07316e1f4b837d50c2c256ef09506889f6cee80d4d6fb2e",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"../../docs/validation/source-freeze.md\" did not resolve (TARGET_DOCUMENT_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 59,
+                "startColumn": 60,
+                "endLine": 59,
+                "endColumn": 120,
+                "startOffset": 3017,
+                "endOffset": 3077
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "868ae415ed27b5a7a3add60d672523a1d22520fadf46892d7b41cdd038f7e33a",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-9-public-safety-gates\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 52,
+                "startColumn": 14,
+                "endLine": 52,
+                "endColumn": 52,
+                "startOffset": 2088,
+                "endOffset": 2126
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "89cf8f4db0e6bc3c48cb04ef4621cab9b54dbb46a66f1160d8f9e3b8c92fbdd5",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-9-public-safety-gates\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 57,
+                "startColumn": 18,
+                "endLine": 57,
+                "endColumn": 56,
+                "startOffset": 3590,
+                "endOffset": 3628
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "9699a1f1811698119e5c78c0ef30fec225a3a324c07b432adddc3e39fad288ef",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"../../docs/validation/release-status-v0.3.2.json\" did not resolve (TARGET_DOCUMENT_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 62,
+                "startColumn": 3,
+                "endLine": 62,
+                "endColumn": 83,
+                "startOffset": 3476,
+                "endOffset": 3556
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "9903c3b4570dccee97467a8f6fc895edc9ea7d417ddc5b2f2e349e9650079bf1",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-111-distribution-owned-status-record\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 109,
+                "startColumn": 17,
+                "endLine": 109,
+                "endColumn": 90,
+                "startOffset": 6151,
+                "endOffset": 6224
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "9c321933fc00a54466eecd222d9e452cbb6d684758b2cf2cdb56adb3ccda21e7",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"../../docs/validation/release-status-v0.3.2.json\" did not resolve (TARGET_DOCUMENT_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 87,
+                "startColumn": 82,
+                "endLine": 87,
+                "endColumn": 162,
+                "startOffset": 5112,
+                "endOffset": 5192
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "a4165ed3dafa2b0496136cbb0492636d322181bc53c1c2fe70314ec1c5aaa77d",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-161-missing-proof-is-not-shipped\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 84,
+                "startColumn": 77,
+                "endLine": 84,
+                "endColumn": 146,
+                "startOffset": 7859,
+                "endOffset": 7928
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "a4487d75fa2d3e666a936fe71399c816045f34df0f642179369f9da1052277ab",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-4-fresh-session-activation\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 27,
+                "startColumn": 18,
+                "endLine": 27,
+                "endColumn": 61,
+                "startOffset": 1697,
+                "endOffset": 1740
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "a6cc113456078085affd1d0eb11fa75675ba23ae47d9150bda5d356182b87e2b",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-10-build-once-publish-the-same-digest-attest-once\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 52,
+                "startColumn": 54,
+                "endLine": 52,
+                "endColumn": 121,
+                "startOffset": 2128,
+                "endOffset": 2195
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "a991c691f57afc1a0904482ff1c678488e9c7908c9c1f31194e8e8771b0a9bd8",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-13-practical-distribution-release-path\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 81,
+                "startColumn": 18,
+                "endLine": 81,
+                "endColumn": 74,
+                "startOffset": 5251,
+                "endOffset": 5307
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "ab309b740eb3c0d3493422b0bf990c11d2c4a239eae871bd64b7e29f47daee8f",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-91-public-safety-gates\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 89,
+                "startColumn": 17,
+                "endLine": 89,
+                "endColumn": 75,
+                "startOffset": 4930,
+                "endOffset": 4988
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "ad982410ae9f2a6d0903ac775150ee211b3fccf0c7cdbc81aa7a14ae92f46269",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-131-practical-distribution-release-path\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 129,
+                "startColumn": 17,
+                "endLine": 129,
+                "endColumn": 93,
+                "startOffset": 7482,
+                "endOffset": 7558
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "ae00b0b7abfb9e319bb8cc607fdda7c595af78ca6fc75238edd769d5fdce0c00",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-181-three-bucket-roadmap\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 187,
+                "startColumn": 19,
+                "endLine": 187,
+                "endColumn": 80,
+                "startOffset": 11436,
+                "endOffset": 11497
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "afc8eb6e71d9cd0c11636b611057662b7770d0cd2a51688a9a10910f20ebb3a1",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-151-single-product-identity\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 157,
+                "startColumn": 19,
+                "endLine": 157,
+                "endColumn": 83,
+                "startOffset": 8854,
+                "endOffset": 8918
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "b157ed43b1eef1ee6caf3556f842a60b339079d30ea5a4a1d8f3b9d8e946971f",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-10-build-once-publish-the-same-digest-attest-once\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 60,
+                "startColumn": 59,
+                "endLine": 60,
+                "endColumn": 126,
+                "startOffset": 2508,
+                "endOffset": 2575
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "b4b31ab81e52798d874bf4afd261e0bb24ed63d1dd5f2f81fbe59000ab54cc43",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-1-target-plugin-identity-and-containment\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 15,
+                "startColumn": 19,
+                "endLine": 15,
+                "endColumn": 76,
+                "startOffset": 522,
+                "endOffset": 579
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "b501124b87ad825bcca99642fc3dc8e9c29f9504be7f41a98ad8334cd10b88df",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-3-installed-canonical-invocation\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 21,
+                "startColumn": 18,
+                "endLine": 21,
+                "endColumn": 67,
+                "startOffset": 1342,
+                "endOffset": 1391
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "b6782ca48ddf39ea3ff99ec7439dd2ed7b4a6e30c915114b0114c57f2fb92d8a",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-5-dependency-absent-execution\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 30,
+                "startColumn": 115,
+                "endLine": 30,
+                "endColumn": 161,
+                "startOffset": 1267,
+                "endOffset": 1313
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "bc2c956030c4045a14078eb0529c6f186bb86d12c2d0beb3fd523929319c0575",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-21-deterministic-child-payload\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 19,
+                "startColumn": 17,
+                "endLine": 19,
+                "endColumn": 83,
+                "startOffset": 1073,
+                "endOffset": 1139
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "bc63b128c9f287b3263f6f7a22309a9a652de7d38003cf85d02ec70944d385c4",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-14-current-shipped-baseline\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 82,
+                "startColumn": 3,
+                "endLine": 82,
+                "endColumn": 48,
+                "startOffset": 7401,
+                "endOffset": 7446
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "bcef7d7d0f216b36cdd054911d8bffa2a261b31e835fcdd91d3142c35c29d984",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"NFR.md#nfr-usability-1-actionable-diagnostics\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 63,
+                "startColumn": 3,
+                "endLine": 63,
+                "endColumn": 67,
+                "startOffset": 6500,
+                "endOffset": 6564
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "bf7bc7b7c3d68889d1406bd22818aa5f0cd70a09fecba9687378942a2202e118",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-11-distribution-owned-release-status\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 65,
+                "startColumn": 14,
+                "endLine": 65,
+                "endColumn": 68,
+                "startOffset": 2619,
+                "endOffset": 2673
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "c5cc72356d6c3f96264c8e4e580507166e31ab872eab79d20d34838173e48bef",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-101-build-once-publish-and-attest\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 99,
+                "startColumn": 17,
+                "endLine": 99,
+                "endColumn": 87,
+                "startOffset": 5530,
+                "endOffset": 5600
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "c715e374af321a8fe2ec7f38568cd0fc902194bc975088157ae8163694e636f1",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-11-distribution-owned-release-status\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 75,
+                "startColumn": 19,
+                "endLine": 75,
+                "endColumn": 73,
+                "startOffset": 3136,
+                "endOffset": 3190
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "cc687fece2577cf3b5fe27f16fc7d4ccc6d0554e97acddd92c2633dc23a0b3d8",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-7-version-consistency-and-upgrade\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 45,
+                "startColumn": 18,
+                "endLine": 45,
+                "endColumn": 68,
+                "startOffset": 2822,
+                "endOffset": 2872
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "cfda97b5bc47c67750640d0893b38d0b46e23375d4e92b0632b36b0180dc96f3",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-2-deterministic-child-payload\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 13,
+                "startColumn": 73,
+                "endLine": 13,
+                "endColumn": 119,
+                "startOffset": 453,
+                "endOffset": 499
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "d35023ee4e92c12e996b57e7f9a3cef66d13b8992a46e2eb57ba5ea3e1965edf",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-12-compact-release-decision\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 75,
+                "startColumn": 18,
+                "endLine": 75,
+                "endColumn": 63,
+                "startOffset": 4784,
+                "endOffset": 4829
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "da36a18042405b532b3c8b39bc17d31bde10466e459b53c76af8fe1f1f7da8e6",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-7-version-consistency-and-upgrade\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 45,
+                "startColumn": 19,
+                "endLine": 45,
+                "endColumn": 69,
+                "startOffset": 1830,
+                "endOffset": 1880
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "da4fb7b2bff2748a0669a77b7dec3a0ea8739d15c69c1dad8f59db4f8849c973",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-13-practical-distribution-release-path\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 65,
+                "startColumn": 117,
+                "endLine": 65,
+                "endColumn": 173,
+                "startOffset": 2722,
+                "endOffset": 2778
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "db44c8863c6a7f02e0e69e924ffdfbec38bdac7c778dc3814ad33ed091d3fee8",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"USE_CASES.md#uc-18-discover-consolidated-11-tool-surface\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 477,
+                "startColumn": 129,
+                "endLine": 477,
+                "endColumn": 194,
+                "startOffset": 28951,
+                "endOffset": 29016
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "dc57d8726267243a00beafc59071042aecd1996ab79db777a945679cdc19c235",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-8-uninstall-reinstall-and-rollback\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 45,
+                "startColumn": 71,
+                "endLine": 45,
+                "endColumn": 122,
+                "startOffset": 1882,
+                "endOffset": 1933
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "df91b13619144a3326ff1378286bc061a4e46295058016800c5735b44585df65",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-121-compact-release-decision\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 119,
+                "startColumn": 17,
+                "endLine": 119,
+                "endColumn": 82,
+                "startOffset": 6763,
+                "endOffset": 6828
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "e91a9b03cd0dec8b8c73442a91a81ef8f20a7087d6c90b2ee47a53b2a75413a9",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"../../IMPORT_MANIFEST.yaml\" did not resolve (TARGET_DOCUMENT_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 59,
+                "startColumn": 3,
+                "endLine": 59,
+                "endColumn": 55,
+                "startOffset": 2960,
+                "endOffset": 3012
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "eb7c8b295c58589f05e8b9f421a656ad3bef92df2a051dac2f8144d41074c34a",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-13-practical-distribution-release-path\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 75,
+                "startColumn": 122,
+                "endLine": 75,
+                "endColumn": 178,
+                "startOffset": 3239,
+                "endOffset": 3295
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "ee8dc8591163164a87c062a59006be3dcd5acfe8a923d41d910a7526e3fdf95f",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"../../docs/upstream/dev-pomogator/LICENSE-ATTESTATION.md\" did not resolve (TARGET_DOCUMENT_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 60,
+                "startColumn": 3,
+                "endLine": 60,
+                "endColumn": 87,
+                "startOffset": 3194,
+                "endOffset": 3278
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "ef1c469a0e530a6a8156b324164ead4e620217a546ad15ca62d7a53090767407",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-141-current-release-proof\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 147,
+                "startColumn": 19,
+                "endLine": 147,
+                "endColumn": 81,
+                "startOffset": 8282,
+                "endOffset": 8344
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "f3456076b76d52bf11693ae2ee51539b41a10230c779044d0ea3f881278da65e",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-17-next-safe-authoring-outcome\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 85,
+                "startColumn": 3,
+                "endLine": 85,
+                "endColumn": 51,
+                "startOffset": 8051,
+                "endOffset": 8099
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "f57ce6fb04831e5a167b2af1ae64478b234f94400fa8687c42ba21cc6196fccd",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-71-version-consistency-and-upgrade\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 69,
+                "startColumn": 17,
+                "endLine": 69,
+                "endColumn": 87,
+                "startOffset": 3879,
+                "endOffset": 3949
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "f9babd3ea69311ca922a2d0cc0cfe154f6d84533426de689533b1b57c6572de8",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"NFR.md#nfr-performance-1-proportional-release-checks\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 59,
+                "startColumn": 3,
+                "endLine": 59,
+                "endColumn": 76,
+                "startOffset": 5866,
+                "endOffset": 5939
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "ffc0fe654c73b9ce6703679056518ace4e3176cf7bc80c7b2d069177b00e91ec",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"NFR.md#nfr-reliability-1-reversible-lifecycle\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 61,
+                "startColumn": 3,
+                "endLine": 61,
+                "endColumn": 69,
+                "startOffset": 6156,
+                "endOffset": 6222
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            }
+          ],
+          "snapshot": {
+            "fingerprint": "40dd43f96900bb1cdfe82def45b40c524fa5dd63721e1bdd1ee0e3608b1cc5a1",
+            "schemaVersion": "spec-kernel@1"
+          }
+        },
+        "error": null,
+        "diagnostics": [],
+        "provenance": {
+          "serverName": "omp-spec-kit",
+          "resolvedRootId": "a6fa1a016ee625110c928a3b1a939b7b76a868ee0404d082091c009541885f36",
+          "activeProjectRootId": "a6fa1a016ee625110c928a3b1a939b7b76a868ee0404d082091c009541885f36",
+          "rootMode": "active-project",
+          "matchesActiveProject": true
+        }
+      }
+    },
+    {
+      "prompt": "покажи только ошибки выбранного кода (plugin-distribution, BROKEN_MARKDOWN_LINK, severities: WARNING)",
+      "tool": "spec_inspect",
+      "args": {
+        "schemaVersion": "spec-kernel@1",
+        "check": "validation",
+        "specSlugs": [
+          "plugin-distribution"
+        ],
+        "severities": [
+          "WARNING"
+        ],
+        "codes": [
+          "BROKEN_MARKDOWN_LINK"
+        ],
+        "limit": 10
+      },
+      "response": {
+        "schemaVersion": "spec-kernel@1",
+        "requestId": null,
+        "operation": "inspect",
+        "ok": true,
+        "graph": {
+          "schemaVersion": "spec-kernel@1",
+          "fingerprint": "40dd43f96900bb1cdfe82def45b40c524fa5dd63721e1bdd1ee0e3608b1cc5a1",
+          "valid": true,
+          "specCount": 3,
+          "documentCount": 45,
+          "nodeCount": 495,
+          "edgeOccurrenceCount": 1071,
+          "unresolvedReferenceCount": 0,
+          "markdownHeadingOccurrenceCount": 755,
+          "markdownLinkOccurrenceCount": 554,
+          "diagnosticCount": 96
+        },
+        "page": {
+          "limit": 10,
+          "returned": 10,
+          "totalMatched": 88,
+          "cursor": null,
+          "nextCursor": "eyJmcCI6IjQwZGQ0M2Y5NjkwMGJiMWNkZmU4MmRlZjQ1YjQwYzUyNGZhNWRkNjM3MjFlMWJkZDFlZTBlMzYwOGIxY2M1YTEiLCJvcCI6InZhbGlkYXRpb24iLCJmZCI6IjQ3ZjJmYjBlMWZjMjM1YzVhZjU2Zjc3MGVlNGU5NDI3IiwiayI6WzEsIkJST0tFTl9NQVJLRE9XTl9MSU5LIixudWxsLG51bGwsIjE1MTI1YjJjODNkMzhlZTk4M2M0YTY1ZTdlMGJmMDg0MDZkMDZiMjhmYjhhNTBjMjA0NTFiMDA0ZTNjM2RlZTEiXX0.b3cd27ba3a824911",
+          "truncated": true,
+          "responseBytes": 7002
+        },
+        "data": {
+          "kind": "validation",
+          "scope": {
+            "mode": "specifications",
+            "specSlugs": [
+              "plugin-distribution"
+            ]
+          },
+          "valid": true,
+          "verdict": "VALID",
+          "counts": {
+            "errors": 0,
+            "warnings": 88,
+            "info": 0,
+            "total": 88,
+            "matched": 88
+          },
+          "items": [
+            {
+              "diagnosticId": "0995e5ac70681a504a09e08a5cdf43c8362fcddbb8c5d0395081f995bb2bb15e",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-3-installed-canonical-invocation\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 30,
+                "startColumn": 19,
+                "endLine": 30,
+                "endColumn": 68,
+                "startOffset": 1171,
+                "endOffset": 1220
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "099e49305362f1f447de99b4619b12b17a9d55b1a6484d7896f6a4dda4e93c46",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-6-installed-containment-and-read-only-smoke\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 26,
+                "startColumn": 158,
+                "endLine": 26,
+                "endColumn": 218,
+                "startOffset": 1093,
+                "endOffset": 1153
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "0adb292f37b9213a46d20387521286c36e881715802748971601bf5d39123abc",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-1-target-plugin-identity-and-containment\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 13,
+                "startColumn": 14,
+                "endLine": 13,
+                "endColumn": 71,
+                "startOffset": 394,
+                "endOffset": 451
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "0aeb4c73c4b98ea0b7f72f1561fa58467cef13cdf70969bead7b913efa342ee9",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-172-direct-spec-write-policy\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 85,
+                "startColumn": 165,
+                "endLine": 85,
+                "endColumn": 230,
+                "startOffset": 8213,
+                "endOffset": 8278
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "0d54b607a6c656fc517e97e6c3e3f59b2683d7e5c301aeb030b16d4477804756",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"FR.md#fr-4-fresh-session-activation\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 26,
+                "startColumn": 65,
+                "endLine": 26,
+                "endColumn": 108,
+                "startOffset": 1000,
+                "endOffset": 1043
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "11102515c6c8e4fb9c8b86cede4670903779b1b3955e2212b841575ae9c7ff41",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-161-missing-proof-is-not-shipped\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 167,
+                "startColumn": 19,
+                "endLine": 167,
+                "endColumn": 88,
+                "startOffset": 9478,
+                "endOffset": 9547
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "119be682a41d141e289a13f0872eb66bf03c8f4500abe9f648588b906fc2c10e",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-172-direct-spec-write-policy\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 177,
+                "startColumn": 93,
+                "endLine": 177,
+                "endColumn": 158,
+                "startOffset": 10741,
+                "endOffset": 10806
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "137f5a75d25d64efba9e1dc3de6b31df389f20557edc715dbdbb02d8bf1953fa",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-162-unexecuted-text-is-not-proof\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 167,
+                "startColumn": 90,
+                "endLine": 167,
+                "endColumn": 159,
+                "startOffset": 9549,
+                "endOffset": 9618
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "14107d1ce996cb165241bea19068e0d759b8f0e17a7acd3b8a4da4795f431556",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-51-dependency-absent-execution\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 49,
+                "startColumn": 17,
+                "endLine": 49,
+                "endColumn": 83,
+                "startOffset": 2751,
+                "endOffset": 2817
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            },
+            {
+              "diagnosticId": "15125b2c83d38ee983c4a65e7e0bf08406d06b28fb8a50c20451b004e3c3dee1",
+              "code": "BROKEN_MARKDOWN_LINK",
+              "severity": "WARNING",
+              "message": "markdown link destination \"ACCEPTANCE_CRITERIA.md#ac-171-bounded-public-mutation-surface\" did not resolve (TARGET_ANCHOR_MISSING)",
+              "remediation": "BROKEN_MARKDOWN_LINK",
+              "span": {
+                "startLine": 177,
+                "startColumn": 19,
+                "endLine": 177,
+                "endColumn": 91,
+                "startOffset": 10667,
+                "endOffset": 10739
+              },
+              "relatedSpans": [],
+              "specSlug": "plugin-distribution",
+              "localId": null,
+              "canonicalId": null,
+              "referenceOccurrenceId": null,
+              "details": {
+                "expected": "existing target document or canonical anchor",
+                "actual": null,
+                "limitName": null,
+                "limitValue": null,
+                "observedValue": null
+              }
+            }
+          ],
+          "snapshot": {
+            "fingerprint": "40dd43f96900bb1cdfe82def45b40c524fa5dd63721e1bdd1ee0e3608b1cc5a1",
+            "schemaVersion": "spec-kernel@1"
+          }
+        },
+        "error": null,
+        "diagnostics": [],
+        "provenance": {
+          "serverName": "omp-spec-kit",
+          "resolvedRootId": "a6fa1a016ee625110c928a3b1a939b7b76a868ee0404d082091c009541885f36",
+          "activeProjectRootId": "a6fa1a016ee625110c928a3b1a939b7b76a868ee0404d082091c009541885f36",
+          "rootMode": "active-project",
+          "matchesActiveProject": true
+        }
+      }
+    }
+  ]
+}

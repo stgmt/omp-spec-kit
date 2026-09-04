@@ -80,3 +80,9 @@ Added complete four-property tool annotations, contract-label titles, bounded fi
 - Added `spec_catalog(view: "types")` returning 15 entity kinds and 7 edge types.
 - Enforced surface blast caps: 11 tools, <= 25,499 bytes, <= 2,000 description characters.
 - Added deterministic mutation testing gate with zero surviving mutants.
+
+## Unreleased — unified validation inspection
+
+- Consolidated `spec_inspect` validation and diagnostics branches into a single `check: "validation"` branch with pre-filter verdict, pre-filter counts, and deterministic item filtering.
+- Retired `specValidation` and `diagnostics` branches from `spec_inspect` without backward-compatibility shims.
+- Added explicit `title` (`<discriminator>: <variant>`) and `description` to each `oneOf` branch in tool input schemas, and added top-level discriminator selection instructions.

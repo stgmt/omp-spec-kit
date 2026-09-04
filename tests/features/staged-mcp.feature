@@ -123,6 +123,11 @@ Feature: Exercise the single-surface MCP server through the packaged server
       | spec_inspect       | {"check": "scenariosByTags", "tags": ["@a", "@a"]}                                                           | INVALID_REQUEST   |
       | spec_inspect       | {"check": "archivalProof"}                                                                                    | INVALID_REQUEST   |
       | spec_inspect       | {"check": "orphans", "limit": 10}                                                                             | INVALID_REQUEST   |
+      | spec_inspect       | {"check": "specValidation", "spec": "product"}                                                                | INVALID_REQUEST   |
+      | spec_inspect       | {"check": "diagnostics"}                                                                                      | INVALID_REQUEST   |
+      | spec_inspect       | {"check": "validation", "spec": "product"}                                                                    | INVALID_REQUEST   |
+      | spec_inspect       | {"check": "validation", "specSlugs": ["bad!"]}                                                                | INVALID_PARAMETER |
+      | spec_inspect       | {"check": "validation", "specSlugs": ["unknown-spec"]}                                                        | NOT_FOUND         |
       | spec_tasks         | {}                                                                                                            | INVALID_REQUEST   |
       | spec_tasks         | {"spec": "product", "limit": 0}                                                                               | INVALID_REQUEST   |
       | spec_tasks         | {"spec": "product", "statuses": ["todo", "todo"]}                                                            | INVALID_REQUEST   |

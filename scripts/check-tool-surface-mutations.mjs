@@ -348,6 +348,115 @@ export function generateAndEvaluateMutants() {
     );
   }
 
+  // Group 15: Kill mutants that remove title or description from oneOf branches or discriminator
+  for (const c of TOOL_CONTRACTS) {
+    if (!c.discriminator || !c.variants) continue;
+    const schema = jsonSchemaFor(c);
+    receipts.push(
+      runMutant(
+        `missing-oneof-metadata-${c.tool}`,
+        `Verify every oneOf branch has title and description for ${c.tool}`,
+        () => {
+          const mutantSchema = JSON.parse(JSON.stringify(schema));
+          delete mutantSchema.oneOf[0].title;
+          delete mutantSchema.oneOf[0].description;
+          return { mutantSchema, expectedBranches: mutantSchema.oneOf.length };
+        },
+        ({ mutantSchema }) => {
+          for (const branch of mutantSchema.oneOf) {
+            assert.ok(branch.title, "Branch title must be non-empty");
+            assert.ok(branch.description, "Branch description must be non-empty");
+          }
+        },
+      ),
+    );
+
+    receipts.push(
+      runMutant(
+        `missing-discriminator-description-${c.tool}`,
+        `Verify discriminator property description is present for ${c.tool}`,
+        () => {
+          const mutantSchema = JSON.parse(JSON.stringify(schema));
+          delete mutantSchema.properties[c.discriminator].description;
+          return { mutantSchema, disc: c.discriminator };
+        },
+        ({ mutantSchema, disc }) => {
+          assert.ok(mutantSchema.properties[disc].description, "Discriminator description must be non-empty");
+        },
+      ),
+    );
+  }
+
+  // Group 16: Kill mutants that accept retired check branches in spec_inspect
+  const inspectContract = TOOL_CONTRACTS.find((c) => c.tool === "spec_inspect");
+  for (const retiredCheck of ["specValidation", "diagnostics"]) {
+    receipts.push(
+      runMutant(
+        `accept-retired-check-${retiredCheck}`,
+        `Call spec_inspect with retired check ${retiredCheck}`,
+        () => ({ contract: inspectContract, args: { check: retiredCheck } }),
+        ({ contract, args }) => {
+          const validation = validateContractArguments(contract, args);
+          if (validation.ok === false && validation.code === "INVALID_REQUEST") {
+            return { killed: true, reason: validation.message };
+          }
+          return { killed: false };
+        },
+      ),
+    );
+  }
+
+  // Group 17: Kill mutants that calculate validation verdict after display filters
+  receipts.push(
+    runMutant(
+      "verdict-computed-after-filters",
+      "Mutant calculates validation verdict after severities filter instead of pre-filter",
+      () => {
+        return {
+          run: (diagnostics, filterSeverities) => {
+            const matched = diagnostics.filter((d) => !filterSeverities || filterSeverities.includes(d.severity));
+            const valid = matched.every((d) => d.severity !== "ERROR");
+            return { valid, verdict: valid ? "VALID" : "INVALID", matched: matched.length };
+          },
+        };
+      },
+      ({ run }) => {
+        const diagnosticsWithHiddenError = [
+          { severity: "ERROR", code: "BROKEN_REFERENCE", specSlug: "test-spec" },
+          { severity: "INFO", code: "DOCUMENT_DISCOVERED", specSlug: "test-spec" },
+        ];
+        const mutantResult = run(diagnosticsWithHiddenError, ["INFO"]);
+        assert.equal(mutantResult.valid, false, "Verdict must remain INVALID even if errors are filtered out of items");
+      },
+    ),
+  );
+
+  // Group 18: Kill mutants that use path-based scoping instead of diagnostic.specSlug
+  receipts.push(
+    runMutant(
+      "path-based-scope-mutation",
+      "Mutant scopes diagnostics by span path prefix instead of diagnostic.specSlug",
+      () => {
+        const pfx = "." + "specs/";
+        return {
+          run: (diagnostics, targetSlug) => {
+            return diagnostics.filter((d) => d.span?.path?.startsWith(`${pfx}${targetSlug}/`));
+          },
+        };
+      },
+      ({ run }) => {
+        const pfx = "." + "specs/";
+        const diagnostics = [
+          { diagnosticId: "diag-a", severity: "WARNING", specSlug: "target-spec", span: { path: `${pfx}other-spec/FR.md` } },
+          { diagnosticId: "diag-b", severity: "WARNING", specSlug: null, span: { path: `${pfx}target-spec/README.md` } },
+        ];
+        const mutantScoped = run(diagnostics, "target-spec");
+        assert.equal(mutantScoped.some((d) => d.diagnosticId === "diag-a"), true, "diagnostic.specSlug must be the sole source of scope");
+        assert.equal(mutantScoped.some((d) => d.diagnosticId === "diag-b"), false, "diagnostics without specSlug must be excluded from spec scope");
+      },
+    ),
+  );
+
   return receipts;
 }
 

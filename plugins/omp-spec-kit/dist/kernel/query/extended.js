@@ -16,7 +16,6 @@ export const EXTENDED_OPERATIONS = Object.freeze([
   "validateRequirementMetadata",
   "policyQueryRequirements",
   "getArchivalProof",
-  "validateSpec",
   "getSpecStatus",
 ]);
 
@@ -353,14 +352,6 @@ function runArchivalProof(graph, args) {
   return operationSuccess({ kind: "archival-proof", spec: args.spec, verdict: uniqueReferences.length > 0 ? "KEEP_FALSE_POSITIVE" : "ARCHIVE", liveInboundReferences: uniqueReferences, count: uniqueReferences.length });
 }
 
-function runValidateSpec(graph, args) {
-  if (typeof args.spec !== "string" || !isValidSpecSlug(args.spec)) return operationError("INVALID_PARAMETER", "spec must be a valid specification slug", { parameter: "spec" });
-  if (!specSlugs(graph).includes(args.spec)) return operationError("NOT_FOUND", `specification not found: ${args.spec}`, { specSlug: args.spec });
-  const findings = graph.diagnostics.filter((diagnostic) => diagnostic.span?.path?.startsWith(`.specs/${args.spec}/`)).map((diagnostic) => ({ diagnosticId: diagnostic.diagnosticId, code: diagnostic.code, severity: diagnostic.severity, message: diagnostic.message, source: diagnostic.span ?? null }));
-  const valid = findings.every((finding) => finding.severity !== "ERROR");
-  return operationSuccess({ kind: "spec-validation", spec: args.spec, valid, verdict: valid ? "VALID" : "INVALID", findings, snapshot: { fingerprint: graph.fingerprint, schemaVersion: graph.schemaVersion }, counts: { nodes: graph.nodes.filter((node) => node.specSlug === args.spec).length, findings: findings.length } });
-}
-
 function statusForSpec(graph, spec) {
   const nodes = graph.nodes.filter((node) => node.specSlug === spec);
   const tasks = nodes.filter((node) => node.kind === "TASK");
@@ -407,7 +398,6 @@ export function executeExtendedQuery(graph, operation, args = {}) {
     case "validateRequirementMetadata": return runValidateRequirementMetadata(args);
     case "policyQueryRequirements": return runPolicyQueryRequirements(graph, args);
     case "getArchivalProof": return runArchivalProof(graph, args);
-    case "validateSpec": return runValidateSpec(graph, args);
     case "getSpecStatus": return runSpecStatus(graph, args);
     default: return operationError("UNKNOWN_OPERATION", `unknown extended operation: ${operation}`);
   }

@@ -197,7 +197,7 @@ export const TOOL_CONTRACTS = Object.freeze([
     tool: "spec_inspect",
     label: "Spec Inspect",
     operation: "inspect",
-    description: "Run validations, orphans, anchors, diagnostics, and policy checks.",
+    description: "Run validation, orphans, anchors, and policy checks.",
     discriminator: "check",
     variants: Object.freeze({
       scenariosByTags: Object.freeze({
@@ -233,16 +233,12 @@ export const TOOL_CONTRACTS = Object.freeze([
         description: "Check whether a specification has live inbound references from other specifications.",
         fields: Object.freeze([field("spec", "string")]),
       }),
-      specValidation: Object.freeze({
-        description: "Run bounded graph validation for one specification without writing.",
-        fields: Object.freeze([field("spec", "string")]),
-      }),
-      diagnostics: Object.freeze({
-        description: "List stable parser/graph diagnostics filtered by severity, code, spec slug, and path.",
+      validation: Object.freeze({
+        description: "Run bounded graph validation and return verdict, scope counts, and filtered diagnostics.",
         fields: Object.freeze([
+          optionalField("specSlugs", "stringArray"),
           optionalField("severities", "enumArray", DIAGNOSTIC_SEVERITIES),
           optionalField("codes", "enumArray", DIAGNOSTIC_CODES),
-          optionalField("specSlugs", "stringArray"),
           optionalField("paths", "stringArray"),
           optionalField("limit", "integer"),
           optionalField("cursor", "nullableString"),
@@ -531,7 +527,22 @@ export const OPERATIONS_SCHEMA = Object.freeze({
   type: "array",
   minItems: 1,
   items: {
-    oneOf: OPERATION_SCHEMAS,
+    type: "object",
+    required: ["kind", "document"],
+    properties: {
+      kind: { type: "string", enum: PATCH_OPERATION_KINDS },
+      document: { type: "string" },
+      heading: { type: "string" },
+      text: { type: "string" },
+      content: { type: "string" },
+      oldText: { type: "string" },
+      newText: { type: "string" },
+      replaceAll: { type: "boolean" },
+      entity: { type: "string" },
+      status: { type: "string" },
+      newDocument: { type: "string" },
+      expectedSha: { type: "string" },
+    },
   },
 });
 
@@ -589,6 +600,7 @@ export function jsonSchemaFor(contract) {
   const topProperties = {
     [disc]: {
       type: "string",
+      description: `Select one declared ${disc} branch in oneOf.`,
       enum: Object.keys(contract.variants),
     },
     schemaVersion: { type: "string" },
@@ -604,7 +616,7 @@ export function jsonSchemaFor(contract) {
   for (const variant of Object.values(contract.variants)) {
     for (const f of variant.fields) {
       if (!topProperties[f.name]) {
-        topProperties[f.name] = topSchemaType(f);
+        topProperties[f.name] = {};
       }
     }
   }
@@ -633,6 +645,8 @@ export function jsonSchemaFor(contract) {
 
     oneOf.push({
       type: "object",
+      title: `${disc}: ${vName}`,
+      description: variant.description,
       properties: vProps,
       required,
       additionalProperties: false,
@@ -954,15 +968,15 @@ export const KERNEL_ENVELOPE_OUTPUT_SCHEMA = Object.freeze({
   ],
   properties: {
     schemaVersion: { type: "string" },
-    requestId: { type: ["string", "null"] },
+    requestId: {},
     operation: { type: "string" },
     ok: { type: "boolean" },
-    graph: { type: ["object", "null"] },
-    page: { type: ["object", "null"] },
+    graph: {},
+    page: {},
     data: {},
-    error: { type: ["object", "null"] },
+    error: {},
     diagnostics: { type: "array" },
-    provenance: { type: "object" },
+    provenance: {},
   },
 });
 

@@ -313,7 +313,7 @@ When("every SCHEMA-11 tool is called with its valid arguments", async function (
     spec_find_nodes: { tool: "spec_entities", args: (a) => ({ ...a, mode: "find" }), op: "entities" },
     spec_get_edges: { tool: "spec_graph", args: (a) => ({ ...a, view: "edges" }), op: "graph" },
     spec_trace: { tool: "spec_graph", args: (a) => ({ ...a, view: "trace" }), op: "graph" },
-    spec_diagnostics: { tool: "spec_inspect", args: (a) => ({ ...a, check: "diagnostics" }), op: "inspect" },
+    spec_diagnostics: { tool: "spec_inspect", args: (a) => ({ ...a, check: "validation" }), op: "inspect" },
     spec_overview: { tool: "spec_catalog", args: (a) => ({ ...a, view: "overview" }), op: "catalog" },
     spec_markdown_inventory: { tool: "spec_markdown", args: (a) => a, op: "markdown" },
   };

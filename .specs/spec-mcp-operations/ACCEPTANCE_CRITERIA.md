@@ -303,7 +303,7 @@ Given a real MCP server, tools/list declares the stable result schema and discov
 
 ## AC-32.1: Discriminated branch schemas and strict argument validation
 
-**EARS:** WHEN an MCP call is received for a consolidated tool THEN the input arguments SHALL be validated against the exact discriminator branch schema with `additionalProperties: false`; ANY unknown field, cross-branch field, or invalid enum SHALL return `INVALID_REQUEST` before backend execution.
+**EARS:** WHEN an MCP call is received for a consolidated tool THEN the input arguments SHALL be validated against the exact discriminator branch schema with `additionalProperties: false`; each branch in `oneOf` SHALL publish its own title `<discriminator>: <variant>` and description, and the top-level discriminator property SHALL instruct the caller to select exactly one branch; ANY unknown field, cross-branch field, or invalid enum SHALL return `INVALID_REQUEST` before backend execution.
 
 **Requirement:** [FR-32](FR.md#fr-32-discriminated-branch-schemas-and-strict-argument-validation)
 
@@ -340,3 +340,17 @@ Given a real MCP server, tools/list declares the stable result schema and discov
 **Requirement:** [FR-36](FR.md#fr-36-deterministic-mutation-testing-gate)
 
 **Scenario:** `@feature36 @FR-36 @AC-36.1 @id:SCEN-mcp-mutation-testing-gate`
+
+## AC-37.1: Unified specification and corpus validation inspection
+
+**EARS:** WHEN `spec_inspect` is called with `check: "validation"`:
+1. IF `specSlugs` is omitted or empty THEN validation scope SHALL be the entire corpus;
+2. IF `specSlugs` contains unknown slugs THEN the server SHALL return `NOT_FOUND`, and IF slug syntax is malformed THEN the server SHALL return `INVALID_PARAMETER`;
+3. Diagnostic scope membership SHALL be determined solely by `diagnostic.specSlug` (diagnostics without `specSlug` belong to corpus scope only, and path prefix checking is prohibited);
+4. Overall `valid`, `verdict`, and counts (`errors`, `warnings`, `info`, `total`) SHALL be computed across all diagnostics in the resolved scope before applying `severities`, `codes`, or `paths` filters;
+5. The `items` array and `counts.matched` SHALL reflect only items matching the filters, paginated deterministically by `limit` and `cursor`;
+6. Calls with `check: "specValidation"` or `check: "diagnostics"` SHALL be rejected as `INVALID_REQUEST` without compatibility aliases.
+
+**Requirement:** [FR-37](FR.md#fr-37-unified-specification-and-corpus-validation-inspection)
+
+**Scenario:** `@feature37 @FR-37 @AC-37.1 @id:SCEN-mcp-unified-validation`

@@ -1,8 +1,8 @@
 {
   "schema": "omp-spec-kit-mutation-gate@1",
-  "timestamp": "2026-09-04T12:53:05.590Z",
-  "totalMutants": 145,
-  "killed": 145,
+  "timestamp": "2026-09-04T14:16:29.043Z",
+  "totalMutants": 162,
+  "killed": 162,
   "survivors": 0,
   "passed": true,
   "receipts": [
@@ -541,16 +541,10 @@
       "killerAssertion": "Deleted variant archivalProof must be rejected\n\nfalse !== true\n"
     },
     {
-      "id": "delete-branch-spec_inspect-specValidation",
+      "id": "delete-branch-spec_inspect-validation",
       "status": "KILLED",
-      "description": "Delete variant branch specValidation from spec_inspect",
-      "killerAssertion": "Deleted variant specValidation must be rejected\n\nfalse !== true\n"
-    },
-    {
-      "id": "delete-branch-spec_inspect-diagnostics",
-      "status": "KILLED",
-      "description": "Delete variant branch diagnostics from spec_inspect",
-      "killerAssertion": "Deleted variant diagnostics must be rejected\n\nfalse !== true\n"
+      "description": "Delete variant branch validation from spec_inspect",
+      "killerAssertion": "Deleted variant validation must be rejected\n\nfalse !== true\n"
     },
     {
       "id": "delete-branch-spec_evidence-result",
@@ -670,7 +664,7 @@
       "id": "duplicate-branch-spec_inspect-scenariosByTags",
       "status": "KILLED",
       "description": "Duplicate branch in spec_inspect",
-      "killerAssertion": "oneOf length changed\n\n9 !== 8\n"
+      "killerAssertion": "oneOf length changed\n\n8 !== 7\n"
     },
     {
       "id": "duplicate-branch-spec_evidence-result",
@@ -875,6 +869,114 @@
       "status": "KILLED",
       "description": "Delete edge descriptor DECLARES",
       "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+    },
+    {
+      "id": "missing-oneof-metadata-spec_catalog",
+      "status": "KILLED",
+      "description": "Verify every oneOf branch has title and description for spec_catalog",
+      "killerAssertion": "Branch title must be non-empty"
+    },
+    {
+      "id": "missing-discriminator-description-spec_catalog",
+      "status": "KILLED",
+      "description": "Verify discriminator property description is present for spec_catalog",
+      "killerAssertion": "Discriminator description must be non-empty"
+    },
+    {
+      "id": "missing-oneof-metadata-spec_entities",
+      "status": "KILLED",
+      "description": "Verify every oneOf branch has title and description for spec_entities",
+      "killerAssertion": "Branch title must be non-empty"
+    },
+    {
+      "id": "missing-discriminator-description-spec_entities",
+      "status": "KILLED",
+      "description": "Verify discriminator property description is present for spec_entities",
+      "killerAssertion": "Discriminator description must be non-empty"
+    },
+    {
+      "id": "missing-oneof-metadata-spec_graph",
+      "status": "KILLED",
+      "description": "Verify every oneOf branch has title and description for spec_graph",
+      "killerAssertion": "Branch title must be non-empty"
+    },
+    {
+      "id": "missing-discriminator-description-spec_graph",
+      "status": "KILLED",
+      "description": "Verify discriminator property description is present for spec_graph",
+      "killerAssertion": "Discriminator description must be non-empty"
+    },
+    {
+      "id": "missing-oneof-metadata-spec_documents",
+      "status": "KILLED",
+      "description": "Verify every oneOf branch has title and description for spec_documents",
+      "killerAssertion": "Branch title must be non-empty"
+    },
+    {
+      "id": "missing-discriminator-description-spec_documents",
+      "status": "KILLED",
+      "description": "Verify discriminator property description is present for spec_documents",
+      "killerAssertion": "Discriminator description must be non-empty"
+    },
+    {
+      "id": "missing-oneof-metadata-spec_inspect",
+      "status": "KILLED",
+      "description": "Verify every oneOf branch has title and description for spec_inspect",
+      "killerAssertion": "Branch title must be non-empty"
+    },
+    {
+      "id": "missing-discriminator-description-spec_inspect",
+      "status": "KILLED",
+      "description": "Verify discriminator property description is present for spec_inspect",
+      "killerAssertion": "Discriminator description must be non-empty"
+    },
+    {
+      "id": "missing-oneof-metadata-spec_evidence",
+      "status": "KILLED",
+      "description": "Verify every oneOf branch has title and description for spec_evidence",
+      "killerAssertion": "Branch title must be non-empty"
+    },
+    {
+      "id": "missing-discriminator-description-spec_evidence",
+      "status": "KILLED",
+      "description": "Verify discriminator property description is present for spec_evidence",
+      "killerAssertion": "Discriminator description must be non-empty"
+    },
+    {
+      "id": "missing-oneof-metadata-spec_propose_patch",
+      "status": "KILLED",
+      "description": "Verify every oneOf branch has title and description for spec_propose_patch",
+      "killerAssertion": "Branch title must be non-empty"
+    },
+    {
+      "id": "missing-discriminator-description-spec_propose_patch",
+      "status": "KILLED",
+      "description": "Verify discriminator property description is present for spec_propose_patch",
+      "killerAssertion": "Discriminator description must be non-empty"
+    },
+    {
+      "id": "accept-retired-check-specValidation",
+      "status": "KILLED",
+      "description": "Call spec_inspect with retired check specValidation",
+      "killerAssertion": "unknown check variant: specValidation"
+    },
+    {
+      "id": "accept-retired-check-diagnostics",
+      "status": "KILLED",
+      "description": "Call spec_inspect with retired check diagnostics",
+      "killerAssertion": "unknown check variant: diagnostics"
+    },
+    {
+      "id": "verdict-computed-after-filters",
+      "status": "KILLED",
+      "description": "Mutant calculates validation verdict after severities filter instead of pre-filter",
+      "killerAssertion": "Verdict must remain INVALID even if errors are filtered out of items\n\ntrue !== false\n"
+    },
+    {
+      "id": "path-based-scope-mutation",
+      "status": "KILLED",
+      "description": "Mutant scopes diagnostics by span path prefix instead of diagnostic.specSlug",
+      "killerAssertion": "diagnostic.specSlug must be the sole source of scope\n\nfalse !== true\n"
     }
   ]
 }

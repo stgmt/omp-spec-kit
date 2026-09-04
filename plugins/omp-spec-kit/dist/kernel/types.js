@@ -423,6 +423,7 @@ export const QUERY_OPERATIONS = Object.freeze([
   "diagnostics",
   "overview",
   "markdownInventory",
+  "validation",
 ]);
 
 export const QUERY_ERROR_CODES = Object.freeze([

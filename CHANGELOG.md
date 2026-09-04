@@ -1,6 +1,20 @@
 # Changelog
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
+## 0.8.2 — 2026-09-04
+
+Corrective release unifying specification validation and diagnostics inspection into one task-oriented branch with self-describing `oneOf` input schemas.
+
+### Changed
+
+- Replaced overlapping `spec_inspect` branches `specValidation` and `diagnostics` with a single unified `validation` branch returning overall validation verdict (`VALID`/`INVALID`), scope counts (`errors`, `warnings`, `info`, `total`), and filtered diagnostics.
+- Validation verdict and scope totals are computed pre-filter across all diagnostics in the resolved scope (`corpus` or `specifications`), while `severities`, `codes`, and `paths` filters affect only the returned `items` and `counts.matched`.
+- Every discriminated `oneOf` branch across consolidated tools exports an explicit `title` (`<discriminator>: <variant>`) and `description`, and discriminator properties carry instructions guiding branch selection.
+
+### Removed
+
+- Removed `specValidation` and `diagnostics` check branches from `spec_inspect` and excised `validateSpec` from kernel query operations without backward-compatibility shims.
+
 ## 0.8.1 — 2026-09-04
 
 Consolidated 11-tool surface minor: 49/38 tools cut to 11 task-oriented tools with discriminated branches, zero compatibility shims, and fail-closed surface blast limits.
