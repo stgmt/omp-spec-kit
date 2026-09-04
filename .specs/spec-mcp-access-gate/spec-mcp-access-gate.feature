@@ -32,15 +32,19 @@ Feature: OMP MCP access gate
     Then resolution is "<resolution>"
 
     Examples:
-      | platform | condition                                      | resolution    |
-      | POSIX    | exact .specs root                              | SPEC          |
-      | POSIX    | descendant with slash and dot segments         | SPEC          |
-      | POSIX    | component named .specs2                        | NON_SPEC      |
-      | Windows  | mixed separators and case variant of .specs    | SPEC          |
-      | POSIX    | symlink whose real target is under .specs      | SPEC          |
-      | Windows  | reparse point whose real target is outside     | NON_SPEC      |
-      | POSIX    | new leaf under resolved .specs ancestor        | SPEC          |
-      | Windows  | unreadable or unstable ancestor                | INDETERMINATE |
+      | platform | condition                                          | resolution    |
+      | POSIX    | exact .specs root                                  | SPEC          |
+      | POSIX    | descendant with slash and dot segments             | SPEC          |
+      | POSIX    | component named .specs2                            | NON_SPEC      |
+      | Windows  | mixed separators and case variant of .specs        | SPEC          |
+      | POSIX    | symlink whose real target is under .specs          | SPEC          |
+      | Windows  | reparse point whose real target is outside         | NON_SPEC      |
+      | POSIX    | new leaf under resolved .specs ancestor            | SPEC          |
+      | Windows  | unreadable or unstable ancestor                    | INDETERMINATE |
+      | POSIX    | missing physical spec root with future spec target | SPEC          |
+      | POSIX    | missing physical spec root with external target    | NON_SPEC      |
+      | POSIX    | valid case-insensitive xd device uri              | NON_SPEC      |
+      | Windows  | malformed xd or other scheme uri                  | INDETERMINATE |
 
   @feature4 @FR-4 @AC-4.1 @id:SCEN-closed-path-policy
   Scenario Outline: Every direct mutator has one closed decision

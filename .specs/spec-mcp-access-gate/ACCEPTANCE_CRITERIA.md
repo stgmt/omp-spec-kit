@@ -20,7 +20,7 @@ These criteria define future verification obligations. Scenario text alone is no
 
 ## AC-3.1: Containment covers path and filesystem boundaries
 
-**EARS:** WHEN a non-allowlisted direct mutation target uses either separator, case variants on Windows, dot segments, exact .specs root, descendants, .specs2, a POSIX symlink, a Windows reparse point, a non-existing leaf, NUL, ADS, UNC/device, or absolute input THEN the resolver SHALL use canonical component-aware filesystem resolution and SHALL return exactly SPEC, NON_SPEC, or INDETERMINATE; empty targets and unsupported metadata SHALL be INDETERMINATE.
+**EARS:** WHEN a non-allowlisted direct mutation target is a valid case-insensitive `xd://` or `xd://<name>` without `/`, `?`, or `#` THEN the resolver SHALL return NON_SPEC before filesystem normalization; WHEN the physical specifications root is missing THEN an external target SHALL return NON_SPEC and a future target within the logical `.specs` root SHALL return SPEC; WHEN a target uses either separator, case variants on Windows, dot segments, exact .specs root, descendants, .specs2, a POSIX symlink, a Windows reparse point, a non-existing leaf, NUL, ADS, UNC/device, malformed xdev, other URI schemes, or absolute input THEN the resolver SHALL use canonical component-aware filesystem resolution and SHALL return exactly SPEC, NON_SPEC, or INDETERMINATE; empty targets, malformed schemes, and unsupported metadata SHALL be INDETERMINATE.
 
 **Requirement:** [FR-3](FR.md#fr-3-filesystem-backed-containment)
 
