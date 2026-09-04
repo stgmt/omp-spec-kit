@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "node scripts/build-plugin.mjs",
-    "verify": "node scripts/verify-marketplace.mjs && node scripts/verify-package.mjs && npm run check:spec-corpus && npm run check:spec-port",
+    "verify": "node scripts/verify-marketplace.mjs && node scripts/verify-package.mjs && npm run check:spec-corpus && npm run check:spec-port && npm run check:blast && npm run check:mutations",
     "check:spec-corpus": "node scripts/check-spec-corpus.mjs",
     "check:spec-port": "node scripts/check-spec-port.mjs",
     "dogfood:mcp": "node scripts/dogfood-mcp.mjs",
@@ -21,7 +21,10 @@
     "test:staged": "npx cucumber-js tests/features/staged-mcp.feature --format progress",
     "test:release-archive": "node scripts/smoke-release-archive.mjs",
     "test:release-integrity": "npx cucumber-js tests/features/release-evidence.feature --tags @mcp-release-integrity --format progress",
-    "release:preflight": "node scripts/release-preflight.mjs"
+    "release:preflight": "node scripts/release-preflight.mjs",
+    "docs:mcp": "node scripts/generate-mcp-docs.mjs",
+    "check:blast": "node scripts/measure-mcp-tool-blast.mjs",
+    "check:mutations": "node scripts/check-tool-surface-mutations.mjs"
   },
   "devDependencies": {
     "@cucumber/cucumber": "13.2.1"

@@ -4,43 +4,31 @@ import path from "node:path";
 import { snapshotTree } from "../support/world.mjs";
 
 export const V05_NEW_TOOL_NAMES = Object.freeze([
-  "find_by_tags",
-  "list_tasks",
-  "find_orphans",
-  "validate_anchor",
-  "list_specs",
-  "validate_requirement_metadata",
-  "policy_query_requirements",
-  "get_archival_proof",
-  "validate_spec",
-  "get_spec_status",
   "mcp_preflight",
-  "list_spec_docs",
-  "read_spec_doc",
-  "read_attachment",
-  "get_test_result",
-  "get_scenario_trace",
+  "spec_catalog",
+  "spec_entities",
+  "spec_graph",
+  "spec_documents",
+  "spec_inspect",
+  "spec_tasks",
+  "spec_evidence",
+  "spec_markdown",
+  "spec_propose_patch",
+  "apply_proposed_patch",
 ]);
 
 const OPERATIONS = Object.freeze({
-  spec_overview: "overview",
-  spec_get_node: "getNode",
-  find_by_tags: "findByTags",
-  list_tasks: "listTasks",
-  find_orphans: "findOrphans",
-  validate_anchor: "validateAnchor",
-  list_specs: "listSpecs",
-  validate_requirement_metadata: "validateRequirementMetadata",
-  policy_query_requirements: "policyQueryRequirements",
-  get_archival_proof: "getArchivalProof",
-  validate_spec: "validateSpec",
-  get_spec_status: "getSpecStatus",
   mcp_preflight: "mcpPreflight",
-  list_spec_docs: "listSpecDocs",
-  read_spec_doc: "readSpecDoc",
-  read_attachment: "readAttachment",
-  get_test_result: "getTestResult",
-  get_scenario_trace: "getScenarioTrace",
+  spec_catalog: "catalog",
+  spec_entities: "entities",
+  spec_graph: "graph",
+  spec_documents: "documents",
+  spec_inspect: "inspect",
+  spec_tasks: "tasks",
+  spec_evidence: "evidence",
+  spec_markdown: "markdown",
+  spec_propose_patch: "proposePatch",
+  apply_proposed_patch: "applyProposedPatch",
 });
 
 const EVIDENCE_DIR = ".omp-spec-kit/evidence";
@@ -126,55 +114,55 @@ async function writeEvidence({ projectRoot, repositoryRoot, fixtureName, graphFi
 }
 
 async function runSuccessMatrix({ callTool, projectRoot, repositoryRoot }) {
-  const V05_NEW_TOOL_CASES = Object.freeze([
-    ["find_by_tags", { tags: ["@feature1"] }, (data) => {
+  const V08_CONSOLIDATED_CASES = Object.freeze([
+    ["spec_inspect", { check: "scenariosByTags", tags: ["@feature1"] }, (data) => {
       assert.equal(data.kind, "scenarios");
       assert.ok(data.count > 0);
       for (const scenario of data.scenarios) assert.ok(scenario.tags.includes("@feature1"));
     }],
-    ["list_tasks", { spec: "product", limit: 20 }, (data) => {
+    ["spec_tasks", { spec: "product", limit: 20 }, (data) => {
       assert.equal(data.kind, "tasks");
       for (const task of data.tasks) assert.equal(task.specSlug, "product");
     }],
-    ["find_orphans", {}, (data) => {
+    ["spec_inspect", { check: "orphans" }, (data) => {
       assert.equal(data.kind, "orphans");
       const ids = data.findings.map((finding) => finding.canonicalId);
       assert.deepEqual(ids, [...ids].sort());
       for (const finding of data.findings) assert.ok(["UNCOVERED_FR", "ORPHAN_TASK", "SCENARIO_TAG_ORPHAN"].includes(finding.code));
     }],
-    ["validate_anchor", { anchor: "plugin-distribution:FR-1" }, (data) => {
+    ["spec_inspect", { check: "anchor", anchor: "plugin-distribution:FR-1" }, (data) => {
       assert.equal(data.kind, "spec-graph-id");
       assert.equal(data.registered, true);
       assert.equal(data.location.canonicalId, "plugin-distribution:FR-1");
     }],
-    ["list_specs", {}, (data) => {
+    ["spec_catalog", { view: "specs" }, (data) => {
       assert.equal(data.kind, "specs");
       assert.deepEqual(data.specs, [...new Set(data.specs)].sort());
       assert.ok(data.specs.includes("product"));
     }],
-    ["validate_requirement_metadata", { metadata: {} }, (data) => {
+    ["spec_inspect", { check: "requirementMetadata", metadata: {} }, (data) => {
       assert.equal(data.kind, "requirement-metadata");
       assert.equal(data.valid, true);
       assert.deepEqual(data.issues, []);
       assert.deepEqual(data.metadata, {});
     }],
-    ["policy_query_requirements", {}, (data) => {
+    ["spec_inspect", { check: "requirementsPolicy" }, (data) => {
       assert.equal(data.kind, "requirement-policy");
       for (const result of data.results) assert.ok(["FUNCTIONAL_REQUIREMENT", "NON_FUNCTIONAL_REQUIREMENT"].includes(result.kind));
     }],
-    ["get_archival_proof", { spec: "product" }, (data) => {
+    ["spec_inspect", { check: "archivalProof", spec: "product" }, (data) => {
       assert.equal(data.kind, "archival-proof");
       assert.ok(["ARCHIVE", "KEEP_FALSE_POSITIVE"].includes(data.verdict));
       assert.equal(data.count, data.liveInboundReferences.length);
     }],
-    ["validate_spec", { spec: "product" }, (data) => {
+    ["spec_inspect", { check: "specValidation", spec: "product" }, (data) => {
       assert.equal(data.kind, "spec-validation");
       assert.equal(data.spec, "product");
       assert.equal(typeof data.valid, "boolean");
       assert.ok(data.snapshot && typeof data.snapshot === "object");
       assertRelativePaths(data.findings);
     }],
-    ["get_spec_status", { spec: "product", view: "summary" }, (data) => {
+    ["spec_catalog", { view: "status", spec: "product", statusView: "summary" }, (data) => {
       assert.equal(data.kind, "summary");
       assert.equal(data.specs.length, 1);
       assert.equal(data.specs[0].spec, "product");
@@ -186,38 +174,38 @@ async function runSuccessMatrix({ callTool, projectRoot, repositoryRoot }) {
       assert.equal(data.mutationReady, true);
       assert.equal(data.worktree.matchesResolvedRoot, true);
     }],
-    ["list_spec_docs", { spec: "product" }, (data) => {
+    ["spec_documents", { action: "list", spec: "product" }, (data) => {
       assert.equal(data.kind, "spec-documents");
       assert.deepEqual(data.docs, [...data.docs].sort());
       assert.ok(data.docs.includes("FR.md"));
       assert.ok(data.attachments.includes("tool-e2e.bin"));
     }],
-    ["read_spec_doc", { spec: "product", doc: "FR.md", offset: 1, limit: 5 }, (data) => {
+    ["spec_documents", { action: "read", spec: "product", doc: "FR.md", offset: 1, limit: 5 }, (data) => {
       assert.equal(data.kind, "document");
       assert.equal(data.startLine, 1);
       assert.equal(data.lines, 5);
       assert.equal(data.truncated, true);
       assert.ok(data.content.includes("# Functional requirements"));
     }],
-    ["read_attachment", { spec: "product", path: "tool-e2e.bin" }, (data) => {
+    ["spec_documents", { action: "attachment", spec: "product", path: "tool-e2e.bin" }, (data) => {
       assert.equal(data.kind, "attachment");
       assert.equal(data.bytes, 15);
       assert.equal(Buffer.from(data.base64, "base64").toString("utf8"), "tool-e2e-bytes\n");
     }],
-    ["get_test_result", { scenarioId: SCENARIO_ID }, (data) => {
+    ["spec_evidence", { view: "result", scenarioId: SCENARIO_ID }, (data) => {
       assert.equal(data.kind, "test-result");
       assert.equal(data.scenarioId, SCENARIO_ID);
       assert.ok(["NOT_RUN", "PASSED", "FAILED", "UNKNOWN"].includes(data.result));
       assert.equal(typeof data.stale, "boolean");
     }],
-    ["get_scenario_trace", { scenarioId: SCENARIO_ID }, (data) => {
+    ["spec_evidence", { view: "trace", scenarioId: SCENARIO_ID }, (data) => {
       assert.equal(data.kind, "scenario-trace");
       assert.equal(data.scenarioId, SCENARIO_ID);
       assert.ok(["NOT_RUN", "PASSED", "FAILED", "UNKNOWN"].includes(data.result));
       assert.equal(typeof data.stale, "boolean");
     }],
   ]);
-  for (const [name, args, check] of V05_NEW_TOOL_CASES) {
+  for (const [name, args, check] of V08_CONSOLIDATED_CASES) {
     const value = await callRow({ callTool, name, args, projectRoot, repositoryRoot, requestId: `tool-e2e-success-${name}` });
     check(value.data);
     if (value.page !== null) assert.ok(value.page.returned <= value.page.limit);
@@ -226,72 +214,79 @@ async function runSuccessMatrix({ callTool, projectRoot, repositoryRoot }) {
 
 async function runInvalidMatrix({ callTool, projectRoot, repositoryRoot }) {
   const cases = [
-    ["find_by_tags", { tags: [] }, "INVALID_PARAMETER"],
-    ["list_tasks", { spec: "product", limit: 201 }, "LIMIT_EXCEEDED"],
-    ["list_tasks", { spec: "product", limit: 0 }, "INVALID_REQUEST"],
-    ["find_orphans", { unexpected: true }, "UNKNOWN_FIELD"],
-    ["validate_anchor", { anchor: "" }, "INVALID_PARAMETER"],
-    ["list_specs", { unexpected: true }, "UNKNOWN_FIELD"],
-    ["policy_query_requirements", { verificationMethod: "bad" }, "INVALID_REQUEST"],
-    ["get_archival_proof", { spec: "bad!" }, "INVALID_PARAMETER"],
-    ["validate_spec", { spec: "bad!" }, "INVALID_PARAMETER"],
-    ["get_spec_status", { spec: "product", view: "bad" }, "INVALID_REQUEST"],
+    ["spec_inspect", { check: "scenariosByTags", tags: [] }, "INVALID_PARAMETER"],
+    ["spec_tasks", { spec: "product", limit: 201 }, "LIMIT_EXCEEDED"],
+    ["spec_tasks", { spec: "product", limit: 0 }, "INVALID_REQUEST"],
+    ["spec_inspect", { check: "orphans", unexpected: true }, "UNKNOWN_FIELD"],
+    ["spec_inspect", { check: "anchor", anchor: "" }, "INVALID_PARAMETER"],
+    ["spec_catalog", { view: "specs", unexpected: true }, "UNKNOWN_FIELD"],
+    ["spec_inspect", { check: "requirementsPolicy", verificationMethod: "bad" }, "INVALID_REQUEST"],
+    ["spec_inspect", { check: "archivalProof", spec: "bad!" }, "INVALID_PARAMETER"],
+    ["spec_inspect", { check: "specValidation", spec: "bad!" }, "INVALID_PARAMETER"],
+    ["spec_catalog", { view: "status", spec: "product", statusView: "bad" }, "INVALID_REQUEST"],
     ["mcp_preflight", { unexpected: true }, "UNKNOWN_FIELD"],
-    ["list_spec_docs", { spec: "missing" }, "NOT_FOUND"],
-    ["read_spec_doc", { spec: "product", doc: "../FR.md", offset: 1, limit: 1 }, "PATH_FORBIDDEN"],
-    ["read_attachment", { spec: "product", path: "../FR.md" }, "PATH_FORBIDDEN"],
-    ["get_test_result", {}, "INVALID_REQUEST"],
-    ["get_scenario_trace", {}, "INVALID_REQUEST"],
-    ["get_test_result", { scenarioId: "product:SCEN-unknown" }, "SCENARIO_NOT_FOUND"],
-    ["get_scenario_trace", { scenarioId: "product:SCEN-unknown" }, "SCENARIO_NOT_FOUND"],
+    ["spec_documents", { action: "list", spec: "missing" }, "NOT_FOUND"],
+    ["spec_documents", { action: "read", spec: "product", doc: "../FR.md", offset: 1, limit: 1 }, "PATH_FORBIDDEN"],
+    ["spec_documents", { action: "attachment", spec: "product", path: "../FR.md" }, "PATH_FORBIDDEN"],
+    ["spec_evidence", { view: "result" }, "INVALID_REQUEST"],
+    ["spec_evidence", { view: "trace" }, "INVALID_REQUEST"],
+    ["spec_evidence", { view: "result", scenarioId: "product:SCEN-unknown" }, "SCENARIO_NOT_FOUND"],
+    ["spec_evidence", { view: "trace", scenarioId: "product:SCEN-unknown" }, "SCENARIO_NOT_FOUND"],
   ];
   for (const [name, args, expected] of cases) {
     await callInvalid({ callTool, name, args, expected, projectRoot, repositoryRoot, requestId: "tool-e2e-invalid-" + name });
   }
-  const metadataValue = await callRow({ callTool, name: "validate_requirement_metadata", args: { metadata: { verificationMethod: "bad" } }, projectRoot, repositoryRoot, requestId: "tool-e2e-invalid-validate_requirement_metadata" });
+  const metadataValue = await callRow({
+    callTool,
+    name: "spec_inspect",
+    args: { check: "requirementMetadata", metadata: { verificationMethod: "bad" } },
+    projectRoot,
+    repositoryRoot,
+    requestId: "tool-e2e-invalid-requirementMetadata",
+  });
   assert.equal(metadataValue.ok, true);
   assert.equal(metadataValue.data.valid, false);
   assert.ok(metadataValue.data.issues.some((issue) => issue.field === "verificationMethod"));
-  const aliases = await callTool("list_specs", { schemaVersion: "spec-kernel@1", requestId: "tool-e2e-invalid-array", spec_slugs: [] });
+  const aliases = await callTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "tool-e2e-invalid-array", view: "specs", spec_slugs: [] });
   const aliasValue = structured(aliases);
   assert.equal(aliasValue.ok, false);
-  assert.equal(aliasValue.error.code, "UNKNOWN_FIELD");
+  assert.equal(aliasValue.error.code, "INVALID_REQUEST");
 }
 
 async function runBoundaryMatrix({ callTool, projectRoot, repositoryRoot, outsideRoot }) {
-  const page = await callRow({ callTool, name: "list_tasks", args: { spec: "product", limit: 1 }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-page" });
+  const page = await callRow({ callTool, name: "spec_tasks", args: { spec: "product", limit: 1 }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-page" });
   assert.equal(page.page.limit, 1);
   assert.equal(page.page.returned, 1);
   if (page.page.nextCursor !== null) {
-    const cursorValue = await callRow({ callTool, name: "list_tasks", args: { spec: "product", limit: 1, cursor: page.page.nextCursor }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-cursor" });
+    const cursorValue = await callRow({ callTool, name: "spec_tasks", args: { spec: "product", limit: 1, cursor: page.page.nextCursor }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-cursor" });
     assert.ok(cursorValue.page.returned <= 1);
   }
 
-  const tagAlias = await callRow({ callTool, name: "find_by_tags", args: { tags: ["feature1"] }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-tag-alias" });
-  assert.equal(tagAlias.data.count, (await callRow({ callTool, name: "find_by_tags", args: { tags: ["@feature1"] }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-tag-canonical" })).data.count);
-  const filteredTasks = await callRow({ callTool, name: "list_tasks", args: { spec: "product", statuses: ["planned"], limit: 20 }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-task-filter" });
+  const tagAlias = await callRow({ callTool, name: "spec_inspect", args: { check: "scenariosByTags", tags: ["feature1"] }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-tag-alias" });
+  assert.equal(tagAlias.data.count, (await callRow({ callTool, name: "spec_inspect", args: { check: "scenariosByTags", tags: ["@feature1"] }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-tag-canonical" })).data.count);
+  const filteredTasks = await callRow({ callTool, name: "spec_tasks", args: { spec: "product", statuses: ["planned"], limit: 20 }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-task-filter" });
   for (const task of filteredTasks.data.tasks) assert.equal(task.status, "planned");
-  const missingMethod = await callRow({ callTool, name: "policy_query_requirements", args: { verificationMethodMissing: true }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-policy-filter" });
+  const missingMethod = await callRow({ callTool, name: "spec_inspect", args: { check: "requirementsPolicy", verificationMethodMissing: true }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-policy-filter" });
   for (const result of missingMethod.data.results) assert.equal(result.metadata, null);
-  const markdownAnchor = await callRow({ callTool, name: "validate_anchor", args: { anchor: ".specs/product/FR.md#fr-1--specification-first-public-init" }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-markdown-anchor" });
+  const markdownAnchor = await callRow({ callTool, name: "spec_inspect", args: { check: "anchor", anchor: ".specs/product/FR.md#fr-1--specification-first-public-init" }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-markdown-anchor" });
   assert.equal(markdownAnchor.data.registered, true);
   for (const view of ["status", "summary", "counts", "coverage"]) {
-    const status = await callRow({ callTool, name: "get_spec_status", args: { spec: "product", view }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-status-" + view });
+    const status = await callRow({ callTool, name: "spec_catalog", args: { view: "status", spec: "product", statusView: view }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-status-" + view });
     assert.equal(status.data.specs.length, 1);
     assert.equal(status.data.specs[0].spec, "product");
   }
   const largeAttachment = path.join(projectRoot, ".specs", "product", "tool-e2e-large.bin");
   await writeFile(largeAttachment, Buffer.alloc(8 * 1024 * 1024 + 1, 7));
-  await callInvalid({ callTool, name: "read_attachment", args: { spec: "product", path: "tool-e2e-large.bin" }, expected: "LIMIT_EXCEEDED", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-large-attachment" });
+  await callInvalid({ callTool, name: "spec_documents", args: { action: "attachment", spec: "product", path: "tool-e2e-large.bin" }, expected: "LIMIT_EXCEEDED", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-large-attachment" });
   await rm(largeAttachment, { force: true });
-  const section = await callRow({ callTool, name: "read_spec_doc", args: { spec: "product", doc: "FR.md", section: "FR-1 — Specification-first public init", offset: 1, limit: 20 }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-section" });
+  const section = await callRow({ callTool, name: "spec_documents", args: { action: "read", spec: "product", doc: "FR.md", section: "FR-1 — Specification-first public init", offset: 1, limit: 20 }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-section" });
   assert.ok(section.data.content.includes("FR-1"));
-  await callInvalid({ callTool, name: "read_spec_doc", args: { spec: "product", doc: "FR.md", offset: 0, limit: 1 }, expected: "INVALID_REQUEST", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-offset" });
-  await callInvalid({ callTool, name: "read_spec_doc", args: { spec: "product", doc: "missing.md" }, expected: "DOC_NOT_FOUND", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-missing-doc" });
-  await callInvalid({ callTool, name: "read_attachment", args: { spec: "product", path: "FR.md" }, expected: "ATTACHMENT_NOT_FOUND", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-text-attachment" });
+  await callInvalid({ callTool, name: "spec_documents", args: { action: "read", spec: "product", doc: "FR.md", offset: 0, limit: 1 }, expected: "INVALID_REQUEST", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-offset" });
+  await callInvalid({ callTool, name: "spec_documents", args: { action: "read", spec: "product", doc: "missing.md" }, expected: "DOC_NOT_FOUND", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-missing-doc" });
+  await callInvalid({ callTool, name: "spec_documents", args: { action: "attachment", spec: "product", path: "FR.md" }, expected: "ATTACHMENT_NOT_FOUND", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-text-attachment" });
   if (outsideRoot) {
-    await callInvalid({ callTool, name: "read_spec_doc", args: { spec: "product", doc: "../../.omp-spec-kit/evidence/outside-link/secret.md" }, expected: "PATH_FORBIDDEN", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-symlink-doc" });
-    await callInvalid({ callTool, name: "read_attachment", args: { spec: "product", path: "../../.omp-spec-kit/evidence/outside-link/secret.bin" }, expected: "PATH_FORBIDDEN", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-symlink-attachment" });
+    await callInvalid({ callTool, name: "spec_documents", args: { action: "read", spec: "product", doc: "../../.omp-spec-kit/evidence/outside-link/secret.md" }, expected: "PATH_FORBIDDEN", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-symlink-doc" });
+    await callInvalid({ callTool, name: "spec_documents", args: { action: "attachment", spec: "product", path: "../../.omp-spec-kit/evidence/outside-link/secret.bin" }, expected: "PATH_FORBIDDEN", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-symlink-attachment" });
   }
 }
 
@@ -300,46 +295,46 @@ async function runMutationMatrix({ callTool, projectRoot, repositoryRoot, surfac
   assert.ok(restart !== null, "tool-E2E mutation proof requires a restart-capable adapter");
   const taskPath = path.join(projectRoot, ".specs", "product", "TASKS.md");
   const originalTasks = await readFile(taskPath, "utf8");
-  const cursorSeed = await callRow({ callTool, name: "list_tasks", args: { spec: "product", limit: 1 }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-cursor-seed" });
+  const cursorSeed = await callRow({ callTool, name: "spec_tasks", args: { spec: "product", limit: 1 }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-cursor-seed" });
   assert.ok(cursorSeed.page.nextCursor, "fixture must provide a next cursor");
   await writeFile(taskPath, originalTasks + "\n\nTool E2E cursor mutation.\n", "utf8");
   await restart();
-  const staleCursor = await callRow({ callTool, name: "list_tasks", args: { spec: "product", limit: 1, cursor: cursorSeed.page.nextCursor }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-stale-cursor" });
+  const staleCursor = await callRow({ callTool, name: "spec_tasks", args: { spec: "product", limit: 1, cursor: cursorSeed.page.nextCursor }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-stale-cursor" });
   assert.equal(staleCursor.ok, false);
   assert.equal(staleCursor.error.code, "STALE_CURSOR");
   await writeFile(taskPath, originalTasks, "utf8");
   await restart();
-  const overview = await callRow({ callTool, name: "spec_overview", args: { specSlugs: [] }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-overview" });
-  const node = await callRow({ callTool, name: "spec_get_node", args: { canonicalId: SCENARIO_ID, projection: "summary", includeIncidentCounts: false }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-node" });
+  const overview = await callRow({ callTool, name: "spec_catalog", args: { view: "overview", specSlugs: [] }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-overview" });
+  const node = await callRow({ callTool, name: "spec_entities", args: { mode: "get", canonicalId: SCENARIO_ID, projection: "summary", includeIncidentCounts: false }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-node" });
   const graphFingerprint = overview.graph.fingerprint;
   const scenarioContentHash = node.data.node.contentHash;
   const evidencePath = path.join(projectRoot, EVIDENCE_DIR, "last-test-run.ndjson");
   await rm(evidencePath, { force: true });
-  const notRun = await callRow({ callTool, name: "get_test_result", args: { scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-not-run" });
+  const notRun = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-not-run" });
   assert.equal(notRun.data.result, "NOT_RUN");
   assert.equal(notRun.data.stale, true);
-  const notRunTrace = await callRow({ callTool, name: "get_scenario_trace", args: { scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-not-run-trace" });
+  const notRunTrace = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-not-run-trace" });
   assert.equal(notRunTrace.data.result, "NOT_RUN");
   assert.equal(notRunTrace.data.trace, null);
   await writeEvidence({ projectRoot, repositoryRoot, fixtureName: "v05-passing.ndjson", graphFingerprint, scenarioContentHash });
-  const passing = await callRow({ callTool, name: "get_test_result", args: { scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-passing" });
+  const passing = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-passing" });
   assert.equal(passing.data.result, "PASSED");
   assert.equal(passing.data.stale, false);
-  const trace = await callRow({ callTool, name: "get_scenario_trace", args: { scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-trace" });
+  const trace = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-trace" });
   assert.equal(trace.data.result, "PASSED");
 
   await writeEvidence({ projectRoot, repositoryRoot, fixtureName: "v05-failed.ndjson", graphFingerprint, scenarioContentHash });
-  const failed = await callRow({ callTool, name: "get_test_result", args: { scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-failed" });
+  const failed = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-failed" });
   assert.equal(failed.data.result, "FAILED");
   assert.equal(failed.data.stale, true);
-  const failedTrace = await callRow({ callTool, name: "get_scenario_trace", args: { scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-failed-trace" });
+  const failedTrace = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-failed-trace" });
   assert.equal(failedTrace.data.result, "FAILED");
   assert.ok(failedTrace.data.trace && failedTrace.data.trace.status);
   await writeEvidence({ projectRoot, repositoryRoot, fixtureName: "v05-incomplete.ndjson", graphFingerprint, scenarioContentHash });
-  const incomplete = await callRow({ callTool, name: "get_test_result", args: { scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-incomplete" });
+  const incomplete = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-incomplete" });
   assert.equal(incomplete.data.result, "UNKNOWN");
   assert.equal(incomplete.data.stale, true);
-  const incompleteTrace = await callRow({ callTool, name: "get_scenario_trace", args: { scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-incomplete-trace" });
+  const incompleteTrace = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-incomplete-trace" });
   assert.equal(incompleteTrace.data.result, "UNKNOWN");
   assert.ok(incompleteTrace.data.trace === null || !incompleteTrace.data.trace.status);
   const scenarioPath = path.join(projectRoot, ".specs", "product", "FR.md");
@@ -347,7 +342,7 @@ async function runMutationMatrix({ callTool, projectRoot, repositoryRoot, surfac
   await writeEvidence({ projectRoot, repositoryRoot, fixtureName: "v05-passing.ndjson", graphFingerprint, scenarioContentHash });
   await writeFile(scenarioPath, originalScenario + "\n\nTool E2E corpus mutation.\n", "utf8");
   await restart();
-  const changed = await callRow({ callTool, name: "get_test_result", args: { scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-scenario" });
+  const changed = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-scenario" });
   assert.equal(changed.data.result, "UNKNOWN", JSON.stringify(changed.data));
   assert.equal(changed.data.stale, true);
   await writeFile(scenarioPath, originalScenario, "utf8");
@@ -358,22 +353,22 @@ async function runMutationMatrix({ callTool, projectRoot, repositoryRoot, surfac
   await writeEvidence({ projectRoot, repositoryRoot, fixtureName: "v05-passing.ndjson", graphFingerprint, scenarioContentHash });
   await writeFile(featurePath, originalFeature.replace("Scenario: Specification-only init reports no installable plugin", "Scenario: Specification-only init reports no installable plugin changed"), "utf8");
   await restart();
-  const scenarioMutation = await callRow({ callTool, name: "get_test_result", args: { scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-scenario" });
+  const scenarioMutation = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-scenario" });
   assert.equal(scenarioMutation.data.result, "UNKNOWN", JSON.stringify(scenarioMutation.data));
   assert.equal(scenarioMutation.data.stale, true);
   await writeFile(featurePath, originalFeature, "utf8");
   await restart();
 
   await writeFile(evidencePath, "malformed evidence\n", "utf8");
-  const malformed = await callRow({ callTool, name: "get_scenario_trace", args: { scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-malformed" });
+  const malformed = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-malformed" });
   assert.equal(malformed.data.result, "UNKNOWN");
-  const malformedResult = await callRow({ callTool, name: "get_test_result", args: { scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-malformed-result" });
+  const malformedResult = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-malformed-result" });
   assert.equal(malformedResult.data.result, "UNKNOWN");
   const largeEvidence = Buffer.alloc(16 * 1024 * 1024 + 1, 1);
   await writeFile(evidencePath, largeEvidence);
-  const oversizedResult = await callRow({ callTool, name: "get_test_result", args: { scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-large-result" });
+  const oversizedResult = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-large-result" });
   assert.equal(oversizedResult.data.result, "NOT_RUN");
-  const oversizedTrace = await callRow({ callTool, name: "get_scenario_trace", args: { scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-large-trace" });
+  const oversizedTrace = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-large-trace" });
   assert.equal(oversizedTrace.data.result, "NOT_RUN");
   await rm(evidencePath, { force: true });
 }
@@ -396,5 +391,5 @@ export async function runEvidenceE2E({ listTools, callTool, projectRoot, reposit
   await runInvalidMatrix({ callTool, projectRoot, repositoryRoot });
   await runBoundaryMatrix({ callTool, projectRoot, repositoryRoot, outsideRoot });
   await runMutationMatrix({ callTool, projectRoot, repositoryRoot, surface });
-  return { toolCount: 38 };
+  return { toolCount: 11 };
 }

@@ -106,3 +106,12 @@ These are immutable historical readback facts, not a simulated local verifier ru
 ## Isolation
 
 Each scenario owns one `mkdtemp` tree containing project-a, project-b, package decoy, copied package, and candidate data. Project identities are distinct but their absolute paths and environment values are never placed in expected result bytes. The provenance assertions compare fixed server identity, opaque root IDs, root mode, and mismatch state; they also require inventory and query results from one execution context to carry equal provenance. Cleanup removes only that tree after the server closes. Tests do not mutate tracked source, user state, tags, releases, or shared fixtures. The copied payload and corpus are externally hashed before use. A pinned OMP package version may reproduce the user path, but no assertion depends on manager/provider topology.
+
+## Current MCP UX capture (2026-09-04)
+
+The release-candidate Cucumber Messages fixture was recaptured by `bash scripts/docker-bdd.sh` after the MCP 11-tool contract consolidation. The capture passed with 7 scenarios and 69 completed steps.
+
+- Fixture SHA-256: `b0b75ad6b7da12945696656598ad950029ad5c6208080501f82a21cbf2a0fef4`
+- Source manifest: 183 current inputs; manifest SHA-256 `e5290a9f34c5ec4614e1ed459dc52de69b62bfd70c3e14a3b6c334e3af59cf8e`; aggregate `22633b2409383ec2eccb49907ca8f5bbcb84819acc817fd62feda62cb11ca87e`
+- Docker image digest: `sha256:0a1295375d35619d17afb0d4c143346bfd9a043065b6dba5824b71a8a12bd520`
+- Provenance: `tests/fixtures/release-candidate/cucumber-messages.provenance.json``

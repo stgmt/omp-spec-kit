@@ -53,11 +53,11 @@ The 49-tool surface is unchanged. Windows `read` selectors (`:1`, ranges, `+`, `
 
 Proof: `spec-mcp-access-gate` FR-8/FR-9 with AC-8.1/AC-9.1, extended `read-selectors` / `execution-edges` BDD matrices, full build/verify/dogfood/staged/Docker suite, release preflight, archive smoke, attestation, and installed-package proof.
 
-## v0.8.0 — single 38-tool surface
+## v0.8.0 — consolidated 11-tool surface
 
-Outcome: agents see one tool surface with no duplicates and no release-stage selection: 38 tools (24 reads, 12 workflow compilers plus propose/apply, lifecycle operations), one apply verb, one proposal engine.
+Outcome: agents see one task-oriented tool surface with 11 tools: 10 read-only tools and one transactional apply tool, with discriminated branches, zero duplicate verbs, and zero release stages.
 
-Proof: 38-tool inventory with registration order, consolidated proposal/apply/evidence matrices, Docker BDD, release preflight, archive smoke, attestation, and installed-package proof.
+Proof: exact 11-tool discovery with 10/1 annotations, tool blast measurement <= 25,499 bytes and <= 2,000 description chars, zero surviving mutants gate, Docker BDD, release preflight, archive smoke, attestation, and installed-package proof.
 
 ## v0.9.0 — automatic plan gate
 

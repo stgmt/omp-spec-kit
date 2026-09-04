@@ -1,27 +1,13 @@
-// Single source of truth for the single 38-tool MCP surface. The
-// `spec_inventory` NAME COLLISION applies only to the OMP extension registry,
-// where the v0.1 entry owns that name — the MCP surface has its own namespace,
-// so spec_inventory IS one of the eight MCP tools per SCHEMA-11 while
-// register-spec-tools (the OMP side) intentionally skips it and registers only
-// the remaining seven.
-//
-// Both transports derive their argument schema from this table so the closed
-// SCHEMA-8 op args cannot drift between the OMP zod surface and the MCP JSON
-// Schema surface.
-//
-// Field kinds:
-//   string         - { type: "string" }              / z.string()
-//   boolean        - { type: "boolean" }             / z.boolean()
-//   integer        - { type: "integer", min 1 }      / z.number().int().min(1)
-//   nullableString - { type: ["string","null"] }     / z.union([z.string(), z.null()])
-//   enum           - { type: "string", enum }        / z.enum(values)
-//   enumArray      - { type: "array", items: enum }  / z.array(z.enum(values))
-//   stringArray    - { type: "array", items: string }/ z.array(z.string())
+// Single source of truth for the consolidated 11-tool MCP surface.
+// Every tool is task-oriented, strictly typed, and self-contained.
+// 10 tools are read-only; exactly 1 tool (apply_proposed_patch) is mutating.
 
 import {
   DIAGNOSTIC_CODES,
   DIAGNOSTIC_SEVERITIES,
   EDGE_TYPES,
+  EDGE_TYPE_DESCRIPTORS,
+  ENTITY_TYPE_DESCRIPTORS,
   LINK_OUTCOMES,
   NODE_KINDS,
 } from "../kernel/types.js";
@@ -34,137 +20,242 @@ function optionalField(name, kind, values) {
   return { ...field(name, kind, values), optional: true };
 }
 
-const TASK_STATUS_VALUES = ["planned", "todo", "ready", "in-progress", "blocked", "done", "deferred", "unknown"];
-const VERIFICATION_METHOD_VALUES = ["test", "analysis", "review", "inspection", "demonstration"];
-const SAFETY_CLASS_VALUES = ["critical", "major", "minor"];
-const DELIVERY_VALUES = ["NOT_DECLARED", "DELIVERED", "INCOMPLETE"];
-const SPEC_STATUS_VALUES = ["active", "backlog"];
-const READINESS_VIEW_VALUES = ["status", "summary", "counts", "coverage"];
+export const TASK_STATUS_VALUES = Object.freeze([
+  "planned",
+  "todo",
+  "ready",
+  "in-progress",
+  "blocked",
+  "done",
+  "deferred",
+  "unknown",
+]);
+
+export const VERIFICATION_METHOD_VALUES = Object.freeze([
+  "test",
+  "analysis",
+  "review",
+  "inspection",
+  "demonstration",
+]);
+
+export const SAFETY_CLASS_VALUES = Object.freeze(["critical", "major", "minor"]);
+export const DELIVERY_VALUES = Object.freeze(["NOT_DECLARED", "DELIVERED", "INCOMPLETE"]);
+export const SPEC_STATUS_VALUES = Object.freeze(["active", "backlog"]);
+export const READINESS_VIEW_VALUES = Object.freeze(["status", "summary", "counts", "coverage"]);
+
+export const PATCH_OPERATION_KINDS = Object.freeze([
+  "insert_at_eof",
+  "insert_after_heading",
+  "replace_section",
+  "replace_in_section",
+  "replace_task_status",
+  "replace_document",
+  "delete_document",
+  "rename_document",
+]);
+
 export const TOOL_CONTRACTS = Object.freeze([
   {
-    tool: "spec_inventory",
-    label: "Spec Inventory",
-    operation: "inventory",
-    description:
-      "Read a bounded, paged inventory of the specifications under the target repository's .specs directory. MCP-only name: in the OMP extension registry this name is owned by the v0.1 lightweight tool.",
-    fields: [
-      field("specSlugs", "stringArray"),
-      field("includeDocuments", "boolean"),
-      field("limit", "integer"),
-      field("cursor", "nullableString"),
-    ],
+    tool: "mcp_preflight",
+    label: "MCP Preflight",
+    operation: "mcpPreflight",
+    description: "Read redacted root, lock, and dependency admission facts.",
+    fields: [optionalField("declaredWorktree", "string")],
   },
   {
-    tool: "spec_get_node",
-    label: "Spec Get Node",
-    operation: "getNode",
-    description:
-      "Read one specification graph node by qualified canonical ID (for example plugin-distribution:FR-1), with summary or full projection.",
-    fields: [
-      field("canonicalId", "string"),
-      field("projection", "enum", ["summary", "full"]),
-      field("includeIncidentCounts", "boolean"),
-    ],
+    tool: "spec_catalog",
+    label: "Spec Catalog",
+    operation: "catalog",
+    description: "Query spec catalog: types dictionary, slugs, inventory, overview, or status.",
+    discriminator: "view",
+    variants: Object.freeze({
+      types: Object.freeze({
+        description: "Return the authoritative domain type dictionary of 15 entity kinds and 7 edge types.",
+        fields: Object.freeze([]),
+      }),
+      specs: Object.freeze({
+        description: "List all specification slugs present in the current repository.",
+        fields: Object.freeze([]),
+      }),
+      inventory: Object.freeze({
+        description: "Read a bounded, paged inventory of specifications and documents.",
+        fields: Object.freeze([
+          optionalField("specSlugs", "stringArray"),
+          optionalField("includeDocuments", "boolean"),
+          optionalField("limit", "integer"),
+          optionalField("cursor", "nullableString"),
+        ]),
+      }),
+      overview: Object.freeze({
+        description: "Read corpus-level counts, limits, and diagnostic/kind/edge histograms.",
+        fields: Object.freeze([optionalField("specSlugs", "stringArray")]),
+      }),
+      status: Object.freeze({
+        description: "Read status, counts, or structural coverage for one specification or the corpus.",
+        fields: Object.freeze([
+          optionalField("spec", "string"),
+          optionalField("statusView", "enum", READINESS_VIEW_VALUES),
+        ]),
+      }),
+    }),
   },
   {
-    tool: "spec_find_nodes",
-    label: "Spec Find Nodes",
-    operation: "findNodes",
-    description:
-      "Search specification nodes by spec slug, node kind, canonical ID, or bounded text match; empty filter arrays mean all.",
-    fields: [
-      field("specSlugs", "stringArray"),
-      field("kinds", "enumArray", NODE_KINDS),
-      field("canonicalIds", "stringArray"),
-      field("text", "nullableString"),
-      field("projection", "enum", ["summary", "full"]),
-      field("limit", "integer"),
-      field("cursor", "nullableString"),
-    ],
+    tool: "spec_entities",
+    label: "Spec Entities",
+    operation: "entities",
+    description: "Get or find spec nodes by canonical ID, slug, kind, or text.",
+    discriminator: "mode",
+    variants: Object.freeze({
+      get: Object.freeze({
+        description: "Read one specification node by qualified canonical ID.",
+        fields: Object.freeze([
+          field("canonicalId", "string"),
+          optionalField("projection", "enum", ["summary", "full"]),
+          optionalField("includeIncidentCounts", "boolean"),
+        ]),
+      }),
+      find: Object.freeze({
+        description: "Search specification nodes by spec slug, node kind, canonical ID, or bounded text match.",
+        fields: Object.freeze([
+          optionalField("specSlugs", "stringArray"),
+          optionalField("kinds", "enumArray", NODE_KINDS),
+          optionalField("canonicalIds", "stringArray"),
+          optionalField("text", "nullableString"),
+          optionalField("projection", "enum", ["summary", "full"]),
+          optionalField("limit", "integer"),
+          optionalField("cursor", "nullableString"),
+        ]),
+      }),
+    }),
   },
   {
-    tool: "spec_get_edges",
-    label: "Spec Get Edges",
-    operation: "getEdges",
-    description: "List resolved edges incident to one canonical node, optionally aggregated by endpoint pair and type.",
-    fields: [
-      field("canonicalId", "string"),
-      field("direction", "enum", ["in", "out", "both"]),
-      field("types", "enumArray", EDGE_TYPES),
-      field("aggregate", "boolean"),
-      field("limit", "integer"),
-      field("cursor", "nullableString"),
-    ],
+    tool: "spec_graph",
+    label: "Spec Graph",
+    operation: "graph",
+    description: "Inspect spec graph: incident edges or bounded breadth-first traversal.",
+    discriminator: "view",
+    variants: Object.freeze({
+      edges: Object.freeze({
+        description: "List resolved edges incident to one canonical node, optionally aggregated.",
+        fields: Object.freeze([
+          field("canonicalId", "string"),
+          optionalField("direction", "enum", ["in", "out", "both"]),
+          optionalField("types", "enumArray", EDGE_TYPES),
+          optionalField("aggregate", "boolean"),
+          optionalField("limit", "integer"),
+          optionalField("cursor", "nullableString"),
+        ]),
+      }),
+      trace: Object.freeze({
+        description: "Bounded breadth-first trace from one canonical node across resolved edges.",
+        fields: Object.freeze([
+          field("canonicalId", "string"),
+          optionalField("direction", "enum", ["in", "out", "both"]),
+          optionalField("types", "enumArray", EDGE_TYPES),
+          optionalField("maxDepth", "integer"),
+          optionalField("maxVisited", "integer"),
+          optionalField("projection", "enum", ["summary", "full"]),
+          optionalField("limit", "integer"),
+          optionalField("cursor", "nullableString"),
+        ]),
+      }),
+    }),
   },
   {
-    tool: "spec_trace",
-    label: "Spec Trace",
-    operation: "trace",
-    description: "Bounded breadth-first trace from one canonical node across resolved edges with depth and visited limits.",
-    fields: [
-      field("canonicalId", "string"),
-      field("direction", "enum", ["in", "out", "both"]),
-      field("types", "enumArray", EDGE_TYPES),
-      field("maxDepth", "integer"),
-      field("maxVisited", "integer"),
-      field("projection", "enum", ["summary", "full"]),
-      field("limit", "integer"),
-      field("cursor", "nullableString"),
-    ],
+    tool: "spec_documents",
+    label: "Spec Documents",
+    operation: "documents",
+    description: "List, read, or fetch attachments for spec documents.",
+    discriminator: "action",
+    variants: Object.freeze({
+      list: Object.freeze({
+        description: "List readable documents and binary attachments under one specification.",
+        fields: Object.freeze([field("spec", "string")]),
+      }),
+      read: Object.freeze({
+        description: "Read one contained specification document, optionally by section or bounded window.",
+        fields: Object.freeze([
+          field("spec", "string"),
+          field("doc", "string"),
+          optionalField("section", "nullableString"),
+          optionalField("offset", "integer"),
+          optionalField("limit", "integer"),
+          optionalField("readForEdit", "boolean"),
+        ]),
+      }),
+      attachment: Object.freeze({
+        description: "Read one contained binary attachment as a bounded base64 payload.",
+        fields: Object.freeze([
+          field("spec", "string"),
+          field("path", "string"),
+        ]),
+      }),
+    }),
   },
   {
-    tool: "spec_diagnostics",
-    label: "Spec Diagnostics",
-    operation: "diagnostics",
-    description: "List stable parser/graph diagnostics filtered by severity, code, spec slug, and repository-relative path.",
-    fields: [
-      field("severities", "enumArray", DIAGNOSTIC_SEVERITIES),
-      field("codes", "enumArray", DIAGNOSTIC_CODES),
-      field("specSlugs", "stringArray"),
-      field("paths", "stringArray"),
-      field("limit", "integer"),
-      field("cursor", "nullableString"),
-    ],
+    tool: "spec_inspect",
+    label: "Spec Inspect",
+    operation: "inspect",
+    description: "Run validations, orphans, anchors, diagnostics, and policy checks.",
+    discriminator: "check",
+    variants: Object.freeze({
+      scenariosByTags: Object.freeze({
+        description: "List scenarios whose tag set contains every requested tag.",
+        fields: Object.freeze([field("tags", "stringArray")]),
+      }),
+      orphans: Object.freeze({
+        description: "Return structural orphan findings for uncovered requirements, tasks, and scenarios.",
+        fields: Object.freeze([]),
+      }),
+      anchor: Object.freeze({
+        description: "Validate a canonical node ID or Markdown heading anchor without writing.",
+        fields: Object.freeze([
+          field("anchor", "string"),
+          optionalField("spec", "string"),
+        ]),
+      }),
+      requirementMetadata: Object.freeze({
+        description: "Validate a typed requirement metadata object without writing.",
+        fields: Object.freeze([field("metadata", "json")]),
+      }),
+      requirementsPolicy: Object.freeze({
+        description: "Filter requirements by verification method, safety class, missing metadata, and delivery.",
+        fields: Object.freeze([
+          optionalField("spec", "string"),
+          optionalField("verificationMethod", "enum", VERIFICATION_METHOD_VALUES),
+          optionalField("safetyClass", "enum", SAFETY_CLASS_VALUES),
+          optionalField("verificationMethodMissing", "boolean"),
+          optionalField("delivery", "enum", DELIVERY_VALUES),
+        ]),
+      }),
+      archivalProof: Object.freeze({
+        description: "Check whether a specification has live inbound references from other specifications.",
+        fields: Object.freeze([field("spec", "string")]),
+      }),
+      specValidation: Object.freeze({
+        description: "Run bounded graph validation for one specification without writing.",
+        fields: Object.freeze([field("spec", "string")]),
+      }),
+      diagnostics: Object.freeze({
+        description: "List stable parser/graph diagnostics filtered by severity, code, spec slug, and path.",
+        fields: Object.freeze([
+          optionalField("severities", "enumArray", DIAGNOSTIC_SEVERITIES),
+          optionalField("codes", "enumArray", DIAGNOSTIC_CODES),
+          optionalField("specSlugs", "stringArray"),
+          optionalField("paths", "stringArray"),
+          optionalField("limit", "integer"),
+          optionalField("cursor", "nullableString"),
+        ]),
+      }),
+    }),
   },
   {
-    tool: "spec_overview",
-    label: "Spec Overview",
-    operation: "overview",
-    description: "Read corpus-level counts, limits, and diagnostic-code/node-kind/edge-type histograms for the target repository.",
-    fields: [field("specSlugs", "stringArray")],
-  },
-  {
-    tool: "spec_markdown_inventory",
-    label: "Spec Markdown Inventory",
-    operation: "markdownInventory",
-    description:
-      "Inventory Markdown headings and GLFM link occurrences (unscoped or heading-focused) to plan safe renames without mutating anything.",
+    tool: "spec_tasks",
+    label: "Spec Tasks",
+    operation: "tasks",
+    description: "List tasks for one spec with status, phase, and requirement filters.",
     fields: [
-      field("specSlugs", "stringArray"),
-      field("mode", "enum", ["all", "focus"]),
-      field("focusPath", "nullableString"),
-      field("focusAnchor", "nullableString"),
-      field("direction", "enum", ["in", "out", "both"]),
-      field("outcomes", "enumArray", LINK_OUTCOMES),
-      field("includeHeadings", "boolean"),
-      field("includeLinks", "boolean"),
-      field("limit", "integer"),
-      field("cursor", "nullableString"),
-    ],
-  },
-  futureContract(
-    "find_by_tags",
-    "Find Scenarios By Tags",
-    "findByTags",
-    "List scenarios whose tag set contains every requested tag.",
-    [field("tags", "stringArray")],
-  ),
-  futureContract(
-    "list_tasks",
-    "List Spec Tasks",
-    "listTasks",
-    "List bounded tasks for one specification, with status, phase, requirement, and cursor filters.",
-    [
       field("spec", "string"),
       optionalField("statuses", "enumArray", TASK_STATUS_VALUES),
       optionalField("phase", "nullableString"),
@@ -173,266 +264,431 @@ export const TOOL_CONTRACTS = Object.freeze([
       optionalField("limit", "integer"),
       optionalField("cursor", "nullableString"),
     ],
-  ),
-  futureContract(
-    "find_orphans",
-    "Find Orphaned Spec Nodes",
-    "findOrphans",
-    "Return structural orphan findings for uncovered requirements, tasks, and scenarios.",
-    [],
-  ),
-  futureContract(
-    "validate_anchor",
-    "Validate Spec Anchor",
-    "validateAnchor",
-    "Validate a canonical node ID or Markdown heading anchor without writing.",
-    [field("anchor", "string"), optionalField("spec", "nullableString")],
-  ),
-  futureContract(
-    "list_specs",
-    "List Specifications",
-    "listSpecs",
-    "Enumerate specification slugs present in the current graph.",
-    [],
-  ),
-  futureContract(
-    "validate_requirement_metadata",
-    "Validate Requirement Metadata",
-    "validateRequirementMetadata",
-    "Validate a typed requirement metadata object without writing.",
-    [field("metadata", "json")],
-  ),
-  futureContract(
-    "policy_query_requirements",
-    "Query Requirement Policy",
-    "policyQueryRequirements",
-    "Filter requirements by verification method, safety class, missing metadata, and delivery.",
-    [
-      optionalField("spec", "nullableString"),
-      optionalField("verificationMethod", "enum", VERIFICATION_METHOD_VALUES),
-      optionalField("safetyClass", "enum", SAFETY_CLASS_VALUES),
-      optionalField("verificationMethodMissing", "boolean"),
-      optionalField("delivery", "enum", DELIVERY_VALUES),
-    ],
-  ),
-  futureContract(
-    "get_archival_proof",
-    "Get Archival Proof",
-    "getArchivalProof",
-    "Check whether a specification has live inbound references from other specifications.",
-    [field("spec", "string")],
-  ),
-  futureContract(
-    "validate_spec",
-    "Validate Specification",
-    "validateSpec",
-    "Run the bounded graph validation for one specification without writing.",
-    [field("spec", "string")],
-  ),
-  futureContract(
-    "get_spec_status",
-    "Get Specification Status",
-    "getSpecStatus",
-    "Read status, counts, or structural coverage for one specification or the corpus. START HERE to orient before reading documents.",
-    [optionalField("spec", "nullableString"), optionalField("view", "enum", READINESS_VIEW_VALUES)],
-  ),
-  futureContract(
-    "mcp_preflight",
-    "MCP Preflight",
-    "mcpPreflight",
-    "Read redacted root, version, lock, and dependency admission facts. Call first to confirm the environment.",
-    [optionalField("declaredWorktree", "nullableString")],
-  ),
-  futureContract(
-    "list_spec_docs",
-    "List Specification Documents",
-    "listSpecDocs",
-    "List readable documents and binary attachments under one specification.",
-    [field("spec", "string")],
-  ),
-  futureContract(
-    "read_spec_doc",
-    "Read Specification Document",
-    "readSpecDoc",
-    "Read one contained specification document, optionally by section or bounded line window.",
-    [
-      field("spec", "string"),
-      field("doc", "string"),
-      optionalField("section", "nullableString"),
-      optionalField("offset", "integer"),
+  },
+  {
+    tool: "spec_evidence",
+    label: "Spec Evidence",
+    operation: "evidence",
+    description: "Read scenario test results or execution trace metadata.",
+    discriminator: "view",
+    variants: Object.freeze({
+      result: Object.freeze({
+        description: "Read the last recorded result and freshness fields for one scenario.",
+        fields: Object.freeze([
+          field("scenarioId", "string"),
+          optionalField("spec", "string"),
+        ]),
+      }),
+      trace: Object.freeze({
+        description: "Read one scenario result with its hash-bound runtime trace metadata.",
+        fields: Object.freeze([
+          field("scenarioId", "string"),
+          optionalField("spec", "string"),
+        ]),
+      }),
+    }),
+  },
+  {
+    tool: "spec_markdown",
+    label: "Spec Markdown",
+    operation: "markdown",
+    description: "Inventory Markdown headings and links to plan safe edits.",
+    fields: [
+      optionalField("specSlugs", "stringArray"),
+      optionalField("mode", "enum", ["all", "focus"]),
+      optionalField("focusPath", "nullableString"),
+      optionalField("focusAnchor", "nullableString"),
+      optionalField("direction", "enum", ["in", "out", "both"]),
+      optionalField("outcomes", "enumArray", LINK_OUTCOMES),
+      optionalField("includeHeadings", "boolean"),
+      optionalField("includeLinks", "boolean"),
       optionalField("limit", "integer"),
-      optionalField("readForEdit", "boolean"),
+      optionalField("cursor", "nullableString"),
     ],
-  ),
-  futureContract(
-    "read_attachment",
-    "Read Specification Attachment",
-    "readAttachment",
-    "Read one contained binary attachment as a bounded base64 payload.",
-    [field("spec", "string"), field("path", "string")],
-  ),
-  futureContract(
-    "get_test_result",
-    "Get Scenario Test Result",
-    "getTestResult",
-    "Read the last recorded result and freshness fields for one scenario.",
-    [field("scenarioId", "string"), optionalField("spec", "nullableString")],
-  ),
-  futureContract(
-    "get_scenario_trace",
-    "Get Scenario Trace",
-    "getScenarioTrace",
-    "Read one scenario result with its hash-bound runtime trace metadata.",
-    [field("scenarioId", "string"), optionalField("spec", "nullableString")],
-  ),
-  futureContract(
-    "propose_patch",
-    "Propose Specification Patch",
-    "proposePatch",
-    "Build a reviewable multi-operation patch proposal over spec docs (append, insert, replace, rename, delete, status, and metadata kinds); returns a proposalId for apply_proposed_patch. Use for ANY spec edit. Writes nothing by itself.",
-    [
+  },
+  {
+    tool: "spec_propose_patch",
+    label: "Spec Propose Patch",
+    operation: "proposePatch",
+    description: "Draft and review spec proposals in memory without writing.",
+    discriminator: "intent",
+    commonFields: Object.freeze([
       field("requestId", "string"),
-      field("repositoryRootFingerprint", "string"),
-      field("spec", "string"),
       field("reason", "string"),
-      field("operations", "json"),
-    ],
-  ),
-  futureContract(
-    "apply_proposed_patch",
-    "Apply Proposed Specification Patch",
-    "applyProposedPatch",
-    "Apply a reviewed proposal by ID after hash recheck; approval approve is required. This is the ONLY write path. Use only after the proposal diff was reviewed.",
-    [
+      field("spec", "string"),
+    ]),
+    variants: Object.freeze({
+      patch: Object.freeze({
+        description: "Create a complete proposal for an operations array against one specification.",
+        fields: Object.freeze([
+          field("repositoryRootFingerprint", "string"),
+          field("operations", "operations"),
+        ]),
+      }),
+      amendRequirement: Object.freeze({
+        description: "Compile a requirement amendment into a proposal.",
+        fields: Object.freeze([
+          field("requirement", "string"),
+          field("body", "string"),
+          optionalField("expectedSha", "string"),
+        ]),
+      }),
+      addAcceptanceCriterion: Object.freeze({
+        description: "Compile a canonical acceptance criterion into a proposal.",
+        fields: Object.freeze([
+          field("requirement", "string"),
+          field("criterion", "string"),
+        ]),
+      }),
+      addPhase: Object.freeze({
+        description: "Compile a task phase into a proposal.",
+        fields: Object.freeze([field("title", "string")]),
+      }),
+      setEntityStatus: Object.freeze({
+        description: "Compile a validated task status transition into a proposal.",
+        fields: Object.freeze([
+          field("entity", "string"),
+          field("status", "enum", TASK_STATUS_VALUES),
+        ]),
+      }),
+      setSpecStatus: Object.freeze({
+        description: "Compile an explicit specification status change into a proposal.",
+        fields: Object.freeze([field("status", "enum", SPEC_STATUS_VALUES)]),
+      }),
+      setRequirementMetadata: Object.freeze({
+        description: "Validate and compile a typed requirement metadata block into a proposal.",
+        fields: Object.freeze([
+          field("requirement", "string"),
+          field("metadata", "json"),
+        ]),
+      }),
+      deleteSpecDoc: Object.freeze({
+        description: "Compile a contained document deletion into a proposal.",
+        fields: Object.freeze([
+          field("doc", "string"),
+          optionalField("expectedSha", "string"),
+        ]),
+      }),
+      renameSpecDoc: Object.freeze({
+        description: "Compile a contained document rename into a proposal.",
+        fields: Object.freeze([
+          field("doc", "string"),
+          field("newDoc", "string"),
+        ]),
+      }),
+      createSpec: Object.freeze({
+        description: "Compile a complete canonical specification scaffold into a proposal.",
+        fields: Object.freeze([optionalField("title", "string")]),
+      }),
+      archiveSpec: Object.freeze({
+        description: "Compile an archival move after live inbound-reference proof.",
+        fields: Object.freeze([]),
+      }),
+      addBacklogTask: Object.freeze({
+        description: "Compile a traced backlog task into a proposal.",
+        fields: Object.freeze([
+          field("title", "string"),
+          optionalField("requirements", "json"),
+        ]),
+      }),
+      registerIncidentBacklog: Object.freeze({
+        description: "Compile a traced incident task into a proposal.",
+        fields: Object.freeze([
+          field("summary", "string"),
+          optionalField("requirements", "json"),
+        ]),
+      }),
+    }),
+  },
+  {
+    tool: "apply_proposed_patch",
+    label: "Apply Proposed Patch",
+    operation: "applyProposedPatch",
+    description: "Commit a verified proposal after hash and approval checks.",
+    fields: [
       field("requestId", "string"),
       field("proposalId", "string"),
       field("proposalSha256", "string"),
-      field("expectedDocuments", "json"),
+      field("expectedDocuments", "expectedDocuments"),
       field("reason", "string"),
       field("approval", "enum", ["approve"]),
       optionalField("actorRef", "nullableString"),
     ],
-  ),
-  futureContract(
-    "amend_requirement",
-    "Amend Requirement",
-    "amendRequirement",
-    "Propose amendment text appended to an FR section. Use to extend an existing requirement; use propose_patch for anything else.",
-    [field("spec", "string"), field("requirement", "string"), field("body", "string"), field("reason", "string"), optionalField("expectedSha", "nullableString")],
-  ),
-  futureContract(
-    "add_acceptance_criterion",
-    "Add Acceptance Criterion",
-    "addAcceptanceCriterion",
-    "Propose a canonical acceptance criterion appended for one requirement. Use when an FR needs a new testable criterion.",
-    [field("spec", "string"), field("requirement", "string"), field("criterion", "string"), field("reason", "string")],
-  ),
-  futureContract(
-    "add_phase",
-    "Add Task Phase",
-    "addPhase",
-    "Propose a task phase heading appended to TASKS.md. Use to structure delivery phases.",
-    [field("spec", "string"), field("title", "string"), field("reason", "string")],
-  ),
-  futureContract(
-    "set_entity_status",
-    "Set Entity Status",
-    "setEntityStatus",
-    "Propose a validated task status transition. Use for task progress updates; unknown transitions are rejected.",
-    [field("spec", "string"), field("entity", "string"), field("status", "enum", TASK_STATUS_VALUES), field("reason", "string")],
-  ),
-  futureContract(
-    "set_spec_status",
-    "Set Specification Status",
-    "setSpecStatus",
-    "Propose a specification status line. Use to record spec lifecycle state.",
-    [field("spec", "string"), field("status", "enum", SPEC_STATUS_VALUES), field("reason", "string")],
-  ),
-  futureContract(
-    "set_requirement_metadata",
-    "Set Requirement Metadata",
-    "setRequirementMetadata",
-    "Propose validated typed metadata (verification method, safety class, delivery) for a requirement. Unknown metadata is rejected.",
-    [field("spec", "string"), field("requirement", "string"), field("metadata", "json"), field("reason", "string")],
-  ),
-  futureContract(
-    "delete_spec_doc",
-    "Delete Specification Document",
-    "deleteSpecDoc",
-    "Propose deletion of one contained spec document. Use to remove obsolete docs.",
-    [field("spec", "string"), field("doc", "string"), field("reason", "string"), optionalField("expectedSha", "nullableString")],
-  ),
-  futureContract(
-    "rename_spec_doc",
-    "Rename Specification Document",
-    "renameSpecDoc",
-    "Propose a contained document rename. Refused when inbound Markdown links would break; fix callers first.",
-    [field("spec", "string"), field("doc", "string"), field("newDoc", "string"), field("reason", "string")],
-  ),
-  futureContract(
-    "create_spec",
-    "Create Specification",
-    "createSpec",
-    "Propose a full canonical scaffold (15 docs plus feature and schema) for a new spec slug. START HERE to create a specification.",
-    [field("spec", "string"), field("reason", "string"), optionalField("title", "nullableString")],
-  ),
-  futureContract(
-    "archive_spec",
-    "Archive Specification",
-    "archiveSpec",
-    "Propose archival of a spec after proving no live inbound references. Use to retire specs; refused otherwise.",
-    [field("spec", "string"), field("reason", "string")],
-  ),
-  futureContract(
-    "add_backlog_task",
-    "Add Backlog Task",
-    "addBacklogTask",
-    "Propose a traced backlog task. Use for future work items.",
-    [field("spec", "string"), field("title", "string"), field("reason", "string"), optionalField("requirements", "json")],
-  ),
-  futureContract(
-    "register_incident_backlog",
-    "Register Incident Backlog",
-    "registerIncidentBacklog",
-    "Propose a traced incident task. Use for incident follow-ups.",
-    [field("spec", "string"), field("summary", "string"), field("reason", "string"), optionalField("requirements", "json")],
-  ),
+  },
 ]);
-const JSON_SCHEMA_TYPES = {
-  string: () => ({ type: "string" }),
-  boolean: () => ({ type: "boolean" }),
-  integer: () => ({ type: "integer", minimum: 1 }),
-  nullableString: () => ({ type: ["string", "null"] }),
-  enum: (values) => ({ type: "string", enum: [...values] }),
-  enumArray: (values) => ({ type: "array", items: { type: "string", enum: [...values] } }),
-  stringArray: () => ({ type: "array", items: { type: "string" } }),
-  json: () => ({}),
-};
 
-// MCP inputSchema uses closed operation fields plus optional common transport
-// metadata. Future-stage fields may be optional; unknown fields remain rejected.
-export function jsonSchemaFor(contract) {
-  const properties = {};
-  const required = [];
-  for (const entry of contract.fields) {
-    properties[entry.name] = JSON_SCHEMA_TYPES[entry.kind](entry.values);
-    if (!entry.optional) required.push(entry.name);
-  }
-  return {
+export const OPERATION_SCHEMAS = Object.freeze([
+  Object.freeze({
     type: "object",
+    additionalProperties: false,
+    required: ["kind", "document", "text"],
     properties: {
-      ...properties,
+      kind: { type: "string", enum: ["insert_at_eof"] },
+      document: { type: "string" },
+      text: { type: "string" },
+      expectedSha: { type: "string" },
+    },
+  }),
+  Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "document", "heading", "text"],
+    properties: {
+      kind: { type: "string", enum: ["insert_after_heading"] },
+      document: { type: "string" },
+      heading: { type: "string" },
+      text: { type: "string" },
+      expectedSha: { type: "string" },
+    },
+  }),
+  Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "document", "heading", "content"],
+    properties: {
+      kind: { type: "string", enum: ["replace_section"] },
+      document: { type: "string" },
+      heading: { type: "string" },
+      content: { type: "string" },
+      expectedSha: { type: "string" },
+    },
+  }),
+  Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "document", "heading", "oldText", "newText"],
+    properties: {
+      kind: { type: "string", enum: ["replace_in_section"] },
+      document: { type: "string" },
+      heading: { type: "string" },
+      oldText: { type: "string" },
+      newText: { type: "string" },
+      replaceAll: { type: "boolean" },
+      expectedSha: { type: "string" },
+    },
+  }),
+  Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "document", "entity", "status"],
+    properties: {
+      kind: { type: "string", enum: ["replace_task_status"] },
+      document: { type: "string" },
+      entity: { type: "string" },
+      status: { type: "string" },
+      expectedSha: { type: "string" },
+    },
+  }),
+  Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "document", "content"],
+    properties: {
+      kind: { type: "string", enum: ["replace_document"] },
+      document: { type: "string" },
+      content: { type: "string" },
+      expectedSha: { type: "string" },
+    },
+  }),
+  Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "document"],
+    properties: {
+      kind: { type: "string", enum: ["delete_document"] },
+      document: { type: "string" },
+      expectedSha: { type: "string" },
+    },
+  }),
+  Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "document", "newDocument"],
+    properties: {
+      kind: { type: "string", enum: ["rename_document"] },
+      document: { type: "string" },
+      newDocument: { type: "string" },
+      expectedSha: { type: "string" },
+    },
+  }),
+]);
+
+export const EXPECTED_DOCUMENTS_SCHEMA = Object.freeze({
+  type: "array",
+  minItems: 1,
+  items: {
+    type: "object",
+    additionalProperties: false,
+    required: ["path", "beforeSha256"],
+    properties: {
+      path: { type: "string" },
+      beforeSha256: { type: "string" },
+    },
+  },
+});
+
+export const OPERATIONS_SCHEMA = Object.freeze({
+  type: "array",
+  minItems: 1,
+  items: {
+    oneOf: OPERATION_SCHEMAS,
+  },
+});
+
+function topSchemaType(f) {
+  if (f.kind === "operations" || f.kind === "expectedDocuments") return { type: "array" };
+  switch (f.kind) {
+    case "string": return { type: "string" };
+    case "boolean": return { type: "boolean" };
+    case "integer": return { type: "integer", minimum: 1 };
+    case "nullableString": return { type: ["string", "null"] };
+    case "enum": return { type: "string" };
+    case "enumArray": return { type: "array", items: { type: "string" } };
+    case "stringArray": return { type: "array", items: { type: "string" } };
+    case "json": return { type: "object" };
+    default: return {};
+  }
+}
+
+function branchSchemaType(f) {
+  switch (f.kind) {
+    case "string": return { type: "string" };
+    case "boolean": return { type: "boolean" };
+    case "integer": return { type: "integer", minimum: 1 };
+    case "nullableString": return { type: ["string", "null"] };
+    case "enum": return { type: "string" };
+    case "enumArray": return { type: "array", items: { type: "string" } };
+    case "stringArray": return { type: "array", items: { type: "string" } };
+    case "operations": return OPERATIONS_SCHEMA;
+    case "expectedDocuments": return EXPECTED_DOCUMENTS_SCHEMA;
+    case "json": return { type: "object" };
+    default: return {};
+  }
+}
+
+export function jsonSchemaFor(contract) {
+  if (!contract.discriminator) {
+    const properties = {
       schemaVersion: { type: "string" },
       requestId: { type: ["string", "null"] },
+    };
+    const required = [];
+    for (const entry of contract.fields) {
+      properties[entry.name] = branchSchemaType(entry);
+      if (!entry.optional) required.push(entry.name);
+    }
+    return {
+      type: "object",
+      properties,
+      required,
+      additionalProperties: false,
+    };
+  }
+
+  const disc = contract.discriminator;
+  const topProperties = {
+    [disc]: {
+      type: "string",
+      enum: Object.keys(contract.variants),
     },
-    required,
+    schemaVersion: { type: "string" },
+    requestId: { type: ["string", "null"] },
+  };
+
+  if (Array.isArray(contract.commonFields)) {
+    for (const f of contract.commonFields) {
+      topProperties[f.name] = topSchemaType(f);
+    }
+  }
+
+  for (const variant of Object.values(contract.variants)) {
+    for (const f of variant.fields) {
+      if (!topProperties[f.name]) {
+        topProperties[f.name] = topSchemaType(f);
+      }
+    }
+  }
+
+  const oneOf = [];
+  for (const [vName, variant] of Object.entries(contract.variants)) {
+    const vProps = {
+      [disc]: {
+        type: "string",
+        enum: [vName],
+      },
+    };
+    const required = [disc];
+
+    if (Array.isArray(contract.commonFields)) {
+      for (const f of contract.commonFields) {
+        vProps[f.name] = branchSchemaType(f);
+        if (!f.optional) required.push(f.name);
+      }
+    }
+
+    for (const f of variant.fields) {
+      vProps[f.name] = branchSchemaType(f);
+      if (!f.optional) required.push(f.name);
+    }
+
+    oneOf.push({
+      type: "object",
+      properties: vProps,
+      required,
+      additionalProperties: false,
+    });
+  }
+
+  return {
+    type: "object",
     additionalProperties: false,
+    properties: topProperties,
+    required: [disc],
+    oneOf,
   };
 }
+
 function receivedType(value) {
   if (value === null) return "null";
   if (Array.isArray(value)) return "array";
   return typeof value;
+}
+
+function hasDuplicates(arr) {
+  return new Set(arr).size !== arr.length;
+}
+
+function validateOperationObject(op) {
+  if (op === null || typeof op !== "object" || Array.isArray(op)) return false;
+  if (!PATCH_OPERATION_KINDS.includes(op.kind)) return false;
+  if (typeof op.document !== "string" || op.document.trim() === "") return false;
+  if (op.expectedSha !== undefined && typeof op.expectedSha !== "string") return false;
+
+  switch (op.kind) {
+    case "insert_at_eof":
+      return typeof op.text === "string";
+    case "insert_after_heading":
+      return typeof op.heading === "string" && typeof op.text === "string";
+    case "replace_section":
+      return typeof op.heading === "string" && typeof op.content === "string";
+    case "replace_in_section":
+      return (
+        typeof op.heading === "string" &&
+        typeof op.oldText === "string" &&
+        typeof op.newText === "string" &&
+        (op.replaceAll === undefined || typeof op.replaceAll === "boolean")
+      );
+    case "replace_task_status":
+      return typeof op.entity === "string" && TASK_STATUS_VALUES.includes(op.status);
+    case "replace_document":
+      return typeof op.content === "string";
+    case "delete_document":
+      return true;
+    case "rename_document":
+      return typeof op.newDocument === "string" && op.newDocument.trim() !== "";
+    default:
+      return false;
+  }
 }
 
 function validFieldValue(entry, value) {
@@ -448,43 +704,209 @@ function validFieldValue(entry, value) {
     case "enum":
       return typeof value === "string" && entry.values.includes(value);
     case "enumArray":
-      return Array.isArray(value) && value.every((item) => typeof item === "string" && entry.values.includes(item));
+      return (
+        Array.isArray(value) &&
+        !hasDuplicates(value) &&
+        value.every((item) => typeof item === "string" && entry.values.includes(item))
+      );
     case "stringArray":
-      return Array.isArray(value) && value.every((item) => typeof item === "string");
+      return (
+        Array.isArray(value) &&
+        !hasDuplicates(value) &&
+        value.every((item) => typeof item === "string")
+      );
+    case "operations":
+      return Array.isArray(value) && value.length >= 1 && value.every(validateOperationObject);
+    case "expectedDocuments":
+      return (
+        Array.isArray(value) &&
+        value.length >= 1 &&
+        value.every(
+          (item) =>
+            item !== null &&
+            typeof item === "object" &&
+            !Array.isArray(item) &&
+            typeof (item.path ?? item.document) === "string" &&
+            typeof (item.beforeSha256 ?? item.sha256) === "string"
+        )
+      );
     case "json":
-      return true;
+      return value !== null && typeof value === "object";
     default:
       return false;
   }
 }
 
-/** Validate the closed wire arguments before dispatching to a handler. */
 export function validateContractArguments(contract, args) {
   if (args === null || typeof args !== "object" || Array.isArray(args)) {
-    return { ok: false, code: "INVALID_REQUEST", message: "tool arguments must be an object", parameter: "arguments", expected: "object" };
+    return {
+      ok: false,
+      code: "INVALID_REQUEST",
+      message: "tool arguments must be an object",
+      parameter: "arguments",
+      expected: "object",
+    };
   }
+
+  const COMMON_METADATA_KEYS = new Set(["schemaVersion", "requestId"]);
+
+  if (contract.discriminator) {
+    const discKey = contract.discriminator;
+    const discVal = args[discKey];
+
+    if (discVal === undefined) {
+      return {
+        ok: false,
+        code: "INVALID_REQUEST",
+        message: "missing required discriminator " + discKey,
+        parameter: discKey,
+        expected: Object.keys(contract.variants),
+      };
+    }
+
+    if (typeof discVal !== "string" || !Object.hasOwn(contract.variants, discVal)) {
+      return {
+        ok: false,
+        code: "INVALID_REQUEST",
+        message: "unknown " + discKey + " variant: " + discVal,
+        parameter: discKey,
+        expected: Object.keys(contract.variants),
+      };
+    }
+
+    const variant = contract.variants[discVal];
+    const commonFields = contract.commonFields ?? [];
+    const variantFields = variant.fields ?? [];
+
+    const allowedFieldsMap = new Map();
+    for (const f of commonFields) allowedFieldsMap.set(f.name, f);
+    for (const f of variantFields) allowedFieldsMap.set(f.name, f);
+
+    const otherVariantFields = new Set();
+    for (const [otherName, otherVariant] of Object.entries(contract.variants)) {
+      if (otherName === discVal) continue;
+      for (const f of otherVariant.fields) {
+        if (!allowedFieldsMap.has(f.name)) otherVariantFields.add(f.name);
+      }
+    }
+
+    for (const key of Object.keys(args)) {
+      if (key === discKey || COMMON_METADATA_KEYS.has(key)) continue;
+      if (!allowedFieldsMap.has(key)) {
+        if (otherVariantFields.has(key)) {
+          return {
+            ok: false,
+            code: "INVALID_REQUEST",
+            message: "field " + key + " belongs to another variant, not " + discVal,
+            parameter: key,
+          };
+        }
+        return {
+          ok: false,
+          code: "UNKNOWN_FIELD",
+          message: "unknown tool argument field: " + key,
+          parameter: key,
+          expected: "declared contract field",
+        };
+      }
+    }
+
+    for (const f of commonFields) {
+      if (args[f.name] === undefined) {
+        if (!f.optional) {
+          return {
+            ok: false,
+            code: "INVALID_REQUEST",
+            message: "required tool argument is missing: " + f.name,
+            parameter: f.name,
+            expected: f.kind,
+          };
+        }
+        continue;
+      }
+      if (!validFieldValue(f, args[f.name])) {
+        return {
+          ok: false,
+          code: "INVALID_REQUEST",
+          message: "tool argument has the wrong type or value: " + f.name,
+          parameter: f.name,
+          expected: f.kind,
+          receivedType: receivedType(args[f.name]),
+        };
+      }
+    }
+
+    for (const f of variantFields) {
+      if (args[f.name] === undefined) {
+        if (!f.optional) {
+          return {
+            ok: false,
+            code: "INVALID_REQUEST",
+            message: "required tool argument is missing: " + f.name,
+            parameter: f.name,
+            expected: f.kind,
+          };
+        }
+        continue;
+      }
+      if (!validFieldValue(f, args[f.name])) {
+        return {
+          ok: false,
+          code: "INVALID_REQUEST",
+          message: "tool argument has the wrong type or value: " + f.name,
+          parameter: f.name,
+          expected: f.kind,
+          receivedType: receivedType(args[f.name]),
+        };
+      }
+    }
+
+    return { ok: true };
+  }
+
   const fields = new Map(contract.fields.map((entry) => [entry.name, entry]));
-  const unknown = Object.keys(args).filter((key) => !fields.has(key)).sort();
+  const unknown = Object.keys(args)
+    .filter((key) => !fields.has(key) && !COMMON_METADATA_KEYS.has(key))
+    .sort();
+
   if (unknown.length > 0) {
-    return { ok: false, code: "UNKNOWN_FIELD", message: `unknown tool argument field: ${unknown[0]}`, parameter: unknown[0], expected: "declared contract field" };
+    return {
+      ok: false,
+      code: "UNKNOWN_FIELD",
+      message: "unknown tool argument field: " + unknown[0],
+      parameter: unknown[0],
+      expected: "declared contract field",
+    };
   }
+
   for (const entry of contract.fields) {
     if (args[entry.name] === undefined) {
-      if (!entry.optional) return { ok: false, code: "INVALID_REQUEST", message: `required tool argument is missing: ${entry.name}`, parameter: entry.name, expected: entry.kind };
+      if (!entry.optional) {
+        return {
+          ok: false,
+          code: "INVALID_REQUEST",
+          message: "required tool argument is missing: " + entry.name,
+          parameter: entry.name,
+          expected: entry.kind,
+        };
+      }
       continue;
     }
     if (!validFieldValue(entry, args[entry.name])) {
-      return { ok: false, code: "INVALID_REQUEST", message: `tool argument has the wrong type or value: ${entry.name}`, parameter: entry.name, expected: entry.kind, receivedType: receivedType(args[entry.name]) };
+      return {
+        ok: false,
+        code: "INVALID_REQUEST",
+        message: "tool argument has the wrong type or value: " + entry.name,
+        parameter: entry.name,
+        expected: entry.kind,
+        receivedType: receivedType(args[entry.name]),
+      };
     }
   }
+
   return { ok: true };
 }
 
-
-
-function futureContract(tool, label, operation, description, fields) {
-  return { tool, label, operation, description, fields };
-}
 export const MUTATING_TOOL_NAMES = Object.freeze(new Set([
   "apply_proposed_patch",
 ]));
@@ -492,3 +914,97 @@ export const MUTATING_TOOL_NAMES = Object.freeze(new Set([
 export const MUTATING_OPERATION_NAMES = Object.freeze(new Set([
   "applyProposedPatch",
 ]));
+
+const READ_TOOL_ANNOTATIONS = Object.freeze({
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+});
+
+const MUTATING_TOOL_ANNOTATIONS = Object.freeze({
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: true,
+  openWorldHint: false,
+});
+
+export function annotationsFor(contract) {
+  return MUTATING_TOOL_NAMES.has(contract.tool)
+    ? MUTATING_TOOL_ANNOTATIONS
+    : READ_TOOL_ANNOTATIONS;
+}
+
+export const MCP_SERVER_INSTRUCTIONS = "Start with spec_catalog, then read the affected documents. Proposal tools never write: use spec_propose_patch to draft and review changes. Review the returned proposal, diff, and hashes before calling apply_proposed_patch, the only mutating tool, with approval=\"approve\".";
+
+export const KERNEL_ENVELOPE_OUTPUT_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schemaVersion",
+    "requestId",
+    "operation",
+    "ok",
+    "graph",
+    "page",
+    "data",
+    "error",
+    "diagnostics",
+    "provenance",
+  ],
+  properties: {
+    schemaVersion: { type: "string" },
+    requestId: { type: ["string", "null"] },
+    operation: { type: "string" },
+    ok: { type: "boolean" },
+    graph: { type: ["object", "null"] },
+    page: { type: ["object", "null"] },
+    data: {},
+    error: { type: ["object", "null"] },
+    diagnostics: { type: "array" },
+    provenance: { type: "object" },
+  },
+});
+
+export function assertContractInvariants(contracts = TOOL_CONTRACTS) {
+  if (!Array.isArray(contracts) || contracts.length !== 11) {
+    throw new Error("Invariants failed: expected exactly 11 contracts, got " + contracts?.length);
+  }
+  const toolNames = contracts.map((c) => c.tool);
+  if (new Set(toolNames).size !== contracts.length) {
+    throw new Error("Invariants failed: duplicate tool names in contracts");
+  }
+  const operations = contracts.map((c) => c.operation);
+  if (new Set(operations).size !== contracts.length) {
+    throw new Error("Invariants failed: duplicate operation names in contracts");
+  }
+  const mutatingTools = contracts.filter((c) => MUTATING_TOOL_NAMES.has(c.tool));
+  if (mutatingTools.length !== 1 || mutatingTools[0].tool !== "apply_proposed_patch") {
+    throw new Error("Invariants failed: expected exactly one mutating tool 'apply_proposed_patch'");
+  }
+  const readOnlyTools = contracts.filter((c) => !MUTATING_TOOL_NAMES.has(c.tool));
+  if (readOnlyTools.length !== 10) {
+    throw new Error("Invariants failed: expected exactly 10 read-only tools");
+  }
+  for (const c of contracts) {
+    if (typeof c.description !== "string" || c.description.trim().length === 0) {
+      throw new Error("Invariants failed: empty description for tool " + c.tool);
+    }
+    const firstLine = c.description.split(/\r?\n/u)[0].trim();
+    if (firstLine.length > 200) {
+      throw new Error("Invariants failed: first description line exceeds 200 chars for " + c.tool);
+    }
+    if (c.discriminator) {
+      if (!c.variants || typeof c.variants !== "object") {
+        throw new Error("Invariants failed: discriminated tool " + c.tool + " missing variants");
+      }
+      const variantKeys = Object.keys(c.variants);
+      if (new Set(variantKeys).size !== variantKeys.length) {
+        throw new Error("Invariants failed: duplicate variants in tool " + c.tool);
+      }
+    }
+  }
+  return true;
+}
+
+assertContractInvariants(TOOL_CONTRACTS);

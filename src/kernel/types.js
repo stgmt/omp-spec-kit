@@ -45,33 +45,129 @@ export const MARKDOWN_DOCUMENT_KINDS = Object.freeze(
   DOCUMENT_KINDS.filter((kind) => kind !== "FEATURE"),
 );
 
-export const NODE_KINDS = Object.freeze([
-  "DOCUMENT",
-  "USER_STORY",
-  "USE_CASE",
-  "RESEARCH_FINDING",
-  "RISK",
-  "FUNCTIONAL_REQUIREMENT",
-  "NON_FUNCTIONAL_REQUIREMENT",
-  "ACCEPTANCE_CRITERION",
-  "DECISION",
-  "TASK",
-  "FILE_CHANGE",
-  "FILE",
-  "SCENARIO",
-  "FIXTURE",
-  "SCHEMA_ENTITY",
+export const ENTITY_TYPE_DESCRIPTORS = Object.freeze([
+  Object.freeze({
+    kind: "DOCUMENT",
+    label: "Document",
+    description: "Canonical or auxiliary specification document.",
+  }),
+  Object.freeze({
+    kind: "USER_STORY",
+    label: "User Story",
+    description: "User-oriented outcome and rationale.",
+  }),
+  Object.freeze({
+    kind: "USE_CASE",
+    label: "Use Case",
+    description: "Actor interaction sequence.",
+  }),
+  Object.freeze({
+    kind: "RESEARCH_FINDING",
+    label: "Research Finding",
+    description: "Verified research observation.",
+  }),
+  Object.freeze({
+    kind: "RISK",
+    label: "Risk",
+    description: "Adverse condition with impact and mitigation context.",
+  }),
+  Object.freeze({
+    kind: "FUNCTIONAL_REQUIREMENT",
+    label: "Functional Requirement",
+    description: "Observable mandatory behavior.",
+  }),
+  Object.freeze({
+    kind: "NON_FUNCTIONAL_REQUIREMENT",
+    label: "Non-Functional Requirement",
+    description: "Quality, constraint, or operational property.",
+  }),
+  Object.freeze({
+    kind: "ACCEPTANCE_CRITERION",
+    label: "Acceptance Criterion",
+    description: "Verifiable condition of satisfaction.",
+  }),
+  Object.freeze({
+    kind: "DECISION",
+    label: "Decision",
+    description: "Recorded architecture or design decision with rationale.",
+  }),
+  Object.freeze({
+    kind: "TASK",
+    label: "Task",
+    description: "Tracked implementation work unit.",
+  }),
+  Object.freeze({
+    kind: "FILE_CHANGE",
+    label: "File Change",
+    description: "Planned or recorded repository file modification.",
+  }),
+  Object.freeze({
+    kind: "FILE",
+    label: "File",
+    description: "Associated repository file.",
+  }),
+  Object.freeze({
+    kind: "SCENARIO",
+    label: "Scenario",
+    description: "Executable behavioral example or test scenario.",
+  }),
+  Object.freeze({
+    kind: "FIXTURE",
+    label: "Fixture",
+    description: "Test or verification input fixture.",
+  }),
+  Object.freeze({
+    kind: "SCHEMA_ENTITY",
+    label: "Schema Entity",
+    description: "Structured schema entity or contract definition.",
+  }),
 ]);
 
-export const EDGE_TYPES = Object.freeze([
-  "REFS",
-  "COVERS",
-  "TESTED_BY",
-  "IMPLEMENTS",
-  "DEPENDS_ON",
-  "DOCUMENTS",
-  "DECLARES",
+export const EDGE_TYPE_DESCRIPTORS = Object.freeze([
+  Object.freeze({
+    type: "REFS",
+    label: "References",
+    description: "Generalized resolved reference.",
+  }),
+  Object.freeze({
+    type: "COVERS",
+    label: "Covers",
+    description: "Requirement coverage relationship.",
+  }),
+  Object.freeze({
+    type: "TESTED_BY",
+    label: "Tested By",
+    description: "Verification test scenario mapping.",
+  }),
+  Object.freeze({
+    type: "IMPLEMENTS",
+    label: "Implements",
+    description: "Implementation tracking relationship.",
+  }),
+  Object.freeze({
+    type: "DEPENDS_ON",
+    label: "Depends On",
+    description: "Ordering or precondition dependency.",
+  }),
+  Object.freeze({
+    type: "DOCUMENTS",
+    label: "Documents",
+    description: "Descriptive or documenting relationship.",
+  }),
+  Object.freeze({
+    type: "DECLARES",
+    label: "Declares",
+    description: "Document declaration relationship.",
+  }),
 ]);
+
+export const NODE_KINDS = Object.freeze(
+  ENTITY_TYPE_DESCRIPTORS.map((descriptor) => descriptor.kind),
+);
+
+export const EDGE_TYPES = Object.freeze(
+  EDGE_TYPE_DESCRIPTORS.map((descriptor) => descriptor.type),
+);
 
 export const EDGE_ENDPOINT_MATRIX = Object.freeze({
   REFS: { from: null, to: null }, // null = any node kind

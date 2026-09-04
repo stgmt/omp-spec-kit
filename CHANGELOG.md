@@ -3,17 +3,20 @@
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 ## 0.8.0 — unreleased
 
-Single-surface minor: 49 tools cut to 38, release-stage abstraction removed.
+Consolidated 11-tool surface minor: 49/38 tools cut to 11 task-oriented tools with discriminated branches, zero compatibility shims, and fail-closed surface blast limits.
 
 ### Removed
 
-- Eleven duplicate tools with zero unique logic: `apply_spec_change`, `apply_spec_transaction`, `apply_spec_repairs` (one shared apply function), `append_to_section`, `insert_after_heading`, `insert_at_eof`, `replace_in_section` (bare `propose_patch` operation kinds), `propose_spec_change`, `propose_spec_repairs` (pass-through wrappers), `propose_requirement_contract` (identical to `set_requirement_metadata`), `list_phase_tasks` (covered by the `list_tasks` phase filter).
-- Release-stage selection (`OMP_SPEC_KIT_STAGE`, staged contract sets): one 38-tool surface, no backward-compatible profiles. Multi-document apply stays available through `propose_patch` operations arrays.
+- Hard-cut of 27 superseded tools without backward-compatibility shims: all legacy read, navigation, and mutation facade tools excised from runtime discovery and handlers.
+- Release-stage abstraction (`OMP_SPEC_KIT_STAGE`): single 11-tool surface with no compatibility stages.
 
-### Changed
+### Added
 
-- Authoring descriptions rewritten to use-when form; `get_spec_status` and `mcp_preflight` marked as entry points.
-- Test matrices consolidated on the single surface (38-tool inventory, multi-operation proposal coverage, evidence matrices).
+- Consolidated 11 tools: `mcp_preflight`, `spec_catalog`, `spec_entities`, `spec_graph`, `spec_documents`, `spec_inspect`, `spec_tasks`, `spec_evidence`, `spec_markdown`, `spec_propose_patch`, `apply_proposed_patch`.
+- Discriminated `oneOf` input schemas with `additionalProperties: false` and strict validation rejecting cross-branch and unknown fields.
+- Authoritative domain type dictionary via `spec_catalog(view: "types")` returning 15 entity kinds and 7 edge types.
+- Fail-closed surface blast measurement script (`scripts/measure-mcp-tool-blast.mjs`) verifying <= 25,499 bytes catalog size, <= 2,000 description characters, and zero retired tool names.
+- Deterministic in-memory mutation testing gate (`scripts/check-tool-surface-mutations.mjs`) requiring zero surviving mutants.
 ## 0.7.0 — 2026-09-04
 
 Hardened safe-authoring minor for OMP 18.0.11. Same 49-tool surface as v0.6.0; no tool added or removed.

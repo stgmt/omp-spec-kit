@@ -15,9 +15,8 @@ import { KERNEL_SCHEMA_VERSION } from "../kernel/index.js";
 import {
   createSpecService,
   resolveRepositoryContext,
-  summarizeEnvelope,
 } from "../adapters/query-service.js";
-import { MUTATING_TOOL_NAMES, TOOL_CONTRACTS as activeContracts, jsonSchemaFor, validateContractArguments } from "../adapters/tool-contracts.js";
+import { annotationsFor, KERNEL_ENVELOPE_OUTPUT_SCHEMA, MCP_SERVER_INSTRUCTIONS, TOOL_CONTRACTS as activeContracts, jsonSchemaFor, validateContractArguments } from "../adapters/tool-contracts.js";
 
 const PROTOCOL_VERSION_FALLBACK = "2025-03-26";
 const SERVER_NAME = "omp-spec-kit";
@@ -102,6 +101,7 @@ const ARGUMENT_ALIASES = Object.freeze({
   declared_worktree: "declaredWorktree",
   verification_method: "verificationMethod",
   safety_class: "safetyClass",
+  status_view: "statusView",
   verification_method_missing: "verificationMethodMissing",
   scenario_id: "scenarioId",
   proposal_id: "proposalId",
@@ -150,11 +150,11 @@ function argumentErrorEnvelope(operation, requestId, validation) {
 }
 
 function respondTool(id, envelope) {
-  const text = envelope.operation === "inventory" ? summarizeEnvelope(envelope) : JSON.stringify(envelope);
+  const text = JSON.stringify(envelope);
   respond(id, {
     content: [{ type: "text", text }],
     structuredContent: envelope,
-    isError: !envelope.ok,
+    isError: !envelope.ok || envelope.data?.outcome === "REFUSED",
   });
 }
 
@@ -181,6 +181,7 @@ async function handleMessage(message) {
       protocolVersion: requested,
       capabilities: { tools: {} },
       serverInfo: { name: SERVER_NAME, version: KERNEL_SCHEMA_VERSION },
+      instructions: MCP_SERVER_INSTRUCTIONS,
     });
     return;
   }
@@ -192,11 +193,11 @@ async function handleMessage(message) {
     respond(id, {
       tools: activeContracts.map((contract) => ({
         name: contract.tool,
+        title: contract.label,
         description: contract.description,
+        outputSchema: KERNEL_ENVELOPE_OUTPUT_SCHEMA,
         inputSchema: jsonSchemaFor(contract),
-        annotations: {
-          readOnlyHint: !MUTATING_TOOL_NAMES.has(contract.tool),
-        },
+        annotations: annotationsFor(contract),
       })),
     });
     return;
@@ -234,7 +235,8 @@ async function handleMessage(message) {
           envelope = argumentErrorEnvelope(contract.operation, requestId, normalized.error);
         } else {
           const args = normalized.args;
-          if (contract.fields.some((entry) => entry.name === "requestId") && requestId !== null) args.requestId = requestId;
+          const hasRequestId = (contract.fields ?? []).some((entry) => entry.name === "requestId") || (contract.commonFields ?? []).some((entry) => entry.name === "requestId");
+          if (hasRequestId && requestId !== null && args.requestId === undefined) args.requestId = requestId;
           const validation = validateContractArguments(contract, args);
           envelope = validation.ok
             ? await service.runQuery(contract.operation, args, { requestId, schemaVersion })

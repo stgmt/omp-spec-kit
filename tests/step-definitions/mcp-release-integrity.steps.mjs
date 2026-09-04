@@ -1,3 +1,4 @@
+import { pathToFileURL } from "node:url";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -138,10 +139,10 @@ Given("project-a, project-b, and package-decoy have distinct specifications", fu
 When("the installed package launcher serves project-a without an override", async function () {
   await startInstalledServer(this.mri);
   this.mri.overview = await this.mri.server.request("tools/call", {
-    name: "spec_overview",
-    arguments: toolArguments("spec_overview"),
+    name: "spec_catalog",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
   });
-  this.mri.overviewOracle = await this.mri.directService.runQuery("overview", { specSlugs: ["plugin-distribution"] }, {
+  this.mri.overviewOracle = await this.mri.directService.runQuery("catalog", { view: "overview", specSlugs: ["plugin-distribution"] }, {
     requestId: "mri-spec_overview",
     schemaVersion: "spec-kernel@1",
   });
@@ -156,26 +157,26 @@ Then("the MCP overview contains only project-a specifications", function () {
 Then("relative unresolved or package-root overrides cannot select package-decoy", async function () {
   await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: "package-decoy" });
   const relative = await this.mri.server.request("tools/call", {
-    name: "spec_overview",
-    arguments: toolArguments("spec_overview"),
+    name: "spec_catalog",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
   });
   assert.deepStrictEqual(relative.result.structuredContent, this.mri.overviewOracle);
   await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: "OMP_SPEC_KIT_ROOT" });
   const unresolved = await this.mri.server.request("tools/call", {
-    name: "spec_overview",
-    arguments: toolArguments("spec_overview"),
+    name: "spec_catalog",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
   });
   assert.deepStrictEqual(unresolved.result.structuredContent, this.mri.overviewOracle);
   await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: this.mri.packageRoot });
   const packageOverride = await this.mri.server.request("tools/call", {
-    name: "spec_overview",
-    arguments: toolArguments("spec_overview"),
+    name: "spec_catalog",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
   });
   assert.deepStrictEqual(packageOverride.result.structuredContent, this.mri.overviewOracle);
   await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: this.mri.packageAlias });
   const packageAliasOverride = await this.mri.server.request("tools/call", {
-    name: "spec_overview",
-    arguments: toolArguments("spec_overview"),
+    name: "spec_catalog",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
   });
   assert.deepStrictEqual(packageAliasOverride.result.structuredContent, this.mri.overviewOracle);
 });
@@ -183,10 +184,11 @@ Then("relative unresolved or package-root overrides cannot select package-decoy"
 When("an explicit validated absolute override selects project-b", async function () {
   await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: this.mri.projectB });
   this.mri.projectBInventory = await this.mri.server.request("tools/call", {
-    name: "spec_inventory",
+    name: "spec_catalog",
     arguments: {
       schemaVersion: "spec-kernel@1",
       requestId: "mri-project-b-inventory",
+      view: "inventory",
       specSlugs: ["project-b"],
       includeDocuments: true,
       limit: 50,
@@ -194,8 +196,8 @@ When("an explicit validated absolute override selects project-b", async function
     },
   });
   this.mri.projectBInventoryOracle = await this.mri.directServiceB.runQuery(
-    "inventory",
-    { specSlugs: ["project-b"], includeDocuments: true, limit: 50, cursor: null },
+    "catalog",
+    { view: "inventory", specSlugs: ["project-b"], includeDocuments: true, limit: 50, cursor: null },
     { requestId: "mri-project-b-inventory", schemaVersion: "spec-kernel@1" },
   );
 });
@@ -231,8 +233,8 @@ When("the client sends JSON-RPC 1.0 with id 7 and then a valid request", async f
   this.mri.invalidId = 7;
   this.mri.invalidResponse = await this.mri.server.sendFrame({ jsonrpc: "1.0", id: 7, method: "ping" }, 1000);
   this.mri.recoveryResponse = await this.mri.server.request("tools/call", {
-    name: "spec_overview",
-    arguments: toolArguments("spec_overview"),
+    name: "spec_catalog",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "mri-recovery", view: "overview", specSlugs: ["plugin-distribution"] },
   });
 });
 
@@ -272,8 +274,8 @@ When("the client sends malformed JSON and then a valid request", async function 
   this.mri.invalidId = null;
   this.mri.invalidResponse = await this.mri.server.sendRaw('{"jsonrpc":', null, 1000);
   this.mri.recoveryResponse = await this.mri.server.request("tools/call", {
-    name: "spec_overview",
-    arguments: toolArguments("spec_overview"),
+    name: "spec_catalog",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "mri-recovery", view: "overview", specSlugs: ["plugin-distribution"] },
   });
 });
 
@@ -304,22 +306,26 @@ Given("a copied package has no source checkout or ambient dependencies", functio
 When("every SCHEMA-11 tool is called with its valid arguments", async function () {
   await startInstalledServer(this.mri);
   this.mri.toolResults = [];
-  for (const tool of MCP_TOOL_NAMES) {
-    const args = toolArguments(tool);
-    const response = await this.mri.server.request("tools/call", { name: tool, arguments: args });
-    const operation = {
-      spec_inventory: "inventory",
-      spec_get_node: "getNode",
-      spec_find_nodes: "findNodes",
-      spec_get_edges: "getEdges",
-      spec_trace: "trace",
-      spec_diagnostics: "diagnostics",
-      spec_overview: "overview",
-      spec_markdown_inventory: "markdownInventory",
-    }[tool];
-    const { requestId, schemaVersion, ...queryArgs } = args;
-    const expected = await this.mri.directService.runQuery(operation, queryArgs, { requestId, schemaVersion });
-    this.mri.toolResults.push({ tool, response, expected });
+
+  const MAPPING = {
+    spec_inventory: { tool: "spec_catalog", args: (a) => ({ ...a, view: "inventory" }), op: "catalog" },
+    spec_get_node: { tool: "spec_entities", args: (a) => ({ ...a, mode: "get" }), op: "entities" },
+    spec_find_nodes: { tool: "spec_entities", args: (a) => ({ ...a, mode: "find" }), op: "entities" },
+    spec_get_edges: { tool: "spec_graph", args: (a) => ({ ...a, view: "edges" }), op: "graph" },
+    spec_trace: { tool: "spec_graph", args: (a) => ({ ...a, view: "trace" }), op: "graph" },
+    spec_diagnostics: { tool: "spec_inspect", args: (a) => ({ ...a, check: "diagnostics" }), op: "inspect" },
+    spec_overview: { tool: "spec_catalog", args: (a) => ({ ...a, view: "overview" }), op: "catalog" },
+    spec_markdown_inventory: { tool: "spec_markdown", args: (a) => a, op: "markdown" },
+  };
+
+  for (const historicalTool of MCP_TOOL_NAMES) {
+    const mapped = MAPPING[historicalTool];
+    const rawArgs = toolArguments(historicalTool);
+    const callArgs = mapped.args(rawArgs);
+    const response = await this.mri.server.request("tools/call", { name: mapped.tool, arguments: callArgs });
+    const { requestId, schemaVersion, ...queryArgs } = callArgs;
+    const expected = await this.mri.directService.runQuery(mapped.op, queryArgs, { requestId, schemaVersion });
+    this.mri.toolResults.push({ tool: historicalTool, response, expected });
   }
 });
 

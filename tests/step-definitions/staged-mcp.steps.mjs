@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { Given, Then, When, After } from "@cucumber/cucumber";
 import { classifyToolCall } from "../../src/enforcement/classifier.js";
+import { annotationsFor, MCP_SERVER_INSTRUCTIONS, TOOL_CONTRACTS } from "../../src/adapters/tool-contracts.js";
 import { createTempRepo, loadFrozenRealCorpus, writeCorpus } from "../helpers/kernel-world.mjs";
 import { runEvidenceE2E, prepareEvidenceFixtures } from "../helpers/evidence-e2e.mjs";
 import { runToolE2E, ALL_TOOL_NAMES, prepareToolE2EFixtures } from "../helpers/tool-e2e.mjs";
@@ -13,21 +14,24 @@ const REPOSITORY_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const SERVER_PATH = path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit", "dist", "mcp", "server.js");
 
 const READ_COMPLETE_CALLS = Object.freeze([
-  ["find_by_tags", { tags: ["@feature1"] }],
-  ["list_tasks", { spec: "product", statuses: ["planned", "todo", "ready", "in-progress", "blocked"], limit: 20 }],
-  ["list_tasks", { spec: "product", phase: "missing-phase", limit: 20 }],
-  ["find_orphans", {}],
-  ["validate_anchor", { anchor: "plugin-distribution:FR-1" }],
-  ["list_specs", {}],
-  ["validate_requirement_metadata", { metadata: {} }],
-  ["policy_query_requirements", {}],
-  ["get_archival_proof", { spec: "product" }],
-  ["validate_spec", { spec: "product" }],
-  ["get_spec_status", { spec: "product", view: "summary" }],
   ["mcp_preflight", {}],
-  ["list_spec_docs", { spec: "product" }],
-  ["read_spec_doc", { spec: "product", doc: "FR.md", offset: 1, limit: 20 }],
-  ["read_attachment", { spec: "product", path: "FR.md" }],
+  ["spec_catalog", { view: "specs" }],
+  ["spec_catalog", { view: "types" }],
+  ["spec_catalog", { view: "overview" }],
+  ["spec_catalog", { view: "inventory", limit: 20 }],
+  ["spec_catalog", { view: "status", spec: "product", statusView: "summary" }],
+  ["spec_entities", { mode: "find", kinds: ["FUNCTIONAL_REQUIREMENT"] }],
+  ["spec_entities", { mode: "get", canonicalId: "product:FR-1" }],
+  ["spec_graph", { view: "edges", canonicalId: "product:FR-1" }],
+  ["spec_graph", { view: "trace", canonicalId: "product:FR-1" }],
+  ["spec_documents", { action: "list", spec: "product" }],
+  ["spec_documents", { action: "read", spec: "product", doc: "FR.md", offset: 1, limit: 20 }],
+  ["spec_documents", { action: "attachment", spec: "product", path: "FR.md" }],
+  ["spec_inspect", { check: "orphans" }],
+  ["spec_inspect", { check: "diagnostics", limit: 20 }],
+  ["spec_tasks", { spec: "product", limit: 20 }],
+  ["spec_evidence", { view: "result", scenarioId: "product:SCEN-specification-only-init" }],
+  ["spec_markdown", { specSlugs: ["product"] }],
 ]);
 
 async function startWorld() {
@@ -51,8 +55,16 @@ Given("a real staged MCP corpus and packaged server", async function () {
 When("the registry and every handler are called", async function () {
   const initialized = await this.stagedMcp.server.request("initialize", { protocolVersion: "2025-03-26" });
   assert.equal(initialized.result.serverInfo.name, "omp-spec-kit");
+  assert.equal(initialized.result.instructions, MCP_SERVER_INSTRUCTIONS);
   const listed = await this.stagedMcp.server.request("tools/list");
   this.stagedMcp.listedNames = listed.result.tools.map((tool) => tool.name);
+  for (const tool of listed.result.tools) {
+    const contract = TOOL_CONTRACTS.find((candidate) => candidate.tool === tool.name);
+    assert.ok(contract, tool.name);
+    assert.equal(tool.title, contract.label, tool.name);
+    assert.equal(tool.description.split(/\r?\n/u, 1)[0].trim().length <= 200, true, tool.name);
+    assert.deepEqual(tool.annotations, annotationsFor(contract), tool.name);
+  }
   this.stagedMcp.results = [];
   for (const [name, arguments_] of READ_COMPLETE_CALLS) {
     const response = await this.stagedMcp.server.request("tools/call", { name, arguments: { schemaVersion: "spec-kernel@1", requestId: `bdd-${name}`, ...arguments_ } });
@@ -60,10 +72,10 @@ When("the registry and every handler are called", async function () {
   }
 });
 
-Then("the registry has exactly 38 names and every call has a bounded envelope", function () {
-  assert.equal(this.stagedMcp.listedNames.length, 38);
-  assert.equal(new Set(this.stagedMcp.listedNames).size, 38);
-  for (const name of ["spec_inventory", "spec_get_node", "spec_find_nodes", "spec_get_edges", "spec_trace", "spec_diagnostics", "spec_overview", "spec_markdown_inventory"]) assert.ok(this.stagedMcp.listedNames.includes(name), `${name} must remain registered`);
+Then("the registry has exactly 11 names and every call has a bounded envelope", function () {
+  assert.equal(this.stagedMcp.listedNames.length, 11);
+  assert.equal(new Set(this.stagedMcp.listedNames).size, 11);
+  for (const name of ALL_TOOL_NAMES) assert.ok(this.stagedMcp.listedNames.includes(name), `${name} must remain registered`);
   assert.equal(this.stagedMcp.results.length, READ_COMPLETE_CALLS.length);
   for (const { name, response } of this.stagedMcp.results) {
     assert.ok(response.result, `${name} must return a JSON-RPC result`);
@@ -76,13 +88,14 @@ Then("the registry has exactly 38 names and every call has a bounded envelope", 
 When("an authoring proposal is created and explicitly approved", async function () {
   await this.stagedMcp.server.close();
   this.stagedMcp.server = spawnMcpServer({ serverPath: SERVER_PATH, root: this.stagedMcp.root, cwd: this.stagedMcp.root, env: {} });
-  const overview = await this.stagedMcp.server.request("tools/call", { name: "spec_overview", arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-overview", specSlugs: [] } });
+  const overview = await this.stagedMcp.server.request("tools/call", { name: "spec_catalog", arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-overview", view: "overview", specSlugs: [] } });
   const fingerprint = overview.result.structuredContent.graph.fingerprint;
   const proposalResponse = await this.stagedMcp.server.request("tools/call", {
-    name: "propose_patch",
+    name: "spec_propose_patch",
     arguments: {
       schemaVersion: "spec-kernel@1",
       requestId: "bdd-proposal",
+      intent: "patch",
       repositoryRootFingerprint: fingerprint,
       spec: "product",
       reason: "verify proposal before apply",
@@ -105,17 +118,18 @@ When("an authoring proposal is created and explicitly approved", async function 
     },
   });
   this.stagedMcp.apply = applied.result.structuredContent;
-  const appendOverview = await this.stagedMcp.server.request("tools/call", { name: "spec_overview", arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-append-overview", specSlugs: [] } });
+  const appendOverview = await this.stagedMcp.server.request("tools/call", { name: "spec_catalog", arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-append-overview", view: "overview", specSlugs: [] } });
   const appendFingerprint = appendOverview.result.structuredContent.graph.fingerprint;
   const append = await this.stagedMcp.server.request("tools/call", {
-    name: "propose_patch",
+    name: "spec_propose_patch",
     arguments: {
       schemaVersion: "spec-kernel@1",
       requestId: "bdd-append",
+      intent: "patch",
       repositoryRootFingerprint: appendFingerprint,
       spec: "product",
       reason: "verify section append preserves the document",
-      operations: [{ kind: "append_to_section", document: "README.md", heading: "Current product status", text: "BDD append marker" }],
+      operations: [{ kind: "insert_after_heading", document: "README.md", heading: "Current product status", text: "\nBDD append marker\n" }],
     },
   });
   const appendProposal = append.result.structuredContent;
@@ -135,18 +149,19 @@ When("an authoring proposal is created and explicitly approved", async function 
   });
   this.stagedMcp.append = { proposal: appendProposal, applied: appendApplied.result.structuredContent };
   const refreshedOverview = await this.stagedMcp.server.request("tools/call", {
-    name: "spec_overview",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-rename-overview", specSlugs: [] },
+    name: "spec_catalog",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-rename-overview", view: "overview", specSlugs: [] },
   });
   const renameProposalResponse = await this.stagedMcp.server.request("tools/call", {
-    name: "propose_patch",
+    name: "spec_propose_patch",
     arguments: {
       schemaVersion: "spec-kernel@1",
       requestId: "bdd-rename",
+      intent: "patch",
       repositoryRootFingerprint: refreshedOverview.result.structuredContent.graph.fingerprint,
       spec: "product",
       reason: "verify heading rename preserves the document",
-      operations: [{ kind: "rename_heading", document: "README.md", heading: "Current product status", newHeading: "Current product status renamed" }],
+      operations: [{ kind: "replace_in_section", document: "README.md", heading: "Current product status", oldText: "Current product status", newText: "Current product status renamed" }],
     },
   });
   const renameProposal = renameProposalResponse.result.structuredContent;
@@ -181,10 +196,13 @@ Then("the approved proposal changes the temporary document, section edits preser
   assert.equal(blocked.action, "block");
   assert.equal(blocked.mismatchField, null);
   const allowed = classifyToolCall({ toolName: "mcp__omp_spec_kit_apply_proposed_patch", input: { approval: "approve" } });
+  const allowedProposal = classifyToolCall({ toolName: "mcp__omp_spec_kit_spec_propose_patch", input: { reason: "probe" } });
   const removedMinted = classifyToolCall({ toolName: "mcp__omp_spec_kit_apply_spec_change", input: { approval: "approve" } });
   const removedShort = classifyToolCall({ toolName: "apply_spec_change", input: { approval: "approve" } });
   assert.equal(allowed.action, "allow");
   assert.equal(allowed.code, "AUTHORING_TOOL_ALLOWED");
+  assert.equal(allowedProposal.action, "allow");
+  assert.equal(allowedProposal.code, "AUTHORING_TOOL_ALLOWED");
   assert.notEqual(removedMinted.action, "allow");
   assert.notEqual(removedShort.action, "allow");
 });
@@ -201,12 +219,12 @@ When("authoring safety guards are exercised", async function () {
     env: {},
   });
   const linked = await this.stagedMcp.server.request("tools/call", {
-    name: "create_spec",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-linked-create", spec: "evil", reason: "reject linked path", title: "Escape" },
+    name: "spec_propose_patch",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-linked-create", intent: "createSpec", spec: "evil", reason: "reject linked path", title: "Escape" },
   });
   const existing = await this.stagedMcp.server.request("tools/call", {
-    name: "create_spec",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-existing-create", spec: "product", reason: "reject overwrite", title: "Overwrite" },
+    name: "spec_propose_patch",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-existing-create", intent: "createSpec", spec: "product", reason: "reject overwrite", title: "Overwrite" },
   });
   this.stagedMcp.safety = { linked: linked.result.structuredContent, existing: existing.result.structuredContent };
 });
@@ -228,15 +246,15 @@ When("the read server receives alias and unknown-field calls", async function ()
     env: {},
   });
   const alias = await this.stagedMcp.server.request("tools/call", {
-    name: "spec_inventory",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-alias", spec_slugs: [], include_documents: false, limit: 1, cursor: null },
+    name: "spec_catalog",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-alias", view: "inventory", spec_slugs: [], include_documents: false, limit: 1, cursor: null },
   });
   const unknown = await this.stagedMcp.server.request("tools/call", {
-    name: "list_specs",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-unknown", unexpected: true },
+    name: "spec_catalog",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-unknown", view: "specs", unexpected: true },
   });
   const invalidShape = await this.stagedMcp.server.request("tools/call", {
-    name: "list_specs",
+    name: "spec_catalog",
     arguments: [],
   });
   await this.stagedMcp.server.close();
@@ -244,7 +262,7 @@ When("the read server receives alias and unknown-field calls", async function ()
     serverPath: SERVER_PATH,
     root: this.stagedMcp.root,
     cwd: this.stagedMcp.root,
-    env: {},
+    env: { OMP_SPEC_KIT_TEST_STAGE: "future" },
   });
   const hidden = await this.stagedMcp.server.request("tools/list");
   this.stagedMcp.inputResults = {
@@ -263,9 +281,11 @@ Then("aliases work, unknown fields fail, and removed tools stay unknown", functi
   assert.equal(this.stagedMcp.inputResults.invalidShape.ok, false, JSON.stringify(this.stagedMcp.inputResults.invalidShape));
   assert.equal(this.stagedMcp.inputResults.invalidShape.error.code, "INVALID_REQUEST");
   assert.equal(this.stagedMcp.inputResults.invalidShape.error.receivedType, "array");
-  assert.equal(this.stagedMcp.inputResults.hiddenNames.includes("propose_patch"), true, "propose_patch must be registered");
+  assert.equal(this.stagedMcp.inputResults.hiddenNames.includes("spec_propose_patch"), true, "spec_propose_patch must be registered");
   assert.equal(this.stagedMcp.inputResults.hiddenNames.includes("apply_proposed_patch"), true, "apply_proposed_patch must be registered");
-  for (const removed of ["apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) assert.equal(this.stagedMcp.inputResults.hiddenNames.includes(removed), false, removed + " must be gone");
+  for (const removed of ["propose_patch", "create_spec", "list_specs", "spec_inventory", "apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) {
+    assert.equal(this.stagedMcp.inputResults.hiddenNames.includes(removed), false, removed + " must be gone");
+  }
 });
 
 When("an incomplete evidence stream is queried", async function () {
@@ -285,8 +305,8 @@ When("an incomplete evidence stream is queried", async function () {
     env: {},
   });
   const result = await this.stagedMcp.server.request("tools/call", {
-    name: "get_test_result",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-incomplete-evidence", scenarioId: "product:SCEN-specification-only-init" },
+    name: "spec_evidence",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-incomplete-evidence", view: "result", scenarioId: "product:SCEN-specification-only-init" },
   });
   this.stagedMcp.evidenceResult = result.result.structuredContent;
 });
@@ -307,8 +327,8 @@ When("a new specification is created and archived through the proposal door", as
     env: {},
   });
   const created = await this.stagedMcp.server.request("tools/call", {
-    name: "create_spec",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-archive-create", spec: "archive-bdd", reason: "create archive fixture", title: "Archive BDD" },
+    name: "spec_propose_patch",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-archive-create", intent: "createSpec", spec: "archive-bdd", reason: "create archive fixture", title: "Archive BDD" },
   });
   const createdProposal = created.result.structuredContent;
   const createdExpectedDocuments = createdProposal.data.operations.map((operation) => ({ path: operation.path, beforeSha256: operation.beforeSha256 }));
@@ -325,8 +345,8 @@ When("a new specification is created and archived through the proposal door", as
     },
   });
   const archive = await this.stagedMcp.server.request("tools/call", {
-    name: "archive_spec",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-archive-propose", spec: "archive-bdd", reason: "archive exact fixture" },
+    name: "spec_propose_patch",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-archive-propose", intent: "archiveSpec", spec: "archive-bdd", reason: "archive exact fixture" },
   });
   const archiveProposal = archive.result.structuredContent;
   const archivedApply = await this.stagedMcp.server.request("tools/call", {
@@ -385,10 +405,10 @@ Then("applied authoring tools require write approval and proposals remain read-o
   assert.equal(this.stagedMcp.extensionProbe.tools.length, 0, "extension must register 0 direct tools in MCP-only architecture");
   assert.ok(this.stagedMcp.extensionProbe.registeredEvents?.includes("tool_call"), "extension must register tool_call hook");
   const tools = new Map(this.stagedMcp.mcpTools.map((tool) => [tool.name, tool]));
-  assert.equal(tools.size, 38, "MCP server must expose the single 38-tool surface");
+  assert.equal(tools.size, 11, "MCP server must expose the single 11-tool surface");
   assert.equal(tools.get("apply_proposed_patch")?.annotations?.readOnlyHint, false);
-  assert.equal(tools.get("propose_patch")?.annotations?.readOnlyHint, true);
-  assert.equal(tools.get("create_spec")?.annotations?.readOnlyHint, true);
+  assert.equal(tools.get("spec_propose_patch")?.annotations?.readOnlyHint, true);
+  assert.equal(tools.get("spec_catalog")?.annotations?.readOnlyHint, true);
 });
 
 async function runToolE2EPhase(world, phase) {
@@ -414,6 +434,7 @@ When("the tool inventory matrix is exercised", { timeout: 30000 }, async functio
   this.stagedMcp.server = spawnMcpServer({ serverPath: SERVER_PATH, root: this.stagedMcp.root, cwd: this.stagedMcp.root, env: {} });
   await this.stagedMcp.server.request("initialize", { protocolVersion: "2025-03-26" });
   await runToolE2E({
+    initialize: () => this.stagedMcp.server.request("initialize", { protocolVersion: "2025-03-26" }),
     listTools: () => this.stagedMcp.server.request("tools/list"),
     callTool: (name, arguments_) => this.stagedMcp.server.request("tools/call", { name, arguments: arguments_ }),
     projectRoot: this.stagedMcp.root,
@@ -423,7 +444,7 @@ When("the tool inventory matrix is exercised", { timeout: 30000 }, async functio
   const listed = await this.stagedMcp.server.request("tools/list");
   this.toolE2E = listed.result.tools.map((tool) => tool.name);
 });
-Then("the inventory contains the exact 38-tool surface", function () {
+Then("the inventory contains the exact 11-tool surface", function () {
   assert.deepEqual(this.toolE2E, [...ALL_TOOL_NAMES]);
 });
 
@@ -456,11 +477,64 @@ Then("every read-only call preserves the project byte snapshot", function () {
   assert.equal(this.toolE2E, undefined);
 });
 
+When("MCP envelope recovery cases are exercised", { timeout: 30000 }, async function () {
+  const request = (name, arguments_) => this.stagedMcp.server.request("tools/call", { name, arguments: { schemaVersion: "spec-kernel@1", ...arguments_ } });
+  const firstPage = await request("spec_entities", { requestId: "bdd-recovery-first", mode: "find", kinds: [], canonicalIds: [], text: null, projection: "summary", limit: 1, cursor: null });
+  const firstValue = firstPage.result.structuredContent;
+  const cursor = firstValue.page?.nextCursor;
+  assert.ok(cursor, JSON.stringify(firstValue));
+  const stale = await request("spec_entities", { requestId: "bdd-recovery-stale", mode: "find", kinds: ["FUNCTIONAL_REQUIREMENT"], canonicalIds: [], text: null, projection: "summary", limit: 1, cursor });
+
+  const overview = await request("spec_catalog", { requestId: "bdd-recovery-conflict-overview", view: "overview", specSlugs: [] });
+  const fingerprint = overview.result.structuredContent.graph.fingerprint;
+  const proposalResponse = await request("spec_propose_patch", {
+    requestId: "bdd-recovery-conflict-proposal",
+    intent: "patch",
+    repositoryRootFingerprint: fingerprint,
+    spec: "product",
+    reason: "exercise conflict recovery",
+    operations: [{ kind: "insert_at_eof", document: "README.md", text: "conflict recovery marker" }],
+  });
+  const proposal = proposalResponse.result.structuredContent.data;
+  const target = path.join(this.stagedMcp.root, "." + "specs", "product", "README.md");
+  const current = await readFile(target, "utf8");
+  await writeFile(target, current + "changed before apply\n", "utf8");
+  const conflict = await request("apply_proposed_patch", {
+    requestId: "bdd-recovery-conflict-apply",
+    proposalId: proposal.proposalId,
+    proposalSha256: proposal.proposalHash,
+    expectedDocuments: proposal.operations.map((operation) => ({ path: operation.path, beforeSha256: operation.beforeSha256 })),
+    reason: "exercise conflict recovery",
+    approval: "approve",
+  });
+
+  const targetBlocked = classifyToolCall({ toolName: "write", input: { path: "" }, cwd: this.stagedMcp.root });
+  this.stagedMcp.recovery = { stale, conflict, targetBlocked };
+});
+
+Then("stale cursor, conflict, and target indeterminate recoveries are bounded and actionable", function () {
+  const { stale, conflict, targetBlocked } = this.stagedMcp.recovery;
+  assert.equal(stale.result.isError, true);
+  assert.equal(stale.result.structuredContent.error.code, "STALE_CURSOR");
+  assert.ok(stale.result.structuredContent.error.message.endsWith("Recovery: retry the same list operation without cursor to obtain a fresh page, then continue with the returned nextCursor."), stale.result.structuredContent.error.message);
+  assert.deepEqual(JSON.parse(stale.result.content[0].text), stale.result.structuredContent);
+  assert.equal(conflict.result.isError, true, JSON.stringify(conflict));
+  assert.equal(conflict.result.structuredContent.data.error.code, "CONFLICT");
+  assert.ok(conflict.result.structuredContent.data.error.message.endsWith("Recovery: rerun spec_overview, resolve the reported conflict, create and review a fresh proposal, then call apply_proposed_patch with a new requestId."));
+  assert.deepEqual(JSON.parse(conflict.result.content[0].text), conflict.result.structuredContent);
+  assert.equal(targetBlocked.action, "block");
+  assert.equal(targetBlocked.code, "TARGET_INDETERMINATE");
+  assert.ok(targetBlocked.reason.includes("Recovery: provide one explicit repository-relative target, or use spec_propose_patch then apply_proposed_patch."));
+  assert.ok(Buffer.byteLength(targetBlocked.reason, "utf8") <= 512);
+  assert.equal(targetBlocked.reason.includes(path.resolve(this.stagedMcp.root)), false);
+});
+
 After({ tags: "@staged-mcp" }, async function () {
   if (this.stagedMcp?.server) await this.stagedMcp.server.close();
   if (this.stagedMcp?.root) await rm(this.stagedMcp.root, { recursive: true, force: true });
   if (this.stagedMcp?.outsideRoot) await rm(this.stagedMcp.outsideRoot, { recursive: true, force: true });
 });
+
 When("the additive registry, evidence states, and safe authoring are exercised", async function () {
   await this.stagedMcp.server.close();
   this.stagedMcp.server = spawnMcpServer({
@@ -474,12 +548,12 @@ When("the additive registry, evidence states, and safe authoring are exercised",
   const listed = await this.stagedMcp.server.request("tools/list");
   this.stagedMcp.v05Names = listed.result.tools.map((tool) => tool.name);
   const overview = await this.stagedMcp.server.request("tools/call", {
-    name: "spec_overview",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-overview", specSlugs: [] },
+    name: "spec_catalog",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-overview", view: "overview", specSlugs: [] },
   });
   const nodeResponse = await this.stagedMcp.server.request("tools/call", {
-    name: "spec_get_node",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-node", canonicalId: "product:SCEN-specification-only-init", projection: "summary", includeIncidentCounts: false },
+    name: "spec_entities",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-node", mode: "get", canonicalId: "product:SCEN-specification-only-init", projection: "summary", includeIncidentCounts: false },
   });
   const binding = {
     graphFingerprint: overview.result.structuredContent.graph.fingerprint,
@@ -491,45 +565,46 @@ When("the additive registry, evidence states, and safe authoring are exercised",
   await writeFile(path.join(evidenceDir, "last-test-run.ndjson"), fixture
     .replace("__GRAPH_FINGERPRINT__", binding.graphFingerprint)
     .replace("__SCENARIO_CONTENT_HASH__", binding.scenarioContentHash));
-  const evidenceRequest = (name, requestId) => this.stagedMcp.server.request("tools/call", {
-    name,
-    arguments: { schemaVersion: "spec-kernel@1", requestId, scenarioId: "product:SCEN-specification-only-init" },
+  const evidenceRequest = (view, requestId) => this.stagedMcp.server.request("tools/call", {
+    name: "spec_evidence",
+    arguments: { schemaVersion: "spec-kernel@1", requestId, view, scenarioId: "product:SCEN-specification-only-init" },
   });
-  const passing = await evidenceRequest("get_test_result", "v05-passing");
-  const trace = await evidenceRequest("get_scenario_trace", "v05-trace");
+  const passing = await evidenceRequest("result", "v05-passing");
+  const trace = await evidenceRequest("trace", "v05-trace");
   const failedFixture = await readFile(path.join(REPOSITORY_ROOT, "tests", "fixtures", "evidence", "v05-failed.ndjson"), "utf8");
   await writeFile(path.join(evidenceDir, "last-test-run.ndjson"), failedFixture);
-  const failed = await evidenceRequest("get_test_result", "v05-failed");
+  const failed = await evidenceRequest("result", "v05-failed");
   const incompleteFixture = await readFile(path.join(REPOSITORY_ROOT, "tests", "fixtures", "evidence", "v05-incomplete.ndjson"), "utf8");
   await writeFile(path.join(evidenceDir, "last-test-run.ndjson"), incompleteFixture);
-  const incomplete = await evidenceRequest("get_test_result", "v05-incomplete");
+  const incomplete = await evidenceRequest("result", "v05-incomplete");
   const unknownScenario = await this.stagedMcp.server.request("tools/call", {
-    name: "get_test_result",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-unknown-scenario", scenarioId: "product:SCEN-unknown" },
+    name: "spec_evidence",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-unknown-scenario", view: "result", scenarioId: "product:SCEN-unknown" },
   });
   const invalid = await this.stagedMcp.server.request("tools/call", {
-    name: "get_test_result",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-invalid" },
+    name: "spec_evidence",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-invalid", view: "result" },
   });
   await writeFile(path.join(evidenceDir, "last-test-run.ndjson"), fixture
     .replace("__GRAPH_FINGERPRINT__", binding.graphFingerprint)
     .replace("__SCENARIO_CONTENT_HASH__", binding.scenarioContentHash));
   const scenarioPath = path.join(this.stagedMcp.root, ".specs", "product", "product.feature");
   const originalScenario = await readFile(scenarioPath, "utf8");
-  const beforeMutation = await evidenceRequest("get_test_result", "v05-before-mutation");
+  const beforeMutation = await evidenceRequest("result", "v05-before-mutation");
   await writeFile(scenarioPath, originalScenario.replace("Scenario: Specification-only init reports no installable plugin", "Scenario: Specification-only init reports no installable plugin changed"));
   await this.stagedMcp.server.close();
   this.stagedMcp.server = spawnMcpServer({ serverPath: SERVER_PATH, root: this.stagedMcp.root, cwd: this.stagedMcp.root, env: {} });
-  const afterMutation = await evidenceRequest("get_test_result", "v05-after-mutation");
+  const afterMutation = await evidenceRequest("result", "v05-after-mutation");
   const changedOverview = await this.stagedMcp.server.request("tools/call", {
-    name: "spec_overview",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-changed-overview", specSlugs: [] },
+    name: "spec_catalog",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-changed-overview", view: "overview", specSlugs: [] },
   });
   const proposalResponse = await this.stagedMcp.server.request("tools/call", {
-    name: "propose_patch",
+    name: "spec_propose_patch",
     arguments: {
       schemaVersion: "spec-kernel@1",
       requestId: "v05-proposal",
+      intent: "patch",
       repositoryRootFingerprint: changedOverview.result.structuredContent.graph.fingerprint,
       spec: "product",
       reason: "verify v0.5 safe authoring",
@@ -553,7 +628,7 @@ When("the additive registry, evidence states, and safe authoring are exercised",
   this.stagedMcp.v05 = { passing, trace, failed, incomplete, unknownScenario, invalid, beforeMutation, afterMutation, proposal, applied, replay };
 });
 
-Then("the surface exposes 38 bounded tools, preserves authoring, and refuses stale evidence", async function () {
+Then("the surface exposes 11 bounded tools, preserves authoring, and refuses stale evidence", async function () {
   assert.deepEqual(this.stagedMcp.v05Names, [...ALL_TOOL_NAMES]);
   const result = this.stagedMcp.v05;
   assert.equal(result.passing.result.structuredContent.data.result, "PASSED");
@@ -576,4 +651,183 @@ Then("the surface exposes 38 bounded tools, preserves authoring, and refuses sta
   assert.equal(result.replay.result.structuredContent.data.error.code, "CONFLICT", JSON.stringify(result.replay));
   const content = await readFile(path.join(this.stagedMcp.root, ".specs", "product", "README.md"), "utf8");
   assert.equal((content.match(/authoring marker/g) ?? []).length, 1);
+});
+
+const ALL_SUPERSEDED_36_TOOLS = Object.freeze([
+  "spec_inventory",
+  "spec_get_node",
+  "spec_find_nodes",
+  "spec_get_edges",
+  "spec_trace",
+  "spec_diagnostics",
+  "spec_overview",
+  "spec_markdown_inventory",
+  "find_by_tags",
+  "list_tasks",
+  "find_orphans",
+  "validate_anchor",
+  "list_specs",
+  "validate_requirement_metadata",
+  "policy_query_requirements",
+  "get_archival_proof",
+  "validate_spec",
+  "get_spec_status",
+  "list_spec_docs",
+  "read_spec_doc",
+  "read_attachment",
+  "get_test_result",
+  "get_scenario_trace",
+  "propose_patch",
+  "amend_requirement",
+  "add_acceptance_criterion",
+  "add_phase",
+  "set_entity_status",
+  "set_spec_status",
+  "set_requirement_metadata",
+  "delete_spec_doc",
+  "rename_spec_doc",
+  "create_spec",
+  "archive_spec",
+  "add_backlog_task",
+  "register_incident_backlog",
+]);
+
+When("all 36 superseded tool names are invoked individually", async function () {
+  this.supersededResults = [];
+  for (const name of ALL_SUPERSEDED_36_TOOLS) {
+    const res = await this.stagedMcp.server.request("tools/call", {
+      name,
+      arguments: {},
+    });
+    this.supersededResults.push({ name, res });
+  }
+});
+
+Then("every superseded tool returns JSON-RPC error -32602 without fallback shims", function () {
+  assert.equal(this.supersededResults.length, 36);
+  for (const { name, res } of this.supersededResults) {
+    assert.ok(res.error, "Tool " + name + " must return JSON-RPC error");
+    assert.equal(res.error.code, -32602, "Tool " + name + " error code must be -32602");
+    assert.equal(res.error.message, "Unknown tool: " + name, "Tool " + name + " error message must be standard unknown tool");
+  }
+});
+
+When("all consolidated branches and all 13 proposal intents are exercised", { timeout: 60000 }, async function () {
+  const server = this.stagedMcp.server;
+  const root = this.stagedMcp.root;
+
+  // Create temporary spec for document/lifecycle proposal checks
+  const tempSpecDir = path.join(root, "." + "specs", "temp-e2e-spec");
+  await mkdir(tempSpecDir, { recursive: true });
+  await writeFile(path.join(tempSpecDir, "README.md"), "# Temp E2E\n", "utf8");
+  await writeFile(path.join(tempSpecDir, "TASKS.md"), "# Tasks\n\n## TASK-1: Temp Task\n- **Status:** todo\n", "utf8");
+  await writeFile(path.join(tempSpecDir, "temp-e2e-spec.feature"), "Feature: Temp E2E\n", "utf8");
+
+  // Restart server to reload graph with temp-e2e-spec
+  await server.close();
+  this.stagedMcp.server = spawnMcpServer({ serverPath: SERVER_PATH, root, cwd: root, env: {} });
+  const freshServer = this.stagedMcp.server;
+
+  // Overview to get fingerprint
+  const catOverview = await freshServer.request("tools/call", {
+    name: "spec_catalog",
+    arguments: { view: "overview" },
+  });
+  const fingerprint = catOverview.result.structuredContent.graph.fingerprint;
+
+  const calls = [
+    // 1. spec_catalog
+    ["spec_catalog", { view: "types" }, "catalog", "types"],
+    ["spec_catalog", { view: "specs" }, "catalog", "specs"],
+    ["spec_catalog", { view: "inventory", limit: 5 }, "catalog", "inventory"],
+    ["spec_catalog", { view: "overview" }, "catalog", "overview"],
+    ["spec_catalog", { view: "status", spec: "product", statusView: "summary" }, "catalog", "summary"],
+
+    // 2. spec_entities
+    ["spec_entities", { mode: "get", canonicalId: "product:FR-1" }, "entities", "node"],
+    ["spec_entities", { mode: "find", kinds: ["FUNCTIONAL_REQUIREMENT"] }, "entities", "nodes"],
+
+    // 3. spec_graph
+    ["spec_graph", { view: "edges", canonicalId: "product:FR-1" }, "graph", "edges"],
+    ["spec_graph", { view: "trace", canonicalId: "product:FR-1", maxDepth: 2 }, "graph", "trace"],
+
+    // 4. spec_documents
+    ["spec_documents", { action: "list", spec: "product" }, "documents", "spec-documents"],
+    ["spec_documents", { action: "read", spec: "product", doc: "FR.md", limit: 5 }, "documents", "document"],
+    ["spec_documents", { action: "attachment", spec: "product", path: "tool-e2e.bin" }, "documents", "attachment"],
+
+    // 5. spec_inspect
+    ["spec_inspect", { check: "scenariosByTags", tags: ["@feature1"] }, "inspect", "scenarios"],
+    ["spec_inspect", { check: "orphans" }, "inspect", "orphans"],
+    ["spec_inspect", { check: "anchor", anchor: "plugin-distribution:FR-1" }, "inspect", "spec-graph-id"],
+    ["spec_inspect", { check: "requirementMetadata", metadata: {} }, "inspect", "requirement-metadata"],
+    ["spec_inspect", { check: "requirementsPolicy" }, "inspect", "requirement-policy"],
+    ["spec_inspect", { check: "archivalProof", spec: "product" }, "inspect", "archival-proof"],
+    ["spec_inspect", { check: "specValidation", spec: "product" }, "inspect", "spec-validation"],
+    ["spec_inspect", { check: "diagnostics", limit: 5 }, "inspect", "diagnostics"],
+
+    // 6. spec_tasks
+    ["spec_tasks", { spec: "product", limit: 5 }, "tasks", "tasks"],
+
+    // 7. spec_evidence
+    ["spec_evidence", { view: "result", scenarioId: "product:SCEN-specification-only-init" }, "evidence", "test-result"],
+    ["spec_evidence", { view: "trace", scenarioId: "product:SCEN-specification-only-init" }, "evidence", "scenario-trace"],
+
+    // 8. spec_markdown
+    ["spec_markdown", { specSlugs: ["product"] }, "markdown", "markdownInventory"],
+
+    // 9. mcp_preflight
+    ["mcp_preflight", {}, "mcpPreflight", "mcp-preflight"],
+
+    // 10. spec_propose_patch - all 13 intents
+    ["spec_propose_patch", { intent: "patch", repositoryRootFingerprint: fingerprint, spec: "product", reason: "bdd test", requestId: "bdd-int-patch", operations: [{ kind: "insert_at_eof", document: "README.md", text: "bdd" }] }, "proposePatch", null],
+    ["spec_propose_patch", { intent: "amendRequirement", spec: "product", requirement: "FR-1", body: "amend", reason: "amend reason", requestId: "bdd-int-amend" }, "proposePatch", null],
+    ["spec_propose_patch", { intent: "addAcceptanceCriterion", spec: "product", requirement: "FR-1", criterion: "crit", reason: "ac reason", requestId: "bdd-int-ac" }, "proposePatch", null],
+    ["spec_propose_patch", { intent: "addPhase", spec: "product", title: "New Phase", reason: "phase reason", requestId: "bdd-int-phase" }, "proposePatch", null],
+    ["spec_propose_patch", { intent: "setEntityStatus", spec: "product", entity: "TASK-1", status: "in-progress", reason: "status reason", requestId: "bdd-int-status" }, "proposePatch", null],
+    ["spec_propose_patch", { intent: "setSpecStatus", spec: "product", status: "active", reason: "spec status reason", requestId: "bdd-int-spec-status" }, "proposePatch", null],
+    ["spec_propose_patch", { intent: "setRequirementMetadata", spec: "product", requirement: "FR-1", metadata: { schemaVersion: 1, verificationMethod: "test" }, reason: "meta reason", requestId: "bdd-int-meta" }, "proposePatch", null],
+    ["spec_propose_patch", { intent: "deleteSpecDoc", spec: "temp-e2e-spec", doc: "TASKS.md", reason: "delete doc reason", requestId: "bdd-int-del" }, "proposePatch", null],
+    ["spec_propose_patch", { intent: "renameSpecDoc", spec: "temp-e2e-spec", doc: "TASKS.md", newDoc: "FIXTURES.md", reason: "rename doc reason", requestId: "bdd-int-ren" }, "proposePatch", null],
+    ["spec_propose_patch", { intent: "createSpec", spec: "temp-spec-123", title: "Temp Spec", reason: "create reason", requestId: "bdd-int-create" }, "proposePatch", null],
+    ["spec_propose_patch", { intent: "archiveSpec", spec: "temp-e2e-spec", reason: "archive reason", requestId: "bdd-int-archive" }, "proposePatch", null],
+    ["spec_propose_patch", { intent: "addBacklogTask", spec: "product", title: "Backlog Task", reason: "backlog reason", requestId: "bdd-int-backlog" }, "proposePatch", null],
+    ["spec_propose_patch", { intent: "registerIncidentBacklog", spec: "product", summary: "Incident Task", reason: "incident reason", requestId: "bdd-int-incident" }, "proposePatch", null],
+  ];
+
+  this.branchResults = [];
+  for (const [tool, args, expectedOp, expectedKind] of calls) {
+    const res = await freshServer.request("tools/call", { name: tool, arguments: args });
+    this.branchResults.push({ tool, args, expectedOp, expectedKind, res });
+  }
+});
+
+Then("every branch returns its declared operation, data kind, and valid envelope", function () {
+  for (const { tool, args, expectedOp, expectedKind, res } of this.branchResults) {
+    const struct = res.result?.structuredContent;
+    assert.ok(struct, "Tool " + tool + " must return structuredContent: " + JSON.stringify(res));
+    assert.equal(struct.ok, true, "Tool " + tool + " args=" + JSON.stringify(args) + " failed: " + JSON.stringify(struct.error));
+    assert.equal(struct.operation, expectedOp, "Tool " + tool + " operation mismatch");
+    if (expectedKind) {
+      assert.equal(struct.data?.kind, expectedKind, "Tool " + tool + " data.kind mismatch");
+    }
+    assert.ok(struct.provenance, "Tool " + tool + " must include provenance");
+  }
+});
+
+When("tool {string} is called with arguments {string}", async function (tool, argsJson) {
+  const args = JSON.parse(argsJson);
+  this.boundaryResult = await this.stagedMcp.server.request("tools/call", {
+    name: tool,
+    arguments: args,
+  });
+});
+
+Then("the call fails with error code {string}", function (expectedCode) {
+  const struct = this.boundaryResult?.result?.structuredContent;
+  const isErr = this.boundaryResult?.result?.isError;
+  const code = struct?.error?.code ?? struct?.data?.error?.code;
+
+  assert.equal(isErr, true, "Response must be an error: " + JSON.stringify(this.boundaryResult));
+  assert.equal(code, expectedCode, "Error code mismatch: " + JSON.stringify(struct));
 });

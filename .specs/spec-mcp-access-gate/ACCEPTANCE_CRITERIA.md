@@ -36,7 +36,7 @@ These criteria define future verification obligations. Scenario text alone is no
 
 ## AC-5.1: Blocks are bounded visible and stateless
 
-**EARS:** WHEN a call blocks THEN the reason SHALL be deterministic and at most 512 UTF-8 bytes, SHALL use only a repository-relative target when known, SHALL name the decision code, and SHALL redirect to `propose_patch` then `apply_proposed_patch`; AND repeated calls SHALL create no file log counter cache network subprocess credential access or alternate tool.
+**EARS:** WHEN a call blocks THEN the reason SHALL be deterministic and at most 512 UTF-8 bytes, SHALL use only a repository-relative target when known, SHALL name the decision code, and SHALL redirect to `spec_propose_patch` then `apply_proposed_patch`; AND repeated calls SHALL create no file log counter cache network subprocess credential access or alternate tool; For `TARGET_INDETERMINATE`, the reason SHALL include: `Recovery: provide one explicit repository-relative target, or use spec_propose_patch then apply_proposed_patch.`.
 
 **Requirement:** [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results)
 

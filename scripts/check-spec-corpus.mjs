@@ -305,9 +305,9 @@ function validateCurrentStatus() {
         status.status.public !== false ||
         status.status.installable !== false ||
         status.status.surface !== "SAFE_AUTHORING" ||
-        status.status.toolCount !== 38
+        status.status.toolCount !== 11
       ) {
-        fail("candidate status is not the 38-tool single surface");
+        fail("candidate status is not the 11-tool consolidated surface");
       }
       return version;
     }

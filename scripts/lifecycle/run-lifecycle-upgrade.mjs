@@ -21,6 +21,10 @@ import {
 
 const PLUGIN_NAME = "omp-spec-kit";
 
+function isValidInventoryText(text) {
+	return typeof text === "string" && (/^inventory ok/u.test(text) || text.trim().startsWith('{"'));
+}
+
 function parseArgs(argv) {
 	const output = Object.create(null);
 	const allowed = ["--runtime-root", "--candidate-package-root", "--prior-package-root", "--project-dir", "--receipts-out", "--expected-version", "--prior-version", "--phase-timeout-ms", "--observe", "--package-root", "--request-id"];
@@ -88,7 +92,7 @@ async function main() {
 		} catch (error) {
 			throw new Error(`observation child printed unusable JSON (${error.message}): ${child.stdout.slice(0, 200)}`);
 		}
-		if (typeof parsed.version !== "string" || typeof parsed.inventoryText !== "string" || !/^inventory ok/u.test(parsed.inventoryText)) {
+		if (typeof parsed.version !== "string" || typeof parsed.inventoryText !== "string" || !isValidInventoryText(parsed.inventoryText)) {
 			throw new Error(`observation child returned unusable observation: ${JSON.stringify(parsed)}`);
 		}
 		return parsed;
@@ -108,7 +112,7 @@ async function main() {
 
 	// Phase 2: link the candidate over the same isolated profile.
 	const upgraded = observe(args["--candidate-package-root"], "lifecycle-upgrade-candidate");
-	if (upgraded.version !== expectedVersion || !/^inventory ok/u.test(upgraded.inventoryText)) {
+	if (upgraded.version !== expectedVersion || !isValidInventoryText(upgraded.inventoryText)) {
 		fail(`upgrade observation expected ${expectedVersion}, saw ${JSON.stringify(upgraded)}`);
 	}
 

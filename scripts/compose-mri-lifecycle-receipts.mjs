@@ -162,8 +162,8 @@ async function main() {
 	requireKeys(upgradeRaw, ["observedVersion"], "upgrade.json record");
 	if (upgradeRaw.requirement !== "plugin-distribution:FR-7" || upgradeRaw.claim !== "upgrade") fail("upgrade.json does not bind plugin-distribution:FR-7 to the upgrade claim");
 	const upgradedObservation = upgradeRaw.details?.upgradedObservation;
-	if (typeof upgradedObservation?.inventoryText !== "string" || !/^inventory ok/u.test(upgradedObservation.inventoryText)) {
-		fail(`upgrade.json upgradedObservation.inventoryText lacks an "inventory ok" prefix: ${JSON.stringify(upgradedObservation?.inventoryText)}`);
+	if (typeof upgradedObservation?.inventoryText !== "string" || !(/^inventory ok/u.test(upgradedObservation.inventoryText) || upgradedObservation.inventoryText.trim().startsWith("{\""))) {
+		fail(`upgrade.json upgradedObservation.inventoryText lacks an "inventory ok" or JSON prefix: ${JSON.stringify(upgradedObservation?.inventoryText)}`);
 	}
 	if (upgradeRaw.details.fromVersion !== PRIOR_VERSION) fail(`upgrade.json fromVersion is ${upgradeRaw.details.fromVersion}, expected ${PRIOR_VERSION}`);
 	if (upgradeRaw.details.toVersion !== identity.version || upgradeRaw.observedVersion !== identity.version || upgradedObservation.version !== identity.version) {

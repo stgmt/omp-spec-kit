@@ -80,6 +80,13 @@ function normalizeOperation(operation) {
 }
 
 function headingRange(text, selector) {
+  if (Array.isArray(selector)) {
+    for (const s of selector) {
+      const found = headingRange(text, s);
+      if (found) return found;
+    }
+    return null;
+  }
   if (typeof selector !== "string" || selector.trim() === "") return null;
   const lines = text.split(/\r?\n/u);
   const wanted = selector.trim().replace(/^#+\s*/u, "");

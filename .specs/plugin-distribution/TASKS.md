@@ -204,3 +204,14 @@ Tasks describe implementation and evidence work. Public state comes only from bo
 - **Depends on:** MRI001_01
 - **Traces:** FR-25; AC-25.1; CHK-FR25-01; Scenarios: `SCEN-mri-response-provenance`, `SCEN-mri-extension-root-consistency`
 - **Done When:** The shared resolver supplies one canonical root context to the stdio server and all OMP extension tools; every successful or typed read-error result contains server name, opaque resolved/active root identities, root mode, and mismatch flag without absolute path disclosure; explicit overrides are visibly marked; the two installed scenarios fail if inventory and query tools read different roots.
+
+## TASK-26 — Verify consolidated 11-tool discovery and release evidence — id: TASK-26
+
+- **Status:** todo
+- **Estimate:** 1 engineering day
+- **Owner:** Release verifier
+- **Depends on:** TASK-17, TASK-23
+- **Traces:** FR-26; AC-26.1; Scenarios: SCEN-mri-consolidated-11-tools
+- **Done When:** Automated tool blast checks, release preflight, archive smoke, and clean-session discovery pass with exactly 11 tools.
+
+_Requirements: [FR-26](FR.md#fr-26-consolidated-11-tool-mcp-discovery-and-release-evidence)_

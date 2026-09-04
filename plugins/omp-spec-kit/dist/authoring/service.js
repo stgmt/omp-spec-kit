@@ -115,7 +115,9 @@ function operationForFacade(name, input) {
     return { spec, reason, operations: [{ kind: "append_to_section", document: "FR.md", heading: input.requirement, text: input.body, expectedSha: typeof input.expectedSha === "string" ? input.expectedSha : undefined }] };
   }
   if (name === "setSpecStatus") {
-    const heading = typeof input.heading === "string" && input.heading.trim() ? input.heading.trim() : "Public states";
+    const heading = typeof input.heading === "string" && input.heading.trim()
+      ? input.heading.trim()
+      : ["Public states", "Current product status", "Status", "Readiness rule", "Scope"];
     return { spec, reason, operations: [{ kind: "append_to_section", document: "README.md", heading, text: `\n- **Status:** ${input.status}\n` }] };
   }
 
@@ -133,9 +135,6 @@ function operationForFacade(name, input) {
     return { spec, reason, operations: [{ kind: "replace_task_status", document: "TASKS.md", entity: input.entity, status: input.status }] };
   }
 
-  if (name === "setSpecStatus") {
-    return { spec, reason, operations: [{ kind: "append_to_section", document: "README.md", heading: "Current status", text: `Status: ${input.status}` }] };
-  }
 
   if (name === "setRequirementMetadata") {
     const payload = input.metadata ?? input.contract;

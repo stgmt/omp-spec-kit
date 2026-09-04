@@ -24,13 +24,14 @@ async function call(world, name, arguments_ = {}) {
 }
 
 async function overview(world) {
-  return call(world, "spec_overview", { specSlugs: [] });
+  return call(world, "spec_catalog", { view: "overview", specSlugs: [] });
 }
 
 function proposalArgs(world, fingerprint, requestId, text = "safe authoring marker") {
   return {
     schemaVersion: SCHEMA_VERSION,
     requestId,
+    intent: "patch",
     repositoryRootFingerprint: fingerprint,
     spec: "plugin-distribution",
     reason: "safe authoring scenario",
@@ -91,17 +92,17 @@ When("the scenario {string} runs", async function (scenario) {
   if (scenario === "inventory") {
     const listed = await this.server.request("tools/list");
     const names = listed.result.tools.map((tool) => tool.name).sort();
-    assert.equal(names.length, 38, "single surface exposes exactly 38 tools");
-    for (const name of ["propose_patch", "apply_proposed_patch", "create_spec", "spec_inventory", "spec_overview"]) assert.equal(names.includes(name), true, name + " must be registered");
-    for (const removed of ["apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) assert.equal(names.includes(removed), false, removed + " must be gone");
+    assert.equal(names.length, 11, "single surface exposes exactly 11 tools");
+    for (const name of ["spec_propose_patch", "apply_proposed_patch", "spec_catalog"]) assert.equal(names.includes(name), true, name + " must be registered");
+    for (const removed of ["propose_patch", "create_spec", "spec_overview", "spec_inventory", "list_specs", "apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) assert.equal(names.includes(removed), false, removed + " must be gone");
     this.result = true;
     return;
   }
   if (scenario === "proposal") {
     const before = await readFile(path.join(this.root, ".specs/plugin-distribution/README.md"));
     const graph = await overview(this);
-    const first = await this.server.request("tools/call", { name: "propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-proposal-a") });
-    const second = await this.server.request("tools/call", { name: "propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-proposal-b") });
+    const first = await this.server.request("tools/call", { name: "spec_propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-proposal-a") });
+    const second = await this.server.request("tools/call", { name: "spec_propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-proposal-b") });
     assert.equal(first.result.structuredContent.ok, true, JSON.stringify(first));
     assert.equal(second.result.structuredContent.ok, true, JSON.stringify(second));
     assert.deepEqual(first.result.structuredContent.data.operations, second.result.structuredContent.data.operations);
@@ -113,7 +114,7 @@ When("the scenario {string} runs", async function (scenario) {
     const graph = await overview(this);
     const args = proposalArgs(this, graph.graph.fingerprint, "safe-invalid", "invalid");
     args.operations = [{ kind: "insert_at_eof", document: "README.md", text: "a" }, { kind: "insert_at_eof", document: "README.md", text: "b" }];
-    const invalid = await this.server.request("tools/call", { name: "propose_patch", arguments: args });
+    const invalid = await this.server.request("tools/call", { name: "spec_propose_patch", arguments: args });
     assert.equal(invalid.result.structuredContent.ok, false, JSON.stringify(invalid));
     assert.equal(["INVALID_REQUEST", "VALIDATION_FAILED"].includes(invalid.result.structuredContent.error.code), true);
     this.result = true;
@@ -122,8 +123,8 @@ When("the scenario {string} runs", async function (scenario) {
   if (scenario === "access-gate") {
     const blocked = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: ".specs/plugin-distribution/README.md" } }, { root: this.root });
     const direct = classifyToolCall({ toolName: "write", cwd: this.root, input: { path: ".specs/plugin-distribution/README.md" } }, { root: this.root });
-    const allowed = classifyToolCall({ toolName: "mcp__omp_spec_kit_propose_patch", input: {} }, { root: this.root });
-    const rawDirect = classifyToolCall({ toolName: "propose_patch", input: {} }, { root: this.root });
+    const allowed = classifyToolCall({ toolName: "mcp__omp_spec_kit_spec_propose_patch", input: {} }, { root: this.root });
+    const rawDirect = classifyToolCall({ toolName: "spec_propose_patch", input: {} }, { root: this.root });
     assert.equal(blocked.code, "RAW_SPEC_WRITE");
     assert.equal(direct.code, "RAW_SPEC_WRITE");
     assert.equal(allowed.code, "AUTHORING_TOOL_ALLOWED");
@@ -134,7 +135,7 @@ When("the scenario {string} runs", async function (scenario) {
   }
   if (scenario === "apply-cas") {
     const graph = await overview(this);
-    const proposal = (await this.server.request("tools/call", { name: "propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-apply-proposal") })).result.structuredContent;
+    const proposal = (await this.server.request("tools/call", { name: "spec_propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-apply-proposal") })).result.structuredContent;
     const applyArgs = { requestId: "safe-apply", proposalId: proposal.data.proposalId, proposalSha256: proposal.data.proposalHash, expectedDocuments: expectedDocuments(proposal), reason: "approve exact proposal", approval: "approve" };
     const applied = await this.server.request("tools/call", { name: "apply_proposed_patch", arguments: applyArgs });
     const replay = await this.server.request("tools/call", { name: "apply_proposed_patch", arguments: applyArgs });
@@ -146,8 +147,8 @@ When("the scenario {string} runs", async function (scenario) {
   }
   if (scenario === "concurrent-conflict") {
     const graph = await overview(this);
-    const a = (await this.server.request("tools/call", { name: "propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-race-a", "race-a") })).result.structuredContent;
-    const b = (await this.server.request("tools/call", { name: "propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-race-b", "race-b") })).result.structuredContent;
+    const a = (await this.server.request("tools/call", { name: "spec_propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-race-a", "race-a") })).result.structuredContent;
+    const b = (await this.server.request("tools/call", { name: "spec_propose_patch", arguments: proposalArgs(this, graph.graph.fingerprint, "safe-race-b", "race-b") })).result.structuredContent;
     const apply = (proposal, requestId) => this.server.request("tools/call", { name: "apply_proposed_patch", arguments: { requestId, proposalId: proposal.data.proposalId, proposalSha256: proposal.data.proposalHash, expectedDocuments: expectedDocuments(proposal), reason: "race", approval: "approve" } });
     const [first, second] = await Promise.all([apply(a, "safe-race-apply-a"), apply(b, "safe-race-apply-b")]);
     const outcomes = [first.result.structuredContent.data.outcome, second.result.structuredContent.data.outcome].sort();
@@ -175,7 +176,7 @@ When("the scenario {string} runs", async function (scenario) {
     const graph = await overview(this);
     const redactionArgs = proposalArgs(this, graph.graph.fingerprint, "safe-redaction", "redacted marker");
     redactionArgs.reason = "SECRET / absolute C:\\private\\secret";
-    const proposal = await this.server.request("tools/call", { name: "propose_patch", arguments: redactionArgs });
+    const proposal = await this.server.request("tools/call", { name: "spec_propose_patch", arguments: redactionArgs });
     const serialized = JSON.stringify(proposal.result.structuredContent);
     assert.equal(serialized.includes("SECRET"), false);
     assert.equal(serialized.includes("C:\\\\private"), false);
@@ -204,8 +205,9 @@ When("the scenario {string} runs", async function (scenario) {
   if (scenario === "future-hidden") {
     const listed = await this.server.request("tools/list");
     const names = listed.result.tools.map((tool) => tool.name);
-    assert.equal(names.includes("propose_patch"), true);
+    assert.equal(names.includes("spec_propose_patch"), true);
     assert.equal(names.includes("apply_proposed_patch"), true);
+    assert.equal(names.includes("propose_patch"), false);
     for (const removed of ["apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) assert.equal(names.includes(removed), false, removed + " must stay unknown");
     const unknown = await this.server.request("tools/call", { name: "apply_spec_change", arguments: { schemaVersion: "spec-kernel@1", requestId: "safe-removed-verb" } });
     assert.equal(unknown.error?.code, -32602, "removed tools must be unknown, not gated");
@@ -216,7 +218,7 @@ When("the scenario {string} runs", async function (scenario) {
     const graph = await overview(this);
     const documents = ["README.md", "REQUIREMENTS.md", "TASKS.md"];
     const before = new Map(await Promise.all(documents.map(async (document) => [document, sha256Hex(await readFile(path.join(this.root, ".specs/plugin-distribution", document)))])));
-    const proposal = (await this.server.request("tools/call", { name: "propose_patch", arguments: { ...proposalArgs(this, graph.graph.fingerprint, "safe-multi-proposal"), operations: documents.map((document) => ({ kind: "insert_at_eof", document, text: "multi-document-" + document })) } })).result.structuredContent;
+    const proposal = (await this.server.request("tools/call", { name: "spec_propose_patch", arguments: { ...proposalArgs(this, graph.graph.fingerprint, "safe-multi-proposal"), operations: documents.map((document) => ({ kind: "insert_at_eof", document, text: "multi-document-" + document })) } })).result.structuredContent;
     assert.equal(proposal.ok, true, JSON.stringify(proposal));
     assert.equal(proposal.data.operations.length, 3);
     assert.deepEqual(proposal.data.operations.map((operation) => operation.path), documents.map((document) => ".specs/plugin-distribution/" + document));
@@ -237,13 +239,13 @@ When("the scenario {string} runs", async function (scenario) {
       ["empty reason", "INVALID_REQUEST", { reason: "" }],
       ["bad fingerprint", "CONFLICT", { repositoryRootFingerprint: "bad-fingerprint" }],
       ["unknown document", "PATH_FORBIDDEN", { operations: [{ kind: "insert_at_eof", document: "MISSING.md", text: "x" }] }],
-      ["unsupported operation", "VALIDATION_FAILED", { operations: [{ kind: "bogus_edit", document: "README.md" }] }],
+      ["unsupported operation", "INVALID_REQUEST", { operations: [{ kind: "bogus_edit", document: "README.md" }] }],
       ["duplicate target", "INVALID_REQUEST", { operations: [{ kind: "insert_at_eof", document: "README.md", text: "a" }, { kind: "insert_at_eof", document: "README.md", text: "b" }] }],
       ["cross-spec path", "PATH_FORBIDDEN", { operations: [{ kind: "insert_at_eof", document: "../spec-mcp-access-gate/README.md", text: "x" }] }],
     ];
     for (const [label, expectedCode, overrides] of cases) {
       const args = { ...proposalArgs(this, graph.graph.fingerprint, "safe-edge-" + label.replaceAll(" ", "-")), ...overrides };
-      const response = (await this.server.request("tools/call", { name: "propose_patch", arguments: args })).result.structuredContent;
+      const response = (await this.server.request("tools/call", { name: "spec_propose_patch", arguments: args })).result.structuredContent;
       assert.equal(response.ok, false, label + ": " + JSON.stringify(response));
       assert.equal(response.error.code, expectedCode, label + ": " + JSON.stringify(response));
       assert.equal(sha256Hex(await readFile(target)), before, label + " changed bytes");
@@ -270,7 +272,7 @@ When("the scenario {string} runs", async function (scenario) {
     await plantDirectoryJunction(linkPath, path.join(this.root, ".specs"));
     const linked = classifyToolCall({ toolName: "write", cwd: this.root, input: { path: path.join(linkPath, "plugin-distribution", "README.md") } }, { root: this.root });
     assert.equal(linked.code, "RAW_SPEC_WRITE", JSON.stringify(linked));
-    const unregistered = classifyToolCall({ toolName: "propose_patch", cwd: this.root, input: {} }, { root: this.root });
+    const unregistered = classifyToolCall({ toolName: "spec_propose_patch", cwd: this.root, input: {} }, { root: this.root });
     assert.equal(unregistered.code, "UNREGISTERED_AUTHORING_CALL", JSON.stringify(unregistered));
     this.result = true;
     return;
@@ -341,8 +343,8 @@ When("the scenario {string} runs", async function (scenario) {
     }
     assert.equal(receipt.provenance.runtime.version, "18.0.11");
     assert.deepEqual(receipt.manager.connectionResult.connectedServers, ["omp-spec-kit:omp-spec-kit"]);
-    assert.equal(receipt.manager.connectionResult.toolCount, 38);
-    assert.deepEqual(receipt.manager.connectionResult.managedAuthoring.toolNames, ["spec_overview", "propose_patch", "apply_proposed_patch"]);
+    assert.equal(receipt.manager.connectionResult.toolCount, 11);
+    assert.deepEqual(receipt.manager.connectionResult.managedAuthoring.toolNames, ["spec_catalog", "spec_propose_patch", "apply_proposed_patch"]);
     assert.equal(receipt.manager.connectionResult.managedAuthoring.applyOutcome, "APPLIED");
     assert.equal(receipt.manager.connectionResult.managedAuthoring.finalDocumentContainsMarker, true);
     assert.equal(receipt.manager.connectionResult.managedAuthoring.finalGraphValid, true);

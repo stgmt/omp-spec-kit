@@ -14,7 +14,7 @@ Equal normalized inputs and equal filesystem state SHALL produce byte-identical 
 
 ## NFR-USE-1: Actionable bounded reason
 
-A block reason SHALL be at most 512 UTF-8 bytes, identify the repository-relative target when known, name the closed decision code, and say to use `propose_patch` then `apply_proposed_patch`.
+A block reason SHALL be at most 512 UTF-8 bytes, identify the repository-relative target when known, name the closed decision code, and say to use `propose_patch` then `apply_proposed_patch`. For `TARGET_INDETERMINATE`, it SHALL include: `Recovery: provide one explicit repository-relative target, or use propose_patch then apply_proposed_patch.`.
 
 ## Hard limits
 

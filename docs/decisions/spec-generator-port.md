@@ -1,14 +1,14 @@
 # Spec-generator port destination
 
 - Decision status: accepted destination map.
-- Single surface since v0.8.0: 38 tools, no release profiles. Historical profile rows below are retired.
+- Single surface since v0.8.0: 11 tools, no release profiles. Historical 38-tool candidate is superseded.
 - Agent-facing spec API: MCP. OMP LSP remains editor/MCP-internal transport.
 - Source census: `dev-pomogator/tools/spec-mcp-server/tools.ts` at the audited repair baseline.
 - Source registry SHA-256: `200cd8cf44bd9b1059ec8942cbf74104e1dab7f7e66a3f8fc44a682821f3c3e8`.
 
 ## Invariants
 
-1. The eight v0.3.2 MCP names remain registered in every later profile.
+1. The eight v0.3.2 MCP names remain immutable in historical package receipts and replay fixtures, but are not required in the active v0.8.0 runtime.
 2. Every destination row has an owner. A not-yet-shipped row is deferred, never silently dropped.
 3. LSP navigation is not a replacement for the agent-facing MCP API.
 4. Mutations are proposal-first and require the accepted authority/enforcement profile.
@@ -31,7 +31,7 @@ These eight names are compatibility aliases, not an eternal registry-size limit.
 
 ## Closed 35-name destination census
 
-Single surface since v0.8.0: every row below is served; historical stage values are retired.
+Single surface since v0.8.0: 11 consolidated tools serve all 35 upstream operations; historical stage values are retired.
 
 | # | Upstream name | Owner | Stage | Surface |
 |---:|---|---|---|---|

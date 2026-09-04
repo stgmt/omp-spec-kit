@@ -356,10 +356,11 @@ if (!terminalPhase) {
 
 if (!terminalPhase) {
 	const managedQueryResult = await phase("managed-query", async () => {
-		const tool = await managedTool("spec_inventory");
+		const tool = await managedTool("spec_catalog");
 		const args = {
 			schemaVersion: "spec-kernel@1",
 			requestId: "omp-manager-handoff-probe",
+			view: "inventory",
 			specSlugs: [],
 			includeDocuments: false,
 			limit: 50,
@@ -377,12 +378,17 @@ if (!terminalPhase) {
 			throw new Error(`OMP-managed spec_inventory query did not return its documented text result: ${JSON.stringify(result)}`);
 		}
 		const text = content[0].text;
-		const inventoryMatch = /^inventory ok, returned=(\d+)\/(\d+)$/u.exec(text);
-		if (!inventoryMatch) {
-			throw new Error(`OMP-managed spec_inventory query returned an unexpected text result: ${JSON.stringify(text)}`);
+		let envelope;
+		try {
+			envelope = JSON.parse(text);
+		} catch (error) {
+			throw new Error(`OMP-managed spec_inventory query returned non-JSON text: ${error.message}`);
 		}
-		const returnedCount = Number(inventoryMatch[1]);
-		const observedCount = Number(inventoryMatch[2]);
+		if (envelope.schemaVersion !== "spec-kernel@1" || envelope.operation !== "catalog" || envelope.ok !== true || envelope.data?.kind !== "inventory") {
+			throw new Error(`OMP-managed spec_inventory query returned an invalid canonical envelope: ${JSON.stringify(envelope)}`);
+		}
+		const returnedCount = envelope.page?.returned;
+		const observedCount = envelope.page?.totalMatched;
 		if (!Number.isSafeInteger(returnedCount) || !Number.isSafeInteger(observedCount) || returnedCount > observedCount) {
 			throw new Error(`OMP-managed spec_inventory query returned invalid inventory counts: ${text}`);
 		}
@@ -411,17 +417,18 @@ if (!terminalPhase) {
 }
 if (!terminalPhase) {
 	const managedAuthoringResult = await phase("managed-authoring", async () => {
-		const overviewCall = await executeManagedTool("spec_overview", { schemaVersion: "spec-kernel@1", requestId: "omp-manager-overview", specSlugs: [] }, "omp-manager-overview");
-		if (!overviewCall.envelope.ok || typeof overviewCall.envelope.graph?.fingerprint !== "string") throw new Error("OMP-managed spec_overview did not return a graph fingerprint; keys=" + Object.keys(overviewCall.envelope).join(",") + "; dataKeys=" + Object.keys(overviewCall.envelope.data ?? {}).join(","));
-		const proposalCall = await executeManagedTool("propose_patch", {
+		const overviewCall = await executeManagedTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "omp-manager-overview", view: "overview", specSlugs: [] }, "omp-manager-overview");
+		if (!overviewCall.envelope.ok || typeof overviewCall.envelope.graph?.fingerprint !== "string") throw new Error("OMP-managed spec_catalog did not return a graph fingerprint; keys=" + Object.keys(overviewCall.envelope).join(",") + "; dataKeys=" + Object.keys(overviewCall.envelope.data ?? {}).join(","));
+		const proposalCall = await executeManagedTool("spec_propose_patch", {
 			schemaVersion: "spec-kernel@1",
+			intent: "patch",
 			requestId: "omp-manager-proposal",
 			repositoryRootFingerprint: overviewCall.envelope.graph.fingerprint,
 			spec: "plugin-distribution",
 			reason: "OMP managed authoring proof",
 			operations: [{ kind: "insert_at_eof", document: "README.md", text: "OMP managed authoring proof" }],
 		}, "omp-manager-proposal");
-		if (!proposalCall.envelope.ok || !proposalCall.envelope.data?.proposalHash) throw new Error("OMP-managed propose_patch did not return a Proposal");
+		if (!proposalCall.envelope.ok || !proposalCall.envelope.data?.proposalHash) throw new Error("OMP-managed spec_propose_patch did not return a Proposal");
 		const expectedDocuments = proposalCall.envelope.data.operations.map(operation => ({ path: operation.path, beforeSha256: operation.beforeSha256 }));
 		const applyCall = await executeManagedTool("apply_proposed_patch", {
 			schemaVersion: "spec-kernel@1",
@@ -436,8 +443,8 @@ if (!terminalPhase) {
 		const target = path.join(cwd, ".specs", "plugin-distribution", "README.md");
 		const finalBytes = await readFile(target, "utf8");
 		if (!finalBytes.includes("OMP managed authoring proof")) throw new Error("OMP-managed apply did not change the project document");
-		const finalOverview = await executeManagedTool("spec_overview", { schemaVersion: "spec-kernel@1", requestId: "omp-manager-final-overview", specSlugs: [] }, "omp-manager-final-overview");
-		if (!finalOverview.envelope.ok || finalOverview.envelope.graph?.valid !== true) throw new Error("OMP-managed final spec_overview did not return a valid graph");
+		const finalOverview = await executeManagedTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "omp-manager-final-overview", view: "overview", specSlugs: [] }, "omp-manager-final-overview");
+		if (!finalOverview.envelope.ok || finalOverview.envelope.graph?.valid !== true) throw new Error("OMP-managed final spec_catalog did not return a valid graph");
 		managedAuthoring = {
 			toolNames: [overviewCall.tool.mcpToolName, proposalCall.tool.mcpToolName, applyCall.tool.mcpToolName],
 			proposalHash: proposalCall.envelope.data.proposalHash,

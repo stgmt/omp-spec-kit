@@ -9,6 +9,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { KERNEL_SCHEMA_VERSION, buildKernelGraph, query } from "../kernel/index.js";
+import { ENTITY_TYPE_DESCRIPTORS, EDGE_TYPE_DESCRIPTORS } from "../kernel/types.js";
 import { readRepositorySpecs } from "../kernel/adapters/fs.js";
 import { EXTENDED_OPERATIONS, executeExtendedQuery } from "../kernel/query/extended.js";
 import { DOCUMENT_OPERATIONS, executeDocumentOperation } from "./document-service.js";
@@ -130,6 +131,17 @@ function adapterDiagnosticSummaries(readerError) {
   });
 }
 
+const ERROR_RECOVERY = Object.freeze({
+  STALE_CURSOR: "Recovery: retry the same list operation without cursor to obtain a fresh page, then continue with the returned nextCursor.",
+  CONFLICT: "Recovery: rerun spec_overview, resolve the reported conflict, create and review a fresh proposal, then call apply_proposed_patch with a new requestId.",
+});
+
+function actionableErrorMessage(code, message) {
+  const recovery = ERROR_RECOVERY[code];
+  if (!recovery || message.includes(recovery)) return message;
+  return message + " " + recovery;
+}
+
 // Full SCHEMA-10 QueryError shape; every field is always present.
 function makeErrorEnvelope({ operation, requestId, code, message, extra = {}, summaries = [] }) {
   return {
@@ -142,7 +154,7 @@ function makeErrorEnvelope({ operation, requestId, code, message, extra = {}, su
     data: null,
     error: {
       code,
-      message,
+      message: actionableErrorMessage(code, message),
       operation,
       parameter: null,
       receivedType: null,
@@ -227,6 +239,12 @@ export function createSpecService(root, context = {}) {
   let settled = null;
 
   function withProvenance(envelope) {
+    if (!envelope.ok && envelope.error && typeof envelope.error.message === "string") {
+      return { ...envelope, error: { ...envelope.error, message: actionableErrorMessage(envelope.error.code, envelope.error.message) }, provenance };
+    }
+    if (envelope.data?.outcome === "REFUSED" && envelope.data.error && typeof envelope.data.error.message === "string") {
+      return { ...envelope, data: { ...envelope.data, error: { ...envelope.data.error, message: actionableErrorMessage(envelope.data.error.code, envelope.data.error.message) } }, provenance };
+    }
     return { ...envelope, provenance };
   }
 
@@ -288,10 +306,26 @@ export function createSpecService(root, context = {}) {
     return authoring;
   }
 
+  function handleReaderError(readerError, op, reqId) {
+    const summaries = adapterDiagnosticSummaries(readerError);
+    const firstCode = typeof readerError?.diagnostics?.[0]?.code === "string" ? readerError.diagnostics[0].code : null;
+    return withProvenance(
+      makeErrorEnvelope({
+        operation: op,
+        requestId: reqId,
+        code: readerError.code,
+        message: `spec repository is unavailable at the resolved root (${readerError.code})`,
+        extra: {
+          causeCode: firstCode,
+          retryable: true,
+          diagnosticIds: summaries.map((summary) => summary.diagnosticId),
+        },
+        summaries,
+      }),
+    );
+  }
+
   async function runQuery(operation, args, { requestId = null, schemaVersion } = {}) {
-    // Error precedence mirrors SCHEMA-10: schema version first, then request
-    // shape, then graph availability; everything else is validated by the
-    // pure kernel query service.
     if (schemaVersion !== undefined && schemaVersion !== KERNEL_SCHEMA_VERSION) {
       return withProvenance(
         makeErrorEnvelope({
@@ -314,86 +348,279 @@ export function createSpecService(root, context = {}) {
         }),
       );
     }
-    if (DOCUMENT_OPERATIONS.includes(operation)) {
+
+    const effectiveArgs = args && typeof args === "object" && !Array.isArray(args) ? args : {};
+
+    // 1. mcpPreflight
+    if (operation === "mcpPreflight") {
       try {
-        const documentResult = await executeDocumentOperation(resolvedRoot, operation, args ?? {}, { stage, provenance });
-        const envelope = documentResult.ok
-          ? makeAdapterSuccessEnvelope({ operation, requestId, data: documentResult.data })
-          : makeErrorEnvelope({
-              operation,
-              requestId,
-              code: documentResult.error.code,
-              message: documentResult.error.message,
-              extra: documentResult.error,
-            });
-        return withProvenance({ ...envelope, requestId: requestId ?? null });
-      } catch {
+        const docRes = await executeDocumentOperation(resolvedRoot, "mcpPreflight", effectiveArgs, { stage, provenance });
         return withProvenance(
-          makeErrorEnvelope({
-            operation,
-            requestId,
-            code: "ADAPTER_READ_ERROR",
-            message: "specification document adapter failed",
-          }),
+          docRes.ok
+            ? makeAdapterSuccessEnvelope({ operation: "mcpPreflight", requestId, data: docRes.data })
+            : makeErrorEnvelope({ operation: "mcpPreflight", requestId, code: docRes.error.code, message: docRes.error.message, extra: docRes.error })
+        );
+      } catch (err) {
+        return withProvenance(
+          makeErrorEnvelope({ operation: "mcpPreflight", requestId, code: "INTERNAL_INVARIANT_ERROR", message: err?.message ?? "preflight failed" })
         );
       }
     }
-    const state = await ensure();
-    if (state.status === "error") {
-      const summaries = adapterDiagnosticSummaries(state.readerError);
-      const firstCode =
-        typeof state.readerError?.diagnostics?.[0]?.code === "string"
-          ? state.readerError.diagnostics[0].code
-          : null;
+
+    // 2. catalog
+    if (operation === "catalog") {
+      const view = effectiveArgs.view ?? "specs";
+      if (view === "types") {
+        return withProvenance(
+          makeAdapterSuccessEnvelope({
+            operation: "catalog",
+            requestId,
+            data: {
+              kind: "types",
+              entityKinds: ENTITY_TYPE_DESCRIPTORS,
+              edgeTypes: EDGE_TYPE_DESCRIPTORS,
+              count: ENTITY_TYPE_DESCRIPTORS.length + EDGE_TYPE_DESCRIPTORS.length,
+            },
+          })
+        );
+      }
+      const state = await ensure();
+      if (state.status === "error") return handleReaderError(state.readerError, "catalog", requestId);
+
+      if (view === "specs") {
+        const ext = executeExtendedQuery(state.graph, "listSpecs", {});
+        return withProvenance(
+          ext.ok
+            ? makeSuccessEnvelope({ graph: state.graph, operation: "catalog", requestId, data: ext.data })
+            : makeErrorEnvelope({ operation: "catalog", requestId, code: ext.error.code, message: ext.error.message, extra: ext.error })
+        );
+      }
+      if (view === "inventory") {
+        const q = query(state.graph, "inventory", {
+          specSlugs: effectiveArgs.specSlugs ?? [],
+          includeDocuments: effectiveArgs.includeDocuments ?? false,
+          limit: effectiveArgs.limit ?? 50,
+          cursor: effectiveArgs.cursor ?? null,
+        });
+        return withProvenance({ ...q, operation: "catalog", requestId });
+      }
+      if (view === "overview") {
+        const q = query(state.graph, "overview", {
+          specSlugs: effectiveArgs.specSlugs ?? [],
+        });
+        return withProvenance({ ...q, operation: "catalog", requestId });
+      }
+      if (view === "status") {
+        const ext = executeExtendedQuery(state.graph, "getSpecStatus", {
+          spec: effectiveArgs.spec,
+          view: effectiveArgs.statusView,
+        });
+        return withProvenance(
+          ext.ok
+            ? makeSuccessEnvelope({ graph: state.graph, operation: "catalog", requestId, data: ext.data })
+            : makeErrorEnvelope({ operation: "catalog", requestId, code: ext.error.code, message: ext.error.message, extra: ext.error })
+        );
+      }
+    }
+
+    // 3. entities
+    if (operation === "entities") {
+      const state = await ensure();
+      if (state.status === "error") return handleReaderError(state.readerError, "entities", requestId);
+
+      const mode = effectiveArgs.mode ?? "get";
+      if (mode === "get") {
+        const q = query(state.graph, "getNode", {
+          canonicalId: effectiveArgs.canonicalId,
+          projection: effectiveArgs.projection ?? "summary",
+          includeIncidentCounts: effectiveArgs.includeIncidentCounts ?? false,
+        });
+        return withProvenance({ ...q, operation: "entities", requestId });
+      }
+      if (mode === "find") {
+        const q = query(state.graph, "findNodes", {
+          specSlugs: effectiveArgs.specSlugs ?? [],
+          kinds: effectiveArgs.kinds ?? [],
+          canonicalIds: effectiveArgs.canonicalIds ?? [],
+          text: effectiveArgs.text ?? null,
+          projection: effectiveArgs.projection ?? "summary",
+          limit: effectiveArgs.limit ?? 50,
+          cursor: effectiveArgs.cursor ?? null,
+        });
+        return withProvenance({ ...q, operation: "entities", requestId });
+      }
+    }
+
+    // 4. graph
+    if (operation === "graph") {
+      const state = await ensure();
+      if (state.status === "error") return handleReaderError(state.readerError, "graph", requestId);
+
+      const view = effectiveArgs.view ?? "edges";
+      if (view === "edges") {
+        const q = query(state.graph, "getEdges", {
+          canonicalId: effectiveArgs.canonicalId,
+          direction: effectiveArgs.direction ?? "both",
+          types: effectiveArgs.types ?? [],
+          aggregate: effectiveArgs.aggregate ?? false,
+          limit: effectiveArgs.limit ?? 50,
+          cursor: effectiveArgs.cursor ?? null,
+        });
+        return withProvenance({ ...q, operation: "graph", requestId });
+      }
+      if (view === "trace") {
+        const q = query(state.graph, "trace", {
+          canonicalId: effectiveArgs.canonicalId,
+          direction: effectiveArgs.direction ?? "both",
+          types: effectiveArgs.types ?? [],
+          maxDepth: effectiveArgs.maxDepth ?? 5,
+          maxVisited: effectiveArgs.maxVisited ?? 200,
+          projection: effectiveArgs.projection ?? "summary",
+          limit: effectiveArgs.limit ?? 50,
+          cursor: effectiveArgs.cursor ?? null,
+        });
+        return withProvenance({ ...q, operation: "graph", requestId });
+      }
+    }
+
+    // 5. documents
+    if (operation === "documents") {
+      const action = effectiveArgs.action ?? "list";
+      let docOp = "listSpecDocs";
+      if (action === "read") docOp = "readSpecDoc";
+      else if (action === "attachment") docOp = "readAttachment";
+
+      try {
+        const docRes = await executeDocumentOperation(resolvedRoot, docOp, effectiveArgs, { stage, provenance });
+        return withProvenance(
+          docRes.ok
+            ? makeAdapterSuccessEnvelope({ operation: "documents", requestId, data: docRes.data })
+            : makeErrorEnvelope({ operation: "documents", requestId, code: docRes.error.code, message: docRes.error.message, extra: docRes.error })
+        );
+      } catch (err) {
+        return withProvenance(
+          makeErrorEnvelope({ operation: "documents", requestId, code: "ADAPTER_READ_ERROR", message: err?.message ?? "document operation failed" })
+        );
+      }
+    }
+
+    // 6. inspect
+    if (operation === "inspect") {
+      const check = effectiveArgs.check;
+      const state = await ensure();
+      if (state.status === "error") return handleReaderError(state.readerError, "inspect", requestId);
+
+      if (check === "diagnostics") {
+        const q = query(state.graph, "diagnostics", {
+          severities: effectiveArgs.severities ?? [],
+          codes: effectiveArgs.codes ?? [],
+          specSlugs: effectiveArgs.specSlugs ?? [],
+          paths: effectiveArgs.paths ?? [],
+          limit: effectiveArgs.limit ?? 100,
+          cursor: effectiveArgs.cursor ?? null,
+        });
+        return withProvenance({ ...q, operation: "inspect", requestId });
+      }
+
+      let extOp = check;
+      if (check === "scenariosByTags") extOp = "findByTags";
+      else if (check === "orphans") extOp = "findOrphans";
+      else if (check === "anchor") extOp = "validateAnchor";
+      else if (check === "requirementMetadata") extOp = "validateRequirementMetadata";
+      else if (check === "requirementsPolicy") extOp = "policyQueryRequirements";
+      else if (check === "archivalProof") extOp = "getArchivalProof";
+      else if (check === "specValidation") extOp = "validateSpec";
+
+      const ext = executeExtendedQuery(state.graph, extOp, effectiveArgs);
       return withProvenance(
-        makeErrorEnvelope({
-          operation,
-          requestId,
-          code: state.readerError.code,
-          message: `spec repository is unavailable at the resolved root (${state.readerError.code})`,
-          extra: {
-            causeCode: firstCode,
-            retryable: true,
-            diagnosticIds: summaries.map((summary) => summary.diagnosticId),
-          },
-          summaries,
-        }),
+        ext.ok
+          ? makeSuccessEnvelope({ graph: state.graph, operation: "inspect", requestId, data: ext.data })
+          : makeErrorEnvelope({ operation: "inspect", requestId, code: ext.error.code, message: ext.error.message, extra: ext.error })
       );
     }
-    if (AUTHORING_OPERATIONS.includes(operation)) {
+
+    // 7. tasks
+    if (operation === "tasks") {
+      const state = await ensure();
+      if (state.status === "error") return handleReaderError(state.readerError, "tasks", requestId);
+
+      const ext = executeExtendedQuery(state.graph, "listTasks", {
+        spec: effectiveArgs.spec,
+        statuses: effectiveArgs.statuses,
+        phase: effectiveArgs.phase,
+        requirement: effectiveArgs.requirement,
+        includeComments: effectiveArgs.includeComments,
+        limit: effectiveArgs.limit,
+        cursor: effectiveArgs.cursor,
+      });
+      return withProvenance(
+        ext.ok
+          ? makeSuccessEnvelope({ graph: state.graph, operation: "tasks", requestId, data: ext.data, page: ext.page })
+          : makeErrorEnvelope({ operation: "tasks", requestId, code: ext.error.code, message: ext.error.message, extra: ext.error })
+      );
+    }
+
+    // 8. evidence
+    if (operation === "evidence") {
+      const view = effectiveArgs.view ?? "result";
+      const state = await ensure();
+      if (state.status === "error") return handleReaderError(state.readerError, "evidence", requestId);
+
+      const evOp = view === "trace" ? "getScenarioTrace" : "getTestResult";
+      const evRes = await executeEvidenceOperation(resolvedRoot, state.graph, evOp, {
+        scenarioId: effectiveArgs.scenarioId,
+        spec: effectiveArgs.spec,
+      });
+      return withProvenance(
+        evRes.ok
+          ? makeSuccessEnvelope({ graph: state.graph, operation: "evidence", requestId, data: evRes.data, page: evRes.page })
+          : makeErrorEnvelope({ operation: "evidence", requestId, code: evRes.error.code, message: evRes.error.message, extra: evRes.error })
+      );
+    }
+
+    // 9. markdown
+    if (operation === "markdown") {
+      const state = await ensure();
+      if (state.status === "error") return handleReaderError(state.readerError, "markdown", requestId);
+
+      const q = query(state.graph, "markdownInventory", {
+        specSlugs: effectiveArgs.specSlugs ?? [],
+        mode: effectiveArgs.mode ?? "all",
+        focusPath: effectiveArgs.focusPath ?? null,
+        focusAnchor: effectiveArgs.focusAnchor ?? null,
+        direction: effectiveArgs.direction ?? "both",
+        outcomes: effectiveArgs.outcomes ?? [],
+        includeHeadings: effectiveArgs.includeHeadings ?? true,
+        includeLinks: effectiveArgs.includeLinks ?? true,
+        limit: effectiveArgs.limit ?? 50,
+        cursor: effectiveArgs.cursor ?? null,
+      });
+      return withProvenance({ ...q, operation: "markdown", requestId });
+    }
+
+    // 10. proposePatch
+    if (operation === "proposePatch") {
+      refresh();
+      const freshState = await ensure();
+      if (freshState.status === "error") return handleReaderError(freshState.readerError, "proposePatch", requestId);
+
+      const authoredInput = { ...effectiveArgs };
+      if (requestId !== null && authoredInput.requestId === undefined) authoredInput.requestId = requestId;
+
+      const intent = authoredInput.intent ?? "patch";
+      const targetOp = intent === "patch" ? "proposePatch" : intent;
+
       try {
-        refresh();
-        const freshState = await ensure();
-        if (freshState.status === "error") {
-          const summaries = adapterDiagnosticSummaries(freshState.readerError);
-          const firstCode = typeof freshState.readerError?.diagnostics?.[0]?.code === "string" ? freshState.readerError.diagnostics[0].code : null;
-          return withProvenance(
-            makeErrorEnvelope({
-              operation,
-              requestId,
-              code: freshState.readerError.code ?? "ADAPTER_READ_ERROR",
-              message: freshState.readerError.message ?? `spec repository is unavailable (${freshState.readerError.code})`,
-              extra: {
-                causeCode: firstCode,
-                retryable: freshState.readerError.retryable === true,
-                diagnosticIds: summaries.map((summary) => summary.diagnosticId),
-              },
-              summaries,
-            }),
-          );
-        }
-        const authoredInput = args && typeof args === "object" && !Array.isArray(args) ? { ...args } : {};
-        if (requestId !== null && authoredInput.requestId === undefined) authoredInput.requestId = requestId;
-        const authored = await getAuthoring().compileFacade(operation, authoredInput);
+        const authored = await getAuthoring().compileFacade(targetOp, authoredInput);
         const envelope = authored.ok
           ? makeSuccessEnvelope({
               graph: freshState.graph,
-              operation,
+              operation: "proposePatch",
               requestId,
               data: authored.data,
             })
           : makeErrorEnvelope({
-              operation,
+              operation: "proposePatch",
               requestId,
               code: authored.error.code,
               message: authored.error.message,
@@ -403,84 +630,118 @@ export function createSpecService(root, context = {}) {
       } catch (err) {
         return withProvenance(
           makeErrorEnvelope({
-            operation,
+            operation: "proposePatch",
             requestId,
             code: err?.code ?? "INTERNAL_INVARIANT_ERROR",
-            message: err?.message ?? "authoring adapter failed before filesystem mutation",
-          }),
+            message: err?.message ?? "authoring compile failed",
+          })
         );
       }
     }
-    if (EVIDENCE_OPERATIONS.includes(operation)) {
-      const evidence = await executeEvidenceOperation(resolvedRoot, state.graph, operation, args ?? {});
-      const envelope = evidence.ok
-        ? makeSuccessEnvelope({
-            graph: state.graph,
-            operation,
-            requestId,
-            data: evidence.data,
-            page: evidence.page,
-          })
-        : makeErrorEnvelope({
-            operation,
-            requestId,
-            code: evidence.error.code,
-            message: evidence.error.message,
-            extra: evidence.error,
-          });
-      return withProvenance({ ...envelope, requestId: requestId ?? null });
-    }
-    try {
-      if (EXTENDED_OPERATIONS.includes(operation)) {
-        const extended = executeExtendedQuery(state.graph, operation, args ?? {});
-        const envelope = extended.ok
+
+    // 11. applyProposedPatch
+    if (operation === "applyProposedPatch") {
+      refresh();
+      const freshState = await ensure();
+      if (freshState.status === "error") return handleReaderError(freshState.readerError, "applyProposedPatch", requestId);
+
+      const authoredInput = { ...effectiveArgs };
+      if (requestId !== null && authoredInput.requestId === undefined) authoredInput.requestId = requestId;
+
+      try {
+        const authored = await getAuthoring().compileFacade("applyProposedPatch", authoredInput);
+        const envelope = authored.ok
           ? makeSuccessEnvelope({
-              graph: state.graph,
-              operation,
+              graph: freshState.graph,
+              operation: "applyProposedPatch",
               requestId,
-              data: extended.data,
-              page: extended.page,
+              data: authored.data,
             })
           : makeErrorEnvelope({
-              operation,
+              operation: "applyProposedPatch",
               requestId,
-              code: extended.error.code,
-              message: extended.error.message,
-              extra: extended.error,
+              code: authored.error.code,
+              message: authored.error.message,
+              extra: authored.error,
             });
         return withProvenance({ ...envelope, requestId: requestId ?? null });
+      } catch (err) {
+        return withProvenance(
+          makeErrorEnvelope({
+            operation: "applyProposedPatch",
+            requestId,
+            code: err?.code ?? "INTERNAL_INVARIANT_ERROR",
+            message: err?.message ?? "apply failed",
+          })
+        );
       }
-      const envelope = query(state.graph, operation, args ?? {});
+    }
+
+    // -----------------------------------------------------------------------
+    // Internal primitive fallback for internal scripts and test fixtures
+    // -----------------------------------------------------------------------
+    if (DOCUMENT_OPERATIONS.includes(operation)) {
+      try {
+        const documentResult = await executeDocumentOperation(resolvedRoot, operation, effectiveArgs, { stage, provenance });
+        return withProvenance(
+          documentResult.ok
+            ? makeAdapterSuccessEnvelope({ operation, requestId, data: documentResult.data })
+            : makeErrorEnvelope({ operation, requestId, code: documentResult.error.code, message: documentResult.error.message, extra: documentResult.error })
+        );
+      } catch {
+        return withProvenance(
+          makeErrorEnvelope({ operation, requestId, code: "ADAPTER_READ_ERROR", message: "specification document adapter failed" })
+        );
+      }
+    }
+
+    const state = await ensure();
+    if (state.status === "error") return handleReaderError(state.readerError, operation, requestId);
+
+    if (AUTHORING_OPERATIONS.includes(operation)) {
+      try {
+        refresh();
+        const freshState = await ensure();
+        if (freshState.status === "error") return handleReaderError(freshState.readerError, operation, requestId);
+
+        const authoredInput = { ...effectiveArgs };
+        if (requestId !== null && authoredInput.requestId === undefined) authoredInput.requestId = requestId;
+        const authored = await getAuthoring().compileFacade(operation, authoredInput);
+        const envelope = authored.ok
+          ? makeSuccessEnvelope({ graph: freshState.graph, operation, requestId, data: authored.data })
+          : makeErrorEnvelope({ operation, requestId, code: authored.error.code, message: authored.error.message, extra: authored.error });
+        return withProvenance({ ...envelope, requestId: requestId ?? null });
+      } catch (err) {
+        return withProvenance(
+          makeErrorEnvelope({ operation, requestId, code: err?.code ?? "INTERNAL_INVARIANT_ERROR", message: err?.message ?? "authoring adapter failed" })
+        );
+      }
+    }
+
+    if (EVIDENCE_OPERATIONS.includes(operation)) {
+      const evidence = await executeEvidenceOperation(resolvedRoot, state.graph, operation, effectiveArgs);
+      const envelope = evidence.ok
+        ? makeSuccessEnvelope({ graph: state.graph, operation, requestId, data: evidence.data, page: evidence.page })
+        : makeErrorEnvelope({ operation, requestId, code: evidence.error.code, message: evidence.error.message, extra: evidence.error });
+      return withProvenance({ ...envelope, requestId: requestId ?? null });
+    }
+
+    try {
+      if (EXTENDED_OPERATIONS.includes(operation)) {
+        const extended = executeExtendedQuery(state.graph, operation, effectiveArgs);
+        const envelope = extended.ok
+          ? makeSuccessEnvelope({ graph: state.graph, operation, requestId, data: extended.data, page: extended.page })
+          : makeErrorEnvelope({ operation, requestId, code: extended.error.code, message: extended.error.message, extra: extended.error });
+        return withProvenance({ ...envelope, requestId: requestId ?? null });
+      }
+      const envelope = query(state.graph, operation, effectiveArgs);
       return withProvenance({ ...envelope, requestId: requestId ?? null });
     } catch {
       return withProvenance(
-        makeErrorEnvelope({
-          operation,
-          requestId,
-          code: "INTERNAL_INVARIANT_ERROR",
-          message: "unexpected adapter failure while executing the query",
-        }),
+        makeErrorEnvelope({ operation, requestId, code: "INTERNAL_INVARIANT_ERROR", message: "unexpected adapter failure while executing the query" })
       );
     }
   }
 
   return { root: resolvedRoot, provenance, ensure, runQuery, refresh };
-}
-
-// One-line human summary for tool text content; the canonical envelope always
-// travels beside it (details / structuredContent).
-export function summarizeEnvelope(envelope) {
-  const head = `${envelope.operation} ${envelope.ok ? "ok" : `error ${envelope.error.code}`}`;
-  const mismatch =
-    envelope.provenance?.matchesActiveProject === false
-      ? ", source=explicit-absolute-override, active-project-mismatch"
-      : "";
-  if (!envelope.ok) {
-    const detail = envelope.error.parameter ? ` (${envelope.error.parameter})` : "";
-    return `${head}${detail}${mismatch}`;
-  }
-  const page = envelope.page;
-  const paging =
-    page && typeof page.returned === "number" ? `, returned=${page.returned}/${page.totalMatched}` : "";
-  return `${head}${paging}${mismatch}`;
 }

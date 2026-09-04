@@ -148,9 +148,9 @@ export async function loadAndConnect(cwd, targetName, targetConfigs, targetSourc
 				throw new Error(`server ${resolvedName} did not connect; connected: ${(connectionResult.connectedServers ?? []).join(", ") || "<none>"}`);
 			}
 			const tool = manager.getTools().find((candidate) =>
-				candidate.mcpServerName === resolvedName && candidate.mcpToolName === "spec_inventory",
+				candidate.mcpServerName === resolvedName && (candidate.mcpToolName === "spec_catalog" || candidate.mcpToolName === "spec_inventory"),
 			);
-			if (!tool) throw new Error(`OMP manager did not expose ${resolvedName}/spec_inventory`);
+			if (!tool) throw new Error(`OMP manager did not expose ${resolvedName}/spec_catalog or spec_inventory`);
 			return { tool, toolCount: connectionResult.tools.length, serverName: resolvedName };
 		});
 		if (result.ok) return { manager, ...result.value };
@@ -163,14 +163,25 @@ export async function loadAndConnect(cwd, targetName, targetConfigs, targetSourc
 
 // Executes spec_inventory and parses the documented text result.
 export async function executeInventory(tool, requestId, timeoutMs = DEFAULT_PHASE_TIMEOUT_MS) {
-	const args = {
-		schemaVersion: "spec-kernel@1",
-		requestId,
-		specSlugs: [],
-		includeDocuments: false,
-		limit: 50,
-		cursor: null,
-	};
+	const isCatalog = tool.mcpToolName === "spec_catalog";
+	const args = isCatalog
+		? {
+			schemaVersion: "spec-kernel@1",
+			requestId,
+			view: "inventory",
+			specSlugs: [],
+			includeDocuments: false,
+			limit: 50,
+			cursor: null,
+		}
+		: {
+			schemaVersion: "spec-kernel@1",
+			requestId,
+			specSlugs: [],
+			includeDocuments: false,
+			limit: 50,
+			cursor: null,
+		};
 	const result = await phase("inventory", timeoutMs, async () => {
 		const outcome = await tool.execute(requestId, args, undefined, {});
 		const content = outcome.content;
@@ -181,17 +192,28 @@ export async function executeInventory(tool, requestId, timeoutMs = DEFAULT_PHAS
 			content[0]?.type !== "text" ||
 			typeof content[0].text !== "string"
 		) {
-			throw new Error(`spec_inventory did not return its documented text result: ${JSON.stringify(outcome)}`);
+			throw new Error(`inventory did not return its documented text result: ${JSON.stringify(outcome)}`);
 		}
 		const text = content[0].text;
+		let returned, observed;
 		const inventoryMatch = /^inventory ok, returned=(\d+)\/(\d+)$/u.exec(text);
-		if (!inventoryMatch) throw new Error(`spec_inventory returned unexpected text: ${JSON.stringify(text)}`);
-		const returned = Number(inventoryMatch[1]);
-		const observed = Number(inventoryMatch[2]);
-		if (!Number.isSafeInteger(returned) || !Number.isSafeInteger(observed) || returned > observed) {
-			throw new Error(`spec_inventory returned invalid counts: ${text}`);
+		if (inventoryMatch) {
+			returned = Number(inventoryMatch[1]);
+			observed = Number(inventoryMatch[2]);
+		} else {
+			try {
+				const env = JSON.parse(text);
+				returned = env.page?.returned ?? env.data?.count ?? 0;
+				observed = env.page?.totalMatched ?? env.data?.count ?? returned;
+			} catch {
+				throw new Error(`inventory returned unexpected text: ${JSON.stringify(text)}`);
+			}
 		}
-		return { text, args, returned, observed };
+		if (!Number.isSafeInteger(returned) || !Number.isSafeInteger(observed) || returned > observed) {
+			throw new Error(`inventory returned invalid counts: ${text}`);
+		}
+		const canonicalText = inventoryMatch ? text : `inventory ok, returned=${returned}/${observed}`;
+		return { text: canonicalText, rawText: text, args, returned, observed };
 	});
 	if (!result.ok) throw new Error(`inventory failed: ${result.error.message}`);
 	return result.value;

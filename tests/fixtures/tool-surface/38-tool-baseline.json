@@ -1,0 +1,4056 @@
+{
+  "schema": "omp-spec-kit-tool-surface-baseline@1",
+  "sha256": "c00fb06179047427e9ba43cc5df312a0740df04ff9a0087e35462bd7804c28ef",
+  "metrics": {
+    "toolCount": 38,
+    "readOnlyCount": 37,
+    "mutatingCount": 1,
+    "totalCatalogBytes": 42499,
+    "schemaBytes": 12881,
+    "descriptionChars": 3362,
+    "nameChars": 598
+  },
+  "tools": [
+    {
+      "name": "spec_inventory",
+      "title": "Spec Inventory",
+      "description": "Read a bounded, paged inventory of the specifications under the target repository's .specs directory.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "specSlugs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "includeDocuments": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "specSlugs",
+          "includeDocuments",
+          "limit",
+          "cursor"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "spec_get_node",
+      "title": "Spec Get Node",
+      "description": "Read one specification graph node by qualified canonical ID (for example plugin-distribution:FR-1), with summary or full projection.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "canonicalId": {
+            "type": "string"
+          },
+          "projection": {
+            "type": "string",
+            "enum": [
+              "summary",
+              "full"
+            ]
+          },
+          "includeIncidentCounts": {
+            "type": "boolean"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "canonicalId",
+          "projection",
+          "includeIncidentCounts"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "spec_find_nodes",
+      "title": "Spec Find Nodes",
+      "description": "Search specification nodes by spec slug, node kind, canonical ID, or bounded text match; empty filter arrays mean all.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "specSlugs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "kinds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "DOCUMENT",
+                "USER_STORY",
+                "USE_CASE",
+                "RESEARCH_FINDING",
+                "RISK",
+                "FUNCTIONAL_REQUIREMENT",
+                "NON_FUNCTIONAL_REQUIREMENT",
+                "ACCEPTANCE_CRITERION",
+                "DECISION",
+                "TASK",
+                "FILE_CHANGE",
+                "FILE",
+                "SCENARIO",
+                "FIXTURE",
+                "SCHEMA_ENTITY"
+              ]
+            }
+          },
+          "canonicalIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "projection": {
+            "type": "string",
+            "enum": [
+              "summary",
+              "full"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "specSlugs",
+          "kinds",
+          "canonicalIds",
+          "text",
+          "projection",
+          "limit",
+          "cursor"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "spec_get_edges",
+      "title": "Spec Get Edges",
+      "description": "List resolved edges incident to one canonical node, optionally aggregated by endpoint pair and type.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "canonicalId": {
+            "type": "string"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "in",
+              "out",
+              "both"
+            ]
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "REFS",
+                "COVERS",
+                "TESTED_BY",
+                "IMPLEMENTS",
+                "DEPENDS_ON",
+                "DOCUMENTS",
+                "DECLARES"
+              ]
+            }
+          },
+          "aggregate": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "canonicalId",
+          "direction",
+          "types",
+          "aggregate",
+          "limit",
+          "cursor"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "spec_trace",
+      "title": "Spec Trace",
+      "description": "Bounded breadth-first trace from one canonical node across resolved edges with depth and visited limits.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "canonicalId": {
+            "type": "string"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "in",
+              "out",
+              "both"
+            ]
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "REFS",
+                "COVERS",
+                "TESTED_BY",
+                "IMPLEMENTS",
+                "DEPENDS_ON",
+                "DOCUMENTS",
+                "DECLARES"
+              ]
+            }
+          },
+          "maxDepth": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "maxVisited": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "projection": {
+            "type": "string",
+            "enum": [
+              "summary",
+              "full"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "canonicalId",
+          "direction",
+          "types",
+          "maxDepth",
+          "maxVisited",
+          "projection",
+          "limit",
+          "cursor"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "spec_diagnostics",
+      "title": "Spec Diagnostics",
+      "description": "List stable parser/graph diagnostics filtered by severity, code, spec slug, and repository-relative path.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "severities": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ERROR",
+                "WARNING",
+                "INFO"
+              ]
+            }
+          },
+          "codes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "UNSUPPORTED_DOCUMENT",
+                "INVALID_UTF8",
+                "HASH_MISMATCH",
+                "FILE_TOO_LARGE",
+                "CORPUS_LIMIT_EXCEEDED",
+                "INVALID_SPEC_SLUG",
+                "PATH_MISMATCH",
+                "PATH_ESCAPE",
+                "SYMLINK_REJECTED",
+                "NON_REGULAR_FILE",
+                "IO_READ_FAILED",
+                "UNSUPPORTED_GHERKIN_DIALECT",
+                "MALFORMED_GHERKIN",
+                "MISSING_SCENARIO_ID",
+                "DUPLICATE_SCENARIO_ID_TAG",
+                "MALFORMED_HEADING",
+                "INVALID_LOCAL_ID",
+                "ID_NOT_ALLOWED_IN_DOCUMENT",
+                "DUPLICATE_DEFINITION",
+                "MALFORMED_REFERENCE",
+                "UNQUALIFIED_CROSS_SPEC_REFERENCE",
+                "BROKEN_REFERENCE",
+                "AMBIGUOUS_REFERENCE",
+                "FORBIDDEN_EDGE_ENDPOINT",
+                "MALFORMED_MARKDOWN_LINK",
+                "BROKEN_MARKDOWN_LINK",
+                "INVALID_AC_PARENT",
+                "INVARIANT_VIOLATION",
+                "DIAGNOSTIC_LIMIT_REACHED"
+              ]
+            }
+          },
+          "specSlugs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "severities",
+          "codes",
+          "specSlugs",
+          "paths",
+          "limit",
+          "cursor"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "spec_overview",
+      "title": "Spec Overview",
+      "description": "Read corpus-level counts, limits, and diagnostic-code/node-kind/edge-type histograms for the target repository.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "specSlugs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "specSlugs"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "spec_markdown_inventory",
+      "title": "Spec Markdown Inventory",
+      "description": "Inventory Markdown headings and GLFM link occurrences (unscoped or heading-focused) to plan safe renames without mutating anything.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "specSlugs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "all",
+              "focus"
+            ]
+          },
+          "focusPath": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "focusAnchor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "in",
+              "out",
+              "both"
+            ]
+          },
+          "outcomes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "INTERNAL_HEADING",
+                "INTERNAL_DOCUMENT",
+                "EXTERNAL",
+                "UNRESOLVED"
+              ]
+            }
+          },
+          "includeHeadings": {
+            "type": "boolean"
+          },
+          "includeLinks": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "specSlugs",
+          "mode",
+          "focusPath",
+          "focusAnchor",
+          "direction",
+          "outcomes",
+          "includeHeadings",
+          "includeLinks",
+          "limit",
+          "cursor"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "find_by_tags",
+      "title": "Find Scenarios By Tags",
+      "description": "List scenarios whose tag set contains every requested tag.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "tags"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "list_tasks",
+      "title": "List Spec Tasks",
+      "description": "List bounded tasks for one specification, with status, phase, requirement, and cursor filters.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "statuses": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "planned",
+                "todo",
+                "ready",
+                "in-progress",
+                "blocked",
+                "done",
+                "deferred",
+                "unknown"
+              ]
+            }
+          },
+          "phase": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requirement": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "includeComments": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "find_orphans",
+      "title": "Find Orphaned Spec Nodes",
+      "description": "Return structural orphan findings for uncovered requirements, tasks, and scenarios.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "validate_anchor",
+      "title": "Validate Spec Anchor",
+      "description": "Validate a canonical node ID or Markdown heading anchor without writing.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "anchor": {
+            "type": "string"
+          },
+          "spec": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "anchor"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "list_specs",
+      "title": "List Specifications",
+      "description": "Enumerate specification slugs present in the current graph.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "validate_requirement_metadata",
+      "title": "Validate Requirement Metadata",
+      "description": "Validate a typed requirement metadata object without writing.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "metadata": {},
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "metadata"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "policy_query_requirements",
+      "title": "Query Requirement Policy",
+      "description": "Filter requirements by verification method, safety class, missing metadata, and delivery.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "verificationMethod": {
+            "type": "string",
+            "enum": [
+              "test",
+              "analysis",
+              "review",
+              "inspection",
+              "demonstration"
+            ]
+          },
+          "safetyClass": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "major",
+              "minor"
+            ]
+          },
+          "verificationMethodMissing": {
+            "type": "boolean"
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "NOT_DECLARED",
+              "DELIVERED",
+              "INCOMPLETE"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_archival_proof",
+      "title": "Get Archival Proof",
+      "description": "Check whether a specification has live inbound references from other specifications.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "validate_spec",
+      "title": "Validate Specification",
+      "description": "Run the bounded graph validation for one specification without writing.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_spec_status",
+      "title": "Get Specification Status",
+      "description": "Read status, counts, or structural coverage for one specification or the corpus.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "view": {
+            "type": "string",
+            "enum": [
+              "status",
+              "summary",
+              "counts",
+              "coverage"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "mcp_preflight",
+      "title": "MCP Preflight",
+      "description": "Read redacted root, version, lock, and dependency admission facts. Call first to confirm the environment.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "declaredWorktree": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "list_spec_docs",
+      "title": "List Specification Documents",
+      "description": "List readable documents and binary attachments under one specification.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "read_spec_doc",
+      "title": "Read Specification Document",
+      "description": "Read one contained specification document, optionally by section or bounded line window.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "doc": {
+            "type": "string"
+          },
+          "section": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "readForEdit": {
+            "type": "boolean"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec",
+          "doc"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "read_attachment",
+      "title": "Read Specification Attachment",
+      "description": "Read one contained binary attachment as a bounded base64 payload.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_test_result",
+      "title": "Get Scenario Test Result",
+      "description": "Read the last recorded result and freshness fields for one scenario.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scenarioId": {
+            "type": "string"
+          },
+          "spec": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "scenarioId"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_scenario_trace",
+      "title": "Get Scenario Trace",
+      "description": "Read one scenario result with its hash-bound runtime trace metadata.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scenarioId": {
+            "type": "string"
+          },
+          "spec": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "scenarioId"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "propose_patch",
+      "title": "Propose Specification Patch",
+      "description": "Build a reviewable multi-operation patch proposal over spec docs; returns a proposalId for apply_proposed_patch.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "repositoryRootFingerprint": {
+            "type": "string"
+          },
+          "spec": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "operations": {},
+          "schemaVersion": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "requestId",
+          "repositoryRootFingerprint",
+          "spec",
+          "reason",
+          "operations"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "apply_proposed_patch",
+      "title": "Apply Proposed Specification Patch",
+      "description": "Apply a reviewed proposal by ID after hash recheck; approval approve is required.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "proposalId": {
+            "type": "string"
+          },
+          "proposalSha256": {
+            "type": "string"
+          },
+          "expectedDocuments": {},
+          "reason": {
+            "type": "string"
+          },
+          "approval": {
+            "type": "string",
+            "enum": [
+              "approve"
+            ]
+          },
+          "actorRef": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "requestId",
+          "proposalId",
+          "proposalSha256",
+          "expectedDocuments",
+          "reason",
+          "approval"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "amend_requirement",
+      "title": "Amend Requirement",
+      "description": "Propose amendment text appended to an FR section.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "requirement": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "expectedSha": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec",
+          "requirement",
+          "body",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "add_acceptance_criterion",
+      "title": "Add Acceptance Criterion",
+      "description": "Propose a canonical acceptance criterion appended for one requirement. Use when an FR needs a new testable criterion.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "requirement": {
+            "type": "string"
+          },
+          "criterion": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec",
+          "requirement",
+          "criterion",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "add_phase",
+      "title": "Add Task Phase",
+      "description": "Propose a task phase heading appended to TASKS.md. Use to structure delivery phases.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec",
+          "title",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "set_entity_status",
+      "title": "Set Entity Status",
+      "description": "Propose a validated task status transition. Use for task progress updates; unknown transitions are rejected.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "entity": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "todo",
+              "ready",
+              "in-progress",
+              "blocked",
+              "done",
+              "deferred",
+              "unknown"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec",
+          "entity",
+          "status",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "set_spec_status",
+      "title": "Set Specification Status",
+      "description": "Propose a specification status line. Use to record spec lifecycle state.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "backlog"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec",
+          "status",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "set_requirement_metadata",
+      "title": "Set Requirement Metadata",
+      "description": "Propose validated typed metadata (verification method, safety class, delivery) for a requirement. Unknown metadata is rejected.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "requirement": {
+            "type": "string"
+          },
+          "metadata": {},
+          "reason": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec",
+          "requirement",
+          "metadata",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "delete_spec_doc",
+      "title": "Delete Specification Document",
+      "description": "Propose deletion of one contained spec document. Use to remove obsolete docs.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "doc": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "expectedSha": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec",
+          "doc",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "rename_spec_doc",
+      "title": "Rename Specification Document",
+      "description": "Propose a contained document rename. Refused when inbound Markdown links would break; fix callers first.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "doc": {
+            "type": "string"
+          },
+          "newDoc": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec",
+          "doc",
+          "newDoc",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "create_spec",
+      "title": "Create Specification",
+      "description": "Propose a full canonical scaffold (15 docs plus feature and schema) for a new spec slug.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "archive_spec",
+      "title": "Archive Specification",
+      "description": "Propose archival of a spec after proving no live inbound references. Use to retire specs; refused otherwise.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "add_backlog_task",
+      "title": "Add Backlog Task",
+      "description": "Propose a traced backlog task. Use for future work items.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "requirements": {},
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec",
+          "title",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "register_incident_backlog",
+      "title": "Register Incident Backlog",
+      "description": "Propose a traced incident task. Use for incident follow-ups.",
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "operation",
+          "ok",
+          "graph",
+          "page",
+          "data",
+          "error",
+          "diagnostics",
+          "provenance"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "graph": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "page": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "data": {},
+          "error": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": "array"
+          },
+          "provenance": {
+            "type": "object"
+          }
+        }
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "requirements": {},
+          "schemaVersion": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "spec",
+          "summary",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ]
+}

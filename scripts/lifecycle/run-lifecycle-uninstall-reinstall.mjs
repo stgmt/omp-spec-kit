@@ -22,6 +22,10 @@ import { fail, projectHash } from "./lib/project-hash.mjs";
 
 const PLUGIN_NAME = "omp-spec-kit";
 
+function isValidInventoryText(text) {
+	return typeof text === "string" && (/^inventory ok/u.test(text) || text.trim().startsWith('{"'));
+}
+
 function parseArgs(argv) {
 	const output = Object.create(null);
 	const allowed = ["--runtime-root", "--candidate-package-root", "--project-dir", "--receipts-out", "--expected-version", "--rollback-to-prior-package-root", "--prior-version", "--phase-timeout-ms", "--observe", "--package-root", "--request-id", "--assert-absent"];
@@ -164,7 +168,7 @@ async function main() {
 
 	// Reinstall the exact same candidate and observe it fresh again.
 	const reinstallObservation = observe(args, cwd, args["--candidate-package-root"], "lifecycle-reinstall");
-	if (reinstallObservation.version !== expectedVersion || !/^inventory ok/u.test(reinstallObservation.inventoryText)) {
+	if (reinstallObservation.version !== expectedVersion || !isValidInventoryText(reinstallObservation.inventoryText)) {
 		fail(`reinstall observation expected ${expectedVersion}, saw ${JSON.stringify(reinstallObservation)}`);
 	}
 	const afterReinstall = await projectHash(cwd, "after-reinstall");

@@ -1,1 +1,1 @@
-{"schema": "omp-spec-kit-public-release-status@1", "status": {"installable": false, "public": false, "state": "CANDIDATE", "surface": "SAFE_AUTHORING", "toolCount": 38}, "tag": "v0.8.0", "version": "0.8.0"}
+{"schema":"omp-spec-kit-public-release-status@1","status":{"installable":false,"public":false,"state":"CANDIDATE","surface":"SAFE_AUTHORING","toolCount":11},"tag":"v0.8.0","version":"0.8.0"}

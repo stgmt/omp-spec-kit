@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OMP Spec Kit · MCP Tool Contracts</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111827;
+      --panel: #172033;
+      --panel-2: #1d2940;
+      --line: #34435e;
+      --text: #e8eef8;
+      --muted: #a7b4c9;
+      --blue: #67b7ff;
+      --blue-2: #173c60;
+      --green: #60d394;
+      --amber: #f6c85f;
+      --red: #ff8a8a;
+      --shadow: 0 18px 45px rgba(0, 0, 0, .22);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #0f1726 0%, var(--bg) 48%, #101827 100%);
+      color: var(--text);
+      font: 14px/1.55 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    code, pre, .tool-name, .operation, .schema-type { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
+    a { color: var(--blue); }
+    button, input, select { font: inherit; }
+    button, select, input {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #101827;
+      color: var(--text);
+    }
+    button { cursor: pointer; padding: 8px 11px; }
+    button:hover { border-color: var(--blue); color: #fff; }
+    .hero {
+      padding: 42px max(24px, calc((100vw - 1420px) / 2));
+      border-bottom: 1px solid var(--line);
+      background: radial-gradient(circle at 15% 0%, #1c4d78 0, transparent 42%), linear-gradient(115deg, #16273e, #111827 65%);
+    }
+    .eyebrow { color: var(--blue); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 10px 0 8px; font-size: clamp(32px, 5vw, 58px); line-height: 1.04; letter-spacing: -.04em; }
+    .hero p { max-width: 830px; margin: 0; color: var(--muted); font-size: 16px; }
+    .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 25px; }
+    .stat { padding: 9px 13px; border: 1px solid var(--line); border-radius: 9px; background: rgba(9, 16, 29, .4); color: var(--muted); }
+    .stat strong { color: var(--text); font-size: 17px; }
+    .layout { display: grid; grid-template-columns: 285px minmax(0, 1fr); gap: 28px; max-width: 1420px; margin: 0 auto; padding: 28px 24px 70px; }
+    .sidebar { position: sticky; top: 16px; align-self: start; max-height: calc(100vh - 32px); overflow: auto; }
+    .sidebar h2 { margin: 0 0 10px; font-size: 14px; }
+    .controls { display: grid; gap: 9px; margin-bottom: 14px; }
+    .controls input, .controls select { width: 100%; padding: 9px 10px; }
+    .nav-list { display: grid; gap: 3px; }
+    .nav-item { display: flex; align-items: baseline; gap: 7px; width: 100%; padding: 6px 8px; border: 0; border-left: 2px solid transparent; border-radius: 4px; background: transparent; color: var(--muted); text-align: left; }
+    .nav-item:hover, .nav-item.active { border-left-color: var(--blue); background: var(--blue-2); color: var(--text); }
+    .nav-item small { overflow: hidden; color: #7890ac; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .content { min-width: 0; }
+    .notice, .envelope, .tool-card { border: 1px solid var(--line); border-radius: 13px; background: linear-gradient(145deg, rgba(29, 41, 64, .95), rgba(22, 32, 51, .95)); box-shadow: var(--shadow); }
+    .notice, .envelope { margin-bottom: 22px; padding: 20px 22px; }
+    .notice h2, .envelope h2 { margin: 0 0 8px; font-size: 17px; }
+    .notice p { margin: 7px 0; color: var(--muted); }
+    .instructions { margin: 12px 0 0; padding: 13px 15px; border-left: 3px solid var(--blue); background: rgba(10, 19, 34, .75); color: #d8e7f8; }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 15px; margin: 30px 0 12px; }
+    .section-heading h2 { margin: 0; font-size: 23px; }
+    .section-heading span { color: var(--muted); }
+    .tool-card { margin: 0 0 14px; overflow: hidden; scroll-margin-top: 18px; }
+    .tool-card[hidden] { display: none; }
+    .tool-summary { display: flex; align-items: center; gap: 13px; padding: 17px 19px; cursor: pointer; list-style: none; }
+    .tool-summary::-webkit-details-marker { display: none; }
+    .tool-summary::before { content: "›"; width: 18px; color: var(--blue); font-size: 24px; line-height: 1; transition: transform .15s ease; }
+    details[open] > .tool-summary::before { transform: rotate(90deg); }
+    .tool-title { min-width: 0; flex: 1; }
+    .tool-title strong { display: block; font-size: 16px; }
+    .tool-name { color: var(--blue); font-size: 12px; }
+    .operation { color: var(--muted); font-size: 12px; }
+    .badges { display: flex; flex-wrap: wrap; justify-content: end; gap: 5px; }
+    .badge { padding: 3px 7px; border-radius: 999px; background: #263750; color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .badge.safe { background: rgba(32, 103, 74, .35); color: var(--green); }
+    .badge.warn { background: rgba(115, 82, 26, .38); color: var(--amber); }
+    .badge.danger { background: rgba(120, 38, 46, .4); color: var(--red); }
+    .tool-body { padding: 0 21px 22px 50px; }
+    .purpose { margin: 0 0 17px; color: #d8e1ee; font-size: 15px; }
+    .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(310px, .85fr); gap: 18px; }
+    .subsection h3 { margin: 0 0 8px; color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+    .variant-card { margin-bottom: 14px; padding: 12px 14px; border: 1px solid #2b3953; border-radius: 8px; background: rgba(13, 21, 35, .6); }
+    .variant-card h4 { margin: 0 0 6px; font-size: 14px; color: var(--blue); display: flex; justify-content: space-between; }
+    .variant-card p { margin: 0 0 8px; font-size: 12px; color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid #2b3953; vertical-align: top; text-align: left; }
+    th { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    td code { color: #d5e8ff; }
+    .schema-type { color: var(--blue); font-size: 12px; }
+    .enum { margin-top: 3px; color: #9fb4cc; font-size: 11px; word-break: break-word; }
+    pre { max-height: 410px; overflow: auto; margin: 0; padding: 11px; border: 1px solid #2b3953; border-radius: 8px; background: #0d1523; color: #cfe3fa; font-size: 12px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+    .code-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+    .copy { padding: 4px 7px; color: var(--muted); font-size: 11px; }
+    .annotation-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin: 0; padding: 0; list-style: none; }
+    .annotation-list li { padding: 7px 9px; border: 1px solid #2b3953; border-radius: 7px; color: var(--muted); font-size: 12px; }
+    .annotation-list b { color: var(--text); }
+    .empty { padding: 28px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); text-align: center; }
+    .footer { margin-top: 26px; color: #8191a8; font-size: 12px; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; max-height: none; }
+      .nav-list { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+    }
+    @media (max-width: 700px) {
+      .hero { padding: 30px 18px; }
+      .layout { padding: 20px 14px 50px; }
+      .tool-summary { align-items: start; flex-wrap: wrap; }
+      .badges { justify-content: start; width: 100%; padding-left: 31px; }
+      .tool-body { padding-left: 20px; }
+      .grid { grid-template-columns: 1fr; }
+      .annotation-list { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="eyebrow">OMP Spec Kit · MCP reference</div>
+    <h1>11 MCP tool contracts</h1>
+    <p>Человекочитаемый каталог ровно тех 11 инструментов, которые публикуются сервером v0.8.0. Откройте карточку, чтобы увидеть назначение, варианты ветвления, параметры, машинные метки, примеры аргументов и точную JSON-схему.</p>
+    <div class="stats">
+      <div class="stat"><strong id="tool-count">11</strong><br>инструментов</div>
+      <div class="stat"><strong id="read-count">10</strong><br>без записи</div>
+      <div class="stat"><strong id="mutating-count">1</strong><br>изменяющий</div>
+      <div class="stat"><strong>200</strong><br>максимум первой строки описания</div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" aria-label="Навигация по инструментам">
+      <h2>Инструменты</h2>
+      <div class="controls">
+        <input id="search" type="search" placeholder="Поиск по имени и описанию…" aria-label="Поиск инструментов">
+        <select id="kind" aria-label="Фильтр по типу">
+          <option value="all">Все инструменты</option>
+          <option value="read">Только чтение</option>
+          <option value="mutating">Изменяющий</option>
+        </select>
+        <div>
+          <button id="expand" type="button">Раскрыть все</button>
+          <button id="collapse" type="button">Свернуть все</button>
+        </div>
+      </div>
+      <nav id="tool-nav" class="nav-list"></nav>
+    </aside>
+
+    <main class="content">
+      <section class="notice">
+        <h2>Как читать каталог</h2>
+        <p><b>Назначение</b> — краткое объяснение задачи инструмента. <b>Дискриминатор ветки</b> — параметр выбора варианта запроса (<code>view</code>, <code>mode</code>, <code>action</code>, <code>check</code>, <code>intent</code>). <b>Варианты</b> — обязательные и опциональные аргументы конкретной ветки с минимальным JSON-примером.</p>
+        <p><b>Машинные метки</b>: ровно 10 инструментов безопасны для чтения; единственная операция изменения состояния — <code>apply_proposed_patch</code>.</p>
+        <div class="instructions"><b>Инструкция сервера MCP</b><br><span id="instructions"></span></div>
+      </section>
+
+      <section class="envelope">
+        <h2>Общий ответ MCP</h2>
+        <p>Каждый вызов возвращает канонический конверт ядра. Текстовый блок и <code>structuredContent</code> содержат байт-идентичный JSON.</p>
+        <div class="code-head"><span class="schema-type">outputSchema · kernel envelope</span><button class="copy" type="button" data-copy="output-schema">Копировать JSON</button></div>
+        <pre id="output-schema"></pre>
+      </section>
+
+      <div class="section-heading">
+        <h2>Tool reference</h2>
+        <span id="visible-count"></span>
+      </div>
+      <section id="tool-list" aria-label="Список контрактов"></section>
+      <div id="empty" class="empty" hidden>Ничего не найдено. Измените поиск или фильтр.</div>
+      <div class="footer">Источник данных: <code>src/adapters/tool-contracts.js</code>. Страница создаётся командой <code>npm run docs:mcp</code>; внешние библиотеки и сеть не нужны.</div>
+    </main>
+  </div>
+
+  <script>
+    window.__MCP_CATALOG__ = {"generatedFrom":"src/adapters/tool-contracts.js","toolCount":11,"instructions":"Start with spec_catalog, then read the affected documents. Proposal tools never write: use spec_propose_patch to draft and review changes. Review the returned proposal, diff, and hashes before calling apply_proposed_patch, the only mutating tool, with approval=\"approve\".","outputSchema":{"type":"object","additionalProperties":false,"required":["schemaVersion","requestId","operation","ok","graph","page","data","error","diagnostics","provenance"],"properties":{"schemaVersion":{"type":"string"},"requestId":{"type":["string","null"]},"operation":{"type":"string"},"ok":{"type":"boolean"},"graph":{"type":["object","null"]},"page":{"type":["object","null"]},"data":{},"error":{"type":["object","null"]},"diagnostics":{"type":"array"},"provenance":{"type":"object"}}},"tools":[{"tool":"mcp_preflight","label":"MCP Preflight","operation":"mcpPreflight","description":"Read redacted root, lock, and dependency admission facts.","discriminator":null,"commonFields":null,"variants":null,"fields":[{"name":"declaredWorktree","kind":"string","optional":true}],"inputSchema":{"type":"object","properties":{"schemaVersion":{"type":"string"},"requestId":{"type":["string","null"]},"declaredWorktree":{"type":"string"}},"required":[],"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}},{"tool":"spec_catalog","label":"Spec Catalog","operation":"catalog","description":"Query spec catalog: types dictionary, slugs, inventory, overview, or status.","discriminator":"view","commonFields":null,"variants":{"types":{"description":"Return the authoritative domain type dictionary of 15 entity kinds and 7 edge types.","fields":[]},"specs":{"description":"List all specification slugs present in the current repository.","fields":[]},"inventory":{"description":"Read a bounded, paged inventory of specifications and documents.","fields":[{"name":"specSlugs","kind":"stringArray","optional":true},{"name":"includeDocuments","kind":"boolean","optional":true},{"name":"limit","kind":"integer","optional":true},{"name":"cursor","kind":"nullableString","optional":true}]},"overview":{"description":"Read corpus-level counts, limits, and diagnostic/kind/edge histograms.","fields":[{"name":"specSlugs","kind":"stringArray","optional":true}]},"status":{"description":"Read status, counts, or structural coverage for one specification or the corpus.","fields":[{"name":"spec","kind":"string","optional":true},{"name":"statusView","kind":"enum","values":["status","summary","counts","coverage"],"optional":true}]}},"fields":null,"inputSchema":{"type":"object","additionalProperties":false,"properties":{"view":{"type":"string","enum":["types","specs","inventory","overview","status"]},"schemaVersion":{"type":"string"},"requestId":{"type":["string","null"]},"specSlugs":{"type":"array","items":{"type":"string"}},"includeDocuments":{"type":"boolean"},"limit":{"type":"integer","minimum":1},"cursor":{"type":["string","null"]},"spec":{"type":"string"},"statusView":{"type":"string"}},"required":["view"],"oneOf":[{"type":"object","properties":{"view":{"type":"string","enum":["types"]}},"required":["view"],"additionalProperties":false},{"type":"object","properties":{"view":{"type":"string","enum":["specs"]}},"required":["view"],"additionalProperties":false},{"type":"object","properties":{"view":{"type":"string","enum":["inventory"]},"specSlugs":{"type":"array","items":{"type":"string"}},"includeDocuments":{"type":"boolean"},"limit":{"type":"integer","minimum":1},"cursor":{"type":["string","null"]}},"required":["view"],"additionalProperties":false},{"type":"object","properties":{"view":{"type":"string","enum":["overview"]},"specSlugs":{"type":"array","items":{"type":"string"}}},"required":["view"],"additionalProperties":false},{"type":"object","properties":{"view":{"type":"string","enum":["status"]},"spec":{"type":"string"},"statusView":{"type":"string"}},"required":["view"],"additionalProperties":false}]},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}},{"tool":"spec_entities","label":"Spec Entities","operation":"entities","description":"Get or find spec nodes by canonical ID, slug, kind, or text.","discriminator":"mode","commonFields":null,"variants":{"get":{"description":"Read one specification node by qualified canonical ID.","fields":[{"name":"canonicalId","kind":"string"},{"name":"projection","kind":"enum","values":["summary","full"],"optional":true},{"name":"includeIncidentCounts","kind":"boolean","optional":true}]},"find":{"description":"Search specification nodes by spec slug, node kind, canonical ID, or bounded text match.","fields":[{"name":"specSlugs","kind":"stringArray","optional":true},{"name":"kinds","kind":"enumArray","values":["DOCUMENT","USER_STORY","USE_CASE","RESEARCH_FINDING","RISK","FUNCTIONAL_REQUIREMENT","NON_FUNCTIONAL_REQUIREMENT","ACCEPTANCE_CRITERION","DECISION","TASK","FILE_CHANGE","FILE","SCENARIO","FIXTURE","SCHEMA_ENTITY"],"optional":true},{"name":"canonicalIds","kind":"stringArray","optional":true},{"name":"text","kind":"nullableString","optional":true},{"name":"projection","kind":"enum","values":["summary","full"],"optional":true},{"name":"limit","kind":"integer","optional":true},{"name":"cursor","kind":"nullableString","optional":true}]}},"fields":null,"inputSchema":{"type":"object","additionalProperties":false,"properties":{"mode":{"type":"string","enum":["get","find"]},"schemaVersion":{"type":"string"},"requestId":{"type":["string","null"]},"canonicalId":{"type":"string"},"projection":{"type":"string"},"includeIncidentCounts":{"type":"boolean"},"specSlugs":{"type":"array","items":{"type":"string"}},"kinds":{"type":"array","items":{"type":"string"}},"canonicalIds":{"type":"array","items":{"type":"string"}},"text":{"type":["string","null"]},"limit":{"type":"integer","minimum":1},"cursor":{"type":["string","null"]}},"required":["mode"],"oneOf":[{"type":"object","properties":{"mode":{"type":"string","enum":["get"]},"canonicalId":{"type":"string"},"projection":{"type":"string"},"includeIncidentCounts":{"type":"boolean"}},"required":["mode","canonicalId"],"additionalProperties":false},{"type":"object","properties":{"mode":{"type":"string","enum":["find"]},"specSlugs":{"type":"array","items":{"type":"string"}},"kinds":{"type":"array","items":{"type":"string"}},"canonicalIds":{"type":"array","items":{"type":"string"}},"text":{"type":["string","null"]},"projection":{"type":"string"},"limit":{"type":"integer","minimum":1},"cursor":{"type":["string","null"]}},"required":["mode"],"additionalProperties":false}]},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}},{"tool":"spec_graph","label":"Spec Graph","operation":"graph","description":"Inspect spec graph: incident edges or bounded breadth-first traversal.","discriminator":"view","commonFields":null,"variants":{"edges":{"description":"List resolved edges incident to one canonical node, optionally aggregated.","fields":[{"name":"canonicalId","kind":"string"},{"name":"direction","kind":"enum","values":["in","out","both"],"optional":true},{"name":"types","kind":"enumArray","values":["REFS","COVERS","TESTED_BY","IMPLEMENTS","DEPENDS_ON","DOCUMENTS","DECLARES"],"optional":true},{"name":"aggregate","kind":"boolean","optional":true},{"name":"limit","kind":"integer","optional":true},{"name":"cursor","kind":"nullableString","optional":true}]},"trace":{"description":"Bounded breadth-first trace from one canonical node across resolved edges.","fields":[{"name":"canonicalId","kind":"string"},{"name":"direction","kind":"enum","values":["in","out","both"],"optional":true},{"name":"types","kind":"enumArray","values":["REFS","COVERS","TESTED_BY","IMPLEMENTS","DEPENDS_ON","DOCUMENTS","DECLARES"],"optional":true},{"name":"maxDepth","kind":"integer","optional":true},{"name":"maxVisited","kind":"integer","optional":true},{"name":"projection","kind":"enum","values":["summary","full"],"optional":true},{"name":"limit","kind":"integer","optional":true},{"name":"cursor","kind":"nullableString","optional":true}]}},"fields":null,"inputSchema":{"type":"object","additionalProperties":false,"properties":{"view":{"type":"string","enum":["edges","trace"]},"schemaVersion":{"type":"string"},"requestId":{"type":["string","null"]},"canonicalId":{"type":"string"},"direction":{"type":"string"},"types":{"type":"array","items":{"type":"string"}},"aggregate":{"type":"boolean"},"limit":{"type":"integer","minimum":1},"cursor":{"type":["string","null"]},"maxDepth":{"type":"integer","minimum":1},"maxVisited":{"type":"integer","minimum":1},"projection":{"type":"string"}},"required":["view"],"oneOf":[{"type":"object","properties":{"view":{"type":"string","enum":["edges"]},"canonicalId":{"type":"string"},"direction":{"type":"string"},"types":{"type":"array","items":{"type":"string"}},"aggregate":{"type":"boolean"},"limit":{"type":"integer","minimum":1},"cursor":{"type":["string","null"]}},"required":["view","canonicalId"],"additionalProperties":false},{"type":"object","properties":{"view":{"type":"string","enum":["trace"]},"canonicalId":{"type":"string"},"direction":{"type":"string"},"types":{"type":"array","items":{"type":"string"}},"maxDepth":{"type":"integer","minimum":1},"maxVisited":{"type":"integer","minimum":1},"projection":{"type":"string"},"limit":{"type":"integer","minimum":1},"cursor":{"type":["string","null"]}},"required":["view","canonicalId"],"additionalProperties":false}]},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}},{"tool":"spec_documents","label":"Spec Documents","operation":"documents","description":"List, read, or fetch attachments for spec documents.","discriminator":"action","commonFields":null,"variants":{"list":{"description":"List readable documents and binary attachments under one specification.","fields":[{"name":"spec","kind":"string"}]},"read":{"description":"Read one contained specification document, optionally by section or bounded window.","fields":[{"name":"spec","kind":"string"},{"name":"doc","kind":"string"},{"name":"section","kind":"nullableString","optional":true},{"name":"offset","kind":"integer","optional":true},{"name":"limit","kind":"integer","optional":true},{"name":"readForEdit","kind":"boolean","optional":true}]},"attachment":{"description":"Read one contained binary attachment as a bounded base64 payload.","fields":[{"name":"spec","kind":"string"},{"name":"path","kind":"string"}]}},"fields":null,"inputSchema":{"type":"object","additionalProperties":false,"properties":{"action":{"type":"string","enum":["list","read","attachment"]},"schemaVersion":{"type":"string"},"requestId":{"type":["string","null"]},"spec":{"type":"string"},"doc":{"type":"string"},"section":{"type":["string","null"]},"offset":{"type":"integer","minimum":1},"limit":{"type":"integer","minimum":1},"readForEdit":{"type":"boolean"},"path":{"type":"string"}},"required":["action"],"oneOf":[{"type":"object","properties":{"action":{"type":"string","enum":["list"]},"spec":{"type":"string"}},"required":["action","spec"],"additionalProperties":false},{"type":"object","properties":{"action":{"type":"string","enum":["read"]},"spec":{"type":"string"},"doc":{"type":"string"},"section":{"type":["string","null"]},"offset":{"type":"integer","minimum":1},"limit":{"type":"integer","minimum":1},"readForEdit":{"type":"boolean"}},"required":["action","spec","doc"],"additionalProperties":false},{"type":"object","properties":{"action":{"type":"string","enum":["attachment"]},"spec":{"type":"string"},"path":{"type":"string"}},"required":["action","spec","path"],"additionalProperties":false}]},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}},{"tool":"spec_inspect","label":"Spec Inspect","operation":"inspect","description":"Run validations, orphans, anchors, diagnostics, and policy checks.","discriminator":"check","commonFields":null,"variants":{"scenariosByTags":{"description":"List scenarios whose tag set contains every requested tag.","fields":[{"name":"tags","kind":"stringArray"}]},"orphans":{"description":"Return structural orphan findings for uncovered requirements, tasks, and scenarios.","fields":[]},"anchor":{"description":"Validate a canonical node ID or Markdown heading anchor without writing.","fields":[{"name":"anchor","kind":"string"},{"name":"spec","kind":"string","optional":true}]},"requirementMetadata":{"description":"Validate a typed requirement metadata object without writing.","fields":[{"name":"metadata","kind":"json"}]},"requirementsPolicy":{"description":"Filter requirements by verification method, safety class, missing metadata, and delivery.","fields":[{"name":"spec","kind":"string","optional":true},{"name":"verificationMethod","kind":"enum","values":["test","analysis","review","inspection","demonstration"],"optional":true},{"name":"safetyClass","kind":"enum","values":["critical","major","minor"],"optional":true},{"name":"verificationMethodMissing","kind":"boolean","optional":true},{"name":"delivery","kind":"enum","values":["NOT_DECLARED","DELIVERED","INCOMPLETE"],"optional":true}]},"archivalProof":{"description":"Check whether a specification has live inbound references from other specifications.","fields":[{"name":"spec","kind":"string"}]},"specValidation":{"description":"Run bounded graph validation for one specification without writing.","fields":[{"name":"spec","kind":"string"}]},"diagnostics":{"description":"List stable parser/graph diagnostics filtered by severity, code, spec slug, and path.","fields":[{"name":"severities","kind":"enumArray","values":["ERROR","WARNING","INFO"],"optional":true},{"name":"codes","kind":"enumArray","values":["UNSUPPORTED_DOCUMENT","INVALID_UTF8","HASH_MISMATCH","FILE_TOO_LARGE","CORPUS_LIMIT_EXCEEDED","INVALID_SPEC_SLUG","PATH_MISMATCH","PATH_ESCAPE","SYMLINK_REJECTED","NON_REGULAR_FILE","IO_READ_FAILED","UNSUPPORTED_GHERKIN_DIALECT","MALFORMED_GHERKIN","MISSING_SCENARIO_ID","DUPLICATE_SCENARIO_ID_TAG","MALFORMED_HEADING","INVALID_LOCAL_ID","ID_NOT_ALLOWED_IN_DOCUMENT","DUPLICATE_DEFINITION","MALFORMED_REFERENCE","UNQUALIFIED_CROSS_SPEC_REFERENCE","BROKEN_REFERENCE","AMBIGUOUS_REFERENCE","FORBIDDEN_EDGE_ENDPOINT","MALFORMED_MARKDOWN_LINK","BROKEN_MARKDOWN_LINK","INVALID_AC_PARENT","INVARIANT_VIOLATION","DIAGNOSTIC_LIMIT_REACHED"],"optional":true},{"name":"specSlugs","kind":"stringArray","optional":true},{"name":"paths","kind":"stringArray","optional":true},{"name":"limit","kind":"integer","optional":true},{"name":"cursor","kind":"nullableString","optional":true}]}},"fields":null,"inputSchema":{"type":"object","additionalProperties":false,"properties":{"check":{"type":"string","enum":["scenariosByTags","orphans","anchor","requirementMetadata","requirementsPolicy","archivalProof","specValidation","diagnostics"]},"schemaVersion":{"type":"string"},"requestId":{"type":["string","null"]},"tags":{"type":"array","items":{"type":"string"}},"anchor":{"type":"string"},"spec":{"type":"string"},"metadata":{"type":"object"},"verificationMethod":{"type":"string"},"safetyClass":{"type":"string"},"verificationMethodMissing":{"type":"boolean"},"delivery":{"type":"string"},"severities":{"type":"array","items":{"type":"string"}},"codes":{"type":"array","items":{"type":"string"}},"specSlugs":{"type":"array","items":{"type":"string"}},"paths":{"type":"array","items":{"type":"string"}},"limit":{"type":"integer","minimum":1},"cursor":{"type":["string","null"]}},"required":["check"],"oneOf":[{"type":"object","properties":{"check":{"type":"string","enum":["scenariosByTags"]},"tags":{"type":"array","items":{"type":"string"}}},"required":["check","tags"],"additionalProperties":false},{"type":"object","properties":{"check":{"type":"string","enum":["orphans"]}},"required":["check"],"additionalProperties":false},{"type":"object","properties":{"check":{"type":"string","enum":["anchor"]},"anchor":{"type":"string"},"spec":{"type":"string"}},"required":["check","anchor"],"additionalProperties":false},{"type":"object","properties":{"check":{"type":"string","enum":["requirementMetadata"]},"metadata":{"type":"object"}},"required":["check","metadata"],"additionalProperties":false},{"type":"object","properties":{"check":{"type":"string","enum":["requirementsPolicy"]},"spec":{"type":"string"},"verificationMethod":{"type":"string"},"safetyClass":{"type":"string"},"verificationMethodMissing":{"type":"boolean"},"delivery":{"type":"string"}},"required":["check"],"additionalProperties":false},{"type":"object","properties":{"check":{"type":"string","enum":["archivalProof"]},"spec":{"type":"string"}},"required":["check","spec"],"additionalProperties":false},{"type":"object","properties":{"check":{"type":"string","enum":["specValidation"]},"spec":{"type":"string"}},"required":["check","spec"],"additionalProperties":false},{"type":"object","properties":{"check":{"type":"string","enum":["diagnostics"]},"severities":{"type":"array","items":{"type":"string"}},"codes":{"type":"array","items":{"type":"string"}},"specSlugs":{"type":"array","items":{"type":"string"}},"paths":{"type":"array","items":{"type":"string"}},"limit":{"type":"integer","minimum":1},"cursor":{"type":["string","null"]}},"required":["check"],"additionalProperties":false}]},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}},{"tool":"spec_tasks","label":"Spec Tasks","operation":"tasks","description":"List tasks for one spec with status, phase, and requirement filters.","discriminator":null,"commonFields":null,"variants":null,"fields":[{"name":"spec","kind":"string"},{"name":"statuses","kind":"enumArray","values":["planned","todo","ready","in-progress","blocked","done","deferred","unknown"],"optional":true},{"name":"phase","kind":"nullableString","optional":true},{"name":"requirement","kind":"nullableString","optional":true},{"name":"includeComments","kind":"boolean","optional":true},{"name":"limit","kind":"integer","optional":true},{"name":"cursor","kind":"nullableString","optional":true}],"inputSchema":{"type":"object","properties":{"schemaVersion":{"type":"string"},"requestId":{"type":["string","null"]},"spec":{"type":"string"},"statuses":{"type":"array","items":{"type":"string"}},"phase":{"type":["string","null"]},"requirement":{"type":["string","null"]},"includeComments":{"type":"boolean"},"limit":{"type":"integer","minimum":1},"cursor":{"type":["string","null"]}},"required":["spec"],"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}},{"tool":"spec_evidence","label":"Spec Evidence","operation":"evidence","description":"Read scenario test results or execution trace metadata.","discriminator":"view","commonFields":null,"variants":{"result":{"description":"Read the last recorded result and freshness fields for one scenario.","fields":[{"name":"scenarioId","kind":"string"},{"name":"spec","kind":"string","optional":true}]},"trace":{"description":"Read one scenario result with its hash-bound runtime trace metadata.","fields":[{"name":"scenarioId","kind":"string"},{"name":"spec","kind":"string","optional":true}]}},"fields":null,"inputSchema":{"type":"object","additionalProperties":false,"properties":{"view":{"type":"string","enum":["result","trace"]},"schemaVersion":{"type":"string"},"requestId":{"type":["string","null"]},"scenarioId":{"type":"string"},"spec":{"type":"string"}},"required":["view"],"oneOf":[{"type":"object","properties":{"view":{"type":"string","enum":["result"]},"scenarioId":{"type":"string"},"spec":{"type":"string"}},"required":["view","scenarioId"],"additionalProperties":false},{"type":"object","properties":{"view":{"type":"string","enum":["trace"]},"scenarioId":{"type":"string"},"spec":{"type":"string"}},"required":["view","scenarioId"],"additionalProperties":false}]},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}},{"tool":"spec_markdown","label":"Spec Markdown","operation":"markdown","description":"Inventory Markdown headings and links to plan safe edits.","discriminator":null,"commonFields":null,"variants":null,"fields":[{"name":"specSlugs","kind":"stringArray","optional":true},{"name":"mode","kind":"enum","values":["all","focus"],"optional":true},{"name":"focusPath","kind":"nullableString","optional":true},{"name":"focusAnchor","kind":"nullableString","optional":true},{"name":"direction","kind":"enum","values":["in","out","both"],"optional":true},{"name":"outcomes","kind":"enumArray","values":["INTERNAL_HEADING","INTERNAL_DOCUMENT","EXTERNAL","UNRESOLVED"],"optional":true},{"name":"includeHeadings","kind":"boolean","optional":true},{"name":"includeLinks","kind":"boolean","optional":true},{"name":"limit","kind":"integer","optional":true},{"name":"cursor","kind":"nullableString","optional":true}],"inputSchema":{"type":"object","properties":{"schemaVersion":{"type":"string"},"requestId":{"type":["string","null"]},"specSlugs":{"type":"array","items":{"type":"string"}},"mode":{"type":"string"},"focusPath":{"type":["string","null"]},"focusAnchor":{"type":["string","null"]},"direction":{"type":"string"},"outcomes":{"type":"array","items":{"type":"string"}},"includeHeadings":{"type":"boolean"},"includeLinks":{"type":"boolean"},"limit":{"type":"integer","minimum":1},"cursor":{"type":["string","null"]}},"required":[],"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}},{"tool":"spec_propose_patch","label":"Spec Propose Patch","operation":"proposePatch","description":"Draft and review spec proposals in memory without writing.","discriminator":"intent","commonFields":[{"name":"requestId","kind":"string"},{"name":"reason","kind":"string"},{"name":"spec","kind":"string"}],"variants":{"patch":{"description":"Create a complete proposal for an operations array against one specification.","fields":[{"name":"repositoryRootFingerprint","kind":"string"},{"name":"operations","kind":"operations"}]},"amendRequirement":{"description":"Compile a requirement amendment into a proposal.","fields":[{"name":"requirement","kind":"string"},{"name":"body","kind":"string"},{"name":"expectedSha","kind":"string","optional":true}]},"addAcceptanceCriterion":{"description":"Compile a canonical acceptance criterion into a proposal.","fields":[{"name":"requirement","kind":"string"},{"name":"criterion","kind":"string"}]},"addPhase":{"description":"Compile a task phase into a proposal.","fields":[{"name":"title","kind":"string"}]},"setEntityStatus":{"description":"Compile a validated task status transition into a proposal.","fields":[{"name":"entity","kind":"string"},{"name":"status","kind":"enum","values":["planned","todo","ready","in-progress","blocked","done","deferred","unknown"]}]},"setSpecStatus":{"description":"Compile an explicit specification status change into a proposal.","fields":[{"name":"status","kind":"enum","values":["active","backlog"]}]},"setRequirementMetadata":{"description":"Validate and compile a typed requirement metadata block into a proposal.","fields":[{"name":"requirement","kind":"string"},{"name":"metadata","kind":"json"}]},"deleteSpecDoc":{"description":"Compile a contained document deletion into a proposal.","fields":[{"name":"doc","kind":"string"},{"name":"expectedSha","kind":"string","optional":true}]},"renameSpecDoc":{"description":"Compile a contained document rename into a proposal.","fields":[{"name":"doc","kind":"string"},{"name":"newDoc","kind":"string"}]},"createSpec":{"description":"Compile a complete canonical specification scaffold into a proposal.","fields":[{"name":"title","kind":"string","optional":true}]},"archiveSpec":{"description":"Compile an archival move after live inbound-reference proof.","fields":[]},"addBacklogTask":{"description":"Compile a traced backlog task into a proposal.","fields":[{"name":"title","kind":"string"},{"name":"requirements","kind":"json","optional":true}]},"registerIncidentBacklog":{"description":"Compile a traced incident task into a proposal.","fields":[{"name":"summary","kind":"string"},{"name":"requirements","kind":"json","optional":true}]}},"fields":null,"inputSchema":{"type":"object","additionalProperties":false,"properties":{"intent":{"type":"string","enum":["patch","amendRequirement","addAcceptanceCriterion","addPhase","setEntityStatus","setSpecStatus","setRequirementMetadata","deleteSpecDoc","renameSpecDoc","createSpec","archiveSpec","addBacklogTask","registerIncidentBacklog"]},"schemaVersion":{"type":"string"},"requestId":{"type":"string"},"reason":{"type":"string"},"spec":{"type":"string"},"repositoryRootFingerprint":{"type":"string"},"operations":{"type":"array"},"requirement":{"type":"string"},"body":{"type":"string"},"expectedSha":{"type":"string"},"criterion":{"type":"string"},"title":{"type":"string"},"entity":{"type":"string"},"status":{"type":"string"},"metadata":{"type":"object"},"doc":{"type":"string"},"newDoc":{"type":"string"},"requirements":{"type":"object"},"summary":{"type":"string"}},"required":["intent"],"oneOf":[{"type":"object","properties":{"intent":{"type":"string","enum":["patch"]},"requestId":{"type":"string"},"reason":{"type":"string"},"spec":{"type":"string"},"repositoryRootFingerprint":{"type":"string"},"operations":{"type":"array","minItems":1,"items":{"oneOf":[{"type":"object","additionalProperties":false,"required":["kind","document","text"],"properties":{"kind":{"type":"string","enum":["insert_at_eof"]},"document":{"type":"string"},"text":{"type":"string"},"expectedSha":{"type":"string"}}},{"type":"object","additionalProperties":false,"required":["kind","document","heading","text"],"properties":{"kind":{"type":"string","enum":["insert_after_heading"]},"document":{"type":"string"},"heading":{"type":"string"},"text":{"type":"string"},"expectedSha":{"type":"string"}}},{"type":"object","additionalProperties":false,"required":["kind","document","heading","content"],"properties":{"kind":{"type":"string","enum":["replace_section"]},"document":{"type":"string"},"heading":{"type":"string"},"content":{"type":"string"},"expectedSha":{"type":"string"}}},{"type":"object","additionalProperties":false,"required":["kind","document","heading","oldText","newText"],"properties":{"kind":{"type":"string","enum":["replace_in_section"]},"document":{"type":"string"},"heading":{"type":"string"},"oldText":{"type":"string"},"newText":{"type":"string"},"replaceAll":{"type":"boolean"},"expectedSha":{"type":"string"}}},{"type":"object","additionalProperties":false,"required":["kind","document","entity","status"],"properties":{"kind":{"type":"string","enum":["replace_task_status"]},"document":{"type":"string"},"entity":{"type":"string"},"status":{"type":"string"},"expectedSha":{"type":"string"}}},{"type":"object","additionalProperties":false,"required":["kind","document","content"],"properties":{"kind":{"type":"string","enum":["replace_document"]},"document":{"type":"string"},"content":{"type":"string"},"expectedSha":{"type":"string"}}},{"type":"object","additionalProperties":false,"required":["kind","document"],"properties":{"kind":{"type":"string","enum":["delete_document"]},"document":{"type":"string"},"expectedSha":{"type":"string"}}},{"type":"object","additionalProperties":false,"required":["kind","document","newDocument"],"properties":{"kind":{"type":"string","enum":["rename_document"]},"document":{"type":"string"},"newDocument":{"type":"string"},"expectedSha":{"type":"string"}}}]}}},"required":["intent","requestId","reason","spec","repositoryRootFingerprint","operations"],"additionalProperties":false},{"type":"object","properties":{"intent":{"type":"string","enum":["amendRequirement"]},"requestId":{"type":"string"},"reason":{"type":"string"},"spec":{"type":"string"},"requirement":{"type":"string"},"body":{"type":"string"},"expectedSha":{"type":"string"}},"required":["intent","requestId","reason","spec","requirement","body"],"additionalProperties":false},{"type":"object","properties":{"intent":{"type":"string","enum":["addAcceptanceCriterion"]},"requestId":{"type":"string"},"reason":{"type":"string"},"spec":{"type":"string"},"requirement":{"type":"string"},"criterion":{"type":"string"}},"required":["intent","requestId","reason","spec","requirement","criterion"],"additionalProperties":false},{"type":"object","properties":{"intent":{"type":"string","enum":["addPhase"]},"requestId":{"type":"string"},"reason":{"type":"string"},"spec":{"type":"string"},"title":{"type":"string"}},"required":["intent","requestId","reason","spec","title"],"additionalProperties":false},{"type":"object","properties":{"intent":{"type":"string","enum":["setEntityStatus"]},"requestId":{"type":"string"},"reason":{"type":"string"},"spec":{"type":"string"},"entity":{"type":"string"},"status":{"type":"string"}},"required":["intent","requestId","reason","spec","entity","status"],"additionalProperties":false},{"type":"object","properties":{"intent":{"type":"string","enum":["setSpecStatus"]},"requestId":{"type":"string"},"reason":{"type":"string"},"spec":{"type":"string"},"status":{"type":"string"}},"required":["intent","requestId","reason","spec","status"],"additionalProperties":false},{"type":"object","properties":{"intent":{"type":"string","enum":["setRequirementMetadata"]},"requestId":{"type":"string"},"reason":{"type":"string"},"spec":{"type":"string"},"requirement":{"type":"string"},"metadata":{"type":"object"}},"required":["intent","requestId","reason","spec","requirement","metadata"],"additionalProperties":false},{"type":"object","properties":{"intent":{"type":"string","enum":["deleteSpecDoc"]},"requestId":{"type":"string"},"reason":{"type":"string"},"spec":{"type":"string"},"doc":{"type":"string"},"expectedSha":{"type":"string"}},"required":["intent","requestId","reason","spec","doc"],"additionalProperties":false},{"type":"object","properties":{"intent":{"type":"string","enum":["renameSpecDoc"]},"requestId":{"type":"string"},"reason":{"type":"string"},"spec":{"type":"string"},"doc":{"type":"string"},"newDoc":{"type":"string"}},"required":["intent","requestId","reason","spec","doc","newDoc"],"additionalProperties":false},{"type":"object","properties":{"intent":{"type":"string","enum":["createSpec"]},"requestId":{"type":"string"},"reason":{"type":"string"},"spec":{"type":"string"},"title":{"type":"string"}},"required":["intent","requestId","reason","spec"],"additionalProperties":false},{"type":"object","properties":{"intent":{"type":"string","enum":["archiveSpec"]},"requestId":{"type":"string"},"reason":{"type":"string"},"spec":{"type":"string"}},"required":["intent","requestId","reason","spec"],"additionalProperties":false},{"type":"object","properties":{"intent":{"type":"string","enum":["addBacklogTask"]},"requestId":{"type":"string"},"reason":{"type":"string"},"spec":{"type":"string"},"title":{"type":"string"},"requirements":{"type":"object"}},"required":["intent","requestId","reason","spec","title"],"additionalProperties":false},{"type":"object","properties":{"intent":{"type":"string","enum":["registerIncidentBacklog"]},"requestId":{"type":"string"},"reason":{"type":"string"},"spec":{"type":"string"},"summary":{"type":"string"},"requirements":{"type":"object"}},"required":["intent","requestId","reason","spec","summary"],"additionalProperties":false}]},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}},{"tool":"apply_proposed_patch","label":"Apply Proposed Patch","operation":"applyProposedPatch","description":"Commit a verified proposal after hash and approval checks.","discriminator":null,"commonFields":null,"variants":null,"fields":[{"name":"requestId","kind":"string"},{"name":"proposalId","kind":"string"},{"name":"proposalSha256","kind":"string"},{"name":"expectedDocuments","kind":"expectedDocuments"},{"name":"reason","kind":"string"},{"name":"approval","kind":"enum","values":["approve"]},{"name":"actorRef","kind":"nullableString","optional":true}],"inputSchema":{"type":"object","properties":{"schemaVersion":{"type":"string"},"requestId":{"type":"string"},"proposalId":{"type":"string"},"proposalSha256":{"type":"string"},"expectedDocuments":{"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"required":["path","beforeSha256"],"properties":{"path":{"type":"string"},"beforeSha256":{"type":"string"}}}},"reason":{"type":"string"},"approval":{"type":"string"},"actorRef":{"type":["string","null"]}},"required":["requestId","proposalId","proposalSha256","expectedDocuments","reason","approval"],"additionalProperties":false},"annotations":{"readOnlyHint":false,"destructiveHint":true,"idempotentHint":true,"openWorldHint":false}}]};
+    (() => {
+      const catalog = window.__MCP_CATALOG__;
+      const toolList = document.getElementById('tool-list');
+      const toolNav = document.getElementById('tool-nav');
+      const search = document.getElementById('search');
+      const kind = document.getElementById('kind');
+      const visibleCount = document.getElementById('visible-count');
+      const empty = document.getElementById('empty');
+      const outputSchema = document.getElementById('output-schema');
+      const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+      const pretty = (value) => JSON.stringify(value, null, 2);
+      const isMutating = (tool) => tool.annotations.destructiveHint;
+      const schemaType = (schema) => Array.isArray(schema?.type) ? schema.type.join(' | ') : (schema?.type || 'any');
+
+      const fieldExampleValue = (f) => {
+        if (f.name === 'spec' || f.name === 'specSlug') return 'plugin-distribution';
+        if (f.name === 'specSlugs') return ['plugin-distribution'];
+        if (f.name === 'canonicalId') return 'plugin-distribution:FR-1';
+        if (f.name === 'canonicalIds') return ['plugin-distribution:FR-1'];
+        if (f.name === 'scenarioId') return 'SCEN-mri-active-project-root';
+        if (f.name === 'doc') return 'FR.md';
+        if (f.name === 'newDoc') return 'NEW.md';
+        if (f.name === 'path') return 'FR.md';
+        if (f.name === 'paths') return ['FR.md'];
+        if (f.name === 'anchor') return 'plugin-distribution:FR-1';
+        if (f.name === 'requirement') return 'FR-1';
+        if (f.name === 'entity') return 'TASK-1';
+        if (f.name === 'reason') return 'reviewed change';
+        if (f.name === 'requestId') return 'req-001';
+        if (f.name === 'proposalId') return '0'.repeat(64);
+        if (f.name === 'proposalSha256') return '0'.repeat(64);
+        if (f.name === 'repositoryRootFingerprint') return '0'.repeat(64);
+        if (f.name === 'approval') return 'approve';
+        if (f.name === 'expectedDocuments') return [{ path: '.specs/plugin-distribution/FR.md', beforeSha256: '0'.repeat(64) }];
+        if (f.name === 'operations') return [{ kind: 'insert_at_eof', document: 'FR.md', text: 'note' }];
+        if (f.name === 'tags') return ['@feature1'];
+        if (f.name === 'kinds') return ['FUNCTIONAL_REQUIREMENT'];
+        if (f.name === 'types') return ['REFS'];
+        if (f.name === 'statuses') return ['todo'];
+        if (f.name === 'status') return 'todo';
+        if (f.name === 'statusView') return 'summary';
+        if (f.name === 'metadata' || f.name === 'requirements') return {};
+        if (f.name === 'title' || f.name === 'summary' || f.name === 'text' || f.name === 'body' || f.name === 'criterion') return 'sample text';
+        if (f.kind === 'boolean') return false;
+        if (f.kind === 'integer') return f.name === 'maxDepth' ? 2 : 10;
+        if (f.kind === 'enum' && f.values?.length) return f.values[0];
+        if (f.kind === 'enumArray') return [];
+        if (f.kind === 'stringArray') return [];
+        return 'example';
+      };
+
+      const annotationText = {
+        readOnlyHint: ['readOnlyHint', 'не меняет корпус'],
+        destructiveHint: ['destructiveHint', 'может изменить файлы спецификаций'],
+        idempotentHint: ['idempotentHint', 'повторный вызов безопасен'],
+        openWorldHint: ['openWorldHint', 'работает локально в репозитории']
+      };
+
+      const renderTool = (tool) => {
+        let bodyContent = '';
+        if (tool.discriminator && tool.variants) {
+          const disc = tool.discriminator;
+          const variantKeys = Object.keys(tool.variants);
+          const variantCards = variantKeys.map((vName) => {
+            const v = tool.variants[vName];
+            const allFields = [...(tool.commonFields ?? []), ...(v.fields ?? [])];
+            const reqFields = allFields.filter((f) => !f.optional);
+            const optFields = allFields.filter((f) => f.optional);
+
+            const example = { [disc]: vName };
+            allFields.forEach((f) => {
+              if (!f.optional || f.name === 'spec') example[f.name] = fieldExampleValue(f);
+            });
+
+            const rows = allFields.map((f) => {
+              const opt = f.optional ? 'нет' : '<b>да</b>';
+              const typeDesc = f.values?.length ? f.kind + ' (' + f.values.join(', ') + ')' : f.kind;
+              return '<tr><td><code>' + esc(f.name) + '</code></td><td>' + opt + '</td><td><span class="schema-type">' + esc(typeDesc) + '</span></td></tr>';
+            }).join('');
+
+            return '<div class="variant-card">' +
+              '<h4><span>' + esc(disc) + ' = "' + esc(vName) + '"</span><span class="schema-type">' + (reqFields.length + 1) + ' обяз.</span></h4>' +
+              '<p>' + esc(v.description) + '</p>' +
+              '<table><thead><tr><th>Поле</th><th>Обяз.</th><th>Тип</th></tr></thead><tbody>' +
+              '<tr><td><code>' + esc(disc) + '</code></td><td><b>да</b></td><td><code>"' + esc(vName) + '"</code></td></tr>' +
+              (rows || '') +
+              '</tbody></table>' +
+              '<div class="code-head" style="margin-top:6px"><span>Пример ветки</span><button class="copy" type="button" data-copy="ex-' + esc(tool.tool) + '-' + esc(vName) + '">Копировать</button></div>' +
+              '<pre id="ex-' + esc(tool.tool) + '-' + esc(vName) + '">' + esc(pretty(example)) + '</pre>' +
+              '</div>';
+          }).join('');
+
+          bodyContent = '<div class="subsection"><h3>Дискриминатор ветки: <code>' + esc(disc) + '</code> (' + variantKeys.length + ' вариантов)</h3>' + variantCards + '</div>';
+        } else {
+          const fields = (tool.fields ?? []).map((f) => {
+            const opt = f.optional ? 'нет' : '<b>да</b>';
+            const typeDesc = f.values?.length ? f.kind + ' (' + f.values.join(', ') + ')' : f.kind;
+            return '<tr><td><code>' + esc(f.name) + '</code></td><td>' + opt + '</td><td><span class="schema-type">' + esc(typeDesc) + '</span></td></tr>';
+          }).join('');
+
+          const example = {};
+          (tool.fields ?? []).forEach((f) => {
+            if (!f.optional) example[f.name] = fieldExampleValue(f);
+          });
+
+          bodyContent = '<div class="grid"><div class="subsection"><h3>Параметры запроса</h3><table><thead><tr><th>Имя</th><th>Обяз.</th><th>Тип</th></tr></thead><tbody>' +
+            (fields || '<tr><td colspan="3"><span class="schema-type">Нет параметров.</span></td></tr>') +
+            '</tbody></table></div>' +
+            '<div class="subsection"><div class="code-head"><h3>Минимальный пример</h3><button class="copy" type="button" data-copy="ex-' + esc(tool.tool) + '">Копировать</button></div><pre id="ex-' + esc(tool.tool) + '">' + esc(pretty(example)) + '</pre></div></div>';
+        }
+
+        const annotationItems = Object.keys(annotationText).map((key) => '<li><b>' + esc(annotationText[key][0]) + '</b><br>' + esc(annotationText[key][1]) + '</li>').join('');
+        const badgeCount = tool.discriminator ? Object.keys(tool.variants).length + ' веток' : (tool.fields?.length ?? 0) + ' параметров';
+        const badges = [
+          '<span class="badge ' + (isMutating(tool) ? 'danger' : 'safe') + '">' + (isMutating(tool) ? 'изменяет' : 'только чтение') + '</span>',
+          '<span class="badge">' + (tool.annotations.idempotentHint ? 'идемпотентный' : 'неидемпотентный') + '</span>',
+          '<span class="badge">' + badgeCount + '</span>'
+        ].join('');
+
+        const searchIndex = [tool.tool, tool.label, tool.operation, tool.description, tool.discriminator ?? '', Object.keys(tool.variants ?? {}).join(' ')].join(' ');
+
+        return '<details class="tool-card" id="tool-' + esc(tool.tool) + '" data-search="' + esc(searchIndex) + '" data-kind="' + (isMutating(tool) ? 'mutating' : 'read') + '">' +
+          '<summary class="tool-summary"><div class="tool-title"><strong>' + esc(tool.label) + '</strong><span class="tool-name">' + esc(tool.tool) + '</span> · <span class="operation">' + esc(tool.operation) + '</span></div><div class="badges">' + badges + '</div></summary>' +
+          '<div class="tool-body"><p class="purpose">' + esc(tool.description) + '</p>' +
+          '<div class="subsection"><h3>Машинные метки</h3><ul class="annotation-list">' + annotationItems + '</ul></div>' +
+          '<div style="margin-top:16px">' + bodyContent + '</div>' +
+          '<div class="subsection" style="margin-top:16px"><div class="code-head"><h3>Полная JSON-схема запроса</h3><button class="copy" type="button" data-copy="schema-' + esc(tool.tool) + '">Копировать</button></div><pre id="schema-' + esc(tool.tool) + '">' + esc(pretty(tool.inputSchema)) + '</pre></div>' +
+          '</div></details>';
+      };
+
+      catalog.tools.forEach((tool) => {
+        toolList.insertAdjacentHTML('beforeend', renderTool(tool));
+        toolNav.insertAdjacentHTML('beforeend', '<button class="nav-item" type="button" data-target="tool-' + esc(tool.tool) + '"><span>' + esc(tool.tool) + '</span><small>' + esc(tool.operation) + '</small></button>');
+      });
+
+      outputSchema.textContent = pretty(catalog.outputSchema);
+      document.getElementById('instructions').textContent = catalog.instructions;
+      document.getElementById('tool-count').textContent = catalog.tools.length;
+      document.getElementById('read-count').textContent = catalog.tools.filter((tool) => !isMutating(tool)).length;
+      document.getElementById('mutating-count').textContent = catalog.tools.filter(isMutating).length;
+
+      const cards = [...document.querySelectorAll('.tool-card')];
+      const filter = () => {
+        const query = search.value.trim().toLowerCase();
+        const selected = kind.value;
+        let count = 0;
+        cards.forEach((card) => {
+          const matches = (!query || card.dataset.search.toLowerCase().includes(query)) && (selected === 'all' || card.dataset.kind === selected);
+          card.hidden = !matches;
+          if (matches) count += 1;
+        });
+        visibleCount.textContent = count + ' из ' + cards.length;
+        empty.hidden = count !== 0;
+        document.querySelectorAll('.nav-item').forEach((item) => { item.hidden = !document.getElementById(item.dataset.target) || document.getElementById(item.dataset.target).hidden; });
+      };
+
+      search.addEventListener('input', filter);
+      kind.addEventListener('change', filter);
+      document.getElementById('expand').addEventListener('click', () => cards.filter((card) => !card.hidden).forEach((card) => { card.open = true; }));
+      document.getElementById('collapse').addEventListener('click', () => cards.forEach((card) => { card.open = false; }));
+      document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => document.getElementById(item.dataset.target).scrollIntoView({ block: 'start' })));
+      document.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', async () => {
+        const target = document.getElementById(button.dataset.copy);
+        await navigator.clipboard.writeText(target.textContent);
+        const original = button.textContent;
+        button.textContent = 'Скопировано';
+        setTimeout(() => { button.textContent = original; }, 1100);
+      }));
+      filter();
+    })();
+  </script>
+</body>
+</html>

@@ -3,9 +3,28 @@ import { readFile, rm, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { snapshotTree } from "../support/world.mjs";
 import { prepareEvidenceFixtures } from "./evidence-e2e.mjs";
-import { MUTATING_TOOL_NAMES, TOOL_CONTRACTS } from "../../src/adapters/tool-contracts.js";
+import {
+  annotationsFor,
+  KERNEL_ENVELOPE_OUTPUT_SCHEMA,
+  MCP_SERVER_INSTRUCTIONS,
+  MUTATING_TOOL_NAMES,
+  TOOL_CONTRACTS,
+} from "../../src/adapters/tool-contracts.js";
 
 export const ALL_TOOL_NAMES = Object.freeze(TOOL_CONTRACTS.map((contract) => contract.tool));
+
+function assertEnvelopeSchema(value) {
+  assert.deepEqual(Object.keys(value).sort(), [...KERNEL_ENVELOPE_OUTPUT_SCHEMA.required].sort());
+  for (const [name, definition] of Object.entries(KERNEL_ENVELOPE_OUTPUT_SCHEMA.properties)) {
+    if (definition.type === undefined) continue;
+    const valid = Array.isArray(definition.type)
+      ? definition.type.includes(value[name] === null ? "null" : typeof value[name])
+      : definition.type === "array"
+        ? Array.isArray(value[name])
+        : typeof value[name] === definition.type;
+    assert.equal(valid, true, name + " has the wrong envelope type");
+  }
+}
 
 export async function prepareToolE2EFixtures(projectRoot) {
   await prepareEvidenceFixtures(projectRoot);
@@ -36,13 +55,10 @@ function structured(response) {
   assert.equal(response.result.content?.length, 1, JSON.stringify(response));
   const value = response.result.structuredContent;
   assert.ok(value && typeof value === "object", JSON.stringify(response));
+  assertEnvelopeSchema(value);
   const text = response.result.content[0].text;
   assert.equal(typeof text, "string");
-  if (text.trimStart().startsWith("{")) {
-    assert.deepEqual(JSON.parse(text), value);
-  } else {
-    assert.ok(text.startsWith(value.operation) || text.startsWith("spec_inventory") || text.startsWith("inventory"), text);
-  }
+  assert.deepEqual(JSON.parse(text), value);
   return value;
 }
 
@@ -63,237 +79,401 @@ function assertRelativePaths(value) {
   }
 }
 
-export async function runToolE2E({ listTools, callTool, projectRoot, repositoryRoot, phase = "all", restart = null }) {
+export async function runToolE2E({
+  initialize = null,
+  listTools,
+  callTool,
+  projectRoot,
+  repositoryRoot,
+  phase = "all",
+  restart = null,
+}) {
   // Phase 1: Inventory
   if (phase === "all" || phase === "inventory") {
+    if (initialize) {
+      const initialized = await initialize();
+      assert.equal(initialized.result?.instructions, MCP_SERVER_INSTRUCTIONS);
+    }
     const listed = await listTools();
     const tools = listed?.result?.tools;
     assert.ok(Array.isArray(tools), JSON.stringify(listed));
     const names = tools.map((tool) => tool.name);
     assert.deepEqual(names, ALL_TOOL_NAMES, "registration order is part of the contract");
-    assert.equal(names.length, 38, "single surface exposes exactly 38 tools");
+    assert.equal(names.length, 11, "single surface exposes exactly 11 tools");
 
     for (const tool of tools) {
       assert.equal(tool.inputSchema.type, "object", tool.name);
       assert.equal(tool.inputSchema.additionalProperties, false, tool.name);
       assert.ok(tool.inputSchema.properties && typeof tool.inputSchema.properties === "object", tool.name);
-      const isMutating = MUTATING_TOOL_NAMES.has(tool.name);
-      assert.equal(tool.annotations?.readOnlyHint, !isMutating, `readOnlyHint mismatch for ${tool.name}`);
+      const contract = TOOL_CONTRACTS.find((candidate) => candidate.tool === tool.name);
+      assert.ok(contract, tool.name);
+      assert.equal(tool.title, contract.label, `title mismatch for ${tool.name}`);
+      assert.equal(tool.description.split(/\r?\n/u, 1)[0].trim().length <= 200, true, tool.name);
+      assert.deepEqual(tool.annotations, annotationsFor(contract), `annotations mismatch for ${tool.name}`);
     }
   }
 
   // Phase 2: Query and Read tools
   if (phase === "all" || phase === "queries") {
-    const overviewRes = await callTool("spec_overview", { schemaVersion: "spec-kernel@1", requestId: "v06-overview", specSlugs: [] });
-    const overview = structured(overviewRes);
-    assert.equal(overview.ok, true);
-    assert.ok(overview.graph?.fingerprint);
+    // 1. spec_catalog (overview, inventory, types, specs, status)
+    const catalogOverview = structured(
+      await callTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "v08-cat-overview", view: "overview" }),
+    );
+    assert.equal(catalogOverview.ok, true);
+    assert.equal(catalogOverview.operation, "catalog");
+    assert.equal(catalogOverview.data.kind, "overview");
+    assert.ok(catalogOverview.graph?.fingerprint);
 
-    const invRes = await callTool("spec_inventory", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-inventory",
-      specSlugs: [],
-      includeDocuments: false,
-      limit: 50,
-      cursor: null,
-    });
-    const inv = structured(invRes);
-    assert.equal(inv.ok, true);
+    const catalogTypes = structured(
+      await callTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "v08-cat-types", view: "types" }),
+    );
+    assert.equal(catalogTypes.ok, true);
+    assert.equal(catalogTypes.operation, "catalog");
+    assert.equal(catalogTypes.data.kind, "types");
+    assert.equal(catalogTypes.data.entityKinds.length, 15);
+    assert.equal(catalogTypes.data.edgeTypes.length, 7);
+
+    const catalogSpecs = structured(
+      await callTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "v08-cat-specs", view: "specs" }),
+    );
+    assert.equal(catalogSpecs.ok, true);
+    assert.equal(catalogSpecs.operation, "catalog");
+    assert.equal(catalogSpecs.data.kind, "specs");
+
+    const catalogInventory = structured(
+      await callTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "v08-cat-inv", view: "inventory", limit: 10 }),
+    );
+    assert.equal(catalogInventory.ok, true);
+    assert.equal(catalogInventory.operation, "catalog");
+    assert.equal(catalogInventory.data.kind, "inventory");
+
+    const catalogStatus = structured(
+      await callTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "v08-cat-status", view: "status", statusView: "summary" }),
+    );
+    assert.equal(catalogStatus.ok, true);
+    assert.equal(catalogStatus.operation, "catalog");
+    assert.equal(catalogStatus.data.kind, "summary");
+
+    // 2. spec_entities (find and get)
+    const entitiesFind = structured(
+      await callTool("spec_entities", { schemaVersion: "spec-kernel@1", requestId: "v08-ent-find", mode: "find", kinds: ["FUNCTIONAL_REQUIREMENT"] }),
+    );
+    assert.equal(entitiesFind.ok, true);
+    assert.equal(entitiesFind.operation, "entities");
+    assert.equal(entitiesFind.data.kind, "nodes");
+
+    const entitiesGet = structured(
+      await callTool("spec_entities", { schemaVersion: "spec-kernel@1", requestId: "v08-ent-get", mode: "get", canonicalId: "e2e-spec:FR-1" }),
+    );
+    assert.equal(entitiesGet.ok, true);
+    assert.equal(entitiesGet.operation, "entities");
+    assert.equal(entitiesGet.data.kind, "node");
+
+    // 3. spec_graph (edges and trace)
+    const graphEdges = structured(
+      await callTool("spec_graph", { schemaVersion: "spec-kernel@1", requestId: "v08-graph-edges", view: "edges", canonicalId: "e2e-spec:FR-1" }),
+    );
+    assert.equal(graphEdges.ok, true);
+    assert.equal(graphEdges.operation, "graph");
+    assert.equal(graphEdges.data.kind, "edges");
+
+    const graphTrace = structured(
+      await callTool("spec_graph", { schemaVersion: "spec-kernel@1", requestId: "v08-graph-trace", view: "trace", canonicalId: "e2e-spec:FR-1" }),
+    );
+    assert.equal(graphTrace.ok, true);
+    assert.equal(graphTrace.operation, "graph");
+    assert.equal(graphTrace.data.kind, "trace");
+
+    // 4. spec_documents (list and read)
+    const docList = structured(
+      await callTool("spec_documents", { schemaVersion: "spec-kernel@1", requestId: "v08-doc-list", action: "list", spec: "e2e-spec" }),
+    );
+    assert.equal(docList.ok, true);
+    assert.equal(docList.operation, "documents");
+    assert.equal(docList.data.kind, "spec-documents");
+
+    const docRead = structured(
+      await callTool("spec_documents", { schemaVersion: "spec-kernel@1", requestId: "v08-doc-read", action: "read", spec: "e2e-spec", doc: "FR.md" }),
+    );
+    assert.equal(docRead.ok, true);
+    assert.equal(docRead.operation, "documents");
+    assert.equal(docRead.data.kind, "document");
+
+    // 5. spec_inspect (orphans and diagnostics)
+    const inspectOrphans = structured(
+      await callTool("spec_inspect", { schemaVersion: "spec-kernel@1", requestId: "v08-ins-orphans", check: "orphans" }),
+    );
+    assert.equal(inspectOrphans.ok, true);
+    assert.equal(inspectOrphans.operation, "inspect");
+    assert.equal(inspectOrphans.data.kind, "orphans");
+
+    const inspectDiag = structured(
+      await callTool("spec_inspect", { schemaVersion: "spec-kernel@1", requestId: "v08-ins-diag", check: "diagnostics", limit: 10 }),
+    );
+    assert.equal(inspectDiag.ok, true);
+    assert.equal(inspectDiag.operation, "inspect");
+    assert.equal(inspectDiag.data.kind, "diagnostics");
+
+    // 6. spec_tasks
+    const tasksRes = structured(
+      await callTool("spec_tasks", { schemaVersion: "spec-kernel@1", requestId: "v08-tasks", spec: "e2e-spec" }),
+    );
+    assert.equal(tasksRes.ok, true);
+    assert.equal(tasksRes.operation, "tasks");
+    assert.equal(tasksRes.data.kind, "tasks");
+
+    // 7. spec_evidence (result and trace)
+    const evidenceRes = structured(
+      await callTool("spec_evidence", { schemaVersion: "spec-kernel@1", requestId: "v08-ev-res", view: "result", scenarioId: "product:SCEN-specification-only-init" }),
+    );
+    assert.equal(evidenceRes.ok, true);
+    assert.equal(evidenceRes.operation, "evidence");
+    assert.equal(evidenceRes.data.kind, "test-result");
+
+    const evidenceTrace = structured(
+      await callTool("spec_evidence", { schemaVersion: "spec-kernel@1", requestId: "v08-ev-tr", view: "trace", scenarioId: "product:SCEN-specification-only-init" }),
+    );
+    assert.equal(evidenceTrace.ok, true);
+    assert.equal(evidenceTrace.operation, "evidence");
+    assert.equal(evidenceTrace.data.kind, "scenario-trace");
+
+    // 8. spec_markdown
+    const mdRes = structured(
+      await callTool("spec_markdown", { schemaVersion: "spec-kernel@1", requestId: "v08-md", specSlugs: ["e2e-spec"] }),
+    );
+    assert.equal(mdRes.ok, true);
+    assert.equal(mdRes.operation, "markdown");
+    assert.equal(mdRes.data.kind, "markdownInventory");
+
+    // 9. mcp_preflight
+    const preflightRes = structured(
+      await callTool("mcp_preflight", { schemaVersion: "spec-kernel@1", requestId: "v08-preflight" }),
+    );
+    assert.equal(preflightRes.ok, true);
+    assert.equal(preflightRes.operation, "mcpPreflight");
+    assert.equal(preflightRes.data.kind, "mcp-preflight");
   }
 
   // Phase 3: Proposal tools (all proposal calls must not mutate files on disk)
   if (phase === "all" || phase === "proposals") {
     const beforeState = await snapshotTree(projectRoot);
-    const overviewRes = await callTool("spec_overview", { schemaVersion: "spec-kernel@1", requestId: "v06-proposal-overview", specSlugs: [] });
-    const fingerprint = structured(overviewRes).graph.fingerprint;
+    const catRes = await callTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "v08-proposal-cat", view: "overview" });
+    const fingerprint = structured(catRes).graph.fingerprint;
 
-    // 1. propose_patch
-    const patchRes = await callTool("propose_patch", {
+    // 1. spec_propose_patch with intent: patch
+    const patchRes = await callTool("spec_propose_patch", {
       schemaVersion: "spec-kernel@1",
-      requestId: "v06-propose-patch",
+      requestId: "v08-prop-patch",
+      intent: "patch",
       repositoryRootFingerprint: fingerprint,
       spec: "e2e-spec",
-      reason: "v06 e2e test",
-      operations: [{ kind: "insert_at_eof", document: "README.md", text: "\n<!-- v06 e2e test -->\n" }],
+      reason: "v08 e2e patch test",
+      operations: [{ kind: "insert_at_eof", document: "README.md", text: "\n<!-- v08 e2e test -->\n" }],
     });
     const patchVal = structured(patchRes);
     assert.equal(patchVal.ok, true);
+    assert.equal(patchVal.operation, "proposePatch");
     assert.ok(patchVal.data.proposalHash);
 
-    // 2. multi-operation propose_patch (append, insert, eof, replace op kinds)
-    const multiRes = await callTool("propose_patch", {
+    // 2. multi-operation patch
+    const multiRes = await callTool("spec_propose_patch", {
       schemaVersion: "spec-kernel@1",
-      requestId: "v06-multi-ops",
+      requestId: "v08-prop-multi",
+      intent: "patch",
       repositoryRootFingerprint: fingerprint,
       spec: "e2e-spec",
-      reason: "v06 multi-op test",
+      reason: "v08 multi-op test",
       operations: [
-        { kind: "append_to_section", document: "README.md", heading: "Section One", text: "\nAppended note.\n" },
-        { kind: "insert_after_heading", document: "TASKS.md", heading: "TASK-1 \u2014 E2E Task", text: "\nInserted note.\n" },
+        { kind: "insert_after_heading", document: "README.md", heading: "Section One", text: "\nAppended note.\n" },
+        { kind: "insert_after_heading", document: "TASKS.md", heading: "TASK-1 — E2E Task", text: "\nInserted note.\n" },
         { kind: "insert_at_eof", document: "ACCEPTANCE_CRITERIA.md", text: "\n<!-- eof -->\n" },
-        { kind: "replace_in_section", document: "FR.md", heading: "FR-1 \u2014 E2E Requirement", oldText: "Requirement details", newText: "Requirement details consolidated", replaceAll: false },
+        { kind: "replace_in_section", document: "FR.md", heading: "FR-1 — E2E Requirement", oldText: "Requirement details", newText: "Requirement details consolidated", replaceAll: false },
       ],
     });
     const multiVal = structured(multiRes);
     assert.equal(multiVal.ok, true);
 
-    // 3. amend_requirement
-    const amendRes = await callTool("amend_requirement", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-amend-req",
-      spec: "e2e-spec",
-      requirement: "FR-1",
-      body: "\nAdditional requirement text.\n",
-      reason: "v06 amend test",
-    });
-    const amendVal = structured(amendRes);
-    assert.equal(amendVal.ok, true);
+    // 3. amendRequirement
+    const amendRes = structured(
+      await callTool("spec_propose_patch", {
+        schemaVersion: "spec-kernel@1",
+        requestId: "v08-prop-amend",
+        intent: "amendRequirement",
+        spec: "e2e-spec",
+        requirement: "FR-1",
+        body: "\nAdditional requirement text.\n",
+        reason: "v08 amend test",
+      }),
+    );
+    assert.equal(amendRes.ok, true);
 
-    // 4. add_acceptance_criterion
-    const addAcRes = await callTool("add_acceptance_criterion", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-add-ac",
-      spec: "e2e-spec",
-      requirement: "FR-1",
-      criterion: "Given verified conditions When tested Then pass",
-      reason: "v06 add ac test",
-    });
-    const addAcVal = structured(addAcRes);
-    assert.equal(addAcVal.ok, true);
+    // 4. addAcceptanceCriterion
+    const addAcRes = structured(
+      await callTool("spec_propose_patch", {
+        schemaVersion: "spec-kernel@1",
+        requestId: "v08-prop-add-ac",
+        intent: "addAcceptanceCriterion",
+        spec: "e2e-spec",
+        requirement: "FR-1",
+        criterion: "Given verified conditions When tested Then pass",
+        reason: "v08 add ac test",
+      }),
+    );
+    assert.equal(addAcRes.ok, true);
 
-    // 5. add_phase
-    const addPhaseRes = await callTool("add_phase", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-add-phase",
-      spec: "e2e-spec",
-      title: "Testing Phase",
-      reason: "v06 add phase test",
-    });
-    const addPhaseVal = structured(addPhaseRes);
-    assert.equal(addPhaseVal.ok, true);
+    // 5. addPhase
+    const addPhaseRes = structured(
+      await callTool("spec_propose_patch", {
+        schemaVersion: "spec-kernel@1",
+        requestId: "v08-prop-add-phase",
+        intent: "addPhase",
+        spec: "e2e-spec",
+        title: "Testing Phase",
+        reason: "v08 add phase test",
+      }),
+    );
+    assert.equal(addPhaseRes.ok, true);
 
-    // 6. set_entity_status
-    const setEntityRes = await callTool("set_entity_status", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-set-entity",
-      spec: "e2e-spec",
-      entity: "TASK-1",
-      status: "in-progress",
-      reason: "v06 entity status test",
-    });
-    const setEntityVal = structured(setEntityRes);
-    assert.equal(setEntityVal.ok, true);
+    // 6. setEntityStatus
+    const setEntityRes = structured(
+      await callTool("spec_propose_patch", {
+        schemaVersion: "spec-kernel@1",
+        requestId: "v08-prop-set-entity",
+        intent: "setEntityStatus",
+        spec: "e2e-spec",
+        entity: "TASK-1",
+        status: "in-progress",
+        reason: "v08 entity status test",
+      }),
+    );
+    assert.equal(setEntityRes.ok, true);
 
-    // 7. set_spec_status
-    const setSpecStatusRes = await callTool("set_spec_status", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-set-spec-status",
-      spec: "e2e-spec",
-      status: "active",
-      reason: "v06 spec status test",
-    });
-    const setSpecStatusVal = structured(setSpecStatusRes);
-    assert.equal(setSpecStatusVal.ok, true);
+    // 7. setSpecStatus
+    const setSpecStatusRes = structured(
+      await callTool("spec_propose_patch", {
+        schemaVersion: "spec-kernel@1",
+        requestId: "v08-prop-set-spec-status",
+        intent: "setSpecStatus",
+        spec: "e2e-spec",
+        status: "active",
+        reason: "v08 spec status test",
+      }),
+    );
+    assert.equal(setSpecStatusRes.ok, true);
 
-    // 8. set_requirement_metadata
-    const setReqMetaRes = await callTool("set_requirement_metadata", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-set-req-meta",
-      spec: "e2e-spec",
-      requirement: "FR-1",
-      metadata: { schemaVersion: 1, verificationMethod: "test", safetyClass: "minor" },
-      reason: "v06 req meta test",
-    });
-    const setReqMetaVal = structured(setReqMetaRes);
-    assert.equal(setReqMetaVal.ok, true);
+    // 8. setRequirementMetadata
+    const setReqMetaRes = structured(
+      await callTool("spec_propose_patch", {
+        schemaVersion: "spec-kernel@1",
+        requestId: "v08-prop-set-req-meta",
+        intent: "setRequirementMetadata",
+        spec: "e2e-spec",
+        requirement: "FR-1",
+        metadata: { schemaVersion: 1, verificationMethod: "test", safetyClass: "minor" },
+        reason: "v08 req meta test",
+      }),
+    );
+    assert.equal(setReqMetaRes.ok, true);
 
-    // 9. delete_spec_doc
-    const delDocRes = await callTool("delete_spec_doc", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-del-doc",
-      spec: "e2e-spec",
-      doc: "e2e-spec_SCHEMA.md",
-      reason: "v06 del doc test",
-    });
-    const delDocVal = structured(delDocRes);
-    assert.equal(delDocVal.ok, true);
+    // 9. deleteSpecDoc
+    const delDocRes = structured(
+      await callTool("spec_propose_patch", {
+        schemaVersion: "spec-kernel@1",
+        requestId: "v08-prop-del-doc",
+        intent: "deleteSpecDoc",
+        spec: "e2e-spec",
+        doc: "e2e-spec_SCHEMA.md",
+        reason: "v08 del doc test",
+      }),
+    );
+    assert.equal(delDocRes.ok, true);
 
-    // 10. rename_spec_doc
-    const renameDocRes = await callTool("rename_spec_doc", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-rename-doc",
-      spec: "e2e-spec",
-      doc: "TASKS.md",
-      newDoc: "FIXTURES.md",
-      reason: "v06 rename doc test",
-    });
-    const renameDocVal = structured(renameDocRes);
-    assert.equal(renameDocVal.ok, true);
+    // 10. renameSpecDoc
+    const renameDocRes = structured(
+      await callTool("spec_propose_patch", {
+        schemaVersion: "spec-kernel@1",
+        requestId: "v08-prop-rename-doc",
+        intent: "renameSpecDoc",
+        spec: "e2e-spec",
+        doc: "TASKS.md",
+        newDoc: "FIXTURES.md",
+        reason: "v08 rename doc test",
+      }),
+    );
+    assert.equal(renameDocRes.ok, true);
 
-    // 11. create_spec
-    const createSpecRes = await callTool("create_spec", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-create-spec",
-      spec: "new-temporary-spec",
-      title: "New Temporary Spec",
-      reason: "v06 create spec test",
-    });
-    const createSpecVal = structured(createSpecRes);
-    assert.equal(createSpecVal.ok, true);
+    // 11. createSpec
+    const createSpecRes = structured(
+      await callTool("spec_propose_patch", {
+        schemaVersion: "spec-kernel@1",
+        requestId: "v08-prop-create-spec",
+        intent: "createSpec",
+        spec: "new-temporary-spec",
+        title: "New Temporary Spec",
+        reason: "v08 create spec test",
+      }),
+    );
+    assert.equal(createSpecRes.ok, true);
 
-    // 12. archive_spec
-    const archiveSpecRes = await callTool("archive_spec", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-archive-spec",
-      spec: "e2e-spec",
-      reason: "v06 archive spec test",
-    });
-    const archiveSpecVal = structured(archiveSpecRes);
-    assert.equal(archiveSpecVal.ok, true);
-    assert.ok(archiveSpecVal.data.archive);
+    // 12. archiveSpec
+    const archiveSpecRes = structured(
+      await callTool("spec_propose_patch", {
+        schemaVersion: "spec-kernel@1",
+        requestId: "v08-prop-archive-spec",
+        intent: "archiveSpec",
+        spec: "e2e-spec",
+        reason: "v08 archive spec test",
+      }),
+    );
+    assert.equal(archiveSpecRes.ok, true);
 
-    // 13. add_backlog_task
-    const addBacklogRes = await callTool("add_backlog_task", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-add-backlog",
-      spec: "e2e-spec",
-      title: "Sample Backlog Item",
-      reason: "v06 backlog test",
-      requirements: ["FR-1"],
-    });
-    const addBacklogVal = structured(addBacklogRes);
-    assert.equal(addBacklogVal.ok, true);
+    // 13. addBacklogTask
+    const addBacklogRes = structured(
+      await callTool("spec_propose_patch", {
+        schemaVersion: "spec-kernel@1",
+        requestId: "v08-prop-add-backlog",
+        intent: "addBacklogTask",
+        spec: "e2e-spec",
+        title: "Sample Backlog Item",
+        reason: "v08 backlog test",
+        requirements: { items: ["FR-1"] },
+      }),
+    );
+    assert.equal(addBacklogRes.ok, true);
 
-    // 14. register_incident_backlog
-    const regIncidentRes = await callTool("register_incident_backlog", {
-      schemaVersion: "spec-kernel@1",
-      requestId: "v06-reg-incident",
-      spec: "e2e-spec",
-      summary: "Sample Incident",
-      reason: "v06 incident test",
-      requirements: ["FR-1"],
-    });
-    const regIncidentVal = structured(regIncidentRes);
-    assert.equal(regIncidentVal.ok, true);
+    // 14. registerIncidentBacklog
+    const regIncidentRes = structured(
+      await callTool("spec_propose_patch", {
+        schemaVersion: "spec-kernel@1",
+        requestId: "v08-prop-reg-incident",
+        intent: "registerIncidentBacklog",
+        spec: "e2e-spec",
+        summary: "Sample Incident",
+        reason: "v08 incident test",
+        requirements: { items: ["FR-1"] },
+      }),
+    );
+    assert.equal(regIncidentRes.ok, true);
 
     // Check tree unchanged after all 14 proposal calls
     const afterState = await snapshotTree(projectRoot);
-    assert.deepEqual(afterState, beforeState, "all 14 proposal operations must be strictly read-only");
+    assert.deepEqual(afterState, beforeState, "all proposal operations must be strictly read-only");
   }
 
   // Phase 4: Apply operations and Replay Verification
   if (phase === "all" || phase === "apply") {
-    const overviewRes = await callTool("spec_overview", { schemaVersion: "spec-kernel@1", requestId: "v06-apply-overview", specSlugs: [] });
-    const fingerprint = structured(overviewRes).graph.fingerprint;
+    const catRes = await callTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "v08-apply-overview", view: "overview" });
+    const fingerprint = structured(catRes).graph.fingerprint;
 
     // Propose a safe patch on e2e-spec
-    const proposalRes = await callTool("propose_patch", {
+    const proposalRes = await callTool("spec_propose_patch", {
       schemaVersion: "spec-kernel@1",
-      requestId: "v06-apply-prep",
+      requestId: "v08-apply-prep",
+      intent: "patch",
       repositoryRootFingerprint: fingerprint,
       spec: "e2e-spec",
       reason: "apply proof",
-      operations: [{ kind: "insert_at_eof", document: "README.md", text: "\n<!-- applied v06 marker -->\n" }],
+      operations: [{ kind: "insert_at_eof", document: "README.md", text: "\n<!-- applied v08 marker -->\n" }],
     });
     const proposal = structured(proposalRes).data;
     const proposalHash = proposal.proposalHash;
@@ -302,7 +482,7 @@ export async function runToolE2E({ listTools, callTool, projectRoot, repositoryR
     // Valid apply via apply_proposed_patch
     const applyRes = await callTool("apply_proposed_patch", {
       schemaVersion: "spec-kernel@1",
-      requestId: "v06-apply-valid",
+      requestId: "v08-apply-valid",
       proposalId: proposal.proposalId,
       proposalSha256: proposalHash,
       expectedDocuments: expectedDocs,
@@ -317,7 +497,7 @@ export async function runToolE2E({ listTools, callTool, projectRoot, repositoryR
     // Exact replay must return identical receipt
     const replayRes = await callTool("apply_proposed_patch", {
       schemaVersion: "spec-kernel@1",
-      requestId: "v06-apply-valid",
+      requestId: "v08-apply-valid",
       proposalId: proposal.proposalId,
       proposalSha256: proposalHash,
       expectedDocuments: expectedDocs,
@@ -330,7 +510,7 @@ export async function runToolE2E({ listTools, callTool, projectRoot, repositoryR
     // Conflicting replay must return CONFLICT
     const conflictRes = await callTool("apply_proposed_patch", {
       schemaVersion: "spec-kernel@1",
-      requestId: "v06-apply-valid",
+      requestId: "v08-apply-valid",
       proposalId: proposal.proposalId,
       proposalSha256: proposalHash,
       expectedDocuments: expectedDocs,
@@ -344,12 +524,13 @@ export async function runToolE2E({ listTools, callTool, projectRoot, repositoryR
 
   // Phase 5: Secret rejection test
   if (phase === "all" || phase === "secrets") {
-    const overviewRes = await callTool("spec_overview", { schemaVersion: "spec-kernel@1", requestId: "v06-secret-overview", specSlugs: [] });
-    const fingerprint = structured(overviewRes).graph.fingerprint;
+    const catRes = await callTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "v08-secret-cat", view: "overview" });
+    const fingerprint = structured(catRes).graph.fingerprint;
 
-    const secretRes = await callTool("propose_patch", {
+    const secretRes = await callTool("spec_propose_patch", {
       schemaVersion: "spec-kernel@1",
-      requestId: "v06-secret-proposal",
+      requestId: "v08-secret-proposal",
+      intent: "patch",
       repositoryRootFingerprint: fingerprint,
       spec: "e2e-spec",
       reason: "secret leak attempt",
@@ -361,5 +542,5 @@ export async function runToolE2E({ listTools, callTool, projectRoot, repositoryR
     assert.ok(secretVal.error?.message?.includes("secret-like content"));
   }
 
-  return { ok: true, toolsCount: 38 };
+  return { ok: true, toolsCount: 11 };
 }

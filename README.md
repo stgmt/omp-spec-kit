@@ -20,21 +20,25 @@ Update an existing project install with:
 omp plugin upgrade omp-spec-kit@omp-spec-kit --scope project
 ```
 
-This v0.6.0 candidate release provides the complete 49-tool MCP surface for OMP 18.0.11. The v0.5.4 and v0.4.1 compatibility profiles remain available through explicit stage selection.
+This v0.8.0 release provides the consolidated 11-tool MCP surface for OMP 18.0.11 and 18.1.6.
 
 ## Available today
 
-The v0.6.0 release exposes exactly 49 MCP tools: 25 bounded read and evidence tools, 20 dry-run proposal tools, and four transactional apply tools.
+The v0.8.0 release exposes exactly 11 task-oriented MCP tools: 10 bounded read-only tools and one transactional apply tool.
 
-| Need | Tools |
-|---|---|
-| See the corpus | spec_inventory, spec_overview |
-| Find a requirement or scenario | spec_find_nodes, spec_get_node |
-| Follow relationships | spec_get_edges, spec_trace |
-| Find parser and graph problems | spec_diagnostics, spec_markdown_inventory |
-| Navigate and validate specifications | find_by_tags, list_tasks, list_phase_tasks, find_orphans, validate_anchor, list_specs, validate_requirement_metadata, policy_query_requirements, get_archival_proof, validate_spec, get_spec_status, mcp_preflight, list_spec_docs, read_spec_doc, read_attachment |
-| Read runtime evidence | get_test_result, get_scenario_trace |
-| Propose and apply reviewed spec changes | propose_patch, apply_proposed_patch |
+| Need | Tool | Variant |
+|---|---|---|
+| Catalog & Corpus | `spec_catalog` | `view: "types" | "specs" | "inventory" | "overview" | "status"` |
+| Nodes & Search | `spec_entities` | `mode: "get" | "find"` |
+| Graph & Traversal | `spec_graph` | `view: "edges" | "trace"` |
+| Documents & Attachments | `spec_documents` | `action: "list" | "read" | "attachment"` |
+| Validation & Policy | `spec_inspect` | `check: "scenariosByTags" | "orphans" | "anchor" | "requirementMetadata" | "requirementsPolicy" | "archivalProof" | "specValidation" | "diagnostics"` |
+| Tasks | `spec_tasks` | filters: `spec`, `statuses`, `phase`, `requirement` |
+| Runtime Evidence | `spec_evidence` | `view: "result" | "trace"` |
+| Markdown References | `spec_markdown` | headings & links inventory |
+| Preflight | `mcp_preflight` | root provenance & admissions |
+| Propose Changes | `spec_propose_patch` | `intent: "patch"` or 12 typed edit intents |
+| Apply Verified Changes | `apply_proposed_patch` | atomic CAS commit (`approval: "approve"`) |
 
 The read and evidence tools share one bounded graph and return structured results with current-project provenance. Evidence is content-addressed and stale when its captured graph or scenario binding no longer matches. propose_patch is read-only; only an explicitly approved apply_proposed_patch can change a specification through hash-checked transactions.
 
@@ -59,7 +63,7 @@ The next releases add capabilities without removing the eight compatibility tool
 - **v0.5.4 — shipped predecessor:** additive evidence and navigation surface with 27 direct MCP tools; the exact archive and installed package are verified.
 - **v0.6.0 — shipped:** single MCP server exposing all 49 tools with 24 authoring operations and fail-closed OMP enforcement hook.
 - **v0.7.0 — shipped:** hardened safe authoring with documented Windows selectors and execution-payload guard; same 49 tools.
-- **v0.8.0 — unreleased:** single 38-tool surface; duplicate verbs and release stages removed.
+- **v0.8.0 — unreleased:** single consolidated 11-tool surface; 27 superseded tools and release stages excised without backward-compatibility shims.
 - **v0.9.0 — automatic plan gate:** validate the exact plan selected by OMP before approval in interactive and ACP sessions.
 
 The v0.8.0 candidate is tested with accurate release notes, an exact archive smoke from unset environment, independent package/lifecycle/Docker BDD/OMP manager evidence, and commit-bound attestations. See ROADMAP.md for release proof and sequencing.

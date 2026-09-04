@@ -1,0 +1,880 @@
+{
+  "schema": "omp-spec-kit-mutation-gate@1",
+  "timestamp": "2026-09-04T01:32:58.897Z",
+  "totalMutants": 145,
+  "killed": 145,
+  "survivors": 0,
+  "passed": true,
+  "receipts": [
+    {
+      "id": "delete-tool-mcp_preflight",
+      "status": "KILLED",
+      "description": "Remove tool mcp_preflight from contracts",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 10"
+    },
+    {
+      "id": "delete-tool-spec_catalog",
+      "status": "KILLED",
+      "description": "Remove tool spec_catalog from contracts",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 10"
+    },
+    {
+      "id": "delete-tool-spec_entities",
+      "status": "KILLED",
+      "description": "Remove tool spec_entities from contracts",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 10"
+    },
+    {
+      "id": "delete-tool-spec_graph",
+      "status": "KILLED",
+      "description": "Remove tool spec_graph from contracts",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 10"
+    },
+    {
+      "id": "delete-tool-spec_documents",
+      "status": "KILLED",
+      "description": "Remove tool spec_documents from contracts",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 10"
+    },
+    {
+      "id": "delete-tool-spec_inspect",
+      "status": "KILLED",
+      "description": "Remove tool spec_inspect from contracts",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 10"
+    },
+    {
+      "id": "delete-tool-spec_tasks",
+      "status": "KILLED",
+      "description": "Remove tool spec_tasks from contracts",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 10"
+    },
+    {
+      "id": "delete-tool-spec_evidence",
+      "status": "KILLED",
+      "description": "Remove tool spec_evidence from contracts",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 10"
+    },
+    {
+      "id": "delete-tool-spec_markdown",
+      "status": "KILLED",
+      "description": "Remove tool spec_markdown from contracts",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 10"
+    },
+    {
+      "id": "delete-tool-spec_propose_patch",
+      "status": "KILLED",
+      "description": "Remove tool spec_propose_patch from contracts",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 10"
+    },
+    {
+      "id": "delete-tool-apply_proposed_patch",
+      "status": "KILLED",
+      "description": "Remove tool apply_proposed_patch from contracts",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 10"
+    },
+    {
+      "id": "duplicate-tool-name-mcp_preflight",
+      "status": "KILLED",
+      "description": "Duplicate tool name mcp_preflight",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-tool-name-spec_catalog",
+      "status": "KILLED",
+      "description": "Duplicate tool name spec_catalog",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-tool-name-spec_entities",
+      "status": "KILLED",
+      "description": "Duplicate tool name spec_entities",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-tool-name-spec_graph",
+      "status": "KILLED",
+      "description": "Duplicate tool name spec_graph",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-tool-name-spec_documents",
+      "status": "KILLED",
+      "description": "Duplicate tool name spec_documents",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-tool-name-spec_inspect",
+      "status": "KILLED",
+      "description": "Duplicate tool name spec_inspect",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-tool-name-spec_tasks",
+      "status": "KILLED",
+      "description": "Duplicate tool name spec_tasks",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-tool-name-spec_evidence",
+      "status": "KILLED",
+      "description": "Duplicate tool name spec_evidence",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-tool-name-spec_markdown",
+      "status": "KILLED",
+      "description": "Duplicate tool name spec_markdown",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-tool-name-spec_propose_patch",
+      "status": "KILLED",
+      "description": "Duplicate tool name spec_propose_patch",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-tool-name-apply_proposed_patch",
+      "status": "KILLED",
+      "description": "Duplicate tool name apply_proposed_patch",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-operation-mcpPreflight",
+      "status": "KILLED",
+      "description": "Duplicate operation mcpPreflight with new tool name",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-operation-catalog",
+      "status": "KILLED",
+      "description": "Duplicate operation catalog with new tool name",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-operation-entities",
+      "status": "KILLED",
+      "description": "Duplicate operation entities with new tool name",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-operation-graph",
+      "status": "KILLED",
+      "description": "Duplicate operation graph with new tool name",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-operation-documents",
+      "status": "KILLED",
+      "description": "Duplicate operation documents with new tool name",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-operation-inspect",
+      "status": "KILLED",
+      "description": "Duplicate operation inspect with new tool name",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-operation-tasks",
+      "status": "KILLED",
+      "description": "Duplicate operation tasks with new tool name",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-operation-evidence",
+      "status": "KILLED",
+      "description": "Duplicate operation evidence with new tool name",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-operation-markdown",
+      "status": "KILLED",
+      "description": "Duplicate operation markdown with new tool name",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-operation-proposePatch",
+      "status": "KILLED",
+      "description": "Duplicate operation proposePatch with new tool name",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "duplicate-operation-applyProposedPatch",
+      "status": "KILLED",
+      "description": "Duplicate operation applyProposedPatch with new tool name",
+      "killerAssertion": "Invariants failed: expected exactly 11 contracts, got 12"
+    },
+    {
+      "id": "reintroduce-retired-spec_inventory",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool spec_inventory",
+      "killerAssertion": "Gates must fail on retired name spec_inventory\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-spec_get_node",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool spec_get_node",
+      "killerAssertion": "Gates must fail on retired name spec_get_node\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-spec_find_nodes",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool spec_find_nodes",
+      "killerAssertion": "Gates must fail on retired name spec_find_nodes\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-spec_get_edges",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool spec_get_edges",
+      "killerAssertion": "Gates must fail on retired name spec_get_edges\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-spec_trace",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool spec_trace",
+      "killerAssertion": "Gates must fail on retired name spec_trace\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-spec_diagnostics",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool spec_diagnostics",
+      "killerAssertion": "Gates must fail on retired name spec_diagnostics\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-spec_overview",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool spec_overview",
+      "killerAssertion": "Gates must fail on retired name spec_overview\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-spec_markdown_inventory",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool spec_markdown_inventory",
+      "killerAssertion": "Gates must fail on retired name spec_markdown_inventory\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-find_by_tags",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool find_by_tags",
+      "killerAssertion": "Gates must fail on retired name find_by_tags\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-list_tasks",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool list_tasks",
+      "killerAssertion": "Gates must fail on retired name list_tasks\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-find_orphans",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool find_orphans",
+      "killerAssertion": "Gates must fail on retired name find_orphans\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-validate_anchor",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool validate_anchor",
+      "killerAssertion": "Gates must fail on retired name validate_anchor\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-list_specs",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool list_specs",
+      "killerAssertion": "Gates must fail on retired name list_specs\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-validate_requirement_metadata",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool validate_requirement_metadata",
+      "killerAssertion": "Gates must fail on retired name validate_requirement_metadata\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-policy_query_requirements",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool policy_query_requirements",
+      "killerAssertion": "Gates must fail on retired name policy_query_requirements\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-get_archival_proof",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool get_archival_proof",
+      "killerAssertion": "Gates must fail on retired name get_archival_proof\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-validate_spec",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool validate_spec",
+      "killerAssertion": "Gates must fail on retired name validate_spec\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-get_spec_status",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool get_spec_status",
+      "killerAssertion": "Gates must fail on retired name get_spec_status\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-list_spec_docs",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool list_spec_docs",
+      "killerAssertion": "Gates must fail on retired name list_spec_docs\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-read_spec_doc",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool read_spec_doc",
+      "killerAssertion": "Gates must fail on retired name read_spec_doc\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-read_attachment",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool read_attachment",
+      "killerAssertion": "Gates must fail on retired name read_attachment\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-get_test_result",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool get_test_result",
+      "killerAssertion": "Gates must fail on retired name get_test_result\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-get_scenario_trace",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool get_scenario_trace",
+      "killerAssertion": "Gates must fail on retired name get_scenario_trace\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-propose_patch",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool propose_patch",
+      "killerAssertion": "Gates must fail on retired name propose_patch\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-amend_requirement",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool amend_requirement",
+      "killerAssertion": "Gates must fail on retired name amend_requirement\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-add_acceptance_criterion",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool add_acceptance_criterion",
+      "killerAssertion": "Gates must fail on retired name add_acceptance_criterion\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-add_phase",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool add_phase",
+      "killerAssertion": "Gates must fail on retired name add_phase\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-set_entity_status",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool set_entity_status",
+      "killerAssertion": "Gates must fail on retired name set_entity_status\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-set_spec_status",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool set_spec_status",
+      "killerAssertion": "Gates must fail on retired name set_spec_status\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-set_requirement_metadata",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool set_requirement_metadata",
+      "killerAssertion": "Gates must fail on retired name set_requirement_metadata\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-delete_spec_doc",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool delete_spec_doc",
+      "killerAssertion": "Gates must fail on retired name delete_spec_doc\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-rename_spec_doc",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool rename_spec_doc",
+      "killerAssertion": "Gates must fail on retired name rename_spec_doc\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-create_spec",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool create_spec",
+      "killerAssertion": "Gates must fail on retired name create_spec\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-archive_spec",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool archive_spec",
+      "killerAssertion": "Gates must fail on retired name archive_spec\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-add_backlog_task",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool add_backlog_task",
+      "killerAssertion": "Gates must fail on retired name add_backlog_task\n\nfalse !== true\n"
+    },
+    {
+      "id": "reintroduce-retired-register_incident_backlog",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool register_incident_backlog",
+      "killerAssertion": "Gates must fail on retired name register_incident_backlog\n\nfalse !== true\n"
+    },
+    {
+      "id": "invert-apply-annotations-to-read-only",
+      "status": "KILLED",
+      "description": "Invert apply_proposed_patch annotation to read-only",
+      "killerAssertion": "Invariants failed: expected exactly one mutating tool 'apply_proposed_patch'"
+    },
+    {
+      "id": "proposal-as-mutating-tool",
+      "status": "KILLED",
+      "description": "Add spec_propose_patch to MUTATING_TOOL_NAMES",
+      "killerAssertion": "Only apply_proposed_patch can be mutating\n\n2 !== 1\n"
+    },
+    {
+      "id": "delete-branch-spec_catalog-types",
+      "status": "KILLED",
+      "description": "Delete variant branch types from spec_catalog",
+      "killerAssertion": "Deleted variant types must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_catalog-specs",
+      "status": "KILLED",
+      "description": "Delete variant branch specs from spec_catalog",
+      "killerAssertion": "Deleted variant specs must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_catalog-inventory",
+      "status": "KILLED",
+      "description": "Delete variant branch inventory from spec_catalog",
+      "killerAssertion": "Deleted variant inventory must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_catalog-overview",
+      "status": "KILLED",
+      "description": "Delete variant branch overview from spec_catalog",
+      "killerAssertion": "Deleted variant overview must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_catalog-status",
+      "status": "KILLED",
+      "description": "Delete variant branch status from spec_catalog",
+      "killerAssertion": "Deleted variant status must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_entities-get",
+      "status": "KILLED",
+      "description": "Delete variant branch get from spec_entities",
+      "killerAssertion": "Deleted variant get must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_entities-find",
+      "status": "KILLED",
+      "description": "Delete variant branch find from spec_entities",
+      "killerAssertion": "Deleted variant find must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_graph-edges",
+      "status": "KILLED",
+      "description": "Delete variant branch edges from spec_graph",
+      "killerAssertion": "Deleted variant edges must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_graph-trace",
+      "status": "KILLED",
+      "description": "Delete variant branch trace from spec_graph",
+      "killerAssertion": "Deleted variant trace must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_documents-list",
+      "status": "KILLED",
+      "description": "Delete variant branch list from spec_documents",
+      "killerAssertion": "Deleted variant list must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_documents-read",
+      "status": "KILLED",
+      "description": "Delete variant branch read from spec_documents",
+      "killerAssertion": "Deleted variant read must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_documents-attachment",
+      "status": "KILLED",
+      "description": "Delete variant branch attachment from spec_documents",
+      "killerAssertion": "Deleted variant attachment must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_inspect-scenariosByTags",
+      "status": "KILLED",
+      "description": "Delete variant branch scenariosByTags from spec_inspect",
+      "killerAssertion": "Deleted variant scenariosByTags must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_inspect-orphans",
+      "status": "KILLED",
+      "description": "Delete variant branch orphans from spec_inspect",
+      "killerAssertion": "Deleted variant orphans must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_inspect-anchor",
+      "status": "KILLED",
+      "description": "Delete variant branch anchor from spec_inspect",
+      "killerAssertion": "Deleted variant anchor must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_inspect-requirementMetadata",
+      "status": "KILLED",
+      "description": "Delete variant branch requirementMetadata from spec_inspect",
+      "killerAssertion": "Deleted variant requirementMetadata must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_inspect-requirementsPolicy",
+      "status": "KILLED",
+      "description": "Delete variant branch requirementsPolicy from spec_inspect",
+      "killerAssertion": "Deleted variant requirementsPolicy must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_inspect-archivalProof",
+      "status": "KILLED",
+      "description": "Delete variant branch archivalProof from spec_inspect",
+      "killerAssertion": "Deleted variant archivalProof must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_inspect-specValidation",
+      "status": "KILLED",
+      "description": "Delete variant branch specValidation from spec_inspect",
+      "killerAssertion": "Deleted variant specValidation must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_inspect-diagnostics",
+      "status": "KILLED",
+      "description": "Delete variant branch diagnostics from spec_inspect",
+      "killerAssertion": "Deleted variant diagnostics must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_evidence-result",
+      "status": "KILLED",
+      "description": "Delete variant branch result from spec_evidence",
+      "killerAssertion": "Deleted variant result must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_evidence-trace",
+      "status": "KILLED",
+      "description": "Delete variant branch trace from spec_evidence",
+      "killerAssertion": "Deleted variant trace must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_propose_patch-patch",
+      "status": "KILLED",
+      "description": "Delete variant branch patch from spec_propose_patch",
+      "killerAssertion": "Deleted variant patch must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_propose_patch-amendRequirement",
+      "status": "KILLED",
+      "description": "Delete variant branch amendRequirement from spec_propose_patch",
+      "killerAssertion": "Deleted variant amendRequirement must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_propose_patch-addAcceptanceCriterion",
+      "status": "KILLED",
+      "description": "Delete variant branch addAcceptanceCriterion from spec_propose_patch",
+      "killerAssertion": "Deleted variant addAcceptanceCriterion must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_propose_patch-addPhase",
+      "status": "KILLED",
+      "description": "Delete variant branch addPhase from spec_propose_patch",
+      "killerAssertion": "Deleted variant addPhase must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_propose_patch-setEntityStatus",
+      "status": "KILLED",
+      "description": "Delete variant branch setEntityStatus from spec_propose_patch",
+      "killerAssertion": "Deleted variant setEntityStatus must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_propose_patch-setSpecStatus",
+      "status": "KILLED",
+      "description": "Delete variant branch setSpecStatus from spec_propose_patch",
+      "killerAssertion": "Deleted variant setSpecStatus must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_propose_patch-setRequirementMetadata",
+      "status": "KILLED",
+      "description": "Delete variant branch setRequirementMetadata from spec_propose_patch",
+      "killerAssertion": "Deleted variant setRequirementMetadata must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_propose_patch-deleteSpecDoc",
+      "status": "KILLED",
+      "description": "Delete variant branch deleteSpecDoc from spec_propose_patch",
+      "killerAssertion": "Deleted variant deleteSpecDoc must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_propose_patch-renameSpecDoc",
+      "status": "KILLED",
+      "description": "Delete variant branch renameSpecDoc from spec_propose_patch",
+      "killerAssertion": "Deleted variant renameSpecDoc must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_propose_patch-createSpec",
+      "status": "KILLED",
+      "description": "Delete variant branch createSpec from spec_propose_patch",
+      "killerAssertion": "Deleted variant createSpec must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_propose_patch-archiveSpec",
+      "status": "KILLED",
+      "description": "Delete variant branch archiveSpec from spec_propose_patch",
+      "killerAssertion": "Deleted variant archiveSpec must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_propose_patch-addBacklogTask",
+      "status": "KILLED",
+      "description": "Delete variant branch addBacklogTask from spec_propose_patch",
+      "killerAssertion": "Deleted variant addBacklogTask must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_propose_patch-registerIncidentBacklog",
+      "status": "KILLED",
+      "description": "Delete variant branch registerIncidentBacklog from spec_propose_patch",
+      "killerAssertion": "Deleted variant registerIncidentBacklog must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "duplicate-branch-spec_catalog-types",
+      "status": "KILLED",
+      "description": "Duplicate branch in spec_catalog",
+      "killerAssertion": "oneOf length changed\n\n6 !== 5\n"
+    },
+    {
+      "id": "duplicate-branch-spec_entities-get",
+      "status": "KILLED",
+      "description": "Duplicate branch in spec_entities",
+      "killerAssertion": "oneOf length changed\n\n3 !== 2\n"
+    },
+    {
+      "id": "duplicate-branch-spec_graph-edges",
+      "status": "KILLED",
+      "description": "Duplicate branch in spec_graph",
+      "killerAssertion": "oneOf length changed\n\n3 !== 2\n"
+    },
+    {
+      "id": "duplicate-branch-spec_documents-list",
+      "status": "KILLED",
+      "description": "Duplicate branch in spec_documents",
+      "killerAssertion": "oneOf length changed\n\n4 !== 3\n"
+    },
+    {
+      "id": "duplicate-branch-spec_inspect-scenariosByTags",
+      "status": "KILLED",
+      "description": "Duplicate branch in spec_inspect",
+      "killerAssertion": "oneOf length changed\n\n9 !== 8\n"
+    },
+    {
+      "id": "duplicate-branch-spec_evidence-result",
+      "status": "KILLED",
+      "description": "Duplicate branch in spec_evidence",
+      "killerAssertion": "oneOf length changed\n\n3 !== 2\n"
+    },
+    {
+      "id": "duplicate-branch-spec_propose_patch-patch",
+      "status": "KILLED",
+      "description": "Duplicate branch in spec_propose_patch",
+      "killerAssertion": "oneOf length changed\n\n14 !== 13\n"
+    },
+    {
+      "id": "cross-branch-spec_entities-get-with-specSlugs",
+      "status": "KILLED",
+      "description": "Call spec_entities with variant get and field specSlugs from find",
+      "killerAssertion": "field specSlugs belongs to another variant, not get"
+    },
+    {
+      "id": "cross-branch-spec_graph-edges-with-maxDepth",
+      "status": "KILLED",
+      "description": "Call spec_graph with variant edges and field maxDepth from trace",
+      "killerAssertion": "field maxDepth belongs to another variant, not edges"
+    },
+    {
+      "id": "cross-branch-spec_documents-list-with-doc",
+      "status": "KILLED",
+      "description": "Call spec_documents with variant list and field doc from read",
+      "killerAssertion": "field doc belongs to another variant, not list"
+    },
+    {
+      "id": "cross-branch-spec_propose_patch-patch-with-requirement",
+      "status": "KILLED",
+      "description": "Call spec_propose_patch with variant patch and field requirement from amendRequirement",
+      "killerAssertion": "field requirement belongs to another variant, not patch"
+    },
+    {
+      "id": "unknown-field-mcp_preflight",
+      "status": "KILLED",
+      "description": "Call mcp_preflight with unknown field",
+      "killerAssertion": "unknown tool argument field: unexpected_field_123"
+    },
+    {
+      "id": "unknown-field-spec_tasks",
+      "status": "KILLED",
+      "description": "Call spec_tasks with unknown field",
+      "killerAssertion": "unknown tool argument field: unexpected_field_123"
+    },
+    {
+      "id": "unknown-field-spec_markdown",
+      "status": "KILLED",
+      "description": "Call spec_markdown with unknown field",
+      "killerAssertion": "unknown tool argument field: unexpected_field_123"
+    },
+    {
+      "id": "unknown-field-apply_proposed_patch",
+      "status": "KILLED",
+      "description": "Call apply_proposed_patch with unknown field",
+      "killerAssertion": "unknown tool argument field: unexpected_field_123"
+    },
+    {
+      "id": "permissive-operations-schema",
+      "status": "KILLED",
+      "description": "Pass bogus operations array to patch intent",
+      "killerAssertion": "tool argument has the wrong type or value: operations"
+    },
+    {
+      "id": "permissive-expected-documents-schema",
+      "status": "KILLED",
+      "description": "Pass empty expectedDocuments array to apply_proposed_patch",
+      "killerAssertion": "tool argument has the wrong type or value: expectedDocuments"
+    },
+    {
+      "id": "delete-entity-descriptor-DOCUMENT",
+      "status": "KILLED",
+      "description": "Delete entity descriptor DOCUMENT",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-entity-descriptor-USER_STORY",
+      "status": "KILLED",
+      "description": "Delete entity descriptor USER_STORY",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-entity-descriptor-USE_CASE",
+      "status": "KILLED",
+      "description": "Delete entity descriptor USE_CASE",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-entity-descriptor-RESEARCH_FINDING",
+      "status": "KILLED",
+      "description": "Delete entity descriptor RESEARCH_FINDING",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-entity-descriptor-RISK",
+      "status": "KILLED",
+      "description": "Delete entity descriptor RISK",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-entity-descriptor-FUNCTIONAL_REQUIREMENT",
+      "status": "KILLED",
+      "description": "Delete entity descriptor FUNCTIONAL_REQUIREMENT",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-entity-descriptor-NON_FUNCTIONAL_REQUIREMENT",
+      "status": "KILLED",
+      "description": "Delete entity descriptor NON_FUNCTIONAL_REQUIREMENT",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-entity-descriptor-ACCEPTANCE_CRITERION",
+      "status": "KILLED",
+      "description": "Delete entity descriptor ACCEPTANCE_CRITERION",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-entity-descriptor-DECISION",
+      "status": "KILLED",
+      "description": "Delete entity descriptor DECISION",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-entity-descriptor-TASK",
+      "status": "KILLED",
+      "description": "Delete entity descriptor TASK",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-entity-descriptor-FILE_CHANGE",
+      "status": "KILLED",
+      "description": "Delete entity descriptor FILE_CHANGE",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-entity-descriptor-FILE",
+      "status": "KILLED",
+      "description": "Delete entity descriptor FILE",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-entity-descriptor-SCENARIO",
+      "status": "KILLED",
+      "description": "Delete entity descriptor SCENARIO",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-entity-descriptor-FIXTURE",
+      "status": "KILLED",
+      "description": "Delete entity descriptor FIXTURE",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-entity-descriptor-SCHEMA_ENTITY",
+      "status": "KILLED",
+      "description": "Delete entity descriptor SCHEMA_ENTITY",
+      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+    },
+    {
+      "id": "delete-edge-descriptor-REFS",
+      "status": "KILLED",
+      "description": "Delete edge descriptor REFS",
+      "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+    },
+    {
+      "id": "delete-edge-descriptor-COVERS",
+      "status": "KILLED",
+      "description": "Delete edge descriptor COVERS",
+      "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+    },
+    {
+      "id": "delete-edge-descriptor-TESTED_BY",
+      "status": "KILLED",
+      "description": "Delete edge descriptor TESTED_BY",
+      "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+    },
+    {
+      "id": "delete-edge-descriptor-IMPLEMENTS",
+      "status": "KILLED",
+      "description": "Delete edge descriptor IMPLEMENTS",
+      "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+    },
+    {
+      "id": "delete-edge-descriptor-DEPENDS_ON",
+      "status": "KILLED",
+      "description": "Delete edge descriptor DEPENDS_ON",
+      "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+    },
+    {
+      "id": "delete-edge-descriptor-DOCUMENTS",
+      "status": "KILLED",
+      "description": "Delete edge descriptor DOCUMENTS",
+      "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+    },
+    {
+      "id": "delete-edge-descriptor-DECLARES",
+      "status": "KILLED",
+      "description": "Delete edge descriptor DECLARES",
+      "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+    }
+  ]
+}

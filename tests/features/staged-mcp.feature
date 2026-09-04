@@ -5,7 +5,7 @@ Feature: Exercise the single-surface MCP server through the packaged server
   Scenario: Single registry has live bounded handlers
     Given a real staged MCP corpus and packaged server
     When the registry and every handler are called
-    Then the registry has exactly 38 names and every call has a bounded envelope
+    Then the registry has exactly 11 names and every call has a bounded envelope
 
   Scenario: Authoring applies approved proposals without duplicating documents
     Given a real staged MCP corpus and packaged server
@@ -39,13 +39,19 @@ Feature: Exercise the single-surface MCP server through the packaged server
   Scenario: Single surface keeps safe authoring and binds producer evidence
     Given a real staged MCP corpus and packaged server
     When the additive registry, evidence states, and safe authoring are exercised
-    Then the surface exposes 38 bounded tools, preserves authoring, and refuses stale evidence
+    Then the surface exposes 11 bounded tools, preserves authoring, and refuses stale evidence
+
+  @tool-e2e
+  Scenario: MCP results expose actionable recovery and exact mirrors
+    Given a real staged MCP corpus and packaged server
+    When MCP envelope recovery cases are exercised
+    Then stale cursor, conflict, and target indeterminate recoveries are bounded and actionable
 
   @tool-e2e
   Scenario: v0.5 exposes the exact tool inventory and schemas
     Given a real staged MCP corpus and packaged server
     When the tool inventory matrix is exercised
-    Then the inventory contains the exact 38-tool surface
+    Then the inventory contains the exact 11-tool surface
 
   @tool-e2e
   Scenario: v0.5 tools return semantic success results
@@ -70,3 +76,64 @@ Feature: Exercise the single-surface MCP server through the packaged server
     Given a real staged MCP corpus and packaged server
     When the read-only matrix is exercised
     Then every read-only call preserves the project byte snapshot
+  @tool-e2e @bnd-matrix
+  Scenario: Hard retirement matrix verifies all 36 superseded tools return protocol -32602
+    Given a real staged MCP corpus and packaged server
+    When all 36 superseded tool names are invoked individually
+    Then every superseded tool returns JSON-RPC error -32602 without fallback shims
+
+  @tool-e2e @bnd-matrix
+  Scenario: Comprehensive coverage of every consolidated tool branch and intent
+    Given a real staged MCP corpus and packaged server
+    When all consolidated branches and all 13 proposal intents are exercised
+    Then every branch returns its declared operation, data kind, and valid envelope
+
+  @tool-e2e @bnd-matrix
+  Scenario Outline: Strict boundary validation rejects invalid and conflicting parameters
+    Given a real staged MCP corpus and packaged server
+    When tool "<tool>" is called with arguments '<args>'
+    Then the call fails with error code "<expected_code>"
+
+    Examples:
+      | tool               | args                                                                                                          | expected_code     |
+      | spec_catalog       | {}                                                                                                            | INVALID_REQUEST   |
+      | spec_catalog       | {"view": "unknown_view"}                                                                                      | INVALID_REQUEST   |
+      | spec_catalog       | {"view": "specs", "specSlugs": []}                                                                            | INVALID_REQUEST   |
+      | spec_catalog       | {"view": "types", "includeDocuments": true}                                                                  | INVALID_REQUEST   |
+      | spec_catalog       | {"view": "specs", "unexpectedProp": 123}                                                                      | UNKNOWN_FIELD     |
+      | spec_entities      | {}                                                                                                            | INVALID_REQUEST   |
+      | spec_entities      | {"mode": "get"}                                                                                               | INVALID_REQUEST   |
+      | spec_entities      | {"mode": "get", "canonicalId": "product:FR-1", "specSlugs": []}                                               | INVALID_REQUEST   |
+      | spec_entities      | {"mode": "find", "kinds": ["BOGUS_KIND"]}                                                                     | INVALID_REQUEST   |
+      | spec_entities      | {"mode": "find", "kinds": ["DOCUMENT", "DOCUMENT"]}                                                           | INVALID_REQUEST   |
+      | spec_graph         | {}                                                                                                            | INVALID_REQUEST   |
+      | spec_graph         | {"view": "edges"}                                                                                             | INVALID_REQUEST   |
+      | spec_graph         | {"view": "edges", "canonicalId": "product:FR-1", "maxDepth": 5}                                               | INVALID_REQUEST   |
+      | spec_graph         | {"view": "trace", "canonicalId": "product:FR-1", "aggregate": true}                                           | INVALID_REQUEST   |
+      | spec_documents     | {}                                                                                                            | INVALID_REQUEST   |
+      | spec_documents     | {"action": "list"}                                                                                            | INVALID_REQUEST   |
+      | spec_documents     | {"action": "read", "spec": "product"}                                                                         | INVALID_REQUEST   |
+      | spec_documents     | {"action": "read", "spec": "product", "doc": "FR.md", "offset": 0}                                            | INVALID_REQUEST   |
+      | spec_documents     | {"action": "read", "spec": "product", "doc": "FR.md", "offset": -1}                                           | INVALID_REQUEST   |
+      | spec_documents     | {"action": "attachment", "spec": "product"}                                                                   | INVALID_REQUEST   |
+      | spec_documents     | {"action": "attachment", "spec": "product", "path": "../outside.bin"}                                         | PATH_FORBIDDEN    |
+      | spec_inspect       | {}                                                                                                            | INVALID_REQUEST   |
+      | spec_inspect       | {"check": "anchor"}                                                                                           | INVALID_REQUEST   |
+      | spec_inspect       | {"check": "scenariosByTags"}                                                                                  | INVALID_REQUEST   |
+      | spec_inspect       | {"check": "scenariosByTags", "tags": ["@a", "@a"]}                                                           | INVALID_REQUEST   |
+      | spec_inspect       | {"check": "archivalProof"}                                                                                    | INVALID_REQUEST   |
+      | spec_inspect       | {"check": "orphans", "limit": 10}                                                                             | INVALID_REQUEST   |
+      | spec_tasks         | {}                                                                                                            | INVALID_REQUEST   |
+      | spec_tasks         | {"spec": "product", "limit": 0}                                                                               | INVALID_REQUEST   |
+      | spec_tasks         | {"spec": "product", "statuses": ["todo", "todo"]}                                                            | INVALID_REQUEST   |
+      | spec_evidence      | {}                                                                                                            | INVALID_REQUEST   |
+      | spec_evidence      | {"view": "result"}                                                                                            | INVALID_REQUEST   |
+      | spec_evidence      | {"view": "trace"}                                                                                             | INVALID_REQUEST   |
+      | spec_evidence      | {"view": "result", "scenarioId": 123}                                                                         | INVALID_REQUEST   |
+      | spec_propose_patch | {}                                                                                                            | INVALID_REQUEST   |
+      | spec_propose_patch | {"intent": "patch"}                                                                                           | INVALID_REQUEST   |
+      | spec_propose_patch | {"intent": "patch", "spec": "product", "reason": "r", "requestId": "q", "operations": []}                   | INVALID_REQUEST   |
+      | spec_propose_patch | {"intent": "amendRequirement", "spec": "product", "reason": "r", "requestId": "q"}                           | INVALID_REQUEST   |
+      | apply_proposed_patch | {}                                                                                                          | INVALID_REQUEST   |
+      | apply_proposed_patch | {"requestId": "q", "proposalId": "p", "proposalSha256": "h", "expectedDocuments": [], "reason": "r", "approval": "approve"} | INVALID_REQUEST |
+      | apply_proposed_patch | {"requestId": "q", "proposalId": "p", "proposalSha256": "h", "expectedDocuments": [{"path": "a", "beforeSha256": "b"}], "reason": "r", "approval": "deny"} | INVALID_REQUEST |

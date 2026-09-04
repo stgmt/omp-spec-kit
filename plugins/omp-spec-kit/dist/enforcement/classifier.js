@@ -139,12 +139,18 @@ function resolveAuthority(toolName, allTools, familyA, familyB, expectedCount) {
   return { ok: true, logicalName: activeFamily.get(toolName) };
 }
 
+const TARGET_RECOVERY = "Recovery: provide one explicit repository-relative target, or use spec_propose_patch then apply_proposed_patch.";
+
 function boundedReason(code, relativePath = null) {
   const target = typeof relativePath === "string" && relativePath !== "" && !/^[a-z]:[\\/]/iu.test(relativePath) && !relativePath.startsWith("/")
-    ? ` target=${relativePath}`
+    ? " target=" + relativePath
     : "";
-  const reason = `${code}:${target} use propose_patch then apply_proposed_patch`;
-  return Buffer.byteLength(reason, "utf8") <= 512 ? reason : `${reason.slice(0, 500)}…`;
+  const recovery = code === "TARGET_INDETERMINATE" ? " " + TARGET_RECOVERY : " use spec_propose_patch then apply_proposed_patch";
+  const reason = code + ":" + target + recovery;
+  if (Buffer.byteLength(reason, "utf8") <= 512) return reason;
+  let boundedTarget = target;
+  while (boundedTarget.length > 0 && Buffer.byteLength(code + ":" + boundedTarget + recovery, "utf8") > 512) boundedTarget = boundedTarget.slice(0, -1);
+  return code + ":" + boundedTarget + recovery;
 }
 
 function blocked(toolName, code, resolutions = [], mismatchField = null) {
