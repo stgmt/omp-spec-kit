@@ -384,3 +384,24 @@ Every MCP tool MUST declare and return the stable `KernelEnvelope` shape with `s
 ## Consolidated 11-tool branch schemas
 
 Input schemas for `spec_catalog`, `spec_entities`, `spec_graph`, `spec_documents`, `spec_inspect`, `spec_evidence`, and `spec_propose_patch` use top-level discriminator fields (`view`, `mode`, `action`, `check`, `intent`) and strict `oneOf` branches with `additionalProperties: false`.
+
+### Unified validation branch schema
+
+`spec_inspect` accepts `check: "validation"` with the following input schema:
+- `check`: `"validation"` (required string enum)
+- `specSlugs`: array of spec slug strings (optional; omitted or empty means corpus scope)
+- `severities`: array of `DIAGNOSTIC_SEVERITIES` strings (optional)
+- `codes`: array of `DIAGNOSTIC_CODES` strings (optional)
+- `paths`: array of path strings (optional)
+- `limit`: integer (optional)
+- `cursor`: nullable string (optional)
+
+Successful responses return payload `kind: "validation"` with:
+- `scope`: `{ mode: "corpus" | "specifications", specSlugs: string[] }`
+- `valid`: boolean
+- `verdict`: `"VALID"` | `"INVALID"`
+- `counts`: `{ errors: number, warnings: number, info: number, total: number, matched: number }`
+- `items`: array of `Diagnostic` objects
+- `snapshot`: `{ fingerprint: string, schemaVersion: "spec-kernel@1" }`
+
+All `oneOf` schema branches define `title: "<discriminator>: <variant>"` and `description: variant.description`. The top-level discriminator property carries a description instructing callers to select exactly one declared branch.

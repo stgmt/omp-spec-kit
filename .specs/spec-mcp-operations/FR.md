@@ -300,7 +300,7 @@ The MCP server MUST declare one stable output schema for every listed tool, retu
 
 ## FR-32: Discriminated branch schemas and strict argument validation
 
-Consolidated MCP tools SHALL define input schemas with top-level discriminator fields and strict `oneOf` branches where `additionalProperties` is false. Each branch SHALL accept only its declared properties. Missing discriminators, unknown discriminators, cross-branch fields, and extraneous properties SHALL be rejected with typed `INVALID_REQUEST` validation errors before dispatch to query or authoring services.
+Consolidated MCP tools SHALL define input schemas with top-level discriminator fields and strict `oneOf` branches where `additionalProperties` is false. Each branch in `oneOf` SHALL publish its own title formatted as `<discriminator>: <variant>` and a descriptive description, while the top-level discriminator property description SHALL instruct the client to choose exactly one declared branch. Missing discriminators, unknown discriminators, cross-branch fields, and extraneous properties SHALL be rejected with typed `INVALID_REQUEST` validation errors before dispatch to query or authoring services.
 
 **Acceptance:** [AC-32.1](ACCEPTANCE_CRITERIA.md#ac-321-discriminated-branch-schemas-and-strict-argument-validation)
 
@@ -337,3 +337,11 @@ Tool contracts, validation rules, discriminator invariants, and annotation mappi
 **Acceptance:** [AC-36.1](ACCEPTANCE_CRITERIA.md#ac-361-deterministic-mutation-testing-gate)
 
 **Scenario:** `@feature36 @FR-36 @AC-36.1 @id:SCEN-mcp-mutation-testing-gate`
+
+## FR-37: Unified specification and corpus validation inspection
+
+`spec_inspect` with `check: "validation"` SHALL serve as the single public entry point for structural specification and corpus validation, replacing the deprecated `specValidation` and `diagnostics` branches without backward-compatibility aliases. The operation SHALL accept optional `specSlugs` (empty or omitted means entire corpus; non-empty validates named specifications), `severities`, `codes`, `paths`, `limit`, and `cursor`. Unknown or malformed spec slugs SHALL fail closed with typed errors (`INVALID_PARAMETER` for malformed slug syntax, `NOT_FOUND` when a requested specification is absent from the corpus) before computing validation results. Membership in a specification's validation scope SHALL be determined solely by `diagnostic.specSlug`; diagnostics lacking `specSlug` SHALL be included in corpus validation and excluded from spec-specific scopes, and path prefix matching (`startsWith(".specs/<slug>/")`) SHALL NOT be used. Overall `valid`, `verdict` (`VALID` or `INVALID`), and scope counts (`errors`, `warnings`, `info`, `total`) SHALL be computed across all diagnostics in the selected scope prior to applying severity, code, or path filters. Filters SHALL only constrain the returned `items` array and `counts.matched`. Pagination via `limit` and `cursor` SHALL page `items` deterministically with cursor bound to graph fingerprint, scope, and filters.
+
+**Contract card:** kind `functional`; subject `spec-validation`; observables: unified validation check, scope filtering, pre-filter verdict and totals, matched counts, error on missing/malformed slug, removal of specValidation and diagnostics variants; verification: direct JSON-RPC and staged BDD.
+**Acceptance:** [AC-37.1](ACCEPTANCE_CRITERIA.md#ac-371-unified-specification-and-corpus-validation-inspection)
+**Scenario:** `@feature37 @FR-37 @AC-37.1 @id:SCEN-mcp-unified-validation`

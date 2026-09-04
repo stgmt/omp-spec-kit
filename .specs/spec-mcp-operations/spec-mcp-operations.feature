@@ -320,3 +320,10 @@ Scenario: Mutation testing gate eliminates all mutants
   Given the tool contract registry and mutation harness
   When check-tool-surface-mutations executes
   Then zero mutants survive
+
+@feature37 @FR-37 @AC-37.1 @id:SCEN-mcp-unified-validation
+Scenario: Unified validation inspection evaluates corpus and specifications
+  Given a real packaged MCP server
+  When spec_inspect is called with check "validation"
+  Then the response returns unified validation verdict counts and filtered items
+  And retired check branches specValidation and diagnostics are rejected with INVALID_REQUEST
