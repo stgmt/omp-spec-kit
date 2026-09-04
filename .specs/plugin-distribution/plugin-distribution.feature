@@ -249,3 +249,11 @@ Feature: Publish the omp-spec-kit plugin from verified installed bytes
     Then exactly 11 tools are present in contract order
     And 10 tools are annotated read-only and 1 mutating
     And no retired tool names are exposed
+
+  @feature23 @FR-23 @AC-23.1 @id:SCEN-mri-cross-platform-archive-modes
+  Scenario: Canonicalize archive modes across platforms
+    Given source files have arbitrary platform-specific modes
+    When a candidate is assembled
+    Then every file under bin/ has mode 0755 independent of its source mode
+    And every other file has mode 0644 independent of its source mode
+    And the package digest and tar headers encode those canonical modes
