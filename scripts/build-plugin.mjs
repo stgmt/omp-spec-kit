@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { copyFile, lstat, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -106,13 +106,21 @@ await mkdir(distRoot, { recursive: true });
 // dist, so deterministic rewrites rebase sibling runtime trees to the dist
 // root. Nothing else is transformed.
 async function emitFlatSource(name) {
-  const text = (await readFile(path.join(sourceRoot, name), "utf8"))
-    .replaceAll("\r\n", "\n")
-    .replaceAll("\r", "\n")
+  const text = (await readBuildText(path.join(sourceRoot, name)))
     .replaceAll('"../adapters/', '"./adapters/')
     .replaceAll('"../enforcement/', '"./enforcement/')
     .replaceAll('"../gate/', '"./gate/');
   return Buffer.from(text, "utf8");
+}
+
+// Package source is text and the repository enforces LF. Normalize checkout
+// line endings before emitting bytes so Windows and Linux builds agree.
+async function readBuildText(filePath) {
+  const cr = String.fromCharCode(13);
+  const lf = String.fromCharCode(10);
+  return (await readFile(filePath, "utf8"))
+    .replaceAll(cr + lf, lf)
+    .replaceAll(cr, lf);
 }
 
 const manifestFiles = {};
@@ -131,7 +139,7 @@ for (const tree of SOURCE_TREES) {
     await requireRegularFile(absoluteSource, `${tree.source}/${relative}`);
     const destination = path.join(outputTreeRoot, relative);
     await mkdir(path.dirname(destination), { recursive: true });
-    await copyFile(absoluteSource, destination);
+    await writeFile(destination, Buffer.from(await readBuildText(absoluteSource), "utf8"));
     manifestFiles[`${tree.output}/${relative}`] = { sha256: await sha256(destination) };
   }
 }
@@ -152,7 +160,7 @@ for (const [manifestKey] of Object.entries(manifestFiles)) {
   if (SOURCE_FILES.includes(manifestKey)) continue;
   const tree = SOURCE_TREES.find((candidate) => candidate.output === treeOutput);
   const relative = rest.join("/");
-  const sourceHash = await sha256(path.join(repositoryRoot, tree.source, relative));
+  const sourceHash = createHash("sha256").update(Buffer.from(await readBuildText(path.join(repositoryRoot, tree.source, relative)), "utf8")).digest("hex");
   const distHash = await sha256(path.join(distRoot, treeOutput, relative));
   if (sourceHash !== distHash) fail(`copied bytes differ for ${manifestKey}`);
 }
