@@ -313,20 +313,43 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
       }
       assert.equal(futureExists, false, "future spec file must not be created");
 
-      // 3. Valid xd:// device URIs
-      const validXdTargets = [
-        "xd://",
+      // 3. Valid OMP internal URIs (16 schemes) for read and write
+      const internalReadTargets = [
+        "omp://",
+        "agent://missing",
+        "artifact://missing",
+        "memory://",
+        "local://missing",
+        "vault://",
+        "skill://plain-russian-progress",
+        "rule://missing",
+        "security://",
+        "mcp://",
+        "issue://1",
+        "pr://1",
+        "history://main",
+        "ssh://host/path",
         "xd://propose",
-        "xd://resolve",
-        "xd://reject",
-        "xd://custom-device",
-        "XD://PROPOSE",
+        "SKILL://plain-russian-progress",
       ];
-      for (const target of validXdTargets) {
-        const xdResult = classifyToolCall({ toolName: "write", cwd: tempNoSpecs, input: { path: target } }, { root: tempNoSpecs });
-        assert.equal(xdResult.action, "continue", target + ": " + JSON.stringify(xdResult));
-        assert.equal(xdResult.code, "NON_SPEC_ALLOWED", target + ": " + JSON.stringify(xdResult));
-        assert.equal(xdResult.touchesSpecs, false, target + ": " + JSON.stringify(xdResult));
+      for (const target of internalReadTargets) {
+        const readResult = classifyToolCall({ toolName: "read", cwd: tempNoSpecs, input: { path: target } }, { root: tempNoSpecs });
+        assert.equal(readResult.action, "continue", target + ": " + JSON.stringify(readResult));
+        assert.equal(readResult.touchesSpecs, false, target + ": " + JSON.stringify(readResult));
+      }
+
+      const internalWriteTargets = [
+        "local://plan.md",
+        "vault://notes/test",
+        "ssh://host/path",
+        "xd://propose",
+        "conflict://1",
+      ];
+      for (const target of internalWriteTargets) {
+        const writeResult = classifyToolCall({ toolName: "write", cwd: tempNoSpecs, input: { path: target } }, { root: tempNoSpecs });
+        assert.equal(writeResult.action, "continue", target + ": " + JSON.stringify(writeResult));
+        assert.equal(writeResult.code, "NON_SPEC_ALLOWED", target + ": " + JSON.stringify(writeResult));
+        assert.equal(writeResult.touchesSpecs, false, target + ": " + JSON.stringify(writeResult));
       }
 
       // 4. Malformed xd and other URI schemes, NUL, ADS, inaccessible ancestor
@@ -336,6 +359,7 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
         "https://example.test",
         "file://target",
         "s3://bucket/key",
+        "custom://resource",
         "invalid\u0000path",
       ];
       if (process.platform === "win32") {
@@ -385,6 +409,11 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
       const spec = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: specPath + suffix } }, { root: this.root });
       assert.equal(spec.code, "RAW_SPEC_WRITE", suffix + ": " + JSON.stringify(spec));
       assert.equal(spec.action, "block", suffix + ": " + JSON.stringify(spec));
+    }
+    for (const internalTarget of ["skill://plain-russian-progress:1-2", "local://missing:raw"]) {
+      const safe = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: internalTarget } }, { root: this.root });
+      assert.equal(safe.action, "continue", internalTarget + ": " + JSON.stringify(safe));
+      assert.equal(safe.touchesSpecs, false, internalTarget + ": " + JSON.stringify(safe));
     }
     const directWrite = classifyToolCall({ toolName: "write", cwd: this.root, input: { path: outsidePath + ":1-2" } }, { root: this.root });
     if (process.platform === "win32") {

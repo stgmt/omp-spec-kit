@@ -1,6 +1,6 @@
 {
   "schema": "omp-spec-kit-mutation-gate@1",
-  "timestamp": "2026-09-04T21:20:17.394Z",
+  "timestamp": "2026-09-05T12:51:54.922Z",
   "totalMutants": 163,
   "killed": 163,
   "survivors": 0,
@@ -967,10 +967,10 @@
       "killerAssertion": "diagnostic.specSlug must be the sole source of scope\n\nfalse !== true\n"
     },
     {
-      "id": "omit-xdev-short-circuit",
+      "id": "omit-internal-uri-short-circuit",
       "status": "KILLED",
-      "description": "Mutant removes isXdDeviceTarget short-circuit causing xd:// device targets to fail closed as INDETERMINATE",
-      "killerAssertion": "Valid xd:// device target must resolve to NON_SPEC\n+ actual - expected\n\n+ 'INDETERMINATE'\n- 'NON_SPEC'\n"
+      "description": "Mutant removes isOmpInternalTarget short-circuit causing internal URI targets to fail closed as INDETERMINATE",
+      "killerAssertion": "Valid internal target skill://plain-russian-progress must resolve to NON_SPEC\n+ actual - expected\n\n+ 'INDETERMINATE'\n- 'NON_SPEC'\n"
     },
     {
       "id": "unconditional-specs-realpath",

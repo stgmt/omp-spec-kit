@@ -10,7 +10,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const PHASE_NAMES = ["payload", "imports", "enrollment", "capability-config-load", "manager-construction", "target-only-connection", "managed-query", "managed-authoring", "disconnect", "receipt"];
+const PHASE_NAMES = ["payload", "imports", "enrollment", "capability-config-load", "manager-construction", "target-only-connection", "managed-query", "managed-authoring", "extension-enforcement", "disconnect", "receipt"];
 
 function requiredFlag(name) {
 	const index = process.argv.indexOf(name);
@@ -229,6 +229,7 @@ let statusEvents = [];
 let connectionResult;
 let disconnectDetails;
 let managedAuthoring;
+let extensionEnforcement;
 let terminalPhase;
 const payloadResult = await phase("payload", async () => {
 	const runtimePackagePath = path.join(runtimeRoot, "package.json");
@@ -266,20 +267,21 @@ if (!payloadResult.ok) terminalPhase = "payload";
 if (!terminalPhase) {
 	const importsResult = await phase("imports", async () => {
 		const fromRuntime = relative => import(pathToFileURL(path.join(runtimeRoot, relative)).href);
-		const [discovery, capabilityModule, configModule, managerModule, pluginsModule, piUtils] = await Promise.all([
+		const [discovery, capabilityModule, configModule, managerModule, pluginsModule, piUtils, extensionLoader] = await Promise.all([
 			fromRuntime("src/discovery/index.ts"),
 			fromRuntime("src/capability/mcp.ts"),
 			fromRuntime("src/mcp/config.ts"),
 			fromRuntime("src/mcp/manager.ts"),
 			fromRuntime("src/extensibility/plugins/manager.ts"),
 			import(pathToFileURL(path.join(runtimeRoot, "..", "pi-utils", "src", "index.ts")).href),
+			fromRuntime("src/extensibility/extensions/loader.ts"),
 		]);
-		imported = { discovery, mcpCapability: capabilityModule.mcpCapability, loadAllMCPConfigs: configModule.loadAllMCPConfigs, MCPManager: managerModule.MCPManager, PluginManager: pluginsModule.PluginManager, piUtils };
+		imported = { discovery, mcpCapability: capabilityModule.mcpCapability, loadAllMCPConfigs: configModule.loadAllMCPConfigs, MCPManager: managerModule.MCPManager, PluginManager: pluginsModule.PluginManager, piUtils, loadExtensions: extensionLoader.loadExtensions };
 		if (process.cwd() !== cwd || imported.piUtils.getProjectDir() !== cwd) {
 			throw new Error(`Probe must start at project root; process=${process.cwd()} project=${imported.piUtils.getProjectDir()} expected=${cwd}`);
 		}
 		return {
-			modules: ["discovery", "mcp-capability", "mcp-config", "mcp-manager", "plugin-manager", "pi-utils"],
+			modules: ["discovery", "mcp-capability", "mcp-config", "mcp-manager", "plugin-manager", "pi-utils", "extension-loader"],
 			projectRoot: { processCwd: process.cwd(), piUtilsProjectDir: imported.piUtils.getProjectDir() },
 		};
 	});
@@ -461,6 +463,103 @@ if (!terminalPhase) {
 	});
 	if (!managedAuthoringResult.ok) terminalPhase = "managed-authoring";
 }
+if (!terminalPhase) {
+	const enforcementResult = await phase("extension-enforcement", async () => {
+		const extensionPath = path.join(packageRoot, "dist", "extension.js");
+		const loadResult = await imported.loadExtensions([extensionPath], cwd);
+		if (loadResult.errors?.length > 0) {
+			throw new Error("loadExtensions failed: " + JSON.stringify(loadResult.errors));
+		}
+		const extension = loadResult.extensions?.[0];
+		if (!extension) {
+			throw new Error("No extension returned by loadExtensions");
+		}
+		const handlers = extension.handlers.get("tool_call") ?? [];
+		if (handlers.length !== 1) {
+			throw new Error(`Expected exactly 1 tool_call handler, got ${handlers.length}`);
+		}
+		const handler = handlers[0];
+
+		// Positive matrix: 16 approved internal URI schemes + case variants + selectors
+		const positiveReadTargets = [
+			"omp://",
+			"agent://missing",
+			"artifact://missing",
+			"memory://",
+			"local://missing",
+			"vault://",
+			"skill://plain-russian-progress",
+			"rule://missing",
+			"security://",
+			"mcp://",
+			"issue://1",
+			"pr://1",
+			"history://main",
+			"ssh://host/path",
+			"xd://propose",
+			"conflict://1",
+			"SKILL://plain-russian-progress",
+			"skill://plain-russian-progress:1-2",
+			"local://missing:raw",
+		];
+		const allowedTargets = [];
+		for (const target of positiveReadTargets) {
+			const res = await handler({ toolName: "read", toolCallId: `probe-read-${target}`, input: { path: target } });
+			if (res?.block) {
+				throw new Error(`Positive read target ${target} was blocked: ${res.reason}`);
+			}
+			allowedTargets.push({ tool: "read", target, action: "continue" });
+		}
+
+		// Positive write targets
+		const positiveWriteTargets = [
+			"local://plan.md",
+			"vault://notes/test",
+			"ssh://host/path",
+			"xd://propose",
+			"conflict://1",
+		];
+		for (const target of positiveWriteTargets) {
+			const res = await handler({ toolName: "write", toolCallId: `probe-write-${target}`, input: { path: target } });
+			if (res?.block) {
+				throw new Error(`Positive write target ${target} was blocked: ${res.reason}`);
+			}
+			allowedTargets.push({ tool: "write", target, action: "continue" });
+		}
+
+		// Negative matrix: external, malformed xd, unknown schemes
+		const negativeTargets = [
+			"xd://bad/name",
+			"xd://bad?query",
+			"https://example.test",
+			"file://target",
+			"s3://bucket/key",
+			"custom://resource",
+		];
+		const blockedTargets = [];
+		for (const target of negativeTargets) {
+			const res = await handler({ toolName: "read", toolCallId: `probe-neg-${target}`, input: { path: target } });
+			if (!res?.block) {
+				throw new Error(`Negative target ${target} was not blocked`);
+			}
+			if (!res.reason?.includes("TARGET_INDETERMINATE")) {
+				throw new Error(`Negative target ${target} blocked with unexpected reason: ${res.reason}`);
+			}
+			blockedTargets.push({ target, code: "TARGET_INDETERMINATE", reason: res.reason });
+		}
+
+		extensionEnforcement = {
+			runtimeVersion: runtimePackage.version,
+			packageVersion: packageManifest.version,
+			handlerCount: handlers.length,
+			allowedTargets,
+			blockedTargets,
+		};
+		return extensionEnforcement;
+	});
+	if (!enforcementResult.ok) terminalPhase = "extension-enforcement";
+}
+
 if (manager) {
 	const disconnectResult = await phase("disconnect", async () => {
 		const before = inspectManager(manager);
@@ -512,6 +611,13 @@ const receiptResult = await phase("receipt", async () => {
 			} : undefined,
 			disconnect: disconnectDetails,
 			stateAfterDisconnect: managerStateAfterDisconnect,
+		} : undefined,
+		extensionEnforcement: extensionEnforcement ? {
+			runtimeVersion: runtimePackage.version,
+			packageVersion: packageManifest.version,
+			handlerCount: extensionEnforcement.handlerCount,
+			allowedTargets: extensionEnforcement.allowedTargets,
+			blockedTargets: extensionEnforcement.blockedTargets,
 		} : undefined,
 	};
 });

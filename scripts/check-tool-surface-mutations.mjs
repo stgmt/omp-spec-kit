@@ -458,17 +458,17 @@ export function generateAndEvaluateMutants() {
   );
 
   // Group 19: Kill mutants in target resolution (internal URIs and missing spec root containment)
-  // Mutant 19.1: Delete xdev short-circuit in resolveTarget
+  // Mutant 19.1: Delete internal URI short-circuit in resolveTarget
   receipts.push(
     runMutant(
-      "omit-xdev-short-circuit",
-      "Mutant removes isXdDeviceTarget short-circuit causing xd:// device targets to fail closed as INDETERMINATE",
+      "omit-internal-uri-short-circuit",
+      "Mutant removes isOmpInternalTarget short-circuit causing internal URI targets to fail closed as INDETERMINATE",
       () => {
         return {
           resolveTarget: (raw) => {
             const INDETERMINATE_INPUT = /[\u0000]/u;
             const WINDOWS_UNSAFE_PATH = /^(?:[\\/]{2}(?:[?.]|$)|[a-z]:[^\\/]|.*:[^\\/]*$)/iu;
-            const URI_SHAPED = /^[a-z][a-z0-9+.-]*:\/\//iu;
+            const URI_SHAPED = /^([a-z][a-z0-9+.-]*):\/\//iu;
             const trimmed = typeof raw === "string" ? raw.trim() : "";
             if (trimmed === "" || INDETERMINATE_INPUT.test(raw)) return { resolution: "INDETERMINATE", relativePath: null };
             if (trimmed.toLowerCase().startsWith("xd://") || URI_SHAPED.test(trimmed)) return { resolution: "INDETERMINATE", relativePath: null };
@@ -478,8 +478,15 @@ export function generateAndEvaluateMutants() {
         };
       },
       ({ resolveTarget }) => {
-        const result = resolveTarget("xd://propose");
-        assert.equal(result.resolution, "NON_SPEC", "Valid xd:// device target must resolve to NON_SPEC");
+        for (const target of [
+          "skill://plain-russian-progress",
+          "local://plan.md",
+          "xd://propose",
+          "conflict://1",
+        ]) {
+          const result = resolveTarget(target);
+          assert.equal(result.resolution, "NON_SPEC", `Valid internal target ${target} must resolve to NON_SPEC`);
+        }
       },
     ),
   );

@@ -3,8 +3,27 @@ import { lstatSync, realpathSync } from "node:fs";
 
 const INDETERMINATE_INPUT = /[\u0000]/u;
 const WINDOWS_UNSAFE_PATH = /^(?:[\\/]{2}(?:[?.]|$)|[a-z]:[^\\/]|.*:[^\\/]*$)/iu;
-const URI_SHAPED = /^[a-z][a-z0-9+.-]*:\/\//iu;
+const URI_SHAPED = /^([a-z][a-z0-9+.-]*):\/\//iu;
 const XD_PREFIX = "xd://";
+
+export const OMP_INTERNAL_URI_SCHEMES = Object.freeze(new Set([
+  "agent",
+  "artifact",
+  "conflict",
+  "history",
+  "issue",
+  "local",
+  "mcp",
+  "memory",
+  "omp",
+  "pr",
+  "rule",
+  "security",
+  "skill",
+  "ssh",
+  "vault",
+  "xd",
+]));
 
 function isXdDeviceTarget(raw) {
   if (typeof raw !== "string") return false;
@@ -13,6 +32,16 @@ function isXdDeviceTarget(raw) {
   const name = trimmed.slice(XD_PREFIX.length);
   if (name.length === 0) return true;
   if (/[/?#]/.test(name)) return false;
+  return true;
+}
+
+function isOmpInternalTarget(raw) {
+  if (typeof raw !== "string" || raw.trim() === "" || INDETERMINATE_INPUT.test(raw)) return false;
+  const match = raw.trim().match(URI_SHAPED);
+  if (!match) return false;
+  const scheme = match[1].toLowerCase();
+  if (!OMP_INTERNAL_URI_SCHEMES.has(scheme)) return false;
+  if (scheme === "xd") return isXdDeviceTarget(raw);
   return true;
 }
 
@@ -72,7 +101,7 @@ function resolveSpecsRoot(projectRoot) {
 
 /** Resolve one raw tool target against the physical project and specification roots. */
 export function resolveTarget(root, raw) {
-  if (isXdDeviceTarget(raw)) return { resolution: "NON_SPEC", relativePath: null };
+  if (isOmpInternalTarget(raw)) return { resolution: "NON_SPEC", relativePath: null };
   if (unsafeTarget(raw)) return { resolution: "INDETERMINATE", relativePath: null };
   try {
     const projectRoot = realpathSync.native(path.resolve(root));
