@@ -66,7 +66,7 @@ When the answer is in the graph, the agent should use these MCP tools instead of
 - **v1.0.0 — shipped:** stable 10-tool MCP surface with bounded reads, transactional authoring, release evidence, and commit-bound attestations.
 - **v1.0.2 — shipped:** OMP internal URI guard containment regression fix and deterministic LF release distribution.
 
-The v1.1.0 candidate is undergoing the complete package, staged, safe-authoring, Docker BDD, release-integrity, archive, and OMP manager checks. See ROADMAP.md for release proof and sequencing.
+The v1.1.0 release is shipped and publicly attested. See docs/validation/release-status-v1.1.0.json for the complete release proof.
 
 ## Safety and boundaries
 

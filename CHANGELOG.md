@@ -4,7 +4,7 @@ All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
 ## 1.1.0 — 2026-09-05
 
-Agent UX and error-hygiene release candidate.
+Agent UX and error-hygiene release.
 
 ### Added
 

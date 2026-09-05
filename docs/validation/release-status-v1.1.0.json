@@ -1,12 +1,77 @@
 {
   "schema": "omp-spec-kit-public-release-status@1",
+  "version": "1.1.0",
+  "tag": "v1.1.0",
+  "releaseUrl": "https://github.com/stgmt/omp-spec-kit/releases/tag/v1.1.0",
+  "publishedAt": "2026-09-05T15:55:36Z",
+  "tagCommit": "bcf4868079cb508a78b71c92e1e326a6e6ff98a1",
+  "candidateDigest": "c2dcbb9dbdd358f0cf41add3c666a8a7eb5f0ceadbaf9c49e589b0609a370c5d",
+  "packageTreeDigest": "5dd69d7204abede7008434a907d7ffda75101afedaba1e8cd488bf28fd32d2ef",
+  "archive": {
+    "name": "omp-spec-kit-1.1.0.tar",
+    "bytes": 448512,
+    "sha256": "7cfc72e6b5679849fef279bb8988d549f6a2b25642c608a9389d61c1b370d520"
+  },
+  "releaseAssets": [
+    {
+      "name": "candidate.json",
+      "bytes": 8390,
+      "sha256": "73fd9a7cf822d70f631b9647cf9989058e853c6646858b3f22be05c05b5d709e"
+    },
+    {
+      "name": "evidence.json",
+      "bytes": 3304,
+      "sha256": "e72940a0161424512648ac12ac8802295205f81cceda6af281541d0abd0a1f7a"
+    },
+    {
+      "name": "omp-spec-kit-1.1.0.tar",
+      "bytes": 448512,
+      "sha256": "7cfc72e6b5679849fef279bb8988d549f6a2b25642c608a9389d61c1b370d520"
+    }
+  ],
+  "attestation": {
+    "verified": true,
+    "workflow": "https://github.com/stgmt/omp-spec-kit/.github/workflows/release.yml@refs/tags/v1.1.0",
+    "workflowCommit": "bcf4868079cb508a78b71c92e1e326a6e6ff98a1",
+    "run": "https://github.com/stgmt/omp-spec-kit/actions/runs/33976154736/attempts/1",
+    "transparencyLog": "https://rekor.sigstore.dev"
+  },
+  "distributionAttestation": {
+    "verified": true,
+    "subject": "distribution-evidence.json",
+    "subjectSha256": "f7726531ffd3d87960c22b3c98bcdc088e5cc48751bcfac403c7a80bce2635b6",
+    "repository": "stgmt/omp-spec-kit",
+    "signerWorkflow": "https://github.com/stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml@refs/tags/v1.1.0",
+    "sourceRef": "refs/tags/v1.1.0",
+    "workflowCommit": "bcf4868079cb508a78b71c92e1e326a6e6ff98a1",
+    "run": "https://github.com/stgmt/omp-spec-kit/actions/runs/33976154734/attempts/1",
+    "transparencyLog": "https://rekor.sigstore.dev"
+  },
+  "evidence": {
+    "schema": "omp-spec-kit-release-evidence@3",
+    "catalogDigest": "91860bc1e090814f60ba1789f7c883a57625c48a76e1a2f0e3523e743aee5017",
+    "mriDiscoveryDigest": "ab60223863633d810056173a26b62e0a99f8af37c52df6c6a43295600f39dc72",
+    "distributionReceiptDigest": "f7726531ffd3d87960c22b3c98bcdc088e5cc48751bcfac403c7a80bce2635b6"
+  },
   "status": {
-    "installable": false,
-    "public": false,
-    "state": "CANDIDATE",
+    "public": true,
+    "installable": true,
+    "state": "SHIPPED",
     "surface": "SAFE_AUTHORING",
     "toolCount": 10
   },
-  "tag": "v1.1.0",
-  "version": "1.1.0"
+  "provenance": {
+    "releaseMetadataCommand": "gh release view v1.1.0 --repo stgmt/omp-spec-kit",
+    "attestationCommand": "gh attestation verify candidate.json --repo stgmt/omp-spec-kit --format json",
+    "distributionRunCommand": "gh run download 33976154734 --repo stgmt/omp-spec-kit --name omp-spec-kit-distribution-evidence-v1.1.0",
+    "distributionAttestationCommand": "gh attestation verify distribution-evidence.json --repo stgmt/omp-spec-kit --source-ref refs/tags/v1.1.0 --format json",
+    "capturedOn": "2026-09-05"
+  },
+  "releaseNotes": {
+    "source": "https://github.com/stgmt/omp-spec-kit/releases/tag/v1.1.0",
+    "captureCommand": "gh api repos/stgmt/omp-spec-kit/releases/tags/v1.1.0 | jq -j .body",
+    "capturedOn": "2026-09-05",
+    "bodySha256": "e6c4a6bf295d28bb6721b13bed89f700c32daa046a70c2305dc2454ca170159a",
+    "body": "# omp-spec-kit v1.1.0\n\n## Included changes\n\n- Promotes the bounded 10-tool MCP surface to the stable major release: 9 read-only tools and one transactional `spec_patch` authoring tool.\n- Preserves bounded entity, graph, document, evidence, and Markdown queries with pagination, projections, cursors, and traversal limits.\n- Verifies the complete semantic tool-E2E matrix against the built server and the exact release archive launcher.\n\n## Verified release\n\n- Candidate digest: `c2dcbb9dbdd358f0cf41add3c666a8a7eb5f0ceadbaf9c49e589b0609a370c5d`\n- Package tree digest: `5dd69d7204abede7008434a907d7ffda75101afedaba1e8cd488bf28fd32d2ef`\n- Archive SHA-256: `7cfc72e6b5679849fef279bb8988d549f6a2b25642c608a9389d61c1b370d520`\n- Peeled tag commit: `bcf4868079cb508a78b71c92e1e326a6e6ff98a1`\n- OMP runtime: `18.0.11`\n- Distribution evidence: lifecycle producers, Docker BDD, manager discovery, and nine closed MRI receipts.\n\nInstall or upgrade at project scope, reload plugin metadata, then start a fresh OMP session before invoking MCP tools.\n"
+  }
 }
