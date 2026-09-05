@@ -405,3 +405,9 @@ Successful responses return payload `kind: "validation"` with:
 - `snapshot`: `{ fingerprint: string, schemaVersion: "spec-kernel@1" }`
 
 All `oneOf` schema branches define `title: "<discriminator>: <variant>"` and `description: variant.description`. The top-level discriminator property carries a description instructing callers to select exactly one declared branch.
+
+
+## Read-for-edit and root-binding schema
+
+- `spec_documents(action: "read", readForEdit: true)` returns exact `content`, `sha256`, headings, and line metadata, bounded by 2 MiB.
+- `spec_patch(intent: "patch")` has optional `repositoryRootFingerprint`; a supplied mismatch uses `REPOSITORY_ROOT_FINGERPRINT_MISMATCH`, while omission remains snapshot- and preimage-checked under the exclusive write lock.

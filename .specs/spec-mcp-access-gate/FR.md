@@ -72,3 +72,12 @@ The gate SHALL recursively inspect every string value under fields named `code` 
 **Acceptance:** [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-execution-guard-limits)
 
 **Scenario:** `SCEN-execution-edges`
+
+
+## FR-10: Direct specification reads redirect to MCP
+
+The gate SHALL classify direct read-oriented tools named `read`, `grep`, and `glob` as `SPEC_READ_REDIRECT` when their explicit path target resolves inside `.specs`. It SHALL provide a bounded recovery instruction for `spec_documents(action: "read", spec, doc)` for a canonical document path, and `spec_catalog` or `spec_documents(action: "list"|"read")` for a root, directory, or path that cannot be safely decomposed into a specification slug and document. Direct mutators and recursive `code`/`command` references SHALL remain `RAW_SPEC_WRITE`.
+
+**Acceptance:** [AC-10.1](ACCEPTANCE_CRITERIA.md#ac-101-direct-specification-reads-redirect)
+
+**Scenario:** `SCEN-direct-specification-read-redirect`

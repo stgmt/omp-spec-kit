@@ -345,3 +345,12 @@ Tool contracts, validation rules, discriminator invariants, and annotation mappi
 **Contract card:** kind `functional`; subject `spec-validation`; observables: unified validation check, scope filtering, pre-filter verdict and totals, matched counts, error on missing/malformed slug, removal of specValidation and diagnostics variants; verification: direct JSON-RPC and staged BDD.
 **Acceptance:** [AC-37.1](ACCEPTANCE_CRITERIA.md#ac-371-unified-specification-and-corpus-validation-inspection)
 **Scenario:** `@feature37 @FR-37 @AC-37.1 @id:SCEN-mcp-unified-validation`
+
+
+## FR-38: Read-for-edit and optional root binding
+
+The `spec_documents` read variant with `readForEdit: true` SHALL return the exact UTF-8 document `content`, its `sha256`, headings, and line metadata without changing corpus bytes, while preserving the 2 MiB document limit. The `spec_patch` complete `patch` variant SHALL accept an omitted `repositoryRootFingerprint`; when supplied, the value SHALL be checked strictly and mismatch SHALL report `REPOSITORY_ROOT_FINGERPRINT_MISMATCH`. Omission SHALL retain graph-snapshot, document-preimage, exclusive-lock, and atomic-commit protections.
+
+**Acceptance:** [AC-38.1](ACCEPTANCE_CRITERIA.md#ac-381-read-for-edit-and-optional-root-binding)
+
+**Scenario:** `SCEN-read-for-edit-and-optional-root-binding`

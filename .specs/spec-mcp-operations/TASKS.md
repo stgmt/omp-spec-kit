@@ -405,3 +405,12 @@ _Requirements: [FR-36](FR.md#fr-36-deterministic-mutation-testing-gate)_
 - **Done When:** `spec_inspect` supports `check: "validation"`, computes pre-filter verdict/totals, filters items, rejects unknown/malformed slugs, and removes `specValidation` and `diagnostics` branches.
 
 _Requirements: [FR-37](FR.md#fr-37-unified-specification-and-corpus-validation-inspection)_
+
+
+## TASK-29 — Complete read-for-edit and optional fingerprint contract
+
+- **Status:** Planned
+- **Phase:** safe-authoring
+- **Requirement:** FR-10
+- **Acceptance:** AC-10.1
+- **Scenario:** SCEN-read-for-edit-and-optional-root-binding

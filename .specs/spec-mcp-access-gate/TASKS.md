@@ -119,3 +119,12 @@ All tasks are future implementation work. Scenario text does not satisfy Done Wh
 **Scenario:** @feature7 / SCEN-mcp-access-gate-non-mcp-spec-access
 
 **Done When:** Read, grep, glob, edit, write, bash, custom, traversal, link/reparse, ambiguity, special-path, empty-target, authority, and timeout cases are executed against real policy fixtures; MCP-authorized and proven non-spec calls are not over-blocked.
+
+
+## TASK-10 — Implement direct specification read redirect
+
+- **Status:** Planned
+- **Phase:** access-gate
+- **Requirement:** FR-10
+- **Acceptance:** AC-10.1
+- **Scenario:** SCEN-direct-specification-read-redirect

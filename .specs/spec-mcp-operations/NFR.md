@@ -133,3 +133,8 @@ Preview bytes, operation count, document count, findings, and diagnostic text SH
 ## NFR-MAINTAINABILITY-1: One core
 
 Both public tools and all internal helpers SHALL use one operation normalizer, one validator composition, one containment resolver, and one writer. No parallel task lifecycle, review state, release evaluator, recovery API, or audit ledger is permitted.
+
+
+## NFR-READ-EDIT-1: Read-modify-write integrity
+
+Read-for-edit SHALL use one bounded read, preserve exact bytes and digest, and never disclose absolute paths. Optional root binding SHALL not weaken snapshot, preimage, lock, rollback, or atomicity guarantees.
