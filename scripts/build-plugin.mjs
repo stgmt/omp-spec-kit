@@ -107,6 +107,8 @@ await mkdir(distRoot, { recursive: true });
 // root. Nothing else is transformed.
 async function emitFlatSource(name) {
   const text = (await readFile(path.join(sourceRoot, name), "utf8"))
+    .replaceAll("\r\n", "\n")
+    .replaceAll("\r", "\n")
     .replaceAll('"../adapters/', '"./adapters/')
     .replaceAll('"../enforcement/', '"./enforcement/')
     .replaceAll('"../gate/', '"./gate/');
