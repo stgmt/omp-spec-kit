@@ -6,6 +6,7 @@ const MUTATING_SHORT_NAMES = Object.freeze(new Set([
   "spec_patch",
 ]));
 const DIRECT_PATH_MUTATION_TOOLS = Object.freeze(new Set(["write", "edit", "apply_patch", "delete", "rename"]));
+const DIRECT_PATH_READ_TOOLS = Object.freeze(new Set(["read", "grep", "glob"]));
 const PATH_KEYS = Object.freeze(new Set(["path", "paths", "file", "files", "document", "documents"]));
 const SPEC_PATH_REFERENCE = /(?:^|[^a-z0-9])\.specs(?:$|[^a-z0-9])/iu;
 
@@ -141,11 +142,19 @@ function resolveAuthority(toolName, allTools, familyA, familyB, expectedCount) {
 
 const TARGET_RECOVERY = "Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply.";
 
+function specReadRecovery(relativePath) {
+  const parts = typeof relativePath === "string" ? relativePath.split("/") : [];
+  if (parts.length >= 3 && parts[0] === "." + "specs" && parts[1] !== "" && parts.slice(2).every((part) => part !== "")) {
+    return " use spec_documents(action: \"read\", spec: \"" + parts[1] + "\", doc: \"" + parts.slice(2).join("/") + "\")";
+  }
+  return " use spec_catalog or spec_documents(action: list or read) for specification corpus access";
+}
+
 function boundedReason(code, relativePath = null) {
   const target = typeof relativePath === "string" && relativePath !== "" && !/^[a-z]:[\\/]/iu.test(relativePath) && !relativePath.startsWith("/")
     ? " target=" + relativePath
     : "";
-  const recovery = code === "TARGET_INDETERMINATE" ? " " + TARGET_RECOVERY : " use spec_patch with dryRun: true for preview or dryRun: false to apply";
+  const recovery = code === "TARGET_INDETERMINATE" ? " " + TARGET_RECOVERY : code === "SPEC_READ_REDIRECT" ? specReadRecovery(relativePath) : " use spec_patch with dryRun: true for preview or dryRun: false to apply";
   const reason = code + ":" + target + recovery;
   if (Buffer.byteLength(reason, "utf8") <= 512) return reason;
   let boundedTarget = target;
@@ -200,6 +209,7 @@ export function classifyToolCall(event, options = {}) {
       : { action: "continue", toolName, touchesSpecs: false, mismatchField: null };
   }
 
+  if (policy.code === "RAW_SPEC_WRITE" && DIRECT_PATH_READ_TOOLS.has(toolName)) return blocked(toolName, "SPEC_READ_REDIRECT", policy.resolutions);
   return blocked(toolName, policy.code, policy.resolutions);
 }
 

@@ -354,3 +354,16 @@ Given a real MCP server, tools/list declares the stable result schema and discov
 **Requirement:** [FR-37](FR.md#fr-37-unified-specification-and-corpus-validation-inspection)
 
 **Scenario:** `@feature37 @FR-37 @AC-37.1 @id:SCEN-mcp-unified-validation`
+
+
+## AC-38.1: Read-for-edit and optional root binding
+
+- Given a contained text document and `readForEdit: true`
+- When `spec_documents` reads it
+- Then the response contains byte-equal UTF-8 `content`, matching `sha256`, headings, and line metadata
+- And a document larger than 2 MiB is rejected with the existing limit error
+- And the corpus is byte-identical after the read
+- Given a complete `spec_patch` request
+- When `repositoryRootFingerprint` is omitted
+- Then preview and apply use the proposal graph snapshot and retain exclusive-lock and document-preimage conflict checks
+- And a supplied stale fingerprint still returns `REPOSITORY_ROOT_FINGERPRINT_MISMATCH` with only opaque root identifiers

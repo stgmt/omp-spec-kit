@@ -75,3 +75,13 @@ These criteria define future verification obligations. Scenario text alone is no
 **Requirement:** [FR-9](FR.md#fr-9-execution-payload-specification-guard-with-stated-limits)
 
 **Scenario:** `SCEN-execution-edges`
+
+
+## AC-10.1: Direct specification reads redirect
+
+- Given a direct `read`, `grep`, or `glob` call targeting a canonical `.specs/<slug>/<doc>` path
+- When the target is resolved by the filesystem containment policy
+- Then the gate blocks with `SPEC_READ_REDIRECT`
+- And the reason names only the relative target, stays at most 512 UTF-8 bytes, and gives the exact `spec_documents(action: "read", spec, doc)` recovery
+- And root or directory targets receive the general `spec_catalog`/`spec_documents` recovery
+- And direct mutators and `code`/`command` payloads with `.specs` remain `RAW_SPEC_WRITE`

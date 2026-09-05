@@ -88,3 +88,12 @@ Feature: OMP MCP access gate
     Then the gate blocks it before execution with a bounded reason
     And a registered omp-spec-kit MCP operation reaches the MCP adapter without access-gate denial
     And a proven non-spec target remains subject to normal OMP policy
+
+
+  @feature10 @FR-10 @AC-10.1 @id:SCEN-direct-specification-read-redirect
+  Scenario: Direct specification reads redirect to MCP
+    Given a direct read, grep, or glob call targeting a canonical .specs document
+    When the target resolves inside the specification corpus
+    Then the gate blocks it with SPEC_READ_REDIRECT
+    And the reason provides the spec_documents read recovery without an absolute path
+    And a direct mutator or code/command payload with .specs remains RAW_SPEC_WRITE

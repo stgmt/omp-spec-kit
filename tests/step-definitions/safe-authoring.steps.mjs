@@ -66,7 +66,9 @@ async function runCandidateManagerE2E() {
       try {
         const receipt = JSON.parse(result.stdout);
         const phase = receipt.phaseMode?.terminalPhase;
-        detail = receipt.phaseMode?.checkpoints?.[phase]?.error?.message ?? detail;
+        const checkpoint = receipt.phaseMode?.checkpoints?.[phase];
+        detail = checkpoint?.error?.message ?? detail;
+        detail += "\ncheckpoint=" + JSON.stringify(checkpoint);
       } catch {}
       assert.equal(result.status, 0, detail);
     }
@@ -127,7 +129,7 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     const direct = classifyToolCall({ toolName: "write", cwd: this.root, input: { path: ".specs/plugin-distribution/README.md" } }, { root: this.root });
     const allowed = classifyToolCall({ toolName: "mcp__omp_spec_kit_spec_patch", input: {} }, { root: this.root });
     const rawDirect = classifyToolCall({ toolName: "spec_patch", input: {} }, { root: this.root });
-    assert.equal(blocked.code, "RAW_SPEC_WRITE");
+    assert.equal(blocked.code, "SPEC_READ_REDIRECT");
     assert.equal(direct.code, "RAW_SPEC_WRITE");
     assert.equal(allowed.code, "AUTHORING_TOOL_ALLOWED");
     assert.equal(rawDirect.code, "UNREGISTERED_AUTHORING_CALL");
@@ -269,7 +271,9 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     const specPath = ".specs/plugin-distribution/README.md";
     const absoluteSpecPath = path.join(this.root, specPath);
     const blocked = [
-      { toolName: "read", input: { path: specPath }, code: "RAW_SPEC_WRITE" },
+      { toolName: "read", input: { path: specPath }, code: "SPEC_READ_REDIRECT" },
+      { toolName: "grep", input: { path: specPath }, code: "SPEC_READ_REDIRECT" },
+      { toolName: "glob", input: { path: specPath }, code: "SPEC_READ_REDIRECT" },
       { toolName: "write", input: { path: absoluteSpecPath }, code: "RAW_SPEC_WRITE" },
       { toolName: "edit", input: { path: "" }, code: "TARGET_INDETERMINATE" },
       { toolName: "shell", input: { path: String.fromCharCode(0) }, code: "TARGET_INDETERMINATE" },
@@ -407,8 +411,10 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     }
     for (const suffix of selectors) {
       const spec = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: specPath + suffix } }, { root: this.root });
-      assert.equal(spec.code, "RAW_SPEC_WRITE", suffix + ": " + JSON.stringify(spec));
+      assert.equal(spec.code, "SPEC_READ_REDIRECT", suffix + ": " + JSON.stringify(spec));
       assert.equal(spec.action, "block", suffix + ": " + JSON.stringify(spec));
+      assert.match(spec.reason, /spec_documents\(action: "read"/u, suffix + ": " + JSON.stringify(spec));
+      assert.equal(spec.reason.includes(path.resolve(this.root)), false, suffix + ": absolute path leaked");
     }
     for (const internalTarget of ["skill://plain-russian-progress:1-2", "local://missing:raw"]) {
       const safe = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: internalTarget } }, { root: this.root });

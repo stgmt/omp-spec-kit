@@ -195,6 +195,16 @@ export async function runToolE2E({
     const docRead = structured(
       await callTool("spec_documents", { schemaVersion: "spec-kernel@1", requestId: "v08-doc-read", action: "read", spec: "e2e-spec", doc: "FR.md" }),
     );
+
+    const beforeReadForEdit = await snapshotTree(projectRoot);
+    const docReadForEdit = structured(
+      await callTool("spec_documents", { schemaVersion: "spec-kernel@1", requestId: "v08-doc-read-for-edit", action: "read", spec: "e2e-spec", doc: "FR.md", readForEdit: true }),
+    );
+    const afterReadForEdit = await snapshotTree(projectRoot);
+    assert.deepEqual(afterReadForEdit, beforeReadForEdit, "readForEdit must not mutate the corpus");
+    assert.equal(docReadForEdit.data.content, "# Requirements\n\n## FR-1 — E2E Requirement\nRequirement details\n");
+    assert.equal(docReadForEdit.data.sha256, "fb3dcf226d4719287c62e38596e218e000f6249bd2fab51474818a8ffc88495c");
+    assert.equal(docReadForEdit.data.bytes, Buffer.byteLength(docReadForEdit.data.content, "utf8"));
     assert.equal(docRead.ok, true);
     assert.equal(docRead.operation, "documents");
     assert.equal(docRead.data.kind, "document");
@@ -300,6 +310,19 @@ export async function runToolE2E({
     assert.equal(patchVal.operation, "specPatch");
     assert.equal(patchVal.data.outcome, "PREVIEW");
     assert.ok(patchVal.data.proposalHash);
+
+    const optionalFingerprintRes = await callTool("spec_patch", {
+      schemaVersion: "spec-kernel@1",
+      requestId: "v11-prop-no-fingerprint",
+      intent: "patch",
+      dryRun: true,
+      spec: "e2e-spec",
+      reason: "v1.1.0 optional fingerprint preview",
+      operations: [{ kind: "insert_at_eof", document: "README.md", text: "\n<!-- optional fingerprint -->\n" }],
+    });
+    const optionalFingerprintVal = structured(optionalFingerprintRes);
+    assert.equal(optionalFingerprintVal.ok, true);
+    assert.equal(optionalFingerprintVal.data.outcome, "PREVIEW");
 
     // 2. multi-operation patch with omitted dryRun (defaults to true)
     const multiRes = await callTool("spec_patch", {
@@ -560,6 +583,19 @@ export async function runToolE2E({
     const conflictVal = structured(conflictRes);
     assert.equal(conflictVal.data?.outcome, "REFUSED");
     assert.equal(conflictVal.data?.error?.code, "CONFLICT");
+
+    const optionalApplyRes = await callTool("spec_patch", {
+      schemaVersion: "spec-kernel@1",
+      requestId: "v11-apply-no-fingerprint",
+      intent: "patch",
+      dryRun: false,
+      spec: "e2e-spec",
+      reason: "v1.1.0 optional fingerprint apply",
+      operations: [{ kind: "insert_at_eof", document: "README.md", text: "\n<!-- optional fingerprint apply -->\n" }],
+    });
+    const optionalApplyVal = structured(optionalApplyRes);
+    assert.equal(optionalApplyVal.ok, true);
+    assert.equal(optionalApplyVal.data.outcome, "APPLIED");
   }
 
   // Phase 5: Secret rejection test

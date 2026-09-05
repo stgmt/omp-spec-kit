@@ -300,7 +300,7 @@ function validateCurrentStatus() {
     fail("release status is absent or identity-drifted");
   }
   if (status.status.state === "CANDIDATE") {
-    if ((version === "1.0.2" || version === "1.0.1" || version === "1.0.0" || version === "0.10.2")) {
+    if ((version === "1.1.0" || version === "1.0.2" || version === "1.0.1" || version === "1.0.0" || version === "0.10.2")) {
       if (
         status.status.public !== false ||
         status.status.installable !== false ||

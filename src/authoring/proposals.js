@@ -578,7 +578,7 @@ export class ProposalCompiler {
 
     let rawOperations;
     if (intent === "patch") {
-      if (typeof input.repositoryRootFingerprint !== "string" || input.repositoryRootFingerprint !== graph.fingerprint) {
+      if (typeof input.repositoryRootFingerprint === "string" && input.repositoryRootFingerprint !== graph.fingerprint) {
         return error("CONFLICT", "repositoryRootFingerprint does not match the current graph snapshot", {
           causeCode: "REPOSITORY_ROOT_FINGERPRINT_MISMATCH",
         });

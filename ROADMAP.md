@@ -102,4 +102,4 @@ Proof: multi-tier corpus test fixtures, backward compatibility test verifying ex
 
 ## Boundaries
 
-The v0.3.2 read-only compatibility baseline remains available for explicit historical selection. The current v1.0.2 release exposes the consolidated 10-tool MCP surface. LSP is an editor and internal transport, not a replacement for the agent-facing MCP API. The roadmap does not include external dashboards, telemetry databases, or secondary graph storage engines.
+The v0.3.2 read-only compatibility baseline remains available for explicit historical selection. The current v1.1.0 candidate exposes the consolidated 10-tool MCP surface. LSP is an editor and internal transport, not a replacement for the agent-facing MCP API. The roadmap does not include external dashboards, telemetry databases, or secondary graph storage engines.

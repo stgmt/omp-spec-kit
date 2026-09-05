@@ -1,6 +1,6 @@
 import { registerSpecEnforcement } from "../enforcement/adapter.js";
 
-export const PLUGIN_VERSION = "1.0.2";
+export const PLUGIN_VERSION = "1.1.0";
 export const SCHEMA_VERSION = "1";
 
 // OMP 18.0.11 extension contract pinned at the active release runtime

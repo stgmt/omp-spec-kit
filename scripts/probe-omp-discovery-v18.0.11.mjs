@@ -193,14 +193,14 @@ async function managedTool(name) {
 	}
 	throw new Error("OMP manager did not expose omp-spec-kit/" + name);
 }
-async function executeManagedTool(name, args, callId) {
+async function executeManagedTool(name, args, callId, { allowError = false } = {}) {
 	const tool = await managedTool(name);
 	const result = await tool.execute(callId, args, undefined, {});
 	const directEnvelope = result.structuredContent ?? (result.details?.graph || result.details?.ok ? result.details : null);
 	const provider = result.details && typeof result.details === "object" && "rawContent" in result.details ? result.details : result;
 	const rawContent = provider.rawContent ?? provider.content ?? [];
 	const rawText = Array.isArray(rawContent) ? rawContent.find(item => item?.type === "text")?.text ?? "" : typeof rawContent === "string" ? rawContent : "";
-	if (result.isError || provider.isError || (rawText.length === 0 && !directEnvelope)) throw new Error("OMP-managed " + name + " returned an error or empty structured result");
+	if (!allowError && (result.isError || provider.isError || (rawText.length === 0 && !directEnvelope))) throw new Error("OMP-managed " + name + " returned an error or empty structured result");
 	const envelope = directEnvelope ?? (() => {
 		try { return JSON.parse(rawText); } catch (error) { throw new Error("OMP-managed " + name + " did not expose its structured result: " + error.message); }
 	})();
@@ -423,15 +423,19 @@ if (!terminalPhase) {
 		if (!overviewCall.envelope.ok || typeof overviewCall.envelope.graph?.fingerprint !== "string") throw new Error("OMP-managed spec_catalog did not return a graph fingerprint; keys=" + Object.keys(overviewCall.envelope).join(",") + "; dataKeys=" + Object.keys(overviewCall.envelope.data ?? {}).join(","));
 		const target = path.join(cwd, "." + "specs", "plugin-distribution", "README.md");
 		const beforeBytes = await readFile(target, "utf8");
+
+		const readForEditCall = await executeManagedTool("spec_documents", { schemaVersion: "spec-kernel@1", requestId: "omp-manager-read-for-edit", action: "read", spec: "plugin-distribution", doc: "README.md", readForEdit: true }, "omp-manager-read-for-edit");
+		if (!readForEditCall.envelope.ok || readForEditCall.envelope.data?.content !== beforeBytes) throw new Error("OMP-managed readForEdit content did not match the fixture bytes");
+		if (readForEditCall.envelope.data?.sha256 !== sha256(Buffer.from(beforeBytes, "utf8"))) throw new Error("OMP-managed readForEdit sha256 did not match the fixture bytes");
 		const previewCall = await executeManagedTool("spec_patch", {
 			schemaVersion: "spec-kernel@1",
 			intent: "patch",
 			requestId: "omp-manager-preview",
-			repositoryRootFingerprint: overviewCall.envelope.graph.fingerprint,
+
 			spec: "plugin-distribution",
 			reason: "OMP managed authoring proof",
 			dryRun: true,
-			operations: [{ kind: "insert_at_eof", document: "README.md", text: "\n<!-- OMP managed authoring proof -->\n" }],
+			operations: [{ kind: "insert_at_eof", document: "README.md", text: "\n<!-- OMP managed authoring proof -->\n", expectedSha: readForEditCall.envelope.data.sha256 }],
 		}, "omp-manager-preview");
 		if (!previewCall.envelope.ok || previewCall.envelope.data?.outcome !== "PREVIEW") throw new Error("OMP-managed spec_patch did not return a preview");
 		const midBytes = await readFile(target, "utf8");
@@ -440,15 +444,17 @@ if (!terminalPhase) {
 			schemaVersion: "spec-kernel@1",
 			intent: "patch",
 			requestId: "omp-manager-apply",
-			repositoryRootFingerprint: overviewCall.envelope.graph.fingerprint,
+
 			spec: "plugin-distribution",
 			reason: "OMP managed authoring proof",
 			dryRun: false,
-			operations: [{ kind: "insert_at_eof", document: "README.md", text: "\n<!-- OMP managed authoring proof -->\n" }],
+			operations: [{ kind: "insert_at_eof", document: "README.md", text: "\n<!-- OMP managed authoring proof -->\n", expectedSha: readForEditCall.envelope.data.sha256 }],
 		}, "omp-manager-apply");
 		if (!applyCall.envelope.ok || applyCall.envelope.data?.outcome !== "APPLIED") throw new Error("OMP-managed spec_patch did not apply");
 		const finalBytes = await readFile(target, "utf8");
 		if (!finalBytes.includes("OMP managed authoring proof")) throw new Error("OMP-managed apply did not change the project document");
+		const mismatchCall = await executeManagedTool("spec_patch", { schemaVersion: "spec-kernel@1", requestId: "omp-manager-explicit-mismatch", intent: "patch", dryRun: true, repositoryRootFingerprint: "0".repeat(64), spec: "plugin-distribution", reason: "OMP managed mismatch proof", operations: [{ kind: "insert_at_eof", document: "README.md", text: "mismatch" }] }, "omp-manager-explicit-mismatch", { allowError: true });
+		if (mismatchCall.envelope.ok || mismatchCall.envelope.error?.causeCode !== "REPOSITORY_ROOT_FINGERPRINT_MISMATCH") throw new Error("OMP-managed explicit fingerprint mismatch was not refused");
 		const finalOverview = await executeManagedTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "omp-manager-final-overview", view: "overview", specSlugs: [] }, "omp-manager-final-overview");
 		if (!finalOverview.envelope.ok || finalOverview.envelope.graph?.valid !== true) throw new Error("OMP-managed final spec_catalog did not return a valid graph");
 		managedAuthoring = {

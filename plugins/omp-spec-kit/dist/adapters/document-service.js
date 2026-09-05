@@ -186,7 +186,7 @@ async function readSpecDoc(root, args) {
       const match = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/u);
       return match ? [{ level: match[1].length, text: match[2].trim(), anchor: marksmanSlug(match[2]), line: index + 1 }] : [];
     });
-    return operationSuccess({ kind: "document", spec: args.spec, doc: resolved.relative, mode: "read_for_edit", sha256: digest, bytes: bytes.length, totalLines: content.split(/\r?\n/u).length, headings });
+    return operationSuccess({ kind: "document", spec: args.spec, doc: resolved.relative, mode: "read_for_edit", sha256: digest, content, bytes: bytes.length, totalLines: content.split(/\r?\n/u).length, headings });
   }
   if (args.section !== undefined && args.section !== null) {
     const selected = sectionWindow(content, String(args.section));

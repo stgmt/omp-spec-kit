@@ -319,7 +319,7 @@ export const TOOL_CONTRACTS = Object.freeze([
       patch: Object.freeze({
         description: "Preview or apply a complete operations array against one specification.",
         fields: Object.freeze([
-          field("repositoryRootFingerprint", "string"),
+          optionalField("repositoryRootFingerprint", "string"),
           field("operations", "operations"),
         ]),
       }),

@@ -20,11 +20,11 @@ Update an existing project install with:
 omp plugin upgrade omp-spec-kit@omp-spec-kit --scope project
 ```
 
-This v1.0.2 release provides the single `spec_patch` authoring tool and consolidated 10-tool MCP surface for OMP 18.0.11 and 18.1.6.
+This v1.1.0 release provides the single `spec_patch` authoring tool and consolidated 10-tool MCP surface for OMP 18.0.11 and 18.1.6.
 
 ## Available today
 
-The v1.0.2 release exposes exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool.
+The v1.1.0 release exposes exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool.
 
 | Need | Tool | Variant |
 |---|---|---|
@@ -66,7 +66,7 @@ When the answer is in the graph, the agent should use these MCP tools instead of
 - **v1.0.0 — shipped:** stable 10-tool MCP surface with bounded reads, transactional authoring, release evidence, and commit-bound attestations.
 - **v1.0.2 — shipped:** OMP internal URI guard containment regression fix and deterministic LF release distribution.
 
-The v1.0.2 release passed the complete package, staged, safe-authoring, Docker BDD, release-integrity, archive, and OMP manager checks. See ROADMAP.md for release proof and sequencing.
+The v1.1.0 candidate is undergoing the complete package, staged, safe-authoring, Docker BDD, release-integrity, archive, and OMP manager checks. See ROADMAP.md for release proof and sequencing.
 
 ## Safety and boundaries
 
@@ -80,6 +80,6 @@ Direct untrusted writes to `.specs` are not an alternative API. Use `spec_patch`
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution workflow
 - [`CHANGELOG.md`](CHANGELOG.md) — release history
 - [`ROADMAP.md`](ROADMAP.md) — user-visible delivery sequence
-- `docs/validation/release-status-v1.0.2.json` — current release status and verification record
+- `docs/validation/release-status-v1.1.0.json` — current release status and verification record
 
 License: MIT.

@@ -1,6 +1,6 @@
 {
   "name": "omp-spec-kit-repository",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -16,9 +16,9 @@
     "test:bdd": "bash scripts/docker-bdd.sh",
     "test:bdd:omp-discovery": "bash scripts/docker-bdd.sh --tags '@id:SCEN-mri-active-project-manager-receipt or @id:SCEN-mri-missing-payload-refusal'",
     "test": "npm run build && npm run verify && npm run dogfood:mcp:candidate && npm run test:safe-authoring && npm run test:staged && npm run test:bdd",
-    "test:safe-authoring": "npx cucumber-js tests/features/safe-authoring.feature --tags @safe-authoring --format progress",
-    "test:tool-e2e": "npx cucumber-js tests/features/staged-mcp.feature --tags @tool-e2e --format progress",
-    "test:staged": "npx cucumber-js tests/features/staged-mcp.feature --format progress",
+    "test:safe-authoring": "npx cucumber-js tests/features/safe-authoring.feature --import tests/step-definitions/safe-authoring.steps.mjs --tags @safe-authoring --format progress --force-exit",
+    "test:tool-e2e": "npx cucumber-js tests/features/staged-mcp.feature --import tests/step-definitions/staged-mcp.steps.mjs --tags @tool-e2e --format progress --force-exit",
+    "test:staged": "npx cucumber-js tests/features/staged-mcp.feature --import tests/step-definitions/staged-mcp.steps.mjs --format progress --force-exit",
     "test:release-archive": "node scripts/smoke-release-archive.mjs",
     "test:release-integrity": "npx cucumber-js tests/features/release-evidence.feature --tags @mcp-release-integrity --format progress",
     "release:preflight": "node scripts/release-preflight.mjs",

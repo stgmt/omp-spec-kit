@@ -2,6 +2,15 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 1.1.0 — 2026-09-05
+
+Agent UX and error-hygiene release candidate.
+
+### Added
+
+- Direct specification reads through `read`, `grep`, and `glob` now fail with `SPEC_READ_REDIRECT` and bounded recovery guidance to `spec_documents`, while mutating and executable paths remain `RAW_SPEC_WRITE`.
+- `spec_documents(action: "read", readForEdit: true)` returns exact document content together with its SHA-256 digest, byte count, and headings.
+- `spec_patch` accepts an omitted root fingerprint and binds the live graph snapshot; supplied stale fingerprints still fail closed with an opaque root-mismatch cause.
 ## 1.0.0 — 2026-09-05
 
 Promotes the bounded 10-tool MCP surface and transactional `spec_patch` authoring path to the stable major release.

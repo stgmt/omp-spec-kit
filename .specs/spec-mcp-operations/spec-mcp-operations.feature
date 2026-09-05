@@ -327,3 +327,12 @@ Scenario: Unified validation inspection evaluates corpus and specifications
   When spec_inspect is called with check "validation"
   Then the response returns unified validation verdict counts and filtered items
   And retired check branches specValidation and diagnostics are rejected with INVALID_REQUEST
+
+
+  @feature10 @FR-10 @AC-10.1 @id:SCEN-read-for-edit-and-optional-root-binding
+  Scenario: Read-for-edit supports safe optional root binding
+    Given a real specification document and readForEdit true
+    When spec_documents reads the document and spec_patch previews without a root fingerprint
+    Then content equals the fixture bytes and sha256 matches
+    And the preview can apply only while graph and document preimages remain current
+    And a stale explicit root fingerprint is refused with REPOSITORY_ROOT_FINGERPRINT_MISMATCH

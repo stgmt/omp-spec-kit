@@ -84,3 +84,8 @@ One registration path avoids an unreachable or divergent second entrypoint and m
 ## Expanded access coverage
 
 The existing path decision remains the single containment algorithm. The new gate applies it to read-capable and execution-capable OMP tool variants, not only direct mutation. MCP authority is identified before direct-path denial; any unproven target fails closed. The host hook remains the only enforcement component.
+
+
+## v1.1.0 direct-read decision
+
+Direct read-oriented tools read, grep, and glob map a contained specification target to SPEC_READ_REDIRECT with bounded MCP recovery text. Path mutation and execution-payload rules remain unchanged: mutators and code or command values containing a specification path use RAW_SPEC_WRITE. The redirect is a block, not a rewrite.

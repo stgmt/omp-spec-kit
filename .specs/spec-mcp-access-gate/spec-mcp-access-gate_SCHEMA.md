@@ -132,3 +132,10 @@ The authority field is host-generated from the actual registered MCP tool object
 ## OMP access-gate target classes
 
 The gate recognizes MCP-authorized operations, non-MCP targets proven outside canonical .specs, canonical .specs targets, and indeterminate targets. Indeterminate includes unsupported or unavailable target extraction and always blocks.
+
+
+## Decision code extension
+
+- `SPEC_READ_REDIRECT` is a blocked decision for direct `read`, `grep`, and `glob` calls whose explicit path target is inside `.specs`.
+- `RAW_SPEC_WRITE` remains the decision for mutators and recursive `code`/`command` references.
+- Recovery text is bounded to 512 UTF-8 bytes and contains no absolute path.

@@ -26,6 +26,7 @@ const READ_COMPLETE_CALLS = Object.freeze([
   ["spec_graph", { view: "trace", canonicalId: "product:FR-1" }],
   ["spec_documents", { action: "list", spec: "product" }],
   ["spec_documents", { action: "read", spec: "product", doc: "FR.md", offset: 1, limit: 20 }],
+  ["spec_documents", { action: "read", spec: "product", doc: "FR.md", readForEdit: true }],
   ["spec_documents", { action: "attachment", spec: "product", path: "FR.md" }],
   ["spec_inspect", { check: "orphans" }],
   ["spec_inspect", { check: "validation", limit: 20 }],

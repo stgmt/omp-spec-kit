@@ -10,7 +10,7 @@ Containment SHALL use the canonical project root and canonical `.specs` root, no
 
 ## NFR-REL-1: Deterministic closed results
 
-Equal normalized inputs and equal filesystem state SHALL produce byte-identical decisions. Public codes are limited to AUTHORING_TOOL_ALLOWED, MCP_OPERATION_ALLOWED, UNREGISTERED_AUTHORING_CALL, NON_SPEC_ALLOWED, RAW_SPEC_WRITE, and TARGET_INDETERMINATE; missing authority, exceptions, and unresolved metadata SHALL block.
+Equal normalized inputs and equal filesystem state SHALL produce byte-identical decisions. Public codes are limited to AUTHORING_TOOL_ALLOWED, MCP_OPERATION_ALLOWED, UNREGISTERED_AUTHORING_CALL, NON_SPEC_ALLOWED, RAW_SPEC_WRITE, SPEC_READ_REDIRECT, and TARGET_INDETERMINATE; missing authority, exceptions, and unresolved metadata SHALL block.
 
 ## NFR-USE-1: Actionable bounded reason
 
@@ -28,3 +28,8 @@ A block reason SHALL be at most 512 UTF-8 bytes, identify the repository-relativ
 ## NFR-USE-2: Cross-surface agent denial
 
 The gate SHALL cover every OMP tool-call variant exposed by the pinned runtime that can access filesystem content. Unknown target extraction, handler timeout, handler exception, and unsupported filesystem metadata SHALL block rather than authorize access.
+
+
+## NFR-READ-1: Redirect safety and bounded disclosure
+
+The `SPEC_READ_REDIRECT` reason SHALL be deterministic, no more than 512 UTF-8 bytes, free of absolute paths and secrets, and SHALL never rewrite or execute the original tool call.
