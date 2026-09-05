@@ -153,3 +153,22 @@ During GitHub Actions execution for tag `v1.0.1`:
   - `enforcement/resolve-targets.js`: `e776a4a2dc3fd237e75853b18ab4cca3ce5287bf1ce8451bbcaad16d05076ad2`
   - `extension.js`: `bc01c14fdfd89bb89e1e0cc7ac89bcee373fa491ac7de57b4faf31ed8a678b79`
 - All gates (`npm test`, `npm run verify`, `npm run release:preflight -- --tag v1.0.2`) pass cleanly with a 0 exit code and zero git status diff.
+
+## 7. Published Release Evidence & Attestation Verification
+
+- **Release URL**: [v1.0.2 on GitHub](https://github.com/stgmt/omp-spec-kit/releases/tag/v1.0.2)
+- **Tag**: `v1.0.2` (annotated tag at `bdd4d99de57bfd167127d55339794b8eae6babe1`)
+- **Release Commit**: `bdd4d99de57bfd167127d55339794b8eae6babe1`
+- **Publication Timestamp**: `2026-09-05T13:05:22Z`
+- **Candidate Digest**: `9993e9c1c58a4ed8c25da818353abeae9c524e506aecb4b9d839909da354ebe3`
+- **Package Tree Digest**: `ddf824e68d760d598ee40f5dc75d9b148bd2fd5637f6d58b574c52210375745d`
+- **Archive File**: `omp-spec-kit-1.0.2.tar` (448,000 bytes)
+  - SHA-256: `3483ea470e4a478b76ef9f48e9e2f63b1a43f03259140a8f1b4f7b645b778bca`
+- **GitHub Actions Workflows**:
+  - `release.yml` (run `33967778143`): Success
+  - `distribution-evidence.yml` (run `33967778135`): Success
+- **Cryptographic Attestations**:
+  - `omp-spec-kit-1.0.2.tar`: `gh attestation verify` exit code 0
+  - `candidate.json`: `gh attestation verify` exit code 0
+  - `evidence.json`: `gh attestation verify` exit code 0
+- **Archive Smoke Test**: `node scripts/smoke-release-archive.mjs --archive omp-spec-kit-1.0.2.tar` exit code 0 (10 tools verified).
