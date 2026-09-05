@@ -1,0 +1,12 @@
+{
+  "schema": "omp-spec-kit-public-release-status@1",
+  "status": {
+    "installable": false,
+    "public": false,
+    "state": "CANDIDATE",
+    "surface": "SAFE_AUTHORING",
+    "toolCount": 10
+  },
+  "tag": "v1.0.2",
+  "version": "1.0.2"
+}

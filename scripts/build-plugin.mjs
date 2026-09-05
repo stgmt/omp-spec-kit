@@ -3,7 +3,7 @@ import { copyFile, lstat, mkdir, readFile, readdir, rm, writeFile } from "node:f
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const PLUGIN_VERSION = "1.0.1";
+const PLUGIN_VERSION = "1.0.2";
 const MANIFEST_SCHEMA = "omp-spec-kit-dist-manifest@1";
 // Flat extension sources copied to the dist root.
 const SOURCE_FILES = Object.freeze(["extension.js"]);

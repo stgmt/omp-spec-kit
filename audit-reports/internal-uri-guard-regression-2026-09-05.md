@@ -135,3 +135,21 @@ Read selector verification: `skill://plain-russian-progress:1-2`, `local://missi
 10. `C:file.txt` (unsafe Windows relative drive path)
 11. `\\server\share` (Windows UNC path)
 12. `foo:bar` (Windows NTFS Alternate Data Stream)
+
+---
+
+## 6. Release Verification & Patch Transition (v1.0.1 -> v1.0.2)
+
+### v1.0.1 Runner Line-Ending Finding
+During GitHub Actions execution for tag `v1.0.1`:
+- Workflow run `33967464599` (release) and `33967464590` (distribution-evidence) failed in `scripts/create-release-candidate.mjs:assertTaggedPackageCheckout` with:
+  `Error: release-candidate: cannot verify tagged package checkout: release-candidate: tagged package payload is dirty: M plugins/omp-spec-kit/dist/manifest.json`
+- **Root Cause**: On Windows, newly authored files (`src/enforcement/resolve-targets.js`, `src/v0.1/extension.js`) were written with CRLF line endings. While Git index converted them to LF per `.gitattributes` (`* text=auto eol=lf`), the pre-commit build on Windows hashed the CRLF file bytes into `plugins/omp-spec-kit/dist/manifest.json`. When the Ubuntu runner executed `npm run build`, it computed hashes over checked-out LF files, creating a two-file hash divergence (`resolve-targets.js` and `extension.js`) in `manifest.json`.
+
+### Resolution in v1.0.2
+- In accordance with the repository release operator policy ("If an already pushed tag fails workflow, do not move or reuse it; fix main and release the next patch"), tag `v1.0.1` is retained as immutable history and version `1.0.2` is issued.
+- All source files, build scripts, and manifests were normalized to strict LF.
+- Re-running `npm run build` produced the canonical LF hashes in `plugins/omp-spec-kit/dist/manifest.json`:
+  - `enforcement/resolve-targets.js`: `e776a4a2dc3fd237e75853b18ab4cca3ce5287bf1ce8451bbcaad16d05076ad2`
+  - `extension.js`: `bc01c14fdfd89bb89e1e0cc7ac89bcee373fa491ac7de57b4faf31ed8a678b79`
+- All gates (`npm test`, `npm run verify`, `npm run release:preflight -- --tag v1.0.2`) pass cleanly with a 0 exit code and zero git status diff.
