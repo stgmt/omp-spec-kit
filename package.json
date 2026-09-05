@@ -20,7 +20,7 @@
     "test:tool-e2e": "npx cucumber-js tests/features/staged-mcp.feature --import tests/step-definitions/staged-mcp.steps.mjs --tags @tool-e2e --format progress --force-exit",
     "test:staged": "npx cucumber-js tests/features/staged-mcp.feature --import tests/step-definitions/staged-mcp.steps.mjs --format progress --force-exit",
     "test:release-archive": "node scripts/smoke-release-archive.mjs",
-    "test:release-integrity": "npx cucumber-js tests/features/release-evidence.feature --tags @mcp-release-integrity --format progress",
+    "test:release-integrity": "npx cucumber-js tests/features/release-evidence.feature --import tests/step-definitions/mcp-release-integrity.steps.mjs --tags @mcp-release-integrity --format progress --force-exit",
     "release:preflight": "node scripts/release-preflight.mjs",
     "docs:mcp": "node scripts/generate-mcp-docs.mjs",
     "check:blast": "node scripts/measure-mcp-tool-blast.mjs",
