@@ -6,6 +6,7 @@ This roadmap is organized around what a user can do. A release is shipped only a
 
 All roadmap items are formally grounded in the multi-layered analysis report:
 - [`audit-reports/agent-ux-and-spec-quality-audit-2026-09-05.md`](audit-reports/agent-ux-and-spec-quality-audit-2026-09-05.md) — Comprehensive Agent UX, Specification Quality, and Architectural Evaluation.
+- [`audit-reports/youtrack-visualization-research-2026-09-07.md`](audit-reports/youtrack-visualization-research-2026-09-07.md) — YouTrack Server in-UI spec-graph viewer: extension points, REST sync, mapping, PoC skeleton. Decision: YouTrack App over Plane.so (no in-client plugin UI).
 
 ---
 
@@ -40,7 +41,7 @@ Unblocked all 16 recognized OMP internal URI schemes (`agent`, `artifact`, `conf
 
 ---
 
-## Planned Releases (v1.1.0 – v1.4.0)
+## Planned Releases (v1.1.0 – v1.5.0)
 
 ### v1.1.0 — Agent UX Quick Wins & Error Hygiene
 
@@ -98,8 +99,22 @@ Key changes:
 
 Proof: multi-tier corpus test fixtures, backward compatibility test verifying existing 15-file specifications remain valid, and automated drift detection verification on sample repositories.
 
+### v1.5.0 — YouTrack visualization and task/requirement traceability
+
+Outcome: specs stop living only in the creator's head. Any newcomer sees TASKS plus FR/AC as YouTrack issues with links, kanban, and click-through TASK to FR to AC. Onboarding without re-reading hundreds of md files or re-asking agents from scratch. Visual execution tracking speeds newcomer ramp-up by an order of magnitude.
+
+Grounding: [`audit-reports/youtrack-visualization-research-2026-09-07.md`](audit-reports/youtrack-visualization-research-2026-09-07.md).
+
+Key changes:
+- **YouTrack App (no fork)**: widgets `spec-panel` (`ISSUE_BELOW_SUMMARY`) plus `spec-board` (`DASHBOARD_WIDGET`) via `create-youtrack-app`; deploy `npm run build` plus upload with host and permanent token.
+- **Sync CLI**: `spec_catalog` to `spec_entities` to `spec_graph` to YouTrack REST upsert by `SpecId` (`<slug>:<nodeId>`); link types `satisfies/verifies/implements`; fingerprint-skip when the graph is unchanged.
+- **Direction**: spec text Git to YouTrack one-way; TASK states optionally back via `onChange` workflow to `spec_patch`.
+- **PoC slice first**: 28 TASK plus 10 FR plus edges of `spec-mcp-operations`, then the full 288 nodes.
+
+Proof: App installed on staging YouTrack Server, PoC slice visible (panel graph plus board), idempotent re-sync with zero duplicates, fingerprint-skip verified.
+
 ---
 
 ## Boundaries
 
-The v0.3.2 read-only compatibility baseline remains available for explicit historical selection. The current v1.1.0 release exposes the consolidated 10-tool MCP surface. LSP is an editor and internal transport, not a replacement for the agent-facing MCP API. The roadmap does not include external dashboards, telemetry databases, or secondary graph storage engines.
+The v0.3.2 read-only compatibility baseline remains available for explicit historical selection. The current v1.1.0 release exposes the consolidated 10-tool MCP surface. LSP is an editor and internal transport, not a replacement for the agent-facing MCP API. YouTrack is a read projection for visualization and task execution — never a second source of truth and no secondary graph storage; the `.specs` kernel stays authoritative. The prior blanket exclusion of external dashboards is superseded for this scoped integration only; telemetry databases remain out of scope.
