@@ -36,7 +36,7 @@ These criteria define future verification obligations. Scenario text alone is no
 
 ## AC-5.1: Blocks are bounded visible and stateless
 
-**EARS:** WHEN a call blocks THEN the reason SHALL be deterministic and at most 512 UTF-8 bytes, SHALL use only a repository-relative target when known, SHALL name the decision code, and SHALL redirect to `spec_patch`; AND repeated calls SHALL create no file log counter cache network subprocess credential access or alternate tool; For `TARGET_INDETERMINATE`, the reason SHALL include: `Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply.`.
+**EARS:** WHEN a call blocks THEN the reason SHALL be deterministic and at most 512 UTF-8 bytes, SHALL use only a repository-relative target when known, SHALL name the decision code, and SHALL redirect to `spec_patch`; WHEN a call carries several targets THEN the reason SHALL name the target that produced the decision and SHALL NOT name a target that resolved successfully; WHEN the decision is `TARGET_INDETERMINATE` THEN the reason SHALL name the rejected target verbatim if it is repository-relative and SHALL name no target otherwise; AND repeated calls SHALL create no file log counter cache network subprocess credential access or alternate tool; For `TARGET_INDETERMINATE`, the reason SHALL include: `Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply.`.
 
 **Requirement:** [FR-5](FR.md#fr-5-bounded-visible-and-stateless-results)
 
@@ -62,7 +62,7 @@ These criteria define future verification obligations. Scenario text alone is no
 
 ## AC-8.1: Windows read selectors
 
-**EARS:** WHEN a `read` call on win32 carries `:1`, `:1-2`, `:1+2`, `:1-`, `:1..2`, comma lists, `L`-prefixes, `:raw`, `:conflicts`, or `raw:<range>` / `<range>:raw` combos THEN the gate SHALL strip the selector before path policy and preserve the safe-path decision; WHEN the tool is not `read`, or the selector is `:0` or malformed, THEN no stripping SHALL occur.
+**EARS:** WHEN a `read`, `grep`, or `glob` call on win32 carries `:1`, `:1-2`, `:1+2`, `:1-`, `:1..2`, comma lists, `L`-prefixes, `:raw`, `:conflicts`, or `raw:<range>` / `<range>:raw` combos THEN the gate SHALL strip the selector before path policy and preserve the safe-path decision; WHEN the tool is a mutator, or the selector is `:0` or malformed, THEN no stripping SHALL occur.
 
 **Requirement:** [FR-8](FR.md#fr-8-windows-read-selector-support)
 

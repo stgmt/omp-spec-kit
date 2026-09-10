@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- FR-8/AC-8.1: widened win32 read-selector stripping from `read` alone to every read-only path tool (`read`, `grep`, `glob`). The original wording made `grep`/`glob` block a selector path that `read` accepted; mutators still receive no stripping, so alternate-data-stream rejection is unchanged.
+- FR-5/AC-5.1: a block SHALL name the target that produced the decision and never one that resolved. `TARGET_INDETERMINATE` now names the rejected target verbatim when it is repository-relative, because no normalized target exists for it.
 - Replaced the rejected multi-layer enforcement design with one current `tool_call` path policy.
 - Reduced the public authoring exception to exactly `propose_patch` and `apply_proposed_patch`.
 - Defined the closed decision: canonical `.specs` root/descendant blocks, proven outside allows, and indeterminate containment blocks.
