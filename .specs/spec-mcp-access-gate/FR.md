@@ -36,7 +36,7 @@ For a non-allowlisted direct mutator, an empty or indeterminate target SHALL BLO
 
 ## FR-5: Bounded visible and stateless results
 
-A blocked call SHALL return one deterministic reason no larger than 512 UTF-8 bytes. When known, it SHALL name only the normalized repository-relative target and SHALL direct the caller to `spec_patch`. For `TARGET_INDETERMINATE`, the bounded reason SHALL include: `Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply.` It SHALL omit absolute paths, environment values, credentials, stack traces, and raw operating-system errors. The capability SHALL create no files, logs, counters, caches, network calls, subprocesses, credential reads, or alternate tools.
+A blocked call SHALL return one deterministic reason no larger than 512 UTF-8 bytes. When known, it SHALL name only the normalized repository-relative target and SHALL direct the caller to `spec_patch`. The named target SHALL be the target that produced the decision; a blocked call SHALL NOT name a target that resolved successfully. `TARGET_INDETERMINATE` has no normalized target by definition, so its reason SHALL name the rejected target verbatim when that target is repository-relative and SHALL name no target otherwise. For `TARGET_INDETERMINATE`, the bounded reason SHALL include: `Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply.` It SHALL omit absolute paths, environment values, credentials, stack traces, and raw operating-system errors. The capability SHALL create no files, logs, counters, caches, network calls, subprocesses, credential reads, or alternate tools.
 
 **Acceptance:** [AC-5.1](ACCEPTANCE_CRITERIA.md#ac-51-blocks-are-bounded-visible-and-stateless)
 
@@ -59,7 +59,7 @@ The OMP gate SHALL inspect every supported tool-call variant that can read, enum
 
 ## FR-8: Windows read-selector support
 
-The gate SHALL recognize OMP read selectors on win32 before path policy: `:1`, `:1-2`, `:1+2` (open end allowed as `:1-`), `:1..2`, comma lists, `L`-prefixed numbers, `:raw`, `:conflicts`, and `raw:<range>` / `<range>:raw` combos. The selector SHALL be stripped only for `toolName === "read"`; `write` and other mutators SHALL NOT receive selector stripping. `:0` and malformed selectors SHALL NOT strip and fall through to normal containment.
+The gate SHALL recognize OMP read selectors on win32 before path policy: `:1`, `:1-2`, `:1+2` (open end allowed as `:1-`), `:1..2`, comma lists, `L`-prefixed numbers, `:raw`, `:conflicts`, and `raw:<range>` / `<range>:raw` combos. The selector SHALL be stripped for every read-only path tool — `read`, `grep`, and `glob`; `write` and other mutators SHALL NOT receive selector stripping, so a trailing colon segment on a mutation target stays an alternate-data-stream candidate. `:0` and malformed selectors SHALL NOT strip and fall through to normal containment.
 
 **Acceptance:** [AC-8.1](ACCEPTANCE_CRITERIA.md#ac-81-windows-read-selectors)
 

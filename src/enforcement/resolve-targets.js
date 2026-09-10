@@ -101,22 +101,24 @@ function resolveSpecsRoot(projectRoot) {
 
 /** Resolve one raw tool target against the physical project and specification roots. */
 export function resolveTarget(root, raw) {
-  if (isOmpInternalTarget(raw)) return { resolution: "NON_SPEC", relativePath: null };
-  if (unsafeTarget(raw)) return { resolution: "INDETERMINATE", relativePath: null };
+  const rawTarget = typeof raw === "string" ? raw : null;
+  if (isOmpInternalTarget(raw)) return { resolution: "NON_SPEC", relativePath: null, rawTarget };
+  if (unsafeTarget(raw)) return { resolution: "INDETERMINATE", relativePath: null, rawTarget };
   try {
     const projectRoot = realpathSync.native(path.resolve(root));
     const specsRoot = resolveSpecsRoot(projectRoot);
     const absolute = path.isAbsolute(raw) ? path.normalize(raw) : path.resolve(projectRoot, raw);
     const ancestor = existingAncestor(absolute);
-    if (!ancestor) return { resolution: "INDETERMINATE", relativePath: null };
+    if (!ancestor) return { resolution: "INDETERMINATE", relativePath: null, rawTarget };
     const resolved = resolvedExistingPath(absolute, ancestor);
     const relativePath = inside(resolved, projectRoot) ? relativeTarget(projectRoot, resolved) : null;
     return {
       resolution: inside(resolved, specsRoot) ? "SPEC" : "NON_SPEC",
       relativePath,
+      rawTarget,
     };
   } catch {
-    return { resolution: "INDETERMINATE", relativePath: null };
+    return { resolution: "INDETERMINATE", relativePath: null, rawTarget };
   }
 }
 

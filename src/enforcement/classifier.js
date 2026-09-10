@@ -54,7 +54,7 @@ function stripReadSelector(raw) {
 }
 
 function readTargets(toolName, targets) {
-  return toolName === "read" ? targets.map(stripReadSelector) : targets;
+  return DIRECT_PATH_READ_TOOLS.has(toolName) ? targets.map(stripReadSelector) : targets;
 }
 
 function hasEmbeddedSpecReference(value, key = "") {
@@ -151,7 +151,7 @@ function specReadRecovery(relativePath) {
 }
 
 function boundedReason(code, relativePath = null) {
-  const target = typeof relativePath === "string" && relativePath !== "" && !/^[a-z]:[\\/]/iu.test(relativePath) && !relativePath.startsWith("/")
+  const target = typeof relativePath === "string" && relativePath !== "" && !/^[a-z]:[\\/]/iu.test(relativePath) && !relativePath.startsWith("/") && !relativePath.startsWith("\\")
     ? " target=" + relativePath
     : "";
   const recovery = code === "TARGET_INDETERMINATE" ? " " + TARGET_RECOVERY : code === "SPEC_READ_REDIRECT" ? specReadRecovery(relativePath) : " use spec_patch with dryRun: true for preview or dryRun: false to apply";
@@ -162,15 +162,30 @@ function boundedReason(code, relativePath = null) {
   return code + ":" + boundedTarget + recovery;
 }
 
+const CODE_RESOLUTION = Object.freeze({
+  TARGET_INDETERMINATE: "INDETERMINATE",
+  RAW_SPEC_WRITE: "SPEC",
+  SPEC_READ_REDIRECT: "SPEC",
+});
+
+function offendingTarget(code, resolutions) {
+  const wanted = CODE_RESOLUTION[code];
+  const offender = wanted ? resolutions.find((item) => item.resolution === wanted) : null;
+  if (offender) {
+    if (typeof offender.relativePath === "string") return offender.relativePath;
+    return typeof offender.rawTarget === "string" && offender.rawTarget !== "" ? offender.rawTarget : null;
+  }
+  return resolutions.find((item) => typeof item.relativePath === "string")?.relativePath ?? null;
+}
+
 function blocked(toolName, code, resolutions = [], mismatchField = null) {
-  const relativePath = resolutions.find((item) => typeof item.relativePath === "string")?.relativePath ?? null;
   return {
     action: "block",
     code,
     toolName,
     touchesSpecs: code !== "TARGET_INDETERMINATE" || resolutions.length > 0,
     mismatchField: mismatchField ?? (code === "UNREGISTERED_AUTHORING_CALL" ? "authority" : null),
-    reason: boundedReason(code, relativePath),
+    reason: boundedReason(code, offendingTarget(code, resolutions)),
   };
 }
 
@@ -213,4 +228,4 @@ export function classifyToolCall(event, options = {}) {
   return blocked(toolName, policy.code, policy.resolutions);
 }
 
-export { ALL_SHORT_NAMES, MUTATING_SHORT_NAMES, DIRECT_PATH_MUTATION_TOOLS };
+export { ALL_SHORT_NAMES, MUTATING_SHORT_NAMES, DIRECT_PATH_MUTATION_TOOLS, DIRECT_PATH_READ_TOOLS };

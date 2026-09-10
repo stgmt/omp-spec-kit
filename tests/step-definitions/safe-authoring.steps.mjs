@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Given, When, Then, After } from "@cucumber/cucumber";
-import { classifyToolCall } from "../../src/enforcement/classifier.js";
+import { classifyToolCall, DIRECT_PATH_READ_TOOLS } from "../../src/enforcement/classifier.js";
 import { commitDocuments, withWriteLock } from "../../src/authoring/transactions.js";
 import { createTempRepo, loadAuthoringRealCorpus, plantDirectoryJunction, removeTempRepo, sha256Hex, writeCorpus } from "../helpers/kernel-world.mjs";
 import { runExtensionProbe, spawnMcpServer } from "../helpers/mcp-world.mjs";
@@ -402,32 +402,47 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     const externalPath = path.join(REPOSITORY_ROOT, "src", "enforcement", "classifier.js");
     const specPath = path.join(this.root, ".specs", "plugin-distribution", "README.md");
     const selectors = [":1", ":5", ":1-2", ":10-10", ":1+2", ":1-", ":1..2", ":L1", ":L1-L5", ":1-2,5", ":raw", ":conflicts", ":raw:1-2", ":1-2:raw", ":raw:L1-2", ":L1-2:raw"];
-    for (const basePath of [outsidePath, externalPath]) {
-      for (const suffix of selectors) {
-        const safe = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: basePath + suffix } }, { root: this.root });
-        assert.equal(safe.action, "continue", basePath + suffix + ": " + JSON.stringify(safe));
-        assert.equal(safe.touchesSpecs, false, basePath + suffix + ": " + JSON.stringify(safe));
+    // Every read-only path tool shares one selector grammar; none of them may diverge.
+    const readTools = [...DIRECT_PATH_READ_TOOLS];
+    for (const toolName of readTools) {
+      const label = toolName + " ";
+      for (const basePath of [outsidePath, externalPath]) {
+        for (const suffix of selectors) {
+          const safe = classifyToolCall({ toolName, cwd: this.root, input: { path: basePath + suffix } }, { root: this.root });
+          assert.equal(safe.action, "continue", label + basePath + suffix + ": " + JSON.stringify(safe));
+          assert.equal(safe.touchesSpecs, false, label + basePath + suffix + ": " + JSON.stringify(safe));
+        }
       }
-    }
-    for (const suffix of selectors) {
-      const spec = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: specPath + suffix } }, { root: this.root });
-      assert.equal(spec.code, "SPEC_READ_REDIRECT", suffix + ": " + JSON.stringify(spec));
-      assert.equal(spec.action, "block", suffix + ": " + JSON.stringify(spec));
-      assert.match(spec.reason, /spec_documents\(action: "read"/u, suffix + ": " + JSON.stringify(spec));
-      assert.equal(spec.reason.includes(path.resolve(this.root)), false, suffix + ": absolute path leaked");
-    }
-    for (const internalTarget of ["skill://plain-russian-progress:1-2", "local://missing:raw"]) {
-      const safe = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: internalTarget } }, { root: this.root });
-      assert.equal(safe.action, "continue", internalTarget + ": " + JSON.stringify(safe));
-      assert.equal(safe.touchesSpecs, false, internalTarget + ": " + JSON.stringify(safe));
+      for (const suffix of selectors) {
+        const spec = classifyToolCall({ toolName, cwd: this.root, input: { path: specPath + suffix } }, { root: this.root });
+        assert.equal(spec.code, "SPEC_READ_REDIRECT", label + suffix + ": " + JSON.stringify(spec));
+        assert.equal(spec.action, "block", label + suffix + ": " + JSON.stringify(spec));
+        assert.match(spec.reason, /spec_documents\(action: "read"/u, label + suffix + ": " + JSON.stringify(spec));
+        assert.equal(spec.reason.includes(path.resolve(this.root)), false, label + suffix + ": absolute path leaked");
+      }
+      for (const internalTarget of ["skill://plain-russian-progress:1-2", "local://missing:raw"]) {
+        const safe = classifyToolCall({ toolName, cwd: this.root, input: { path: internalTarget } }, { root: this.root });
+        assert.equal(safe.action, "continue", label + internalTarget + ": " + JSON.stringify(safe));
+        assert.equal(safe.touchesSpecs, false, label + internalTarget + ": " + JSON.stringify(safe));
+      }
+      // A block must name the target that was rejected, never one that resolved.
+      const mixed = classifyToolCall({ toolName, cwd: this.root, input: { paths: ["src", "http://example.com/x"] } }, { root: this.root });
+      assert.equal(mixed.code, "TARGET_INDETERMINATE", label + JSON.stringify(mixed));
+      assert.match(mixed.reason, /target=http:\/\/example\.com\/x/u, label + JSON.stringify(mixed));
+      assert.equal(mixed.reason.includes("target=src "), false, label + "named a target that resolved: " + JSON.stringify(mixed));
     }
     const directWrite = classifyToolCall({ toolName: "write", cwd: this.root, input: { path: outsidePath + ":1-2" } }, { root: this.root });
     if (process.platform === "win32") {
       assert.equal(directWrite.code, "TARGET_INDETERMINATE", JSON.stringify(directWrite));
-      const alternateDataStream = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: outsidePath + ":secret" } }, { root: this.root });
-      assert.equal(alternateDataStream.code, "TARGET_INDETERMINATE", JSON.stringify(alternateDataStream));
-      const invalidSelector = classifyToolCall({ toolName: "read", cwd: this.root, input: { path: outsidePath + ":0" } }, { root: this.root });
-      assert.equal(invalidSelector.code, "TARGET_INDETERMINATE", JSON.stringify(invalidSelector));
+      for (const toolName of readTools) {
+        const alternateDataStream = classifyToolCall({ toolName, cwd: this.root, input: { path: outsidePath + ":secret" } }, { root: this.root });
+        assert.equal(alternateDataStream.code, "TARGET_INDETERMINATE", toolName + ": " + JSON.stringify(alternateDataStream));
+        const invalidSelector = classifyToolCall({ toolName, cwd: this.root, input: { path: outsidePath + ":0" } }, { root: this.root });
+        assert.equal(invalidSelector.code, "TARGET_INDETERMINATE", toolName + ": " + JSON.stringify(invalidSelector));
+      }
+      const mixedWrite = classifyToolCall({ toolName: "write", cwd: this.root, input: { paths: ["src", "src/foo.js:1-5"] } }, { root: this.root });
+      assert.equal(mixedWrite.code, "TARGET_INDETERMINATE", JSON.stringify(mixedWrite));
+      assert.match(mixedWrite.reason, /target=src\/foo\.js:1-5/u, JSON.stringify(mixedWrite));
     }
     this.result = true;
     return;
