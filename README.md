@@ -20,11 +20,11 @@ Update an existing project install with:
 omp plugin upgrade omp-spec-kit@omp-spec-kit --scope project
 ```
 
-This v1.1.0 release provides the single `spec_patch` authoring tool and consolidated 10-tool MCP surface for OMP 18.0.11 and 18.1.6.
+This v1.2.0 release adds one-time elicitation protection for first specification creation, consistent Windows read-selector enforcement, and real server-side safe-authoring proof for the consolidated 10-tool MCP surface.
 
 ## Available today
 
-The v1.1.0 release exposes exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool.
+The v1.2.0 release exposes exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool.
 
 | Need | Tool | Variant |
 |---|---|---|
@@ -66,7 +66,7 @@ When the answer is in the graph, the agent should use these MCP tools instead of
 - **v1.0.0 — shipped:** stable 10-tool MCP surface with bounded reads, transactional authoring, release evidence, and commit-bound attestations.
 - **v1.0.2 — shipped:** OMP internal URI guard containment regression fix and deterministic LF release distribution.
 
-The v1.1.0 release is shipped and publicly attested. See docs/validation/release-status-v1.1.0.json for the complete release proof.
+- **v1.1.0 — shipped:** direct specification reads, exact document receipts, and root-fingerprint binding.\n- **v1.2.0 — shipped:** one-time first-write elicitation protection, read-selector symmetry, and real MCP release proof.\n\nThe v1.2.0 release is shipped and publicly attested. See docs/validation/release-status-v1.2.0.json for the complete release proof.
 
 ## Safety and boundaries
 
@@ -80,6 +80,6 @@ Direct untrusted writes to `.specs` are not an alternative API. Use `spec_patch`
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution workflow
 - [`CHANGELOG.md`](CHANGELOG.md) — release history
 - [`ROADMAP.md`](ROADMAP.md) — user-visible delivery sequence
-- `docs/validation/release-status-v1.1.0.json` — current release status and verification record
+- `docs/validation/release-status-v1.2.0.json` — current release status and verification record
 
 License: MIT.

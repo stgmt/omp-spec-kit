@@ -2,11 +2,76 @@
   "schema": "omp-spec-kit-public-release-status@1",
   "version": "1.2.0",
   "tag": "v1.2.0",
+  "releaseUrl": "https://github.com/stgmt/omp-spec-kit/releases/tag/v1.2.0",
+  "publishedAt": "2026-09-12T22:38:11Z",
+  "tagCommit": "70cc7d3737e222bc5d95d62573d2fc5056e812f9",
+  "candidateDigest": "d4f70c84e726c077bc13c4994c953fd10dfe2f6f234bf01a066183a9752e32c4",
+  "packageTreeDigest": "07eb554d918e3d9f740a258977991661d3c11a048b072e879b806348fa4e4fb5",
+  "archive": {
+    "name": "omp-spec-kit-1.2.0.tar",
+    "bytes": 455680,
+    "sha256": "9b7ec119a1ab17ba17d4e2ad4881bd0a6e370690541017d86868c9a5bb8df7e7"
+  },
+  "releaseAssets": [
+    {
+      "name": "candidate.json",
+      "bytes": 8766,
+      "sha256": "bedffc35189ed1d11a16bfdf7d023535799bef9893fb1fb83b7a2bbc9e8f4228"
+    },
+    {
+      "name": "evidence.json",
+      "bytes": 3304,
+      "sha256": "4652f7b1ed8dc40bececcbc4685a8e106d4482fc8e11e0ae81f7614d6943bbd9"
+    },
+    {
+      "name": "omp-spec-kit-1.2.0.tar",
+      "bytes": 455680,
+      "sha256": "9b7ec119a1ab17ba17d4e2ad4881bd0a6e370690541017d86868c9a5bb8df7e7"
+    }
+  ],
+  "attestation": {
+    "verified": true,
+    "workflow": "https://github.com/stgmt/omp-spec-kit/.github/workflows/release.yml@refs/tags/v1.2.0",
+    "workflowCommit": "70cc7d3737e222bc5d95d62573d2fc5056e812f9",
+    "run": "https://github.com/stgmt/omp-spec-kit/actions/runs/34723170155/attempts/1",
+    "transparencyLog": "https://rekor.sigstore.dev"
+  },
+  "distributionAttestation": {
+    "verified": true,
+    "subject": "distribution-evidence.json",
+    "subjectSha256": "b0f39b10b5c0948577705516b96f0f4b7c25626a89d671b9f68a6befcea72706",
+    "repository": "stgmt/omp-spec-kit",
+    "signerWorkflow": "https://github.com/stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml@refs/tags/v1.2.0",
+    "sourceRef": "refs/tags/v1.2.0",
+    "workflowCommit": "70cc7d3737e222bc5d95d62573d2fc5056e812f9",
+    "run": "https://github.com/stgmt/omp-spec-kit/actions/runs/34723170161/attempts/1",
+    "transparencyLog": "https://rekor.sigstore.dev"
+  },
+  "evidence": {
+    "schema": "omp-spec-kit-release-evidence@3",
+    "catalogDigest": "ac4a0d189d4bc0864526a783f26cea6e695e7d3dffaa1fe1c6ebe187c7b7b472",
+    "mriDiscoveryDigest": "2746f26a1d3fc20e93071b288d3ec963cce30d985e177476253a58e00604cee2",
+    "distributionReceiptDigest": "b0f39b10b5c0948577705516b96f0f4b7c25626a89d671b9f68a6befcea72706"
+  },
   "status": {
-    "public": false,
-    "installable": false,
-    "state": "CANDIDATE",
+    "public": true,
+    "installable": true,
+    "state": "SHIPPED",
     "surface": "SAFE_AUTHORING",
     "toolCount": 10
+  },
+  "provenance": {
+    "releaseMetadataCommand": "gh release view v1.2.0 --repo stgmt/omp-spec-kit",
+    "attestationCommand": "gh attestation verify candidate.json --repo stgmt/omp-spec-kit --format json",
+    "distributionRunCommand": "gh run download 34723170161 --repo stgmt/omp-spec-kit --name omp-spec-kit-distribution-evidence-v1.2.0",
+    "distributionAttestationCommand": "gh attestation verify distribution-evidence.json --repo stgmt/omp-spec-kit --source-ref refs/tags/v1.2.0 --format json",
+    "capturedOn": "2026-09-13"
+  },
+  "releaseNotes": {
+    "source": "https://github.com/stgmt/omp-spec-kit/releases/tag/v1.2.0",
+    "captureCommand": "gh api repos/stgmt/omp-spec-kit/releases/tags/v1.2.0 | jq -j .body",
+    "capturedOn": "2026-09-13",
+    "bodySha256": "d48a0deb97f8a6d78a4774e945eb0b316a52a77b4159a0ce018519dab3cc0423",
+    "body": "# omp-spec-kit v1.2.0\n\n## Included changes\n\n- Adds a one-time `ELICITATION_REQUIRED` stop before the first creation of any missing canonical Markdown specification file; the response identifies the elicitation skill, and the exact request can be retried without filesystem or graph mutation.\n- Applies Windows read-selector stripping consistently across every read-only access-gate path and names the rejected target in the fail-closed result.\n- Adds real running-MCP BDD coverage for restart, retry, write-lock contention, feature-file exemption, noncanonical paths, refusal replay, and no-side-effect guarantees.\n- Makes release archive smoke portable on Windows drive paths and registers the v1.2.0 manager tool-count contract in release verification.\n\n## Verified release\n\n- Candidate digest: `d4f70c84e726c077bc13c4994c953fd10dfe2f6f234bf01a066183a9752e32c4`\n- Package tree digest: `07eb554d918e3d9f740a258977991661d3c11a048b072e879b806348fa4e4fb5`\n- Archive SHA-256: `9b7ec119a1ab17ba17d4e2ad4881bd0a6e370690541017d86868c9a5bb8df7e7`\n- Archive: `omp-spec-kit-1.2.0.tar` (455680 bytes)\n- Release workflow: `34723170155`\n- Distribution evidence workflow: `34723170161`\n- Candidate, evidence, and distribution-evidence attestations verified against `stgmt/omp-spec-kit` and `refs/tags/v1.2.0`.\n"
   }
 }
