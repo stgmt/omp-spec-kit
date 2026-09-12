@@ -272,13 +272,21 @@ Then("the evidence result is unknown and stale", function () {
 });
 
 When("a new specification is created and archived through the spec patch door", { timeout: 30000 }, async function () {
-  const created = await this.stagedMcp.server.request("tools/call", {
+  const firstAttempt = await this.stagedMcp.server.request("tools/call", {
     name: "spec_patch",
     arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-archive-create", intent: "createSpec", spec: "archive-bdd", reason: "create archive fixture", title: "Archive BDD", dryRun: false },
   });
+  const firstResult = firstAttempt.result.structuredContent;
+  assert.equal(firstResult.ok, true, JSON.stringify(firstResult));
+  assert.equal(firstResult.data.outcome, "REFUSED", JSON.stringify(firstResult));
+  assert.equal(firstResult.data.error?.code, "ELICITATION_REQUIRED", JSON.stringify(firstResult));
+
+  const created = await this.stagedMcp.server.request("tools/call", {
+    name: "spec_patch",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-archive-create-retry", intent: "createSpec", spec: "archive-bdd", reason: "create archive fixture", title: "Archive BDD", dryRun: false },
+  });
   const createdApplied = created.result.structuredContent;
   assert.equal(createdApplied.data.outcome, "APPLIED", JSON.stringify(createdApplied));
-
   const archive = await this.stagedMcp.server.request("tools/call", {
     name: "spec_patch",
     arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-archive-apply", intent: "archiveSpec", spec: "archive-bdd", reason: "archive exact fixture", dryRun: false },

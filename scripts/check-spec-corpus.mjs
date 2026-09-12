@@ -16,6 +16,7 @@ import { readRepositorySpecs } from "../src/kernel/adapters/fs.js";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SPECS_ROOT = path.join(ROOT, ".specs");
 const EXPECTED_SPECS = Object.freeze([
+  "agent-ux-elicitation-guard",
   "plugin-distribution",
   "spec-mcp-access-gate",
   "spec-mcp-operations",

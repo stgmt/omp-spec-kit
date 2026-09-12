@@ -8,6 +8,12 @@ import {
   sha256,
   withWriteLock,
 } from "./transactions.js";
+import {
+  ELICITATION_HINT,
+  ELICITATION_REQUIRED,
+  ELICITATION_SKILL_URI,
+  FirstWriteElicitationGuard,
+} from "./elicitation-guard.js";
 
 export const AUTHORING_OPERATIONS = Object.freeze(["specPatch"]);
 
@@ -21,6 +27,7 @@ const WRITE_ERROR_CODES = new Set([
   "CONCURRENT_READ",
   "ROLLBACK_FAILED",
   "INTERNAL_ERROR",
+  "ELICITATION_REQUIRED",
 ]);
 
 function isRetryable(code) {
@@ -77,6 +84,7 @@ export class SpecPatchService {
     this.refreshGraph = refreshGraph;
     this.options = options;
     this.compiler = new ProposalCompiler(root);
+    this.elicitationGuard = options.elicitationGuard ?? new FirstWriteElicitationGuard();
     this.applied = new Map();
     this.operations = AUTHORING_OPERATIONS;
   }
@@ -231,6 +239,31 @@ export class SpecPatchService {
           if (currentHash !== change.preview.beforeSha256) {
             return refusal("CONFLICT", "a targeted document changed after proposal creation", [], proposalHash);
           }
+        }
+
+        const guardCheck = this.elicitationGuard.checkAndRecord(proposal.spec, proposal.changes);
+        if (!guardCheck.ok) {
+          return {
+            ok: true,
+            data: {
+              schemaVersion: "spec-mcp-operations-patch@1",
+              requestId: typeof requestId === "string" ? requestId : "",
+              dryRun: false,
+              proposalHash,
+              outcome: "REFUSED",
+              error: {
+                code: ELICITATION_REQUIRED,
+                message: `${ELICITATION_HINT} (first creation of ${guardCheck.documents.join(", ")} was stopped; retry is allowed)`,
+                retryable: false,
+                requestId: typeof requestId === "string" ? requestId : "",
+                proposalHash,
+                skill: ELICITATION_SKILL_URI,
+                documents: guardCheck.documents,
+                changedPaths: [],
+                findings: [],
+              },
+            },
+          };
         }
 
         let changesToApply = proposal.changes;

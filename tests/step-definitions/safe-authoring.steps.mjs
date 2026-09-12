@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { access, cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -492,6 +492,173 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     assert.equal(receipt.manager.connectionResult.managedAuthoring.applyOutcome, "APPLIED");
     assert.equal(receipt.manager.connectionResult.managedAuthoring.finalDocumentContainsMarker, true);
     assert.equal(receipt.manager.connectionResult.managedAuthoring.finalGraphValid, true);
+    this.result = true;
+    return;
+  }
+  if (scenario === "elicitation-first-refusal") {
+    const res = await call(this, "spec_patch", {
+      intent: "createSpec",
+      spec: "new-feature-a",
+      title: "New Feature A",
+      reason: "first write test",
+      dryRun: false,
+    });
+    assert.equal(res.ok, true, JSON.stringify(res));
+    assert.equal(res.data?.outcome, "REFUSED", JSON.stringify(res));
+    assert.equal(res.data?.error?.code, "ELICITATION_REQUIRED", JSON.stringify(res));
+    assert.equal(res.data?.error?.retryable, false, JSON.stringify(res));
+    assert.equal(res.data?.error?.skill, "skill://spec-elicitation", JSON.stringify(res));
+    assert.ok(Array.isArray(res.data?.error?.documents) && res.data.error.documents.length > 0);
+    const sorted = [...res.data.error.documents].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
+    assert.deepEqual(res.data.error.documents, sorted);
+    assert.ok(res.data.error.documents.every((d) => d.endsWith(".md")));
+    let fileCount = 0;
+    try {
+      const files = await readdir(path.join(this.root, ".specs", "new-feature-a"));
+      fileCount = files.length;
+    } catch (e) {
+      if (e.code !== "ENOENT") throw e;
+    }
+    assert.equal(fileCount, 0, "no files written on refusal");
+    this.result = true;
+    return;
+  }
+  if (scenario === "elicitation-retry-and-later-edits") {
+    const first = await call(this, "spec_patch", {
+      intent: "createSpec",
+      spec: "retry-feature",
+      title: "Retry Feature",
+      reason: "retry test",
+      dryRun: false,
+    });
+    assert.equal(first.ok, true, JSON.stringify(first));
+    assert.equal(first.data?.outcome, "REFUSED", JSON.stringify(first));
+    assert.equal(first.data?.error?.code, "ELICITATION_REQUIRED", JSON.stringify(first));
+
+    const second = await call(this, "spec_patch", {
+      intent: "createSpec",
+      spec: "retry-feature",
+      title: "Retry Feature",
+      reason: "retry test",
+      dryRun: false,
+    });
+    assert.equal(second.ok, true, JSON.stringify(second));
+    assert.equal(second.data?.outcome, "APPLIED", JSON.stringify(second));
+    assert.ok(Array.isArray(second.data?.receipt?.changedDocuments));
+
+    const onDisk = await readdir(path.join(this.root, ".specs", "retry-feature"));
+    assert.ok(onDisk.includes("README.md"));
+    assert.ok(onDisk.includes("FR.md"));
+    assert.ok(onDisk.includes("retry-feature.feature"));
+    assert.ok(onDisk.includes("retry-feature_SCHEMA.md"));
+
+    const third = await call(this, "spec_patch", {
+      intent: "patch",
+      spec: "retry-feature",
+      reason: "later edit",
+      dryRun: false,
+      operations: [{ kind: "insert_at_eof", document: "README.md", text: "\n## Substantive edit\n" }],
+    });
+    assert.equal(third.ok, true, JSON.stringify(third));
+    assert.equal(third.data?.outcome, "APPLIED", JSON.stringify(third));
+    this.result = true;
+    return;
+  }
+  if (scenario === "elicitation-preview-and-existing") {
+    const preview = await call(this, "spec_patch", {
+      intent: "createSpec",
+      spec: "preview-feature",
+      title: "Preview Feature",
+      reason: "preview test",
+      dryRun: true,
+    });
+    assert.equal(preview.ok, true, JSON.stringify(preview));
+    assert.equal(preview.data?.outcome, "PREVIEW", JSON.stringify(preview));
+
+    let previewFiles = 0;
+    try {
+      const files = await readdir(path.join(this.root, ".specs", "preview-feature"));
+      previewFiles = files.length;
+    } catch (e) {
+      if (e.code !== "ENOENT") throw e;
+    }
+    assert.equal(previewFiles, 0, "no files created on preview");
+
+    const applyAfterPreview = await call(this, "spec_patch", {
+      intent: "createSpec",
+      spec: "preview-feature",
+      title: "Preview Feature",
+      reason: "apply after preview test",
+      dryRun: false,
+    });
+    assert.equal(applyAfterPreview.ok, true, JSON.stringify(applyAfterPreview));
+    assert.equal(applyAfterPreview.data?.outcome, "REFUSED", JSON.stringify(applyAfterPreview));
+    assert.equal(applyAfterPreview.data?.error?.code, "ELICITATION_REQUIRED", JSON.stringify(applyAfterPreview));
+
+    const existingEdit = await call(this, "spec_patch", {
+      intent: "patch",
+      spec: "plugin-distribution",
+      reason: "edit existing doc",
+      dryRun: false,
+      operations: [{ kind: "insert_at_eof", document: "README.md", text: "\n## Another edit\n" }],
+    });
+    assert.equal(existingEdit.ok, true, JSON.stringify(existingEdit));
+    assert.equal(existingEdit.data?.outcome, "APPLIED", JSON.stringify(existingEdit));
+    this.result = true;
+    return;
+  }
+  if (scenario === "elicitation-preservation-and-multidoc") {
+    const computeSpecsDigest = async () => {
+      const hashes = [];
+      const walk = async (dir) => {
+        try {
+          const entries = await readdir(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory()) await walk(full);
+            else if (entry.isFile()) {
+              const content = await readFile(full);
+              hashes.push(`${full}:${sha256Hex(content)}`);
+            }
+          }
+        } catch (e) {
+          if (e.code !== "ENOENT") throw e;
+        }
+      };
+      await walk(path.join(this.root, ".specs"));
+      hashes.sort();
+      return hashes.join("\n");
+    };
+
+    const digestBefore = await computeSpecsDigest();
+
+    const multidoc = await call(this, "spec_patch", {
+      intent: "createSpec",
+      spec: "multidoc-feature",
+      title: "Multidoc Feature",
+      reason: "multidoc test",
+      dryRun: false,
+    });
+    assert.equal(multidoc.ok, true, JSON.stringify(multidoc));
+    assert.equal(multidoc.data?.outcome, "REFUSED", JSON.stringify(multidoc));
+    assert.equal(multidoc.data?.error?.code, "ELICITATION_REQUIRED", JSON.stringify(multidoc));
+    assert.equal(multidoc.data?.error?.documents?.length, 14, "refusal covers all 14 markdown targets");
+    assert.ok(!multidoc.data?.error?.documents?.includes("multidoc-feature.feature"), "does not include .feature");
+
+    const digestAfter = await computeSpecsDigest();
+    assert.equal(digestAfter, digestBefore, "refusal preserves exact bytes in .specs");
+
+    const retryMultidoc = await call(this, "spec_patch", {
+      intent: "createSpec",
+      spec: "multidoc-feature",
+      title: "Multidoc Feature",
+      reason: "multidoc test",
+      dryRun: false,
+    });
+    assert.equal(retryMultidoc.ok, true, JSON.stringify(retryMultidoc));
+    assert.equal(retryMultidoc.data?.outcome, "APPLIED", JSON.stringify(retryMultidoc));
+    const createdFiles = await readdir(path.join(this.root, ".specs", "multidoc-feature"));
+    assert.equal(createdFiles.length, 15, "all 15 documents created on single retry");
     this.result = true;
     return;
   }

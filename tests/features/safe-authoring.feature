@@ -91,3 +91,27 @@ Feature: safe specification authoring
     Given a disposable real authoring corpus and live MCP server
     When the scenario "path-root-regressions" runs
     Then the scenario passes
+
+  @safe-authoring @elicitation
+  Scenario: Fresh missing specification first apply is refused once with elicitation guidance
+    Given a disposable real authoring corpus and live MCP server
+    When the scenario "elicitation-first-refusal" runs
+    Then the scenario passes
+
+  @safe-authoring @elicitation
+  Scenario: Identical retry after elicitation refusal commits and later edits pass
+    Given a disposable real authoring corpus and live MCP server
+    When the scenario "elicitation-retry-and-later-edits" runs
+    Then the scenario passes
+
+  @safe-authoring @elicitation
+  Scenario: Preview does not consume elicitation stop and existing documents are exempt
+    Given a disposable real authoring corpus and live MCP server
+    When the scenario "elicitation-preview-and-existing" runs
+    Then the scenario passes
+
+  @safe-authoring @elicitation
+  Scenario: Refusal preserves zero bytes and handles multi-document targets in single stop
+    Given a disposable real authoring corpus and live MCP server
+    When the scenario "elicitation-preservation-and-multidoc" runs
+    Then the scenario passes

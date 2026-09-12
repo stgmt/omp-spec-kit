@@ -28,6 +28,7 @@ const WRITE_ERROR_CODES = new Set([
   "CONCURRENT_READ",
   "ROLLBACK_FAILED",
   "INTERNAL_ERROR",
+  "ELICITATION_REQUIRED",
 ]);
 
 function isRetryable(code) {
@@ -232,10 +233,10 @@ export async function loadDocument(root, spec, document, allowMissing) {
   const current = await readDocumentBytes(root, spec, document);
   if (!current.ok) {
     if (allowMissing && current.code === "DOC_NOT_FOUND")
-      return { ...resolved, bytes: Buffer.alloc(0), sha256: sha256(Buffer.alloc(0)) };
+      return { ...resolved, bytes: Buffer.alloc(0), sha256: sha256(Buffer.alloc(0)), missing: true };
     return current;
   }
-  return current;
+  return { ...current, missing: false };
 }
 
 function markdownLinkTargets(text) {
@@ -602,7 +603,7 @@ export class ProposalCompiler {
 
     const normalizedOperations = [];
     const documents = new Map();
-    const addChange = (document, beforeBytes, afterBytes, operation, deleteAfter = false) => {
+    const addChange = (document, beforeBytes, afterBytes, operation, deleteAfter = false, beforeMissing = false) => {
       const diff = diffPreview(beforeBytes, afterBytes);
       const preview = {
         document,
@@ -612,7 +613,7 @@ export class ProposalCompiler {
         diffTruncated: diff.truncated,
       };
       normalizedOperations.push({ ...operation });
-      documents.set(document, { spec, document, beforeBytes, afterBytes, operation, deleteAfter, preview });
+      documents.set(document, { spec, document, beforeBytes, afterBytes, operation, deleteAfter, beforeMissing, preview });
     };
 
     for (const rawOperation of rawOperations) {
@@ -648,12 +649,12 @@ export class ProposalCompiler {
         if (!inbound.ok) return error(inbound.code, inbound.message);
         if (inbound.links.length > 0)
           return error("CONFLICT", "rename would break inbound Markdown links", { inboundLinks: inbound.links });
-        addChange(operation.document, current.bytes, Buffer.alloc(0), operation, true);
+        addChange(operation.document, current.bytes, Buffer.alloc(0), operation, true, false);
         addChange(operation.newDocument, Buffer.alloc(0), current.bytes, {
           kind: "replace_document",
           document: operation.newDocument,
           content: current.bytes.toString("utf8"),
-        });
+        }, false, target.missing === true);
         continue;
       }
       const current = await loadDocument(this.root, spec, operation.document, operation.kind === "replace_document");
@@ -666,7 +667,7 @@ export class ProposalCompiler {
       if (!transformed.ok) return error(transformed.code, transformed.message, { document: operation.document });
       const newline = current.bytes.toString("utf8").includes("\r\n") ? "\r\n" : "\n";
       const transformedText = newline === "\n" ? transformed.text : transformed.text.replace(/\r?\n/gu, newline);
-      addChange(operation.document, current.bytes, Buffer.from(transformedText, "utf8"), operation, transformed.delete === true);
+      addChange(operation.document, current.bytes, Buffer.from(transformedText, "utf8"), operation, transformed.delete === true, current.missing === true);
     }
 
     const snapshot = await readRepositorySpecs({ root: this.root });

@@ -11,6 +11,13 @@ import {
   LINK_OUTCOMES,
   NODE_KINDS,
 } from "../kernel/types.js";
+import {
+  ELICITATION_HINT,
+  ELICITATION_REQUIRED,
+  ELICITATION_SKILL_URI,
+} from "../authoring/elicitation-guard.js";
+
+export { ELICITATION_HINT, ELICITATION_REQUIRED, ELICITATION_SKILL_URI };
 
 function field(name, kind, values) {
   return values === undefined ? { name, kind } : { name, kind, values };
@@ -908,7 +915,7 @@ export function annotationsFor(contract) {
     : READ_TOOL_ANNOTATIONS;
 }
 
-export const MCP_SERVER_INSTRUCTIONS = "Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock.";
+export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. ${ELICITATION_HINT}`;
 
 export const KERNEL_ENVELOPE_OUTPUT_SCHEMA = Object.freeze({
   type: "object",
