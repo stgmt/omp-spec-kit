@@ -2,6 +2,19 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 1.2.0 — 2026-09-13
+
+Specification authoring safety and access-boundary release.
+
+### Added
+
+- First creation of a missing canonical Markdown specification file is stopped once with `ELICITATION_REQUIRED`, a machine-readable skill target, and no filesystem or graph mutation; the exact write can be retried after elicitation.
+- Real MCP BDD coverage exercises the running server across restart, retry, lock contention, feature-file, noncanonical-path, refusal-replay, and no-side-effect cases.
+
+### Fixed
+
+- Read selectors are stripped consistently for every read-only MCP path, and rejected access targets are named in the error.
+
 ## 1.1.0 — 2026-09-05
 
 Agent UX and error-hygiene release.

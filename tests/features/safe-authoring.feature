@@ -115,3 +115,27 @@ Feature: safe specification authoring
     Given a disposable real authoring corpus and live MCP server
     When the scenario "elicitation-preservation-and-multidoc" runs
     Then the scenario passes
+
+  @safe-authoring @elicitation
+  Scenario: Changed retry is accepted through the live MCP server
+    Given a disposable real authoring corpus and live MCP server
+    When the scenario "elicitation-changed-retry" runs
+    Then the scenario passes
+
+  @safe-authoring @elicitation
+  Scenario: Real MCP server restart reissues one stop and then allows retry
+    Given a disposable real authoring corpus and live MCP server
+    When the scenario "elicitation-real-restart" runs
+    Then the scenario passes
+
+  @safe-authoring @elicitation
+  Scenario: Single-document and noncanonical boundaries use public MCP outcomes
+    Given a disposable real authoring corpus and live MCP server
+    When the scenario "elicitation-single-document-boundaries" runs
+    Then the scenario passes
+
+  @safe-authoring @elicitation
+  Scenario: Concurrent first applies resolve through the live MCP lock
+    Given a disposable real authoring corpus and live MCP server
+    When the scenario "elicitation-concurrent-first-applies" runs
+    Then the scenario passes

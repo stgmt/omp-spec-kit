@@ -496,6 +496,8 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     return;
   }
   if (scenario === "elicitation-first-refusal") {
+    const beforeGraph = (await overview(this)).graph.fingerprint;
+    const beforeRootEntries = (await readdir(this.root)).sort();
     const res = await call(this, "spec_patch", {
       intent: "createSpec",
       spec: "new-feature-a",
@@ -508,6 +510,10 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     assert.equal(res.data?.error?.code, "ELICITATION_REQUIRED", JSON.stringify(res));
     assert.equal(res.data?.error?.retryable, false, JSON.stringify(res));
     assert.equal(res.data?.error?.skill, "skill://spec-elicitation", JSON.stringify(res));
+    assert.equal(res.data?.receipt, undefined, JSON.stringify(res));
+    assert.match(res.data?.error?.message ?? "", /^Before creating a specification Markdown document, read skill:\/\/spec-elicitation/u);
+    assert.match(res.data?.error?.message ?? "", /first creation/iu);
+    assert.match(res.data?.error?.message ?? "", /retry is allowed/iu);
     assert.ok(Array.isArray(res.data?.error?.documents) && res.data.error.documents.length > 0);
     const sorted = [...res.data.error.documents].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
     assert.deepEqual(res.data.error.documents, sorted);
@@ -520,6 +526,8 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
       if (e.code !== "ENOENT") throw e;
     }
     assert.equal(fileCount, 0, "no files written on refusal");
+    assert.deepEqual((await readdir(this.root)).sort(), beforeRootEntries, "no root side effects on refusal");
+    assert.equal((await overview(this)).graph.fingerprint, beforeGraph, "graph is unchanged on refusal");
     this.result = true;
     return;
   }
@@ -659,6 +667,135 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     assert.equal(retryMultidoc.data?.outcome, "APPLIED", JSON.stringify(retryMultidoc));
     const createdFiles = await readdir(path.join(this.root, ".specs", "multidoc-feature"));
     assert.equal(createdFiles.length, 15, "all 15 documents created on single retry");
+    this.result = true;
+    return;
+  }
+  if (scenario === "elicitation-changed-retry") {
+    const first = await call(this, "spec_patch", {
+      requestId: "safe-changed-1",
+      intent: "createSpec",
+      spec: "changed-retry-feature",
+      title: "Original title",
+      reason: "original payload",
+      dryRun: false,
+    });
+    assert.equal(first.data?.outcome, "REFUSED", JSON.stringify(first));
+    assert.equal(first.data?.error?.code, "ELICITATION_REQUIRED", JSON.stringify(first));
+    const changed = await call(this, "spec_patch", {
+      requestId: "safe-changed-2",
+      intent: "createSpec",
+      spec: "changed-retry-feature",
+      title: "Changed title",
+      reason: "changed payload",
+      dryRun: false,
+    });
+    assert.equal(changed.data?.outcome, "APPLIED", JSON.stringify(changed));
+    const replayFirst = await call(this, "spec_patch", {
+      requestId: "safe-refusal-replay",
+      intent: "createSpec",
+      spec: "refusal-replay-feature",
+      title: "Refusal Replay Feature",
+      reason: "replay refusal",
+      dryRun: false,
+    });
+    assert.equal(replayFirst.data?.outcome, "REFUSED", JSON.stringify(replayFirst));
+    assert.equal(replayFirst.data?.receipt, undefined, JSON.stringify(replayFirst));
+    const replaySecond = await call(this, "spec_patch", {
+      requestId: "safe-refusal-replay",
+      intent: "createSpec",
+      spec: "refusal-replay-feature",
+      title: "Refusal Replay Feature",
+      reason: "replay refusal",
+      dryRun: false,
+    });
+    assert.equal(replaySecond.data?.outcome, "APPLIED", JSON.stringify(replaySecond));
+    this.result = true;
+    return;
+  }
+  if (scenario === "elicitation-real-restart") {
+    const input = {
+      intent: "createSpec",
+      spec: "real-restart-feature",
+      title: "Real Restart Feature",
+      reason: "restart payload",
+      dryRun: false,
+    };
+    const first = await call(this, "spec_patch", { ...input, requestId: "safe-restart-1" });
+    assert.equal(first.data?.outcome, "REFUSED", JSON.stringify(first));
+    assert.equal(first.data?.error?.code, "ELICITATION_REQUIRED", JSON.stringify(first));
+    await this.server.close();
+    this.server = spawnMcpServer({ serverPath: SERVER_PATH, root: this.root, cwd: this.root, env: {} });
+    const afterRestart = await call(this, "spec_patch", { ...input, requestId: "safe-restart-2" });
+    assert.equal(afterRestart.data?.outcome, "REFUSED", JSON.stringify(afterRestart));
+    assert.equal(afterRestart.data?.error?.code, "ELICITATION_REQUIRED", JSON.stringify(afterRestart));
+    const retry = await call(this, "spec_patch", { ...input, requestId: "safe-restart-3" });
+    assert.equal(retry.data?.outcome, "APPLIED", JSON.stringify(retry));
+    this.result = true;
+    return;
+  }
+  if (scenario === "elicitation-single-document-boundaries") {
+    const first = await call(this, "spec_patch", {
+      requestId: "safe-single-1",
+      intent: "patch",
+      spec: "single-document-feature",
+      reason: "single missing document",
+      dryRun: false,
+      operations: [{ kind: "replace_document", document: "README.md", content: "# Single document\n" }],
+    });
+    assert.equal(first.data?.outcome, "REFUSED", JSON.stringify(first));
+    assert.equal(first.data?.error?.code, "ELICITATION_REQUIRED", JSON.stringify(first));
+    const retry = await call(this, "spec_patch", {
+      requestId: "safe-single-2",
+      intent: "patch",
+      spec: "single-document-feature",
+      reason: "changed single document",
+      dryRun: false,
+      operations: [{ kind: "replace_document", document: "README.md", content: "# Changed single document\n" }],
+    });
+    assert.equal(retry.data?.outcome, "APPLIED", JSON.stringify(retry));
+    const featureOnly = await call(this, "spec_patch", {
+      requestId: "safe-feature-only-1",
+      intent: "patch",
+      spec: "feature-only",
+      reason: "feature boundary",
+      dryRun: false,
+      operations: [{ kind: "replace_document", document: "feature-only.feature", content: "Feature: Feature only\n" }],
+    });
+    assert.equal(featureOnly.data?.outcome, "APPLIED", JSON.stringify(featureOnly));
+    const noncanonical = await call(this, "spec_patch", {
+      requestId: "safe-noncanonical-1",
+      intent: "patch",
+      spec: "plugin-distribution",
+      reason: "noncanonical boundary",
+      dryRun: false,
+      operations: [{ kind: "replace_document", document: "notes.md", content: "# Must not write\n" }],
+    });
+    assert.equal(noncanonical.ok, false, JSON.stringify(noncanonical));
+    assert.equal(noncanonical.error?.code, "PATH_FORBIDDEN", JSON.stringify(noncanonical));
+    this.result = true;
+    return;
+  }
+  if (scenario === "elicitation-concurrent-first-applies") {
+    const common = {
+      schemaVersion: SCHEMA_VERSION,
+      intent: "patch",
+      spec: "concurrent-feature",
+      reason: "concurrent first apply",
+      dryRun: false,
+      operations: [{ kind: "replace_document", document: "README.md", content: "# Concurrent feature\n" }],
+    };
+    const [left, right] = await Promise.all([
+      this.server.request("tools/call", { name: "spec_patch", arguments: { ...common, requestId: "safe-concurrent-1" } }),
+      this.server.request("tools/call", { name: "spec_patch", arguments: { ...common, requestId: "safe-concurrent-2" } }),
+    ]);
+    const results = [left.result.structuredContent, right.result.structuredContent];
+    const refusals = results.filter((result) => result.data?.error?.code === "ELICITATION_REQUIRED");
+    assert.equal(refusals.length, 1, JSON.stringify(results));
+    assert.equal(results.filter((result) => result.data?.error?.code === "CONFLICT").length, 1, JSON.stringify(results));
+    const retry = await call(this, "spec_patch", { ...common, requestId: "safe-concurrent-retry" });
+    assert.equal(retry.data?.outcome, "APPLIED", JSON.stringify(retry));
+    const files = await readdir(path.join(this.root, "." + "specs", "concurrent-feature"));
+    assert.ok(files.includes("README.md"));
     this.result = true;
     return;
   }
