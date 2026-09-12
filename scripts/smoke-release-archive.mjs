@@ -77,7 +77,7 @@ delete env.OMP_SPEC_KIT_PACKAGE_ROOT;
 delete env.OMP_SPEC_KIT_ROOT;
 
 try {
-  await execFile("tar", ["-xf", archivePath, "-C", packageRoot]);
+  await execFile("tar", ["-xf", path.basename(archivePath), "-C", packageRoot], { cwd: path.dirname(archivePath) });
   const packageManifest = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
   const start = () => createArchiveClient(command, projectRoot, env);
   client = start();
