@@ -7,13 +7,12 @@ function tokenHash(token) {
 }
 
 /**
- * Phase-1 tenant seed: `token → tenant → allowed projects`. Tokens arrive as
- * operator secrets (config seed / env); only their SHA-256 is kept in memory.
- * The auth seam (TASK-12) replaces this directory with YouTrack Hub
- * introspection — the resolved context shape stays the same.
+ * Phase-1 tenant directory: `token → tenant → allowed projects`. Records are
+ * persisted through the store when provided (survive restart); only SHA-256
+ * token hashes are kept. The auth seam (TASK-12) replaces this directory with
+ * YouTrack Hub introspection — the resolved context shape stays the same.
  */
-export function createTenantDirectory({ tenants }) {
-  if (!Array.isArray(tenants)) throw new TenantConfigError("tenants must be an array");
+export function createTenantDirectory({ tenants = [], store } = {}) {
   const byTokenHash = new Map();
   for (const entry of tenants) {
     if (!entry || typeof entry !== "object") throw new TenantConfigError("tenant entry must be an object");
@@ -28,17 +27,25 @@ export function createTenantDirectory({ tenants }) {
     if (defaultProject !== undefined && !projects.includes(defaultProject)) throw new TenantConfigError(`tenant ${tenant} defaultProject is outside its allowed set`);
     const hash = tokenHash(token);
     if (byTokenHash.has(hash)) throw new TenantConfigError("tenant tokens must be unique");
-    byTokenHash.set(hash, {
+    const record = {
       tenant,
       projects: [...projects],
       defaultProject: defaultProject ?? (projects.length === 1 ? projects[0] : null),
-    });
+    };
+    byTokenHash.set(hash, record);
+    if (store) store.upsertTenant({ id: tenant, tokenHash: hash, scopes: record.projects, defaultScope: record.defaultProject });
   }
 
   return {
     resolve(token) {
       if (typeof token !== "string" || token.length === 0) return null;
-      return byTokenHash.get(tokenHash(token)) ?? null;
+      const hash = tokenHash(token);
+      if (store) {
+        const persisted = store.getTenantByTokenHash(hash);
+        if (!persisted) return byTokenHash.get(hash) ?? null;
+        return { tenant: persisted.id, projects: persisted.scopes, defaultProject: persisted.defaultScope };
+      }
+      return byTokenHash.get(hash) ?? null;
     },
     get size() {
       return byTokenHash.size;

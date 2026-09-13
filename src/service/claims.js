@@ -7,11 +7,32 @@ function claimKey(project, spec) {
 
 /**
  * Soft lease store (FR-7): one holder per `project/spec`, TTL expiry with no
- * manual action. Backed by a plain Map in phase 1; TASK-6 moves the same
- * interface onto the persistent store so leases survive restart.
+ * manual action. Backed by the persistent store when provided (leases survive
+ * restart), otherwise by a plain Map.
  */
-export function createClaimStore() {
+export function createClaimStore({ store } = {}) {
   const claims = new Map();
+
+  function read(project, spec) {
+    if (store) {
+      const row = store.getClaim(claimKey(project, spec));
+      return row ? { project, spec, holder: row.holder, expiresAtMs: row.expiresAtMs, expiresAt: new Date(row.expiresAtMs).toISOString() } : null;
+    }
+    return claims.get(claimKey(project, spec)) ?? null;
+  }
+
+  function write(record) {
+    if (store) {
+      store.putClaim({ specKey: claimKey(record.project, record.spec), holder: record.holder, expiresAtMs: record.expiresAtMs, createdAt: new Date().toISOString() });
+    } else {
+      claims.set(claimKey(record.project, record.spec), record);
+    }
+  }
+
+  function drop(project, spec) {
+    if (store) store.deleteClaim(claimKey(project, spec));
+    else claims.delete(claimKey(project, spec));
+  }
 
   return {
     claim({ project, spec, holder, ttlMinutes = DEFAULT_TTL_MINUTES }) {
@@ -26,7 +47,7 @@ export function createClaimStore() {
       }
       const expiresAtMs = Date.now() + ttl * 60_000;
       const record = { project, spec, holder, expiresAtMs, expiresAt: new Date(expiresAtMs).toISOString() };
-      claims.set(claimKey(project, spec), record);
+      write(record);
       return { spec, holder, expiresAt: record.expiresAt };
     },
 
@@ -36,21 +57,27 @@ export function createClaimStore() {
       if (existing.holder !== holder) {
         return { released: false, reason: "CLAIM_HELD", holder: existing.holder, expiresAt: existing.expiresAt };
       }
-      claims.delete(claimKey(project, spec));
+      drop(project, spec);
       return { released: true };
     },
 
     get(project, spec) {
-      const record = claims.get(claimKey(project, spec));
+      const record = read(project, spec);
       if (!record) return null;
       if (record.expiresAtMs <= Date.now()) {
-        claims.delete(claimKey(project, spec));
+        drop(project, spec);
         return null;
       }
       return record;
     },
 
     sweep() {
+      if (store) {
+        for (const record of store.listClaims()) {
+          if (record.expiresAtMs <= Date.now()) store.deleteClaim(record.specKey);
+        }
+        return store.listClaims().length;
+      }
       const now = Date.now();
       for (const [key, record] of claims) {
         if (record.expiresAtMs <= now) claims.delete(key);

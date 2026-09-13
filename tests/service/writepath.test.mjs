@@ -12,10 +12,15 @@ const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
 const FIXTURE_SPEC = path.resolve("tests/fixtures/kernel/real-corpus/.specs/spec-kernel");
 const TOKEN = "token-alpha-123456";
 const servers = [];
+const services = [];
 const tempDirs = [];
 after(async () => {
+  for (const service of services) {
+    service.sync?.stop();
+    service.store?.close?.();
+  }
   await Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve))));
-  await Promise.all(tempDirs.map((dir) => rm(dir, { recursive: true, force: true })));
+  await Promise.all(tempDirs.map((dir) => rm(dir, { recursive: true, force: true }).catch(() => {})));
 });
 
 async function tempDir(prefix) {
@@ -50,6 +55,7 @@ async function setup({ tenants = [{ token: TOKEN, tenant: "alpha", projects: ["s
   }));
   const service = await startService({ configPath, cloneDir: path.join(base, "clone"), port: 0, identity: IDENTITY, logger: () => {} });
   servers.push(service.server);
+  services.push(service);
   const url = `http://127.0.0.1:${service.server.address().port}/mcp`;
   return { base, bare, cloneDir: path.join(base, "clone"), url, service };
 }

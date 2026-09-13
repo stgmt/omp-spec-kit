@@ -70,8 +70,8 @@ export class GitClient {
     await this.run(args);
   }
 
-  async fetch({ remote = "origin" } = {}) {
-    await this.run(["fetch", "--prune", "--no-tags", remote]);
+  async fetch({ remote = "origin", cwd } = {}) {
+    await this.run(["fetch", "--prune", "--no-tags", remote], { cwd });
   }
 
   async add(paths, { cwd } = {}) {
@@ -103,6 +103,30 @@ export class GitClient {
       const [hash, authorName, authorEmail, subject] = line.split("\0");
       return { hash, authorName, authorEmail, subject };
     });
+  }
+
+  /** Commits with changed paths; `range` like `origin/main..HEAD`. */
+  async logDetailed({ range = "HEAD", maxCount = 50, cwd } = {}) {
+    const { stdout } = await this.run(["log", `--max-count=${maxCount}`, "--format=%H%x00%an%x00%ae%x00%s", "--name-only", range], { cwd });
+    const commits = [];
+    for (const line of stdout.split("\n")) {
+      if (line.includes("\0")) {
+        const [hash, authorName, authorEmail, subject] = line.split("\0");
+        commits.push({ hash, authorName, authorEmail, subject, paths: [] });
+      } else if (line.trim() !== "" && commits.length > 0) {
+        commits[commits.length - 1].paths.push(line.trim());
+      }
+    }
+    return commits;
+  }
+
+  async revCount(range, { cwd } = {}) {
+    const { stdout } = await this.run(["rev-list", "--count", range], { cwd });
+    return Number(stdout.trim()) || 0;
+  }
+
+  async mergeFF(ref, { cwd } = {}) {
+    await this.run(["merge", "--ff-only", ref], { cwd });
   }
 }
 

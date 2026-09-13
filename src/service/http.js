@@ -10,7 +10,7 @@ import { createDispatcher, serverInfo } from "./dispatch.js";
  * (`project`, `identity`, `force`) are stripped before the closed op args
  * reach the kernel.
  */
-export function createServiceApp({ mounts, authenticate, serviceOps = {}, serviceContracts = [], wrappers = {} }) {
+export function createServiceApp({ mounts, authenticate, serviceOps = {}, serviceContracts = [], wrappers = {}, endpoints = {}, audit }) {
   const dispatcher = createDispatcher({ mounts, serviceOps, serviceContracts, wrappers });
 
   const app = express();
@@ -26,6 +26,42 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
     next();
   });
 
+  app.get("/health", (_req, res) => {
+    res.json({ ok: true, service: "spec-registryd" });
+  });
+
+  const opsGate = (req, res, next) => {
+    try {
+      req.ctx = authenticate(req);
+    } catch (error) {
+      res.status(401).json({ error: "unauthorized", message: error?.message ?? "authentication failed" });
+      return;
+    }
+    next();
+  };
+  app.get("/registry", opsGate, async (req, res) => {
+    if (typeof endpoints.registry !== "function") {
+      res.status(501).json({ error: "registry endpoint is not wired" });
+      return;
+    }
+    try {
+      res.json(await endpoints.registry(req.ctx));
+    } catch (error) {
+      res.status(500).json({ error: "registry projection failed", message: String(error?.message ?? error) });
+    }
+  });
+  app.get("/drift", opsGate, async (req, res) => {
+    if (typeof endpoints.drift !== "function") {
+      res.status(501).json({ error: "drift endpoint is not wired" });
+      return;
+    }
+    try {
+      res.json(await endpoints.drift(req.ctx));
+    } catch (error) {
+      res.status(500).json({ error: "drift report failed", message: String(error?.message ?? error) });
+    }
+  });
+
   app.get("/mcp", (_req, res) => {
     res.set("Allow", "POST");
     res.status(405).json({ error: "method not allowed: this endpoint is stateless and serves JSON-RPC over POST only" });
@@ -39,7 +75,7 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
     // Stateless mode per SDK docs: a fresh transport per request, no session id.
     const info = serverInfo();
     const server = new Server(info, { capabilities: { tools: {} } });
-    wireProtocolHandlers(server, dispatcher, req.ctx);
+    wireProtocolHandlers(server, dispatcher, req.ctx, audit);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on("close", () => {
       transport.close();
@@ -56,7 +92,7 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
   return app;
 }
 
-function wireProtocolHandlers(server, dispatcher, ctx) {
+function wireProtocolHandlers(server, dispatcher, ctx, audit) {
   server.setRequestHandler(InitializeRequestSchema, async (request) => {
     const requested = typeof request.params?.protocolVersion === "string" ? request.params.protocolVersion : "2025-03-26";
     const info = serverInfo();
@@ -77,6 +113,19 @@ function wireProtocolHandlers(server, dispatcher, ctx) {
     const { envelope, unknownTool } = await dispatcher.callTool({ tool: name, args: rawArguments, ctx });
     if (unknownTool) {
       throw Object.assign(new Error(`Unknown tool: ${name}`), { code: -32602 });
+    }
+    if (typeof audit === "function") {
+      try {
+        audit({
+          tenant: ctx?.tenant ?? null,
+          identity: ctx?.identity ?? null,
+          project: typeof rawArguments?.project === "string" ? rawArguments.project : null,
+          op: name,
+          spec: typeof rawArguments?.spec === "string" ? rawArguments.spec : null,
+          requestId: typeof rawArguments?.requestId === "string" ? rawArguments.requestId : null,
+          result: envelope.ok && envelope.data?.outcome !== "REFUSED" ? "ok" : `error:${envelope.error?.code ?? envelope.data?.error?.code ?? "REFUSED"}`,
+        });
+      } catch {}
     }
     const text = JSON.stringify(envelope);
     return {
