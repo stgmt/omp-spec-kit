@@ -1,5 +1,6 @@
 import path from "node:path";
-import { GitClient } from "./git.js";
+import { pathToFileURL } from "node:url";
+import { GitClient, botIdentityFromEnv } from "./git.js";
 import { loadProjectsConfig, MountManager } from "./mounts.js";
 import { preAuthContext } from "./dispatch.js";
 import { bearerToken, createServiceApp } from "./http.js";
@@ -21,7 +22,7 @@ export async function bootService({ configPath, cloneDir, git = new GitClient(),
   return { config, mounts, report };
 }
 
-export function buildServiceStack({ mounts, config, git, identity, logger, store, syncIntervalMs = 0 }) {
+export function buildServiceStack({ mounts, config, git, identity = botIdentityFromEnv(), logger, store, syncIntervalMs = 0 }) {
   const tenants = createTenantDirectory({ tenants: config.tenants ?? [], store });
   const claims = createClaimStore({ store });
   const claimOps = createClaimOps({ claims });
@@ -66,7 +67,7 @@ export function buildServiceStack({ mounts, config, git, identity, logger, store
   };
 }
 
-export async function startService({ configPath, cloneDir, storeFile, syncIntervalMs = Number(process.env.SPEC_REGISTRY_SYNC_MS ?? 0), port = Number(process.env.SPEC_REGISTRY_PORT ?? 8642), host = process.env.SPEC_REGISTRY_HOST ?? "127.0.0.1", identity, logger = console.error }) {
+export async function startService({ configPath, cloneDir, storeFile, syncIntervalMs = Number(process.env.SPEC_REGISTRY_SYNC_MS ?? 0), port = Number(process.env.SPEC_REGISTRY_PORT ?? 8642), host = process.env.SPEC_REGISTRY_HOST ?? "127.0.0.1", identity = botIdentityFromEnv(), logger = console.error }) {
   const git = new GitClient();
   const { config, mounts } = await bootService({ configPath, cloneDir, git, identity, logger });
   const resolvedCloneDir = mounts.cloneDir;
@@ -87,8 +88,17 @@ export async function startService({ configPath, cloneDir, storeFile, syncInterv
 export async function main() {
   const configPath = process.env.SPEC_REGISTRY_CONFIG ?? path.resolve("config/projects.json");
   const cloneDir = process.env.SPEC_REGISTRY_CLONE ?? undefined;
-  const { server } = await startService({ configPath, cloneDir });
+  const storeFile = process.env.SPEC_REGISTRY_STORE ?? undefined;
+  const { server } = await startService({ configPath, cloneDir, storeFile });
   const shutdown = () => server.close(() => process.exit(0));
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
+}
+
+const invokedDirectly = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (invokedDirectly) {
+  main().catch((error) => {
+    console.error(`spec-registryd failed to start: ${error?.message ?? error}`);
+    process.exit(1);
+  });
 }

@@ -61,9 +61,10 @@ Status: DRAFT
 - **Requirements:** R-9, FR-11
 
 ## TASK-11 — docker-compose: service + volumes + optional youtrack-sync + proxy; documented env
-- **Status:** todo
+- **Status:** done
 - **Done When:** clean-host `docker compose up` passes AC-7.
 - **Requirements:** R-8, FR-15
+- **Evidence:** `deploy/Dockerfile` (node:22-slim + git CLI, non-root, healthcheck on `/health`), `deploy/docker-compose.yml` (named volume for clone+SQLite, bind-mounted operator config, loopback-only direct port, optional `proxy` profile — nginx TLS termination, certs operator-provided), `deploy/proxy/nginx.conf`, `.dockerignore`, `config/projects.example.json`. AC-7 verified live on this host: fresh bare specs-repo + config + token → `docker compose up` → clones, creates `stgmt/alpha/.specs` skeleton as bot, healthy; read call over `POST /mcp` → HTTP 200; write loop → `APPLIED` + bot commit on the remote. Boot-to-healthy: 7.8 s (includes image build check). youtrack-sync joins the stack with TASK-8 (the sweep has no standalone entrypoint yet — the compose key is intentionally absent, not stubbed). Landed with this commit.
 
 ## Backlog — Auth seam realization
 
