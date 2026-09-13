@@ -62,7 +62,7 @@ Read ops accept an optional `version`; when present, the ledger resolves `versio
 
 ### FR-13 — YouTrack app calls
 
-The service exposes `POST /rpc` accepting the registry JSON-RPC envelope for the YouTrack app. Proposal-style calls return the existing proposal payload (previews + `proposalHash`); the apply step re-verifies graph fingerprint and document preimages under the write lock exactly as the current `spec_patch` apply path does (`service.js` — proposal→apply drift check), so a stale proposal is refused rather than applied. Note: the YouTrack projection/sweep infrastructure exists; the interactive spec view + proposal UI inside the app is **new work** delivered by this feature (TASK-8), not pre-existing capability.
+The YouTrack app is an MCP client: its backend calls `POST /mcp` (`tools/call`) with the same envelope as agents — there is no separate REST/RPC surface. Proposal-style calls return the existing proposal payload (previews + `proposalHash`); the apply step re-verifies graph fingerprint and document preimages under the write lock exactly as the current `spec_patch` apply path does (`service.js` — proposal→apply drift check), so a stale proposal is refused rather than applied. Note: the YouTrack projection/sweep infrastructure exists; the interactive spec view + proposal UI inside the app is **new work** delivered by this feature (TASK-8), not pre-existing capability.
 
 ### FR-14 — Retired local MCP for managed projects
 

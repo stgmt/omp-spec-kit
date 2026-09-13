@@ -5,9 +5,9 @@ Status: DRAFT
 ## Architecture
 
 ```
- humans ──YouTrack app──┐  (the app lives inside YouTrack, outside the stack)
- (people + non-dev      │  calls POST /rpc
-  agents)               │
+ humans ──YouTrack app──┐  (the app lives inside YouTrack, outside the stack;
+ (people + non-dev      │   it is an MCP client like any other)
+  agents)               │  calls POST /mcp (tools/call)
                         v
  AI agents ──MCP/Streamable HTTP──> spec-registryd (node)   [compose service]
                                       ├─ same JSON-RPC envelope as the MCP server
@@ -51,8 +51,7 @@ Status: DRAFT
 
 ## Transports
 
-- **MCP for agents**: Streamable HTTP. Same tool contracts and envelope; new optional envelope field `project` (call parameter; absent → token's default scope — see Caller context). KERNEL_SCHEMA_VERSION bumps to `spec-kernel@2`.
-- **HTTP JSON-RPC for the YouTrack app**: `POST /rpc` accepts the same message shape — no separate REST surface to maintain.
+- **MCP for all clients — one access point**: Streamable HTTP `POST /mcp`. Same tool contracts and envelope; new optional envelope field `project` (call parameter; absent → token's default scope — see Caller context). KERNEL_SCHEMA_VERSION bumps to `spec-kernel@2`. The YouTrack app is just another MCP client: its backend calls `tools/call` on the same endpoint — there is **no separate REST/RPC surface** to maintain.
 - Local stdio MCP: retired for managed projects (`.mcp.json` → remote `type: "http"`). Kept buildable for unmanaged/offline use.
 
 ## Multi-tenant project model
@@ -79,7 +78,7 @@ The registry is **operator-hosted**: specs exist only in the operator's git repo
 
 | Consumer | Surface | Credential | When |
 |---|---|---|---|
-| Human in operator's YouTrack | app widgets → `POST /rpc` | YouTrack session → service-side identity | v1 |
+| Human in operator's YouTrack | app widgets → app backend → `POST /mcp` | YouTrack session → tenant token held server-side | v1 |
 | Dev's AI agent | MCP `type: "http"` → `https://<host>/mcp` | per-tenant bearer token (header) | v1 |
 | Human in **their own** YouTrack | same extension installed, bound to this backend | per-tenant bearer token | post-v1 |
 
@@ -111,7 +110,7 @@ Every request resolves `token → tenant → allowed projects`; the `project` fi
 
 ## Auth seam (R-7)
 
-v1: `Authorization: Bearer <tenant-token>` on `/mcp`+`/rpc`; each token maps to a tenant and its allowed `project` set (required — external YouTrack bindings can't share one token). Asserted caller identity (`Spec-Author` header / envelope field) is logged on every write but not cryptographically verified. Seam: replace the verifier with YouTrack Hub token introspection + role map (reader/writer/owner) — call shape and the tenant→projects model unchanged.
+v1: `Authorization: Bearer <tenant-token>` on `/mcp`; each token maps to a tenant and its allowed `project` set (required — external YouTrack bindings can't share one token). Asserted caller identity (`Spec-Author` header / envelope field) is logged on every write but not cryptographically verified. Seam: replace the verifier with YouTrack Hub token introspection + role map (reader/writer/owner) — call shape and the tenant→projects model unchanged.
 
 ## Why not the alternatives (summary; detail in RESEARCH.md)
 

@@ -50,7 +50,7 @@ Feature: Centralized spec registry service
   @id:SCEN-youtrack-proposal
   Scenario: Human proposes edit via YouTrack
     Given a human edits a requirement in the YouTrack app
-    When the app calls /rpc with the patch intent
+    When the app backend calls /mcp (tools/call) with the patch intent
     Then the response contains document previews and a proposalHash
     And applying without that proposalHash is refused
 

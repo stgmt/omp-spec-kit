@@ -24,7 +24,7 @@ Status: DRAFT
 
 ### AC-6 — YouTrack proposal flow
 
-**Given** a human edits a requirement in the YouTrack app, **when** the app calls `POST /rpc` with a proposal intent, **then** the response contains the same `documents` previews and `proposalHash` the MCP path returns, and apply without that hash is refused.
+**Given** a human edits a requirement in the YouTrack app, **when** the app backend calls `POST /mcp` (`tools/call`) with a proposal intent, **then** the response contains the same `documents` previews and `proposalHash` an agent receives on the same call, and apply without that hash is refused.
 
 ### AC-7 — Compose boot
 

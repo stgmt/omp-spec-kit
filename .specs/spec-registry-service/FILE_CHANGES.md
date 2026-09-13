@@ -6,7 +6,7 @@ Status: DRAFT
 
 - `src/service/index.js` — service entrypoint: config load, mount manager, transports.
 - `src/service/mounts.js` — single specs-repo clone lifecycle; resolves `owner/project` → project root, creates `.specs` skeletons for new projects.
-- `src/service/http.js` — `POST /rpc` + Streamable HTTP MCP transport.
+- `src/service/http.js` — Streamable HTTP MCP transport (`POST /mcp`, single access point) + ops endpoints (`/registry`, `/drift`, `/health`).
 - `src/service/auth.js` — v1 token verifier + identity attribution; YouTrack Hub seam.
 - `src/service/claims.js` — lease store + expiry sweeper.
 - `src/service/tenants.js` — tenant records, token→tenant→allowed-projects resolution.

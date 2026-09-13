@@ -36,7 +36,7 @@ The service, its worktree volume, and its metadata store (SQLite file volume) de
 
 ## R-9 — Spec↔code linkage via service state
 
-Because specs no longer travel in code branches, "which spec version does this code implement" is answered by service state, not a committed file: the publish ledger (`slug → version → digest → commit`) plus the registry index make the relationship a queryable fact (MCP/`/rpc` + YouTrack view). A consumer-side pin file is deliberately absent in v1 — the only read path is the service, so a local pin would have nothing to resolve against; it returns later as an export artifact if external consumers appear (backlog).
+Because specs no longer travel in code branches, "which spec version does this code implement" is answered by service state, not a committed file: the publish ledger (`slug → version → digest → commit`) plus the registry index make the relationship a queryable fact (MCP + YouTrack view). A consumer-side pin file is deliberately absent in v1 — the only read path is the service, so a local pin would have nothing to resolve against; it returns later as an export artifact if external consumers appear (backlog).
 
 ## R-10 — Availability model
 

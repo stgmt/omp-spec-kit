@@ -22,7 +22,7 @@ Status: DRAFT
 - **Done When:** service boots with `projects.json`, clones the specs repo, resolves `project`→`<clone>/<owner>/<project>` (creating the `.specs` skeleton for new projects), builds kernel graph per project root.
 - **Requirements:** R-4, FR-3, FR-16
 
-## TASK-4 — HTTP transport: `POST /rpc` (envelope passthrough) + Streamable HTTP MCP endpoint
+## TASK-4 — HTTP transport: Streamable HTTP MCP endpoint `POST /mcp` — the single access point for all clients (agents + YouTrack app)
 - **Status:** todo
 - **Done When:** all 10 existing tools reachable over HTTP with identical envelopes; `project` field honored.
 - **Requirements:** R-5, FR-8, FR-13
@@ -44,7 +44,7 @@ Status: DRAFT
 - **Done When:** plugin connects to the stack endpoint; local server only for `OMP_SPEC_KIT_ROOT` unmanaged checkouts.
 - **Requirements:** R-5, FR-14
 
-## TASK-8 — YouTrack app integration: spec view + proposal apply via `/rpc` + self-service token issuance
+## TASK-8 — YouTrack app integration: spec view + proposal apply via `/mcp` + self-service token issuance
 - **Status:** todo
 - **Done When:** human can read spec and apply a proposal from the YT app; user identity lands in `Spec-Author:`; a "connect agent" action in the app calls the onboarding API and returns a ready `.mcp.json` token snippet (no manual token issuing anywhere).
 - **Requirements:** R-6, FR-13, R-7
