@@ -28,6 +28,9 @@ const WRITE_ERROR_CODES = new Set([
   "ROLLBACK_FAILED",
   "INTERNAL_ERROR",
   "ELICITATION_REQUIRED",
+  "CLAIM_HELD",
+  "UNAVAILABLE",
+  "VERSION_EXISTS",
 ]);
 
 function isRetryable(code) {
@@ -36,7 +39,8 @@ function isRetryable(code) {
     code === "DEADLINE_EXCEEDED" ||
     code === "CONCURRENT_READ" ||
     code === "RECOVERY_REQUIRED" ||
-    code === "ROLLBACK_FAILED"
+    code === "ROLLBACK_FAILED" ||
+    code === "UNAVAILABLE"
   );
 }
 

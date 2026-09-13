@@ -89,8 +89,8 @@ function injectRequestId(contract, args, requestId) {
  * (`project`, `identity`, `force`) are stripped before the closed op args
  * reach the kernel.
  */
-export function createDispatcher({ mounts, serviceOps = {} }) {
-  const contractsByName = new Map(TOOL_CONTRACTS.map((contract) => [contract.tool, contract]));
+export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [], wrappers = {} }) {
+  const contractsByName = new Map([...TOOL_CONTRACTS, ...serviceContracts].map((contract) => [contract.tool, contract]));
 
   function resolveProject({ rawProject, ctx, operation, requestId, listing = false }) {
     if (rawProject !== undefined && typeof rawProject !== "string") {
@@ -143,21 +143,21 @@ export function createDispatcher({ mounts, serviceOps = {} }) {
     }
 
     const isServiceOp = Object.hasOwn(serviceOps, contract.operation);
-    const listing = isServiceOp && serviceOps[contract.operation].listing === true;
+    const serviceEntry = isServiceOp ? serviceOps[contract.operation] : null;
+    const listing = isServiceOp && serviceEntry.listing === true;
     const resolved = resolveProject({ rawProject, ctx, operation, requestId, listing });
     if (resolved.error) return { envelope: resolved.error };
 
-    if (isServiceOp) {
-      return serviceOps[contract.operation]({ args: normalized.args, ctx, project: resolved.project ?? null, allScopes: resolved.allScopes === true, identity, force, requestId, contract });
-    }
-
     if (resolved.allScopes || !resolved.project) {
-      return { envelope: invalidRequest(operation, requestId, "project is required: the caller context has no default scope", { parameter: "project", expected: "owner/project" }) };
-    }
-    try {
-      mounts.requireConfigured(resolved.project);
-    } catch (error) {
-      return { envelope: invalidRequest(operation, requestId, error.message, { parameter: "project", receivedSummary: resolved.project }) };
+      if (!isServiceOp || !resolved.allScopes) {
+        return { envelope: invalidRequest(operation, requestId, "project is required: the caller context has no default scope", { parameter: "project", expected: "owner/project" }) };
+      }
+    } else {
+      try {
+        mounts.requireConfigured(resolved.project);
+      } catch (error) {
+        return { envelope: invalidRequest(operation, requestId, error.message, { parameter: "project", receivedSummary: resolved.project }) };
+      }
     }
 
     const argsForKernel = injectRequestId(contract, normalized.args, requestId);
@@ -172,13 +172,22 @@ export function createDispatcher({ mounts, serviceOps = {} }) {
       };
     }
 
+    if (isServiceOp) {
+      return serviceEntry.run({ args: argsForKernel, ctx, project: resolved.project ?? null, allScopes: resolved.allScopes === true, identity, force, requestId, schemaVersion: raw.schemaVersion, contract });
+    }
+
+    const wrapper = wrappers[contract.operation];
+    if (wrapper) {
+      return wrapper({ args: argsForKernel, ctx, project: resolved.project, identity: identity ?? ctx.identity, force, requestId, schemaVersion: raw.schemaVersion, contract });
+    }
+
     const envelope = await mounts.serviceFor(resolved.project).runQuery(contract.operation, argsForKernel, { requestId, schemaVersion: raw.schemaVersion });
     return { envelope };
   }
 
   function toolListPayload() {
     return {
-      tools: TOOL_CONTRACTS.map((contract) => ({
+      tools: [...TOOL_CONTRACTS, ...serviceContracts].map((contract) => ({
         name: contract.tool,
         title: contract.label,
         description: contract.description,
@@ -191,6 +200,23 @@ export function createDispatcher({ mounts, serviceOps = {} }) {
 
   return { callTool, contractsByName, toolListPayload };
 }
+
+export function serviceSuccess(operation, requestId, data) {
+  return {
+    schemaVersion: KERNEL_SCHEMA_VERSION,
+    requestId: requestId ?? null,
+    operation,
+    ok: true,
+    graph: null,
+    page: null,
+    data,
+    error: null,
+    diagnostics: [],
+    provenance: null,
+  };
+}
+
+export { errorEnvelope as serviceErrorEnvelope };
 
 export function serverInfo() {
   return { name: "omp-spec-kit-registry", version: KERNEL_SCHEMA_VERSION, instructions: MCP_SERVER_INSTRUCTIONS };

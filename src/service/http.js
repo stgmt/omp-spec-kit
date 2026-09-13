@@ -10,8 +10,8 @@ import { createDispatcher, serverInfo } from "./dispatch.js";
  * (`project`, `identity`, `force`) are stripped before the closed op args
  * reach the kernel.
  */
-export function createServiceApp({ mounts, authenticate, serviceOps = {} }) {
-  const dispatcher = createDispatcher({ mounts, serviceOps });
+export function createServiceApp({ mounts, authenticate, serviceOps = {}, serviceContracts = [], wrappers = {} }) {
+  const dispatcher = createDispatcher({ mounts, serviceOps, serviceContracts, wrappers });
 
   const app = express();
   app.disable("x-powered-by");

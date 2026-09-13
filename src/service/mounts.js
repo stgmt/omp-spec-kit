@@ -11,7 +11,7 @@ export class ConfigError extends Error {}
 
 export function parseProjectsConfig(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new ConfigError("projects config must be a JSON object");
-  const { specsRepo, branch = "main", projects } = raw;
+  const { specsRepo, branch = "main", projects, tenants } = raw;
   if (typeof specsRepo !== "string" || specsRepo.length === 0) throw new ConfigError("specsRepo is required");
   if (typeof branch !== "string" || branch.length === 0) throw new ConfigError("branch must be a non-empty string");
   if (!Array.isArray(projects) || projects.length === 0) throw new ConfigError("projects must be a non-empty array");
@@ -21,7 +21,8 @@ export function parseProjectsConfig(raw) {
     return id;
   });
   if (new Set(ids).size !== ids.length) throw new ConfigError("project ids must be unique");
-  return { specsRepo, branch, projects: ids };
+  if (tenants !== undefined && !Array.isArray(tenants)) throw new ConfigError("tenants must be an array when present");
+  return { specsRepo, branch, projects: ids, tenants: tenants ?? [] };
 }
 
 export async function loadProjectsConfig(configPath) {

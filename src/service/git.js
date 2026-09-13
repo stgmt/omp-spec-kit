@@ -8,9 +8,13 @@ const queues = new Map();
 function enqueue(key, task) {
   const previous = queues.get(key) ?? Promise.resolve();
   const next = previous.then(task, task);
-  queues.set(key, next.finally(() => {
-    if (queues.get(key) === next) queues.delete(key);
-  }));
+  // Store a settled-twin so a failed task never leaves an unhandled
+  // rejection in the queue map; callers handle `next` themselves.
+  const stored = next.then(() => {}, () => {});
+  queues.set(key, stored);
+  void stored.then(() => {
+    if (queues.get(key) === stored) queues.delete(key);
+  });
   return next;
 }
 
