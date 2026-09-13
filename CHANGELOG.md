@@ -2,44 +2,6 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
-## 1.3.0 — 2026-09-13
-
-Roadmap canonical document and governed auto-assembly release.
-
-### Added
-
-- `ROADMAP` is a conditional canonical document kind: `ROADMAP.md` is canonical only for `roadmap-*` specs (slug-prefix detection is authoritative). The graph builder auto-generates a `<slug>:ROADMAP` aggregate node and a `DECLARES` edge from the document node, making the roadmap entity a real canonical graph node instead of a board-only synthetic.
-- Pure deterministic roadmap assembler (`src/kernel/roadmap/assemble.js`): derives scope from `Implements:`/`Refs:` edges in the roadmap spec's own FR/TASK nodes, collects FR/UC/US items from covered specs, derives status from implementing task relationships, sorts by code-point order, and merges generated content inside `<!-- roadmap:auto:start -->` / `<!-- roadmap:auto:end -->` markers. Authored bytes outside markers are sovereign; unchanged graph produces byte-identical output (idempotent).
-- `replace_marked_region` operation in `applyOperation`: replaces content between HTML comment markers with duplicate-marker detection.
-- `createRoadmap` and `assembleRoadmap` intents in `spec_patch`: create a ROADMAP.md skeleton with marker region for `roadmap-*` specs, and assemble the generated region from the live graph through the governed receipted transactional path. The 10-tool MCP surface is unchanged; intent count rises from 13 to 15.
-- E2e BDD coverage for roadmap intents: refusal on non-roadmap specs, apply with receipt, and idempotent re-run (staged-mcp.feature).
-
-### Fixed
-
-- Phase 1 commit (611c70a) was incomplete: core source changes in `types.js`, `fs.js`, `build.js`, and `check-spec-corpus.mjs` were not staged. Restored source/commit parity in `dc30d07`.
-
-### Local verification
-
-- 86 unit tests, 26 safe-authoring BDD scenarios, 66 staged-MCP BDD scenarios pass.
-- Mutation gate: 168/168 mutants killed. Tool surface: 10/10.
-- Live YouTrack sync: PARITY achieved (478 nodes, 467 links). ROADMAP card live on board.
-- Live `assembleRoadmap` write: 83 items assembled, idempotent re-run confirmed.
-- Live writeback round trip: YouTrack `Fixed` on SPEC-525 (`roadmap-roadmaps:TASK-8`) swept to `.specs` `done` through `StatusSweepService`.
-
-### Widget verification
-
-- App `spec-graph-app` (`144-67`) is uploaded, attached to project SPEC, and enabled (`ProjectAppConfiguration` `181-16`).
-- Two widget extensions are registered: `spec-panel` (`163-15`, `ISSUE_BELOW_SUMMARY`) and `spec-board` (`163-16`, `DASHBOARD_WIDGET`).
-- Widget content is served byte-identical to source through `/api/appResources/144-67/widgets/{spec-panel,spec-board}/index.html` (10834 and 61361 bytes respectively, `diff` reports identical).
-- Issue `3-496` returns `spec-panel` in its `widgets` array via `/api/issues/3-496?fields=...`.
-- `spec-board` appears in `/api/admin/widgets/general` (dashboard widget catalog).
-- Access logs confirm the widget was loaded in a real browser session on 2026-09-08: `200 GET /api/appResources/144-67/widgets/spec-panel/index.html` and `200 GET /api/appResources/144-67/widgets/spec-board/index.html` from an authenticated Edge browser.
-- Headless Chrome render of the widget URL shows expected `YTApp is not defined` because the YouTrack Host API is only available inside the YouTrack iframe sandbox; the widget HTML itself loads and parses correctly.
-
-### Known limitations
-
-- The ROADMAP aggregate card on YouTrack is currently isolated (0 links): the graph has a `DECLARES` edge from the document node but no `CONTAINS` edges from the aggregate, so the card has no visual relationships yet.
-
 ## 1.2.0 — 2026-09-13
 
 Specification authoring safety and access-boundary release.

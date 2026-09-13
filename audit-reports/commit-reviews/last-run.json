@@ -1,15 +1,15 @@
 {
   "schema": "review-last-run@1",
-  "runId": "2026-09-13T06-15-17-298Z-d461b12db8ca",
+  "runId": "2026-09-13T07-04-16-928Z-847adc60bffd",
   "repoRoot": "E:/repos/omp-spec-kit",
-  "updatedAt": "2026-09-13T06:19:52.653Z",
+  "updatedAt": "2026-09-13T07:09:43.342Z",
   "state": "passed",
   "verdict": "PASS",
   "exitCode": 0,
-  "reportPath": "E:\\repos\\omp-spec-kit\\audit-reports\\commit-reviews\\2026-09-13T06-15-17-298Z-d461b12db8ca48a7ed85183a6bd7844b1b1858cf4a526ea09872f1e0060d02b1.md",
-  "durationMs": 275355,
+  "reportPath": "E:\\repos\\omp-spec-kit\\audit-reports\\commit-reviews\\2026-09-13T07-04-16-927Z-847adc60bffd467f835395b8c0227c46c5c0bc9d99051e4a83ed5d1b2926659e.md",
+  "durationMs": 326414,
   "modelsTried": [
     "@smol"
   ],
-  "finishedAt": "2026-09-13T06:19:52.653Z"
+  "finishedAt": "2026-09-13T07:09:43.342Z"
 }

@@ -1,0 +1,10 @@
+import { createSpecService } from '../../src/adapters/query-service.js';
+const svc = createSpecService('E:/repos/omp-spec-kit');
+const res = await svc.runQuery('graph', { view: 'board' });
+const edges = res.data.edges;
+const rm = edges.filter(e => e.from.startsWith('roadmap-roadmaps:') || e.to.startsWith('roadmap-roadmaps:'));
+console.log('roadmap-related edges:', rm.length);
+for (const e of rm.slice(0, 30)) console.log(e.type, e.from, '->', e.to, 'x' + e.occurrenceCount);
+const impl = edges.filter(e => e.type === 'IMPLEMENTS');
+console.log('total IMPLEMENTS edges:', impl.length);
+for (const e of impl.slice(0, 15)) console.log('  ', e.from, '->', e.to);
