@@ -21,6 +21,7 @@ const EXPECTED_SPECS = Object.freeze([
   "roadmap-roadmaps",
   "spec-mcp-access-gate",
   "spec-mcp-operations",
+  "spec-registry-service",
   "youtrack-visualization",
 ]);
 const FIXED_DOCS = Object.freeze([

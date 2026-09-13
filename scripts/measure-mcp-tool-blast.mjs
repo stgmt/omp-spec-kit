@@ -64,7 +64,7 @@ export const LIMITS = Object.freeze({
   toolCount: 10,
   readOnlyCount: 9,
   mutatingCount: 1,
-  maxTotalCatalogBytes: 25499, // 60% of baseline 42499
+  maxTotalCatalogBytes: 26200, // 60% of baseline 42499 + 2 roadmap intents
   maxDescriptionChars: 2000,
 });
 

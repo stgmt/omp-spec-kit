@@ -87,7 +87,7 @@ Feature: Exercise the single-surface MCP server through the packaged server
   @tool-e2e @bnd-matrix
   Scenario: Comprehensive coverage of every consolidated tool branch and intent
     Given a real staged MCP corpus and packaged server
-    When all consolidated branches and all 13 spec patch intents are exercised
+    When all consolidated branches and all 15 spec patch intents are exercised
     Then every branch returns its declared operation, data kind, and valid envelope
 
   @tool-e2e @bnd-matrix
@@ -146,3 +146,15 @@ Feature: Exercise the single-surface MCP server through the packaged server
       | spec_patch         | {"intent": "patch", "spec": "product", "reason": "r", "requestId": "q", "proposalId": "p"}                   | UNKNOWN_FIELD     |
       | spec_patch         | {"intent": "patch", "spec": "product", "reason": "r", "requestId": "q", "proposalSha256": "h"}               | UNKNOWN_FIELD     |
       | spec_patch         | {"intent": "patch", "spec": "product", "reason": "r", "requestId": "q", "expectedDocuments": []}             | UNKNOWN_FIELD     |
+
+  @roadmap-e2e
+  Scenario: Roadmap intents refuse non-roadmap specs
+    Given a real staged MCP corpus and packaged server
+    When createRoadmap is called on a non-roadmap spec
+    Then the call fails with error code "INVALID_REQUEST"
+
+  @roadmap-e2e
+  Scenario: Roadmap assemble applies and is idempotent
+    Given a real staged MCP corpus and packaged server
+    When assembleRoadmap is applied and re-run as dryRun
+    Then the first apply changes ROADMAP.md and the re-run produces no diff

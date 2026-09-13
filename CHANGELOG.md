@@ -12,17 +12,24 @@ Roadmap canonical document and governed auto-assembly release.
 - Pure deterministic roadmap assembler (`src/kernel/roadmap/assemble.js`): derives scope from `Implements:`/`Refs:` edges in the roadmap spec's own FR/TASK nodes, collects FR/UC/US items from covered specs, derives status from implementing task relationships, sorts by code-point order, and merges generated content inside `<!-- roadmap:auto:start -->` / `<!-- roadmap:auto:end -->` markers. Authored bytes outside markers are sovereign; unchanged graph produces byte-identical output (idempotent).
 - `replace_marked_region` operation in `applyOperation`: replaces content between HTML comment markers with duplicate-marker detection.
 - `createRoadmap` and `assembleRoadmap` intents in `spec_patch`: create a ROADMAP.md skeleton with marker region for `roadmap-*` specs, and assemble the generated region from the live graph through the governed receipted transactional path. The 10-tool MCP surface is unchanged; intent count rises from 13 to 15.
+- E2e BDD coverage for roadmap intents: refusal on non-roadmap specs, apply with receipt, and idempotent re-run (staged-mcp.feature).
 
 ### Fixed
 
 - Phase 1 commit (611c70a) was incomplete: core source changes in `types.js`, `fs.js`, `build.js`, and `check-spec-corpus.mjs` were not staged. Restored source/commit parity in `dc30d07`.
 
-### Verified
+### Local verification
 
-- 86 unit tests, 26 safe-authoring BDD scenarios, 64 staged-MCP BDD scenarios pass.
-- Mutation gate: 166/166 mutants killed. Tool surface: 10/10.
+- 86 unit tests, 26 safe-authoring BDD scenarios, 66 staged-MCP BDD scenarios pass.
+- Mutation gate: 168/168 mutants killed. Tool surface: 10/10.
 - Live YouTrack sync: PARITY achieved (478 nodes, 467 links). ROADMAP card live on board.
 - Live `assembleRoadmap` write: 83 items assembled, idempotent re-run confirmed.
+- Live writeback round trip: YouTrack `Fixed` on SPEC-525 (`roadmap-roadmaps:TASK-8`) swept to `.specs` `done` through `StatusSweepService`.
+
+### Not yet verified
+
+- Widget render was not verified in a browser; only the deploy script upload was confirmed.
+- The ROADMAP aggregate card on YouTrack is currently isolated (0 links): the graph has a `DECLARES` edge from the document node but no `CONTAINS` edges from the aggregate, so the card has no visual relationships yet.
 
 ## 1.2.0 — 2026-09-13
 

@@ -1,8 +1,8 @@
 {
   "schema": "omp-spec-kit-mutation-gate@1",
-  "timestamp": "2026-09-13T04:29:10.459Z",
-  "totalMutants": 166,
-  "killed": 166,
+  "timestamp": "2026-09-13T05:36:23.616Z",
+  "totalMutants": 168,
+  "killed": 168,
   "survivors": 0,
   "passed": true,
   "receipts": [
@@ -637,6 +637,18 @@
       "killerAssertion": "Deleted variant registerIncidentBacklog must be rejected\n\nfalse !== true\n"
     },
     {
+      "id": "delete-branch-spec_patch-createRoadmap",
+      "status": "KILLED",
+      "description": "Delete variant branch createRoadmap from spec_patch",
+      "killerAssertion": "Deleted variant createRoadmap must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_patch-assembleRoadmap",
+      "status": "KILLED",
+      "description": "Delete variant branch assembleRoadmap from spec_patch",
+      "killerAssertion": "Deleted variant assembleRoadmap must be rejected\n\nfalse !== true\n"
+    },
+    {
       "id": "duplicate-branch-spec_catalog-types",
       "status": "KILLED",
       "description": "Duplicate branch in spec_catalog",
@@ -676,7 +688,7 @@
       "id": "duplicate-branch-spec_patch-patch",
       "status": "KILLED",
       "description": "Duplicate branch in spec_patch",
-      "killerAssertion": "oneOf length changed\n\n14 !== 13\n"
+      "killerAssertion": "oneOf length changed\n\n16 !== 15\n"
     },
     {
       "id": "cross-branch-spec_entities-get-with-specSlugs",

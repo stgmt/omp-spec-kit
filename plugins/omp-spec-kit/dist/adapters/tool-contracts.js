@@ -409,6 +409,14 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("requirements", "json"),
         ]),
       }),
+      createRoadmap: Object.freeze({
+        description: "Preview or apply a ROADMAP.md skeleton for a roadmap-* spec.",
+        fields: Object.freeze([optionalField("title", "string")]),
+      }),
+      assembleRoadmap: Object.freeze({
+        description: "Preview or apply graph-derived ROADMAP.md auto-assembly.",
+        fields: Object.freeze([]),
+      }),
     }),
   },
 ]);
