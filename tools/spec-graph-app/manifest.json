@@ -12,14 +12,14 @@
     {
       "description": "Committed snapshot neighbors for the current issue with Approve/Verify/Reopen buttons.",
       "extensionPoint": "ISSUE_BELOW_SUMMARY",
-      "indexPath": "widgets/spec-panel/index.html",
+      "indexPath": "spec-panel/index.html",
       "key": "spec-panel",
       "name": "Spec Panel"
     },
     {
       "description": "Complete committed spec snapshot with zoom and filter by SpecKind.",
       "extensionPoint": "DASHBOARD_WIDGET",
-      "indexPath": "widgets/spec-board/index.html",
+      "indexPath": "spec-board/index.html",
       "key": "spec-board",
       "name": "Spec Board"
     }

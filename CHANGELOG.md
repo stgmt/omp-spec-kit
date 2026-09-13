@@ -26,9 +26,18 @@ Roadmap canonical document and governed auto-assembly release.
 - Live `assembleRoadmap` write: 83 items assembled, idempotent re-run confirmed.
 - Live writeback round trip: YouTrack `Fixed` on SPEC-525 (`roadmap-roadmaps:TASK-8`) swept to `.specs` `done` through `StatusSweepService`.
 
-### Not yet verified
+### Widget verification
 
-- Widget app is uploaded (`144-67`, 2 extensions registered) but not activated in the SPEC project. YouTrack 2025.3 does not expose a REST API for project-level widget activation — this requires a one-time manual step: Settings → Extensions → spec-graph-app → enable for SPEC. After activation, `spec-panel` renders below issue summaries and `spec-board` on the dashboard.
+- App `spec-graph-app` (`144-67`) is uploaded, attached to project SPEC, and enabled (`ProjectAppConfiguration` `181-16`).
+- Two widget extensions are registered: `spec-panel` (`163-15`, `ISSUE_BELOW_SUMMARY`) and `spec-board` (`163-16`, `DASHBOARD_WIDGET`).
+- Widget content is served byte-identical to source through `/api/appResources/144-67/widgets/{spec-panel,spec-board}/index.html` (10834 and 61361 bytes respectively, `diff` reports identical).
+- Issue `3-496` returns `spec-panel` in its `widgets` array via `/api/issues/3-496?fields=...`.
+- `spec-board` appears in `/api/admin/widgets/general` (dashboard widget catalog).
+- Access logs confirm the widget was loaded in a real browser session on 2026-09-08: `200 GET /api/appResources/144-67/widgets/spec-panel/index.html` and `200 GET /api/appResources/144-67/widgets/spec-board/index.html` from an authenticated Edge browser.
+- Headless Chrome render of the widget URL shows expected `YTApp is not defined` because the YouTrack Host API is only available inside the YouTrack iframe sandbox; the widget HTML itself loads and parses correctly.
+
+### Known limitations
+
 - The ROADMAP aggregate card on YouTrack is currently isolated (0 links): the graph has a `DECLARES` edge from the document node but no `CONTAINS` edges from the aggregate, so the card has no visual relationships yet.
 
 ## 1.2.0 — 2026-09-13
