@@ -4,8 +4,8 @@ Status: DRAFT
 
 ## Planned fixtures
 
-- `tests/fixtures/registry/repo-a/` — bare repo + working clone pair with `specs` branch containing a two-spec corpus (reuses existing spec fixture shapes).
-- `tests/fixtures/registry/repo-b/` — second project for mount isolation (AC-4, SCEN-multi-project-routing).
+- `tests/fixtures/registry/specs-repo/` — bare specs repo + working clone pair with `stgmt/a/.specs/` + `acme/b/.specs/` namespaces (reuses existing spec fixture shapes).
+- `tests/fixtures/registry/repo-b/` — second namespace for scope isolation (AC-4, SCEN-multi-project-routing).
 - `tests/fixtures/registry/pushes/` — recorded push scenarios: bot push, non-bot push (reject), break-glass admin push (drift), `.specs/` on code branch (reject).
 - `tests/fixtures/registry/claims/` — lease lifecycle: claim → held write → force write → expiry.
 - `tests/fixtures/registry/ledger/` — publish records incl. version-regress and digest-mismatch reject cases.

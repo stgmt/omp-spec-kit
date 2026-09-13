@@ -7,10 +7,10 @@ Status: DRAFT
 QueryEnvelope gains one optional field:
 
 ```json
-{ "project": "omp-spec-kit" }
+{ "project": "stgmt/omp-spec-kit" }
 ```
 
-Absent → caller's bound default project. All other envelope fields unchanged; existing error codes reused (`CONFLICT`, `VALIDATION_FAILED`, `PATH_FORBIDDEN`, `ELICITATION_REQUIRED`, `INTERNAL_ERROR`) plus:
+`project` is the composite `owner/project` scope — checked against the caller's tenant → allowed-projects set. Absent → caller's bound default project. All other envelope fields unchanged; existing error codes reused (`CONFLICT`, `VALIDATION_FAILED`, `PATH_FORBIDDEN`, `ELICITATION_REQUIRED`, `INTERNAL_ERROR`) plus:
 
 ```json
 "CLAIM_HELD"      // spec is claimed by another identity; error.holder, error.expiresAt
@@ -41,10 +41,10 @@ Absent → caller's bound default project. All other envelope fields unchanged; 
 
 ```sql
 tenants(id TEXT PRIMARY KEY, token_hash TEXT UNIQUE,
-        allowed_projects TEXT,        -- JSON array of project ids
+        allowed_scopes TEXT,          -- JSON array of "owner/project" (or "owner/*")
         created_at TEXT, revoked_at TEXT)
 
-claims(spec_key TEXT PRIMARY KEY,  -- "project/slug"
+claims(spec_key TEXT PRIMARY KEY,  -- "owner/project/slug"
        holder TEXT, expires_at TEXT, created_at TEXT)
 
 ledger(spec_key TEXT, version TEXT,  -- PK (spec_key, version)
@@ -65,16 +65,17 @@ access_log(id INTEGER PRIMARY KEY, ts TEXT, identity TEXT,
 ## Project config (compose)
 
 ```jsonc
-// config/projects.json
+// config/projects.json — registry of scopes inside the single specs repo
 { "schema": "registry-projects@1",
-  "projects": [{ "id": "kebab-id", "repo": "clone-url",
-                 "branch": "specs", "worktree": "/data/worktrees/<id>" }] }
+  "specsRepo": { "url": "git@github.com:stgmt/omp-specs.git", "branch": "main",
+                 "clone": "/data/specs-repo" },
+  "projects": [{ "id": "stgmt/omp-spec-kit" }, { "id": "acme/billing" }] }
 ```
 
 ## Spec pack manifest (generated at publish, never authored)
 
 ```jsonc
-{ "schema": "spec-pack@1", "slug": "...", "project": "...",
+{ "schema": "spec-pack@1", "slug": "...", "project": "owner/project",
   "version": "x.y.z", "digest": "sha256:...", "commit": "...",
   "status": "ACTIVE", "requires": [{"slug": "...", "range": "..."}],
   "publishedAt": "...", "attestation": "..." }

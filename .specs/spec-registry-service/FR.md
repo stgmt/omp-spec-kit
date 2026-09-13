@@ -2,19 +2,19 @@
 
 Status: DRAFT
 
-## Branch and storage
+## Repo and storage
 
-### FR-1 — Specs branch provisioning
+### FR-1 — Specs repo provisioning
 
-Given a managed repo without a `specs` branch, when the service first mounts the project, it creates an orphan `specs` branch containing only `.specs/` (with any imported content) and pushes it as the bot.
+The canonical store is one dedicated specs repository with layout `<owner>/<project>/.specs/<slug>/`. When the service first mounts a configured project whose `<owner>/<project>/.specs/` does not yet exist, it creates the skeleton and pushes it as the bot.
 
 ### FR-2 — Write-path exclusivity
 
-Only the service bot can push to `specs`. Any push carrying **repo-root** `.specs/**` to a non-`specs` branch fails a required check — the rule anchors at the repository root and must not match nested fixture paths such as `tests/fixtures/**/.specs/`. Merging the `specs` branch into a code branch is prohibited (it would carry `.specs/` across the boundary — PRs attempting it fail the same check). Break-glass pushes by repo admins are detected on the next service sync and recorded as drift events.
+Only the service bot can push to the specs repository. Separately, a managed product repo rejects any push/PR carrying **repo-root** `.specs/**` on its code branches — the rule anchors at the repository root and must not match nested fixture paths such as `tests/fixtures/**/.specs/`; this guard is applied per-repo when that project migrates. Break-glass pushes by repo admins are detected on the next service sync and recorded as drift events.
 
-### FR-3 — Per-project worktrees
+### FR-3 — Per-project roots
 
-The service maintains one worktree per configured project, always on that project's `specs` branch. Kernel operations execute against `worktree(project)`; no operation may address a path outside the mounted worktree (existing `inspectAuthoringTarget` rules apply unchanged).
+The service maintains one clone of the specs repo; kernel operations execute against `root = <clone>/<owner>/<project>` (the dir containing `.specs/`). No operation may address a path outside the resolved project root (existing `inspectAuthoringTarget` rules apply unchanged).
 
 ## Write path
 
@@ -24,7 +24,7 @@ All mutations for a project serialize through the existing transaction layer (jo
 
 ### FR-5 — Optimistic concurrency and publish confirmation
 
-`spec_patch` accepts `expectedSha` per document and `repositoryRootFingerprint` per request (existing semantics). Mismatch → `CONFLICT`, `retryable: true`. A write reports success only after the git push to the `specs` branch is confirmed; push failure returns an error and leaves the worktree ahead of remote (reconciled on retry/boot — never silently dropped).
+`spec_patch` accepts `expectedSha` per document and `repositoryRootFingerprint` per request (existing semantics). Mismatch → `CONFLICT`, `retryable: true`. A write reports success only after the git push to the specs repo is confirmed; push failure returns an error and leaves the clone ahead of remote (reconciled on retry/boot — never silently dropped).
 
 ### FR-6 — Attributed commits
 
@@ -46,7 +46,7 @@ All nine existing read operations are served over the remote transport with the 
 
 ### FR-10 — Drift report and sync cadence
 
-The service fetches each project's `specs` branch on a configured interval (default: every poll cycle; optionally triggered sooner by a repo webhook) and reconciles worktree ↔ remote ↔ projection. `GET /drift` lists divergence: non-bot commits, unexpected mutations, projection rebuild failures, worktree-ahead-of-remote states.
+The service fetches the specs repo on a configured interval (default: every poll cycle; optionally triggered sooner by a repo webhook) and reconciles clone ↔ remote ↔ projection per project. `GET /drift` lists divergence: non-bot commits, unexpected mutations, projection rebuild failures, clone-ahead-of-remote states.
 
 ## Publish and pins
 
@@ -72,8 +72,8 @@ The plugin `.mcp.json` for managed projects references the remote endpoint. The 
 
 ### FR-15 — Compose stack
 
-`docker compose up` starts: `spec-registryd` (service + mounted volume of worktrees + SQLite), optional `youtrack-sync` (existing projection), optional reverse proxy. Configuration is `config/projects.json` + env secrets.
+`docker compose up` starts: `spec-registryd` (service + mounted volume holding the specs-repo clone + SQLite), optional `youtrack-sync` (existing projection), reverse proxy (TLS required — the endpoint is reachable beyond localhost). Configuration is `config/projects.json` + env secrets.
 
 ### FR-16 — Boot recovery
 
-On boot, the service replays `recoverInterruptedTransactions` semantics per project worktree, rebuilds graphs, reconciles ledger vs git log, and reports drift before accepting writes.
+On boot, the service replays `recoverInterruptedTransactions` semantics per project root, rebuilds graphs, reconciles ledger vs git log, and reports drift before accepting writes.

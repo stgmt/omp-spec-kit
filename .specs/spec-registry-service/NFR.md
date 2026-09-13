@@ -4,7 +4,7 @@ Status: DRAFT
 
 ### NFR-1 — Availability
 
-Consumers have no repository access, so their read availability **is** service uptime — a service outage is a full read+write outage for consumers (accepted in v1; target "team hours", no 24/7). The operator retains the ultimate fallback: the `specs` branch is clonable at all times.
+Consumers have no repository access, so their read availability **is** service uptime — a service outage is a full read+write outage for consumers (accepted in v1; target "team hours", no 24/7). The operator retains the ultimate fallback: the specs repo is clonable at all times.
 
 ### NFR-2 — Integrity
 

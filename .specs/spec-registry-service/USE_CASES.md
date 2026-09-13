@@ -5,8 +5,8 @@ Status: DRAFT
 ## UC-1 — Create a spec
 
 1. Caller (agent via MCP, or human via YT app) submits `createSpec` intent with title.
-2. Service allocates the slug within the project; if it is already taken (locally or on the remote `specs` branch), the call fails with `CONFLICT` naming the existing spec — no silent disambiguation, the caller picks a distinct slug.
-3. Kernel compiles skeleton documents; transaction commits on `specs` branch; index updated.
+2. Service allocates the slug within the `owner/project` scope; if it is already taken (locally or on the remote specs repo), the call fails with `CONFLICT` naming the existing spec — no silent disambiguation, the caller picks a distinct slug.
+3. Kernel compiles skeleton documents; transaction commits to the specs repo; index updated.
 4. Spec is `DRAFT`, unpublished, claimable.
 
 ## UC-2 — Patch a spec (happy path)
@@ -46,4 +46,4 @@ Status: DRAFT
 ## UC-8 — Service outage
 
 1. Service down → consumers see `UNAVAILABLE` (`retryable: true`) on every call — they hold no repo credentials, so there is no consumer-side fallback; the caller retries when the service is back.
-2. The operator `git clone -b specs` → full corpus readable offline; break-glass admin push possible (drift-reported on recovery — UC-7).
+2. The operator clones the specs repo → full corpus readable offline; break-glass admin push possible (drift-reported on recovery — UC-7).

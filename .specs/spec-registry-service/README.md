@@ -2,7 +2,7 @@
 
 Status: DRAFT
 
-Centralized, multi-project specification registry hosted by the operator: `.specs/` content lives exclusively on dedicated `specs` branches in the operator's git repositories. Consumers get **no repository access at all** — not even read clones. All access is centralized through two remote surfaces: HTTPS MCP for AI agents, and the YouTrack app for humans and non-developer agents (either the operator's YouTrack, or a consumer's own YouTrack running the extension bound to this backend). Writes go only through the service, which wraps the existing kernel. Deployment is a docker-compose stack.
+Centralized, multi-tenant specification registry hosted by the operator: all canonical `.specs/` content lives in **one dedicated specs repository** (a separate GitHub repo the stack owns — never a branch of a product repo), laid out as `<owner>/<project>/.specs/<slug>/` — many users, many projects per user, many specs per project. Consumers get **no repository access at all** — not even read clones. All access is centralized through two remote surfaces: HTTPS MCP for AI agents, and the YouTrack app for humans and non-developer agents (either the operator's YouTrack, or a consumer's own YouTrack running the extension bound to this backend). Writes go only through the service, which wraps the existing kernel. Deployment is a docker-compose stack.
 
 This specification owns: the dedicated-specs-branch model, the centralized write path and its exclusivity rules, multi-project mounting, the remote agent surface, the YouTrack entry point, claim/ownership semantics, and the compose deployment shape.
 
@@ -10,8 +10,8 @@ It does not own: kernel document semantics (inherited), the plugin's OMP host-si
 
 ## Public states
 
-- **NEXT:** multi-user centralized registry on dedicated per-repo specs branches with service-only writes.
-- **LATER:** full YouTrack Hub authN/authZ, publish ledger hardening, external-consumer spec packs (registry Option B/OCI), specs-repo migration if an out-of-repo consumer appears (backlog RISK-4).
+- **NEXT:** multi-tenant centralized registry on one dedicated specs repo (`owner/project/.specs`) with service-only writes.
+- **LATER:** full YouTrack Hub authN/authZ, publish ledger hardening, external-consumer spec packs (registry Option B/OCI), external-YouTrack binding (TASK-13), omp-spec-kit corpus import (TASK-14).
 
 ## Documents
 
