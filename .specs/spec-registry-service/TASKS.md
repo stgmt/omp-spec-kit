@@ -5,9 +5,10 @@ Status: DRAFT
 ## Phase 0 — Specs branch model
 
 ## TASK-1 — Create `specs` branch layout + migrate existing `.specs/` content preserving history
-- **Status:** todo
+- **Status:** done
 - **Done When:** `specs` branch exists containing only `.specs/` — produced by `git subtree split` (or equivalent history-preserving extraction) for repos with history, orphan init for fresh ones; `main` no longer carries `.specs/`; CI check rejects root-level `.specs/**` on non-specs branches (nested fixture paths unaffected); spec git history remains inspectable on the `specs` branch; repo tooling that reads `.specs` (corpus checks, dogfood, kernel scripts) is repointed at a `specs`-branch worktree so verification keeps working after migration.
 - **Requirements:** R-1, FR-1, FR-2
+- **Evidence:** branch `specs` produced via `filter-branch --index-filter` (`.specs/` path preserved, 49 spec-history commits); `.gitignore` for `.omp-spec-kit-*` committed on `specs`; `specs-boundary` job + `/.specs/` ignore on code branches; `scripts/specs-root.mjs` repoint (`OMP_SPEC_KIT_ROOT` → `.specs` → `.specs-worktree`); `specs-corpus.yml` validates specs pushes; corpus/dogfood/unit gates green on `feat/spec-registry-service` (PR to `fix/path-guard-selector-symmetry`).
 
 ## TASK-2 — Ruleset/protection for `specs` branch (bot-only pushes) + break-glass logging
 - **Status:** todo
