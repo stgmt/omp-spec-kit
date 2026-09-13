@@ -10,7 +10,7 @@ The Read domain owns the consolidated ten-tool public surface, the deterministic
 
 ## Write domain
 
-The Write domain owns one public authoring tool, `spec_patch`, covering 13 authoring intents behind one proposal/apply path: preview is a pure in-memory Proposal, apply is transactional under an exclusive lock with internal rollback on failure (FR-23, FR-26, FR-27). The OMP non-MCP access boundary is owned by [MCP access gate](../spec-mcp-access-gate/README.md).
+The Write domain owns one public authoring tool, `spec_patch`, covering 15 authoring intents behind one proposal/apply path: preview is a pure in-memory Proposal, apply is transactional under an exclusive lock with internal rollback on failure (FR-23, FR-26, FR-27). The OMP non-MCP access boundary is owned by [MCP access gate](../spec-mcp-access-gate/README.md).
 
 ## Operation census
 
