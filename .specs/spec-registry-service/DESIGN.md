@@ -51,7 +51,7 @@ Status: DRAFT
 
 ## Transports
 
-- **MCP for all clients — one access point**: Streamable HTTP `POST /mcp`. Same tool contracts and envelope; new optional envelope field `project` (call parameter; absent → token's default scope — see Caller context). KERNEL_SCHEMA_VERSION bumps to `spec-kernel@2`. The YouTrack app is just another MCP client: its backend calls `tools/call` on the same endpoint — there is **no separate REST/RPC surface** to maintain.
+- **MCP for all clients — one access point**: Streamable HTTP `POST /mcp`, served by the **official `@modelcontextprotocol/sdk`** (`StreamableHTTPServerTransport` in stateless mode per SDK docs — no session id, `GET` → 405). Same tool contracts and envelope; new optional envelope field `project` (call parameter; absent → token's default scope — see Caller context). KERNEL_SCHEMA_VERSION bumps to `spec-kernel@2`. The YouTrack app is just another MCP client: widget → `host.fetchApp()` → app HTTP handler → `http.Connection.postSync` → `POST /mcp` (`tools/call`) — a ~15-line JSON-RPC wrapper in the handler, no MCP client library needed. There is **no separate REST/RPC surface** to maintain.
 - Local stdio MCP: retired for managed projects (`.mcp.json` → remote `type: "http"`). Kept buildable for unmanaged/offline use.
 
 ## Multi-tenant project model

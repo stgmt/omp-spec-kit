@@ -6,7 +6,8 @@ Status: DRAFT
 
 - `src/service/index.js` — service entrypoint: config load, mount manager, transports.
 - `src/service/mounts.js` — single specs-repo clone lifecycle; resolves `owner/project` → project root, creates `.specs` skeletons for new projects.
-- `src/service/http.js` — Streamable HTTP MCP transport (`POST /mcp`, single access point) + ops endpoints (`/registry`, `/drift`, `/health`).
+- `src/service/http.js` — MCP over Streamable HTTP via the **official `@modelcontextprotocol/sdk`** (`StreamableHTTPServerTransport`, stateless mode per SDK docs) on express; `POST /mcp` is the single access point for all clients (agents + YouTrack app backend); ops endpoints (`/registry`, `/drift`, `/health`).
+- **New dependencies**: `@modelcontextprotocol/sdk` (official MCP SDK), `express` (HTTP server per SDK docs). Everything else stays built-in (`node:sqlite`, `node:child_process` git CLI — the canonical git interface).
 - `src/service/auth.js` — v1 token verifier + identity attribution; YouTrack Hub seam.
 - `src/service/claims.js` — lease store + expiry sweeper.
 - `src/service/tenants.js` — tenant records, token→tenant→allowed-projects resolution.
@@ -23,8 +24,9 @@ Status: DRAFT
 ## Changed
 
 - `plugins/omp-spec-kit/.mcp.json` — remote endpoint mode for managed projects. **Verified** against the pinned OMP schema (`mcp-schema.json` @ 33cc6b9): `serverConfig` accepts `type: "http"` with `url` + `headers` (Streamable HTTP transport), and an `auth` block (`oauth`/`apikey`). No shim needed: `{ "type": "http", "url": "<stack>/mcp", "headers": { "Authorization": "Bearer <token>" } }` is a legal config.
-- `src/mcp/server.js` — transport split: keep stdio for unmanaged roots; share tool dispatch with HTTP path.
-- `src/adapters/tool-contracts.js` — `project` field + new op contracts.
+- `src/mcp/server.js` — unchanged stdio transport for unmanaged roots; the HTTP service does not share its hand-rolled dispatch — the service side uses the official SDK, whose tool handlers call the same `createSpecService(...).runQuery` + contracts.
+- `src/adapters/tool-contracts.js` — `project`, `identity`, `force` fields + new op contracts.
+- `src/authoring/transactions.js` — export `recoverInterruptedTransactions` (boot recovery, FR-16).
 - `src/kernel/types.js` + `src/kernel/index.js` — `KERNEL_SCHEMA_VERSION` → `spec-kernel@2`; register new error codes (`CLAIM_HELD`, `UNAVAILABLE`, `VERSION_EXISTS`) in the code tables and `WRITE_ERROR_CODES` (with `retryable` classification consistent with `isRetryable`).
 - `src/kernel/query/*` — optional `project` plumbed through envelope validation.
 - Per-product-repo boundary check (applied when that repo migrates — TASK-14 for this repo): "no root-level `.specs/` on code branches" CI job, anchored at repo root so `tests/fixtures/**/.specs/` stays legal.

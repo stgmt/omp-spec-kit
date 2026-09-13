@@ -20,7 +20,7 @@ One service instance serves many users, each with many projects, each project wi
 
 ## R-5 — Remote agent surface (MCP)
 
-AI agents reach the registry only through the hosted MCP endpoint in the compose stack, over HTTPS. The locally spawned stdio MCP server is retired for managed projects: the plugin's `.mcp.json` points at the remote endpoint (`type: "http"` — verified against the pinned OMP schema), and product checkouts on non-specs branches contain no `.specs/` to serve locally anyway.
+AI agents reach the registry only through the hosted MCP endpoint in the compose stack, over HTTPS, served by the official `@modelcontextprotocol/sdk` Streamable HTTP transport (stateless mode). The locally spawned stdio MCP server is retired for managed projects: the plugin's `.mcp.json` points at the remote endpoint (`type: "http"` — verified against the pinned OMP schema), and product checkouts on non-specs branches contain no `.specs/` to serve locally anyway.
 
 ## R-6 — Human/non-dev entry point (YouTrack app)
 
