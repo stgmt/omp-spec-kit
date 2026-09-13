@@ -20,6 +20,7 @@ export const FIXED_DOCUMENT_FILES = Object.freeze({
   FILE_CHANGES: "FILE_CHANGES.md",
   CHANGELOG: "CHANGELOG.md",
   FIXTURES: "FIXTURES.md",
+  ROADMAP: "ROADMAP.md",
 });
 
 export const DOCUMENT_KINDS = Object.freeze([
@@ -38,6 +39,7 @@ export const DOCUMENT_KINDS = Object.freeze([
   "FEATURE",
   "FIXTURES",
   "SCHEMA",
+  "ROADMAP",
 ]);
 
 // Document kinds that contribute Markdown heading/link inventories (everything except FEATURE).
@@ -220,8 +222,10 @@ export const LOCAL_ID_ROLES = Object.freeze({
   FIXTURE: { kind: "FIXTURE", re: /^FIXTURE-[1-9][0-9]*$/ },
   SCHEMA_ENTITY: { kind: "SCHEMA_ENTITY", re: /^SCHEMA-[1-9][0-9]*$/ },
   SCENARIO: { kind: "SCENARIO", re: /^SCEN-[a-z0-9]+(?:-[a-z0-9]+)*$/ },
-  // Synthetic spec-aggregate identity; never an authored definition (no
-  // document kind lists it in DOCUMENT_DEFINITION_ROLES).
+  // Spec-aggregate identity; auto-declared by the ROADMAP canonical document
+  // of a roadmap-* spec (one per spec, fixed local ID). Not an authored
+  // heading-derived definition (no document kind lists it in
+  // DOCUMENT_DEFINITION_ROLES).
   ROADMAP: { kind: "ROADMAP", re: /^ROADMAP$/ },
 });
 
@@ -242,6 +246,7 @@ export const DOCUMENT_DEFINITION_ROLES = Object.freeze({
   FEATURE: [],
   FIXTURES: ["FIXTURE"],
   SCHEMA: ["SCHEMA_ENTITY"],
+  ROADMAP: [],
 });
 
 // Definition heading productions per role.

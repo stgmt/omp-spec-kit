@@ -409,9 +409,69 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
     }
   }
 
+  // Generated ROADMAP aggregate nodes: one per ROADMAP.md canonical document
+  // in a roadmap-* spec. The ROADMAP local ID is a fixed string (not
+  // heading-derived), so the node is auto-declared by document existence
+  // rather than parsed as a definition occurrence.
+  let generatedRoadmapNodes = 0;
+  for (const entry of usableEntries) {
+    if (entry.documentKind !== "ROADMAP") continue;
+    if (!entry.specSlug.startsWith("roadmap-")) continue;
+    const localId = "ROADMAP";
+    const canonicalId = makeCanonicalId(entry.specSlug, localId);
+    if (nodeById.has(canonicalId)) continue; // safety: never duplicate
+    const title = entry.specSlug;
+    const node = {
+      canonicalId,
+      specSlug: entry.specSlug,
+      localId,
+      kind: "ROADMAP",
+      title,
+      body: "",
+      span: { ...wholeFileSpan(entry.text), path: entry.row.path },
+      documentKind: "ROADMAP",
+      attributes: {
+        filename: entry.filename,
+        sourceSha256: entry.row.sha256,
+      },
+      contentHash: "",
+    };
+    node.contentHash = hashIdentity(nodeWithoutHash(node));
+    nodes.push(node);
+    nodeById.set(canonicalId, node);
+    generatedRoadmapNodes += 1;
+  }
+
   // ---- Phase 5: reference collection ----
   const references = [];
   collectReferences(parsedByPath, usableEntries, definitionOccurrences, nodeById, references, hashIdentity);
+
+  // Auto-generated DECLARES reference occurrences from ROADMAP.md document
+  // nodes to their ROADMAP aggregate nodes. These are pre-resolved (the
+  // aggregate is auto-declared by document existence, not by a parsed
+  // reference field) and skipped by Phase 6 resolution.
+  for (const entry of usableEntries) {
+    if (entry.documentKind !== "ROADMAP") continue;
+    if (!entry.specSlug.startsWith("roadmap-")) continue;
+    const documentCanonicalId = makeCanonicalId(entry.specSlug, documentLocalId(entry.filename));
+    const roadmapCanonicalId = makeCanonicalId(entry.specSlug, "ROADMAP");
+    if (!nodeById.has(documentCanonicalId) || !nodeById.has(roadmapCanonicalId)) continue;
+    const span = { ...wholeFileSpan(entry.text), path: entry.row.path };
+    references.push({
+      occurrenceId: hashIdentity({ path: entry.row.path, kind: "roadmap-declares", spec: entry.specSlug }),
+      specSlug: entry.specSlug,
+      sourceCanonicalId: documentCanonicalId,
+      rawTarget: roadmapCanonicalId,
+      requestedEdgeType: "DECLARES",
+      span,
+      outcome: "RESOLVED",
+      resolvedEdgeId: hashIdentity({ path: entry.row.path, kind: "roadmap-declares", spec: entry.specSlug }),
+      unresolvedReason: null,
+      candidateCanonicalIds: [],
+      diagnosticIds: [],
+      _rank: -1,
+    });
+  }
 
   // ---- Phase 6: edge resolution ----
   const specSlugsOfLocalId = new Map();
@@ -431,6 +491,7 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
   const resolvedEdges = [];
   const unresolvedReferences = [];
   for (const reference of references) {
+    if (reference.outcome !== "PENDING") continue;
     const result = resolveReference(reference, resolutionCtx);
     if (result.outcome === "RESOLVED") {
       reference.outcome = "RESOLVED";
@@ -453,6 +514,26 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
       reference.diagnosticIds.push(diagnostic.diagnosticId);
       unresolvedReferences.push(reference);
     }
+  }
+
+  // Auto-generated DECLARES edges from ROADMAP.md document nodes to their
+  // ROADMAP aggregate nodes (the aggregate is auto-declared by document
+  // existence, not by a parsed reference field). The matching reference
+  // occurrences were pre-resolved in Phase 5 and skipped by Phase 6.
+  for (const entry of usableEntries) {
+    if (entry.documentKind !== "ROADMAP") continue;
+    if (!entry.specSlug.startsWith("roadmap-")) continue;
+    const documentCanonicalId = makeCanonicalId(entry.specSlug, documentLocalId(entry.filename));
+    const roadmapCanonicalId = makeCanonicalId(entry.specSlug, "ROADMAP");
+    if (!nodeById.has(documentCanonicalId) || !nodeById.has(roadmapCanonicalId)) continue;
+    const edgeId = hashIdentity({ path: entry.row.path, kind: "roadmap-declares", spec: entry.specSlug });
+    resolvedEdges.push({
+      edgeId,
+      from: documentCanonicalId,
+      to: roadmapCanonicalId,
+      type: "DECLARES",
+      span: { ...wholeFileSpan(entry.text), path: entry.row.path },
+    });
   }
 
   // ---- Phase 7: AC parent validation ----
@@ -505,6 +586,7 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
     linkOutcomeCounts,
     generatedDocumentNodes,
     generatedFileNodes,
+    generatedRoadmapNodes,
     diagnostics,
   });
 
@@ -1048,11 +1130,12 @@ function computeCounts(input) {
     linkOutcomeCounts,
     generatedDocumentNodes,
     generatedFileNodes,
+    generatedRoadmapNodes,
     diagnostics,
   } = input;
   let uniqueDefinitionNodes = 0;
   for (const node of nodes) {
-    if (node.kind !== "DOCUMENT" && node.kind !== "FILE") uniqueDefinitionNodes += 1;
+    if (node.kind !== "DOCUMENT" && node.kind !== "FILE" && node.kind !== "ROADMAP") uniqueDefinitionNodes += 1;
   }
   const ambiguous = definitionOccurrences.filter((record) => record.outcome === "AMBIGUOUS").length;
   const rejected = definitionOccurrences.filter((record) => record.outcome === "REJECTED").length;
@@ -1080,6 +1163,7 @@ function computeCounts(input) {
     markdownRewriteSites: rewriteKeys.size,
     generatedDocumentNodes,
     generatedFileNodes,
+    generatedRoadmapNodes,
     diagnosticsError: severityCounts.ERROR,
     diagnosticsWarning: severityCounts.WARNING,
     diagnosticsInfo: severityCounts.INFO,

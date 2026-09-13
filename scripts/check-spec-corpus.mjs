@@ -38,7 +38,13 @@ const FIXED_DOCS = Object.freeze([
   "FIXTURES.md",
   "CHANGELOG.md",
 ]);
-const EXPECTED_DOCUMENT_COUNT = EXPECTED_SPECS.length * (FIXED_DOCS.length + 2);
+// ROADMAP.md is a conditional canonical document: only roadmap-* specs
+// carry it (slug-prefix detection is authoritative).
+const ROADMAP_DOCS = Object.freeze(["ROADMAP.md"]);
+const ROADMAP_SPEC_PREFIX = "roadmap-";
+const EXPECTED_DOCUMENT_COUNT =
+  EXPECTED_SPECS.length * (FIXED_DOCS.length + 2) +
+  ROADMAP_DOCS.length * EXPECTED_SPECS.filter((slug) => slug.startsWith(ROADMAP_SPEC_PREFIX)).length;
 
 function fail(message) {
   console.error(`spec-corpus check: ${message}`);
@@ -74,6 +80,7 @@ function exactCanonicalDocuments() {
   let canonicalCount = 0;
   for (const slug of EXPECTED_SPECS) {
     const expected = [...FIXED_DOCS, `${slug}.feature`, `${slug}_SCHEMA.md`];
+    if (slug.startsWith(ROADMAP_SPEC_PREFIX)) expected.push(...ROADMAP_DOCS);
     for (const name of expected) {
       const filePath = path.join(SPECS_ROOT, slug, name);
       if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
