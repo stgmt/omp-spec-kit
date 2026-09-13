@@ -18,8 +18,10 @@ const SPECS_ROOT = path.join(ROOT, ".specs");
 const EXPECTED_SPECS = Object.freeze([
   "agent-ux-elicitation-guard",
   "plugin-distribution",
+  "roadmap-roadmaps",
   "spec-mcp-access-gate",
   "spec-mcp-operations",
+  "youtrack-visualization",
 ]);
 const FIXED_DOCS = Object.freeze([
   "README.md",

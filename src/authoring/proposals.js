@@ -155,7 +155,12 @@ export function applyOperation(text, operation) {
     if (typeof operation.entity !== "string" || typeof operation.status !== "string")
       return { ok: false, code: "INVALID_REQUEST", message: "replace_task_status needs entity and status" };
     const lines = text.split(/\r?\n/u);
-    const heading = lines.findIndex((line) => /^##\s+/.test(line) && line.includes(operation.entity));
+    // Exact local-id match on the first heading token: a substring match lets
+    // "TASK-1" silently resolve to a "## TASK-10" section.
+    const heading = lines.findIndex((line) => {
+      const match = line.match(/^##\s+([^\s:]+)/);
+      return match !== null && match[1] === operation.entity;
+    });
     if (heading < 0)
       return { ok: false, code: "VALIDATION_FAILED", message: `task heading not found: ${operation.entity}` };
     let end = lines.length;
@@ -165,10 +170,16 @@ export function applyOperation(text, operation) {
         break;
       }
     }
-    const status = lines.slice(heading + 1, end).findIndex((line) => /^\s*-\s+\*\*Status:\*\*/u.test(line));
+    // The kernel field parser accepts `Status:`, `**Status:**`, and their
+    // bulleted forms; matching only `- **Status:**` would fail to patch the
+    // corpus's dominant plain/bold forms. The matched prefix is preserved so
+    // the task keeps its authored field shape.
+    const STATUS_PREFIX = /^([ ]{0,3}(?:[-*][ \t]+)?(?:\*\*)?[ \t]*Status[ \t]*(?:\*\*)?[ \t]*:(?:\*\*)?)/u;
+    const status = lines.slice(heading + 1, end).findIndex((line) => STATUS_PREFIX.test(line));
     if (status < 0)
       return { ok: false, code: "VALIDATION_FAILED", message: `task status field not found: ${operation.entity}` };
-    lines[heading + 1 + status] = `- **Status:** ${operation.status}`;
+    const index = heading + 1 + status;
+    lines[index] = `${lines[index].match(STATUS_PREFIX)[1]} ${operation.status}`;
     return { ok: true, text: lines.join("\n") };
   }
   if (kind === "insert_at_eof") {

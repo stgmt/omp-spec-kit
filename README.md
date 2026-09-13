@@ -30,7 +30,7 @@ The v1.1.0 release exposes exactly 10 task-oriented MCP tools: 9 bounded read-on
 |---|---|---|
 | Catalog & Corpus | `spec_catalog` | `view: "types" | "specs" | "inventory" | "overview" | "status"` |
 | Nodes & Search | `spec_entities` | `mode: "get" | "find"` |
-| Graph & Traversal | `spec_graph` | `view: "edges" | "trace"` |
+| Graph & Traversal | `spec_graph` | `view: "edges" | "trace" | "board"` |
 | Documents & Attachments | `spec_documents` | `action: "list" | "read" | "attachment"` |
 | Validation & Policy | `spec_inspect` | `check: "scenariosByTags" | "orphans" | "anchor" | "requirementMetadata" | "requirementsPolicy" | "archivalProof" | "validation"` |
 | Tasks | `spec_tasks` | filters: `spec`, `statuses`, `phase`, `requirement` |

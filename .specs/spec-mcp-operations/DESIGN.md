@@ -229,29 +229,24 @@ The host policy blocks raw `.specs/**` writers. The handler separately enforces 
 
 ## MCP discovery metadata
 
-`tool-contracts.js` remains the single source for labels, names, and input schemas. The MCP server maps each contract to a top-level title and one of two frozen four-hint annotation objects. Shared workflow guidance lives in the initialize instructions field; descriptions retain tool-specific purpose. The port checker and tool blast script own the consolidated 11-tool surface invariants.
+The MCP server publishes exactly ten tools in one fixed order: mcp_preflight, spec_catalog, spec_entities, spec_graph, spec_documents, spec_inspect, spec_tasks, spec_evidence, spec_markdown, and spec_patch. tool-contracts.js is the single source for names, titles, descriptions, annotations, and strict branch schemas. The nine read tools use readOnlyHint=true, destructiveHint=false, idempotentHint=true, openWorldHint=false. spec_patch uses false, true, true, false. Every tool has a concise first description line and initialize publishes one discovery paragraph.
 
-### MCP UX contract
-
-The MCP adapter owns concise tool descriptions, titles, annotations, the server instruction, and one declared output schema. The query boundary owns canonical envelope mirrors and actionable recovery text for stale cursors and conflicts; the enforcement boundary owns bounded relative-target recovery. Domain apply refusals retain their structured `REFUSED` receipt while the MCP transport marks the refusal as an error.
-
+The server returns one stable KernelEnvelope with schemaVersion, requestId, operation, ok, graph, page, data, error, diagnostics, and provenance in both structured and text content. Root mismatch uses REPOSITORY_ROOT_FINGERPRINT_MISMATCH and exposes only activeProjectRootId and resolvedRootId.
 
 ## 10-tool consolidated architecture
 
-The public MCP surface is consolidated into 10 task-oriented tools:
-- `spec_catalog`: discriminated on `view` (types, specs, inventory, overview, status)
-- `spec_entities`: discriminated on `mode` (get, find)
-- `spec_graph`: discriminated on `view` (edges, trace)
-- `spec_documents`: discriminated on `action` (list, read, attachment)
-- `spec_inspect`: discriminated on `check` (scenariosByTags, orphans, anchor, requirementMetadata, requirementsPolicy, archivalProof, validation)
-- `spec_tasks`: task listing with optional phase and requirement filters
-- `spec_evidence`: discriminated on `view` (result, trace)
-- `spec_markdown`: heading and link inventory
-- `spec_patch`: discriminated on `intent` (patch plus 12 typed edit intents) with optional `dryRun` (default `true`)
-- `mcp_preflight`: workspace preflight check
+spec_graph has strict branches edges, trace, and board. The board branch is a complete one-call BoardProjectionV1 for corpus or specification scope; it has no cursor or limit and returns RESPONSE_TOO_LARGE instead of truncating. Board nodes carry card-source fields because the YouTrack adapter must not re-read or rebuild the kernel graph. Raw kernel edge types stay in this DTO; the downstream tracker adapter owns the one mapping to eight tracker link types.
 
-Each branch enforces `additionalProperties: false`. All 29 retired tools are permanently removed without migration shims or fallback aliases.
+spec_catalog, spec_entities, spec_documents, spec_inspect, spec_evidence, and spec_patch retain their existing discriminated branches. Each branch has additionalProperties=false, a branch title, and a branch description. Retired names remain removed without aliases or migration hints.
 
-### Unified validation inspection
+## Board projection boundary
 
-`spec_inspect` consolidates graph validation and diagnostics into `check: "validation"`. The old `specValidation` and `diagnostics` check branches are permanently removed. The unified branch computes overall validation verdict (`VALID`/`INVALID`) and scope counts (`errors`, `warnings`, `info`, `total`) across all diagnostics in the resolved scope (`corpus` or `specifications`) prior to applying filters. `severities`, `codes`, and `paths` filters constrain only the returned `items` array and `counts.matched`. Each discriminated `oneOf` branch in tool input schemas exports its own `title` (`<discriminator>: <variant>`) and `description`, and the discriminator property description instructs the client to select exactly one branch.
+The MCP query service validates and serializes BoardProjectionV1. It owns no YouTrack fields, tracker link names, REST calls, or UI layout. The YouTrack adapter consumes this DTO through SpecGraphReader, compares tracker parity, and commits the snapshot after card and link reconciliation. The widget consumes only the committed snapshot.
+
+### Unified validation branch schema
+
+spec_inspect consolidates structural validation and diagnostics under check validation. Overall verdict and scope counts are computed before optional filters; returned items may be paginated. The old specValidation and diagnostics branches remain rejected.
+
+### Read-for-edit and root-binding schema
+
+spec_documents action read with readForEdit=true returns exact content, sha256, headings, and line metadata within the document limit. spec_patch intent patch may omit repositoryRootFingerprint; omission retains graph-snapshot, document-preimage, exclusive-lock, and atomic-commit protections. A supplied stale fingerprint returns REPOSITORY_ROOT_FINGERPRINT_MISMATCH.

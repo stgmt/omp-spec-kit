@@ -113,3 +113,16 @@ Update the MCP contract adapter, server projection, port checker, direct dogfood
 | `scripts/measure-mcp-tool-blast.mjs` | create (planned) | FR-34 | Fail-closed tool surface blast and metric deltas measurement |
 | `scripts/check-tool-surface-mutations.mjs` | create (planned) | FR-36 | Deterministic in-memory mutation test gate |
 | `src/kernel/types.js` | edit (planned) | FR-33 | Immutable entity kinds and edge types dictionary |
+
+
+## Board projection cutover
+
+| Area | Required change | Proof |
+|---|---|---|
+| src/kernel/query/service.js | add strict spec_graph board branch with complete DTO, scope, raw edge aggregation, and size refusal | direct query contract tests |
+| src/adapters/query-service.js | route board discriminator without YouTrack semantics | fresh-process JSON-RPC test |
+| src/adapters/tool-contracts.js | publish board branch, exact ten-tool order, and accurate descriptions | tools/list and blast checks |
+| scripts/spec-graph-sync.mjs | consume one MCP board response through adapter ports | adapter boundary test |
+| board fixtures | cover full, scoped, empty, duplicate, malformed, and over-size responses | deterministic fixture suite |
+
+The cutover removes duplicate graph reconstruction from downstream code; it does not add a public board tool or compatibility alias.

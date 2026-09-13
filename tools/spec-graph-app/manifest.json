@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/youtrack-app.json",
+  "description": "In-UI spec-graph viewer backed by the last committed BoardSnapshotV1.",
+  "minYouTrackVersion": "2025.3.0",
+  "name": "spec-graph-app",
+  "title": "Spec Graph",
+  "vendor": {
+    "name": "omp-spec-kit"
+  },
+  "version": "1.0.18",
+  "widgets": [
+    {
+      "description": "Committed snapshot neighbors for the current issue with Approve/Verify/Reopen buttons.",
+      "extensionPoint": "ISSUE_BELOW_SUMMARY",
+      "indexPath": "widgets/spec-panel/index.html",
+      "key": "spec-panel",
+      "name": "Spec Panel"
+    },
+    {
+      "description": "Complete committed spec snapshot with zoom and filter by SpecKind.",
+      "extensionPoint": "DASHBOARD_WIDGET",
+      "indexPath": "widgets/spec-board/index.html",
+      "key": "spec-board",
+      "name": "Spec Board"
+    }
+  ]
+}

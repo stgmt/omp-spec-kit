@@ -1,6 +1,6 @@
-// Single source of truth for the consolidated 11-tool MCP surface.
+// Single source of truth for the consolidated 10-tool MCP surface.
 // Every tool is task-oriented, strictly typed, and self-contained.
-// 10 tools are read-only; exactly 1 tool (apply_proposed_patch) is mutating.
+// 9 tools are read-only; exactly 1 tool (spec_patch) is mutating.
 
 import {
   DIAGNOSTIC_CODES,
@@ -140,7 +140,7 @@ export const TOOL_CONTRACTS = Object.freeze([
     tool: "spec_graph",
     label: "Spec Graph",
     operation: "graph",
-    description: "Inspect spec graph: incident edges or bounded breadth-first traversal.",
+    description: "Read incident edges, bounded trace, or one complete board projection.",
     discriminator: "view",
     variants: Object.freeze({
       edges: Object.freeze({
@@ -165,6 +165,12 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("projection", "enum", ["summary", "full"]),
           optionalField("limit", "integer"),
           optionalField("cursor", "nullableString"),
+        ]),
+      }),
+      board: Object.freeze({
+        description: "Read one complete bounded board projection for the whole corpus or selected specifications.",
+        fields: Object.freeze([
+          optionalField("specSlugs", "stringArray"),
         ]),
       }),
     }),

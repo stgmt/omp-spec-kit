@@ -487,6 +487,12 @@ export function createSpecService(root, context = {}) {
         });
         return withProvenance({ ...q, operation: "graph", requestId });
       }
+      if (view === "board") {
+        const q = query(state.graph, "board", {
+          specSlugs: effectiveArgs.specSlugs ?? [],
+        });
+        return withProvenance({ ...q, operation: "graph", requestId });
+      }
     }
 
     // 5. documents

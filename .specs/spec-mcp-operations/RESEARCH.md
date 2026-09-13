@@ -155,8 +155,8 @@ Real corpus, platform filesystem, race, crash, redaction, and anchor fixtures di
 
 ## Provenance sources
 
-- [Public-init decision](../../docs/decisions/omp-spec-kit-public-init.md)
-- [Migration matrix](../../MIGRATION_MATRIX.md)
+- Public-init decision: docs/decisions/omp-spec-kit-public-init.md
+- Migration matrix: MIGRATION_MATRIX.md
 - Existing v0.3.2 distribution and release-integrity receipts referenced by the product corpus
 - Real fixture capture obligations in [FIXTURES.md](FIXTURES.md)
 
@@ -171,3 +171,11 @@ Source domains retained in this spec:
 | Write | Write | 7 | 14 | 14 | 7 |
 
 The 46-row destination census remains external and is owned here: rows 1–22 Read, rows 23–46 Write. The shipped eight MCP names remain unchanged. Old qualified IDs are historical source identities; active IDs use this spec slug and domain ranges.
+
+## Board projection decision
+
+The YouTrack integration needs a complete source read without importing the kernel into its composition root. The selected boundary is spec_graph view board: one strict branch, one response, six board kinds, bounded card-source fields, aggregated raw kernel edges, and a source fingerprint. Empty or omitted specSlugs means corpus scope. Pagination was rejected because it would let downstream sync observe a partial graph; over-limit responses fail with RESPONSE_TOO_LARGE. Tracker link names and UI layout remain outside the MCP layer.
+
+## Surface correction
+
+The public surface is ten tools, not eleven. The intermediate 11-tool text and the old two-authoring-tool wording are historical draft errors and are superseded by FR-30, FR-39, and the schema document.

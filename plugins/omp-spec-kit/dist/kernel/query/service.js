@@ -1,5 +1,5 @@
 // Bounded read-only query service over one immutable GraphSnapshot.
-// Implements the eight closed operations of spec-kernel@1 with the exhaustive
+// Implements the closed operations of spec-kernel@1 with the exhaustive
 // envelope, stable ordering, projections, fingerprint-bound cursors, and
 // fail-closed validation. Pure; no clock, filesystem, or environment access.
 
@@ -16,7 +16,7 @@ import {
   NODE_PROJECTIONS,
   QUERY_OPERATIONS,
 } from "../types.js";
-import { isValidSpecSlug, splitCanonicalId } from "../identity.js";
+import { isValidSpecSlug, makeCanonicalId, splitCanonicalId } from "../identity.js";
 import { canonicalJson } from "../normalize.js";
 import { decodeCursor, encodeCursor } from "./cursor.js";
 
@@ -29,6 +29,7 @@ const OPERATION_ARG_FIELDS = {
   diagnostics: ["severities", "codes", "specSlugs", "paths", "limit", "cursor"],
   overview: ["specSlugs"],
   validation: ["severities", "codes", "specSlugs", "paths", "limit", "cursor"],
+  board: ["specSlugs"],
   markdownInventory: [
     "specSlugs",
     "mode",
@@ -498,6 +499,9 @@ function validateRequest(graph, limits, request) {
       v.enumArray("paths", request.args.paths, (item) => typeof item === "string", "string");
       v.paging();
       break;
+    case "board":
+      v.enumArray("specSlugs", request.args.specSlugs, isValidSpecSlug, "<spec-slug>");
+      break;
     case "markdownInventory":
       validateMarkdownInventory(v, request.args, limits);
       break;
@@ -692,6 +696,8 @@ export function executeQuery(graph, request, limitsOverride) {
       return runMarkdownInventory(graph, request, args, limits);
     case "validation":
       return runValidation(graph, request, args, limits);
+    case "board":
+      return runBoard(graph, request, args, limits);
     default:
       return errorEnvelope(graph, request, { code: "UNKNOWN_OPERATION", preGraph: true });
   }
@@ -709,6 +715,141 @@ function selectedSpecs(graph, slugFilter) {
   const selected = [...all].filter((slug) => slugFilter.length === 0 || slugFilter.includes(slug));
   selected.sort();
   return selected;
+}
+
+const BOARD_NODE_KINDS = new Set([
+  "FUNCTIONAL_REQUIREMENT",
+  "NON_FUNCTIONAL_REQUIREMENT",
+  "ACCEPTANCE_CRITERION",
+  "TASK",
+  "SCENARIO",
+  "ROADMAP",
+]);
+
+const ROADMAP_SPEC_PREFIX = "roadmap-";
+
+// Synthetic spec-aggregate node: one ROADMAP node per `roadmap-*` spec so the
+// board exposes the roadmap entity kind without changing the canonical graph.
+function roadmapBoardNode(graph, specSlug, memberNodes) {
+  const readme = (graph.documents ?? []).find(
+    (row) => row.specSlug === specSlug && row.documentKind === "README" && row.accepted !== false,
+  );
+  let title = specSlug;
+  let span = null;
+  if (readme?.path) {
+    const headings = (graph.markdownHeadingOccurrences ?? [])
+      .filter((heading) => heading.path === readme.path)
+      .sort((a, b) => (a.span?.startOffset ?? 0) - (b.span?.startOffset ?? 0));
+    const first = headings.find((heading) => heading.level === 1) ?? headings[0];
+    if (first) {
+      if (typeof first.plainText === "string" && first.plainText !== "") title = first.plainText;
+      if (first.span) span = { path: readme.path, ...first.span };
+    }
+  }
+  const counts = {};
+  for (const member of memberNodes) counts[member.kind] = (counts[member.kind] ?? 0) + 1;
+  const members = Object.keys(counts).sort().map((kind) => counts[kind] + " " + kind).join(", ");
+  const body = "Roadmap spec `" + specSlug + "`.\n\nMembers: " + (members || "none") +
+    ".\n\nMember tasks trace to feature specs via Implements:/Depends On: fields.";
+  const contentHash = createHash("sha256")
+    .update(canonicalJson({
+      kind: "ROADMAP",
+      specSlug,
+      readmeSha256: readme?.sha256 ?? null,
+      members: memberNodes.map((node) => node.canonicalId).sort(),
+    }), "utf8")
+    .digest("hex");
+  return {
+    canonicalId: makeCanonicalId(specSlug, "ROADMAP"),
+    specSlug,
+    localId: "ROADMAP",
+    kind: "ROADMAP",
+    title,
+    body,
+    contentHash,
+    source: sourceSummary(span ?? { path: readme?.path ?? null }),
+    evidence: null,
+    taskStatus: null,
+  };
+}
+
+function boardNode(node) {
+  const attributes = isPlainObject(node.attributes) ? node.attributes : {};
+  return {
+    canonicalId: node.canonicalId,
+    specSlug: node.specSlug,
+    localId: node.localId,
+    kind: node.kind,
+    title: node.title,
+    body: typeof node.body === "string" ? node.body : "",
+    contentHash: node.contentHash,
+    source: sourceSummary(node.span),
+    evidence: typeof attributes.evidence === "string" ? attributes.evidence : null,
+    taskStatus: node.kind === "TASK" && typeof attributes.status === "string" ? attributes.status : null,
+  };
+}
+
+function runBoard(graph, request, args, limits) {
+  const specSlugs = args.specSlugs ?? [];
+  const selected = new Set(selectedSpecs(graph, specSlugs));
+  const nodes = graph.nodes
+    .filter((node) => BOARD_NODE_KINDS.has(node.kind) && selected.has(node.specSlug))
+    .map(boardNode);
+  for (const slug of selected) {
+    if (!slug.startsWith(ROADMAP_SPEC_PREFIX)) continue;
+    const members = nodes.filter((node) => node.specSlug === slug);
+    nodes.push(roadmapBoardNode(graph, slug, members));
+  }
+  nodes.sort((a, b) => compareStrings(a.canonicalId, b.canonicalId));
+  const nodeIds = new Set(nodes.map((node) => node.canonicalId));
+  const edgeGroups = new Map();
+  let edgeOccurrenceCount = 0;
+  for (const edge of graph.edges) {
+    if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) continue;
+    edgeOccurrenceCount += 1;
+    const key = edge.from + "\u0000" + edge.to + "\u0000" + edge.type;
+    const current = edgeGroups.get(key);
+    if (current) current.occurrenceCount += 1;
+    else edgeGroups.set(key, { from: edge.from, to: edge.to, type: edge.type, occurrenceCount: 1 });
+  }
+  // Containment edges from each synthetic ROADMAP node to its spec members so
+  // the roadmap aggregate is navigable top-down on the board.
+  for (const node of nodes) {
+    if (node.kind !== "ROADMAP") continue;
+    for (const member of nodes) {
+      if (member.specSlug !== node.specSlug || member.kind === "ROADMAP") continue;
+      edgeOccurrenceCount += 1;
+      edgeGroups.set(node.canonicalId + " " + member.canonicalId + " CONTAINS", {
+        from: node.canonicalId,
+        to: member.canonicalId,
+        type: "CONTAINS",
+        occurrenceCount: 1,
+      });
+    }
+  }
+  const edges = [...edgeGroups.values()].sort((a, b) =>
+    compareStrings(a.from, b.from) || compareStrings(a.to, b.to) || compareStrings(a.type, b.type),
+  );
+  const byKind = {};
+  for (const kind of ["TASK", "FUNCTIONAL_REQUIREMENT", "ACCEPTANCE_CRITERION", "SCENARIO", "NON_FUNCTIONAL_REQUIREMENT", "ROADMAP"]) {
+    byKind[kind] = nodes.filter((node) => node.kind === kind).length;
+  }
+  const data = {
+    kind: "board",
+    schemaVersion: "BoardProjectionV1",
+    fingerprint: graph.fingerprint,
+    scope: { mode: specSlugs.length === 0 ? "corpus" : "specifications", specSlugs: [...selected].sort() },
+    complete: true,
+    page: null,
+    nodes,
+    edges,
+    counts: { nodes: nodes.length, edges: edges.length, edgeOccurrences: edgeOccurrenceCount, byKind },
+  };
+  const dataBytes = Buffer.byteLength(JSON.stringify(data), "utf8");
+  if (dataBytes > limits.maxResponseBytes - 4096) {
+    return errorEnvelope(graph, request, { code: "RESPONSE_TOO_LARGE", message: "complete board projection exceeds the response budget" });
+  }
+  return successEnvelope(graph, request.requestId, "board", data, null);
 }
 
 function runInventory(graph, request, args, limits) {

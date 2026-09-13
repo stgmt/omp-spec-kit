@@ -328,7 +328,7 @@ export function generateAndEvaluateMutants() {
         `Delete entity descriptor ${descriptor.kind}`,
         () => ENTITY_TYPE_DESCRIPTORS.filter((d) => d.kind !== descriptor.kind),
         (mutantDescriptors) => {
-          assert.equal(mutantDescriptors.length, 15, "Entity descriptor count must equal 15");
+          assert.equal(mutantDescriptors.length, ENTITY_TYPE_DESCRIPTORS.length, "Entity descriptor count must not drop");
         },
       ),
     );
@@ -342,7 +342,7 @@ export function generateAndEvaluateMutants() {
         `Delete edge descriptor ${descriptor.type}`,
         () => EDGE_TYPE_DESCRIPTORS.filter((d) => d.type !== descriptor.type),
         (mutantDescriptors) => {
-          assert.equal(mutantDescriptors.length, 7, "Edge descriptor count must equal 7");
+          assert.equal(mutantDescriptors.length, EDGE_TYPE_DESCRIPTORS.length, "Edge descriptor count must not drop");
         },
       ),
     );

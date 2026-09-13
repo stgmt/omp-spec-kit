@@ -1,8 +1,8 @@
 {
   "schema": "omp-spec-kit-mutation-gate@1",
-  "timestamp": "2026-09-12T06:53:57.089Z",
-  "totalMutants": 163,
-  "killed": 163,
+  "timestamp": "2026-09-12T20:25:08.959Z",
+  "totalMutants": 166,
+  "killed": 166,
   "survivors": 0,
   "passed": true,
   "receipts": [
@@ -481,6 +481,12 @@
       "killerAssertion": "Deleted variant trace must be rejected\n\nfalse !== true\n"
     },
     {
+      "id": "delete-branch-spec_graph-board",
+      "status": "KILLED",
+      "description": "Delete variant branch board from spec_graph",
+      "killerAssertion": "Deleted variant board must be rejected\n\nfalse !== true\n"
+    },
+    {
       "id": "delete-branch-spec_documents-list",
       "status": "KILLED",
       "description": "Delete variant branch list from spec_documents",
@@ -646,7 +652,7 @@
       "id": "duplicate-branch-spec_graph-edges",
       "status": "KILLED",
       "description": "Duplicate branch in spec_graph",
-      "killerAssertion": "oneOf length changed\n\n3 !== 2\n"
+      "killerAssertion": "oneOf length changed\n\n4 !== 3\n"
     },
     {
       "id": "duplicate-branch-spec_documents-list",
@@ -730,133 +736,145 @@
       "id": "delete-entity-descriptor-DOCUMENT",
       "status": "KILLED",
       "description": "Delete entity descriptor DOCUMENT",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
+    },
+    {
+      "id": "delete-entity-descriptor-ROADMAP",
+      "status": "KILLED",
+      "description": "Delete entity descriptor ROADMAP",
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-entity-descriptor-USER_STORY",
       "status": "KILLED",
       "description": "Delete entity descriptor USER_STORY",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-entity-descriptor-USE_CASE",
       "status": "KILLED",
       "description": "Delete entity descriptor USE_CASE",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-entity-descriptor-RESEARCH_FINDING",
       "status": "KILLED",
       "description": "Delete entity descriptor RESEARCH_FINDING",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-entity-descriptor-RISK",
       "status": "KILLED",
       "description": "Delete entity descriptor RISK",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-entity-descriptor-FUNCTIONAL_REQUIREMENT",
       "status": "KILLED",
       "description": "Delete entity descriptor FUNCTIONAL_REQUIREMENT",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-entity-descriptor-NON_FUNCTIONAL_REQUIREMENT",
       "status": "KILLED",
       "description": "Delete entity descriptor NON_FUNCTIONAL_REQUIREMENT",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-entity-descriptor-ACCEPTANCE_CRITERION",
       "status": "KILLED",
       "description": "Delete entity descriptor ACCEPTANCE_CRITERION",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-entity-descriptor-DECISION",
       "status": "KILLED",
       "description": "Delete entity descriptor DECISION",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-entity-descriptor-TASK",
       "status": "KILLED",
       "description": "Delete entity descriptor TASK",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-entity-descriptor-FILE_CHANGE",
       "status": "KILLED",
       "description": "Delete entity descriptor FILE_CHANGE",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-entity-descriptor-FILE",
       "status": "KILLED",
       "description": "Delete entity descriptor FILE",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-entity-descriptor-SCENARIO",
       "status": "KILLED",
       "description": "Delete entity descriptor SCENARIO",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-entity-descriptor-FIXTURE",
       "status": "KILLED",
       "description": "Delete entity descriptor FIXTURE",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-entity-descriptor-SCHEMA_ENTITY",
       "status": "KILLED",
       "description": "Delete entity descriptor SCHEMA_ENTITY",
-      "killerAssertion": "Entity descriptor count must equal 15\n\n14 !== 15\n"
+      "killerAssertion": "Entity descriptor count must not drop\n\n15 !== 16\n"
     },
     {
       "id": "delete-edge-descriptor-REFS",
       "status": "KILLED",
       "description": "Delete edge descriptor REFS",
-      "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+      "killerAssertion": "Edge descriptor count must not drop\n\n7 !== 8\n"
     },
     {
       "id": "delete-edge-descriptor-COVERS",
       "status": "KILLED",
       "description": "Delete edge descriptor COVERS",
-      "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+      "killerAssertion": "Edge descriptor count must not drop\n\n7 !== 8\n"
     },
     {
       "id": "delete-edge-descriptor-TESTED_BY",
       "status": "KILLED",
       "description": "Delete edge descriptor TESTED_BY",
-      "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+      "killerAssertion": "Edge descriptor count must not drop\n\n7 !== 8\n"
     },
     {
       "id": "delete-edge-descriptor-IMPLEMENTS",
       "status": "KILLED",
       "description": "Delete edge descriptor IMPLEMENTS",
-      "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+      "killerAssertion": "Edge descriptor count must not drop\n\n7 !== 8\n"
     },
     {
       "id": "delete-edge-descriptor-DEPENDS_ON",
       "status": "KILLED",
       "description": "Delete edge descriptor DEPENDS_ON",
-      "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+      "killerAssertion": "Edge descriptor count must not drop\n\n7 !== 8\n"
     },
     {
       "id": "delete-edge-descriptor-DOCUMENTS",
       "status": "KILLED",
       "description": "Delete edge descriptor DOCUMENTS",
-      "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+      "killerAssertion": "Edge descriptor count must not drop\n\n7 !== 8\n"
     },
     {
       "id": "delete-edge-descriptor-DECLARES",
       "status": "KILLED",
       "description": "Delete edge descriptor DECLARES",
-      "killerAssertion": "Edge descriptor count must equal 7\n\n6 !== 7\n"
+      "killerAssertion": "Edge descriptor count must not drop\n\n7 !== 8\n"
+    },
+    {
+      "id": "delete-edge-descriptor-CONTAINS",
+      "status": "KILLED",
+      "description": "Delete edge descriptor CONTAINS",
+      "killerAssertion": "Edge descriptor count must not drop\n\n7 !== 8\n"
     },
     {
       "id": "missing-oneof-metadata-spec_catalog",
