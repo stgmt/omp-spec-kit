@@ -1,0 +1,8 @@
+{
+  "specsRepo": "https://github.com/stgmt/spec-database.git",
+  "branch": "main",
+  "projects": [
+    { "id": "stgmt/omp-spec-kit" }
+  ],
+  "tenants": []
+}

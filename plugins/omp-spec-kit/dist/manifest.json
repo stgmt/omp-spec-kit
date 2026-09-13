@@ -6,10 +6,10 @@
       "sha256": "bc8cdf0b0590be3867546d13bac0faec80337c6a128d2300e9612d94dc1adb8f"
     },
     "adapters/query-service.js": {
-      "sha256": "e4339d4f0093524328c7e4e9b758da82288d47ec07795af092dce46c27133f3c"
+      "sha256": "b1c78660ebccc1978efcc7b8e08b75dd56c624f3400212a674863be5511a220d"
     },
     "adapters/tool-contracts.js": {
-      "sha256": "f1757d006763719f2abfb504cb9257622e43b28f7ce75e8d9a5f66944ec278ab"
+      "sha256": "0be9f291f4750159e160348ab8a3e308d6b36c6adc3a668852bcd32317d1df66"
     },
     "adapters/youtrack-projection.js": {
       "sha256": "fc2ca9d6911fa78d26a0b50bfc2c5f7b1f87f82f03f1c9b41b81aa608fcbd674"
@@ -27,10 +27,10 @@
       "sha256": "c6fc357b9e6954d3d7587190264bebed16afbb47ddd027045c0011d7c4f552f5"
     },
     "authoring/service.js": {
-      "sha256": "f4b2ed35c9f44dcc234aab4ba6b8d3793faae63a2dfa7febe78cb43056b73dfe"
+      "sha256": "b2ce0e517066338a5f01faceab7d3e191abb31824dfaa943f39128ca0f97b5d4"
     },
     "authoring/transactions.js": {
-      "sha256": "ce27c996c8611b5435ee6cbadc185a6ac5a6c1897a10bd28eb012b4bd073e6c6"
+      "sha256": "32ac6fe0b38f0e3b8ba803f5c848deec84f5ff831c74319898c07f63352b0df0"
     },
     "enforcement/adapter.js": {
       "sha256": "aa13e9ba61773b9ea028501081d3a2e64cfbe60ea72b8dbeeba8da2831e4eb53"
@@ -72,7 +72,7 @@
       "sha256": "b0a732c337430be524b950898a54c271e3b22fb7f6e36eaebedb012556239094"
     },
     "kernel/index.js": {
-      "sha256": "1d04597ca7e72451a841e9df62b2bbb3a8d21e0aae5f1128f6f1f1288b162bde"
+      "sha256": "266b44e88d48bb282db75394e541b96f7e9ed9172cac814a6bfd5f599a989ac6"
     },
     "kernel/limits.js": {
       "sha256": "4a18582fca95a0fe24073104d62a926580fdbfa5e661d186aa81c6f3716e1938"
@@ -108,7 +108,7 @@
       "sha256": "dd06b9b873b773d4c4af9762429f67cfdebfe44354c49f15bcaeb9903a59b980"
     },
     "kernel/types.js": {
-      "sha256": "20a5ee8e9a66979204b7774eef9b6868f065417601fe665ff0c9901e6f77a04a"
+      "sha256": "b26ca47cea9408c63ff03477627114bc6ba1126f2b562c75ad2a7d65dfff6bdf"
     },
     "mcp/server.js": {
       "sha256": "dc34ccebd50af25bfc305af81eccf937cbbfab2d9a8cdd13a5cb73869e79501f"

@@ -307,7 +307,7 @@ async function rollbackInterruptedGeneration(root, stageRoot, journal) {
   }
 }
 
-async function recoverInterruptedTransactions(root, lockPath, lockMetadata) {
+export async function recoverInterruptedTransactions(root, lockPath, lockMetadata) {
   const stagingParent = path.join(root, ".specs", STAGING_DIRECTORY);
   const stagingStat = await lstatOrNull(stagingParent);
   if (stagingStat && (stagingStat.isSymbolicLink() || !stagingStat.isDirectory())) throw Object.assign(new Error("transaction staging parent is not a regular directory"), { code: "RECOVERY_REQUIRED" });

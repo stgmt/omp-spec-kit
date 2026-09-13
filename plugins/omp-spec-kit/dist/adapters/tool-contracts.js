@@ -960,6 +960,49 @@ export const KERNEL_ENVELOPE_OUTPUT_SCHEMA = Object.freeze({
   },
 });
 
+// SCHEMA-11 common transport fields and snake_case aliases, shared by every
+// transport (the stdio server keeps its local copy; the HTTP service imports
+// this one so both normalize tool arguments identically).
+export const TOOL_ARGUMENT_ALIASES = Object.freeze({
+  spec_slugs: "specSlugs",
+  include_documents: "includeDocuments",
+  canonical_id: "canonicalId",
+  include_incident_counts: "includeIncidentCounts",
+  max_depth: "maxDepth",
+  max_visited: "maxVisited",
+  focus_path: "focusPath",
+  focus_anchor: "focusAnchor",
+  include_headings: "includeHeadings",
+  include_links: "includeLinks",
+  read_for_edit: "readForEdit",
+  declared_worktree: "declaredWorktree",
+  verification_method: "verificationMethod",
+  safety_class: "safetyClass",
+  status_view: "statusView",
+  verification_method_missing: "verificationMethodMissing",
+  scenario_id: "scenarioId",
+  actor_ref: "actorRef",
+  repository_root_fingerprint: "repositoryRootFingerprint",
+  expected_sha: "expectedSha",
+  old_string: "oldText",
+  new_string: "newText",
+  replace_all: "replaceAll",
+  new_doc: "newDoc",
+  node_id: "canonicalId",
+});
+
+export function normalizeToolArguments(rawArguments) {
+  const normalized = {};
+  for (const [name, value] of Object.entries(rawArguments)) {
+    const canonical = TOOL_ARGUMENT_ALIASES[name] ?? name;
+    if (Object.hasOwn(normalized, canonical)) {
+      return { ok: false, error: { code: "DUPLICATE_FIELD", message: `tool argument has duplicate aliases: ${canonical}`, parameter: canonical } };
+    }
+    normalized[canonical] = value;
+  }
+  return { ok: true, args: normalized };
+}
+
 export function assertContractInvariants(contracts = TOOL_CONTRACTS) {
   if (!Array.isArray(contracts) || contracts.length !== 10) {
     throw new Error("Invariants failed: expected exactly 10 contracts, got " + contracts?.length);

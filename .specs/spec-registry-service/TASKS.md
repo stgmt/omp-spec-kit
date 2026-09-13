@@ -18,24 +18,28 @@ Status: DRAFT
 ## Phase 1 — Service core
 
 ## TASK-3 — `src/service/` skeleton: project mount manager (one specs-repo clone; per-project roots)
-- **Status:** todo
+- **Status:** done
 - **Done When:** service boots with `projects.json`, clones the specs repo, resolves `project`→`<clone>/<owner>/<project>` (creating the `.specs` skeleton for new projects), builds kernel graph per project root.
 - **Requirements:** R-4, FR-3, FR-16
+- **Evidence:** `src/service/mounts.js` + `src/service/index.js` (boot: clone → skeleton as bot → `recoverInterruptedTransactions` per root → graphs); git CLI wrapper serialized per clone (`src/service/git.js`); tests `tests/unit/service/mounts.test.mjs`, `tests/service/integration.test.mjs` (bare-remote boot, idempotent second boot, stale-artifact recovery). Commit c52ab25.
 
 ## TASK-4 — HTTP transport: Streamable HTTP MCP endpoint `POST /mcp` — the single access point for all clients (agents + YouTrack app)
-- **Status:** todo
+- **Status:** done
 - **Done When:** all 10 existing tools reachable over HTTP with identical envelopes; `project` field honored.
 - **Requirements:** R-5, FR-8, FR-13
+- **Evidence:** `src/service/http.js` — official `@modelcontextprotocol/sdk` `StreamableHTTPServerTransport` (stateless, JSON responses, GET/DELETE → 405) on express; shared dispatcher (`src/service/dispatch.js`) reuses stdio contracts + alias normalization; `project` resolves param → default scope → refuse, out-of-scope refused; `KERNEL_SCHEMA_VERSION` → `spec-kernel@2` with `@1` accepted. Parity tests stdio-kernel ↔ `/mcp` on identical fixtures (`tests/service/http.test.mjs`). Commit 8e62fe4.
 
 ## TASK-5 — Write path wiring: tenant token check → claim check → ProposalCompiler → commitDocuments → push as bot with trailers
-- **Status:** todo
+- **Status:** done
 - **Done When:** a remote `spec_patch` lands as an attributed bot commit on the specs repo; `CONFLICT` semantics unchanged; every request resolves `token → tenant → allowed projects` and rejects `project` values outside the caller's set.
 - **Requirements:** R-2, R-3, R-7, FR-4, FR-5, FR-6
+- **Evidence:** `src/service/tenants.js` (sha256-hashed seed tenants), `src/service/claims.js` + `src/service/ops/claim.js` (`spec_claim`/`spec_release`, TTL, CLAIM_HELD with holder/expiry), `src/service/writepath.js` (claim check → kernel apply → git add/commit/push as bot with `Spec-Author:`/`Spec-Request-Id:` trailers; success only after push confirmation; push failure → retryable `GIT_PUSH_FAILED`, clone ahead). E2E on bare remote incl. CONFLICT retryable, force-over-claim, push failure (`tests/service/writepath.test.mjs`). Commit 22b6cb3.
 
 ## TASK-6 — Store + index + sync loop (`node:sqlite`): tenants, claims (TTL), publish ledger, access log, projected `/registry` index, periodic fetch/reconcile
-- **Status:** todo
+- **Status:** done
 - **Done When:** tenant records with token→allowed-projects survive restart (issue/revoke works); claims survive restart and expire; ledger entries append-only; `/registry` serves the projected index rebuilt on every commit; fetch-on-interval + reconcile runs per project; `/drift` reports divergence incl. worktree-ahead-of-remote.
 - **Requirements:** R-3, R-7, FR-7, FR-9, FR-10, FR-16
+- **Evidence:** `src/service/ledger.js` (`node:sqlite` store with documented JSONL fallback: tenants/claims/ledger/access_log), `src/service/registry.js` + `spec_registry` op + bearer-gated `GET /registry` (authored status/version, directory digest, claim, published pointer), `src/service/drift.js` + `spec_drift` op + `GET /drift` (non-bot commits, clone-ahead-of-remote, fetched fresh), coalescing sync loop with fast-forward (`src/service/sync.js`). Persistence/across-restart and drift tests (`tests/service/task6.test.mjs`). Commit 15488b5.
 
 ## Phase 2 — Entry points
 
