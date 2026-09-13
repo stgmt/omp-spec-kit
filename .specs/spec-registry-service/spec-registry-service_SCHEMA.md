@@ -67,7 +67,7 @@ access_log(id INTEGER PRIMARY KEY, ts TEXT, identity TEXT,
 ```jsonc
 // config/projects.json — registry of scopes inside the single specs repo
 { "schema": "registry-projects@1",
-  "specsRepo": { "url": "git@github.com:stgmt/omp-specs.git", "branch": "main",
+  "specsRepo": { "url": "https://github.com/stgmt/spec-database.git", "branch": "main",
                  "clone": "/data/specs-repo" },
   "projects": [{ "id": "stgmt/omp-spec-kit" }, { "id": "acme/billing" }] }
 ```

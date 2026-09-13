@@ -61,7 +61,7 @@ Multi-project = namespaces inside the single specs repo, not separate repos or b
 
 ```jsonc
 // compose env / config/projects.json
-{ "specsRepo": "git@github.com:stgmt/omp-specs.git", "branch": "main",
+{ "specsRepo": "https://github.com/stgmt/spec-database.git", "branch": "main",
   "projects": [
     { "id": "stgmt/omp-spec-kit" },
     { "id": "stgmt/presentation-reels" },
