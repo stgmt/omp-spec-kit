@@ -101,7 +101,7 @@ Done when:
 
 ## TASK-8: MCP roadmap lifecycle
 
-Status: todo
+Status: done
 Estimate: 3
 Phase: Surface
 Implements: `roadmap-roadmaps:FR-9`
