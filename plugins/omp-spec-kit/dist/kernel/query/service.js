@@ -797,6 +797,10 @@ function runBoard(graph, request, args, limits) {
     .map(boardNode);
   for (const slug of selected) {
     if (!slug.startsWith(ROADMAP_SPEC_PREFIX)) continue;
+    // Use the real ROADMAP node from the canonical graph if present;
+    // fall back to the synthetic board node for specs without ROADMAP.md.
+    const existing = nodes.find((node) => node.kind === "ROADMAP" && node.specSlug === slug);
+    if (existing) continue;
     const members = nodes.filter((node) => node.specSlug === slug);
     nodes.push(roadmapBoardNode(graph, slug, members));
   }
@@ -919,6 +923,10 @@ function sum(values) {
 function expectedFilename(kind, slug) {
   if (kind === "FEATURE") return `${slug}.feature`;
   if (kind === "SCHEMA") return `${slug}_SCHEMA.md`;
+  // ROADMAP.md is a conditional canonical document: only for roadmap-* specs.
+  if (kind === "ROADMAP") {
+    return typeof slug === "string" && slug.startsWith("roadmap-") ? FIXED_DOCUMENT_FILES.ROADMAP : null;
+  }
   return FIXED_DOCUMENT_FILES[kind] ?? null;
 }
 

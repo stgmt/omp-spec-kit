@@ -263,6 +263,9 @@ function markdownLinkTargets(text) {
 
 async function inboundDocumentLinks(root, spec, targetDocument) {
   const documents = new Set([...Object.values(FIXED_DOCUMENT_FILES), `${spec}.feature`, `${spec}_SCHEMA.md`]);
+  // ROADMAP.md is only canonical for roadmap-* specs; skip it otherwise
+  // so isCanonicalDocument does not reject the inbound scan.
+  if (!spec.startsWith("roadmap-")) documents.delete(FIXED_DOCUMENT_FILES.ROADMAP);
   const links = [];
   for (const document of documents) {
     const current = await loadDocument(root, spec, document, true);
@@ -491,6 +494,8 @@ export function operationForFacade(name, input) {
     const title = typeof input.title === "string" && input.title.trim() ? input.title.trim() : spec;
     const docs = [];
     for (const doc of Object.values(FIXED_DOCUMENT_FILES)) {
+      // ROADMAP.md is only canonical for roadmap-* specs.
+      if (doc === FIXED_DOCUMENT_FILES.ROADMAP && !spec.startsWith("roadmap-")) continue;
       docs.push({ kind: "replace_document", document: doc, content: `# ${title}\n\nStatus: DRAFT\n` });
     }
     docs.push({ kind: "replace_document", document: `${spec}.feature`, content: `Feature: ${title}\n` });
