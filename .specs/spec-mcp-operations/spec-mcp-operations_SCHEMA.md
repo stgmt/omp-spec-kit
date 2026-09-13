@@ -325,7 +325,8 @@ type WriteErrorCode =
   | "CONFLICT"
   | "RECOVERY_REQUIRED"
   | "DEADLINE_EXCEEDED"
-  | "INTERNAL_ERROR";
+  | "INTERNAL_ERROR"
+  | "ELICITATION_REQUIRED";
 
 type WriteError = {
   code: WriteErrorCode;
@@ -374,40 +375,26 @@ The public and destination operation registry is the 46-row map in docs/decision
 
 ## SCHEMA-10: MCP discovery metadata
 
-The MCP discovery projection contains exactly 11 ordered `Tool` entries. Each entry preserves `name` and `inputSchema`, adds top-level `title`, and has exactly four boolean `annotations` keys: `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint`. The first description line is non-empty and at most 200 characters. The initialize result contains one instructions string for the cross-tool authoring workflow.
+The MCP discovery projection contains exactly 10 ordered Tool entries: mcp_preflight, spec_catalog, spec_entities, spec_graph, spec_documents, spec_inspect, spec_tasks, spec_evidence, spec_markdown, and spec_patch. Each entry has a top-level title, a non-empty first description line of at most 200 characters, and exactly four boolean annotations: readOnlyHint, destructiveHint, idempotentHint, and openWorldHint. The nine read tools use true, false, true, false; spec_patch uses false, true, true, false. Initialize contains one bounded workflow instruction paragraph.
 
 ### Declared MCP result envelope
 
-Every MCP tool MUST declare and return the stable `KernelEnvelope` shape with `schemaVersion`, `requestId`, `operation`, `ok`, `graph`, `page`, `data`, `error`, `diagnostics`, and `provenance`. The structured content and text content MUST be byte-equivalent JSON representations of that envelope. Error messages for stale cursors and conflicts MUST include actionable recovery; enforcement target-indeterminate reasons MUST remain bounded and repository-relative.
-
+Every tool declares and returns KernelEnvelope with schemaVersion, requestId, operation, ok, graph, page, data, error, diagnostics, and provenance. Structured and text content are byte-equivalent JSON. Recovery is bounded and actionable.
 
 ## Consolidated 10-tool branch schemas
 
-Input schemas for `spec_catalog`, `spec_entities`, `spec_graph`, `spec_documents`, `spec_inspect`, `spec_evidence`, and `spec_patch` use top-level discriminator fields (`view`, `mode`, `action`, `check`, `intent`) and strict `oneOf` branches with `additionalProperties: false`.
+spec_catalog, spec_entities, spec_graph, spec_documents, spec_inspect, spec_evidence, and spec_patch use top-level discriminators and strict oneOf branches with additionalProperties=false. Every branch publishes its own title and description. Unknown, missing, cross-branch, and extra fields fail with INVALID_REQUEST before dispatch.
+
+### spec_graph board branch
+
+Input: view is the required string board; specSlugs is an optional array of valid specification slugs; request identity fields follow the common contract. Empty or omitted specSlugs means corpus scope. limit and cursor are forbidden.
+
+Success data kind is board and contains schemaVersion BoardProjectionV1, fingerprint, scope, complete=true, page=null, nodes, edges, and counts. Node fields are canonicalId, specSlug, localId, kind, title, body, contentHash, source, evidence, and taskStatus when applicable. Edge fields are from, to, raw kernel type, and occurrenceCount. Only the six board kinds are emitted and out-of-scope endpoints are omitted. The response is complete and bounded by 1 MiB; overflow is RESPONSE_TOO_LARGE with no partial data.
 
 ### Unified validation branch schema
 
-`spec_inspect` accepts `check: "validation"` with the following input schema:
-- `check`: `"validation"` (required string enum)
-- `specSlugs`: array of spec slug strings (optional; omitted or empty means corpus scope)
-- `severities`: array of `DIAGNOSTIC_SEVERITIES` strings (optional)
-- `codes`: array of `DIAGNOSTIC_CODES` strings (optional)
-- `paths`: array of path strings (optional)
-- `limit`: integer (optional)
-- `cursor`: nullable string (optional)
+spec_inspect accepts check validation with optional specSlugs, severities, codes, paths, limit, and cursor. Overall validity and scope counts are computed before filters; returned items are filtered and paginated. Retired specValidation and diagnostics branches are rejected.
 
-Successful responses return payload `kind: "validation"` with:
-- `scope`: `{ mode: "corpus" | "specifications", specSlugs: string[] }`
-- `valid`: boolean
-- `verdict`: `"VALID"` | `"INVALID"`
-- `counts`: `{ errors: number, warnings: number, info: number, total: number, matched: number }`
-- `items`: array of `Diagnostic` objects
-- `snapshot`: `{ fingerprint: string, schemaVersion: "spec-kernel@1" }`
+### Read-for-edit and root-binding schema
 
-All `oneOf` schema branches define `title: "<discriminator>: <variant>"` and `description: variant.description`. The top-level discriminator property carries a description instructing callers to select exactly one declared branch.
-
-
-## Read-for-edit and root-binding schema
-
-- `spec_documents(action: "read", readForEdit: true)` returns exact `content`, `sha256`, headings, and line metadata, bounded by 2 MiB.
-- `spec_patch(intent: "patch")` has optional `repositoryRootFingerprint`; a supplied mismatch uses `REPOSITORY_ROOT_FINGERPRINT_MISMATCH`, while omission remains snapshot- and preimage-checked under the exclusive write lock.
+spec_documents action read with readForEdit=true returns exact content, sha256, headings, and line metadata within 2 MiB. spec_patch intent patch may omit repositoryRootFingerprint while retaining snapshot, preimage, lock, and atomic protections; a stale supplied fingerprint returns REPOSITORY_ROOT_FINGERPRINT_MISMATCH.

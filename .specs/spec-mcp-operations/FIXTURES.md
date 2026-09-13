@@ -184,3 +184,7 @@ Fixtures are planned evidence inputs; none is claimed executed by this specifica
 ## Historical release provenance
 
 v0.3.2 remains the real shipped read-only baseline for compatibility captures: tag commit `2938389e34e2d06bdd497291ed01e0a2d89146c9`, candidate digest `526ef6ff94ea682a116a43e4de0b5f622686b8ef36648b7884c830ba1eac25b4`, package-tree digest `e8d53934122a495e1003f17126785dcd181f5d6d5f417270844e17fc25f12f92`, archive SHA-256 `26a2ebadd7d1888c10dc9bdbdc25e11fecf5b15c7e3bb363a0cbea9`. Captures may compare against that baseline, but those receipts are not live authoring eligibility inputs.
+
+## Board projection fixtures
+
+The board fixture set includes full corpus, scoped specifications, empty scope, duplicate identity, malformed endpoint, unsupported edge, and over-size response. Expected success has complete=true and page=null; expected overflow is RESPONSE_TOO_LARGE with no partial data. The fixture manifest records source fingerprint, node and edge counts, raw edge types, and byte size.

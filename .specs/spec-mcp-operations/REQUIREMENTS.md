@@ -113,17 +113,27 @@ Each row is a complete FR ↔ AC ↔ scenario ↔ check ↔ task trace. Status d
 
 | Qualified ID | Requirement | Priority | Depends on | Acceptance | Scenario |
 |---|---|---:|---|---|---|
-| `spec-mcp-operations:FR-23` | Two-tool public boundary and host path policy | P0 | `plugin-distribution:FR-17`, existing MCP server | [AC-23.1–1.2](ACCEPTANCE_CRITERIA.md#ac-231) | `@feature23` |
+| `spec-mcp-operations:FR-23` | Single-tool public boundary and host path policy | P0 | `plugin-distribution:FR-17`, existing MCP server | [AC-23.1–1.2](ACCEPTANCE_CRITERIA.md#ac-231) | `@feature23` |
 | `spec-mcp-operations:FR-24` | Pure deterministic proposal | P0 | FR-23, `Read / Core` snapshot/query core | [AC-24.1–2.2](ACCEPTANCE_CRITERIA.md#ac-241) | `@feature24` |
 | `spec-mcp-operations:FR-25` | Containment, anchors, and resulting-spec validation | P0 | FR-24, `Read / Core` validators | [AC-25.1–3.2](ACCEPTANCE_CRITERIA.md#ac-251) | `@feature25` |
 | `spec-mcp-operations:FR-26` | Exact-proposal apply with CAS and revalidation | P0 | FR-24, FR-25 | [AC-26.1–4.2](ACCEPTANCE_CRITERIA.md#ac-261) | `@feature26` |
 | `spec-mcp-operations:FR-27` | Atomic commit and internal rollback | P0 | FR-26 | [AC-27.1–5.2](ACCEPTANCE_CRITERIA.md#ac-271) | `@feature27` |
 | `spec-mcp-operations:FR-28` | Byte conservation and redacted outcomes | P0 | FR-24, FR-27 | [AC-28.1–6.2](ACCEPTANCE_CRITERIA.md#ac-281) | `@feature28` |
 | `spec-mcp-operations:FR-29` | Real correctness evidence | P0 | FR-23–FR-28 | [AC-29.1–7.2](ACCEPTANCE_CRITERIA.md#ac-291) | `@feature29` |
+| `spec-mcp-operations:FR-30` | MCP discovery metadata and handshake | P0 | existing MCP server | [AC-30.1](ACCEPTANCE_CRITERIA.md#ac-301-mcp-discovery-metadata-and-handshake) | `@feature30 @AC-30.1 @id:SCEN-mcp-discovery-metadata` |
+| `spec-mcp-operations:FR-31` | Declared result envelope and actionable recovery | P0 | FR-30 | [AC-31.1](ACCEPTANCE_CRITERIA.md#ac-311-envelope-schema-and-recovery-are-machine-actionable) | `@feature31` |
+| `spec-mcp-operations:FR-32` | Discriminated branch schemas and strict argument validation | P0 | FR-30 | [AC-32.1](ACCEPTANCE_CRITERIA.md#ac-321-discriminated-branch-schemas-and-strict-argument-validation) | `@feature32 @AC-32.1 @id:SCEN-mcp-discriminated-variants` |
+| `spec-mcp-operations:FR-33` | Domain type dictionary catalog | P0 | FR-30 | [AC-33.1](ACCEPTANCE_CRITERIA.md#ac-331-domain-type-dictionary-catalog) | `@feature33 @AC-33.1 @id:SCEN-mcp-types-catalog` |
+| `spec-mcp-operations:FR-34` | Surface blast limits and fail-closed measurement | P0 | FR-30 | [AC-34.1](ACCEPTANCE_CRITERIA.md#ac-341-surface-blast-limits-and-fail-closed-measurement) | `@feature34 @AC-34.1 @id:SCEN-mcp-surface-blast-limits` |
+| `spec-mcp-operations:FR-35` | Hard tool retirement without backward-compatibility shims | P0 | FR-30 | [AC-35.1](ACCEPTANCE_CRITERIA.md#ac-351-hard-tool-retirement-without-backward-compatibility-shims) | `@feature35 @AC-35.1 @id:SCEN-mcp-hard-retirement-no-shims` |
+| `spec-mcp-operations:FR-36` | Deterministic mutation testing gate | P0 | FR-30 | [AC-36.1](ACCEPTANCE_CRITERIA.md#ac-361-deterministic-mutation-testing-gate) | `@feature36 @AC-36.1 @id:SCEN-mcp-mutation-testing-gate` |
+| `spec-mcp-operations:FR-37` | Unified specification and corpus validation inspection | P0 | FR-30, FR-24 | [AC-37.1](ACCEPTANCE_CRITERIA.md#ac-371-unified-specification-and-corpus-validation-inspection) | `@feature37 @AC-37.1 @id:SCEN-mcp-unified-validation` |
+| `spec-mcp-operations:FR-38` | Read-for-edit and optional root binding | P0 | FR-24 | [AC-38.1](ACCEPTANCE_CRITERIA.md#ac-381-read-for-edit-and-optional-root-binding) | `SCEN-read-for-edit-and-optional-root-binding` |
+| `spec-mcp-operations:FR-39` | Complete spec graph board projection | P0 | FR-30, FR-32 | [AC-39.1](ACCEPTANCE_CRITERIA.md#ac-391-spec-graph-board-view) | `@feature39 @FR-39 @AC-39.1 @id:SCEN-mcp-spec-graph-board-view` |
 
 ## Invariants
 
-1. Public mutation names are exactly `propose_patch` and `apply_proposed_patch`.
+1. Public mutation is exactly one tool, `spec_patch`, with 13 authoring intents (FR-23); retired names are excised without shims (FR-35).
 2. Helpers compile internally; apply accepts Proposal identity and hashes, never raw edits.
 3. Every request targets exactly one ordinary contained spec.
 4. Proposal is pure and complete; a truncated preview is not valid.
@@ -133,6 +143,15 @@ Each row is a complete FR ↔ AC ↔ scenario ↔ check ↔ task trace. Status d
 8. Untouched bytes/EOLs and changed after-hashes are conserved.
 9. Receipts are compact and redacted; no authoring-owned ledger or durable review lifecycle exists.
 10. Quality checks produce verification evidence only; they do not govern runtime availability.
+
+
+## Board projection invariants
+
+1. The board branch is one complete response with no cursor, no limit, and no silent truncation.
+2. Board nodes carry the bounded source fields needed by the downstream card adapter.
+3. Board edges retain raw kernel semantics; tracker link names are not introduced in the kernel or MCP layer.
+4. Empty or omitted specSlugs means corpus scope, and scoped responses contain no out-of-scope endpoint.
+5. A size failure returns RESPONSE_TOO_LARGE and no partial data.
 
 ## Verification matrix
 

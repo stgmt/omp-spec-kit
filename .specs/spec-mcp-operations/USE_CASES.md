@@ -156,7 +156,7 @@ Two callers propose from the same base. The first accepted apply commits. The se
 
 ## UC-12: Reject an escaping or raw write
 
-The current-host `tool_call` policy first recognizes only the two authoring names. Every other mutating call whose resolved target is under `.specs/**` is denied. The authoring handler independently rejects traversal, absolute, device, linked, reparse, normalization-collision, and cross-spec targets.
+The current-host tool_call policy recognizes the single public authoring tool spec_patch. Every other mutating call whose resolved target is under `.specs/**` is denied. The authoring handler independently rejects traversal, absolute, device, linked, reparse, normalization-collision, and cross-spec targets.
 
 ## UC-13: Rename a heading safely
 
@@ -169,3 +169,11 @@ Faults before the generation swap preserve the old generation. A fault after an 
 ## UC-15: Stop at unrecoverable storage
 
 If neither complete old nor complete new generation can be proven, the handler returns `RECOVERY_REQUIRED`, performs no further mutation, preserves diagnostics, and instructs the operator to restore the named spec from normal VCS or backup. There is no public recovery, rebaseline, or overwrite operation.
+
+## UC-16: Read a complete board projection
+
+The client calls spec_graph with view board and optional specSlugs. The server validates the strict branch, emits one complete BoardProjectionV1 with page=null, and omits out-of-scope edges. A limit, cursor, or over-size response fails before a partial board is returned.
+
+## UC-17: Keep tracker semantics downstream
+
+The MCP response retains raw kernel edge types and source fields. A YouTrack adapter maps them to tracker link names and cards; the MCP server and kernel never own tracker topology or UI layout.

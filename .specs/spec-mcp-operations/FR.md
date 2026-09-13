@@ -297,6 +297,9 @@ The MCP server SHALL expose exactly 10 tools in the fixed contract order: `mcp_p
 
 The MCP server MUST declare one stable output schema for every listed tool, return the same canonical envelope in the structured content and the text content, and expose bounded recovery guidance for stale cursors and optimistic-concurrency conflicts. A `repositoryRootFingerprint` conflict MUST use stable `causeCode` `REPOSITORY_ROOT_FINGERPRINT_MISMATCH`, mention that another project or a stale snapshot may be in use, expose only `activeProjectRootId` and `resolvedRootId` as root identities, and direct the caller to `mcp_preflight`. When those roots do not match, the caller MUST reconnect; otherwise it MUST refresh the `spec_catalog` overview and create a new proposal.
 
+**Acceptance:** [AC-31.1](ACCEPTANCE_CRITERIA.md#ac-311-envelope-schema-and-recovery-are-machine-actionable)
+**Scenario:** `@feature31 @FR-31 @AC-31.1 @id:SCEN-mcp-declared-result-envelope`
+
 
 ## FR-32: Discriminated branch schemas and strict argument validation
 
@@ -308,7 +311,7 @@ Consolidated MCP tools SHALL define input schemas with top-level discriminator f
 
 ## FR-33: Domain type dictionary catalog
 
-`spec_catalog` with `view: "types"` SHALL return the authoritative domain type dictionary from the kernel containing exactly 15 entity kind descriptors and 7 edge type descriptors. Each descriptor SHALL include a canonical identifier, a Title Case display label, and a single-sentence description. Kernel enums, schema declarations, documentation, and catalog responses SHALL be derived from this single immutable source.
+`spec_catalog` with `view: "types"` SHALL return the authoritative domain type dictionary from the kernel containing exactly 16 entity kind descriptors and 8 edge type descriptors. Each descriptor SHALL include a canonical identifier, a Title Case display label, and a single-sentence description. Kernel enums, schema declarations, documentation, and catalog responses SHALL be derived from this single immutable source.
 
 **Acceptance:** [AC-33.1](ACCEPTANCE_CRITERIA.md#ac-331-domain-type-dictionary-catalog)
 
@@ -354,3 +357,15 @@ The `spec_documents` read variant with `readForEdit: true` SHALL return the exac
 **Acceptance:** [AC-38.1](ACCEPTANCE_CRITERIA.md#ac-381-read-for-edit-and-optional-root-binding)
 
 **Scenario:** `SCEN-read-for-edit-and-optional-root-binding`
+
+## FR-39: Spec graph board view
+
+spec_graph SHALL accept a strict discriminated view: board branch. The branch SHALL accept only view, optional specSlugs, and request identity fields allowed by the common envelope. Omitted or empty specSlugs means the whole corpus; a non-empty list scopes nodes and edges to those specifications.
+
+The successful data payload SHALL be one complete BoardProjectionV1 with schemaVersion, fingerprint, scope, complete=true, page=null, nodes, edges, and counts. Nodes SHALL be limited to FUNCTIONAL_REQUIREMENT, NON_FUNCTIONAL_REQUIREMENT, ACCEPTANCE_CRITERION, TASK, SCENARIO, and ROADMAP and SHALL include canonicalId, specSlug, localId, kind, title, bounded body, contentHash, source path and line, evidence, and taskStatus when applicable. Edges SHALL use raw kernel types, retain from and to canonical IDs, and aggregate duplicate occurrences by from, to, and type with occurrenceCount. Edges with an endpoint outside the selected board kinds or scope SHALL be omitted.
+
+The branch SHALL not accept limit or cursor and SHALL never return a partial or silently truncated success payload. A response over the declared 1 MiB limit SHALL fail with typed RESPONSE_TOO_LARGE. Board-view availability SHALL not change the graph fingerprint. The branch extends spec_graph; it does not add an eleventh public tool.
+
+**Contract card:** kind functional; subject mcp-board-view; observables complete board DTO, fingerprint equality, scope filtering, raw edge aggregation, strict no-pagination branch, and unchanged ten-tool surface; verification direct JSON-RPC and staged BDD.
+**Acceptance:** [AC-39.1](ACCEPTANCE_CRITERIA.md#ac-391-spec-graph-board-view)
+**Scenario:** @feature39 @FR-39 @AC-39.1 @id:SCEN-mcp-spec-graph-board-view

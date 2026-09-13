@@ -152,3 +152,11 @@ As an operator, I want a compact outcome with document hashes, findings, and nex
 As an operator, I want deterministic internal rollback and clear manual restore instructions if storage is unrecoverable so that a failed commit does not invent a risky automated repair path.
 
 **Independent test:** Destroy the staged and retained recovery candidates in a fault fixture and observe `RECOVERY_REQUIRED`, no further writes, and a bounded VCS/backup restore instruction.
+
+## US-18: Consume one complete board projection
+
+As a downstream integration maintainer, I want one complete spec_graph board response with source fields and raw edges so that I can adapt it without importing or rebuilding the kernel.
+
+## US-19: Understand tool branches
+
+As an MCP client, I want accurate ten-tool descriptions and strict branch schemas so that I can choose the board view without guessing pagination or tracker semantics.
