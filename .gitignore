@@ -35,3 +35,9 @@ tmp/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Canonical specs live only on the `specs` branch (spec-registry-service).
+# Root-level .specs/ must never be committed to code branches.
+/.specs/
+# Conventional nested worktree of the `specs` branch for local tooling.
+/.specs-worktree/

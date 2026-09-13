@@ -12,9 +12,18 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildKernelGraph } from "../src/kernel/index.js";
 import { readRepositorySpecs } from "../src/kernel/adapters/fs.js";
+import { REPO_ROOT, resolveSpecsBearingRoot } from "./specs-root.mjs";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SPECS_ROOT = path.join(ROOT, ".specs");
+const ROOT = REPO_ROOT;
+const SPECS_BEARING_ROOT = resolveSpecsBearingRoot();
+const SPECS_ROOT = path.join(SPECS_BEARING_ROOT, ".specs");
+
+// `.specs/**` repo-relative paths live in the specs-branch worktree; every
+// other repo-relative path lives in this checkout.
+function fsPath(relativePath) {
+  const underSpecs = relativePath === ".specs" || relativePath.startsWith(".specs/") || relativePath.startsWith(".specs\\");
+  return path.join(underSpecs ? SPECS_BEARING_ROOT : ROOT, relativePath);
+}
 const EXPECTED_SPECS = Object.freeze([
   "agent-ux-elicitation-guard",
   "plugin-distribution",
@@ -57,7 +66,7 @@ function normalized(relativePath) {
 }
 
 function readText(relativePath) {
-  return fs.readFileSync(path.join(ROOT, relativePath), "utf8");
+  return fs.readFileSync(fsPath(relativePath), "utf8");
 }
 
 function readJson(relativePath) {
@@ -95,7 +104,7 @@ function exactCanonicalDocuments() {
 }
 
 async function validateRuntimeGraph() {
-  const readResult = await readRepositorySpecs({ root: ROOT });
+  const readResult = await readRepositorySpecs({ root: SPECS_BEARING_ROOT });
   if (readResult?.error) fail(`kernel reader refused corpus: ${JSON.stringify(readResult.error)}`);
   const { graph, diagnostics } = buildKernelGraph({ files: readResult.files });
   const errors = diagnostics.filter((diagnostic) => diagnostic.severity === "ERROR");
@@ -160,7 +169,7 @@ function markdownFiles() {
   ];
   const output = [];
   function walk(relativePath) {
-    const absolutePath = path.join(ROOT, relativePath);
+    const absolutePath = fsPath(relativePath);
     if (!fs.existsSync(absolutePath)) return;
     const stat = fs.statSync(absolutePath);
     if (stat.isFile()) {
@@ -240,7 +249,7 @@ function validateMarkdownLinks() {
         failures.push(`${source}:${link.line}: ${resolved.error}: ${link.destination}`);
         continue;
       }
-      const targetAbsolute = path.join(ROOT, resolved.targetRelative);
+      const targetAbsolute = fsPath(resolved.targetRelative);
       if (!fs.existsSync(targetAbsolute)) {
         failures.push(`${source}:${link.line}: missing target ${resolved.targetRelative}`);
         continue;

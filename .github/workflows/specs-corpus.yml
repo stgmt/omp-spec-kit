@@ -1,0 +1,34 @@
+name: specs-corpus
+
+# The `specs` branch carries only .specs/ — it has no tooling of its own.
+# Corpus validation therefore runs from the default branch's checkout with
+# the pushed specs content mounted as .specs-worktree.
+
+on:
+  push:
+    branches: [specs]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: specs-corpus-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  corpus:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out tooling (default branch)
+        uses: actions/checkout@v4
+      - name: Check out pushed specs content
+        uses: actions/checkout@v4
+        with:
+          ref: specs
+          path: .specs-worktree
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run check:spec-corpus

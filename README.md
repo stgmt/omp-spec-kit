@@ -2,6 +2,18 @@
 
 `omp-spec-kit` gives Oh My Pi (OMP) a bounded view of a repository's specifications: what exists, how requirements connect, and where the graph reports problems.
 
+## Where the specs live
+
+Canonical specifications are **not** on code branches. They live on the dedicated `specs` branch, which contains only `.specs/` (see `.specs/spec-registry-service/` — spec-registry-service TASK-1). Code branches reject any tracked root-level `.specs/` (CI `specs-boundary` job + `.gitignore`).
+
+To work with the corpus locally, mount it as a nested worktree — tooling (`check:spec-corpus`, `dogfood:mcp`, release evidence) resolves it automatically:
+
+```text
+git worktree add --detach .specs-worktree specs
+```
+
+or point `OMP_SPEC_KIT_ROOT` at any directory containing `.specs/`.
+
 ## Install
 
 Use the project scope so the server reads the project where OMP starts:

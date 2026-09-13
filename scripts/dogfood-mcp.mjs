@@ -10,7 +10,10 @@ import {
   TOOL_CONTRACTS,
 } from "../src/adapters/tool-contracts.js";
 
+import { resolveSpecsBearingRoot } from "./specs-root.mjs";
+
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const specsBearingRoot = resolveSpecsBearingRoot();
 const contracts = TOOL_CONTRACTS;
 const serverPath = path.join(repositoryRoot, "src", "mcp", "server.js");
 
@@ -70,7 +73,7 @@ const child = spawnSync(process.execPath, [serverPath], {
   cwd: repositoryRoot,
   env: {
     ...process.env,
-    OMP_SPEC_KIT_ROOT: repositoryRoot,
+    OMP_SPEC_KIT_ROOT: specsBearingRoot,
   },
   input: `${callMessages().map((message) => JSON.stringify(message)).join("\n")}\n`,
   encoding: "utf8",

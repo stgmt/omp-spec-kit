@@ -2,6 +2,7 @@ import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertCandidateShape, canonicalJson, fail, isSha256, parseArgs, readStrictJson, resolveContainedRegularFile, sha256 } from "./release-candidate-utils.mjs";
+import { resolveSpecsBearingRoot } from "./specs-root.mjs";
 
 const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, index) => `plugin-distribution:FR-${index + 19}`));
 
@@ -253,7 +254,7 @@ export async function createReleaseEvidence({
   const candidate = assertCandidateShape(await readStrictJson(candidatePath, "candidate manifest"), "candidate manifest");
   await mkdir(outputDirectory, { recursive: true });
   const catalogDigest = sha256(await readFile(path.join(repositoryRoot, ".omp-plugin", "marketplace.json")));
-  const requiredScenarios = requiredScenarioMultiplicity(await readFile(path.join(repositoryRoot, ".specs", "plugin-distribution", "plugin-distribution.feature"), "utf8"));
+  const requiredScenarios = requiredScenarioMultiplicity(await readFile(path.join(resolveSpecsBearingRoot({ baseDir: repositoryRoot }), ".specs", "plugin-distribution", "plugin-distribution.feature"), "utf8"));
   const sourceMessageBytes = await readFile(cucumberMessagesPath);
   const scenarioIds = cucumberMessages(sourceMessageBytes, requiredScenarios);
   const messageRelativePath = "messages/cucumber.ndjson";

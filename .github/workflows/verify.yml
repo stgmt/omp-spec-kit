@@ -13,10 +13,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  specs-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Root-level .specs/ must not be tracked on code branches
+        run: |
+          if git ls-files --error-unmatch '.specs/*' >/dev/null 2>&1; then
+            echo "::error::root-level .specs/ is tracked on a non-specs branch — canonical specs live only on the 'specs' branch"
+            git ls-files .specs
+            exit 1
+          fi
+          echo "clean: no tracked .specs/ on this branch"
+
   plugin:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check out canonical specs (specs branch)
+        uses: actions/checkout@v4
+        with:
+          ref: specs
+          path: .specs-worktree
       - uses: actions/setup-node@v4
         with:
           node-version: 22

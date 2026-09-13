@@ -13,6 +13,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveSpecsBearingRoot } from "./specs-root.mjs";
 import {
 	assertCandidateShape,
 	canonicalJson,
@@ -63,7 +64,7 @@ function parseArgs(argv) {
 // Parses the FR ↔ scenario-id map and exact Scenario Outline multiplicities
 // from the same source bytes consumed by release assembly.
 async function scenarioRequirements(repositoryRoot) {
-	const text = await readFile(path.join(repositoryRoot, ".specs", "plugin-distribution", "plugin-distribution.feature"), "utf8");
+	const text = await readFile(path.join(resolveSpecsBearingRoot({ baseDir: repositoryRoot }), ".specs", "plugin-distribution", "plugin-distribution.feature"), "utf8");
 	const multiplicities = requiredScenarioMultiplicity(text);
 	const requirements = new Map();
 	let tags = [];
