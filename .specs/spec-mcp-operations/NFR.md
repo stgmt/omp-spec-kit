@@ -138,3 +138,12 @@ Both public tools and all internal helpers SHALL use one operation normalizer, o
 ## NFR-READ-EDIT-1: Read-modify-write integrity
 
 Read-for-edit SHALL use one bounded read, preserve exact bytes and digest, and never disclose absolute paths. Optional root binding SHALL not weaken snapshot, preimage, lock, rollback, or atomicity guarantees.
+
+
+## NFR-BOARD-1: Complete bounded board response
+
+The board branch SHALL serialize one complete BoardProjectionV1 in a single response no larger than 1 MiB. It SHALL reject pagination inputs and return RESPONSE_TOO_LARGE rather than truncating. Stable ordering, scope, identity, raw edge aggregation, and counts SHALL be deterministic.
+
+## NFR-BOARD-2: Projection separation
+
+The board DTO SHALL contain no YouTrack link names, REST state, UI layout, or tracker-derived topology. Card and link semantics belong to downstream adapters.

@@ -41,7 +41,7 @@ Unblocked all 16 recognized OMP internal URI schemes (`agent`, `artifact`, `conf
 
 ---
 
-## Planned Releases (v1.1.0 – v1.5.0)
+## Planned Releases (v1.1.0 – v1.6.0)
 
 ### v1.1.0 — Agent UX Quick Wins & Error Hygiene
 
@@ -105,13 +105,82 @@ Outcome: specs stop living only in the creator's head. Any newcomer sees TASKS p
 
 Grounding: [`audit-reports/youtrack-visualization-research-2026-09-07.md`](audit-reports/youtrack-visualization-research-2026-09-07.md).
 
+Status: **Phase A (sync core) delivered 2026-09-10. Phase B (writeback) deferred — see issue [#31](https://github.com/stgmt/omp-spec-kit/issues/31) and the Deferred section below.**
+
+#### Phase A — Sync core (delivered 2026-09-10)
+
+- `scripts/spec-graph-sync.mjs` — composition root: `McpStdioClient` resolves the installed-plugin MCP launcher (`~/.omp/plugins/node_modules/omp-spec-kit/dist/mcp/server.js`, repo `src` fallback), YouTrack REST client, projection store (upsert/reconcile/delete), sync state store (snapshot pointer), orchestration service.
+- `src/adapters/youtrack-projection.js` — domain logic (500 lines): `buildProjectionPlan`, `desiredSummary`, `desiredDescription`, `fieldValue`, edge-type mapping (TESTED_BY → covers/verifies, DEPENDS_ON → depends-on, etc.), `addSortedLink`, `linkEquivalenceKey`, `assertBoardProjection`.
+- `tools/spec-graph-app/` — YouTrack App manifest v1.0.18 (uploaded, enabled globally, id 144-67), two widgets (`spec-panel` ISSUE_BELOW_SUMMARY, `spec-board` DASHBOARD_WIDGET with V1 Flow / V2 Cluster / V3 Lineage over one committed snapshot), writeback rule (`spec-writeback.js`, deferred).
+- `tests/spec-graph-sync/sync.test.js` — 6/6 green.
+- **BoardProjectionV1** MCP view: whole corpus 408 nodes / 457 edges, `complete: true`, `page: null`.
+
+Delivery proof (staging YouTrack, SPEC project, 2026-09-10):
+- `scripts/spec-graph-sync.mjs --dry-run` → `CARD_DRIFT spec-mcp-access-gate:AC-5.1` (tracker behind commit c91d426)
+- full sync → `SYNCED`, 25 writes, pointer republished under `20312b81…`
+- `--dry-run` → `SKIPPED`, parity equal, 0 writes
+- TASKS.md statuses closed via `spec_patch` (TASK-3,4,5,6,9,10,12) → corpus fingerprint moved → second full sync `SYNCED` (22 writes) → `--dry-run` `SKIPPED` under `21ef4450…`, parity equal, 0 writes
+- Spec Panel iframe renders on SPEC-365; Spec Board widget present on dashboard 166-3; widget query `project: SPEC and summary: {SPEC:SYNC-STATE}` returns the pointer; marker validates against `loadCommittedSnapshot` (`BoardSnapshotV1`, complete, `page: null`, 408 nodes, 457 edges, 408 cardIds).
+
+#### Phase B — Writeback (deferred)
+
+See the Deferred section below for full context. Tracked in [#31](https://github.com/stgmt/omp-spec-kit/issues/31).
+
 Key changes:
 - **YouTrack App (no fork)**: widgets `spec-panel` (`ISSUE_BELOW_SUMMARY`) plus `spec-board` (`DASHBOARD_WIDGET`) via `create-youtrack-app`; deploy `npm run build` plus upload with host and permanent token.
 - **Sync CLI**: `spec_catalog` to `spec_entities` to `spec_graph` to YouTrack REST upsert by `SpecId` (`<slug>:<nodeId>`); link types `satisfies/verifies/implements`; fingerprint-skip when the graph is unchanged.
-- **Direction**: spec text Git to YouTrack one-way; TASK states optionally back via `onChange` workflow to `spec_patch`.
+- **Direction**: spec text Git to YouTrack one-way.
 - **PoC slice first**: 28 TASK plus 10 FR plus edges of `spec-mcp-operations`, then the full 288 nodes.
 
 Proof: App installed on staging YouTrack Server, PoC slice visible (panel graph plus board), idempotent re-sync with zero duplicates, fingerprint-skip verified.
+
+### v1.6.0 — Roadmap specs (higher-level waterfall abstraction)
+
+Outcome: feature specs describe one component at the right level of detail but too granular for release planning. Roadmap specs sit above feature specs: each roadmap describes the waterfall implementation phases of one or more feature specs, tracing every phase to specific FRs, ACs, and tasks in the target specs. The kernel recognizes ROADMAP as a first-class entity kind; roadmap TASKs link to feature spec requirements via standard IMPLEMENTS edges.
+
+Grounding: `.specs/roadmap-roadmaps/` — meta-roadmap for the roadmap feature itself (dogfood).
+
+Key changes:
+- **ROADMAP entity kind** added to kernel ENTITY_TYPE_DESCRIPTORS; roadmap specs use slug prefix `roadmap-`.
+- **Lightweight template**: README.md (profile), ROADMAP.md (authored + generated view), FR.md (implementation phases), TASKS.md (trace links), ACCEPTANCE_CRITERIA.md, `<slug>.feature`.
+- **Cross-spec tracing**: roadmap TASKs `Implements:` column references feature spec FRs/ACs; graph resolves IMPLEMENTS edges across specs.
+- **Lifecycle states**: roadmap specs declare `draft | active | completed | superseded` in README profile; product ROADMAP.md aggregates active roadmaps.
+- **Board visualization**: YouTrack spec board filterable by ROADMAP kind; cross-spec edges visible.
+
+Proof: `spec_catalog(view: "types")` returns ROADMAP; `roadmap-roadmaps` spec is valid, and its TASKs resolve IMPLEMENTS edges both to its own FRs and to feature-spec FRs (dogfood). The spec now also covers the canonical ROADMAP.md document with deterministic generated-region assembly (planned).
+
+---
+
+## Deferred — not yet scheduled
+
+### Writeback: governed TASK status from YouTrack to specification files
+
+**Issue**: [#31](https://github.com/stgmt/omp-spec-kit/issues/31)
+
+**What it is**: when a user changes State on a TASK card in YouTrack (via Approve/Verify/Reopen buttons or directly), the change flows back to the corresponding `TASKS.md` file through `spec_patch`. Without writeback, spec-to-tracker is one-way: edit source → sync updates YouTrack. Writeback adds the reverse: change status in YouTrack → sync updates source.
+
+**Why defer**: the one-way direction (edit source → YouTrack) covers the primary workflow. The author edits TASKS.md, runs sync, and sees the result in YouTrack. The reverse direction is useful only when someone works primarily from the tracker UI and expects their status changes to persist across sync runs. That scenario does not exist yet for this project.
+
+**What exists already**:
+- `tools/spec-graph-app/spec-writeback.js` — YouTrack server-side `onChange` rule (50 lines). Posts `{specId, toState, issueId}` to `http://host.docker.internal:8787/writeback` when a SPEC issue's State field changes.
+- `scripts/spec-graph-sync.mjs --serve` — HTTP listener on port 8787. Validates the event via `validateWritebackEvent()`, maps tracker state to spec status via `specStatusForTrackerState()`, calls `McpTaskStatusWriteback.setSpecTaskStatus()` which invokes `spec_patch(intent: "setEntityStatus")`.
+- `src/adapters/youtrack-projection.js` — `BUTTON_TRANSITIONS` (Approve: Open→Fixed, Verify: Fixed→Verified, Reopen: *→Reopened), `REVERSE_STATUS_MAP`, `validateWritebackEvent`, `specStatusForTrackerState`.
+- `tests/spec-graph-sync/writeback.test.js` (1.8KB).
+
+**What remains**:
+1. Start `--serve` alongside the sync cron job (systemd user service or Windows Scheduled Task).
+2. Upload `spec-writeback.js` as a YouTrack workflow in project SPEC.
+3. E2E test: change State in YouTrack → listener receives event → `spec_patch` updates TASKS.md → next sync sees `Status: done` and skips the card.
+4. Handle listener unreachable: the YouTrack rule silently fails (console.warn only), events are not retried. Decide whether this is acceptable or needs a queue.
+
+**Acceptance**:
+```text
+curl -X POST http://localhost:8787/writeback \
+  -d '{"specId":"product:TASK-1","toState":"Fixed","issueId":"1-234"}'
+# → {"ok":true, "status":"done", "writeback":{"writeCalls":1}}
+```
+
+Then `spec_documents(action: "read", spec: "product", doc: "TASKS.md")` shows `Status: done` for TASK-1.
 
 ---
 

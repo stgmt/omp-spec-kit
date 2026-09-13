@@ -14,6 +14,7 @@ import { detectSecret } from "./secrets.js";
 import { FIXED_DOCUMENT_FILES } from "../kernel/types.js";
 import { isValidSpecSlug } from "../kernel/identity.js";
 import { validateMetadata } from "../kernel/query/extended.js";
+import { assembleRoadmap as assembleRoadmapContent } from "../kernel/roadmap/assemble.js";
 
 const MAX_REASON_BYTES = 512;
 const MAX_DIFF_BYTES = 64 * 1024;
@@ -155,7 +156,12 @@ export function applyOperation(text, operation) {
     if (typeof operation.entity !== "string" || typeof operation.status !== "string")
       return { ok: false, code: "INVALID_REQUEST", message: "replace_task_status needs entity and status" };
     const lines = text.split(/\r?\n/u);
-    const heading = lines.findIndex((line) => /^##\s+/.test(line) && line.includes(operation.entity));
+    // Exact local-id match on the first heading token: a substring match lets
+    // "TASK-1" silently resolve to a "## TASK-10" section.
+    const heading = lines.findIndex((line) => {
+      const match = line.match(/^##\s+([^\s:]+)/);
+      return match !== null && match[1] === operation.entity;
+    });
     if (heading < 0)
       return { ok: false, code: "VALIDATION_FAILED", message: `task heading not found: ${operation.entity}` };
     let end = lines.length;
@@ -165,16 +171,39 @@ export function applyOperation(text, operation) {
         break;
       }
     }
-    const status = lines.slice(heading + 1, end).findIndex((line) => /^\s*-\s+\*\*Status:\*\*/u.test(line));
+    // The kernel field parser accepts `Status:`, `**Status:**`, and their
+    // bulleted forms; matching only `- **Status:**` would fail to patch the
+    // corpus's dominant plain/bold forms. The matched prefix is preserved so
+    // the task keeps its authored field shape.
+    const STATUS_PREFIX = /^([ ]{0,3}(?:[-*][ \t]+)?(?:\*\*)?[ \t]*Status[ \t]*(?:\*\*)?[ \t]*:(?:\*\*)?)/u;
+    const status = lines.slice(heading + 1, end).findIndex((line) => STATUS_PREFIX.test(line));
     if (status < 0)
       return { ok: false, code: "VALIDATION_FAILED", message: `task status field not found: ${operation.entity}` };
-    lines[heading + 1 + status] = `- **Status:** ${operation.status}`;
+    const index = heading + 1 + status;
+    lines[index] = `${lines[index].match(STATUS_PREFIX)[1]} ${operation.status}`;
     return { ok: true, text: lines.join("\n") };
   }
   if (kind === "insert_at_eof") {
     if (typeof operation.text !== "string")
       return { ok: false, code: "INVALID_REQUEST", message: "insert_at_eof.text must be text" };
     return { ok: true, text: `${text}${text.length > 0 && !text.endsWith("\n") ? "\n" : ""}${operation.text}` };
+  }
+  if (kind === "replace_marked_region") {
+    if (typeof operation.startMarker !== "string" || typeof operation.endMarker !== "string")
+      return { ok: false, code: "INVALID_REQUEST", message: "replace_marked_region needs startMarker and endMarker" };
+    if (typeof operation.content !== "string")
+      return { ok: false, code: "INVALID_REQUEST", message: "replace_marked_region.content must be text" };
+    const startIdx = text.indexOf(operation.startMarker);
+    if (startIdx < 0)
+      return { ok: false, code: "VALIDATION_FAILED", message: `start marker not found: ${operation.startMarker}` };
+    const endIdx = text.indexOf(operation.endMarker, startIdx + operation.startMarker.length);
+    if (endIdx < 0)
+      return { ok: false, code: "VALIDATION_FAILED", message: `end marker not found: ${operation.endMarker}` };
+    if (text.indexOf(operation.startMarker, startIdx + operation.startMarker.length) >= 0)
+      return { ok: false, code: "CONFLICT", message: `duplicate start marker: ${operation.startMarker}` };
+    const before = text.slice(0, startIdx + operation.startMarker.length);
+    const after = text.slice(endIdx);
+    return { ok: true, text: before + "\n" + operation.content + after };
   }
   const selector = operation.heading ?? operation.section;
   const selected = headingRange(text, selector);
@@ -252,6 +281,9 @@ function markdownLinkTargets(text) {
 
 async function inboundDocumentLinks(root, spec, targetDocument) {
   const documents = new Set([...Object.values(FIXED_DOCUMENT_FILES), `${spec}.feature`, `${spec}_SCHEMA.md`]);
+  // ROADMAP.md is only canonical for roadmap-* specs; skip it otherwise
+  // so isCanonicalDocument does not reject the inbound scan.
+  if (!spec.startsWith("roadmap-")) documents.delete(FIXED_DOCUMENT_FILES.ROADMAP);
   const links = [];
   for (const document of documents) {
     const current = await loadDocument(root, spec, document, true);
@@ -288,11 +320,14 @@ export function publicOperationKind(operation) {
     case "replace_in_section":
     case "replace_task_status":
     case "replace_document":
+    case "replace_marked_region":
       return "replace";
     case "delete_document":
       return "delete";
     case "rename_document":
       return "rename";
+    case "assemble_roadmap":
+      return "replace";
     default:
       return "replace";
   }
@@ -480,11 +515,33 @@ export function operationForFacade(name, input) {
     const title = typeof input.title === "string" && input.title.trim() ? input.title.trim() : spec;
     const docs = [];
     for (const doc of Object.values(FIXED_DOCUMENT_FILES)) {
+      // ROADMAP.md is only canonical for roadmap-* specs.
+      if (doc === FIXED_DOCUMENT_FILES.ROADMAP && !spec.startsWith("roadmap-")) continue;
       docs.push({ kind: "replace_document", document: doc, content: `# ${title}\n\nStatus: DRAFT\n` });
     }
     docs.push({ kind: "replace_document", document: `${spec}.feature`, content: `Feature: ${title}\n` });
     docs.push({ kind: "replace_document", document: `${spec}_SCHEMA.md`, content: `# ${title} Schema\n\nStatus: DRAFT\n` });
     return { spec, reason, operations: docs };
+  }
+
+  if (name === "createRoadmap") {
+    if (!spec.startsWith("roadmap-"))
+      return error("INVALID_REQUEST", "createRoadmap requires a roadmap-* spec slug");
+    const title = typeof input.title === "string" && input.title.trim() ? input.title.trim() : spec;
+    const skeleton = `# ${title}\n\n> **Profile: roadmap**\n\n## Auto-assembled items\n\n<!-- roadmap:auto:start -->\n<!-- roadmap:auto:end -->\n`;
+    return {
+      spec,
+      reason,
+      operations: [{ kind: "replace_document", document: FIXED_DOCUMENT_FILES.ROADMAP, content: skeleton }],
+    };
+  }
+
+  if (name === "assembleRoadmap") {
+    if (!spec.startsWith("roadmap-"))
+      return error("INVALID_REQUEST", "assembleRoadmap requires a roadmap-* spec slug");
+    // The actual assembly happens in the compile method where the graph is
+    // available; here we just signal the intent.
+    return { spec, reason, operations: [{ kind: "assemble_roadmap", document: FIXED_DOCUMENT_FILES.ROADMAP }] };
   }
 
   return error("INVALID_REQUEST", `no operation compiler for ${name}`);
@@ -655,6 +712,19 @@ export class ProposalCompiler {
           document: operation.newDocument,
           content: current.bytes.toString("utf8"),
         }, false, target.missing === true);
+        continue;
+      }
+      if (operation.kind === "assemble_roadmap") {
+        // Graph-derived assembly: load current ROADMAP.md, run the pure
+        // assembler, and use the merged content directly.
+        const current = await loadDocument(this.root, spec, operation.document, true);
+        if (!current.ok) return error(current.code, current.message);
+        const docText = current.bytes.toString("utf8");
+        const assembled = assembleRoadmapContent(graph, spec, docText);
+        if (!assembled.ok) return error(assembled.code, assembled.message);
+        const newline = docText.includes("\r\n") ? "\r\n" : "\n";
+        const transformedText = newline === "\n" ? assembled.content : assembled.content.replace(/\r?\n/gu, newline);
+        addChange(operation.document, current.bytes, Buffer.from(transformedText, "utf8"), operation, false, current.missing === true);
         continue;
       }
       const current = await loadDocument(this.root, spec, operation.document, operation.kind === "replace_document");

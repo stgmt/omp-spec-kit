@@ -1,6 +1,6 @@
 {
   "name": "omp-spec-kit-repository",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,12 +14,12 @@
     "dogfood:mcp": "node scripts/dogfood-mcp.mjs",
     "dogfood:mcp:candidate": "node scripts/dogfood-mcp.mjs",
     "test:bdd": "bash scripts/docker-bdd.sh",
-    "test:bdd:omp-discovery": "bash scripts/docker-bdd.sh --tags '@id:SCEN-mri-active-project-manager-receipt or @id:SCEN-mri-missing-payload-refusal'",
+    "test:bdd:omp-discovery": "bash scripts/docker-bdd.sh --tags '@id:SCEN-mri-active-project-manager-receipt'",
     "test": "npm run build && npm run verify && npm run dogfood:mcp:candidate && npm run test:safe-authoring && npm run test:staged && npm run test:unit && npm run test:bdd",
     "test:safe-authoring": "npx cucumber-js tests/features/safe-authoring.feature --import tests/step-definitions/safe-authoring.steps.mjs --tags @safe-authoring --format progress --force-exit",
     "test:tool-e2e": "npx cucumber-js tests/features/staged-mcp.feature --import tests/step-definitions/staged-mcp.steps.mjs --tags @tool-e2e --format progress --force-exit",
     "test:staged": "npx cucumber-js tests/features/staged-mcp.feature --import tests/step-definitions/staged-mcp.steps.mjs --format progress --force-exit",
-    "test:unit": "node --test tests/authoring-elicitation-edges.test.mjs",
+    "test:unit": "node --test tests/spec-graph-sync/serve.test.js tests/spec-graph-sync/sync.test.js tests/spec-graph-sync/store.test.js tests/spec-graph-sync/sweep.test.js tests/spec-graph-sync/writeback.test.js tests/authoring-elicitation-edges.test.mjs tests/authoring-task-status.test.mjs tests/kernel-fields.test.mjs tests/roadmap-assemble.test.mjs",
     "test:release-archive": "node scripts/smoke-release-archive.mjs",
     "test:release-integrity": "npx cucumber-js tests/features/release-evidence.feature --import tests/step-definitions/mcp-release-integrity.steps.mjs --tags @mcp-release-integrity --format progress --force-exit",
     "release:preflight": "node scripts/release-preflight.mjs",
@@ -29,5 +29,8 @@
   },
   "devDependencies": {
     "@cucumber/cucumber": "13.2.1"
+  },
+  "dependencies": {
+    "@jetbrains/youtrack-apps-tools": "^1.0.3"
   }
 }

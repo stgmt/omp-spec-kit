@@ -1,0 +1,1790 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spec Graph Board</title>
+<style>
+  :root {
+    --bg-base: #0d1117;
+    --bg-surface: #161b22;
+    --bg-surface-raised: #21262d;
+    --bg-surface-overlay: #30363d;
+    --border-subtle: #21262d;
+    --border-default: #30363d;
+    --border-accent: #388bfd;
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+    
+    --color-task: #d29922;
+    --color-task-bg: rgba(210, 153, 34, 0.15);
+    --color-task-border: rgba(210, 153, 34, 0.4);
+    
+    --color-fr: #58a6ff;
+    --color-fr-bg: rgba(88, 166, 255, 0.15);
+    --color-fr-border: rgba(88, 166, 255, 0.4);
+    
+    --color-ac: #3fb950;
+    --color-ac-bg: rgba(63, 185, 80, 0.15);
+    --color-ac-border: rgba(63, 185, 80, 0.4);
+    
+    --color-scen: #bc8cff;
+    --color-scen-bg: rgba(188, 140, 255, 0.15);
+    --color-scen-border: rgba(188, 140, 255, 0.4);
+    
+    --color-nfr: #f0883e;
+    --color-nfr-bg: rgba(240, 136, 62, 0.15);
+    --color-nfr-border: rgba(240, 136, 62, 0.4);
+
+    --color-roadmap: #e3b341;
+    --color-roadmap-bg: rgba(227, 179, 65, 0.15);
+    --color-roadmap-border: rgba(227, 179, 65, 0.45);
+
+    --link-implements: #58a6ff;
+    --link-satisfies: #3fb950;
+    --link-verifies: #bc8cff;
+    --link-depends: #f85149;
+    --link-constrains: #f0883e;
+    --link-covers: #56d4dd;
+    --link-contains: #e3b341;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Ubuntu, sans-serif;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    line-height: 1.5;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+  }
+
+  .state { font-size: 13px; color: var(--text-secondary); padding: 20px; }
+  .err { font-size: 13px; color: #f85149; white-space: pre-wrap; padding: 20px; }
+
+  /* Top Navigation Bar */
+  header.app-header {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-default);
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+    z-index: 100;
+  }
+
+  .brand-area {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .brand-badge {
+    background: #238636;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .brand-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  /* Segmented Control Switcher */
+  .variant-switcher {
+    display: flex;
+    background: var(--bg-base);
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid var(--border-default);
+    gap: 2px;
+  }
+
+  .variant-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .variant-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-surface);
+  }
+
+  .variant-btn.active {
+    background: var(--bg-surface-overlay);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  .stats-badge {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Main Content Area */
+  main.viewport {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tab-view {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  .tab-view.active {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Common UI Controls */
+  .toolbar {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  .pill-group {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .pill-btn {
+    background: var(--bg-surface-raised);
+    border: 1px solid var(--border-default);
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 3px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .pill-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
+
+  .pill-btn.active {
+    background: var(--border-accent);
+    color: #fff;
+    border-color: var(--border-accent);
+    font-weight: 500;
+  }
+
+  .search-input {
+    background: var(--bg-base);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    width: 220px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .search-input:focus {
+    border-color: var(--border-accent);
+  }
+
+  .search-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .legend-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* ---------------------------------------------------- */
+  /* VARIANT 1: Traceability Flow Matrix                  */
+  /* ---------------------------------------------------- */
+  .flow-container {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .flow-board {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+    position: relative;
+  }
+
+  .flow-lanes-wrapper {
+    display: inline-flex;
+    gap: 48px;
+    min-width: 100%;
+    height: 100%;
+    position: relative;
+    z-index: 2;
+  }
+
+  .flow-lane {
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    height: 100%;
+  }
+
+  .lane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--bg-surface-raised);
+    border: 1px solid var(--border-default);
+    border-radius: 8px 8px 0 0;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .lane-count {
+    background: var(--bg-surface-overlay);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .lane-cards-scroll {
+    flex: 1;
+    overflow-y: auto;
+    background: rgba(22, 27, 34, 0.5);
+    border: 1px solid var(--border-default);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .node-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    user-select: none;
+  }
+
+  .node-card:hover {
+    border-color: var(--text-muted);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+
+  .node-card.focused {
+    border-color: var(--border-accent) !important;
+    background: #1c2638 !important;
+    box-shadow: 0 0 0 2px var(--border-accent) !important;
+  }
+
+  .node-card.dimmed {
+    opacity: 0.2;
+    filter: grayscale(0.8);
+  }
+
+  .node-card.highlighted-upstream {
+    border-color: #58a6ff;
+    box-shadow: 0 0 8px rgba(88, 166, 255, 0.3);
+  }
+
+  .node-card.highlighted-downstream {
+    border-color: #3fb950;
+    box-shadow: 0 0 8px rgba(63, 185, 80, 0.3);
+  }
+
+  .card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .card-id-badge {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .kind-TASK .card-id-badge { background: var(--color-task-bg); color: var(--color-task); border: 1px solid var(--color-task-border); }
+  .kind-FR .card-id-badge { background: var(--color-fr-bg); color: var(--color-fr); border: 1px solid var(--color-fr-border); }
+  .kind-AC .card-id-badge { background: var(--color-ac-bg); color: var(--color-ac); border: 1px solid var(--color-ac-border); }
+  .kind-SCENARIO .card-id-badge { background: var(--color-scen-bg); color: var(--color-scen); border: 1px solid var(--color-scen-border); }
+  .kind-NFR .card-id-badge { background: var(--color-nfr-bg); color: var(--color-nfr); border: 1px solid var(--color-nfr-border); }
+  .kind-ROADMAP .card-id-badge { background: var(--color-roadmap-bg); color: var(--color-roadmap); border: 1px solid var(--color-roadmap-border); }
+
+  .card-state-pill {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: var(--bg-surface-raised);
+    color: var(--text-secondary);
+  }
+
+  .card-state-pill.fixed { background: rgba(63, 185, 80, 0.2); color: #3fb950; }
+  .card-state-pill.todo { background: rgba(210, 153, 34, 0.2); color: #d29922; }
+
+  .card-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.35;
+    margin-bottom: 6px;
+  }
+
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .link-indicators {
+    display: flex;
+    gap: 4px;
+  }
+
+  .link-pill {
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 600;
+  }
+
+  /* SVG Overlay for Connections */
+  .flow-wires-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .flow-wire {
+    fill: none;
+    stroke-width: 1.5;
+    opacity: 0.05;
+    transition: opacity 0.2s, stroke-width 0.2s;
+  }
+
+  .flow-wire.active {
+    opacity: 1 !important;
+    stroke-width: 2.5 !important;
+  }
+
+  /* Detail Drawer on the Right */
+  .detail-drawer {
+    width: 340px;
+    background: var(--bg-surface);
+    border-left: 1px solid var(--border-default);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .drawer-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    font-size: 12px;
+  }
+
+  .detail-section {
+    margin-bottom: 16px;
+  }
+
+  .detail-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .detail-links-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .detail-link-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: var(--bg-surface-raised);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+
+  .detail-link-item:hover {
+    border-color: var(--border-accent);
+  }
+
+  /* ---------------------------------------------------- */
+  /* VARIANT 2: Interactive Cluster Canvas                */
+  /* ---------------------------------------------------- */
+  .canvas-container {
+    flex: 1;
+    position: relative;
+    background: #090d13;
+    overflow: hidden;
+    cursor: grab;
+  }
+
+  .canvas-container:active {
+    cursor: grabbing;
+  }
+
+  .canvas-stage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    will-change: transform;
+  }
+
+  .canvas-hud {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    gap: 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    padding: 6px 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    z-index: 10;
+  }
+
+  .hud-btn {
+    background: var(--bg-surface-raised);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .hud-btn:hover {
+    background: var(--bg-surface-overlay);
+  }
+
+  .spec-island {
+    position: absolute;
+    background: rgba(22, 27, 34, 0.7);
+    border: 1px solid var(--border-default);
+    border-radius: 12px;
+    padding: 16px;
+    backdrop-filter: blur(4px);
+  }
+
+  .island-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ---------------------------------------------------- */
+  /* VARIANT 3: Lineage & Coverage Inspector              */
+  /* ---------------------------------------------------- */
+  .inspector-container {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  .inspector-sidebar {
+    width: 320px;
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border-default);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .inspector-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .tree-node-row {
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+  }
+
+  .tree-node-row:hover {
+    background: var(--bg-surface-raised);
+  }
+
+  .tree-node-row.active {
+    background: #1c2638;
+    border-color: var(--border-accent);
+  }
+
+  .inspector-stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-base);
+    overflow: hidden;
+  }
+
+  .ego-graph-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 30px;
+    position: relative;
+    overflow: auto;
+  }
+
+  .ego-column {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 250px;
+    z-index: 2;
+  }
+
+  .ego-center-card {
+    width: 320px;
+    background: var(--bg-surface-raised);
+    border: 2px solid var(--border-accent);
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 8px 24px rgba(56, 139, 253, 0.2);
+    z-index: 3;
+  }
+</style>
+</head>
+<body>
+
+<div id="root">
+  <p class="state">Загрузка графа спеки…</p>
+</div>
+
+<script type="module">
+  const root = document.getElementById('root');
+
+  function escapeHtml(text) {
+    return String(text || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+
+  function fieldVal(issue, name) {
+    const field = (issue.customFields || []).find(c => c.name === name);
+    if (!field || field.value === null || field.value === undefined) return '';
+    if (typeof field.value === 'string') return field.value;
+    return field.value.name || field.value.presentation || '';
+  }
+
+  const SNAPSHOT_PREFIX = 'SPEC-SYNC-STATE\n';
+  const KIND_LABELS = {
+    FUNCTIONAL_REQUIREMENT: 'FR',
+    NON_FUNCTIONAL_REQUIREMENT: 'NFR',
+    ACCEPTANCE_CRITERION: 'AC',
+    TASK: 'TASK',
+    SCENARIO: 'SCENARIO',
+    ROADMAP: 'ROADMAP'
+  };
+  const TYPE_LABELS = {
+    FUNCTIONAL_REQUIREMENT: 'Feature',
+    NON_FUNCTIONAL_REQUIREMENT: 'Constraint',
+    ACCEPTANCE_CRITERION: 'Criterion',
+    TASK: 'Task',
+    SCENARIO: 'Scenario',
+    ROADMAP: 'Roadmap'
+  };
+  const TASK_STATES = { planned: 'Submitted', todo: 'Open', done: 'Fixed' };
+
+  // Kernel edge type + endpoint kinds -> canonical tracker link name; mirrors
+  // EDGE_LINK_RULES in src/adapters/youtrack-projection.js so wire colors match
+  // the link type the sync actually reconciles. Inverse-named types fold to
+  // the canonical name — they share one visual encoding.
+  const EDGE_LINK_RULES = [
+    { edge: 'TESTED_BY', from: 'FR', to: 'SCENARIO', link: 'covers' },
+    { edge: 'TESTED_BY', from: 'NFR', to: 'SCENARIO', link: 'covers' },
+    { edge: 'TESTED_BY', from: 'AC', to: 'SCENARIO', link: 'verifies' },
+    { edge: 'COVERS', from: 'SCENARIO', to: 'FR', link: 'covers' },
+    { edge: 'COVERS', from: 'AC', to: 'FR', link: 'covers' },
+    { edge: 'REFS', from: 'FR', to: 'AC', link: 'satisfies' },
+    { edge: 'REFS', from: 'AC', to: 'FR', link: 'satisfies' },
+    { edge: 'REFS', from: 'TASK', to: 'FR', link: 'implements' },
+    { edge: 'REFS', from: 'FR', to: 'TASK', link: 'implements' },
+    { edge: 'REFS', from: 'TASK', to: 'NFR', link: 'constrains' },
+    { edge: 'IMPLEMENTS', from: 'TASK', to: 'FR', link: 'implements' },
+    { edge: 'IMPLEMENTS', from: 'TASK', to: 'NFR', link: 'constrains' },
+    { edge: 'IMPLEMENTS', from: 'TASK', to: 'AC', link: 'implements' },
+    { edge: 'DEPENDS_ON', from: 'TASK', to: 'TASK', link: 'depends-on' },
+    { edge: 'DECLARES', from: 'TASK', to: 'NFR', link: 'constrains' },
+    { edge: 'CONTAINS', from: 'ROADMAP', to: 'FR', link: 'contains' },
+    { edge: 'CONTAINS', from: 'ROADMAP', to: 'NFR', link: 'contains' },
+    { edge: 'CONTAINS', from: 'ROADMAP', to: 'AC', link: 'contains' },
+    { edge: 'CONTAINS', from: 'ROADMAP', to: 'TASK', link: 'contains' },
+    { edge: 'CONTAINS', from: 'ROADMAP', to: 'SCENARIO', link: 'contains' },
+  ];
+
+  function edgeLinkName(edgeType, fromKind, toKind) {
+    const row = EDGE_LINK_RULES.find(r => r.edge === edgeType && r.from === fromKind && r.to === toKind);
+    return row ? row.link : '';
+  }
+
+  function specIdFieldValue(issue) {
+    const field = (issue.customFields || []).find(f => f.name === 'SpecId');
+    const value = field && field.value;
+    if (typeof value === 'string') return value;
+    return (value && (value.text || value.name)) || '';
+  }
+
+  async function loadCommittedSnapshot(host) {
+    const query = 'project: SPEC and summary: {SPEC:SYNC-STATE}';
+    const rows = await host.fetchYouTrack(
+      'issues?query=' + encodeURIComponent(query) +
+      '&fields=id,summary,description,customFields(name,value(name,text))&$top=50'
+    );
+    // The sync selects pointer issues by the SpecId custom field, not the
+    // summary — a summary-only lookalike is invisible to it, so the widget
+    // must apply the same gate or a forged card could outrank the real one.
+    const pointer = (Array.isArray(rows) ? rows : [])
+      .filter(issue => specIdFieldValue(issue) === 'SPEC:SYNC-STATE')
+      .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }))[0] || null;
+    if (!pointer || typeof pointer.description !== 'string') throw new Error('committed SPEC snapshot is missing');
+    if (!pointer.description.startsWith(SNAPSHOT_PREFIX)) throw new Error('committed SPEC snapshot marker is invalid');
+    let marker;
+    try {
+      marker = JSON.parse(pointer.description.slice(SNAPSHOT_PREFIX.length));
+    } catch {
+      throw new Error('committed SPEC snapshot is not valid JSON');
+    }
+    const snapshot = marker && marker.snapshot;
+    if (
+      marker.schemaVersion !== 'BoardSnapshotV1' ||
+      marker.complete !== true ||
+      snapshot?.schemaVersion !== 'BoardSnapshotV1' ||
+      snapshot.complete !== true ||
+      snapshot.page !== null ||
+      !Array.isArray(snapshot.nodes) ||
+      !Array.isArray(snapshot.edges)
+    ) throw new Error('committed SPEC snapshot is incomplete');
+    return { marker, snapshot };
+  }
+
+  function snapshotNodes(snapshot, marker) {
+    const cardIds = marker.cardIds || {};
+    const nodes = snapshot.nodes.map(source => {
+      const trackerId = typeof cardIds[source.canonicalId] === 'string' ? cardIds[source.canonicalId] : '';
+      const state = source.kind === 'TASK'
+        ? (TASK_STATES[source.taskStatus] || 'Unknown')
+        : 'Tracked';
+      return {
+        id: source.canonicalId,
+        trackerId,
+        specId: source.canonicalId,
+        specSlug: source.specSlug,
+        localId: source.localId,
+        // Whitelist only: an unrecognized kind from the marker never reaches
+        // innerHTML class attributes (kind-${node.kind} sinks).
+        kind: KIND_LABELS[source.kind] || 'SPEC',
+        type: TYPE_LABELS[source.kind] || 'Tracked',
+        state,
+        title: source.title || source.localId,
+        links: []
+      };
+    });
+    const byId = new Map(nodes.map(node => [node.id, node]));
+    for (const edge of snapshot.edges) {
+      const source = byId.get(edge.from);
+      const target = byId.get(edge.to);
+      if (source && target) source.links.push({ type: edge.type, target: target.id });
+    }
+    return nodes;
+  }
+
+  async function main() {
+    let host;
+    try {
+      host = await YTApp.register();
+    } catch (error) {
+      root.innerHTML = '<p class="err">Spec Board: widget host unavailable.</p>';
+      return;
+    }
+
+    let committed;
+    try {
+      committed = await loadCommittedSnapshot(host);
+    } catch (error) {
+      root.innerHTML = '<p class="err">Spec Board: cannot load committed snapshot: ' + escapeHtml(error.message || String(error)) + '</p>';
+      return;
+    }
+
+    const RAW_NODES = snapshotNodes(committed.snapshot, committed.marker);
+
+    if (RAW_NODES.length === 0) {
+      root.innerHTML = '<p class="state">Нет синхронизированных карточек SPEC в проекте.</p>';
+      return;
+    }
+
+    const NODE_MAP = new Map(RAW_NODES.map(n => [n.id, n]));
+
+    // Discovered specs
+    const specCounts = new Map();
+    for (const n of RAW_NODES) {
+      specCounts.set(n.specSlug, (specCounts.get(n.specSlug) || 0) + 1);
+    }
+    const availableSpecs = Array.from(specCounts.keys()).sort((a, b) => {
+      if (a === 'youtrack-visualization') return -1;
+      if (b === 'youtrack-visualization') return 1;
+      return a.localeCompare(b);
+    });
+
+    // App State
+    let currentTab = 'v1';
+    let selectedSpec = 'ALL';
+    const defaultTarget = RAW_NODES[0] || null;
+    let focusedNodeId = defaultTarget ? defaultTarget.id : null;
+    let v1SearchQuery = '';
+    let v1ActiveKind = null;
+    let v1Zoom = 1.0;
+
+    let v2Scale = 0.85;
+    let v2PanX = 60;
+    let v2PanY = 40;
+    let v2ActiveKind = null;
+    let v2SearchQuery = '';
+
+    let v3SelectedId = focusedNodeId;
+    let v3SearchQuery = '';
+
+    // Render basic layout
+    root.innerHTML = `
+      <header class="app-header">
+        <div class="brand-area">
+          <span class="brand-badge">YouTrack Spec</span>
+          <span class="brand-title">Spec Graph Board</span>
+        </div>
+
+        <div class="variant-switcher">
+          <button class="variant-btn active" data-tab="v1">
+            <span>1. Traceability Flow</span>
+          </button>
+          <button class="variant-btn" data-tab="v2">
+            <span>2. Cluster Canvas (2D)</span>
+          </button>
+          <button class="variant-btn" data-tab="v3">
+            <span>3. Lineage Inspector</span>
+          </button>
+        </div>
+
+        <div class="stats-badge" id="global-stats-badge">
+          Загружено: ${RAW_NODES.length} узлов · ${availableSpecs.length} спецификаций
+        </div>
+      </header>
+
+      <main class="viewport">
+        <!-- VARIANT 1: Traceability Flow Matrix -->
+        <div id="view-v1" class="tab-view active">
+          <div class="toolbar">
+            <div class="pill-group" id="v1-spec-tabs"></div>
+
+            <div class="pill-group" id="v1-kind-pills">
+              <button class="pill-btn" data-kind="TASK">TASK</button>
+              <button class="pill-btn" data-kind="FR">FR</button>
+              <button class="pill-btn" data-kind="AC">AC</button>
+              <button class="pill-btn" data-kind="SCENARIO">SCENARIO</button>
+              <button class="pill-btn" data-kind="NFR">NFR</button>
+              <button class="pill-btn" data-kind="ROADMAP">ROADMAP</button>
+            </div>
+
+            <div class="pill-group">
+              <button class="pill-btn" id="v1-zoom-out" title="Уменьшить масштаб">−</button>
+              <span id="v1-zoom-label" style="font-size:11px; color:var(--text-muted); min-width:32px; text-align:center;">100%</span>
+              <button class="pill-btn" id="v1-zoom-in" title="Увеличить масштаб">+</button>
+            </div>
+
+            <input type="text" class="search-input" id="v1-search" placeholder="Поиск по ID или названию… (Enter — фокус)">
+
+            <button class="pill-btn" id="v1-reset-focus" title="Сбросить фильтр и подсветку">Сбросить фокус</button>
+
+            <div class="legend-bar">
+              <span><span class="legend-dot" style="background:var(--color-task)"></span> TASK</span>
+              <span><span class="legend-dot" style="background:var(--color-fr)"></span> FR</span>
+              <span><span class="legend-dot" style="background:var(--color-ac)"></span> AC</span>
+              <span><span class="legend-dot" style="background:var(--color-scen)"></span> SCEN</span>
+              <span><span class="legend-dot" style="background:var(--color-nfr)"></span> NFR</span>
+            </div>
+          </div>
+
+          <div class="flow-container">
+            <div class="flow-board" id="v1-board">
+              <div id="v1-board-inner" style="position:relative; min-width:100%; width:max-content; height:100%; transform-origin:0 0;">
+                <svg class="flow-wires-svg" id="v1-wires"></svg>
+                <div class="flow-lanes-wrapper" id="v1-lanes"></div>
+              </div>
+            </div>
+
+            <aside class="detail-drawer" id="v1-drawer">
+              <div class="drawer-header">
+                <span class="card-id-badge" id="v1-d-badge">—</span>
+                <span class="card-state-pill" id="v1-d-state">—</span>
+              </div>
+              <div class="drawer-body">
+                <h3 id="v1-d-title" style="font-size:14px; margin-bottom:12px; font-weight:600;">Выберите карточку</h3>
+                
+                <div class="detail-section">
+                  <div class="detail-section-title">Спецификация и ID</div>
+                  <div style="font-family:monospace; color:var(--text-secondary)" id="v1-d-specid">—</div>
+                  <div style="font-size:11px; color:var(--text-muted); margin-top:2px" id="v1-d-issueid">—</div>
+                </div>
+
+                <div class="detail-section">
+                  <div class="detail-section-title">Исходящие связи (Outgoing)</div>
+                  <div class="detail-links-list" id="v1-d-outgoing"></div>
+                </div>
+
+                <div class="detail-section">
+                  <div class="detail-section-title">Входящие связи (Incoming)</div>
+                  <div class="detail-links-list" id="v1-d-incoming"></div>
+                </div>
+
+                <div class="detail-section">
+                  <div class="detail-section-title">Действия</div>
+                  <a id="v1-d-open-link" href="#" target="_blank" class="detail-link-item" style="justify-content:center; background:var(--border-accent); color:#fff; font-weight:600;">
+                    Открыть задачу в YouTrack ↗
+                  </a>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+
+        <!-- VARIANT 2: Interactive Cluster Canvas -->
+        <div id="view-v2" class="tab-view">
+          <div class="toolbar">
+            <span style="font-size:12px; color:var(--text-secondary); font-weight:500;">
+              💡 Перетаскивайте мышью, масштабируйте колесиком
+            </span>
+            <div class="pill-group" id="v2-kind-pills">
+              <button class="pill-btn" data-kind="TASK">TASK</button>
+              <button class="pill-btn" data-kind="FR">FR</button>
+              <button class="pill-btn" data-kind="AC">AC</button>
+              <button class="pill-btn" data-kind="SCENARIO">SCENARIO</button>
+              <button class="pill-btn" data-kind="NFR">NFR</button>
+              <button class="pill-btn" data-kind="ROADMAP">ROADMAP</button>
+            </div>
+            <input type="text" class="search-input" id="v2-search" placeholder="Фильтр узлов в островах…">
+            <button class="pill-btn" id="v2-fit-btn">Сбросить зум (Fit)</button>
+          </div>
+
+          <div class="canvas-container" id="v2-container">
+            <div class="canvas-stage" id="v2-stage">
+              <svg id="v2-svg" style="position:absolute; top:0; left:0; pointer-events:none; width:4000px; height:3000px;"></svg>
+              <div id="v2-nodes-layer" style="position:absolute; top:0; left:0;"></div>
+            </div>
+
+            <div class="canvas-hud">
+              <button class="hud-btn" id="v2-zoom-in" title="Увеличить">+</button>
+              <button class="hud-btn" id="v2-zoom-out" title="Уменьшить">−</button>
+              <button class="hud-btn" id="v2-zoom-fit" title="Сбросить">⛶</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- VARIANT 3: Lineage & Coverage Inspector -->
+        <div id="view-v3" class="tab-view">
+          <div class="inspector-container">
+            <aside class="inspector-sidebar">
+              <div style="padding:12px; border-bottom:1px solid var(--border-subtle)">
+                <input type="text" class="search-input" id="v3-search" style="width:100%" placeholder="Фильтр требований и задач…">
+              </div>
+              <div class="inspector-list" id="v3-list"></div>
+            </aside>
+
+            <section class="inspector-stage">
+              <div class="toolbar" style="background:var(--bg-surface)">
+                <span style="font-size:13px; font-weight:600;" id="v3-stage-title">Линия трассируемости узла</span>
+                <span style="font-size:11px; color:var(--text-muted); margin-left:auto;">Исходящие ➔ Узел ➔ Входящие</span>
+              </div>
+
+              <div class="ego-graph-area" id="v3-ego-area">
+                <svg style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;" id="v3-ego-svg"></svg>
+                
+                <div class="ego-column" id="v3-col-left">
+                  <div style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:4px;">ИСХОДЯЩИЕ СВЯЗИ (OUTGOING)</div>
+                </div>
+
+                <div class="ego-center-card" id="v3-center-card"></div>
+
+                <div class="ego-column" id="v3-col-right">
+                  <div style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:4px;">ВХОДЯЩИЕ СВЯЗИ (INCOMING)</div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+    `;
+
+    // Switcher Logic
+    const tabButtons = root.querySelectorAll('.variant-btn');
+    const tabViews = root.querySelectorAll('.tab-view');
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabButtons.forEach(b => b.classList.remove('active'));
+        tabViews.forEach(v => v.classList.remove('active'));
+        btn.classList.add('active');
+        currentTab = btn.dataset.tab;
+        const viewEl = document.getElementById('view-' + currentTab);
+        if (viewEl) viewEl.classList.add('active');
+        renderCurrentView();
+      });
+    });
+
+    function renderCurrentView() {
+      if (currentTab === 'v1') renderVariant1();
+      if (currentTab === 'v2') renderVariant2();
+      if (currentTab === 'v3') renderVariant3();
+    }
+
+    // Lineage helper
+    function getLineage(nodeId) {
+      const node = NODE_MAP.get(nodeId);
+      if (!node) return { outgoing: [], incoming: [], node: null };
+
+      const outgoing = [];
+      const incoming = [];
+
+      for (const link of node.links || []) {
+        const tgt = NODE_MAP.get(link.target);
+        if (!tgt) continue;
+        outgoing.push({ rawType: link.type, node: tgt });
+      }
+
+      for (const other of RAW_NODES) {
+        if (other.id === nodeId) continue;
+        for (const link of other.links || []) {
+          if (link.target === nodeId) {
+            incoming.push({ rawType: link.type, node: other });
+          }
+        }
+      }
+
+      return { node, outgoing, incoming };
+    }
+
+    // Spec tabs in V1
+    function updateSpecTabButtons() {
+      const container = document.getElementById('v1-spec-tabs');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const allBtn = document.createElement('button');
+      allBtn.className = `pill-btn ${selectedSpec === 'ALL' ? 'active' : ''}`;
+      allBtn.dataset.spec = 'ALL';
+      allBtn.textContent = `Все спеки (${RAW_NODES.length})`;
+      allBtn.addEventListener('click', () => {
+        selectedSpec = 'ALL';
+        updateSpecTabButtons();
+        renderVariant1();
+      });
+      container.appendChild(allBtn);
+
+      for (const slug of availableSpecs) {
+        const count = specCounts.get(slug) || 0;
+        const btn = document.createElement('button');
+        btn.className = `pill-btn ${selectedSpec === slug ? 'active' : ''}`;
+        btn.dataset.spec = slug;
+        btn.textContent = `${slug} (${count})`;
+        btn.addEventListener('click', () => {
+          selectedSpec = slug;
+          updateSpecTabButtons();
+          renderVariant1();
+        });
+        container.appendChild(btn);
+      }
+    }
+
+    /* ============================================================ */
+    /* VARIANT 1: Traceability Flow Matrix                          */
+    /* ============================================================ */
+    const LANES_CONFIG = [
+      { key: 'ROADMAP', title: '0. Роадмапы (ROADMAP)', kind: 'ROADMAP' },
+      { key: 'TASK', title: '1. Задачи реализации (TASK)', kind: 'TASK' },
+      { key: 'FR', title: '2. Функциональные требования (FR)', kind: 'FR' },
+      { key: 'AC', title: '3. Критерии приемки (AC)', kind: 'AC' },
+      { key: 'SCENARIO', title: '4. Сценарии проверки (SCENARIO)', kind: 'SCENARIO' },
+      { key: 'NFR', title: '5. Ограничения (NFR)', kind: 'NFR' }
+    ];
+
+    function renderVariant1() {
+      const lanesWrapper = document.getElementById('v1-lanes');
+      if (!lanesWrapper) return;
+      lanesWrapper.innerHTML = '';
+
+      // Filter nodes by spec
+      let nodes = selectedSpec === 'ALL' 
+        ? RAW_NODES 
+        : RAW_NODES.filter(n => n.specSlug === selectedSpec);
+
+      if (v1SearchQuery) {
+        const q = v1SearchQuery.toLowerCase();
+        nodes = nodes.filter(n => 
+          n.localId.toLowerCase().includes(q) || 
+          n.title.toLowerCase().includes(q) || 
+          n.id.toLowerCase().includes(q)
+        );
+      }
+
+      // Group by kind
+      const byKind = new Map();
+      for (const lane of LANES_CONFIG) byKind.set(lane.kind, []);
+      for (const node of nodes) {
+        const list = byKind.get(node.kind) || byKind.get('NFR');
+        list.push(node);
+      }
+
+      // Filter visible lanes by active kind filter (isolate semantics)
+      const lanesToRender = v1ActiveKind
+        ? LANES_CONFIG.filter(l => l.kind === v1ActiveKind)
+        : LANES_CONFIG;
+
+      for (const lane of lanesToRender) {
+        const list = byKind.get(lane.kind) || [];
+        const laneDiv = document.createElement('div');
+        laneDiv.className = 'flow-lane';
+
+        laneDiv.innerHTML = `
+          <div class="lane-header">
+            <span>${lane.title}</span>
+            <span class="lane-count">${list.length}</span>
+          </div>
+          <div class="lane-cards-scroll" id="v1-lane-${lane.kind}"></div>
+        `;
+
+        const scrollDiv = laneDiv.querySelector('.lane-cards-scroll');
+        scrollDiv.addEventListener('scroll', scheduleV1Wires, { passive: true });
+        if (list.length === 0) {
+          scrollDiv.innerHTML = '<span style="font-size:11px; color:var(--text-muted); padding:10px;">Нет узлов</span>';
+        } else {
+          for (const node of list) {
+            const card = createNodeCard(node);
+            scrollDiv.appendChild(card);
+          }
+        }
+
+        lanesWrapper.appendChild(laneDiv);
+      }
+
+      if (!v1ResizeObserved) {
+        const inner = document.getElementById('v1-board-inner');
+        if (inner && typeof ResizeObserver === 'function') {
+          new ResizeObserver(scheduleV1Wires).observe(inner);
+          v1ResizeObserved = true;
+        }
+      }
+
+      updateV1Drawer(focusedNodeId);
+      setTimeout(() => {
+        drawV1Wires();
+        if (focusedNodeId) highlightLineage(focusedNodeId);
+      }, 50);
+    }
+
+    function createNodeCard(node) {
+      const card = document.createElement('div');
+      card.className = `node-card kind-${node.kind}`;
+      card.id = `card-${node.id}`;
+      card.dataset.id = node.id;
+
+      if (node.id === focusedNodeId) card.classList.add('focused');
+
+      const st = (node.state || '').toLowerCase();
+      const stateClass = (st === 'fixed' || st === 'done' || st === 'verified') ? 'fixed' : 'todo';
+
+      card.innerHTML = `
+        <div class="card-top">
+          <span class="card-id-badge">${escapeHtml(selectedSpec === 'ALL' ? node.specSlug + ':' + node.localId : node.localId)}</span>
+          <span class="card-state-pill ${stateClass}">${escapeHtml(node.state)}</span>
+        </div>
+        <div class="card-title">${escapeHtml(node.title)}</div>
+        <div class="card-footer">
+          <span>${escapeHtml(node.id)}</span>
+          <div class="link-indicators">
+            ${node.links.length > 0 ? `<span class="link-pill" style="background:var(--bg-surface-overlay)">${node.links.length} связей</span>` : ''}
+          </div>
+        </div>
+      `;
+
+      card.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setV1Focus(node.id);
+      });
+
+      card.addEventListener('mouseenter', () => {
+        highlightLineage(node.id);
+      });
+
+      card.addEventListener('mouseleave', () => {
+        if (focusedNodeId) {
+          highlightLineage(focusedNodeId);
+        } else {
+          clearHighlights();
+        }
+      });
+
+      return card;
+    }
+
+    function setV1Focus(nodeId) {
+      focusedNodeId = nodeId;
+      document.querySelectorAll('.node-card').forEach(c => c.classList.remove('focused'));
+      const card = document.getElementById(`card-${nodeId}`);
+      if (card) {
+        card.classList.add('focused');
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      updateV1Drawer(nodeId);
+      highlightLineage(nodeId);
+    }
+
+    function highlightLineage(nodeId) {
+      const { outgoing, incoming } = getLineage(nodeId);
+      const outIds = new Set(outgoing.map(u => u.node.id));
+      const inIds = new Set(incoming.map(d => d.node.id));
+
+      document.querySelectorAll('.node-card').forEach(c => {
+        const cid = c.dataset.id;
+        c.classList.remove('dimmed', 'highlighted-upstream', 'highlighted-downstream');
+        if (cid === nodeId) {
+          // focused center
+        } else if (outIds.has(cid)) {
+          c.classList.add('highlighted-upstream');
+        } else if (inIds.has(cid)) {
+          c.classList.add('highlighted-downstream');
+        } else {
+          c.classList.add('dimmed');
+        }
+      });
+
+      document.querySelectorAll('.flow-wire').forEach(w => {
+        const src = w.dataset.src;
+        const tgt = w.dataset.tgt;
+        if (src === nodeId || tgt === nodeId) {
+          w.classList.add('active');
+        } else {
+          w.classList.remove('active');
+        }
+      });
+    }
+
+    function clearHighlights() {
+      document.querySelectorAll('.node-card').forEach(c => c.classList.remove('dimmed', 'highlighted-upstream', 'highlighted-downstream'));
+      document.querySelectorAll('.flow-wire').forEach(w => w.classList.remove('active'));
+    }
+
+    // Wires are drawn in board coordinates while cards live inside per-lane
+    // scroll containers — any scroll/resize invalidates their geometry, so a
+    // rAF-throttled redraw keeps wire endpoints glued to the cards.
+    let v1WiresRaf = 0;
+    let v1ResizeObserved = false;
+    function scheduleV1Wires() {
+      if (v1WiresRaf) return;
+      v1WiresRaf = requestAnimationFrame(() => {
+        v1WiresRaf = 0;
+        drawV1Wires();
+      });
+    }
+
+    function drawV1Wires() {
+      const svg = document.getElementById('v1-wires');
+      const inner = document.getElementById('v1-board-inner');
+      if (!svg || !inner) return;
+      svg.innerHTML = '';
+
+      const innerRect = inner.getBoundingClientRect();
+      const nodes = selectedSpec === 'ALL' ? RAW_NODES : RAW_NODES.filter(n => n.specSlug === selectedSpec);
+
+      for (const node of nodes) {
+        const srcEl = document.getElementById(`card-${node.id}`);
+        if (!srcEl) continue;
+        const srcRect = srcEl.getBoundingClientRect();
+
+        for (const link of node.links || []) {
+          const tgtEl = document.getElementById(`card-${link.target}`);
+          if (!tgtEl) continue;
+          const tgtNode = NODE_MAP.get(link.target);
+          const linkName = edgeLinkName(link.type, node.kind, tgtNode ? tgtNode.kind : '');
+          const tgtRect = tgtEl.getBoundingClientRect();
+
+          const x1 = (srcRect.right - innerRect.left) / v1Zoom;
+          const y1 = (srcRect.top + srcRect.height / 2 - innerRect.top) / v1Zoom;
+          const x2 = (tgtRect.left - innerRect.left) / v1Zoom;
+          const y2 = (tgtRect.top + tgtRect.height / 2 - innerRect.top) / v1Zoom;
+
+          const dx = Math.abs(x2 - x1) * 0.5;
+          const pathData = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', pathData);
+          path.setAttribute('class', 'flow-wire');
+          path.dataset.src = node.id;
+          path.dataset.tgt = link.target;
+
+          let strokeColor = '#8b949e';
+          if (linkName === 'implements') strokeColor = 'var(--link-implements)';
+          else if (linkName === 'satisfies') strokeColor = 'var(--link-satisfies)';
+          else if (linkName === 'verifies') strokeColor = 'var(--link-verifies)';
+          else if (linkName === 'depends-on') strokeColor = 'var(--link-depends)';
+          else if (linkName === 'constrains') strokeColor = 'var(--link-constrains)';
+          else if (linkName === 'covers') strokeColor = 'var(--link-covers)';
+          else if (linkName === 'contains') strokeColor = 'var(--link-contains)';
+          path.style.stroke = strokeColor;
+
+          svg.appendChild(path);
+        }
+      }
+    }
+
+    function updateV1Drawer(nodeId) {
+      const node = nodeId ? NODE_MAP.get(nodeId) : null;
+      if (!node) return;
+
+      const badge = document.getElementById('v1-d-badge');
+      badge.textContent = node.localId;
+      badge.className = `card-id-badge kind-${node.kind}`;
+
+      const st = (node.state || '').toLowerCase();
+      const stateClass = (st === 'fixed' || st === 'done' || st === 'verified') ? 'fixed' : 'todo';
+      const stateEl = document.getElementById('v1-d-state');
+      stateEl.textContent = node.state;
+      stateEl.className = `card-state-pill ${stateClass}`;
+
+      document.getElementById('v1-d-title').textContent = node.title;
+      document.getElementById('v1-d-specid').textContent = node.specId;
+      document.getElementById('v1-d-issueid').textContent = node.trackerId
+        ? `Issue: ${node.trackerId} (${node.type})`
+        : 'Issue: not mapped yet (committed source snapshot)';
+      const openLink = document.getElementById('v1-d-open-link');
+      if (node.trackerId) {
+        openLink.href = `/issue/${encodeURIComponent(node.trackerId)}`;
+        openLink.removeAttribute('aria-disabled');
+        openLink.style.pointerEvents = '';
+        openLink.style.opacity = '';
+      } else {
+        openLink.href = '#';
+        openLink.setAttribute('aria-disabled', 'true');
+        openLink.style.pointerEvents = 'none';
+        openLink.style.opacity = '0.55';
+      }
+
+      const { outgoing, incoming } = getLineage(nodeId);
+
+      const outEl = document.getElementById('v1-d-outgoing');
+      outEl.innerHTML = '';
+      if (outgoing.length === 0) {
+        outEl.innerHTML = '<span style="color:var(--text-muted)">Нет исходящих связей</span>';
+      } else {
+        for (const item of outgoing) {
+          const link = document.createElement('div');
+          link.className = 'detail-link-item';
+          link.innerHTML = `
+            <span style="font-weight:600">${escapeHtml(item.node.localId)}</span>
+            <span style="font-size:11px; color:var(--text-secondary)">${escapeHtml(item.rawType)} →</span>
+          `;
+          link.addEventListener('click', () => setV1Focus(item.node.id));
+          outEl.appendChild(link);
+        }
+      }
+
+      const inEl = document.getElementById('v1-d-incoming');
+      inEl.innerHTML = '';
+      if (incoming.length === 0) {
+        inEl.innerHTML = '<span style="color:var(--text-muted)">Нет входящих связей</span>';
+      } else {
+        for (const item of incoming) {
+          const link = document.createElement('div');
+          link.className = 'detail-link-item';
+          link.innerHTML = `
+            <span style="font-weight:600">${escapeHtml(item.node.localId)}</span>
+            <span style="font-size:11px; color:var(--text-secondary)">← ${escapeHtml(item.rawType)}</span>
+          `;
+          link.addEventListener('click', () => setV1Focus(item.node.id));
+          inEl.appendChild(link);
+        }
+      }
+    }
+
+    function applyV1Zoom() {
+      const inner = document.getElementById('v1-board-inner');
+      if (inner) {
+        inner.style.transform = `scale(${v1Zoom})`;
+      }
+      const label = document.getElementById('v1-zoom-label');
+      if (label) label.textContent = Math.round(v1Zoom * 100) + '%';
+      drawV1Wires();
+    }
+
+    // V1 Controls Wiring
+    updateSpecTabButtons();
+
+    document.querySelectorAll('#v1-kind-pills button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const kind = btn.dataset.kind;
+        if (v1ActiveKind === kind) {
+          v1ActiveKind = null;
+          btn.classList.remove('active');
+        } else {
+          v1ActiveKind = kind;
+          document.querySelectorAll('#v1-kind-pills button').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+        renderVariant1();
+      });
+    });
+
+    document.getElementById('v1-zoom-in').addEventListener('click', () => {
+      v1Zoom = Math.min(1.4, Math.round((v1Zoom + 0.1) * 10) / 10);
+      applyV1Zoom();
+    });
+
+    document.getElementById('v1-zoom-out').addEventListener('click', () => {
+      v1Zoom = Math.max(0.6, Math.round((v1Zoom - 0.1) * 10) / 10);
+      applyV1Zoom();
+    });
+
+    const v1Input = document.getElementById('v1-search');
+    v1Input.addEventListener('input', (e) => {
+      v1SearchQuery = e.target.value.trim();
+      focusedNodeId = null;
+      renderVariant1();
+    });
+
+    v1Input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && v1SearchQuery) {
+        const q = v1SearchQuery.toLowerCase();
+        const exact = RAW_NODES.find(n => 
+          n.localId.toLowerCase() === q ||
+          n.specId.toLowerCase() === q ||
+          n.specId.toLowerCase().endsWith(':' + q) ||
+          n.id.toLowerCase() === q
+        );
+        if (exact) {
+          v1SearchQuery = '';
+          if (selectedSpec !== 'ALL' && exact.specSlug !== selectedSpec) {
+            selectedSpec = exact.specSlug;
+            updateSpecTabButtons();
+          }
+          focusedNodeId = exact.id;
+          renderVariant1();
+        }
+      }
+      if (e.key === 'Escape') {
+        v1SearchQuery = '';
+        v1Input.value = '';
+        focusedNodeId = null;
+        clearHighlights();
+        renderVariant1();
+      }
+    });
+
+    document.getElementById('v1-reset-focus').addEventListener('click', () => {
+      v1SearchQuery = '';
+      v1Input.value = '';
+      v1ActiveKind = null;
+      document.querySelectorAll('#v1-kind-pills button').forEach(b => b.classList.remove('active'));
+      focusedNodeId = null;
+      clearHighlights();
+      renderVariant1();
+    });
+
+    /* ============================================================ */
+    /* VARIANT 2: Interactive Cluster Canvas                        */
+    /* ============================================================ */
+    let isDragging = false;
+    let startX, startY;
+
+    function renderVariant2() {
+      const nodesLayer = document.getElementById('v2-nodes-layer');
+      const svg = document.getElementById('v2-svg');
+      if (!nodesLayer || !svg) return;
+      nodesLayer.innerHTML = '';
+      svg.innerHTML = '';
+
+      let offsetX = 40;
+
+      for (const specSlug of availableSpecs) {
+        let specNodes = RAW_NODES.filter(n => n.specSlug === specSlug);
+        if (v2ActiveKind) {
+          specNodes = specNodes.filter(n => n.kind === v2ActiveKind);
+        }
+        if (v2SearchQuery) {
+          const q = v2SearchQuery.toLowerCase();
+          specNodes = specNodes.filter(n => 
+            n.localId.toLowerCase().includes(q) || 
+            n.title.toLowerCase().includes(q)
+          );
+        }
+
+        const island = document.createElement('div');
+        island.className = 'spec-island';
+        island.style.left = offsetX + 'px';
+        island.style.top = '40px';
+        island.style.width = '680px';
+
+        island.innerHTML = `
+          <div class="island-title">
+            <span class="brand-badge" style="background:#1f6feb">${escapeHtml(specSlug)}</span>
+            <span>${specNodes.length} узлов</span>
+          </div>
+          <div class="island-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;"></div>
+        `;
+
+        const grid = island.querySelector('.island-grid');
+        if (specNodes.length === 0) {
+          grid.innerHTML = '<span style="font-size:11px; color:var(--text-muted); grid-column:span 3">Нет узлов для текущего фильтра</span>';
+        } else {
+          for (const node of specNodes) {
+            const miniCard = document.createElement('div');
+            miniCard.className = `node-card kind-${node.kind}`;
+            miniCard.style.padding = '8px';
+            miniCard.innerHTML = `
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span class="card-id-badge" style="font-size:10px">${escapeHtml(node.localId)}</span>
+                <span style="font-size:9px; color:var(--text-muted)">${escapeHtml(node.kind)}</span>
+              </div>
+              <div style="font-size:11px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis" title="${escapeHtml(node.title)}">${escapeHtml(node.title)}</div>
+            `;
+            miniCard.addEventListener('click', () => {
+              focusedNodeId = node.id;
+              selectedSpec = node.specSlug;
+              document.querySelector('.variant-btn[data-tab="v1"]').click();
+            });
+            grid.appendChild(miniCard);
+          }
+        }
+
+        nodesLayer.appendChild(island);
+        offsetX += 720;
+      }
+
+      updateV2Transform();
+    }
+
+    function updateV2Transform() {
+      const stage = document.getElementById('v2-stage');
+      if (stage) {
+        stage.style.transform = `translate(${v2PanX}px, ${v2PanY}px) scale(${v2Scale})`;
+      }
+    }
+
+    const v2Container = document.getElementById('v2-container');
+    v2Container.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX - v2PanX;
+      startY = e.clientY - v2PanY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      v2PanX = e.clientX - startX;
+      v2PanY = e.clientY - startY;
+      updateV2Transform();
+    });
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
+    v2Container.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+      v2Scale = Math.min(2, Math.max(0.3, v2Scale * zoomFactor));
+      updateV2Transform();
+    });
+
+    document.getElementById('v2-zoom-in').addEventListener('click', () => { v2Scale = Math.min(2, v2Scale + 0.15); updateV2Transform(); });
+    document.getElementById('v2-zoom-out').addEventListener('click', () => { v2Scale = Math.max(0.3, v2Scale - 0.15); updateV2Transform(); });
+    document.getElementById('v2-zoom-fit').addEventListener('click', () => { v2Scale = 0.85; v2PanX = 60; v2PanY = 40; updateV2Transform(); });
+    document.getElementById('v2-fit-btn').addEventListener('click', () => { v2Scale = 0.85; v2PanX = 60; v2PanY = 40; updateV2Transform(); });
+
+    document.querySelectorAll('#v2-kind-pills button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const kind = btn.dataset.kind;
+        if (v2ActiveKind === kind) {
+          v2ActiveKind = null;
+          btn.classList.remove('active');
+        } else {
+          v2ActiveKind = kind;
+          document.querySelectorAll('#v2-kind-pills button').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+        renderVariant2();
+      });
+    });
+
+    document.getElementById('v2-search').addEventListener('input', (e) => {
+      v2SearchQuery = e.target.value.trim();
+      renderVariant2();
+    });
+
+    /* ============================================================ */
+    /* VARIANT 3: Lineage & Coverage Inspector                      */
+    /* ============================================================ */
+    function renderVariant3() {
+      const listEl = document.getElementById('v3-list');
+      if (!listEl) return;
+      listEl.innerHTML = '';
+
+      let items = RAW_NODES;
+      if (v3SearchQuery) {
+        const q = v3SearchQuery.toLowerCase();
+        items = items.filter(n => n.localId.toLowerCase().includes(q) || n.specId.toLowerCase().includes(q) || n.title.toLowerCase().includes(q));
+      }
+
+      for (const node of items) {
+        const row = document.createElement('div');
+        row.className = `tree-node-row ${node.id === v3SelectedId ? 'active' : ''}`;
+        row.innerHTML = `
+          <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+            <span class="card-id-badge kind-${node.kind}" style="font-size:10px">${escapeHtml(selectedSpec === 'ALL' ? node.specSlug + ':' + node.localId : node.localId)}</span>
+            <span style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${escapeHtml(node.title)}</span>
+          </div>
+          <span style="font-size:10px; color:var(--text-muted); flex-shrink:0">${escapeHtml(node.kind)}</span>
+        `;
+        row.addEventListener('click', () => {
+          v3SelectedId = node.id;
+          renderVariant3();
+        });
+        listEl.appendChild(row);
+      }
+
+      const node = NODE_MAP.get(v3SelectedId);
+      if (!node) return;
+
+      const titleEl = document.getElementById('v3-stage-title');
+      if (titleEl) titleEl.textContent = `Трассируемость: ${node.localId} — ${node.title}`;
+
+      const centerCard = document.getElementById('v3-center-card');
+      const st = (node.state || '').toLowerCase();
+      const stateClass = (st === 'fixed' || st === 'done' || st === 'verified') ? 'fixed' : 'todo';
+
+      centerCard.innerHTML = `
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+          <span class="card-id-badge kind-${node.kind}" style="font-size:12px">${escapeHtml(node.localId)}</span>
+          <span class="card-state-pill ${stateClass}">${escapeHtml(node.state)}</span>
+        </div>
+        <h3 style="font-size:14px; font-weight:600; margin-bottom:8px;">${escapeHtml(node.title)}</h3>
+        <div style="font-size:11px; color:var(--text-secondary); margin-bottom:12px;">${escapeHtml(node.specId)}</div>
+        ${node.trackerId
+          ? `<a href="/issue/${encodeURIComponent(node.trackerId)}" target="_blank" style="font-size:11px; color:var(--border-accent); text-decoration:none; font-weight:600">Открыть в YouTrack (${escapeHtml(node.trackerId)}) ↗</a>`
+          : '<span style="font-size:11px; color:var(--text-muted)">Карточка еще не сопоставлена с YouTrack</span>'}
+        }
+      `;
+
+      const { outgoing, incoming } = getLineage(node.id);
+
+      const leftCol = document.getElementById('v3-col-left');
+      leftCol.innerHTML = '<div style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:4px;">ИСХОДЯЩИЕ СВЯЗИ (OUTGOING)</div>';
+      if (outgoing.length === 0) {
+        leftCol.innerHTML += '<div style="font-size:11px; color:var(--text-muted)">Нет исходящих связей</div>';
+      } else {
+        for (const item of outgoing) {
+          const card = createMiniEgoCard(item.node, `${item.rawType} →`);
+          leftCol.appendChild(card);
+        }
+      }
+
+      const rightCol = document.getElementById('v3-col-right');
+      rightCol.innerHTML = '<div style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:4px;">ВХОДЯЩИЕ СВЯЗИ (INCOMING)</div>';
+      if (incoming.length === 0) {
+        rightCol.innerHTML += '<div style="font-size:11px; color:var(--text-muted)">Нет входящих связей</div>';
+      } else {
+        for (const item of incoming) {
+          const card = createMiniEgoCard(item.node, `← ${item.rawType}`);
+          rightCol.appendChild(card);
+        }
+      }
+
+      setTimeout(drawV3Wires, 40);
+    }
+
+    function createMiniEgoCard(node, linkType) {
+      const card = document.createElement('div');
+      card.className = `node-card kind-${node.kind}`;
+      card.id = `v3-ego-${node.id}`;
+      card.style.padding = '8px 12px';
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span class="card-id-badge" style="font-size:10px">${escapeHtml(node.localId)}</span>
+          <span style="font-size:10px; color:var(--text-secondary)">${escapeHtml(linkType)}</span>
+        </div>
+        <div style="font-size:11px; font-weight:500; line-height:1.3">${escapeHtml(node.title)}</div>
+      `;
+      card.addEventListener('click', () => {
+        v3SelectedId = node.id;
+        renderVariant3();
+      });
+      return card;
+    }
+
+    function drawV3Wires() {
+      const svg = document.getElementById('v3-ego-svg');
+      const area = document.getElementById('v3-ego-area');
+      const centerEl = document.getElementById('v3-center-card');
+      if (!svg || !area || !centerEl) return;
+      svg.innerHTML = '';
+
+      const areaRect = area.getBoundingClientRect();
+      const centerRect = centerEl.getBoundingClientRect();
+
+      const cx1 = centerRect.left - areaRect.left;
+      const cx2 = centerRect.right - areaRect.left;
+      const cy = centerRect.top + centerRect.height / 2 - areaRect.top;
+
+      // Outgoing wires (Center -> Left or Left -> Center? Left is outgoing: center connects to left)
+      document.querySelectorAll('#v3-col-left .node-card').forEach(card => {
+        const cr = card.getBoundingClientRect();
+        const x1 = cr.right - areaRect.left;
+        const y1 = cr.top + cr.height / 2 - areaRect.top;
+        const dx = (cx1 - x1) * 0.5;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${cx1 - dx} ${cy}, ${cx1} ${cy}`);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', '#58a6ff');
+        path.setAttribute('stroke-width', '2');
+        path.setAttribute('opacity', '0.7');
+        svg.appendChild(path);
+      });
+
+      // Incoming wires (Center -> Right col)
+      document.querySelectorAll('#v3-col-right .node-card').forEach(card => {
+        const cr = card.getBoundingClientRect();
+        const x2 = cr.left - areaRect.left;
+        const y2 = cr.top + cr.height / 2 - areaRect.top;
+        const dx = (x2 - cx2) * 0.5;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M ${cx2} ${cy} C ${cx2 + dx} ${cy}, ${x2 - dx} ${y2}, ${x2} ${y2}`);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', '#3fb950');
+        path.setAttribute('stroke-width', '2');
+        path.setAttribute('opacity', '0.7');
+        svg.appendChild(path);
+      });
+    }
+
+    document.getElementById('v3-search').addEventListener('input', (e) => {
+      v3SearchQuery = e.target.value.trim();
+      renderVariant3();
+    });
+
+    // Initial render
+    renderCurrentView();
+  }
+
+  main().catch((err) => {
+    root.innerHTML = '<p class="err">Spec Board failed: ' + escapeHtml(err.message || String(err)) + '</p>';
+  });
+</script>
+</body>
+</html>

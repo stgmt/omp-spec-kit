@@ -629,7 +629,7 @@ Then("every superseded tool returns JSON-RPC error -32602 without fallback shims
   }
 });
 
-When("all consolidated branches and all 13 spec patch intents are exercised", { timeout: 60000 }, async function () {
+When("all consolidated branches and all 15 spec patch intents are exercised", { timeout: 60000 }, async function () {
   const server = this.stagedMcp.server;
   const root = this.stagedMcp.root;
 
@@ -640,7 +640,17 @@ When("all consolidated branches and all 13 spec patch intents are exercised", { 
   await writeFile(path.join(tempSpecDir, "TASKS.md"), "# Tasks\n\n## TASK-1: Temp Task\n- **Status:** todo\n", "utf8");
   await writeFile(path.join(tempSpecDir, "temp-e2e-spec.feature"), "Feature: Temp E2E\n", "utf8");
 
-  // Restart server to reload graph with temp-e2e-spec
+  // Create a roadmap spec for roadmap intent coverage
+  const roadmapSpecDir = path.join(root, "." + "specs", "roadmap-e2e");
+  await mkdir(roadmapSpecDir, { recursive: true });
+  await writeFile(path.join(roadmapSpecDir, "README.md"), "# Roadmap E2E\n\nProfile: roadmap\n", "utf8");
+  await writeFile(path.join(roadmapSpecDir, "FR.md"), "# FR\n\n## FR-1: Roadmap E2E FR\n\nBody.\n\nImplements: product:FR-1\n", "utf8");
+  await writeFile(path.join(roadmapSpecDir, "TASKS.md"), "# Tasks\n\n## TASK-1: Roadmap E2E Task\n- **Status:** todo\n\nImplements: product:FR-1\n", "utf8");
+  await writeFile(path.join(roadmapSpecDir, "roadmap-e2e.feature"), "Feature: Roadmap E2E\n", "utf8");
+  await writeFile(path.join(roadmapSpecDir, "roadmap-e2e_SCHEMA.md"), "# Roadmap E2E Schema\n\nStatus: DRAFT\n", "utf8");
+  await writeFile(path.join(roadmapSpecDir, "ROADMAP.md"), "# Roadmap E2E\n\n<!-- roadmap:auto:start -->\n<!-- roadmap:auto:end -->\n", "utf8");
+
+  // Restart server to reload graph with temp-e2e-spec and roadmap-e2e
   await server.close();
   this.stagedMcp.server = spawnMcpServer({ serverPath: SERVER_PATH, root, cwd: root, env: {} });
   const freshServer = this.stagedMcp.server;
@@ -709,6 +719,9 @@ When("all consolidated branches and all 13 spec patch intents are exercised", { 
     ["spec_patch", { intent: "archiveSpec", spec: "temp-e2e-spec", reason: "archive reason", requestId: "bdd-int-archive" }, "specPatch", null],
     ["spec_patch", { intent: "addBacklogTask", spec: "product", title: "Backlog Task", reason: "backlog reason", requestId: "bdd-int-backlog" }, "specPatch", null],
     ["spec_patch", { intent: "registerIncidentBacklog", spec: "product", summary: "Incident Task", reason: "incident reason", requestId: "bdd-int-incident" }, "specPatch", null],
+    // Roadmap intents (dryRun to avoid mutating the temp corpus)
+    ["spec_patch", { intent: "createRoadmap", spec: "roadmap-e2e", reason: "roadmap create reason", requestId: "bdd-int-create-roadmap", dryRun: true }, "specPatch", null],
+    ["spec_patch", { intent: "assembleRoadmap", spec: "roadmap-e2e", reason: "roadmap assemble reason", requestId: "bdd-int-assemble-roadmap", dryRun: true }, "specPatch", null],
   ];
   this.branchResults = [];
   for (const [tool, args, expectedOp, expectedKind] of calls) {
@@ -745,4 +758,64 @@ Then("the call fails with error code {string}", function (expectedCode) {
 
   assert.equal(isErr, true, "Response must be an error: " + JSON.stringify(this.boundaryResult));
   assert.equal(code, expectedCode, "Error code mismatch: " + JSON.stringify(struct));
+});
+
+// ── Roadmap intent e2e ──────────────────────────────────────────────────
+
+When("createRoadmap is called on a non-roadmap spec", { timeout: 30000 }, async function () {
+  this.boundaryResult = await this.stagedMcp.server.request("tools/call", {
+    name: "spec_patch",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-roadmap-refuse", intent: "createRoadmap", spec: "product", reason: "refuse non-roadmap", title: "Bad", dryRun: true },
+  });
+});
+
+When("assembleRoadmap is applied and re-run as dryRun", { timeout: 30000 }, async function () {
+  const root = this.stagedMcp.root;
+  // Ensure roadmap-e2e spec has ROADMAP.md with markers plus FR/TASKS with
+  // Implements: references so the assembler can derive scope.
+  const roadmapDir = path.join(root, "." + "specs", "roadmap-e2e");
+  await mkdir(roadmapDir, { recursive: true });
+  await writeFile(path.join(roadmapDir, "ROADMAP.md"), "# Roadmap E2E\n\n<!-- roadmap:auto:start -->\n<!-- roadmap:auto:end -->\n", "utf8");
+  await writeFile(path.join(roadmapDir, "FR.md"), "# FR\n\n## FR-1: Roadmap E2E FR\n\nBody.\n\nImplements: product:FR-1\n", "utf8");
+  await writeFile(path.join(roadmapDir, "TASKS.md"), "# Tasks\n\n## TASK-1: Roadmap E2E Task\n- **Status:** todo\n\nImplements: product:FR-1\n", "utf8");
+  // Restart server to reload graph
+  await this.stagedMcp.server.close();
+  this.stagedMcp.server = spawnMcpServer({ serverPath: SERVER_PATH, root, cwd: root, env: {} });
+  const server = this.stagedMcp.server;
+
+  // Apply assembleRoadmap (dryRun: false)
+  this.roadmapApply = await server.request("tools/call", {
+    name: "spec_patch",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-roadmap-apply", intent: "assembleRoadmap", spec: "roadmap-e2e", reason: "apply assembly", dryRun: false },
+  });
+
+  // Read the applied content
+  this.roadmapAfterApply = await readFile(path.join(roadmapDir, "ROADMAP.md"), "utf8");
+
+  // Re-run as dryRun to check idempotency
+  this.roadmapRerun = await server.request("tools/call", {
+    name: "spec_patch",
+    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-roadmap-rerun", intent: "assembleRoadmap", spec: "roadmap-e2e", reason: "idempotency check", dryRun: true },
+  });
+});
+
+Then("the first apply changes ROADMAP.md and the re-run produces no diff", function () {
+  const applyStruct = this.roadmapApply?.result?.structuredContent;
+  assert.equal(applyStruct?.ok, true, "assembleRoadmap apply must succeed: " + JSON.stringify(applyStruct));
+  assert.equal(applyStruct?.data?.outcome, "APPLIED", "Expected APPLIED: " + JSON.stringify(applyStruct));
+  // The applied content must have items between markers
+  assert.ok(this.roadmapAfterApply.includes("<!-- roadmap:auto:start -->"), "ROADMAP.md must retain start marker");
+  assert.ok(this.roadmapAfterApply.includes("<!-- roadmap:auto:end -->"), "ROADMAP.md must retain end marker");
+  const generatedRegion = this.roadmapAfterApply.slice(
+    this.roadmapAfterApply.indexOf("<!-- roadmap:auto:start -->") + "<!-- roadmap:auto:start -->".length,
+    this.roadmapAfterApply.indexOf("<!-- roadmap:auto:end -->"),
+  );
+  assert.ok(generatedRegion.trim().length > 0, "Generated region must not be empty after apply");
+
+  // The re-run must produce no diff (idempotent)
+  const rerunStruct = this.roadmapRerun?.result?.structuredContent;
+  assert.equal(rerunStruct?.ok, true, "Idempotent re-run must succeed: " + JSON.stringify(rerunStruct));
+  const ops = rerunStruct?.data?.operations ?? [];
+  assert.equal(ops.length, 1, "Re-run must produce exactly one operation entry");
+  assert.equal(ops[0].beforeSha256, ops[0].afterSha256, "Idempotent re-run must produce identical hashes");
 });

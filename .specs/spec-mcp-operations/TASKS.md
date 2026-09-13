@@ -249,7 +249,7 @@ All tasks are `todo`; the feature state is `NEXT`. Estimates are planning units,
 - **Estimate:** 2 engineering days
 - **Owner:** MCP maintainer
 - **Depends on:** Existing MCP server and current-host `tool_call` policy hook
-- **Traces:** FR-23; AC-23.1, AC-23.2; CHK-WRITE-FR1-01, CHK-WRITE-FR1-02; Scenarios: `SCEN-mcp-write-authoring-two-tool-inventory`, `SCEN-mcp-write-authoring-path-policy-denies-raw-writer`
+- **Traces:** FR-23; AC-23.1, AC-23.2; CHK-WRITE-FR1-01, CHK-WRITE-FR1-02; Scenarios: `SCEN-mcp-write-authoring-one-tool-inventory`, `SCEN-mcp-write-authoring-path-policy-denies-raw-writer`
 - **Done When:** Installed tools/list exposes exactly the single public mutation tool spec_patch, internal helpers are absent, and real tool-call tests deny non-allowlisted `.specs/**` writes without blocking unrelated targets.
 
 _Requirements: [FR-23](FR.md#fr-23-single-tool-public-boundary)_
@@ -358,7 +358,7 @@ _Requirements: [FR-32](FR.md#fr-32-discriminated-branch-schemas-and-strict-argum
 - **Owner:** Kernel maintainer
 - **Depends on:** TASK-23
 - **Traces:** FR-33; AC-33.1; Scenarios: SCEN-mcp-types-catalog
-- **Done When:** `spec_catalog(view: "types")` returns 15 entity kinds and 7 edge types from the kernel types module.
+- **Done When:** `spec_catalog(view: "types")` returns 16 entity kinds and 8 edge types from the kernel types module.
 
 _Requirements: [FR-33](FR.md#fr-33-domain-type-dictionary-catalog)_
 
@@ -411,6 +411,17 @@ _Requirements: [FR-37](FR.md#fr-37-unified-specification-and-corpus-validation-i
 
 - **Status:** Planned
 - **Phase:** safe-authoring
-- **Requirement:** FR-10
-- **Acceptance:** AC-10.1
+- **Requirement:** FR-38
+- **Acceptance:** AC-38.1
 - **Scenario:** SCEN-read-for-edit-and-optional-root-binding
+
+## TASK-30 — Implement complete spec_graph board projection — id: TASK-30
+
+- **Status:** todo
+- **Estimate:** 2 engineering days
+- **Owner:** Kernel/MCP adapter maintainer
+- **Depends on:** TASK-23, TASK-24
+- **Traces:** FR-39; AC-39.1; Scenario: SCEN-mcp-spec-graph-board-view
+- **Done When:** spec_graph accepts only the strict board branch, returns one complete BoardProjectionV1 with full bounded card-source fields, honors corpus and specSlugs scope, aggregates raw kernel edges, rejects pagination fields, fails closed over 1 MiB, and leaves the public surface at ten tools.
+
+_Requirements: [FR-39](FR.md#fr-39-spec-graph-board-view)_

@@ -1,10 +1,9 @@
-// FC-7 / FR-9: dependency-free read-only stdio MCP server over the shared
-// v0.2 kernel query service. Newline-delimited JSON-RPC 2.0 (MCP stdio
-// transport; no Content-Length headers). Maps the eight SCHEMA-11 tools
-// one-to-one onto the eight query operations and answers every call with
-// exactly one canonical QueryEnvelope as structured content. There are no
-// mutation tools, no filesystem writes, and no stdout traffic other than
-// JSON-RPC responses.
+// FC-7 / FR-9: dependency-free stdio MCP server over the shared kernel query
+// service. Newline-delimited JSON-RPC 2.0 (MCP stdio transport; no
+// Content-Length headers). Exposes 10 task-oriented tools: nine read-only
+// operations and the single spec_patch mutation. Read calls return one
+// canonical QueryEnvelope as structured content; stdout contains JSON-RPC
+// responses only.
 //
 // Repository-root resolution (see plugins/omp-spec-kit/.mcp.json):
 //   1. OMP_SPEC_KIT_ROOT environment variable, when absolute,

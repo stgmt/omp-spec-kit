@@ -6,15 +6,15 @@
 
 ## Read domain
 
-The Read domain owns the shipped eight-tool compatibility surface, the deterministic kernel, read-complete destination operations, trusted test evidence, and the later get_test_result / get_scenario_trace projections.
+The Read domain owns the consolidated ten-tool public surface, the deterministic kernel, read-complete destination operations, trusted test evidence, and the later get_test_result / get_scenario_trace projections.
 
 ## Write domain
 
-The Write domain owns all 24 authoring operations as public MCP tools under v0.6.0: 20 dry-run proposal operations that do not modify disk bytes and return a unified Proposal schema, and 4 transactional apply operations that commit changes atomically under write lock with rollback on failure. The OMP non-MCP access boundary is owned by [MCP access gate](../spec-mcp-access-gate/README.md).
+The Write domain owns one public authoring tool, `spec_patch`, covering 15 authoring intents behind one proposal/apply path: preview is a pure in-memory Proposal, apply is transactional under an exclusive lock with internal rollback on failure (FR-23, FR-26, FR-27). The OMP non-MCP access boundary is owned by [MCP access gate](../spec-mcp-access-gate/README.md).
 
 ## Operation census
 
-The accepted destination map remains complete: operations 1–22 are Read-domain destinations; operations 23–46 are Write-domain destinations. Only the eight v0.3.2 read names are currently shipped, and only the two write names are public in the future authoring profile. No destination row is silently dropped.
+The public surface is exactly ten tools (FR-30); the v0.3.2 eight read names remain the shipped baseline; `spec_patch` is the single public authoring tool (FR-23) and superseded names are retired without shims (FR-35). No destination row is silently dropped.
 
 ## Shared invariants
 
@@ -27,6 +27,10 @@ One canonical root, one containment model, bounded deterministic envelopes, reda
 - [Acceptance criteria](ACCEPTANCE_CRITERIA.md)
 - [Schema](spec-mcp-operations_SCHEMA.md)
 - [Design](DESIGN.md)
-- [Scenarios](spec-mcp-operations.feature)
+- Scenarios: spec-mcp-operations.feature
 - [Tasks](TASKS.md)
 - [Real fixture contract](FIXTURES.md)
+
+## Board projection contract
+
+spec_graph view board is the single complete read for the YouTrack adapter. It returns BoardProjectionV1 for the full corpus or specSlugs scope, includes bounded card-source fields and aggregated raw kernel edges, rejects limit and cursor, and returns RESPONSE_TOO_LARGE instead of truncation. The downstream adapter owns YouTrack link names and snapshot commit.

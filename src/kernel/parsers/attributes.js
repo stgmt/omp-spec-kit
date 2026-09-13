@@ -12,11 +12,27 @@ export function parseFields(bodyText) {
   let current = null;
   const FIELD_RE = /^[ ]{0,3}(?:\*\*)?\s*([A-Za-z][A-Za-z0-9 ]{0,40}?)\s*(?:\*\*)?\s*:\s*(?:\*\*)?(.*)$/u;
   const BULLET_RE = /^[ ]{0,3}[-*][ \t]+(.*)$/u;
+  // A bullet that is itself a strong field (`- **Status:** todo`) is a field,
+  // not a bullet of the previous one — the corpus authors TASK fields that
+  // way. The bullet content goes through the same FIELD_RE so every authored
+  // field shape parses identically inside and outside a bullet.
   for (const line of lines) {
     const bullet = BULLET_RE.exec(line);
-    if (current !== null && bullet) {
-      current.bullets.push(bullet[1].trim());
-      continue;
+    if (bullet) {
+      const bulletField = bullet[1].trimStart().startsWith("**")
+        ? FIELD_RE.exec(bullet[1].trim())
+        : null;
+      if (bulletField && bulletField[2] !== undefined) {
+        const entry = { value: bulletField[2].trim(), bullets: [] };
+        const key = bulletField[1].trim();
+        if (!fields.has(key)) fields.set(key, entry);
+        current = entry;
+        continue;
+      }
+      if (current !== null) {
+        current.bullets.push(bullet[1].trim());
+        continue;
+      }
     }
     const field = FIELD_RE.exec(line);
     if (field && field[2] !== undefined) {

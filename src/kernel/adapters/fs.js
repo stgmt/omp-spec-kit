@@ -199,9 +199,16 @@ function adapterFailure(error, diagnostics, fallbackCode) {
 }
 
 // Exact canonical names only: fixed documents plus the two slug-derived forms.
+// ROADMAP.md is conditional: only canonical for roadmap-* specs (slug-prefix
+// detection is authoritative; see .specs/roadmap-roadmaps/REQUIREMENTS.md).
 export function isCanonicalDocumentName(filename, specSlug) {
   for (const kind of Object.keys(FIXED_DOCUMENT_FILES)) {
-    if (FIXED_DOCUMENT_FILES[kind] === filename) return true;
+    if (FIXED_DOCUMENT_FILES[kind] === filename) {
+      if (kind === "ROADMAP") {
+        return typeof specSlug === "string" && specSlug.startsWith("roadmap-");
+      }
+      return true;
+    }
   }
   return filename === `${specSlug}.feature` || filename === `${specSlug}_SCHEMA.md`;
 }

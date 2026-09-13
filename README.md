@@ -30,7 +30,7 @@ The v1.2.0 release exposes exactly 10 task-oriented MCP tools: 9 bounded read-on
 |---|---|---|
 | Catalog & Corpus | `spec_catalog` | `view: "types" | "specs" | "inventory" | "overview" | "status"` |
 | Nodes & Search | `spec_entities` | `mode: "get" | "find"` |
-| Graph & Traversal | `spec_graph` | `view: "edges" | "trace"` |
+| Graph & Traversal | `spec_graph` | `view: "edges" | "trace" | "board"` |
 | Documents & Attachments | `spec_documents` | `action: "list" | "read" | "attachment"` |
 | Validation & Policy | `spec_inspect` | `check: "scenariosByTags" | "orphans" | "anchor" | "requirementMetadata" | "requirementsPolicy" | "archivalProof" | "validation"` |
 | Tasks | `spec_tasks` | filters: `spec`, `statuses`, `phase`, `requirement` |
@@ -66,7 +66,10 @@ When the answer is in the graph, the agent should use these MCP tools instead of
 - **v1.0.0 — shipped:** stable 10-tool MCP surface with bounded reads, transactional authoring, release evidence, and commit-bound attestations.
 - **v1.0.2 — shipped:** OMP internal URI guard containment regression fix and deterministic LF release distribution.
 
-- **v1.1.0 — shipped:** direct specification reads, exact document receipts, and root-fingerprint binding.\n- **v1.2.0 — shipped:** one-time first-write elicitation protection, read-selector symmetry, and real MCP release proof.\n\nThe v1.2.0 release is shipped and publicly attested. See docs/validation/release-status-v1.2.0.json for the complete release proof.
+- **v1.1.0 — shipped:** direct specification reads, exact document receipts, and root-fingerprint binding.
+- **v1.2.0 — shipped:** one-time first-write elicitation protection, read-selector symmetry, and real MCP release proof.
+
+The v1.2.0 release is shipped and publicly attested. See docs/validation/release-status-v1.2.0.json for the complete release proof.
 
 ## Safety and boundaries
 

@@ -16,6 +16,12 @@ Feature: Verify the v0.4.1 release evidence boundary
     Then the MCP inventory contains only project-b specifications
     And launcher startup from package cwd is refused before serving
 
+@release-evidence @id:SCEN-mri-active-project-manager-receipt
+Scenario: OMP manager executes spec patch tool through packaged discovery
+  Given a disposable real authoring corpus and live MCP server
+  When the scenario "omp-manager-authoring" runs
+  Then the scenario passes
+
   @release-evidence @id:SCEN-mri-terminal-json-rpc
   Scenario: Invalid JSON-RPC requests have one terminal response
     Given an installed MCP server is running

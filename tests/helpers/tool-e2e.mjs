@@ -130,8 +130,8 @@ export async function runToolE2E({
     assert.equal(catalogTypes.ok, true);
     assert.equal(catalogTypes.operation, "catalog");
     assert.equal(catalogTypes.data.kind, "types");
-    assert.equal(catalogTypes.data.entityKinds.length, 15);
-    assert.equal(catalogTypes.data.edgeTypes.length, 7);
+    assert.equal(catalogTypes.data.entityKinds.length, 16);
+    assert.equal(catalogTypes.data.edgeTypes.length, 8);
 
     const catalogSpecs = structured(
       await callTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "v08-cat-specs", view: "specs" }),
@@ -183,6 +183,16 @@ export async function runToolE2E({
     assert.equal(graphTrace.ok, true);
     assert.equal(graphTrace.operation, "graph");
     assert.equal(graphTrace.data.kind, "trace");
+
+    const graphBoard = structured(
+      await callTool("spec_graph", { schemaVersion: "spec-kernel@1", requestId: "v08-graph-board", view: "board" }),
+    );
+    assert.equal(graphBoard.ok, true);
+    assert.equal(graphBoard.operation, "graph");
+    assert.equal(graphBoard.data.kind, "board");
+    assert.equal(graphBoard.data.complete, true);
+    assert.ok(Array.isArray(graphBoard.data.nodes));
+    assert.ok(Array.isArray(graphBoard.data.edges));
 
     // 4. spec_documents (list and read)
     const docList = structured(

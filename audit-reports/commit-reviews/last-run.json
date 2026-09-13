@@ -1,0 +1,15 @@
+{
+  "schema": "review-last-run@1",
+  "runId": "2026-09-13T07-04-16-928Z-847adc60bffd",
+  "repoRoot": "E:/repos/omp-spec-kit",
+  "updatedAt": "2026-09-13T07:09:43.342Z",
+  "state": "passed",
+  "verdict": "PASS",
+  "exitCode": 0,
+  "reportPath": "E:\\repos\\omp-spec-kit\\audit-reports\\commit-reviews\\2026-09-13T07-04-16-927Z-847adc60bffd467f835395b8c0227c46c5c0bc9d99051e4a83ed5d1b2926659e.md",
+  "durationMs": 326414,
+  "modelsTried": [
+    "@smol"
+  ],
+  "finishedAt": "2026-09-13T07:09:43.342Z"
+}

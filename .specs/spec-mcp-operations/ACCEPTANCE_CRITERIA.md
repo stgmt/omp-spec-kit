@@ -311,7 +311,7 @@ Given a real MCP server, tools/list declares the stable result schema and discov
 
 ## AC-33.1: Domain type dictionary catalog
 
-**EARS:** WHEN `spec_catalog` is invoked with `view: "types"` THEN the response SHALL return exactly 15 entity kind descriptors and 7 edge type descriptors derived directly from the immutable kernel dictionary.
+**EARS:** WHEN `spec_catalog` is invoked with `view: "types"` THEN the response SHALL return exactly 16 entity kind descriptors and 8 edge type descriptors derived directly from the immutable kernel dictionary.
 
 **Requirement:** [FR-33](FR.md#fr-33-domain-type-dictionary-catalog)
 
@@ -367,3 +367,11 @@ Given a real MCP server, tools/list declares the stable result schema and discov
 - When `repositoryRootFingerprint` is omitted
 - Then preview and apply use the proposal graph snapshot and retain exclusive-lock and document-preimage conflict checks
 - And a supplied stale fingerprint still returns `REPOSITORY_ROOT_FINGERPRINT_MISMATCH` with only opaque root identifiers
+
+## AC-39.1: Spec graph board view
+
+**EARS:** WHEN spec_graph is called with the strict view board branch THEN it SHALL return one complete BoardProjectionV1 containing the current fingerprint, full bounded card-source fields, board-kind nodes, aggregated raw kernel edges, counts, and page=null; WHEN specSlugs is omitted or empty THEN scope SHALL be the whole corpus; WHEN specSlugs is supplied THEN nodes and edges SHALL be restricted to that scope; WHEN limit or cursor is supplied to the board branch THEN the call SHALL be rejected; WHEN the response exceeds 1 MiB THEN the call SHALL return RESPONSE_TOO_LARGE without partial data; AND the registered tool count SHALL remain 10.
+
+**Requirement:** [FR-39](FR.md#fr-39-spec-graph-board-view)
+
+**Scenario:** @feature39 @FR-39 @AC-39.1 @id:SCEN-mcp-spec-graph-board-view

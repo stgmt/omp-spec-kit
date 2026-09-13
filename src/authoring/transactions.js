@@ -37,6 +37,8 @@ export function isCanonicalDocument(document, spec) {
   const segments = document.split(/[\\/]/u);
   if (segments.some((segment) => segment === "" || segment === "." || segment === ".." || segment.includes("\u0000"))) return false;
   const fixed = Object.values(FIXED_DOCUMENT_FILES);
+  // ROADMAP.md is only canonical for roadmap-* specs.
+  if (document === FIXED_DOCUMENT_FILES.ROADMAP && !(typeof spec === "string" && spec.startsWith("roadmap-"))) return false;
   return segments.length === 1 && (fixed.includes(document) || document === `${spec}.feature` || document === `${spec}_SCHEMA.md`);
 }
 

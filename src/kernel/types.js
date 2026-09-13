@@ -20,6 +20,7 @@ export const FIXED_DOCUMENT_FILES = Object.freeze({
   FILE_CHANGES: "FILE_CHANGES.md",
   CHANGELOG: "CHANGELOG.md",
   FIXTURES: "FIXTURES.md",
+  ROADMAP: "ROADMAP.md",
 });
 
 export const DOCUMENT_KINDS = Object.freeze([
@@ -38,6 +39,7 @@ export const DOCUMENT_KINDS = Object.freeze([
   "FEATURE",
   "FIXTURES",
   "SCHEMA",
+  "ROADMAP",
 ]);
 
 // Document kinds that contribute Markdown heading/link inventories (everything except FEATURE).
@@ -50,6 +52,11 @@ export const ENTITY_TYPE_DESCRIPTORS = Object.freeze([
     kind: "DOCUMENT",
     label: "Document",
     description: "Canonical or auxiliary specification document.",
+  }),
+  Object.freeze({
+    kind: "ROADMAP",
+    label: "Roadmap",
+    description: "Higher-level implementation plan describing waterfall phases of one or more feature specifications.",
   }),
   Object.freeze({
     kind: "USER_STORY",
@@ -159,6 +166,11 @@ export const EDGE_TYPE_DESCRIPTORS = Object.freeze([
     label: "Declares",
     description: "Document declaration relationship.",
   }),
+  Object.freeze({
+    type: "CONTAINS",
+    label: "Contains",
+    description: "Aggregate containment relationship from a roadmap spec node to its member entities.",
+  }),
 ]);
 
 export const NODE_KINDS = Object.freeze(
@@ -189,6 +201,7 @@ export const EDGE_ENDPOINT_MATRIX = Object.freeze({
     toExcept: ["DOCUMENT"],
   },
   DECLARES: { from: ["DOCUMENT"], toExcept: ["DOCUMENT"] },
+  CONTAINS: { from: ["ROADMAP"], toExcept: ["ROADMAP", "DOCUMENT"] },
 });
 
 // AuthoredLocalId roles and their exact grammars (case-sensitive, no normalization).
@@ -209,6 +222,11 @@ export const LOCAL_ID_ROLES = Object.freeze({
   FIXTURE: { kind: "FIXTURE", re: /^FIXTURE-[1-9][0-9]*$/ },
   SCHEMA_ENTITY: { kind: "SCHEMA_ENTITY", re: /^SCHEMA-[1-9][0-9]*$/ },
   SCENARIO: { kind: "SCENARIO", re: /^SCEN-[a-z0-9]+(?:-[a-z0-9]+)*$/ },
+  // Spec-aggregate identity; auto-declared by the ROADMAP canonical document
+  // of a roadmap-* spec (one per spec, fixed local ID). Not an authored
+  // heading-derived definition (no document kind lists it in
+  // DOCUMENT_DEFINITION_ROLES).
+  ROADMAP: { kind: "ROADMAP", re: /^ROADMAP$/ },
 });
 
 // DocumentKind -> definition roles allowed (empty = no authored definitions).
@@ -228,6 +246,7 @@ export const DOCUMENT_DEFINITION_ROLES = Object.freeze({
   FEATURE: [],
   FIXTURES: ["FIXTURE"],
   SCHEMA: ["SCHEMA_ENTITY"],
+  ROADMAP: [],
 });
 
 // Definition heading productions per role.
@@ -280,6 +299,8 @@ export const TASK_STATUS_NORMALIZATION = Object.freeze({
   Planned: "planned",
   planned: "planned",
   todo: "todo",
+  Done: "done",
+  done: "done",
   Completed: "done",
   completed: "done",
 });
@@ -424,6 +445,7 @@ export const QUERY_OPERATIONS = Object.freeze([
   "overview",
   "markdownInventory",
   "validation",
+  "board",
 ]);
 
 export const QUERY_ERROR_CODES = Object.freeze([

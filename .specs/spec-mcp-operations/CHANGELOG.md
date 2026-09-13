@@ -43,7 +43,7 @@ The previous sidecar/fingerprint/release schema was a superseded specification d
 
 ### Changed
 
-- Reduced the future public mutation surface to `propose_patch` and `apply_proposed_patch`.
+- Reduced the historical draft mutation surface; the shipped public mutation boundary is `spec_patch`.
 - Made helper intents internal compilers over one edit-operation union.
 - Replaced runtime release/evidence eligibility machinery with the product's ordinary `NEXT` state; distribution and product evaluators retain their own authority.
 - Replaced durable server-side review with caller inspection of one immutable Proposal and exact-hash apply.
@@ -73,12 +73,12 @@ Added complete four-property tool annotations, contract-label titles, bounded fi
 
 - Added declared MCP output schemas, concise discovery metadata, server instructions, canonical content mirrors, and actionable recovery guidance.
 
-## Unreleased — 11-tool surface consolidation
+## Unreleased — intermediate 11-tool draft
 
 - Consolidated 38 MCP tools into 11 task-oriented tools with discriminated `oneOf` branches.
-- Hard cutover removing all 27 superseded tools without backward-compatibility shims.
+- Hard cutover removing all superseded tools without backward-compatibility shims.
 - Added `spec_catalog(view: "types")` returning 15 entity kinds and 7 edge types.
-- Enforced surface blast caps: 11 tools, <= 25,499 bytes, <= 2,000 description characters.
+- Enforced surface blast caps: 10 tools, <= 25,499 bytes, <= 2,000 description characters.
 - Added deterministic mutation testing gate with zero surviving mutants.
 
 ## Unreleased — unified validation inspection
@@ -86,3 +86,15 @@ Added complete four-property tool annotations, contract-label titles, bounded fi
 - Consolidated `spec_inspect` validation and diagnostics branches into a single `check: "validation"` branch with pre-filter verdict, pre-filter counts, and deterministic item filtering.
 - Retired `specValidation` and `diagnostics` branches from `spec_inspect` without backward-compatibility shims.
 - Added explicit `title` (`<discriminator>: <variant>`) and `description` to each `oneOf` branch in tool input schemas, and added top-level discriminator selection instructions.
+## Unreleased — board view and census corrections
+
+- Added `spec_graph` view `board` (FR-39): graph fingerprint, board-kind nodes, kernel edges aggregated by (from, to, type) with occurrence counts, optional `specSlug` filter; the tool count stays at 10.
+- Census note: the historical "intermediate 11-tool draft" entry above describes an intermediate draft; the final measured surface is 10 tools (FR-30, FR-34).
+
+
+## 2026-09-10 — complete board projection contract
+
+- Board view is a strict branch of spec_graph, not an eleventh tool.
+- The response is one complete BoardProjectionV1 with bounded card-source fields, raw kernel edge aggregation, scope, and page=null.
+- limit/cursor are rejected for board; overflow returns RESPONSE_TOO_LARGE without partial data.
+- The old two-authoring-tool and 11-tool wording is historical only.

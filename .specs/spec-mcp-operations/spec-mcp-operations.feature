@@ -167,10 +167,10 @@ Feature: MCP read and write operations
     And neither tool changes the historical eight-tool v0.3.2 first slice
 
 # Proposal-first specification authoring
-# The future authoring capability exposes two MCP mutation tools.
+# The authoring capability exposes one public spec_patch mutation tool.
 # These scenarios are specification text and are not claimed as executed evidence.
 
-  @id:SCEN-mcp-write-authoring-two-tool-inventory @feature23 @AC-23.1
+  @id:SCEN-mcp-write-authoring-one-tool-inventory @feature23 @AC-23.1
   Scenario: Authoring inventory contains only one public mutation tool
     Given the installed omp-spec-kit MCP server
     When its public mutation inventory is listed
@@ -301,7 +301,7 @@ Scenario: Discriminated branches reject unexpected parameters
 Scenario: Spec catalog returns domain type dictionary
   Given a real packaged MCP server
   When spec_catalog is called with view "types"
-  Then the response contains 15 entity kinds and 7 edge types
+  Then the response contains 16 entity kinds and 8 edge types
 
 @feature34 @FR-34 @AC-34.1 @id:SCEN-mcp-surface-blast-limits
 Scenario: Surface blast metrics stay within strict limits
@@ -329,10 +329,20 @@ Scenario: Unified validation inspection evaluates corpus and specifications
   And retired check branches specValidation and diagnostics are rejected with INVALID_REQUEST
 
 
-  @feature10 @FR-10 @AC-10.1 @id:SCEN-read-for-edit-and-optional-root-binding
-  Scenario: Read-for-edit supports safe optional root binding
-    Given a real specification document and readForEdit true
-    When spec_documents reads the document and spec_patch previews without a root fingerprint
-    Then content equals the fixture bytes and sha256 matches
-    And the preview can apply only while graph and document preimages remain current
-    And a stale explicit root fingerprint is refused with REPOSITORY_ROOT_FINGERPRINT_MISMATCH
+@feature38 @FR-38 @AC-38.1 @id:SCEN-read-for-edit-and-optional-root-binding
+Scenario: Read-for-edit supports safe optional root binding
+  Given a real specification document and readForEdit true
+  When spec_documents reads the document and spec_patch previews without a root fingerprint
+  Then content equals the fixture bytes and sha256 matches
+  And the preview can apply only while graph and document preimages remain current
+  And a stale explicit root fingerprint is refused with REPOSITORY_ROOT_FINGERPRINT_MISMATCH
+
+@feature39 @FR-39 @AC-39.1 @id:SCEN-mcp-spec-graph-board-view
+Scenario: Spec graph returns one complete board view
+  Given a real packaged MCP server
+  When spec_graph is called with view board and optional specSlugs
+  Then one complete BoardProjectionV1 returns the fingerprint, scope, page null, counts, board-kind nodes, and aggregated raw kernel edges
+  And omitted or empty specSlugs means the whole corpus
+  And limit or cursor is rejected for this branch
+  And an over-size response returns RESPONSE_TOO_LARGE without partial data
+  And the registered tool count stays at 10

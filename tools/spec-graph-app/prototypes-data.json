@@ -1,0 +1,8325 @@
+[
+  {
+    "id": "SPEC-386",
+    "specId": "youtrack-visualization:TASK-9",
+    "specSlug": "youtrack-visualization",
+    "localId": "TASK-9",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Structured per-kind descriptions",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-372"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-372",
+    "specId": "youtrack-visualization:FR-9",
+    "specSlug": "youtrack-visualization",
+    "localId": "FR-9",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Понятная карточка",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-371"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-381"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-386"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-385"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-379"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-385",
+    "specId": "youtrack-visualization:TASK-8",
+    "specSlug": "youtrack-visualization",
+    "localId": "TASK-8",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Fixed",
+    "title": "Human cards with honest types",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-344"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-347"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-372"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-383"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-381"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-357"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-381",
+    "specId": "youtrack-visualization:TASK-7",
+    "specSlug": "youtrack-visualization",
+    "localId": "TASK-7",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Extend relations and readable cards",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-344"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-347"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-372"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-385"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-357"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-360",
+    "specId": "youtrack-visualization:TASK-6",
+    "specSlug": "youtrack-visualization",
+    "localId": "TASK-6",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Fill the status mapping from the staging server",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-347"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-358"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-359",
+    "specId": "youtrack-visualization:TASK-5",
+    "specSlug": "youtrack-visualization",
+    "localId": "TASK-5",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Fixed",
+    "title": "Deploy to staging and prove acceptance",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-342"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-349"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-355"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-358"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-358",
+    "specId": "youtrack-visualization:TASK-4",
+    "specSlug": "youtrack-visualization",
+    "localId": "TASK-4",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Fixed",
+    "title": "Implement two-way status flow with buttons",
+    "links": [
+      {
+        "type": "Relates",
+        "target": "SPEC-367"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-347"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-348"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-360"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-359"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-357"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-357",
+    "specId": "youtrack-visualization:TASK-3",
+    "specSlug": "youtrack-visualization",
+    "localId": "TASK-3",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Fixed",
+    "title": "Implement the full-corpus sync with fingerprint skip",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-345"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-346"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-381"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-358"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-385"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-356"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-356",
+    "specId": "youtrack-visualization:TASK-2",
+    "specSlug": "youtrack-visualization",
+    "localId": "TASK-2",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Fixed",
+    "title": "Create project fields and link types",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-343"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-344"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-357"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-355",
+    "specId": "youtrack-visualization:TASK-1",
+    "specSlug": "youtrack-visualization",
+    "localId": "TASK-1",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Fixed",
+    "title": "Scaffold the tracker app",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-342"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-359"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-380",
+    "specId": "youtrack-visualization:SCEN-sync-direction",
+    "specSlug": "youtrack-visualization",
+    "localId": "SCEN-sync-direction",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Text one way, states both ways",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-339"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-347"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-379",
+    "specId": "youtrack-visualization:SCEN-readable-card",
+    "specSlug": "youtrack-visualization",
+    "localId": "SCEN-readable-card",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Card reads like a work item",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-371"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-372"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-378",
+    "specId": "youtrack-visualization:SCEN-project-fields",
+    "specSlug": "youtrack-visualization",
+    "localId": "SCEN-project-fields",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Project carries the spec fields",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-335"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-343"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-377",
+    "specId": "youtrack-visualization:SCEN-panel-board",
+    "specSlug": "youtrack-visualization",
+    "localId": "SCEN-panel-board",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Panel and board show the graph",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-334"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-342"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-376",
+    "specId": "youtrack-visualization:SCEN-link-types",
+    "specSlug": "youtrack-visualization",
+    "localId": "SCEN-link-types",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Exactly eight link types exist",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-336"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-344"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-384",
+    "specId": "youtrack-visualization:SCEN-honest-type",
+    "specSlug": "youtrack-visualization",
+    "localId": "SCEN-honest-type",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Card type tells the node kind",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-371"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-382"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-383"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-375",
+    "specId": "youtrack-visualization:SCEN-full-corpus",
+    "specSlug": "youtrack-visualization",
+    "localId": "SCEN-full-corpus",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Full corpus is transferred in one pass",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-337"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-345"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-374",
+    "specId": "youtrack-visualization:SCEN-fingerprint-skip",
+    "specSlug": "youtrack-visualization",
+    "localId": "SCEN-fingerprint-skip",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Unchanged rerun writes nothing",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-338"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-346"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-354",
+    "specId": "youtrack-visualization:SCEN-buttons-write-back",
+    "specSlug": "youtrack-visualization",
+    "localId": "SCEN-buttons-write-back",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Approve writes back to the spec",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-340"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-348"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-373",
+    "specId": "youtrack-visualization:SCEN-authoritative",
+    "specSlug": "youtrack-visualization",
+    "localId": "SCEN-authoritative",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Spec wins conflicts",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-341"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-349"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-353",
+    "specId": "youtrack-visualization:NFR-USE-1",
+    "specSlug": "youtrack-visualization",
+    "localId": "NFR-USE-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Board stays usable at full corpus",
+    "links": []
+  },
+  {
+    "id": "SPEC-352",
+    "specId": "youtrack-visualization:NFR-SYNC-1",
+    "specSlug": "youtrack-visualization",
+    "localId": "NFR-SYNC-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Idempotent bounded sync",
+    "links": []
+  },
+  {
+    "id": "SPEC-351",
+    "specId": "youtrack-visualization:NFR-SEC-1",
+    "specSlug": "youtrack-visualization",
+    "localId": "NFR-SEC-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Token and transport secrecy",
+    "links": []
+  },
+  {
+    "id": "SPEC-350",
+    "specId": "youtrack-visualization:NFR-REL-1",
+    "specSlug": "youtrack-visualization",
+    "localId": "NFR-REL-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "One truth, no second storage",
+    "links": []
+  },
+  {
+    "id": "SPEC-349",
+    "specId": "youtrack-visualization:FR-8",
+    "specSlug": "youtrack-visualization",
+    "localId": "FR-8",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Спеки главные",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-341"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-359"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-373"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-348",
+    "specId": "youtrack-visualization:FR-7",
+    "specSlug": "youtrack-visualization",
+    "localId": "FR-7",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Кнопки меняют статус назад",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-340"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-358"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-354"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-347",
+    "specId": "youtrack-visualization:FR-6",
+    "specSlug": "youtrack-visualization",
+    "localId": "FR-6",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Направление переноса",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-339"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-360"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-381"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-358"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-385"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-380"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-346",
+    "specId": "youtrack-visualization:FR-5",
+    "specSlug": "youtrack-visualization",
+    "localId": "FR-5",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Код связи и пропуск без изменений",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-338"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-357"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-374"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-345",
+    "specId": "youtrack-visualization:FR-4",
+    "specSlug": "youtrack-visualization",
+    "localId": "FR-4",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Перенос всего корпуса сразу",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-337"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-357"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-375"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-344",
+    "specId": "youtrack-visualization:FR-3",
+    "specSlug": "youtrack-visualization",
+    "localId": "FR-3",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Восемь видов стрелок",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-336"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-381"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-356"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-385"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-376"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-343",
+    "specId": "youtrack-visualization:FR-2",
+    "specSlug": "youtrack-visualization",
+    "localId": "FR-2",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Проект и поля карточек",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-335"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-356"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-378"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-383",
+    "specId": "youtrack-visualization:FR-10",
+    "specSlug": "youtrack-visualization",
+    "localId": "FR-10",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Честный тип карточки",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-371"
+      },
+      {
+        "type": "satisfies",
+        "target": "SPEC-382"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-385"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-384"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-342",
+    "specId": "youtrack-visualization:FR-1",
+    "specSlug": "youtrack-visualization",
+    "localId": "FR-1",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Встроенное приложение в трекере",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-334"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-355"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-359"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-377"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-371",
+    "specId": "youtrack-visualization:AC-9.1",
+    "specSlug": "youtrack-visualization",
+    "localId": "AC-9.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Readable card",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-372"
+      },
+      {
+        "type": "satisfies",
+        "target": "SPEC-383"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-379"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-384"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-341",
+    "specId": "youtrack-visualization:AC-8.1",
+    "specSlug": "youtrack-visualization",
+    "localId": "AC-8.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Specs authoritative",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-349"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-373"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-340",
+    "specId": "youtrack-visualization:AC-7.1",
+    "specSlug": "youtrack-visualization",
+    "localId": "AC-7.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Buttons write back",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-348"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-354"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-339",
+    "specId": "youtrack-visualization:AC-6.1",
+    "specSlug": "youtrack-visualization",
+    "localId": "AC-6.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "One-way text two-way status",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-347"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-380"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-338",
+    "specId": "youtrack-visualization:AC-5.1",
+    "specSlug": "youtrack-visualization",
+    "localId": "AC-5.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Idempotent fingerprint skip",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-346"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-374"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-337",
+    "specId": "youtrack-visualization:AC-4.1",
+    "specSlug": "youtrack-visualization",
+    "localId": "AC-4.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Full corpus nodes",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-345"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-375"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-336",
+    "specId": "youtrack-visualization:AC-3.1",
+    "specSlug": "youtrack-visualization",
+    "localId": "AC-3.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Eight link types",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-344"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-376"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-335",
+    "specId": "youtrack-visualization:AC-2.1",
+    "specSlug": "youtrack-visualization",
+    "localId": "AC-2.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Project fields",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-343"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-378"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-382",
+    "specId": "youtrack-visualization:AC-10.1",
+    "specSlug": "youtrack-visualization",
+    "localId": "AC-10.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Honest type",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-383"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-384"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-334",
+    "specId": "youtrack-visualization:AC-1.1",
+    "specSlug": "youtrack-visualization",
+    "localId": "AC-1.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Panel and board are visible",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-342"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-377"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-333",
+    "specId": "spec-mcp-operations:TASK-9",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-9",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Implement the pure evaluation schema and entry point",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-209"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-238"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-306"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-307"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-332",
+    "specId": "spec-mcp-operations:TASK-8",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-8",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Retain real fixture and budget evidence",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-237"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-237"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-331",
+    "specId": "spec-mcp-operations:TASK-7",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-7",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Prove deterministic diagnostics and fingerprint",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-236"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-236"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-330",
+    "specId": "spec-mcp-operations:TASK-6",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-6",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Fixed",
+    "title": "Preserve eight compatibility adapters",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-235"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-235"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-329",
+    "specId": "spec-mcp-operations:TASK-5",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-5",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Enforce containment cancellation and budgets",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-234"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-234"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-328",
+    "specId": "spec-mcp-operations:TASK-4",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-4",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Implement four primitives and cursors",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-233"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-233"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-327",
+    "specId": "spec-mcp-operations:TASK-3",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-3",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Build typed conserved graph",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-223"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-223"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-326",
+    "specId": "spec-mcp-operations:TASK-29",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-29",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Complete read-for-edit and optional fingerprint contract",
+    "links": []
+  },
+  {
+    "id": "SPEC-325",
+    "specId": "spec-mcp-operations:TASK-28",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-28",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Implement unified validation inspection in kernel and MCP adapter — id: TASK-28",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-231"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-324",
+    "specId": "spec-mcp-operations:TASK-27",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-27",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Implement deterministic mutation testing gate with zero survivors — id: TASK-27",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-230"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-323",
+    "specId": "spec-mcp-operations:TASK-26",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-26",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Hard-cut retired tools without backward compatibility shims — id: TASK-26",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-229"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-322",
+    "specId": "spec-mcp-operations:TASK-25",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-25",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Enforce surface blast limits and blast measurement script — id: TASK-25",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-228"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-321",
+    "specId": "spec-mcp-operations:TASK-24",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-24",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Implement domain types catalog in kernel and query service — id: TASK-24",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-227"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-320",
+    "specId": "spec-mcp-operations:TASK-23",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-23",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Implement discriminated branch schemas and argument validation — id: TASK-23",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-226"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-319",
+    "specId": "spec-mcp-operations:TASK-22",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-22",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Publish bounded MCP discovery metadata",
+    "links": []
+  },
+  {
+    "id": "SPEC-318",
+    "specId": "spec-mcp-operations:TASK-21",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-21",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Prove real correctness and protected checks — id: TASK-21",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-222"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-317",
+    "specId": "spec-mcp-operations:TASK-20",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-20",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Preserve bytes and redact outcomes — id: TASK-20",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-221"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-316",
+    "specId": "spec-mcp-operations:TASK-2",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-2",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Implement canonical inventory and identity",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-212"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-212"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-315",
+    "specId": "spec-mcp-operations:TASK-19",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-19",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Implement atomic writer and internal rollback — id: TASK-19",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-220"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-314",
+    "specId": "spec-mcp-operations:TASK-18",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-18",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Implement CAS apply and concurrency — id: TASK-18",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-219"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-313",
+    "specId": "spec-mcp-operations:TASK-17",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-17",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Compose containment, anchors, and validation — id: TASK-17",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-218"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-312",
+    "specId": "spec-mcp-operations:TASK-16",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-16",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Implement canonical operations and pure proposal — id: TASK-16",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-217"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-311",
+    "specId": "spec-mcp-operations:TASK-15",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-15",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Register single spec_patch boundary and host path policy — id: TASK-15",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-216"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-310",
+    "specId": "spec-mcp-operations:TASK-14",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-14",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Project result and trace through MCP",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-215"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-307"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-309"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-309",
+    "specId": "spec-mcp-operations:TASK-13",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-13",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Enforce limits and product evidence contribution",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-213"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-214"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-310"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-307"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-308"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-308",
+    "specId": "spec-mcp-operations:TASK-12",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-12",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Capture and review real producer fixtures",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-211"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-309"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-306"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-307",
+    "specId": "spec-mcp-operations:TASK-11",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-11",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Implement join, freshness, and task evidence",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-204"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-206"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-207"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-208"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-209"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-210"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-309"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-310"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-333"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-306"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-306",
+    "specId": "spec-mcp-operations:TASK-10",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-10",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Implement trusted capture and producer parsers",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-202"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-203"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-205"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-210"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-307"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-308"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-333"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-305",
+    "specId": "spec-mcp-operations:TASK-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "TASK-1",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Define the pure core boundary",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-201"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-201"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-304",
+    "specId": "spec-mcp-operations:SCEN-read-for-edit-and-optional-root-binding",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-read-for-edit-and-optional-root-binding",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Read-for-edit supports safe optional root binding",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-157"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-202"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-303",
+    "specId": "spec-mcp-operations:SCEN-mcp-write-authoring-unrecoverable-needs-manual-restore",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-write-authoring-unrecoverable-needs-manual-restore",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Unrecoverable storage fails closed to manual restore",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-179"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-180"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-220"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-302",
+    "specId": "spec-mcp-operations:SCEN-mcp-write-authoring-two-tool-inventory",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-write-authoring-two-tool-inventory",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Authoring inventory contains only one public mutation tool",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-171"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-216"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-301",
+    "specId": "spec-mcp-operations:SCEN-mcp-write-authoring-result-validation-refuses-drift",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-write-authoring-result-validation-refuses-drift",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Broken form trace or anchor refuses the result",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-175"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-176"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-218"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-300",
+    "specId": "spec-mcp-operations:SCEN-mcp-write-authoring-receipt-redaction",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-write-authoring-receipt-redaction",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Outcomes are compact and redacted",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-181"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-182"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-221"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-299",
+    "specId": "spec-mcp-operations:SCEN-mcp-write-authoring-real-fixture-provenance",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-write-authoring-real-fixture-provenance",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Real fixture evidence reconciles with producers",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-183"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-184"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-222"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-298",
+    "specId": "spec-mcp-operations:SCEN-mcp-write-authoring-protected-check-omissions-fail",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-write-authoring-protected-check-omissions-fail",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Each critical omission is caught behaviorally",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-183"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-184"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-222"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-297",
+    "specId": "spec-mcp-operations:SCEN-mcp-write-authoring-proposal-deterministic-no-write",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-write-authoring-proposal-deterministic-no-write",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Equal proposals are deterministic and read-only",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-173"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-174"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-217"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-296",
+    "specId": "spec-mcp-operations:SCEN-mcp-write-authoring-path-policy-denies-raw-writer",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-write-authoring-path-policy-denies-raw-writer",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Non-authoring raw writer is denied for canonical spec targets",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-171"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-172"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-216"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-295",
+    "specId": "spec-mcp-operations:SCEN-mcp-write-authoring-invalid-preview-refused",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-write-authoring-invalid-preview-refused",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Incomplete or invalid preview cannot be applied",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-173"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-174"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-217"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-294",
+    "specId": "spec-mcp-operations:SCEN-mcp-write-authoring-fault-preserves-generation",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-write-authoring-fault-preserves-generation",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Writer faults expose only a complete generation",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-179"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-180"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-220"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-293",
+    "specId": "spec-mcp-operations:SCEN-mcp-write-authoring-containment-refuses-escape",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-write-authoring-containment-refuses-escape",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Escaping and linked targets are refused before mutation",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-175"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-176"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-218"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-292",
+    "specId": "spec-mcp-operations:SCEN-mcp-write-authoring-concurrent-apply-conflict",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-write-authoring-concurrent-apply-conflict",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "A stale concurrent apply cannot overwrite the winner",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-177"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-178"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-219"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-291",
+    "specId": "spec-mcp-operations:SCEN-mcp-write-authoring-byte-eol-conservation",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-write-authoring-byte-eol-conservation",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Anchor edit preserves unrelated bytes and EOLs",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-181"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-182"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-221"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-290",
+    "specId": "spec-mcp-operations:SCEN-mcp-write-authoring-apply-exact-proposal",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-write-authoring-apply-exact-proposal",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Apply commits only the exact current proposal",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-177"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-178"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-219"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-289",
+    "specId": "spec-mcp-operations:SCEN-mcp-unified-validation",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-unified-validation",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Unified validation inspection evaluates corpus and specifications",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-193"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-231"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-288",
+    "specId": "spec-mcp-operations:SCEN-mcp-types-catalog",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-types-catalog",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Spec catalog returns domain type dictionary",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-189"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-227"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-287",
+    "specId": "spec-mcp-operations:SCEN-mcp-surface-blast-limits",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-surface-blast-limits",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Surface blast metrics stay within strict limits",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-190"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-228"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-286",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-evidence-spec-mcp-operations-waiver-honesty",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-evidence-spec-mcp-operations-waiver-honesty",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Waived tasks remain open",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-163"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-208"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-285",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-evidence-spec-mcp-operations-trusted-capture-envelope",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-evidence-spec-mcp-operations-trusted-capture-envelope",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "One actual run produces one trusted envelope",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-158"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-203"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-284",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-evidence-spec-mcp-operations-supported-artifact-kinds",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-evidence-spec-mcp-operations-supported-artifact-kinds",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Only supported real producer artifacts are captured",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-157"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-202"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-283",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-evidence-spec-mcp-operations-stable-scenario-join",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-evidence-spec-mcp-operations-stable-scenario-join",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Stable identity is required for a join",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-159"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-204"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-282",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-evidence-spec-mcp-operations-release-contribution",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-evidence-spec-mcp-operations-release-contribution",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Product release consumes ordinary task evidence",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-169"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-214"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-281",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-evidence-spec-mcp-operations-real-fixture-provenance",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-evidence-spec-mcp-operations-real-fixture-provenance",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Executable fixtures preserve real producer provenance",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-166"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-211"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-280",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-evidence-spec-mcp-operations-pure-evaluation-boundary",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-evidence-spec-mcp-operations-pure-evaluation-boundary",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Pure evaluator has no side effects",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-200"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-238"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-279",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-evidence-spec-mcp-operations-mcp-projection-of-run-results",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-evidence-spec-mcp-operations-mcp-projection-of-run-results",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Result and trace share one evidence reference",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-170"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-215"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-278",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-evidence-spec-mcp-operations-internal-row-accounting",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-evidence-spec-mcp-operations-internal-row-accounting",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Every row and required scenario is accounted for",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-164"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-209"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-277",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-evidence-spec-mcp-operations-full-run-scope-authority",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-evidence-spec-mcp-operations-full-run-scope-authority",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Partial runs never replace full-run authority",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-160"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-205"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-276",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-evidence-spec-mcp-operations-freshness-staleness",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-evidence-spec-mcp-operations-freshness-staleness",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Current content bindings determine freshness",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-161"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-206"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-275",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-evidence-spec-mcp-operations-fail-closed-status-truth",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-evidence-spec-mcp-operations-fail-closed-status-truth",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Every required scenario needs fresh passed full evidence",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-162"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-207"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-274",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-evidence-spec-mcp-operations-budget-enforcement",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-evidence-spec-mcp-operations-budget-enforcement",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Hard limits fail closed",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-168"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-213"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-273",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-evidence-spec-mcp-operations-anti-false-green-invariants",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-evidence-spec-mcp-operations-anti-false-green-invariants",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "No green claim exists without trusted captured bytes",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-165"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-210"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-272",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-core-typed-graph-conservation",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-core-typed-graph-conservation",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Typed graph conservation",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-185"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-223"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-271",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-core-real-fixtures-and-measurable-budgets",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-core-real-fixtures-and-measurable-budgets",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Real fixtures and measurable budgets",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-199"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-237"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-270",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-core-pure-occurrence-first-core",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-core-pure-occurrence-first-core",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Pure occurrence-first core",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-156"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-201"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-269",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-core-historical-eight-name-compatibility",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-core-historical-eight-name-compatibility",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Historical eight-name compatibility",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-197"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-235"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-268",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-core-four-bounded-core-primitives",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-core-four-bounded-core-primitives",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Four bounded core primitives",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-195"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-233"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-267",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-core-deterministic-diagnostics-and-fingerprint",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-core-deterministic-diagnostics-and-fingerprint",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Deterministic diagnostics and fingerprint",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-198"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-236"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-266",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-core-contained-inputs-and-budgets",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-core-contained-inputs-and-budgets",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Contained inputs and budgets",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-196"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-234"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-265",
+    "specId": "spec-mcp-operations:SCEN-mcp-read-core-canonical-documents-and-qualified-ids",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-read-core-canonical-documents-and-qualified-ids",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Canonical documents and qualified IDs",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-167"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-212"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-264",
+    "specId": "spec-mcp-operations:SCEN-mcp-mutation-testing-gate",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-mutation-testing-gate",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Mutation testing gate eliminates all mutants",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-192"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-230"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-263",
+    "specId": "spec-mcp-operations:SCEN-mcp-hard-retirement-no-shims",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-hard-retirement-no-shims",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Retired tools return protocol not found errors",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-191"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-229"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-262",
+    "specId": "spec-mcp-operations:SCEN-mcp-envelope-and-recovery",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-envelope-and-recovery",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "MCP envelopes and recovery guidance are declared and mirrored",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-187"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-225"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-261",
+    "specId": "spec-mcp-operations:SCEN-mcp-discriminated-variants",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-discriminated-variants",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Discriminated branches reject unexpected parameters",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-188"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-226"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-260",
+    "specId": "spec-mcp-operations:SCEN-mcp-discovery-metadata",
+    "specSlug": "spec-mcp-operations",
+    "localId": "SCEN-mcp-discovery-metadata",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "MCP discovery metadata is complete and bounded",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-186"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-224"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-259",
+    "specId": "spec-mcp-operations:NFR-WRITE-PERFORMANCE-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-WRITE-PERFORMANCE-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Bounded work",
+    "links": []
+  },
+  {
+    "id": "SPEC-258",
+    "specId": "spec-mcp-operations:NFR-SAFETY-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-SAFETY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Fail closed",
+    "links": []
+  },
+  {
+    "id": "SPEC-257",
+    "specId": "spec-mcp-operations:NFR-READ-EDIT-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-READ-EDIT-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Read-modify-write integrity",
+    "links": []
+  },
+  {
+    "id": "SPEC-256",
+    "specId": "spec-mcp-operations:NFR-PRIVACY-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-PRIVACY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Redaction",
+    "links": []
+  },
+  {
+    "id": "SPEC-255",
+    "specId": "spec-mcp-operations:NFR-PORTABILITY-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-PORTABILITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Platform containment",
+    "links": []
+  },
+  {
+    "id": "SPEC-254",
+    "specId": "spec-mcp-operations:NFR-MAINTAINABILITY-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-MAINTAINABILITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "One core",
+    "links": []
+  },
+  {
+    "id": "SPEC-253",
+    "specId": "spec-mcp-operations:NFR-LIMITS-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-LIMITS-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Hard input and query limits",
+    "links": []
+  },
+  {
+    "id": "SPEC-252",
+    "specId": "spec-mcp-operations:NFR-EVIDENCE-USE-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-EVIDENCE-USE-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Actionable diagnostics",
+    "links": []
+  },
+  {
+    "id": "SPEC-251",
+    "specId": "spec-mcp-operations:NFR-EVIDENCE-SIZE-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-EVIDENCE-SIZE-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Artifact and response size",
+    "links": []
+  },
+  {
+    "id": "SPEC-250",
+    "specId": "spec-mcp-operations:NFR-EVIDENCE-SEC-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-EVIDENCE-SEC-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Containment and data minimization",
+    "links": []
+  },
+  {
+    "id": "SPEC-249",
+    "specId": "spec-mcp-operations:NFR-EVIDENCE-REL-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-EVIDENCE-REL-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Determinism and reproducibility",
+    "links": []
+  },
+  {
+    "id": "SPEC-248",
+    "specId": "spec-mcp-operations:NFR-EVIDENCE-PERF-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-EVIDENCE-PERF-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Evaluation latency",
+    "links": []
+  },
+  {
+    "id": "SPEC-247",
+    "specId": "spec-mcp-operations:NFR-EVIDENCE-MEM-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-EVIDENCE-MEM-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Memory bound",
+    "links": []
+  },
+  {
+    "id": "SPEC-246",
+    "specId": "spec-mcp-operations:NFR-DURABILITY-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-DURABILITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Atomic visibility",
+    "links": []
+  },
+  {
+    "id": "SPEC-245",
+    "specId": "spec-mcp-operations:NFR-DETERMINISM-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-DETERMINISM-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Stable proposal identity",
+    "links": []
+  },
+  {
+    "id": "SPEC-244",
+    "specId": "spec-mcp-operations:NFR-CORE-SIZE-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-CORE-SIZE-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Size and memory",
+    "links": []
+  },
+  {
+    "id": "SPEC-243",
+    "specId": "spec-mcp-operations:NFR-CORE-SECURITY-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-CORE-SECURITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Containment and minimization",
+    "links": []
+  },
+  {
+    "id": "SPEC-242",
+    "specId": "spec-mcp-operations:NFR-CORE-RELIABILITY-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-CORE-RELIABILITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Determinism and bounded errors",
+    "links": []
+  },
+  {
+    "id": "SPEC-241",
+    "specId": "spec-mcp-operations:NFR-CORE-PERFORMANCE-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-CORE-PERFORMANCE-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Latency and cancellation",
+    "links": []
+  },
+  {
+    "id": "SPEC-240",
+    "specId": "spec-mcp-operations:NFR-CONCURRENCY-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-CONCURRENCY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Bounded locking",
+    "links": []
+  },
+  {
+    "id": "SPEC-239",
+    "specId": "spec-mcp-operations:NFR-COMPATIBILITY-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "NFR-COMPATIBILITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Byte and EOL conservation",
+    "links": []
+  },
+  {
+    "id": "SPEC-238",
+    "specId": "spec-mcp-operations:FR-9",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-9",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Pure evaluation boundary",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-200"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-333"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-200"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-280"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-237",
+    "specId": "spec-mcp-operations:FR-8",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-8",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Real fixtures and measurable budgets",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-199"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-332"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-199"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-271"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-332"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-236",
+    "specId": "spec-mcp-operations:FR-7",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-7",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Deterministic diagnostics and fingerprint",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-198"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-331"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-198"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-267"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-331"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-235",
+    "specId": "spec-mcp-operations:FR-6",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-6",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Historical eight-name compatibility",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-197"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-330"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-197"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-269"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-330"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-234",
+    "specId": "spec-mcp-operations:FR-5",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-5",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Contained inputs and budgets",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-196"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-329"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-196"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-266"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-329"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-233",
+    "specId": "spec-mcp-operations:FR-4",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-4",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Four bounded core primitives",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-195"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-328"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-195"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-268"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-328"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-232",
+    "specId": "spec-mcp-operations:FR-38",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-38",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Read-for-edit and optional root binding",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-194"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-231",
+    "specId": "spec-mcp-operations:FR-37",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-37",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Unified specification and corpus validation inspection",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-193"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-325"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-193"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-289"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-230",
+    "specId": "spec-mcp-operations:FR-36",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-36",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Deterministic mutation testing gate",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-192"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-324"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-192"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-264"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-229",
+    "specId": "spec-mcp-operations:FR-35",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-35",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Hard tool retirement without backward-compatibility shims",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-191"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-323"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-191"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-263"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-228",
+    "specId": "spec-mcp-operations:FR-34",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-34",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Surface blast limits and fail-closed measurement",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-190"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-322"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-190"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-287"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-227",
+    "specId": "spec-mcp-operations:FR-33",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-33",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Domain type dictionary catalog",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-189"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-321"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-189"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-288"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-226",
+    "specId": "spec-mcp-operations:FR-32",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-32",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Discriminated branch schemas and strict argument validation",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-188"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-320"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-188"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-261"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-225",
+    "specId": "spec-mcp-operations:FR-31",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-31",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Declared result envelope and actionable recovery",
+    "links": [
+      {
+        "type": "covers",
+        "target": "SPEC-262"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-224",
+    "specId": "spec-mcp-operations:FR-30",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-30",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "MCP discovery metadata and handshake",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-186"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-260"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-223",
+    "specId": "spec-mcp-operations:FR-3",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-3",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Typed graph conservation",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-185"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-327"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-185"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-272"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-327"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-222",
+    "specId": "spec-mcp-operations:FR-29",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-29",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Real correctness evidence",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-183"
+      },
+      {
+        "type": "satisfies",
+        "target": "SPEC-184"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-318"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-183"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-184"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-298"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-299"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-221",
+    "specId": "spec-mcp-operations:FR-28",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-28",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Byte conservation and compact redacted outcomes",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-181"
+      },
+      {
+        "type": "satisfies",
+        "target": "SPEC-182"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-317"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-181"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-182"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-291"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-300"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-220",
+    "specId": "spec-mcp-operations:FR-27",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-27",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Atomic one-spec commit and internal rollback",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-179"
+      },
+      {
+        "type": "satisfies",
+        "target": "SPEC-180"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-315"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-179"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-180"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-294"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-303"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-219",
+    "specId": "spec-mcp-operations:FR-26",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-26",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Exact-proposal apply with CAS and revalidation",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-177"
+      },
+      {
+        "type": "satisfies",
+        "target": "SPEC-178"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-314"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-177"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-178"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-290"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-292"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-218",
+    "specId": "spec-mcp-operations:FR-25",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-25",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Containment, anchors, and resulting-spec validation",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-175"
+      },
+      {
+        "type": "satisfies",
+        "target": "SPEC-176"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-313"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-175"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-176"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-293"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-301"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-217",
+    "specId": "spec-mcp-operations:FR-24",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-24",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Pure deterministic proposal",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-173"
+      },
+      {
+        "type": "satisfies",
+        "target": "SPEC-174"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-312"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-173"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-174"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-295"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-297"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-216",
+    "specId": "spec-mcp-operations:FR-23",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-23",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Single-tool public boundary",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-171"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-311"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-171"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-172"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-296"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-302"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-215",
+    "specId": "spec-mcp-operations:FR-22",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-22",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "MCP projection of get_test_result and get_scenario_trace",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-170"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-310"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-170"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-279"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-214",
+    "specId": "spec-mcp-operations:FR-21",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-21",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Release-eligibility contribution",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-169"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-309"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-169"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-282"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-213",
+    "specId": "spec-mcp-operations:FR-20",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-20",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Budgets",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-168"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-309"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-168"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-274"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-212",
+    "specId": "spec-mcp-operations:FR-2",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-2",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Canonical documents and qualified IDs",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-167"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-316"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-167"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-265"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-316"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-211",
+    "specId": "spec-mcp-operations:FR-19",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-19",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Real fixtures per read-core discipline",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-166"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-308"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-166"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-281"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-210",
+    "specId": "spec-mcp-operations:FR-18",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-18",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Anti-false-green invariants",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-165"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-306"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-307"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-165"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-273"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-209",
+    "specId": "spec-mcp-operations:FR-17",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-17",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Internal row accounting",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-164"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-307"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-333"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-164"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-278"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-208",
+    "specId": "spec-mcp-operations:FR-16",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-16",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Waiver honesty",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-163"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-307"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-163"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-286"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-207",
+    "specId": "spec-mcp-operations:FR-15",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-15",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Fail-closed status truth",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-162"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-307"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-162"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-275"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-206",
+    "specId": "spec-mcp-operations:FR-14",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-14",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Freshness and staleness",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-161"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-307"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-161"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-276"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-205",
+    "specId": "spec-mcp-operations:FR-13",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-13",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Full-run scope authority",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-160"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-306"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-160"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-277"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-204",
+    "specId": "spec-mcp-operations:FR-12",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-12",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Scenario result join",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-159"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-307"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-159"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-283"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-203",
+    "specId": "spec-mcp-operations:FR-11",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-11",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Trusted-capture run envelope",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-158"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-306"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-158"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-285"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-202",
+    "specId": "spec-mcp-operations:FR-10",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-10",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Supported execution artifacts",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-157"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-306"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-157"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-284"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-304"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-201",
+    "specId": "spec-mcp-operations:FR-1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "FR-1",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Pure occurrence-first core",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-156"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-305"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-156"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-270"
+      },
+      {
+        "type": "implemented-by",
+        "target": "SPEC-305"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-200",
+    "specId": "spec-mcp-operations:AC-9.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-9.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Pure evaluator has no side effects",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-238"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-280"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-238"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-199",
+    "specId": "spec-mcp-operations:AC-8.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-8.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Real evidence and measurable budgets",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-237"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-271"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-237"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-198",
+    "specId": "spec-mcp-operations:AC-7.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-7.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Deterministic diagnostics and fingerprint",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-236"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-267"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-236"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-197",
+    "specId": "spec-mcp-operations:AC-6.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-6.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Historical eight-name compatibility",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-235"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-269"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-235"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-196",
+    "specId": "spec-mcp-operations:AC-5.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-5.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Contained bounded inputs",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-234"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-266"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-234"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-195",
+    "specId": "spec-mcp-operations:AC-4.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-4.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Four bounded primitives",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-233"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-268"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-233"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-194",
+    "specId": "spec-mcp-operations:AC-38.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-38.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Read-for-edit and optional root binding",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-232"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-193",
+    "specId": "spec-mcp-operations:AC-37.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-37.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Unified specification and corpus validation inspection",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-231"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-289"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-231"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-192",
+    "specId": "spec-mcp-operations:AC-36.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-36.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Deterministic mutation testing gate",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-230"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-264"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-230"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-191",
+    "specId": "spec-mcp-operations:AC-35.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-35.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Hard tool retirement without backward-compatibility shims",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-229"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-263"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-229"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-190",
+    "specId": "spec-mcp-operations:AC-34.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-34.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Surface blast limits and fail-closed measurement",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-228"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-287"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-228"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-189",
+    "specId": "spec-mcp-operations:AC-33.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-33.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Domain type dictionary catalog",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-227"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-288"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-227"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-188",
+    "specId": "spec-mcp-operations:AC-32.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-32.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Discriminated branch schemas and strict argument validation",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-226"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-261"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-226"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-187",
+    "specId": "spec-mcp-operations:AC-31.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-31.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Envelope schema and recovery are machine-actionable",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-262"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-186",
+    "specId": "spec-mcp-operations:AC-30.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-30.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "MCP discovery metadata and handshake",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-224"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-260"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-185",
+    "specId": "spec-mcp-operations:AC-3.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-3.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Typed graph conservation",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-223"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-272"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-223"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-184",
+    "specId": "spec-mcp-operations:AC-29.2",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-29.2",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "AC-29.2",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-222"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-298"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-299"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-222"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-183",
+    "specId": "spec-mcp-operations:AC-29.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-29.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "AC-29.1",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-222"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-298"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-299"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-222"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-182",
+    "specId": "spec-mcp-operations:AC-28.2",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-28.2",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "AC-28.2",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-221"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-291"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-300"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-221"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-181",
+    "specId": "spec-mcp-operations:AC-28.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-28.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "AC-28.1",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-221"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-291"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-300"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-221"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-180",
+    "specId": "spec-mcp-operations:AC-27.2",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-27.2",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "AC-27.2",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-220"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-294"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-303"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-220"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-179",
+    "specId": "spec-mcp-operations:AC-27.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-27.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "AC-27.1",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-220"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-294"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-303"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-220"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-178",
+    "specId": "spec-mcp-operations:AC-26.2",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-26.2",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "AC-26.2",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-219"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-290"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-292"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-219"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-177",
+    "specId": "spec-mcp-operations:AC-26.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-26.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "AC-26.1",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-219"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-290"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-292"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-219"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-176",
+    "specId": "spec-mcp-operations:AC-25.2",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-25.2",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "AC-25.2",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-218"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-293"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-301"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-218"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-175",
+    "specId": "spec-mcp-operations:AC-25.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-25.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "AC-25.1",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-218"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-293"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-301"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-218"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-174",
+    "specId": "spec-mcp-operations:AC-24.2",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-24.2",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "AC-24.2",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-217"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-295"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-297"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-217"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-173",
+    "specId": "spec-mcp-operations:AC-24.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-24.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "AC-24.1",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-217"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-295"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-297"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-217"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-172",
+    "specId": "spec-mcp-operations:AC-23.2",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-23.2",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "AC-23.2",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-296"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-216"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-171",
+    "specId": "spec-mcp-operations:AC-23.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-23.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "AC-23.1",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-216"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-296"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-302"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-216"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-170",
+    "specId": "spec-mcp-operations:AC-22.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-22.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Result returns evidence and trace uses its reference",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-215"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-279"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-215"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-169",
+    "specId": "spec-mcp-operations:AC-21.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-21.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Release uses ordinary fresh full evidence",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-214"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-282"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-214"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-168",
+    "specId": "spec-mcp-operations:AC-20.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-20.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Budgets are enforced",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-213"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-274"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-213"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-167",
+    "specId": "spec-mcp-operations:AC-2.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-2.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Canonical documents and qualified IDs",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-212"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-265"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-212"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-166",
+    "specId": "spec-mcp-operations:AC-19.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-19.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Fixtures are real hashed and reviewed",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-211"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-281"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-211"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-165",
+    "specId": "spec-mcp-operations:AC-18.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-18.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "No verdict without trusted captured bytes",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-210"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-273"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-210"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-164",
+    "specId": "spec-mcp-operations:AC-17.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-17.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "No row or required scenario is silently lost",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-209"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-278"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-209"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-163",
+    "specId": "spec-mcp-operations:AC-16.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-16.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Waived tasks remain open",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-208"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-286"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-208"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-162",
+    "specId": "spec-mcp-operations:AC-15.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-15.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Every required scenario needs fresh passed full evidence",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-207"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-275"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-207"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-161",
+    "specId": "spec-mcp-operations:AC-14.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-14.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Current content bindings determine freshness",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-206"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-276"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-206"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-160",
+    "specId": "spec-mcp-operations:AC-13.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-13.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Only capture-owned full scope is authoritative",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-205"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-277"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-205"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-159",
+    "specId": "spec-mcp-operations:AC-12.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-12.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Only stable identity can join",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-204"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-283"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-204"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-158",
+    "specId": "spec-mcp-operations:AC-11.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-11.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "One run has one capture-owned envelope",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-203"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-285"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-203"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-157",
+    "specId": "spec-mcp-operations:AC-10.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-10.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Closed producer artifact set",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-202"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-284"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-304"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-202"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-156",
+    "specId": "spec-mcp-operations:AC-1.1",
+    "specSlug": "spec-mcp-operations",
+    "localId": "AC-1.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Pure occurrence-first core",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-201"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-270"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-201"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-155",
+    "specId": "spec-mcp-access-gate:TASK-6",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "TASK-6",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Cover all non-MCP specification access paths",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-128"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-129"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-130"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-132"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-133"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-134"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-151"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-153"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-154"
+      },
+      {
+        "type": "constrains",
+        "target": "SPEC-140"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-154",
+    "specId": "spec-mcp-access-gate:TASK-5",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "TASK-5",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Ground the pinned OMP tool-call contract",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-125"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-131"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-132"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-155"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-149"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-152"
+      },
+      {
+        "type": "constrains",
+        "target": "SPEC-140"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-153",
+    "specId": "spec-mcp-access-gate:TASK-4",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "TASK-4",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Capture and verify real policy fixtures",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-127"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-128"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-129"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-130"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-131"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-155"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-152"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-152",
+    "specId": "spec-mcp-access-gate:TASK-3",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "TASK-3",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Register and bundle the policy",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-125"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-130"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-131"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-153"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-154"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-149"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-151"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-151",
+    "specId": "spec-mcp-access-gate:TASK-2",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "TASK-2",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Implement filesystem containment",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-128"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-129"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-152"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-155"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-150",
+    "specId": "spec-mcp-access-gate:TASK-10",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "TASK-10",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Implement direct specification read redirect",
+    "links": []
+  },
+  {
+    "id": "SPEC-149",
+    "specId": "spec-mcp-access-gate:TASK-1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "TASK-1",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Implement exact allowlist and decisions",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-127"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-129"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-130"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-152"
+      },
+      {
+        "type": "depends-on",
+        "target": "SPEC-154"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-148",
+    "specId": "spec-mcp-access-gate:SCEN-single-factory-installed-policy",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "SCEN-single-factory-installed-policy",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Installed artifact runs the policy through one factory",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-121"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-131"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-147",
+    "specId": "spec-mcp-access-gate:SCEN-mcp-access-gate-non-mcp-spec-access",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "SCEN-mcp-access-gate-non-mcp-spec-access",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Non-MCP specification access is blocked",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-122"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-132"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-146",
+    "specId": "spec-mcp-access-gate:SCEN-filesystem-containment",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "SCEN-filesystem-containment",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Canonical containment handles path and filesystem boundaries",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-118"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-128"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-145",
+    "specId": "spec-mcp-access-gate:SCEN-exact-authoring-allowlist",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "SCEN-exact-authoring-allowlist",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Only exact authoring names bypass path denial",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-117"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-127"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-144",
+    "specId": "spec-mcp-access-gate:SCEN-direct-specification-read-redirect",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "SCEN-direct-specification-read-redirect",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Direct specification reads redirect to MCP",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-116"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-126"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-143",
+    "specId": "spec-mcp-access-gate:SCEN-current-tool-call-registration",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "SCEN-current-tool-call-registration",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Existing extension registers only the current tool call handler",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-115"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-125"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-142",
+    "specId": "spec-mcp-access-gate:SCEN-closed-path-policy",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "SCEN-closed-path-policy",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Every direct mutator has one closed decision",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-119"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-129"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-141",
+    "specId": "spec-mcp-access-gate:SCEN-bounded-stateless-block",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "SCEN-bounded-stateless-block",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Block output is bounded redacted actionable and stateless",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-120"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-130"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-140",
+    "specId": "spec-mcp-access-gate:NFR-USE-2",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "NFR-USE-2",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Cross-surface agent denial",
+    "links": [
+      {
+        "type": "constrains",
+        "target": "SPEC-154"
+      },
+      {
+        "type": "constrains",
+        "target": "SPEC-155"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-139",
+    "specId": "spec-mcp-access-gate:NFR-USE-1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "NFR-USE-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Actionable bounded reason",
+    "links": []
+  },
+  {
+    "id": "SPEC-138",
+    "specId": "spec-mcp-access-gate:NFR-SEC-1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "NFR-SEC-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Containment and redaction",
+    "links": []
+  },
+  {
+    "id": "SPEC-137",
+    "specId": "spec-mcp-access-gate:NFR-REL-1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "NFR-REL-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Deterministic closed results",
+    "links": []
+  },
+  {
+    "id": "SPEC-136",
+    "specId": "spec-mcp-access-gate:NFR-READ-1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "NFR-READ-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Redirect safety and bounded disclosure",
+    "links": []
+  },
+  {
+    "id": "SPEC-135",
+    "specId": "spec-mcp-access-gate:NFR-PERF-1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "NFR-PERF-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Handler deadline",
+    "links": []
+  },
+  {
+    "id": "SPEC-134",
+    "specId": "spec-mcp-access-gate:FR-9",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "FR-9",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Execution-payload specification guard with stated limits",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-124"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-155"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-124"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-133",
+    "specId": "spec-mcp-access-gate:FR-8",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "FR-8",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Windows read-selector support",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-123"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-155"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-123"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-132",
+    "specId": "spec-mcp-access-gate:FR-7",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "FR-7",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Non-MCP read and execution denial",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-122"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-154"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-155"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-122"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-147"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-131",
+    "specId": "spec-mcp-access-gate:FR-6",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "FR-6",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Single-factory installed delivery",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-121"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-152"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-153"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-154"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-121"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-148"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-130",
+    "specId": "spec-mcp-access-gate:FR-5",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "FR-5",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Bounded visible and stateless results",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-120"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-149"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-152"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-153"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-155"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-120"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-141"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-129",
+    "specId": "spec-mcp-access-gate:FR-4",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "FR-4",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Closed path-policy decision",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-119"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-149"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-151"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-153"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-155"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-119"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-142"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-128",
+    "specId": "spec-mcp-access-gate:FR-3",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "FR-3",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Filesystem-backed containment",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-118"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-151"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-153"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-155"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-118"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-146"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-127",
+    "specId": "spec-mcp-access-gate:FR-2",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "FR-2",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Exact authoring allowlist",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-117"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-149"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-153"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-117"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-145"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-126",
+    "specId": "spec-mcp-access-gate:FR-10",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "FR-10",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Direct specification reads redirect to MCP",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-116"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-144"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-125",
+    "specId": "spec-mcp-access-gate:FR-1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "FR-1",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Current tool call registration",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-115"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-152"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-154"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-115"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-143"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-124",
+    "specId": "spec-mcp-access-gate:AC-9.1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "AC-9.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Execution guard limits",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-134"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-134"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-123",
+    "specId": "spec-mcp-access-gate:AC-8.1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "AC-8.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Windows read selectors",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-133"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-133"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-122",
+    "specId": "spec-mcp-access-gate:AC-7.1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "AC-7.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Non-MCP specification access is blocked",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-132"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-147"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-132"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-121",
+    "specId": "spec-mcp-access-gate:AC-6.1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "AC-6.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Installed artifact uses one factory",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-131"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-148"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-131"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-120",
+    "specId": "spec-mcp-access-gate:AC-5.1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "AC-5.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Blocks are bounded visible and stateless",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-130"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-141"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-130"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-119",
+    "specId": "spec-mcp-access-gate:AC-4.1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "AC-4.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Path-policy matrix is closed",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-129"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-142"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-129"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-118",
+    "specId": "spec-mcp-access-gate:AC-3.1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "AC-3.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Containment covers path and filesystem boundaries",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-128"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-146"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-128"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-117",
+    "specId": "spec-mcp-access-gate:AC-2.1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "AC-2.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Only the exact authoring allowlist bypasses path denial",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-127"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-145"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-127"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-116",
+    "specId": "spec-mcp-access-gate:AC-10.1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "AC-10.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Direct specification reads redirect",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-126"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-144"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-115",
+    "specId": "spec-mcp-access-gate:AC-1.1",
+    "specSlug": "spec-mcp-access-gate",
+    "localId": "AC-1.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Only tool call is registered",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-125"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-143"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-125"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-114",
+    "specId": "plugin-distribution:TASK-9",
+    "specSlug": "plugin-distribution",
+    "localId": "TASK-9",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Preserve one product identity",
+    "links": []
+  },
+  {
+    "id": "SPEC-113",
+    "specId": "plugin-distribution:TASK-8",
+    "specSlug": "plugin-distribution",
+    "localId": "TASK-8",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Keep current release status accurate",
+    "links": []
+  },
+  {
+    "id": "SPEC-112",
+    "specId": "plugin-distribution:TASK-7",
+    "specSlug": "plugin-distribution",
+    "localId": "TASK-7",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Implement the next practical release path",
+    "links": []
+  },
+  {
+    "id": "SPEC-111",
+    "specId": "plugin-distribution:TASK-6",
+    "specSlug": "plugin-distribution",
+    "localId": "TASK-6",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Preserve shipped release evidence",
+    "links": []
+  },
+  {
+    "id": "SPEC-110",
+    "specId": "plugin-distribution:TASK-5",
+    "specSlug": "plugin-distribution",
+    "localId": "TASK-5",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Gate public safety",
+    "links": []
+  },
+  {
+    "id": "SPEC-109",
+    "specId": "plugin-distribution:TASK-4",
+    "specSlug": "plugin-distribution",
+    "localId": "TASK-4",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Prove recovery lifecycle",
+    "links": []
+  },
+  {
+    "id": "SPEC-108",
+    "specId": "plugin-distribution:TASK-3",
+    "specSlug": "plugin-distribution",
+    "localId": "TASK-3",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Prove installed fresh invocation",
+    "links": []
+  },
+  {
+    "id": "SPEC-107",
+    "specId": "plugin-distribution:TASK-26",
+    "specSlug": "plugin-distribution",
+    "localId": "TASK-26",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Verify consolidated 10-tool discovery and release evidence — id: TASK-26",
+    "links": [
+      {
+        "type": "implements",
+        "target": "SPEC-49"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-106",
+    "specId": "plugin-distribution:TASK-2",
+    "specSlug": "plugin-distribution",
+    "localId": "TASK-2",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Build and run dependency-absent bytes",
+    "links": []
+  },
+  {
+    "id": "SPEC-105",
+    "specId": "plugin-distribution:TASK-12",
+    "specSlug": "plugin-distribution",
+    "localId": "TASK-12",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Keep the roadmap plain",
+    "links": []
+  },
+  {
+    "id": "SPEC-104",
+    "specId": "plugin-distribution:TASK-11",
+    "specSlug": "plugin-distribution",
+    "localId": "TASK-11",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Submitted",
+    "title": "Deliver safe spec authoring",
+    "links": []
+  },
+  {
+    "id": "SPEC-103",
+    "specId": "plugin-distribution:TASK-10",
+    "specSlug": "plugin-distribution",
+    "localId": "TASK-10",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Enforce proof-before-shipped wording",
+    "links": []
+  },
+  {
+    "id": "SPEC-102",
+    "specId": "plugin-distribution:TASK-1",
+    "specSlug": "plugin-distribution",
+    "localId": "TASK-1",
+    "kind": "TASK",
+    "type": "Task",
+    "state": "Open",
+    "title": "Validate the selected target",
+    "links": []
+  },
+  {
+    "id": "SPEC-101",
+    "specId": "plugin-distribution:SCEN-write-compact-distribution-status",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-write-compact-distribution-status",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Write a compact distribution status",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-5"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-33"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-100",
+    "specId": "plugin-distribution:SCEN-use-one-practical-release-path",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-use-one-practical-release-path",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Use one practical release path",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-7"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-35"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-99",
+    "specId": "plugin-distribution:SCEN-upgrade-from-real-public-release",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-upgrade-from-real-public-release",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Upgrade from a real public predecessor",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-28"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-54"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-98",
+    "specId": "plugin-distribution:SCEN-select-contained-target-plugin",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-select-contained-target-plugin",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Select the contained target plugin without policing unrelated entries",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-3"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-31"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-97",
+    "specId": "plugin-distribution:SCEN-run-without-ambient-dependencies",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-run-without-ambient-dependencies",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Run without ambient dependencies",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-26"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-52"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-96",
+    "specId": "plugin-distribution:SCEN-require-fresh-session-activation",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-require-fresh-session-activation",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Reload does not replace fresh activation proof",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-25"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-51"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-95",
+    "specId": "plugin-distribution:SCEN-recover-with-exact-artifacts",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-recover-with-exact-artifacts",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Recover with uninstall reinstall and rollback",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-29"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-55"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-94",
+    "specId": "plugin-distribution:SCEN-publish-same-digest-with-final-attestation",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-publish-same-digest-with-final-attestation",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Publish the same digest with one final attestation",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-4"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-32"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-93",
+    "specId": "plugin-distribution:SCEN-product-unexecuted-text-is-not-proof",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-product-unexecuted-text-is-not-proof",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Unexecuted text does not prove shipment",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-10"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-11"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-38"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-92",
+    "specId": "plugin-distribution:SCEN-product-roadmap-has-three-buckets",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-product-roadmap-has-three-buckets",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Roadmap uses only three public buckets",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-14"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-40"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-91",
+    "specId": "plugin-distribution:SCEN-product-one-product-identity",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-product-one-product-identity",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "One product identity remains visible",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-9"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-37"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-90",
+    "specId": "plugin-distribution:SCEN-product-missing-proof-is-not-shipped",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-product-missing-proof-is-not-shipped",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Missing current proof prevents shipment",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-10"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-11"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-38"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-89",
+    "specId": "plugin-distribution:SCEN-product-direct-spec-write-is-refused",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-product-direct-spec-write-is-refused",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Non-allowlisted direct spec writes are refused",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-12"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-13"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-39"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-88",
+    "specId": "plugin-distribution:SCEN-product-current-release-proof",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-product-current-release-proof",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Current release proof supports the single shipped row",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-8"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-36"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-87",
+    "specId": "plugin-distribution:SCEN-product-authoring-tools-are-bounded",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-product-authoring-tools-are-bounded",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Public authoring has two mutation tools",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-12"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-13"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-39"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-86",
+    "specId": "plugin-distribution:SCEN-mri-terminal-json-rpc",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-mri-terminal-json-rpc",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Invalid JSON-RPC requests have one terminal response",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-17"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-43"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-85",
+    "specId": "plugin-distribution:SCEN-mri-symlinked-evidence-refusal",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-mri-symlinked-evidence-refusal",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Linked evidence parents cannot escape containment",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-20"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-46"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-84",
+    "specId": "plugin-distribution:SCEN-mri-response-provenance",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-mri-response-provenance",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Every installed MCP result identifies its server and root",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-22"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-48"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-83",
+    "specId": "plugin-distribution:SCEN-mri-public-eligibility-separation",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-mri-public-eligibility-separation",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Meta-only producer output cannot become trusted evidence",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-19"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-45"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-82",
+    "specId": "plugin-distribution:SCEN-mri-public-communication-proof",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-mri-public-communication-proof",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Public communication reflects immutable v0.3.2 evidence",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-21"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-47"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-81",
+    "specId": "plugin-distribution:SCEN-mri-malformed-json-recovery",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-mri-malformed-json-recovery",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Malformed JSON has one parse error and recovery",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-17"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-43"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-80",
+    "specId": "plugin-distribution:SCEN-mri-extension-root-consistency",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-mri-extension-root-consistency",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "OMP extension inventory and query tools share one root",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-22"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-48"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-79",
+    "specId": "plugin-distribution:SCEN-mri-executable-launcher-archive",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-mri-executable-launcher-archive",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Candidate archive preserves the executable launcher",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-20"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-46"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-78",
+    "specId": "plugin-distribution:SCEN-mri-cross-platform-archive-modes",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-mri-cross-platform-archive-modes",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Canonicalize archive modes across platforms",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-20"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-46"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-77",
+    "specId": "plugin-distribution:SCEN-mri-consolidated-10-tools",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-mri-consolidated-10-tools",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Consolidated 10-tool surface is discovered and verified",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-23"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-49"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-76",
+    "specId": "plugin-distribution:SCEN-mri-artifact-mismatch-refusal",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-mri-artifact-mismatch-refusal",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Publication refuses different archive bytes",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-20"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-46"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-75",
+    "specId": "plugin-distribution:SCEN-mri-all-tool-parity",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-mri-all-tool-parity",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Every historical packaged MCP handler executes",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-18"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-44"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-74",
+    "specId": "plugin-distribution:SCEN-mri-active-project-root",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-mri-active-project-root",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Installed launcher uses the active project root",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-15"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-41"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-73",
+    "specId": "plugin-distribution:SCEN-invoke-installed-candidate",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-invoke-installed-candidate",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Invoke the installed candidate through the supported host",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-24"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-50"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-72",
+    "specId": "plugin-distribution:SCEN-contain-installed-invocation",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-contain-installed-invocation",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Contain the installed invocation",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-27"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-53"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-71",
+    "specId": "plugin-distribution:SCEN-build-deterministic-child-payload",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-build-deterministic-child-payload",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Build deterministic child bytes",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-16"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-42"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-70",
+    "specId": "plugin-distribution:SCEN-block-unsafe-public-artifact",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-block-unsafe-public-artifact",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Block an unsafe public artifact",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-30"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-56"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-69",
+    "specId": "plugin-distribution:SCEN-block-on-named-check-failure",
+    "specSlug": "plugin-distribution",
+    "localId": "SCEN-block-on-named-check-failure",
+    "kind": "SCENARIO",
+    "type": "Scenario",
+    "state": "Submitted",
+    "title": "Block on a named check failure",
+    "links": [
+      {
+        "type": "verifies",
+        "target": "SPEC-6"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-34"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-68",
+    "specId": "plugin-distribution:NFR-USABILITY-1",
+    "specSlug": "plugin-distribution",
+    "localId": "NFR-USABILITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Actionable diagnostics",
+    "links": []
+  },
+  {
+    "id": "SPEC-67",
+    "specId": "plugin-distribution:NFR-SUPPLYCHAIN-1",
+    "specSlug": "plugin-distribution",
+    "localId": "NFR-SUPPLYCHAIN-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Reproducible exact bytes",
+    "links": []
+  },
+  {
+    "id": "SPEC-66",
+    "specId": "plugin-distribution:NFR-SECURITY-1",
+    "specSlug": "plugin-distribution",
+    "localId": "NFR-SECURITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Least privilege",
+    "links": []
+  },
+  {
+    "id": "SPEC-65",
+    "specId": "plugin-distribution:NFR-RELIABILITY-1",
+    "specSlug": "plugin-distribution",
+    "localId": "NFR-RELIABILITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Reversible lifecycle",
+    "links": []
+  },
+  {
+    "id": "SPEC-64",
+    "specId": "plugin-distribution:NFR-PRODUCT-USABILITY-1",
+    "specSlug": "plugin-distribution",
+    "localId": "NFR-PRODUCT-USABILITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Manager-readable roadmap",
+    "links": []
+  },
+  {
+    "id": "SPEC-63",
+    "specId": "plugin-distribution:NFR-PRODUCT-SECURITY-1",
+    "specSlug": "plugin-distribution",
+    "localId": "NFR-PRODUCT-SECURITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Contained writes",
+    "links": []
+  },
+  {
+    "id": "SPEC-62",
+    "specId": "plugin-distribution:NFR-PRODUCT-RELIABILITY-1",
+    "specSlug": "plugin-distribution",
+    "localId": "NFR-PRODUCT-RELIABILITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Conservative status",
+    "links": []
+  },
+  {
+    "id": "SPEC-61",
+    "specId": "plugin-distribution:NFR-PRODUCT-PROVENANCE-1",
+    "specSlug": "plugin-distribution",
+    "localId": "NFR-PRODUCT-PROVENANCE-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Release proof provenance",
+    "links": []
+  },
+  {
+    "id": "SPEC-60",
+    "specId": "plugin-distribution:NFR-PRODUCT-MAINTAINABILITY-1",
+    "specSlug": "plugin-distribution",
+    "localId": "NFR-PRODUCT-MAINTAINABILITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Single ownership boundary",
+    "links": []
+  },
+  {
+    "id": "SPEC-59",
+    "specId": "plugin-distribution:NFR-PORTABILITY-1",
+    "specSlug": "plugin-distribution",
+    "localId": "NFR-PORTABILITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Installed portability",
+    "links": []
+  },
+  {
+    "id": "SPEC-58",
+    "specId": "plugin-distribution:NFR-PERFORMANCE-1",
+    "specSlug": "plugin-distribution",
+    "localId": "NFR-PERFORMANCE-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Proportional release checks",
+    "links": []
+  },
+  {
+    "id": "SPEC-57",
+    "specId": "plugin-distribution:NFR-MAINTAINABILITY-1",
+    "specSlug": "plugin-distribution",
+    "localId": "NFR-MAINTAINABILITY-1",
+    "kind": "NFR",
+    "type": "Constraint",
+    "state": "Submitted",
+    "title": "Owner boundaries",
+    "links": []
+  },
+  {
+    "id": "SPEC-56",
+    "specId": "plugin-distribution:FR-9",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-9",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Public-safety gates",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-30"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-30"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-70"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-55",
+    "specId": "plugin-distribution:FR-8",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-8",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Uninstall, reinstall, and rollback",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-29"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-29"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-95"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-54",
+    "specId": "plugin-distribution:FR-7",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-7",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Version consistency and upgrade",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-28"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-28"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-99"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-53",
+    "specId": "plugin-distribution:FR-6",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-6",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Installed containment and read-only smoke",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-27"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-27"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-72"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-52",
+    "specId": "plugin-distribution:FR-5",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-5",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Dependency-absent execution",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-26"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-26"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-97"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-51",
+    "specId": "plugin-distribution:FR-4",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-4",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Fresh-session activation",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-25"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-25"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-96"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-50",
+    "specId": "plugin-distribution:FR-3",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-3",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Installed canonical invocation",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-24"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-24"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-73"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-49",
+    "specId": "plugin-distribution:FR-26",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-26",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Consolidated 10-tool MCP discovery and release evidence",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-23"
+      },
+      {
+        "type": "implements",
+        "target": "SPEC-107"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-23"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-77"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-48",
+    "specId": "plugin-distribution:FR-25",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-25",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Response source identity and root consistency",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-22"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-22"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-80"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-84"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-47",
+    "specId": "plugin-distribution:FR-24",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-24",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Public guidance and immutable v0.3.2 evidence",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-21"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-21"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-82"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-46",
+    "specId": "plugin-distribution:FR-23",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-23",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Contained deterministic candidate and same-byte publication",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-20"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-20"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-76"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-78"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-79"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-85"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-45",
+    "specId": "plugin-distribution:FR-22",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-22",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "One real candidate run",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-19"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-19"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-83"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-44",
+    "specId": "plugin-distribution:FR-21",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-21",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Historical eight-tool installed surface",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-18"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-18"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-75"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-43",
+    "specId": "plugin-distribution:FR-20",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-20",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Terminal protocol errors and recovery",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-17"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-17"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-81"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-86"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-42",
+    "specId": "plugin-distribution:FR-2",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-2",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Deterministic child payload",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-16"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-16"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-71"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-41",
+    "specId": "plugin-distribution:FR-19",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-19",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Active-project installed behavior",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-15"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-15"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-74"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-40",
+    "specId": "plugin-distribution:FR-18",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-18",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Plain later outcomes",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-14"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-92"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-39",
+    "specId": "plugin-distribution:FR-17",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-17",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Next safe authoring outcome",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-12"
+      },
+      {
+        "type": "satisfies",
+        "target": "SPEC-13"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-87"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-89"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-38",
+    "specId": "plugin-distribution:FR-16",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-16",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Proof before shipped",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-10"
+      },
+      {
+        "type": "satisfies",
+        "target": "SPEC-11"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-90"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-93"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-37",
+    "specId": "plugin-distribution:FR-15",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-15",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "One-product identity",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-9"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-91"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-36",
+    "specId": "plugin-distribution:FR-14",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-14",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Current shipped baseline",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-8"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-88"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-35",
+    "specId": "plugin-distribution:FR-13",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-13",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Practical distribution release path",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-7"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-7"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-100"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-34",
+    "specId": "plugin-distribution:FR-12",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-12",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Compact release decision",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-6"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-6"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-69"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-33",
+    "specId": "plugin-distribution:FR-11",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-11",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Distribution-owned release status",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-5"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-5"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-101"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-32",
+    "specId": "plugin-distribution:FR-10",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-10",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Build once, publish the same digest, attest once",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-4"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-4"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-94"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-31",
+    "specId": "plugin-distribution:FR-1",
+    "specSlug": "plugin-distribution",
+    "localId": "FR-1",
+    "kind": "FR",
+    "type": "Feature",
+    "state": "Submitted",
+    "title": "Target plugin identity and containment",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-3"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-3"
+      },
+      {
+        "type": "covers",
+        "target": "SPEC-98"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-30",
+    "specId": "plugin-distribution:AC-9.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-9.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Public-safety gates",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-56"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-70"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-56"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-29",
+    "specId": "plugin-distribution:AC-8.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-8.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Uninstall, reinstall, and rollback",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-55"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-95"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-55"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-28",
+    "specId": "plugin-distribution:AC-7.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-7.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Version consistency and upgrade",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-54"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-99"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-54"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-27",
+    "specId": "plugin-distribution:AC-6.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-6.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Installed containment and read-only smoke",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-53"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-72"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-53"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-26",
+    "specId": "plugin-distribution:AC-5.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-5.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Dependency-absent execution",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-52"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-97"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-52"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-25",
+    "specId": "plugin-distribution:AC-4.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-4.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Fresh-session activation",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-51"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-96"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-51"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-24",
+    "specId": "plugin-distribution:AC-3.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-3.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Installed canonical invocation",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-50"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-73"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-50"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-23",
+    "specId": "plugin-distribution:AC-26.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-26.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Consolidated 10-tool MCP discovery and release evidence",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-49"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-77"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-49"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-22",
+    "specId": "plugin-distribution:AC-25.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-25.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Response source identity and root consistency",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-48"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-80"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-84"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-48"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-21",
+    "specId": "plugin-distribution:AC-24.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-24.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Public history remains honest",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-47"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-82"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-47"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-20",
+    "specId": "plugin-distribution:AC-23.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-23.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Publish only the attested candidate bytes",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-46"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-76"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-78"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-79"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-85"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-46"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-19",
+    "specId": "plugin-distribution:AC-22.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-22.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Unfiltered run and observed lifecycle",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-45"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-83"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-45"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-18",
+    "specId": "plugin-distribution:AC-21.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-21.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Eight installed handlers and zero writes",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-44"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-75"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-44"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-17",
+    "specId": "plugin-distribution:AC-20.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-20.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "One error and process recovery",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-43"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-81"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-86"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-43"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-16",
+    "specId": "plugin-distribution:AC-2.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-2.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Deterministic child payload",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-42"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-71"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-42"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-15",
+    "specId": "plugin-distribution:AC-19.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-19.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Active project and contained override",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-41"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-74"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-41"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-14",
+    "specId": "plugin-distribution:AC-18.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-18.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Three-bucket roadmap",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-40"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-92"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-13",
+    "specId": "plugin-distribution:AC-17.2",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-17.2",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Direct spec write policy",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-39"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-87"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-89"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-12",
+    "specId": "plugin-distribution:AC-17.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-17.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Bounded public mutation surface",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-39"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-87"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-89"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-11",
+    "specId": "plugin-distribution:AC-16.2",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-16.2",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Unexecuted text is not proof",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-38"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-90"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-93"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-10",
+    "specId": "plugin-distribution:AC-16.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-16.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Missing proof is not shipped",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-38"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-90"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-93"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-9",
+    "specId": "plugin-distribution:AC-15.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-15.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Single product identity",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-37"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-91"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-8",
+    "specId": "plugin-distribution:AC-14.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-14.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Current release proof",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-36"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-88"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-7",
+    "specId": "plugin-distribution:AC-13.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-13.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Practical distribution release path",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-35"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-100"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-35"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-6",
+    "specId": "plugin-distribution:AC-12.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-12.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Compact release decision",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-34"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-69"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-34"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-5",
+    "specId": "plugin-distribution:AC-11.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-11.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Distribution-owned status record",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-33"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-101"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-33"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-4",
+    "specId": "plugin-distribution:AC-10.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-10.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Build once, publish, and attest",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-32"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-94"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-32"
+      }
+    ]
+  },
+  {
+    "id": "SPEC-3",
+    "specId": "plugin-distribution:AC-1.1",
+    "specSlug": "plugin-distribution",
+    "localId": "AC-1.1",
+    "kind": "AC",
+    "type": "Criterion",
+    "state": "Submitted",
+    "title": "Target identity and containment",
+    "links": [
+      {
+        "type": "satisfies",
+        "target": "SPEC-31"
+      },
+      {
+        "type": "verifies",
+        "target": "SPEC-98"
+      },
+      {
+        "type": "satisfied-by",
+        "target": "SPEC-31"
+      }
+    ]
+  }
+]
