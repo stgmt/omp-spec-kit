@@ -59,7 +59,7 @@
   }
 
   function issueUrl(idReadable) {
-    return location.origin + '/issue/' + encodeURIComponent(idReadable);
+    return '/issue/' + encodeURIComponent(idReadable);
   }
 
   async function resolveIssueId(host) {

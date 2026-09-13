@@ -1367,7 +1367,7 @@
         : 'Issue: not mapped yet (committed source snapshot)';
       const openLink = document.getElementById('v1-d-open-link');
       if (node.trackerId) {
-        openLink.href = `${location.origin}/issue/${encodeURIComponent(node.trackerId)}`;
+        openLink.href = `/issue/${encodeURIComponent(node.trackerId)}`;
         openLink.removeAttribute('aria-disabled');
         openLink.style.pointerEvents = '';
         openLink.style.opacity = '';
@@ -1675,7 +1675,7 @@
         <h3 style="font-size:14px; font-weight:600; margin-bottom:8px;">${escapeHtml(node.title)}</h3>
         <div style="font-size:11px; color:var(--text-secondary); margin-bottom:12px;">${escapeHtml(node.specId)}</div>
         ${node.trackerId
-          ? `<a href="${location.origin}/issue/${encodeURIComponent(node.trackerId)}" target="_blank" style="font-size:11px; color:var(--border-accent); text-decoration:none; font-weight:600">Открыть в YouTrack (${escapeHtml(node.trackerId)}) ↗</a>`
+          ? `<a href="/issue/${encodeURIComponent(node.trackerId)}" target="_blank" style="font-size:11px; color:var(--border-accent); text-decoration:none; font-weight:600">Открыть в YouTrack (${escapeHtml(node.trackerId)}) ↗</a>`
           : '<span style="font-size:11px; color:var(--text-muted)">Карточка еще не сопоставлена с YouTrack</span>'}
         }
       `;
