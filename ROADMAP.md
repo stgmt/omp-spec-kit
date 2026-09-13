@@ -142,12 +142,12 @@ Grounding: `.specs/roadmap-roadmaps/` — meta-roadmap for the roadmap feature i
 
 Key changes:
 - **ROADMAP entity kind** added to kernel ENTITY_TYPE_DESCRIPTORS; roadmap specs use slug prefix `roadmap-`.
-- **Lightweight template**: README.md (profile), FR.md (implementation phases), TASKS.md (trace links), ACCEPTANCE_CRITERIA.md, `<slug>.feature`.
+- **Lightweight template**: README.md (profile), ROADMAP.md (authored + generated view), FR.md (implementation phases), TASKS.md (trace links), ACCEPTANCE_CRITERIA.md, `<slug>.feature`.
 - **Cross-spec tracing**: roadmap TASKs `Implements:` column references feature spec FRs/ACs; graph resolves IMPLEMENTS edges across specs.
 - **Lifecycle states**: roadmap specs declare `draft | active | completed | superseded` in README profile; product ROADMAP.md aggregates active roadmaps.
 - **Board visualization**: YouTrack spec board filterable by ROADMAP kind; cross-spec edges visible.
 
-Proof: `spec_catalog(view: "types")` returns ROADMAP; `roadmap-roadmaps` spec is valid with 4 FRs, 4 TASKs, 4 ACs, 4 scenarios, and 8 IMPLEMENTS edges to its own FRs (dogfood). Existing specs unchanged.
+Proof: `spec_catalog(view: "types")` returns ROADMAP; `roadmap-roadmaps` spec is valid, and its TASKs resolve IMPLEMENTS edges both to its own FRs and to feature-spec FRs (dogfood). The spec now also covers the canonical ROADMAP.md document with deterministic generated-region assembly (planned).
 
 ---
 
