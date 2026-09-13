@@ -60,11 +60,12 @@ Feature: Centralized spec registry service
     When the operator clones the specs repo
     Then every owner/project/.specs tree validates offline with the kernel rules
 
-  @id:SCEN-pin-verification
-  Scenario: Spec pin detects divergence
-    Given a consumer repo pins spec "alpha" at version 1.4.0 with digest D
-    When the ledger record for alpha@1.4.0 has a different digest
-    Then `omp spec verify` fails closed naming "alpha"
+  @id:SCEN-versioned-read-integrity
+  Scenario: Versioned read resolves through the ledger
+    Given spec "alpha" is published at version 1.4.0 with ledger digest D
+    When a read requests alpha at version "1.4.0"
+    Then the returned content matches digest D
+    And a version unknown to the ledger fails closed
 
   @id:SCEN-drift-report
   Scenario: Break-glass push is visible

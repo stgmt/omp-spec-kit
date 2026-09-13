@@ -34,9 +34,9 @@ Consumers never receive git credentials or filesystem access — the envelope is
 
 The service, its worktree volume, and its metadata store (SQLite file volume) deploy as one docker-compose stack. A fresh `docker compose up` against configured project repos yields a working registry.
 
-## R-9 — Spec↔code linkage
+## R-9 — Spec↔code linkage via service state
 
-Because specs no longer travel in code branches, a managed repository records which spec versions its code implements via a committed pin file (`spec-refs.json`). The service maintains `published` records (slug → version → digest → commit) so pins resolve to immutable content.
+Because specs no longer travel in code branches, "which spec version does this code implement" is answered by service state, not a committed file: the publish ledger (`slug → version → digest → commit`) plus the registry index make the relationship a queryable fact (MCP/`/rpc` + YouTrack view). A consumer-side pin file is deliberately absent in v1 — the only read path is the service, so a local pin would have nothing to resolve against; it returns later as an export artifact if external consumers appear (backlog).
 
 ## R-10 — Availability model
 

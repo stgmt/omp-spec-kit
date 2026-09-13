@@ -49,17 +49,12 @@ Status: DRAFT
 - **Done When:** human can read spec and apply a proposal from the YT app; user identity lands in `Spec-Author:`; a "connect agent" action in the app calls the onboarding API and returns a ready `.mcp.json` token snippet (no manual token issuing anywhere).
 - **Requirements:** R-6, FR-13, R-7
 
-## Phase 3 — Publish, pins, deploy
+## Phase 3 — Publish, deploy
 
 ## TASK-9 — Publish pipeline: pack on ACTIVE transition → ledger → release asset + attestation
 - **Status:** todo
 - **Done When:** status flip to ACTIVE produces attested pack; version/digest rules enforced.
 - **Requirements:** R-9, FR-11
-
-## TASK-10 — Consumer commands: `omp spec verify` / `outdated` against `spec-refs.json`
-- **Status:** todo
-- **Done When:** pin digest mismatch fails closed; outdated lists pins behind latest.
-- **Requirements:** R-9, FR-12
 
 ## TASK-11 — docker-compose: service + volumes + optional youtrack-sync + proxy; documented env
 - **Status:** todo
@@ -85,10 +80,15 @@ Status: DRAFT
 - **Done When:** corpus imported under `stgmt/omp-spec-kit/.specs/` with full history (source: the frozen `specs` branch on omp-spec-kit — already a filter-branch extraction of `.specs/**`); this repo's code branches stop carrying `.specs/`; its boundary CI check is enabled; repo tooling (corpus checks, dogfood, kernel scripts) resolves the corpus from a specs-repo clone (resolver salvaged from closed PR #39: `scripts/specs-root.mjs`).
 - **Requirements:** R-1, FR-2
 
+## TASK-15 — Consumer pin file + `omp spec verify`/`outdated`/`install` (LATER — only if external consumers appear)
+- **Status:** deferred — dropped from v1: with the service as the only read path, a committed `spec-refs.json` pin has nothing to resolve against offline and duplicates ledger knowledge online; it returns as an export artifact when consumers exist outside the stack.
+- **Done When:** pin file schema + verify/outdated/install commands land against the ledger.
+- **Requirements:** R-9, FR-12
+
 ## Backlog — recorded risks (documented, no work scheduled)
 
 - **RISK-1 — SPOF on reads and writes.** Consumers have no repo access by design, so service outage = total outage for them. Operator mitigations exist (`git clone -b specs` fallback, break-glass push + drift report, AC-10) but no HA planned.
-- **RISK-2 — Spec↔code decoupling.** Specs and code never land in one PR anymore; linkage is `spec-refs.json` discipline. If teams stop pinning, "which spec does this code implement" rots — accepted, monitored by `spec outdated`.
+- **RISK-2 — Spec↔code decoupling.** Specs and code never land in one PR anymore; linkage lives in the ledger + registry view (which spec a project touched, which version is published). There is no committed pin keeping the two in lockstep — drift between claimed and actual implementation is invisible until queried; accepted for v1, revisitable via TASK-15 if consumers need pins.
 - **RISK-3 — Cross-project spec references.** Deferred entirely; the kernel has no cross-mount edge model. If needed later, likely via ledger entries (`project/slug@version`), not live graph edges.
 - **RISK-4 — Specs repo is one blast radius.** All projects share one repo: a bad global state (history rewrite, repo corruption) hits every tenant. Mitigations: git integrity + journal, operator-side mirror/backup of the specs repo. Per-user branches were considered and rejected (index aggregation).
 - **RISK-5 — Claim is advisory in v1.** Non-holder writes are possible with `force:` (logged). Hard denial waits on full auth (TASK-12); until then claims signal intent, they don't enforce it.

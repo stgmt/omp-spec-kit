@@ -36,9 +36,9 @@ Every service commit carries bot authorship plus `Spec-Author:` (caller identity
 
 ## Read path
 
-### FR-8 — Read ops over remote transport
+### FR-8 — Read ops over remote transport + caller context
 
-All nine existing read operations are served over the remote transport with the same envelope; `project` selects the mount. Absent `project` → caller's configured default.
+All nine existing read operations are served over the remote transport with the same envelope. Caller context is token-derived: `token → tenant → allowed scopes`. `project` is a call parameter (`owner/project`); absent → the token's default scope — refused when the token has none or several without a default. `spec`/slug is always an explicit parameter on targeted ops — no spec is ever inferred. A `project` outside the token's allowed set is refused outright.
 
 ### FR-9 — Registry index
 
@@ -48,15 +48,15 @@ All nine existing read operations are served over the remote transport with the 
 
 The service fetches the specs repo on a configured interval (default: every poll cycle; optionally triggered sooner by a repo webhook) and reconciles clone ↔ remote ↔ projection per project. `GET /drift` lists divergence: non-bot commits, unexpected mutations, projection rebuild failures, clone-ahead-of-remote states.
 
-## Publish and pins
+## Publish
 
 ### FR-11 — Publish on status transition
 
 When a spec's authored `Status:` becomes `ACTIVE`, the service packs the spec directory, records a ledger entry (`slug, version, digest, commit`), and publishes the pack with attestation. Re-publishing an identical digest is a no-op; publishing different content under an existing version is rejected.
 
-### FR-12 — Pin verification
+### FR-12 — Versioned reads
 
-`omp spec verify` (consumer side) resolves each `spec-refs.json` entry against the ledger: version must exist and digest must match. `omp spec outdated` reports pins behind `latest`.
+Read ops accept an optional `version`; absent → latest published (or current worktree state for drafts). The ledger resolves `version → digest → commit` — versioned content is immutable and verifiable against its digest.
 
 ## Entry points
 

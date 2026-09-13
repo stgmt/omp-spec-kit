@@ -28,9 +28,9 @@ Acceptance: claim visible in index; non-holder writes require explicit `force` a
 
 ## US-5 — Consumer repo maintainer
 
-As a maintainer of a repo that implements specs, I want `spec-refs.json` pins verified against published digests, so that "which spec version does this code implement" is a fact, not a convention.
+As a maintainer of a repo that implements specs, I want "which spec version does this code implement" answerable from service state — the publish ledger and registry view — so the linkage is a queryable fact, not a convention.
 
-Acceptance: `omp spec verify` fails closed on digest mismatch; `outdated` lists stale pins.
+Acceptance: registry/YouTrack view shows published version + digest per spec; versioned reads resolve through the ledger and fail closed on unknown versions.
 
 ## US-6 — On-call / ops
 

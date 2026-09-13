@@ -34,9 +34,9 @@ Status: DRAFT
 
 **Given** the service stopped, **when** the operator clones the specs repo, **then** every `<owner>/<project>/.specs/` tree is complete and self-consistent (kernel validation passes offline). Consumers experience the outage as `UNAVAILABLE` — they hold no credentials that could reach the content directly, by design.
 
-### AC-9 — Pin integrity
+### AC-9 — Versioned read integrity (ledger)
 
-**Given** `spec-refs.json` pins `plugin-distribution@1.4.0`, **when** the ledger digest for that version differs from the pin, **then** `omp spec verify` fails closed and names the divergent spec.
+**Given** spec `alpha@1.4.0` is published, **when** a read requests `version: "1.4.0"`, **then** returned content matches the recorded ledger digest for that version; a `version` unknown to the ledger fails closed.
 
 ### AC-10 — No silent drift
 

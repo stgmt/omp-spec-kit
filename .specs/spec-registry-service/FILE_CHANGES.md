@@ -16,7 +16,7 @@ Status: DRAFT
 - `src/service/publish.js` — spec-pack builder + release/attestation wiring.
 - `src/service/ops/registry.js`, `drift.js`, `claim.js`, `release.js` — new MCP op handlers.
 - `deploy/docker-compose.yml`, `deploy/Dockerfile`, `deploy/config/projects.example.json`.
-- `spec-refs.json` schema + `omp spec verify|outdated|install` consumer commands (plugin side).
+- (deferred to TASK-15) `spec-refs.json` pin file + `omp spec verify|outdated|install` consumer commands — out of v1, see TASKS backlog.
 - `tests/fixtures/registry/**` — fixture set per FIXTURES.md.
 - specs-repo root `.gitignore` — excludes `**/.omp-spec-kit-*` transaction artifacts (or a kernel change relocating lock/staging outside `.specs/`).
 

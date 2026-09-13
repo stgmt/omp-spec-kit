@@ -10,7 +10,7 @@ QueryEnvelope gains one optional field:
 { "project": "stgmt/omp-spec-kit" }
 ```
 
-`project` is the composite `owner/project` scope — checked against the caller's tenant → allowed-projects set. Absent → caller's bound default project. All other envelope fields unchanged; existing error codes reused (`CONFLICT`, `VALIDATION_FAILED`, `PATH_FORBIDDEN`, `ELICITATION_REQUIRED`, `INTERNAL_ERROR`) plus:
+`project` is the composite `owner/project` scope — an ordinary call parameter checked against the caller's `token → tenant → allowed-projects` set (outside the set → refused outright). Absent → the token's configured default scope; refused when the token has no default or the allowed set is ambiguous. `spec`/slug is always explicit on targeted ops — never inferred. Callers hold no identity beyond the token: the token resolves to a tenant (user); nothing else is asserted or trusted. All other envelope fields unchanged; existing error codes reused (`CONFLICT`, `VALIDATION_FAILED`, `PATH_FORBIDDEN`, `ELICITATION_REQUIRED`, `INTERNAL_ERROR`) plus:
 
 ```json
 "CLAIM_HELD"      // spec is claimed by another identity; error.holder, error.expiresAt
@@ -52,14 +52,6 @@ ledger(spec_key TEXT, version TEXT,  -- PK (spec_key, version)
 
 access_log(id INTEGER PRIMARY KEY, ts TEXT, identity TEXT,
            project TEXT, op TEXT, spec TEXT, request_id TEXT, result TEXT)
-```
-
-## Consumer pin file (committed in product repos)
-
-```jsonc
-// spec-refs.json
-{ "schema": "spec-refs@1",
-  "specs": { "plugin-distribution": { "version": "1.4.0", "digest": "sha256:..." } } }
 ```
 
 ## Project config (compose)

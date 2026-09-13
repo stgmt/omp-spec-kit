@@ -31,12 +31,14 @@ Status: DRAFT
 
 1. Author sets `Status: ACTIVE` + `Version: X.Y.Z` via normal patch; PR-equivalent review on the service change set.
 2. Merge/commit reaches `specs` → publish step packs dir, enforces version-not-seen/digest rules, attests, records ledger.
-3. Consumers' `spec verify`/`outdated` resolve against the new record.
+3. Versioned reads (UC-6) resolve against the new record; the registry view shows the new published version.
 
-## UC-6 — Consumer pins a spec
+## UC-6 — Versioned read of a published spec
 
-1. `omp spec install <slug>@<ver>` → pack fetched, digest verified, pin written to `spec-refs.json`.
-2. Code PRs cite the pin; spec and code versions link without sharing a branch.
+1. Consumer requests `spec_documents`/`spec_inspect` with `version: "1.4.0"` → ledger resolves `version → digest → commit` → immutable content returned, verifiable against the digest.
+2. Absent `version` → latest published. Unknown version → refused.
+
+(Consumer-side pin file — a committed `spec-refs.json` + `verify`/`install` commands — is deferred to TASK-15; the service is the only read path, so a local pin has nothing to resolve against.)
 
 ## UC-7 — Drift handling
 

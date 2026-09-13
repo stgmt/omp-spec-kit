@@ -51,7 +51,7 @@ Status: DRAFT
 
 ## Transports
 
-- **MCP for agents**: Streamable HTTP. Same tool contracts and envelope; new optional envelope field `project` (absent → caller's bound default project; the plugin config pins it). KERNEL_SCHEMA_VERSION bumps to `spec-kernel@2`.
+- **MCP for agents**: Streamable HTTP. Same tool contracts and envelope; new optional envelope field `project` (call parameter; absent → token's default scope — see Caller context). KERNEL_SCHEMA_VERSION bumps to `spec-kernel@2`.
 - **HTTP JSON-RPC for the YouTrack app**: `POST /rpc` accepts the same message shape — no separate REST surface to maintain.
 - Local stdio MCP: retired for managed projects (`.mcp.json` → remote `type: "http"`). Kept buildable for unmanaged/offline use.
 
@@ -87,10 +87,15 @@ Onboarding is **automated, not an operator action**. The extension calls the ser
 
 Every request resolves `token → tenant → allowed projects`; the `project` field is checked against that set (absent → tenant default). A leaked token compromises only that tenant's allowed projects.
 
-## Publish + pins (R-9)
+## Caller context (v1)
 
-- Status transition to `ACTIVE` in the specs repo → service packs the spec dir (tar + generated manifest: slug, version, digest, commit, requires from inbound graph edges) → attaches to a `spec-<slug>-v<ver>` release + attestation (reuses `release.yml` pattern).
-- Product repos commit `spec-refs.json` (`{slug: {version, digest}}`); `omp spec verify` checks pins resolve to published digests; `omp spec outdated` diffs pins vs ledger.
+- Token is the only credential a caller holds: it resolves to a tenant (user) and an allowed `owner/project` scope set.
+- `project` is a call parameter — or the token's default scope when absent; refused when ambiguous or outside the allowed set. `spec`/slug is always explicit on targeted ops.
+- **No repo binding in v1**: the service does not care which repo the caller sits in — scope comes from the token, not the checkout. Repo-declared scope (a committed binding file) is a deferred safety rail against silent misrouting, not a v1 mechanism.
+
+## Publish (R-9)
+
+- Status transition to `ACTIVE` in the specs repo → service packs the spec dir (tar + generated manifest: slug, version, digest, commit, requires from inbound graph edges) → attaches to a `spec-<slug>-v<ver>` release + attestation (reuses `release.yml` pattern) → records ledger entry. Versioned reads resolve via the ledger; no consumer-side pin file exists.
 
 ## Failure modes
 
