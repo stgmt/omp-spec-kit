@@ -28,7 +28,7 @@ Roadmap canonical document and governed auto-assembly release.
 
 ### Not yet verified
 
-- Widget render was not verified in a browser; only the deploy script upload was confirmed.
+- Widget app is uploaded (`144-67`, 2 extensions registered) but not activated in the SPEC project. YouTrack 2025.3 does not expose a REST API for project-level widget activation — this requires a one-time manual step: Settings → Extensions → spec-graph-app → enable for SPEC. After activation, `spec-panel` renders below issue summaries and `spec-board` on the dashboard.
 - The ROADMAP aggregate card on YouTrack is currently isolated (0 links): the graph has a `DECLARES` edge from the document node but no `CONTAINS` edges from the aggregate, so the card has no visual relationships yet.
 
 ## 1.2.0 — 2026-09-13
