@@ -1,23 +1,35 @@
 # spec-registryd compose stack (TASK-11 / FR-15 / AC-7).
 #
-# Clean-host boot needs exactly three things on the host:
-#   1. project config:      a projects.json (see config/projects.example.json)
-#                           with specsRepo URL + tenants — path in
-#                           SPEC_REGISTRY_CONFIG_PATH
-#   2. specs-repo access:   the repo URL in that config must be reachable from
-#                           the container (for the local AC-7 run: a host path
-#                           mounted read-only at /data/remote/specs.git)
-#   3. service token:       a tenants entry in that config (bearer token)
-# Bot identity comes from env (SPEC_REGISTRY_BOT_NAME / _EMAIL).
+# ГДЕ ЧТО ХРАНИТСЯ (карта данных стека):
+#   Спеки (канон) ......... git-репозиторий. По умолчанию ВНЕ стека —
+#                           операторский GitHub `spec-database` (FR-1: один
+#                           выделенный репо, пишет только сервис). Для
+#                           самодостаточного хоста: профиль `git` поднимает
+#                           bare-репо в стеке → в конфиге specsRepo =
+#                           git://spec-git/specs.git
+#   Метаданные сервиса .... SQLite-файл /data/registry.db в named volume
+#                           (tenants/claims/ledger/access_log). Решение спеки:
+#                           node:sqlite, один процесс, human-scale — отдельного
+#                           контейнера БД нет (SCHEMA "Stores").
+#   Клон спек-репо ........ /data/specs-clone в том же named volume — рабочий
+#                           ворктри, из которого ядро читает и в который пишет.
+#   Конфиг оператора ...... bind-mount с хоста (read-only): projects.json —
+#                           specsRepo URL, проекты, тенанты (токены).
+#   Доступ к спек-репо .... URL из конфига должен быть достижим из контейнера:
+#                           внешний GitHub, или профиль `git`
+#                           (git://spec-git/specs.git), или host-path как
+#                           дополнительный read-only bind mount.
+#   YouTrack .............. снаружи (у оператора уже есть) или профиль
+#                           `youtrack` для чистого хоста; синхронизация статусов
+#                           (youtrack-sync) входит в стек с TASK-8 — у sweep
+#                           пока нет своего входного скрипта, ключ не заглушен.
 #
-# TLS: the endpoint serves external YouTrack instances, so production traffic
-# goes through the `proxy` profile (nginx TLS termination):
-#   docker compose --profile proxy up -d
-# Certificates are operator-provided: deploy/proxy/certs/{fullchain,privkey}.pem
+# Чистый хост, полностью самодостаточный стек:
+#   SPEC_REGISTRY_CONFIG_PATH=./projects.json docker compose --profile git --profile youtrack up -d
+#   (в projects.json: "specsRepo": "git://spec-git/specs.git")
 #
-# youtrack-sync (existing status-sweep projection) joins the stack with
-# TASK-8 — the sweep has no standalone entrypoint yet; the compose key is
-# intentionally absent rather than stubbed.
+# TLS для внешних клиентов: профиль `proxy` (nginx TLS, сертификаты оператора
+# в deploy/proxy/certs/). Прямой порт сервиса — только loopback.
 
 services:
   spec-registryd:
@@ -39,10 +51,37 @@ services:
         source: ${SPEC_REGISTRY_CONFIG_PATH:?set SPEC_REGISTRY_CONFIG_PATH to the host projects.json}
         target: /data/config/projects.json
         read_only: true
-      - ${SPEC_REGISTRY_REPO_PATH:+${SPEC_REGISTRY_REPO_PATH}:/data/remote/specs.git}
     ports:
       # direct access is loopback-only; external clients go through the proxy
       - "127.0.0.1:8642:8642"
+
+  # Самодостаточное git-хранилище спек (профиль `git`): bare-репо + git daemon.
+  # receive-pack включён — пуш без аутентификации, но порт НЕ публикуется:
+  # протокол git:// доступен только внутри сети compose. Для прод-хостинга
+  # спеков на GitHub профиль не нужен — specsRepo в конфиге смотрит наружу.
+  spec-git:
+    build:
+      context: ..
+      dockerfile: deploy/git/Dockerfile
+    image: spec-git:local
+    profiles: ["git"]
+    restart: unless-stopped
+    volumes:
+      - spec-git-data:/srv/git
+
+  # YouTrack для чистого хоста (профиль `youtrack`). Если у оператора уже есть
+  # свой YouTrack — профиль не нужен: приложение (TASK-8) подключается к нему.
+  youtrack:
+    image: jetbrains/youtrack:2025.3.161254
+    profiles: ["youtrack"]
+    restart: unless-stopped
+    volumes:
+      - youtrack-data:/opt/youtrack/data
+      - youtrack-conf:/opt/youtrack/conf
+      - youtrack-logs:/opt/youtrack/logs
+      - youtrack-backups:/opt/youtrack/backups
+    ports:
+      - "8080:8080"
 
   proxy:
     image: nginx:1.27-alpine
@@ -58,3 +97,8 @@ services:
 
 volumes:
   registry-data:
+  spec-git-data:
+  youtrack-data:
+  youtrack-conf:
+  youtrack-logs:
+  youtrack-backups:
