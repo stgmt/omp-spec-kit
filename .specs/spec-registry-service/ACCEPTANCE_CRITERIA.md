@@ -20,7 +20,7 @@ Status: DRAFT
 
 ### AC-5 — Remote MCP parity
 
-**Given** an agent connected to the remote endpoint, **when** it invokes each of the nine read ops and `spec_patch`, **then** envelopes match the stdio server's shape field-for-field (same contract tests, transport swapped).
+**Given** an agent connected to the remote endpoint, **when** it invokes each of the nine read ops and `spec_patch`, **then** response schemas, field names, and error codes match the stdio contract exactly (same contract tests, transport swapped). Provenance fields legitimately differ: they disclose the service-side worktree root, not a local path.
 
 ### AC-6 — YouTrack proposal flow
 
@@ -28,11 +28,11 @@ Status: DRAFT
 
 ### AC-7 — Compose boot
 
-**Given** a host with only repo credentials + project config + service token, **when** `docker compose up` runs, **then** the service mounts each project, creates missing `specs` branches, rebuilds the index, and serves reads within N seconds of readiness (N recorded at first run).
+**Given** a host with only repo credentials + project config + service token, **when** `docker compose up` runs, **then** the service mounts each configured project, creates missing `specs` branches, rebuilds the index, and reports ready; a read call against each project then succeeds. Boot duration is measured and recorded in the run evidence — the AC is the readiness outcome, not a latency bound.
 
-### AC-8 — Read survives outage
+### AC-8 — Operator fallback survives outage
 
-**Given** the service stopped, **when** a consumer clones the `specs` branch, **then** the `.specs/` tree is complete and self-consistent (kernel validation passes offline).
+**Given** the service stopped, **when** the operator clones the `specs` branch, **then** the `.specs/` tree is complete and self-consistent (kernel validation passes offline). Consumers experience the outage as `UNAVAILABLE` — they hold no credentials that could reach the content directly, by design.
 
 ### AC-9 — Pin integrity
 

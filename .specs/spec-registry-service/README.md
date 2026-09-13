@@ -2,7 +2,7 @@
 
 Status: DRAFT
 
-Centralized, multi-project specification registry: `.specs/` content lives exclusively on a dedicated per-project git branch (`specs`), writes go only through a hosted service that wraps the existing kernel, AI agents consume it via remote MCP, humans and non-developer agents via the YouTrack app. Deployment is a docker-compose stack.
+Centralized, multi-project specification registry hosted by the operator: `.specs/` content lives exclusively on dedicated `specs` branches in the operator's git repositories. Consumers get **no repository access at all** — not even read clones. All access is centralized through two remote surfaces: HTTPS MCP for AI agents, and the YouTrack app for humans and non-developer agents (either the operator's YouTrack, or a consumer's own YouTrack running the extension bound to this backend). Writes go only through the service, which wraps the existing kernel. Deployment is a docker-compose stack.
 
 This specification owns: the dedicated-specs-branch model, the centralized write path and its exclusivity rules, multi-project mounting, the remote agent surface, the YouTrack entry point, claim/ownership semantics, and the compose deployment shape.
 

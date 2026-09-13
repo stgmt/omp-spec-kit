@@ -20,15 +20,15 @@ One service instance serves a configured set of projects. Multi-project means th
 
 ## R-5 — Remote agent surface (MCP)
 
-AI agents reach the registry only through the hosted MCP endpoint in the compose stack. The locally spawned stdio MCP server is retired for managed projects: the plugin's `.mcp.json` points at the remote endpoint, and product checkouts on non-specs branches contain no `.specs/` to serve locally anyway.
+AI agents reach the registry only through the hosted MCP endpoint in the compose stack, over HTTPS. The locally spawned stdio MCP server is retired for managed projects: the plugin's `.mcp.json` points at the remote endpoint (`type: "http"` — verified against the pinned OMP schema), and product checkouts on non-specs branches contain no `.specs/` to serve locally anyway.
 
 ## R-6 — Human/non-dev entry point (YouTrack app)
 
-Humans and non-developer agents read specs and propose changes through the existing YouTrack app surface, which calls the service HTTP API. Proposal-level edits return the existing proposal preview (diffs + proposalHash) so the UI can show "what will change" before apply.
+Humans and non-developer agents read specs and propose changes through the YouTrack app on the **operator's YouTrack instance** (the only human entry point in v1). Binding a consumer's own YouTrack server is post-v1: it happens through the operator's YouTrack too — after login, a guided flow calls the onboarding API, which auto-provisions a tenant + token; nothing is issued manually. Proposal-level edits return the existing proposal preview (diffs + proposalHash) so the UI can show "what will change" before apply.
 
-## R-7 — Minimal viable auth
+## R-7 — Minimal viable auth and tenant scoping
 
-v1 runs on trusted-network assumptions with one shared service token for agent traffic and YouTrack session identity for human traffic. The seam for full YouTrack Hub authN (token verification, per-user roles) is specified in DESIGN so it can be added without protocol changes.
+Consumers never receive git credentials or filesystem access — the envelope is the whole interface. v1 auth is **per-tenant bearer tokens issued automatically**: the extension calls the service onboarding API after YouTrack login and returns a token bound to the caller's tenant → allowed-projects set (a leaked token compromises only that tenant). Asserted caller identity (`X-Spec-Author`/envelope field) is logged on every write. The seam for full YouTrack Hub authN/Z is specified in DESIGN so it can be added without protocol changes.
 
 ## R-8 — Deployment as compose stack
 
@@ -38,6 +38,6 @@ The service, its worktree volume, and its metadata store (SQLite file volume) de
 
 Because specs no longer travel in code branches, a managed repository records which spec versions its code implements via a committed pin file (`spec-refs.json`). The service maintains `published` records (slug → version → digest → commit) so pins resolve to immutable content.
 
-## R-10 — Read availability independent of service uptime
+## R-10 — Availability model
 
-Any consumer can still read specs by cloning the `specs` branch. Service outage blocks writes and claim management only.
+Consumers deliberately have no repository access, so their read availability is the service itself — a service outage is a read outage for them (accepted in v1, recorded as a risk). The **operator** retains the ultimate fallback: `git clone -b specs` always yields the full corpus.

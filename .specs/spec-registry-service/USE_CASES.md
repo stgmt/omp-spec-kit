@@ -5,7 +5,7 @@ Status: DRAFT
 ## UC-1 — Create a spec
 
 1. Caller (agent via MCP, or human via YT app) submits `createSpec` intent with title.
-2. Service allocates the slug within the project (collision → deterministic disambiguation or error naming the existing spec).
+2. Service allocates the slug within the project; if it is already taken (locally or on the remote `specs` branch), the call fails with `CONFLICT` naming the existing spec — no silent disambiguation, the caller picks a distinct slug.
 3. Kernel compiles skeleton documents; transaction commits on `specs` branch; index updated.
 4. Spec is `DRAFT`, unpublished, claimable.
 
@@ -43,7 +43,7 @@ Status: DRAFT
 1. Break-glass admin pushes directly to `specs`.
 2. Next sync: drift detected → `/drift` entry (commit, author, divergent paths) → index reprojected → alert surfaced in YouTrack (status sweep).
 
-## UC-8 — Service outage read path
+## UC-8 — Service outage
 
-1. Service down → consumers `git clone -b specs` (or read last pushed state).
-2. Writes return `UNAVAILABLE` (non-retryable-immediately, retryable later) — nothing is lost or silently queued server-side.
+1. Service down → consumers see `UNAVAILABLE` (`retryable: true`) on every call — they hold no repo credentials, so there is no consumer-side fallback; the caller retries when the service is back.
+2. The operator `git clone -b specs` → full corpus readable offline; break-glass admin push possible (drift-reported on recovery — UC-7).
