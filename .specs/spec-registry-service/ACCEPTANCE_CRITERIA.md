@@ -2,9 +2,9 @@
 
 Status: DRAFT
 
-### AC-1 — Specs live only on `specs`
+### AC-1 — Specs live only in the specs repo
 
-**Given** a managed repository, **when** a developer pushes `.specs/**` on `main` or any code branch, **then** the push/PR fails the required check; and pushes to `specs` from any identity other than the service bot are rejected.
+**Given** a migrated product repository, **when** a developer pushes `.specs/**` on `main` or any code branch, **then** the push/PR fails the required check; and pushes to the specs repo from any identity other than the service bot are rejected.
 
 ### AC-2 — Write through service only
 
@@ -16,7 +16,7 @@ Status: DRAFT
 
 ### AC-4 — Multi-project isolation
 
-**Given** projects `a` and `b` mounted, **when** a request omits `project`, **then** it resolves against the caller's default project; **when** it names `project: "b"`, **then** no path or slug of project `a` is reachable from that call.
+**Given** scopes `stgmt/a` and `acme/b` mounted, **when** a request omits `project`, **then** it resolves against the caller's tenant default; **when** it names `project: "acme/b"`, **then** no path or slug outside `acme/b` is reachable from that call — and if the caller's tenant lacks `acme/b`, the call is refused outright.
 
 ### AC-5 — Remote MCP parity
 
@@ -28,11 +28,11 @@ Status: DRAFT
 
 ### AC-7 — Compose boot
 
-**Given** a host with only repo credentials + project config + service token, **when** `docker compose up` runs, **then** the service mounts each configured project, creates missing `specs` branches, rebuilds the index, and reports ready; a read call against each project then succeeds. Boot duration is measured and recorded in the run evidence — the AC is the readiness outcome, not a latency bound.
+**Given** a host with only specs-repo credentials + project config + service token, **when** `docker compose up` runs, **then** the service clones the specs repo, creates missing `owner/project/.specs` skeletons, rebuilds the index, and reports ready; a read call against each project then succeeds. Boot duration is measured and recorded in the run evidence — the AC is the readiness outcome, not a latency bound.
 
 ### AC-8 — Operator fallback survives outage
 
-**Given** the service stopped, **when** the operator clones the `specs` branch, **then** the `.specs/` tree is complete and self-consistent (kernel validation passes offline). Consumers experience the outage as `UNAVAILABLE` — they hold no credentials that could reach the content directly, by design.
+**Given** the service stopped, **when** the operator clones the specs repo, **then** every `<owner>/<project>/.specs/` tree is complete and self-consistent (kernel validation passes offline). Consumers experience the outage as `UNAVAILABLE` — they hold no credentials that could reach the content directly, by design.
 
 ### AC-9 — Pin integrity
 
@@ -40,4 +40,4 @@ Status: DRAFT
 
 ### AC-10 — No silent drift
 
-**Given** an admin break-glass pushes to `specs` directly, **when** the service next syncs, **then** the commit appears in `/drift` output and the index is reprojected rather than silently accepted.
+**Given** an admin break-glass pushes to the specs repo directly, **when** the service next syncs, **then** the commit appears in `/drift` output and the index is reprojected rather than silently accepted.

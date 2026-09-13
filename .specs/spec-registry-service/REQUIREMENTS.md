@@ -2,21 +2,21 @@
 
 Status: DRAFT
 
-## R-1 — Dedicated specs branch
+## R-1 — Dedicated specs repository
 
-Every managed project stores its `.specs/` tree on a single dedicated git branch (`specs`) that contains nothing else. No other branch of a managed repository may contain a `.specs/` directory. The branch is the canonical content store — the service never replaces it, only serializes and audits access to it.
+All managed specs live in **one dedicated git repository** (a separate operator-owned GitHub repo) on a single canonical branch, laid out as `<owner>/<project>/.specs/<slug>/` — preserving the kernel's `<root>/.specs` convention with `<root> = <repo>/<owner>/<project>`. The repo is the canonical content store — the service never replaces it, only serializes and audits access to it. Product repositories carry no `.specs/` at all once their project has migrated.
 
 ## R-2 — Service-only writes
 
-The only path that mutates `.specs/` on the canonical branch is the registry service, committing through a dedicated bot identity. Direct human/agent pushes to the `specs` branch are rejected by repository rules; pushes of `.specs/` content to any other branch are rejected by CI/ruleset. A break-glass admin path exists and is reported as drift.
+The only path that mutates the specs repository is the registry service, committing through a dedicated bot identity. Direct human/agent pushes to the specs repo are rejected by repository rules (bot-only push ruleset). Separately, a managed product repo rejects `.specs/**` on its code branches via a required check — enforced per-repo once that project migrates. A break-glass admin path exists and is reported as drift.
 
 ## R-3 — Multi-user write safety
 
 Concurrent write requests are serialized per project through the existing transaction layer. Every mutation request carries optimistic-concurrency guards (`expectedSha` / `repositoryRootFingerprint`); a stale writer receives `CONFLICT` and retries against fresh state. A spec-level claim (owner lease with TTL) reduces the frequency of conflicts for multi-session work.
 
-## R-4 — Multi-project support
+## R-4 — Multi-tenant, multi-project support
 
-One service instance serves a configured set of projects. Multi-project means the same single-branch model replicated per project: **each project is its own git repository (or remote) whose specs live on that repo's dedicated `specs` branch** — not one shared specs repo and not a monorepo layout in v1. The service clones each configured repo once, checks out its `specs` branch into a per-project worktree, and every read/write operation resolves `project` → that worktree. Spec slugs are unique per project, not globally.
+One service instance serves many users, each with many projects, each project with many specs — all inside the single specs repo. The `owner` segment is the tenant boundary: a caller's token resolves to an allowed `owner`/`project` scope set, and every request's `project` field (`owner/project`) is checked against it. Spec slugs are unique per `(owner, project)`, not globally. The service keeps one clone of the specs repo; per-project kernel root = `<clone>/<owner>/<project>`.
 
 ## R-5 — Remote agent surface (MCP)
 
@@ -40,4 +40,4 @@ Because specs no longer travel in code branches, a managed repository records wh
 
 ## R-10 — Availability model
 
-Consumers deliberately have no repository access, so their read availability is the service itself — a service outage is a read outage for them (accepted in v1, recorded as a risk). The **operator** retains the ultimate fallback: `git clone -b specs` always yields the full corpus.
+Consumers deliberately have no repository access, so their read availability is the service itself — a service outage is a read outage for them (accepted in v1, recorded as a risk). The **operator** retains the ultimate fallback: cloning the specs repo always yields the full corpus.

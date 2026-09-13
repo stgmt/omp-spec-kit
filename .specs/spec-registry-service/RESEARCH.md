@@ -24,7 +24,7 @@ Condensed findings from the 2026-09-13 deep-research session on spec-collision U
 
 ## Decisions this spec takes from the research
 
-1. **Dedicated `specs` branch** — cleanest write boundary: nothing to police on code branches, service-only pushes on one branch, and offline read fallback is a plain `git clone -b specs`.
+1. **Dedicated specs repo** — cleanest write boundary: one canonical store the stack owns; nothing to police on product code branches after migration; service-only pushes; offline read fallback is a plain clone of the specs repo. Layout `<owner>/<project>/.specs/<slug>/` preserves the kernel's `<root>/.specs` convention with `<root> = <repo>/<owner>/<project>`. (Revised 2026-09-13: originally spec'd as per-repo `specs` branches — superseded by the dedicated-repo model.)
 2. **D1+D3 authority split** — content in git (D1 facade), claims/ledger/allocation in the service (D3). Rejected D2 (service-owns-content): it would kill PR review and git audit.
 3. **Claims + expectedSha** instead of sequential numbers — beads/OpenSpec showed coordination-free identity wins; our existing optimistic concurrency already carries the conflict semantics.
 4. **Publish = attested artifact** reusing the release.yml pattern — Buf/Confluent-style gate without a bespoke service.
@@ -32,6 +32,6 @@ Condensed findings from the 2026-09-13 deep-research session on spec-collision U
 
 ## Open questions
 
-- Whether `specs` should become a separate repo instead of a branch when the first external (non-code-owning) consumer appears.
+- ~~Whether `specs` should become a separate repo instead of a branch~~ — **resolved 2026-09-13**: canonical store is a dedicated specs repo from day one (`owner/project/.specs` layout).
 - Whether claim enforcement should hard-deny non-holder writes once full auth lands (v1 logs `force` writes instead).
 - Cross-project spec references — deferred.

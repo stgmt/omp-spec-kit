@@ -1,20 +1,20 @@
 Feature: Centralized spec registry service
 
-  Specs live only on a dedicated per-project `specs` branch.
-  The hosted service is the single write path; agents use remote MCP,
-  humans use the YouTrack app.
+  Specs live only in the dedicated specs repository
+  (owner/project/.specs layout). The hosted service is the single
+  write path; agents use remote MCP, humans use the YouTrack app.
 
   @id:SCEN-specs-branch-isolation
   Scenario: Spec content is rejected on code branches
-    Given a managed repository with a `specs` branch
+    Given a migrated product repository
     When a pull request on `main` adds a file under `.specs/`
     Then the required check fails
-    And the `specs` branch remains the only carrier of `.specs/`
+    And the specs repo remains the only carrier of `.specs/`
 
   @id:SCEN-service-only-writes
-  Scenario: Direct push to specs branch is rejected
-    Given a managed repository
-    When a non-bot identity pushes a commit touching `.specs/` to `specs`
+  Scenario: Direct push to specs repo is rejected
+    Given the specs repository
+    When a non-bot identity pushes a commit touching `.specs/`
     Then the push is rejected by repository rules
 
   @id:SCEN-optimistic-concurrency
@@ -23,7 +23,7 @@ Feature: Centralized spec registry service
     And writer A submits spec_patch with expectedSha S
     And writer B submits spec_patch with expectedSha S
     When both requests complete
-    Then exactly one commit lands on `specs`
+    Then exactly one commit lands in the specs repo
     And the losing response is CONFLICT with retryable true
 
   @id:SCEN-claim-lease
@@ -35,11 +35,11 @@ Feature: Centralized spec registry service
     Then B can claim "alpha" and write normally
 
   @id:SCEN-multi-project-routing
-  Scenario: Project scoping isolates mounts
-    Given projects "a" and "b" both contain spec "shared-name"
-    When a request addresses project "b"
-    Then only project "b" content is reachable
-    And no project "a" path or slug is touched
+  Scenario: Project scoping isolates namespaces
+    Given scopes "stgmt/a" and "acme/b" both contain spec "shared-name"
+    When a request addresses project "acme/b"
+    Then only "acme/b" content is reachable
+    And no "stgmt/a" path or slug is touched
 
   @id:SCEN-remote-mcp-parity
   Scenario: Remote MCP serves the same contract
@@ -55,10 +55,10 @@ Feature: Centralized spec registry service
     And applying without that proposalHash is refused
 
   @id:SCEN-read-outage-fallback
-  Scenario: Read survives service outage
+  Scenario: Operator read survives service outage
     Given the service is stopped
-    When a consumer clones the `specs` branch
-    Then `.specs/` validates offline with the kernel rules
+    When the operator clones the specs repo
+    Then every owner/project/.specs tree validates offline with the kernel rules
 
   @id:SCEN-pin-verification
   Scenario: Spec pin detects divergence
@@ -68,7 +68,7 @@ Feature: Centralized spec registry service
 
   @id:SCEN-drift-report
   Scenario: Break-glass push is visible
-    Given an admin pushed directly to `specs`
-    When the service next syncs the worktree
+    Given an admin pushed directly to the specs repo
+    When the service next syncs the clone
     Then the commit appears in the drift report
     And the index is reprojected

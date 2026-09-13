@@ -2,23 +2,23 @@
 
 Status: DRAFT
 
-## Phase 0 — Specs branch model
+## Phase 0 — Specs repo provisioning
 
-## TASK-1 — Create `specs` branch layout + migrate existing `.specs/` content preserving history
+## TASK-1 — Create the dedicated specs repo + seed the layout
 - **Status:** todo
-- **Done When:** `specs` branch exists containing only `.specs/` — produced by `git subtree split` (or equivalent history-preserving extraction) for repos with history, orphan init for fresh ones; `main` no longer carries `.specs/`; CI check rejects root-level `.specs/**` on non-specs branches (nested fixture paths unaffected); spec git history remains inspectable on the `specs` branch; repo tooling that reads `.specs` (corpus checks, dogfood, kernel scripts) is repointed at a `specs`-branch worktree so verification keeps working after migration.
-- **Requirements:** R-1, FR-1, FR-2
+- **Done When:** the operator-owned specs repo exists with a root `.gitignore` (`**/.omp-spec-kit-*`); service bot push protection is configured (or staged for TASK-2); repo accepts `<owner>/<project>/.specs/<slug>/` layout.
+- **Requirements:** R-1, FR-1
 
-## TASK-2 — Ruleset/protection for `specs` branch (bot-only pushes) + break-glass logging
+## TASK-2 — Ruleset/protection on the specs repo (bot-only pushes) + break-glass logging
 - **Status:** todo
-- **Done When:** non-bot push to `specs` is rejected; admin push still possible and produces a detectable event.
+- **Done When:** non-bot push to the specs repo is rejected; admin push still possible and produces a detectable event.
 - **Requirements:** R-2, FR-2
 
 ## Phase 1 — Service core
 
-## TASK-3 — `src/service/` skeleton: project mount manager (clone/worktree per project on `specs` branch)
+## TASK-3 — `src/service/` skeleton: project mount manager (one specs-repo clone; per-project roots)
 - **Status:** todo
-- **Done When:** service boots with `projects.json`, resolves `project`→worktree, builds kernel graph per project; the `specs` branch carries a `.gitignore` excluding `.omp-spec-kit-*` transaction artifacts (lock/staging) so they never enter git.
+- **Done When:** service boots with `projects.json`, clones the specs repo, resolves `project`→`<clone>/<owner>/<project>` (creating the `.specs` skeleton for new projects), builds kernel graph per project root.
 - **Requirements:** R-4, FR-3, FR-16
 
 ## TASK-4 — HTTP transport: `POST /rpc` (envelope passthrough) + Streamable HTTP MCP endpoint
@@ -77,12 +77,19 @@ Status: DRAFT
 - **Done When:** a user logged into the operator's YouTrack can bind their own YouTrack server through an in-app guide; the onboarding API auto-provisions tenant + token and emits the extension install bundle/guide; the bound instance's app traffic authenticates under that tenant.
 - **Requirements:** R-6, R-7
 
+## Backlog — deferred migrations
+
+## TASK-14 — Import omp-spec-kit's `.specs/` corpus into the specs repo (post-first-release)
+- **Status:** todo — deferred until the service runs; this repo's `.specs/` stays on code branches until then.
+- **Done When:** corpus imported under `stgmt/omp-spec-kit/.specs/` with full history (source: the frozen `specs` branch on omp-spec-kit — already a filter-branch extraction of `.specs/**`); this repo's code branches stop carrying `.specs/`; its boundary CI check is enabled; repo tooling (corpus checks, dogfood, kernel scripts) resolves the corpus from a specs-repo clone (resolver salvaged from closed PR #39: `scripts/specs-root.mjs`).
+- **Requirements:** R-1, FR-2
+
 ## Backlog — recorded risks (documented, no work scheduled)
 
 - **RISK-1 — SPOF on reads and writes.** Consumers have no repo access by design, so service outage = total outage for them. Operator mitigations exist (`git clone -b specs` fallback, break-glass push + drift report, AC-10) but no HA planned.
 - **RISK-2 — Spec↔code decoupling.** Specs and code never land in one PR anymore; linkage is `spec-refs.json` discipline. If teams stop pinning, "which spec does this code implement" rots — accepted, monitored by `spec outdated`.
 - **RISK-3 — Cross-project spec references.** Deferred entirely; the kernel has no cross-mount edge model. If needed later, likely via ledger entries (`project/slug@version`), not live graph edges.
-- **RISK-4 — Specs-branch → specs-repo migration.** If a consumer outside the owning repo's access boundary appears, the per-repo branch model may need to become a dedicated specs repo. Recorded as a possible Option-C step; no migration tooling planned.
+- **RISK-4 — Specs repo is one blast radius.** All projects share one repo: a bad global state (history rewrite, repo corruption) hits every tenant. Mitigations: git integrity + journal, operator-side mirror/backup of the specs repo. Per-user branches were considered and rejected (index aggregation).
 - **RISK-5 — Claim is advisory in v1.** Non-holder writes are possible with `force:` (logged). Hard denial waits on full auth (TASK-12); until then claims signal intent, they don't enforce it.
 - **RISK-6 — Ruleset availability.** Path-restriction rulesets depend on the GitHub plan; fallback is the required CI check (FR-2). If neither exists on a repo, exclusivity is unenforced there — recorded, not blocked.
 - **RISK-7 — Token-only perimeter.** v1 auth is per-tenant bearer tokens; a leak compromises that tenant's allowed projects only, but identity assertions (`Spec-Author`) are spoofable and claims stay advisory until TASK-12 (YouTrack Hub authN/Z). TLS is required since the endpoint serves external YouTrack instances.
