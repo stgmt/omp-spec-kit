@@ -104,6 +104,9 @@
     "kernel/query/service.js": {
       "sha256": "8057d04f080b6fbfc9d23e8b84f39be997b79770b94eaa3a01b95d62ca5ff1a6"
     },
+    "kernel/roadmap/assemble.js": {
+      "sha256": "dd06b9b873b773d4c4af9762429f67cfdebfe44354c49f15bcaeb9903a59b980"
+    },
     "kernel/types.js": {
       "sha256": "20a5ee8e9a66979204b7774eef9b6868f065417601fe665ff0c9901e6f77a04a"
     },
