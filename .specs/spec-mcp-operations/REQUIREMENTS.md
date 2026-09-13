@@ -133,7 +133,7 @@ Each row is a complete FR ↔ AC ↔ scenario ↔ check ↔ task trace. Status d
 
 ## Invariants
 
-1. Public mutation is exactly one tool, `spec_patch`, with 13 authoring intents (FR-23); retired names are excised without shims (FR-35).
+1. Public mutation is exactly one tool, `spec_patch`, with 15 authoring intents (FR-23); retired names are excised without shims (FR-35).
 2. Helpers compile internally; apply accepts Proposal identity and hashes, never raw edits.
 3. Every request targets exactly one ordinary contained spec.
 4. Proposal is pure and complete; a truncated preview is not valid.
