@@ -1,7 +1,7 @@
-// Closed type unions and constants for kernel schema `spec-kernel@1`.
+// Closed type unions and constants for kernel schema `spec-kernel@2`.
 // Every list below is declaration-ordered; count summaries use declaration order.
 
-export const KERNEL_SCHEMA_VERSION = "spec-kernel@1";
+export const KERNEL_SCHEMA_VERSION = "spec-kernel@2";
 export const ANCHOR_ALGORITHM_VERSION = "glfm-anchor@1";
 export const DIST_MANIFEST_SCHEMA = "omp-spec-kit-dist-manifest@1";
 

@@ -331,8 +331,10 @@ export function createSpecService(root, context = {}) {
     );
   }
 
+  // spec-kernel@2 accepts @1 callers unchanged (shape-compatible; the new
+  // optional `project` scope rule is transport-level), so both are legal here.
   async function runQuery(operation, args, { requestId = null, schemaVersion } = {}) {
-    if (schemaVersion !== undefined && schemaVersion !== KERNEL_SCHEMA_VERSION) {
+    if (schemaVersion !== undefined && schemaVersion !== "spec-kernel@1" && schemaVersion !== KERNEL_SCHEMA_VERSION) {
       return withProvenance(
         makeErrorEnvelope({
           operation,

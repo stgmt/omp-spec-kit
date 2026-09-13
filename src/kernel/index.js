@@ -1,5 +1,5 @@
 // Public kernel entry point. The pure kernel exports exactly:
-//   KERNEL_SCHEMA_VERSION  - literal "spec-kernel@1"
+//   KERNEL_SCHEMA_VERSION  - literal "spec-kernel@2"
 //   buildKernelGraph({ files }) -> { graph, diagnostics }
 //   query(graph, operation, params) -> canonical QueryEnvelope
 // Filesystem access lives only in ./adapters/fs.js (readRepositorySpecs).
