@@ -18,7 +18,7 @@ Acceptance: remote MCP works with the plugin's stock config; commits carry `Spec
 
 As a PM, I want to read specs and propose edits from YouTrack — where my work already lives — without git knowledge, so that spec authoring isn't gated on developer tooling.
 
-Acceptance: proposal → preview → apply flow works in the YT app; the applied result is a normal service commit.
+Acceptance: proposal → preview → apply flow works in the YT app (new UI capability built by this feature on top of the existing projection infrastructure); the applied result is a normal service commit.
 
 ## US-4 — Tech lead / spec owner
 

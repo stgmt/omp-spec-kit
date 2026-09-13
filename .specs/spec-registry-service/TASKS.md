@@ -4,9 +4,9 @@ Status: DRAFT
 
 ## Phase 0 — Specs branch model
 
-## TASK-1 — Create `specs` orphan branch layout + migration of existing `.specs/` content
+## TASK-1 — Create `specs` branch layout + migrate existing `.specs/` content preserving history
 - **Status:** todo
-- **Done When:** `specs` branch exists in this repo containing only `.specs/`; `main` no longer carries `.specs/`; CI check rejects `.specs/**` on non-specs branches.
+- **Done When:** `specs` branch exists containing only `.specs/` — produced by `git subtree split` (or equivalent history-preserving extraction) for repos with history, orphan init for fresh ones; `main` no longer carries `.specs/`; CI check rejects root-level `.specs/**` on non-specs branches (nested fixture paths unaffected); spec git history remains inspectable on the `specs` branch; repo tooling that reads `.specs` (corpus checks, dogfood, kernel scripts) is repointed at a `specs`-branch worktree so verification keeps working after migration.
 - **Requirements:** R-1, FR-1, FR-2
 
 ## TASK-2 — Ruleset/protection for `specs` branch (bot-only pushes) + break-glass logging
@@ -18,7 +18,7 @@ Status: DRAFT
 
 ## TASK-3 — `src/service/` skeleton: project mount manager (clone/worktree per project on `specs` branch)
 - **Status:** todo
-- **Done When:** service boots with `projects.json`, resolves `project`→worktree, builds kernel graph per project.
+- **Done When:** service boots with `projects.json`, resolves `project`→worktree, builds kernel graph per project; the `specs` branch carries a `.gitignore` excluding `.omp-spec-kit-*` transaction artifacts (lock/staging) so they never enter git.
 - **Requirements:** R-4, FR-3, FR-16
 
 ## TASK-4 — HTTP transport: `POST /rpc` (envelope passthrough) + Streamable HTTP MCP endpoint
@@ -26,15 +26,15 @@ Status: DRAFT
 - **Done When:** all 10 existing tools reachable over HTTP with identical envelopes; `project` field honored.
 - **Requirements:** R-5, FR-8, FR-13
 
-## TASK-5 — Write path wiring: auth token check → claim check → ProposalCompiler → commitDocuments → push as bot with trailers
+## TASK-5 — Write path wiring: tenant token check → claim check → ProposalCompiler → commitDocuments → push as bot with trailers
 - **Status:** todo
-- **Done When:** a remote `spec_patch` lands as an attributed bot commit on `specs`; `CONFLICT` semantics unchanged.
-- **Requirements:** R-2, R-3, FR-4, FR-5, FR-6
+- **Done When:** a remote `spec_patch` lands as an attributed bot commit on `specs`; `CONFLICT` semantics unchanged; every request resolves `token → tenant → allowed projects` and rejects `project` values outside the caller's set.
+- **Requirements:** R-2, R-3, R-7, FR-4, FR-5, FR-6
 
-## TASK-6 — SQLite store: claims (TTL) + publish ledger + access log; boot reconcile vs git log
+## TASK-6 — Store + index + sync loop (`node:sqlite`): tenants, claims (TTL), publish ledger, access log, projected `/registry` index, periodic fetch/reconcile
 - **Status:** todo
-- **Done When:** claims survive restart and expire; ledger entries append-only; `/drift` reports divergence.
-- **Requirements:** R-3, FR-7, FR-10, FR-16
+- **Done When:** tenant records with token→allowed-projects survive restart (issue/revoke works); claims survive restart and expire; ledger entries append-only; `/registry` serves the projected index rebuilt on every commit; fetch-on-interval + reconcile runs per project; `/drift` reports divergence incl. worktree-ahead-of-remote.
+- **Requirements:** R-3, R-7, FR-7, FR-9, FR-10, FR-16
 
 ## Phase 2 — Entry points
 
@@ -43,9 +43,9 @@ Status: DRAFT
 - **Done When:** plugin connects to the stack endpoint; local server only for `OMP_SPEC_KIT_ROOT` unmanaged checkouts.
 - **Requirements:** R-5, FR-14
 
-## TASK-8 — YouTrack app integration: spec view + proposal apply via `/rpc`
+## TASK-8 — YouTrack app integration: spec view + proposal apply via `/rpc` + self-service token issuance
 - **Status:** todo
-- **Done When:** human can read spec and apply a proposal from the YT app; user identity lands in `Spec-Author:`.
+- **Done When:** human can read spec and apply a proposal from the YT app; user identity lands in `Spec-Author:`; a "connect agent" action in the app calls the onboarding API and returns a ready `.mcp.json` token snippet (no manual token issuing anywhere).
 - **Requirements:** R-6, FR-13, R-7
 
 ## Phase 3 — Publish, pins, deploy
@@ -72,12 +72,17 @@ Status: DRAFT
 - **Done When:** per-user identity enforced; claim `force` requires owner role; v1 shared token retired.
 - **Requirements:** R-7
 
+## TASK-13 — External YouTrack binding (post-v1): guided onboarding flow
+- **Status:** todo
+- **Done When:** a user logged into the operator's YouTrack can bind their own YouTrack server through an in-app guide; the onboarding API auto-provisions tenant + token and emits the extension install bundle/guide; the bound instance's app traffic authenticates under that tenant.
+- **Requirements:** R-6, R-7
+
 ## Backlog — recorded risks (documented, no work scheduled)
 
-- **RISK-1 — SPOF on writes.** Service outage blocks all spec mutation; reads degrade to `git clone -b specs`. Mitigation exists (break-glass admin push + drift report, AC-10) but no HA planned.
+- **RISK-1 — SPOF on reads and writes.** Consumers have no repo access by design, so service outage = total outage for them. Operator mitigations exist (`git clone -b specs` fallback, break-glass push + drift report, AC-10) but no HA planned.
 - **RISK-2 — Spec↔code decoupling.** Specs and code never land in one PR anymore; linkage is `spec-refs.json` discipline. If teams stop pinning, "which spec does this code implement" rots — accepted, monitored by `spec outdated`.
 - **RISK-3 — Cross-project spec references.** Deferred entirely; the kernel has no cross-mount edge model. If needed later, likely via ledger entries (`project/slug@version`), not live graph edges.
 - **RISK-4 — Specs-branch → specs-repo migration.** If a consumer outside the owning repo's access boundary appears, the per-repo branch model may need to become a dedicated specs repo. Recorded as a possible Option-C step; no migration tooling planned.
 - **RISK-5 — Claim is advisory in v1.** Non-holder writes are possible with `force:` (logged). Hard denial waits on full auth (TASK-12); until then claims signal intent, they don't enforce it.
 - **RISK-6 — Ruleset availability.** Path-restriction rulesets depend on the GitHub plan; fallback is the required CI check (FR-2). If neither exists on a repo, exclusivity is unenforced there — recorded, not blocked.
-- **RISK-7 — Shared service token.** v1 auth is one token + trusted network; any leak = full write access to every project's specs. Acceptable inside a private network; not acceptable for public exposure — gated by the auth seam task.
+- **RISK-7 — Token-only perimeter.** v1 auth is per-tenant bearer tokens; a leak compromises that tenant's allowed projects only, but identity assertions (`Spec-Author`) are spoofable and claims stay advisory until TASK-12 (YouTrack Hub authN/Z). TLS is required since the endpoint serves external YouTrack instances.

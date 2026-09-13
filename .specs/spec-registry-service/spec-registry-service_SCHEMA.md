@@ -29,7 +29,7 @@ Absent → caller's bound default project. All other envelope fields unchanged; 
 { "project": "a", "spec": "slug" }
 
 // spec_registry — projected index
-{ "project": "a" }   // optional; absent → all projects the caller may see
+{ "project": "a" }   // optional; absent → all projects in the caller's tenant scope
 // → { ok, data: { projects: [{ id, specs: [{ slug, status, version, digest, owner, claim, published, updatedAt }] }] } }
 
 // spec_drift
@@ -40,6 +40,10 @@ Absent → caller's bound default project. All other envelope fields unchanged; 
 ## Stores (service-owned, SQLite)
 
 ```sql
+tenants(id TEXT PRIMARY KEY, token_hash TEXT UNIQUE,
+        allowed_projects TEXT,        -- JSON array of project ids
+        created_at TEXT, revoked_at TEXT)
+
 claims(spec_key TEXT PRIMARY KEY,  -- "project/slug"
        holder TEXT, expires_at TEXT, created_at TEXT)
 

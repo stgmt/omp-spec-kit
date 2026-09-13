@@ -4,7 +4,7 @@ Status: DRAFT
 
 ### NFR-1 — Availability
 
-Reads must not depend on service uptime: the `specs` branch is clonable at all times. Write availability target is "team hours"; there is no 24/7 requirement in v1.
+Consumers have no repository access, so their read availability **is** service uptime — a service outage is a full read+write outage for consumers (accepted in v1; target "team hours", no 24/7). The operator retains the ultimate fallback: the `specs` branch is clonable at all times.
 
 ### NFR-2 — Integrity
 
@@ -14,13 +14,13 @@ Every published spec version is digest-addressed and attested (existing release 
 
 `git log` on `specs` + `Spec-Author:`/`Spec-Request-Id:` trailers must answer "who changed what when" without the service database. The SQLite store is a cache of claims/ledger, never the only record of content change.
 
-### NFR-4 — Performance
+### NFR-4 — Performance and read consistency
 
-Single-writer serialization per project is acceptable: spec write volume is human-scale. Read ops must not wait on an in-flight write transaction; they serve the last committed graph (stale-read allowed, `baseSnapshotSha256` disclosed in the envelope).
+Single-writer serialization per project is acceptable: spec write volume is human-scale. Read ops must not wait on an in-flight write transaction **and must never observe mid-transaction files**: the service serves a cached graph snapshot rebuilt after each committed transaction (stale-read allowed, `baseSnapshotSha256` disclosed in the envelope). Serving straight from the worktree during a commit is a defect, not a tolerated race.
 
 ### NFR-5 — Security baseline (v1)
 
-Service token on agent endpoints; bind inside compose network by default; no anonymous internet exposure without the auth seam implemented. `detectSecret` runs on every write (existing behavior, unchanged).
+The endpoint is reachable beyond localhost (agents and third-party YouTrack instances) — TLS via the compose reverse proxy is required, not optional. Per-tenant bearer tokens on all endpoints; every token resolves to a tenant→allowed-projects set. No anonymous access. `detectSecret` runs on every write (existing behavior, unchanged).
 
 ### NFR-6 — Operability
 
