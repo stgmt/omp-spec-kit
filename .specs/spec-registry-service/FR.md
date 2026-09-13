@@ -10,7 +10,7 @@ The canonical store is one dedicated specs repository with layout `<owner>/<proj
 
 ### FR-2 — Write-path exclusivity
 
-Only the service bot can push to the specs repository. Separately, a managed product repo rejects any push/PR carrying **repo-root** `.specs/**` on its code branches — the rule anchors at the repository root and must not match nested fixture paths such as `tests/fixtures/**/.specs/`; this guard is applied per-repo when that project migrates. Break-glass pushes by repo admins are detected on the next service sync and recorded as drift events.
+Only the service bot can push to the specs repository — in v1 this is enforced by the repo being private, collaborator-free, and written only via the operator-issued service token (actor rulesets are plan-dependent hardening, TASK-2). Separately, a managed product repo rejects any push/PR carrying **repo-root** `.specs/**` on its code branches — the rule anchors at the repository root and must not match nested fixture paths such as `tests/fixtures/**/.specs/`; this guard is applied per-repo when that project migrates. Break-glass pushes by repo admins are detected on the next service sync and recorded as drift events.
 
 ### FR-3 — Per-project roots
 

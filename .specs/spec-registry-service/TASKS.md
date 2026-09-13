@@ -10,9 +10,9 @@ Status: DRAFT
 - **Requirements:** R-1, FR-1
 - **Evidence:** `stgmt/spec-database` (private) created 2026-09-13; `main` seeded with root `.gitignore` (`**/.omp-spec-kit-*`) + README documenting the `owner/project/.specs` layout and service-only-write rule. Bot push protection staged for TASK-2.
 
-## TASK-2 — Ruleset/protection on the specs repo (bot-only pushes) + break-glass logging
+## TASK-2 — Push protection on the specs repo + break-glass logging
 - **Status:** todo
-- **Done When:** non-bot push to the specs repo is rejected; admin push still possible and produces a detectable event.
+- **Done When:** non-service push path is closed: v1 enforcement = private repo with no collaborators + pushes only via the operator-issued service token (GitHub actor-restriction rulesets are a plan-dependent hardening — apply if available). Break-glass = operator's own token; detected via drift reporting (non-bot commit author).
 - **Requirements:** R-2, FR-2
 
 ## Phase 1 — Service core
@@ -92,5 +92,5 @@ Status: DRAFT
 - **RISK-3 — Cross-project spec references.** Deferred entirely; the kernel has no cross-mount edge model. If needed later, likely via ledger entries (`project/slug@version`), not live graph edges.
 - **RISK-4 — Specs repo is one blast radius.** All projects share one repo: a bad global state (history rewrite, repo corruption) hits every tenant. Mitigations: git integrity + journal, operator-side mirror/backup of the specs repo. Per-user branches were considered and rejected (index aggregation).
 - **RISK-5 — Claim is advisory in v1.** Non-holder writes are possible with `force:` (logged). Hard denial waits on full auth (TASK-12); until then claims signal intent, they don't enforce it.
-- **RISK-6 — Ruleset availability.** Path-restriction rulesets depend on the GitHub plan; fallback is the required CI check (FR-2). If neither exists on a repo, exclusivity is unenforced there — recorded, not blocked.
+- **RISK-6 — Ruleset availability.** Actor/path-restriction rulesets depend on the GitHub plan. For the specs repo the v1 perimeter is simpler: private repo + no collaborators + a single operator-issued token = only the service pushes. Product-repo `.specs/` guard stays a CI check (FR-2) applied per migrated repo.
 - **RISK-7 — Token-only perimeter.** v1 auth is per-tenant bearer tokens; a leak compromises that tenant's allowed projects only, but identity assertions (`Spec-Author`) are spoofable and claims stay advisory until TASK-12 (YouTrack Hub authN/Z). TLS is required since the endpoint serves external YouTrack instances.
