@@ -32,7 +32,7 @@ Every service commit carries bot authorship plus `Spec-Author:` (caller identity
 
 ### FR-7 — Claims
 
-`spec_claim(project, slug)` grants the caller a lease (default TTL 30 min, renewable). `spec_release(project, slug)` drops it. Lease state lives in the service store, survives restart, and expires without manual action. In v1 a non-holder may write only with `force: true`; the event is logged. **Caller identity in v1** is an asserted field (`identity` in the envelope / `X-Spec-Author` header): under the shared service token it is spoofable but always recorded in the commit trailer and access log — claims and attribution work mechanically, enforcement of *who may claim which identity* waits for the auth seam (R-7).
+`spec_claim(project, slug)` grants the caller a lease (default TTL 30 min, renewable). `spec_release(project, slug)` drops it. Lease state lives in the service store, survives restart, and expires without manual action. In v1 a non-holder may write only with `force: true`; the event is logged. **Caller identity in v1** is an asserted field (`identity` in the envelope / `X-Spec-Author` header): the tenant token authenticates *which tenant*, not *which user* — the asserted identity is spoofable but always recorded in the commit trailer and access log. Claims and attribution work mechanically; enforcement of *who may claim which identity* waits for the auth seam (R-7).
 
 ## Read path
 
@@ -56,7 +56,7 @@ When a spec's authored `Status:` becomes `ACTIVE`, the service packs the spec di
 
 ### FR-12 — Versioned reads
 
-Read ops accept an optional `version`; absent → latest published (or current worktree state for drafts). The ledger resolves `version → digest → commit` — versioned content is immutable and verifiable against its digest.
+Read ops accept an optional `version`; when present, the ledger resolves `version → digest → commit` and immutable published content is returned, verifiable against its digest. Absent `version` → the current worktree state (unchanged existing semantics — a caller preparing a patch must see HEAD, not a published snapshot).
 
 ## Entry points
 

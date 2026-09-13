@@ -4,13 +4,15 @@ Status: DRAFT
 
 ## Protocol envelope (extends spec-kernel@1 → spec-kernel@2)
 
-QueryEnvelope gains one optional field:
+QueryEnvelope gains two optional fields (major bump `spec-kernel@2`: `@1` callers stay parseable, but the scope-resolution rule is new protocol behavior, so the bump is honest, not cosmetic):
 
 ```json
-{ "project": "stgmt/omp-spec-kit" }
+{ "project": "stgmt/omp-spec-kit", "identity": "stigm" }
 ```
 
-`project` is the composite `owner/project` scope — an ordinary call parameter checked against the caller's `token → tenant → allowed-projects` set (outside the set → refused outright). Absent → the token's configured default scope; refused when the token has no default or the allowed set is ambiguous. `spec`/slug is always explicit on targeted ops — never inferred. Callers hold no identity beyond the token: the token resolves to a tenant (user); nothing else is asserted or trusted. All other envelope fields unchanged; existing error codes reused (`CONFLICT`, `VALIDATION_FAILED`, `PATH_FORBIDDEN`, `ELICITATION_REQUIRED`, `INTERNAL_ERROR`) plus:
+`project` is the composite `owner/project` scope — an ordinary call parameter checked against the caller's `token → tenant → allowed-projects` set (outside the set → refused outright). Absent → the token's configured default scope; refused when the token has no default or the allowed set is ambiguous. Exception: listing ops (`spec_registry`, `spec_drift`) treat absent `project` as "all scopes in my allowed set". `spec`/slug is always explicit on targeted ops — never inferred.
+
+`identity` is the asserted caller label (`X-Spec-Author` header equivalent): recorded in commit trailers + access log, **not trusted** — the token proves tenant, not user. Callers hold no identity beyond the token. All other envelope fields unchanged; existing error codes reused (`CONFLICT`, `VALIDATION_FAILED`, `PATH_FORBIDDEN`, `ELICITATION_REQUIRED`, `INTERNAL_ERROR`) plus:
 
 ```json
 "CLAIM_HELD"      // spec is claimed by another identity; error.holder, error.expiresAt
@@ -29,7 +31,7 @@ QueryEnvelope gains one optional field:
 { "project": "a", "spec": "slug" }
 
 // spec_registry — projected index
-{ "project": "a" }   // optional; absent → all projects in the caller's tenant scope
+{ "project": "a" }   // optional; absent → all projects in the caller's allowed set (listing op)
 // → { ok, data: { projects: [{ id, specs: [{ slug, status, version, digest, owner, claim, published, updatedAt }] }] } }
 
 // spec_drift

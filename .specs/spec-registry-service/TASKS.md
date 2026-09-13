@@ -29,7 +29,7 @@ Status: DRAFT
 
 ## TASK-5 — Write path wiring: tenant token check → claim check → ProposalCompiler → commitDocuments → push as bot with trailers
 - **Status:** todo
-- **Done When:** a remote `spec_patch` lands as an attributed bot commit on `specs`; `CONFLICT` semantics unchanged; every request resolves `token → tenant → allowed projects` and rejects `project` values outside the caller's set.
+- **Done When:** a remote `spec_patch` lands as an attributed bot commit on the specs repo; `CONFLICT` semantics unchanged; every request resolves `token → tenant → allowed projects` and rejects `project` values outside the caller's set.
 - **Requirements:** R-2, R-3, R-7, FR-4, FR-5, FR-6
 
 ## TASK-6 — Store + index + sync loop (`node:sqlite`): tenants, claims (TTL), publish ledger, access log, projected `/registry` index, periodic fetch/reconcile
@@ -65,7 +65,7 @@ Status: DRAFT
 
 ## TASK-12 — YouTrack Hub authN/Z (token introspection, reader/writer/owner roles)
 - **Status:** todo
-- **Done When:** per-user identity enforced; claim `force` requires owner role; v1 shared token retired.
+- **Done When:** per-user identity enforced (Hub token introspection); claim `force` requires owner role; asserted-`identity` trust model retired.
 - **Requirements:** R-7
 
 ## TASK-13 — External YouTrack binding (post-v1): guided onboarding flow
@@ -91,6 +91,6 @@ Status: DRAFT
 - **RISK-2 — Spec↔code decoupling.** Specs and code never land in one PR anymore; linkage lives in the ledger + registry view (which spec a project touched, which version is published). There is no committed pin keeping the two in lockstep — drift between claimed and actual implementation is invisible until queried; accepted for v1, revisitable via TASK-15 if consumers need pins.
 - **RISK-3 — Cross-project spec references.** Deferred entirely; the kernel has no cross-mount edge model. If needed later, likely via ledger entries (`project/slug@version`), not live graph edges.
 - **RISK-4 — Specs repo is one blast radius.** All projects share one repo: a bad global state (history rewrite, repo corruption) hits every tenant. Mitigations: git integrity + journal, operator-side mirror/backup of the specs repo. Per-user branches were considered and rejected (index aggregation).
-- **RISK-5 — Claim is advisory in v1.** Non-holder writes are possible with `force:` (logged). Hard denial waits on full auth (TASK-12); until then claims signal intent, they don't enforce it.
+- **RISK-5 — Claim enforcement is real but identity is weak in v1.** Non-holder writes are refused without `force:` — mechanically enforced. What's weak is *who is behind a claim*: the token proves tenant, `Spec-Author` is asserted/spoofable until TASK-12 (YouTrack Hub authN/Z).
 - **RISK-6 — Ruleset availability.** Actor/path-restriction rulesets depend on the GitHub plan. For the specs repo the v1 perimeter is simpler: private repo + no collaborators + a single operator-issued token = only the service pushes. Product-repo `.specs/` guard stays a CI check (FR-2) applied per migrated repo.
 - **RISK-7 — Token-only perimeter.** v1 auth is per-tenant bearer tokens; a leak compromises that tenant's allowed projects only, but identity assertions (`Spec-Author`) are spoofable and claims stay advisory until TASK-12 (YouTrack Hub authN/Z). TLS is required since the endpoint serves external YouTrack instances.

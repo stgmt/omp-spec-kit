@@ -89,9 +89,10 @@ Every request resolves `token → tenant → allowed projects`; the `project` fi
 
 ## Caller context (v1)
 
-- Token is the only credential a caller holds: it resolves to a tenant (user) and an allowed `owner/project` scope set.
-- `project` is a call parameter — or the token's default scope when absent; refused when ambiguous or outside the allowed set. `spec`/slug is always explicit on targeted ops.
+- Token is the only credential a caller holds: it resolves to a **tenant** and an allowed `owner/project` scope set. It does **not** resolve to a user — per-user identity is asserted (`identity` field / `X-Spec-Author` header), recorded everywhere, spoofable until TASK-12. (Tokens are issued per onboarding event; whether an operator issues one per user or one per tenant is an ops choice, not a protocol difference.)
+- `project` is a call parameter — or the token's default scope when absent; refused when ambiguous or outside the allowed set. `spec`/slug is always explicit on targeted ops. Exception: *listing* ops (`spec_registry`, `spec_drift`) treat absent `project` as "all scopes in my allowed set" — they exist to show the caller what they can see.
 - **No repo binding in v1**: the service does not care which repo the caller sits in — scope comes from the token, not the checkout. Repo-declared scope (a committed binding file) is a deferred safety rail against silent misrouting, not a v1 mechanism.
+- **Onboarding can only grant scopes the operator already configured** in `projects.json` — creating a new project is an operator config step; onboarding issues tokens against existing scopes.
 
 ## Publish (R-9)
 
