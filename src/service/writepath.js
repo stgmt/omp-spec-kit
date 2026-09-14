@@ -51,9 +51,9 @@ function shortHash(hash) {
  */
 export function createWritePipeline({ mounts, claims, git, identity, logger = () => {} }) {
   return {
-    async specPatch({ args, ctx, project, identity: asserted, force, requestId, schemaVersion }) {
+    async specPatch({ args, ctx, project, force, requestId, schemaVersion }) {
       const spec = typeof args.spec === "string" ? args.spec : null;
-      const holder = ctx.identity ?? ctx.tenant;
+      const holder = ctx.identity.login;
       if (args.dryRun !== true && spec) {
         const held = claims.get(project, spec);
         if (held && held.holder !== holder && force !== true) {
@@ -66,7 +66,7 @@ export function createWritePipeline({ mounts, claims, git, identity, logger = ()
           };
         }
         if (held && held.holder !== holder && force === true) {
-          logger(`forced write over claim: project=${project} spec=${spec} holder=${held.holder} tenant=${ctx.tenant}`);
+          logger(`forced write over claim: project=${project} spec=${spec} holder=${held.holder} owner=${holder}`);
         }
       }
 
@@ -83,7 +83,7 @@ export function createWritePipeline({ mounts, claims, git, identity, logger = ()
           message: commitMessage({
             subject: `spec(${project}): apply ${short(receipt.proposalHash)}`,
             trailers: {
-              "Spec-Author": asserted ?? "unknown",
+              "Spec-Author": holder,
               "Spec-Request-Id": String(requestId ?? ""),
             },
           }),

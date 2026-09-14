@@ -20,8 +20,8 @@
     "test:tool-e2e": "npx cucumber-js tests/features/staged-mcp.feature --import tests/step-definitions/staged-mcp.steps.mjs --tags @tool-e2e --format progress --force-exit",
     "test:staged": "npx cucumber-js tests/features/staged-mcp.feature --import tests/step-definitions/staged-mcp.steps.mjs --format progress --force-exit",
     "test:unit": "node --test tests/spec-graph-sync/serve.test.js tests/spec-graph-sync/sync.test.js tests/spec-graph-sync/store.test.js tests/spec-graph-sync/sweep.test.js tests/spec-graph-sync/writeback.test.js tests/authoring-elicitation-edges.test.mjs tests/authoring-task-status.test.mjs tests/kernel-fields.test.mjs tests/roadmap-assemble.test.mjs tests/unit/service/mounts.test.mjs tests/unit/service/tenants-claims.test.mjs",
-    "test:unit:service": "node --experimental-sqlite --test tests/unit/service/mounts.test.mjs tests/unit/service/tenants-claims.test.mjs tests/service/integration.test.mjs tests/service/http.test.mjs tests/service/writepath.test.mjs tests/service/task6.test.mjs",
-    "test:service": "npm run test:unit:service",
+    "test:service": "node --experimental-sqlite --test tests/service/integration.test.mjs tests/service/http.test.mjs tests/service/writepath.test.mjs tests/service/task6.test.mjs",
+    "test:e2e:auth": "node tests/e2e/run-live.mjs",
     "service:start": "node --experimental-sqlite src/service/index.js",
     "test:release-archive": "node scripts/smoke-release-archive.mjs",
     "test:release-integrity": "npx cucumber-js tests/features/release-evidence.feature --import tests/step-definitions/mcp-release-integrity.steps.mjs --tags @mcp-release-integrity --format progress --force-exit",
@@ -31,7 +31,8 @@
     "check:mutations": "node scripts/check-tool-surface-mutations.mjs"
   },
   "devDependencies": {
-    "@cucumber/cucumber": "13.2.1"
+    "@cucumber/cucumber": "13.2.1",
+    "playwright-core": "1.63.0"
   },
   "dependencies": {
     "@jetbrains/youtrack-apps-tools": "^1.0.3",

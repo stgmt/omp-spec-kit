@@ -3,20 +3,14 @@ import path from "node:path";
 
 /**
  * Service-owned store (DESIGN "Authority split"): fields git cannot express
- * live here — tenants, claims, publish ledger, access events. Driver:
+ * live here — claims, publish ledger, access events. Users, groups, and
+ * tokens live only in YouTrack; the verification cache is in-memory (auth.js).
+ * Driver:
  * `node:sqlite` when the runtime provides it, documented JSONL fallback
  * otherwise. Both drivers implement the same interface.
  */
 
 const SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS tenants (
-  id TEXT PRIMARY KEY,
-  token_hash TEXT UNIQUE,
-  allowed_scopes TEXT,
-  default_scope TEXT,
-  created_at TEXT,
-  revoked_at TEXT
-);
 CREATE TABLE IF NOT EXISTS claims (
   spec_key TEXT PRIMARY KEY,
   holder TEXT,
@@ -34,7 +28,8 @@ CREATE TABLE IF NOT EXISTS ledger (
 CREATE TABLE IF NOT EXISTS access_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ts TEXT,
-  identity TEXT,
+  login TEXT,
+  role TEXT,
   tenant TEXT,
   project TEXT,
   op TEXT,
@@ -55,19 +50,6 @@ class SqliteStore {
     const db = new DatabaseSync(file);
     db.exec(SCHEMA_SQL);
     return new SqliteStore(db);
-  }
-
-  upsertTenant({ id, tokenHash, scopes, defaultScope }) {
-    this.db.prepare(
-      "INSERT INTO tenants (id, token_hash, allowed_scopes, default_scope, created_at) VALUES (?, ?, ?, ?, ?) " +
-      "ON CONFLICT(id) DO UPDATE SET token_hash = excluded.token_hash, allowed_scopes = excluded.allowed_scopes, default_scope = excluded.default_scope",
-    ).run(id, tokenHash, JSON.stringify(scopes), defaultScope ?? null, new Date().toISOString());
-  }
-
-  getTenantByTokenHash(tokenHash) {
-    const row = this.db.prepare("SELECT id, token_hash, allowed_scopes, default_scope, revoked_at FROM tenants WHERE token_hash = ? AND revoked_at IS NULL").get(tokenHash);
-    if (!row) return null;
-    return { id: row.id, tokenHash: row.token_hash, scopes: JSON.parse(row.allowed_scopes), defaultScope: row.default_scope, revokedAt: row.revoked_at };
   }
 
   getClaim(key) {
@@ -104,8 +86,8 @@ class SqliteStore {
   }
 
   logAccess(entry) {
-    this.db.prepare("INSERT INTO access_log (ts, identity, tenant, project, op, spec, request_id, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-      .run(entry.ts ?? new Date().toISOString(), entry.identity ?? null, entry.tenant ?? null, entry.project ?? null, entry.op ?? null, entry.spec ?? null, entry.requestId ?? null, entry.result ?? null);
+    this.db.prepare("INSERT INTO access_log (ts, login, role, tenant, project, op, spec, request_id, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(entry.ts ?? new Date().toISOString(), entry.login ?? null, entry.role ?? null, entry.tenant ?? null, entry.project ?? null, entry.op ?? null, entry.spec ?? null, entry.requestId ?? null, entry.result ?? null);
   }
 
   close() {
@@ -121,7 +103,7 @@ class JsonlStore {
   }
 
   static async open(file) {
-    let state = { tenants: [], claims: [], ledger: [], access_log: [] };
+    let state = { claims: [], ledger: [], access_log: [] };
     try {
       state = { ...state, ...JSON.parse(await readFile(file, "utf8")) };
     } catch {}
@@ -133,18 +115,6 @@ class JsonlStore {
     await mkdir(path.dirname(this.file), { recursive: true });
     await writeFile(tmp, JSON.stringify(this.state, null, 2));
     await rename(tmp, this.file);
-  }
-
-  upsertTenant({ id, tokenHash, scopes, defaultScope }) {
-    const existing = this.state.tenants.find((t) => t.id === id);
-    const record = { id, tokenHash, scopes, defaultScope: defaultScope ?? null, createdAt: existing?.createdAt ?? new Date().toISOString(), revokedAt: null };
-    if (existing) Object.assign(existing, record);
-    else this.state.tenants.push(record);
-    return this.persist();
-  }
-
-  getTenantByTokenHash(tokenHash) {
-    return this.state.tenants.find((t) => t.tokenHash === tokenHash && t.revokedAt === null) ?? null;
   }
 
   getClaim(key) {

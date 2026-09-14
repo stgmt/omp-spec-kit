@@ -8,7 +8,8 @@ import { createDispatcher, serverInfo } from "./dispatch.js";
  * Shared tool dispatch for the HTTP transport: same contracts, same argument
  * normalization, same envelopes as the stdio server. Transport-only fields
  * (`project`, `identity`, `force`) are stripped before the closed op args
- * reach the kernel.
+ * reach the kernel. Auth failures map to HTTP: 401/403 from the verifier,
+ * 503 (retryable) when YouTrack cannot be reached.
  */
 export function createServiceApp({ mounts, authenticate, serviceOps = {}, serviceContracts = [], wrappers = {}, endpoints = {}, audit }) {
   const dispatcher = createDispatcher({ mounts, serviceOps, serviceContracts, wrappers });
@@ -16,30 +17,38 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "4mb" }));
+
+  const authGate = (req, res, next) => {
+    Promise.resolve()
+      .then(() => authenticate(req))
+      .then((ctx) => {
+        req.ctx = ctx;
+        next();
+      })
+      .catch((error) => {
+        const status = Number.isSafeInteger(error?.status) ? error.status : 401;
+        res.status(status).json({
+          error: error?.code ?? "UNAUTHORIZED",
+          message: error?.message ?? "authentication failed",
+          ...(error?.retryable === true ? { retryable: true } : {}),
+        });
+      });
+  };
   app.use("/mcp", (req, res, next) => {
-    try {
-      req.ctx = authenticate(req);
-    } catch (error) {
-      res.status(401).json({ error: "unauthorized", message: error?.message ?? "authentication failed" });
+    // Stateless endpoint: only POST carries JSON-RPC; other methods are 405
+    // regardless of credentials (handlers registered below the gate).
+    if (req.method !== "POST") {
+      next();
       return;
     }
-    next();
+    authGate(req, res, next);
   });
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "spec-registryd" });
   });
 
-  const opsGate = (req, res, next) => {
-    try {
-      req.ctx = authenticate(req);
-    } catch (error) {
-      res.status(401).json({ error: "unauthorized", message: error?.message ?? "authentication failed" });
-      return;
-    }
-    next();
-  };
-  app.get("/registry", opsGate, async (req, res) => {
+  app.get("/registry", authGate, async (req, res) => {
     if (typeof endpoints.registry !== "function") {
       res.status(501).json({ error: "registry endpoint is not wired" });
       return;
@@ -50,7 +59,7 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
       res.status(500).json({ error: "registry projection failed", message: String(error?.message ?? error) });
     }
   });
-  app.get("/drift", opsGate, async (req, res) => {
+  app.get("/drift", authGate, async (req, res) => {
     if (typeof endpoints.drift !== "function") {
       res.status(501).json({ error: "drift endpoint is not wired" });
       return;
@@ -104,7 +113,7 @@ function wireProtocolHandlers(server, dispatcher, ctx, audit) {
     };
   });
   server.setRequestHandler(PingRequestSchema, async () => ({}));
-  server.setRequestHandler(ListToolsRequestSchema, async () => dispatcher.toolListPayload());
+  server.setRequestHandler(ListToolsRequestSchema, async () => dispatcher.toolListPayload(ctx));
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: rawArguments } = request.params ?? {};
     if (typeof name !== "string") {
@@ -117,8 +126,9 @@ function wireProtocolHandlers(server, dispatcher, ctx, audit) {
     if (typeof audit === "function") {
       try {
         audit({
-          tenant: ctx?.tenant ?? null,
-          identity: ctx?.identity ?? null,
+          tenant: Array.isArray(ctx?.tenant) ? ctx.tenant.join(",") : ctx?.tenant ?? null,
+          login: ctx?.identity?.login ?? null,
+          role: ctx?.role ?? null,
           project: typeof rawArguments?.project === "string" ? rawArguments.project : null,
           op: name,
           spec: typeof rawArguments?.spec === "string" ? rawArguments.spec : null,
@@ -134,10 +144,4 @@ function wireProtocolHandlers(server, dispatcher, ctx, audit) {
       isError: !envelope.ok || envelope.data?.outcome === "REFUSED",
     };
   });
-}
-
-export function bearerToken(req) {
-  const header = req.headers.authorization;
-  if (typeof header !== "string" || !header.startsWith("Bearer ")) return null;
-  return header.slice("Bearer ".length).trim() || null;
 }

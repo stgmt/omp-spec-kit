@@ -54,19 +54,16 @@ function invalidRequest(operation, requestId, message, extra = {}) {
   return errorEnvelope(operation, requestId, "INVALID_REQUEST", message, extra);
 }
 
-/**
- * Caller context for one request. In phase 1 (pre-onboarding) the service
- * trusts its own configured project set; TASK-5 replaces this with
- * `token → tenant → allowed scopes`.
- */
-export function preAuthContext(mounts) {
-  const scopes = [...mounts.projects];
-  return {
-    tenant: "local",
-    scopes,
-    defaultScope: scopes.length === 1 ? scopes[0] : null,
-    identity: null,
-  };
+/** Roles gate operations (FR-8): readers read, writers write, owners force. */
+const WRITE_OPERATIONS = new Set(["specPatch", "specClaim", "specRelease"]);
+const ROLE_RANK = Object.freeze({ reader: 0, writer: 1, owner: 2 });
+
+function roleAllows(ctx, operation, force) {
+  const rank = ROLE_RANK[ctx.role] ?? -1;
+  if (rank < 0) return false;
+  if (WRITE_OPERATIONS.has(operation) && rank < ROLE_RANK.writer) return false;
+  if (force === true && rank < ROLE_RANK.owner) return false;
+  return true;
 }
 
 function hasRequestIdField(contract) {
@@ -136,10 +133,22 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
       return { envelope: invalidRequest(operation, requestId, "requestId must be a string or null", { parameter: "requestId", expected: "string|null", receivedType: typeof requestId }) };
     }
 
-    const { project: rawProject, identity, force, schemaVersion, requestId: _requestId, ...restArgs } = raw;
+    const { project: rawProject, identity: _retiredIdentity, force, schemaVersion, requestId: _requestId, ...restArgs } = raw;
+    void _retiredIdentity;
     const normalized = normalizeToolArguments(restArgs);
     if (!normalized.ok) {
       return { envelope: errorEnvelope(operation, requestId, normalized.error.code, normalized.error.message, { parameter: normalized.error.parameter }) };
+    }
+
+    if (!roleAllows(ctx, operation, force)) {
+      const needed = force === true ? "owner" : "writer";
+      return {
+        envelope: invalidRequest(operation, requestId, `${force === true ? "force" : operation} requires ${needed} role (caller role: ${ctx.role ?? "none"})`, {
+          parameter: force === true ? "force" : null,
+          expected: needed,
+          receivedSummary: ctx.role ?? null,
+        }),
+      };
     }
 
     const isServiceOp = Object.hasOwn(serviceOps, contract.operation);
@@ -173,21 +182,26 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
     }
 
     if (isServiceOp) {
-      return serviceEntry.run({ args: argsForKernel, ctx, project: resolved.project ?? null, allScopes: resolved.allScopes === true, identity, force, requestId, schemaVersion: raw.schemaVersion, contract });
+      return serviceEntry.run({ args: argsForKernel, ctx, project: resolved.project ?? null, allScopes: resolved.allScopes === true, force, requestId, schemaVersion: raw.schemaVersion, contract });
     }
 
     const wrapper = wrappers[contract.operation];
     if (wrapper) {
-      return wrapper({ args: argsForKernel, ctx, project: resolved.project, identity: identity ?? ctx.identity, force, requestId, schemaVersion: raw.schemaVersion, contract });
+      return wrapper({ args: argsForKernel, ctx, project: resolved.project, force, requestId, schemaVersion: raw.schemaVersion, contract });
     }
 
     const envelope = await mounts.serviceFor(resolved.project).runQuery(contract.operation, argsForKernel, { requestId, schemaVersion: raw.schemaVersion });
     return { envelope };
   }
 
-  function toolListPayload() {
+  function toolListPayload(ctx) {
+    const rank = ROLE_RANK[ctx?.role] ?? ROLE_RANK.reader;
+    const visible = [...TOOL_CONTRACTS, ...serviceContracts].filter((contract) => {
+      if (rank >= ROLE_RANK.writer) return true;
+      return !WRITE_OPERATIONS.has(contract.operation);
+    });
     return {
-      tools: [...TOOL_CONTRACTS, ...serviceContracts].map((contract) => ({
+      tools: visible.map((contract) => ({
         name: contract.tool,
         title: contract.label,
         description: contract.description,

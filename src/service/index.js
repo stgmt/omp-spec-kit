@@ -2,10 +2,9 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { GitClient, botIdentityFromEnv } from "./git.js";
 import { loadProjectsConfig, MountManager } from "./mounts.js";
-import { preAuthContext } from "./dispatch.js";
-import { bearerToken, createServiceApp } from "./http.js";
+import { createYouTrackAuth } from "./auth.js";
+import { createServiceApp } from "./http.js";
 import { createClaimStore } from "./claims.js";
-import { createTenantDirectory, contextFor } from "./tenants.js";
 import { createClaimOps, CLAIM_CONTRACTS } from "./ops/claim.js";
 import { createRegistryOps, REGISTRY_CONTRACTS } from "./ops/registry.js";
 import { createWritePipeline } from "./writepath.js";
@@ -22,11 +21,21 @@ export async function bootService({ configPath, cloneDir, git = new GitClient(),
   return { config, mounts, report };
 }
 
-export function buildServiceStack({ mounts, config, git, identity = botIdentityFromEnv(), logger, store, syncIntervalMs = 0 }) {
-  const tenants = createTenantDirectory({ tenants: config.tenants ?? [], store });
+export function buildServiceStack({ mounts, config, git, identity = botIdentityFromEnv(), logger = () => {}, store, syncIntervalMs = 0, env = process.env }) {
+  const auth = createYouTrackAuth({
+    youtrack: {
+      baseUrl: env.SPEC_REGISTRY_YT_URL ?? config.auth.youtrack.baseUrl,
+      serviceToken: env.SPEC_REGISTRY_YT_SERVICE_TOKEN ?? config.auth.youtrack.serviceToken,
+    },
+    appBridgeToken: env.SPEC_REGISTRY_APP_BRIDGE_TOKEN ?? config.auth.appBridgeToken,
+    tenants: config.tenants,
+    roleGroups: config.auth.roleGroups,
+    cacheTtlMs: Number(env.SPEC_REGISTRY_AUTH_CACHE_MS ?? 60_000),
+    logger,
+  });
   const claims = createClaimStore({ store });
   const claimOps = createClaimOps({ claims });
-  const registryIndex = () => buildRegistryIndex({ mounts, claims, ledger: store ?? { getLedger: () => [] } });
+  const registryIndex = () => buildRegistryIndex({ mounts, claims, ledger: store ?? { getLedger: () => [] }, git });
   const driftReport = async () => {
     // A drift report is only honest against a freshly fetched remote.
     await git.fetch({ cwd: mounts.cloneDir }).catch(() => {});
@@ -39,23 +48,12 @@ export function buildServiceStack({ mounts, config, git, identity = botIdentityF
     sync = startSync({ mounts, git, branch: config.branch, identity, cwd: mounts.cloneDir, intervalMs: syncIntervalMs, logger });
   }
   return {
-    tenants,
+    auth,
     claims,
     sync,
     registryIndex,
     driftReport,
-    authenticate(req) {
-      // No tenants seeded -> phase-1 dev mode on localhost (pre-auth context).
-      if (tenants.size === 0) return preAuthContext(mounts);
-      const token = bearerToken(req);
-      const record = token === null ? null : tenants.resolve(token);
-      if (!record) {
-        const error = new Error("unknown or missing bearer token");
-        error.status = 401;
-        throw error;
-      }
-      return contextFor(record, req.headers?.["x-spec-author"]);
-    },
+    authenticate: (req) => auth.authenticate(req),
     serviceOps: { specClaim: claimOps.specClaim, specRelease: claimOps.specRelease, specRegistry: registryOps.specRegistry, specDrift: registryOps.specDrift },
     serviceContracts: [...CLAIM_CONTRACTS, ...REGISTRY_CONTRACTS],
     wrappers: { specPatch: writePath.specPatch },
@@ -67,12 +65,12 @@ export function buildServiceStack({ mounts, config, git, identity = botIdentityF
   };
 }
 
-export async function startService({ configPath, cloneDir, storeFile, syncIntervalMs = Number(process.env.SPEC_REGISTRY_SYNC_MS ?? 0), port = Number(process.env.SPEC_REGISTRY_PORT ?? 8642), host = process.env.SPEC_REGISTRY_HOST ?? "127.0.0.1", identity = botIdentityFromEnv(), logger = console.error }) {
+export async function startService({ configPath, cloneDir, storeFile, syncIntervalMs = Number(process.env.SPEC_REGISTRY_SYNC_MS ?? 0), port = Number(process.env.SPEC_REGISTRY_PORT ?? 8642), host = process.env.SPEC_REGISTRY_HOST ?? "127.0.0.1", identity = botIdentityFromEnv(), logger = console.error, env = process.env }) {
   const git = new GitClient();
   const { config, mounts } = await bootService({ configPath, cloneDir, git, identity, logger });
   const resolvedCloneDir = mounts.cloneDir;
-  const store = await createStore({ file: storeFile ?? path.join(path.dirname(resolvedCloneDir), "registry.db") });
-  const stack = buildServiceStack({ mounts, config, git, identity, logger, store, syncIntervalMs });
+  const store = await createStore({ file: storeFile ?? env.SPEC_REGISTRY_STORE ?? path.join(path.dirname(resolvedCloneDir), "registry.db") });
+  const stack = buildServiceStack({ mounts, config, git, identity, logger, store, syncIntervalMs, env });
   const app = createServiceApp({ mounts, ...stack });
   const server = app.listen(port, host);
   await new Promise((resolve, reject) => {
@@ -82,7 +80,7 @@ export async function startService({ configPath, cloneDir, storeFile, syncInterv
     });
     server.once("error", reject);
   });
-  return { mounts, tenants: stack.tenants, claims: stack.claims, store, sync: stack.sync, server, port: server.address().port, host };
+  return { mounts, auth: stack.auth, claims: stack.claims, store, sync: stack.sync, server, port: server.address().port, host };
 }
 
 export async function main() {

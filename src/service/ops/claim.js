@@ -31,8 +31,9 @@ export function createClaimOps({ claims }) {
   return {
     specClaim: { listing: false, async run({ args, ctx, project, requestId }) {
       const spec = args.spec;
+      const holder = ctx.identity.login;
       try {
-        const data = claims.claim({ project, spec, holder: ctx.identity ?? ctx.tenant, ttlMinutes: args.ttlMinutes });
+        const data = claims.claim({ project, spec, holder, ttlMinutes: args.ttlMinutes });
         return { envelope: serviceSuccess("specClaim", requestId, data) };
       } catch (error) {
         if (error?.code === "CLAIM_HELD") {
@@ -42,7 +43,7 @@ export function createClaimOps({ claims }) {
       }
     } },
     specRelease: { listing: false, async run({ args, ctx, project, requestId }) {
-      const result = claims.release({ project, spec: args.spec, holder: ctx.identity ?? ctx.tenant });
+      const result = claims.release({ project, spec: args.spec, holder: ctx.identity.login });
       if (!result.released && result.reason === "CLAIM_HELD") {
         return { envelope: serviceErrorEnvelope("specRelease", requestId, "CLAIM_HELD", `spec is claimed by ${result.holder}`, { specSlug: args.spec, holder: result.holder, expiresAt: result.expiresAt }) };
       }

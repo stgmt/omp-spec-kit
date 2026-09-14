@@ -3,6 +3,8 @@ import path from "node:path";
 import { createSpecService } from "../adapters/query-service.js";
 import { recoverInterruptedTransactions } from "../authoring/transactions.js";
 import { GitClient, GitError, botIdentityFromEnv, commitMessage } from "./git.js";
+import { parseAuthConfig } from "./auth.js";
+import { parseTenants } from "./tenants.js";
 
 const PROJECT_ID_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/;
 const LOCK_FILE = ".omp-spec-kit-write.lock";
@@ -11,7 +13,7 @@ export class ConfigError extends Error {}
 
 export function parseProjectsConfig(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new ConfigError("projects config must be a JSON object");
-  const { specsRepo, branch = "main", projects, tenants } = raw;
+  const { specsRepo, branch = "main", projects, tenants, auth } = raw;
   if (typeof specsRepo !== "string" || specsRepo.length === 0) throw new ConfigError("specsRepo is required");
   if (typeof branch !== "string" || branch.length === 0) throw new ConfigError("branch must be a non-empty string");
   if (!Array.isArray(projects) || projects.length === 0) throw new ConfigError("projects must be a non-empty array");
@@ -21,8 +23,14 @@ export function parseProjectsConfig(raw) {
     return id;
   });
   if (new Set(ids).size !== ids.length) throw new ConfigError("project ids must be unique");
-  if (tenants !== undefined && !Array.isArray(tenants)) throw new ConfigError("tenants must be an array when present");
-  return { specsRepo, branch, projects: ids, tenants: tenants ?? [] };
+  const parsedTenants = parseTenants(tenants ?? []);
+  for (const tenant of parsedTenants) {
+    for (const project of tenant.projects) {
+      if (!ids.includes(project)) throw new ConfigError(`tenant ${tenant.tenant} references an unconfigured project: ${project}`);
+    }
+  }
+  const parsedAuth = parseAuthConfig(auth);
+  return { specsRepo, branch, projects: ids, tenants: parsedTenants, auth: parsedAuth };
 }
 
 export async function loadProjectsConfig(configPath) {
