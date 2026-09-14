@@ -30,14 +30,53 @@ export class GitError extends Error {
 }
 
 /**
+ * Server-side credential for the private specs repo (TASK-14). The operator
+ * token is handed to the git child process as a URL-scoped `http.extraheader`,
+ * so it never lands in argv, in a config file, or in an error message — the
+ * service reaches the specs repo under the hood and consumers never see it.
+ */
+export function gitAuthEnv(auth) {
+  if (!auth || typeof auth.token !== "string" || auth.token.length === 0) return {};
+  const key = typeof auth.url === "string" && auth.url.length > 0 ? `http.${auth.url}.extraheader` : "http.extraheader";
+  const username = typeof auth.username === "string" && auth.username.length > 0 ? auth.username : "x-access-token";
+  const header = `Authorization: Basic ${Buffer.from(`${username}:${auth.token}`, "utf8").toString("base64")}`;
+  return {
+    GIT_CONFIG_COUNT: "1",
+    GIT_CONFIG_KEY_0: key,
+    GIT_CONFIG_VALUE_0: header,
+  };
+}
+
+export function gitAuthFromEnv(env = process.env) {
+  const token = env.SPEC_REGISTRY_GIT_TOKEN;
+  if (typeof token !== "string" || token.trim().length === 0) return undefined;
+  return {
+    token: token.trim(),
+    username: env.SPEC_REGISTRY_GIT_USER,
+    url: env.SPEC_REGISTRY_GIT_AUTH_URL,
+  };
+}
+
+/**
  * Thin serialized git CLI wrapper. One queue per repository root: git index and
  * refs are process-global state inside a worktree, so concurrent git calls on
  * the same clone must not interleave.
  */
 export class GitClient {
-  constructor({ defaultCwd, env = process.env } = {}) {
+  constructor({ defaultCwd, env = process.env, gitAuth } = {}) {
     this.defaultCwd = defaultCwd;
     this.env = env;
+    this.gitAuth = gitAuth;
+    this.secrets = [gitAuth?.token].filter((secret) => typeof secret === "string" && secret.length > 0);
+  }
+
+  childEnv() {
+    return { ...this.env, ...gitAuthEnv(this.gitAuth) };
+  }
+
+  redact(text) {
+    if (typeof text !== "string") return text;
+    return this.secrets.reduce((out, secret) => out.split(secret).join("***"), text);
   }
 
   run(args, { cwd = this.defaultCwd } = {}) {
@@ -45,15 +84,18 @@ export class GitClient {
       return Promise.reject(new GitError("git arguments must be an array of strings", { args }));
     }
     return enqueue(`${cwd ?? ""}`, () =>
-      execFileAsync("git", args, { cwd, windowsHide: true, maxBuffer: 32 * 1024 * 1024 })
+      execFileAsync("git", args, { cwd, windowsHide: true, maxBuffer: 32 * 1024 * 1024, env: this.childEnv() })
         .then(({ stdout, stderr }) => ({ stdout, stderr }))
         .catch((error) => {
-          throw new GitError(`git ${args[0]} failed: ${(error.stderr || error.message || "").trim().slice(0, 500)}`, {
-            args,
-            stdout: error.stdout,
-            stderr: error.stderr,
-            exitCode: error.code,
-          });
+          throw new GitError(
+            this.redact(`git ${args[0]} failed: ${(error.stderr || error.message || "").trim().slice(0, 500)}`),
+            {
+              args: args.map((arg) => this.redact(arg)),
+              stdout: this.redact(error.stdout),
+              stderr: this.redact(error.stderr),
+              exitCode: error.code,
+            },
+          );
         }),
     );
   }

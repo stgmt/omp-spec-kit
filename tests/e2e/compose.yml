@@ -49,6 +49,11 @@ services:
       SPEC_REGISTRY_AUTH_CACHE_MS: "1000"
       SPEC_REGISTRY_BOT_NAME: spec-registryd bot
       SPEC_REGISTRY_BOT_EMAIL: bot@spec-registryd.invalid
+      # Optional operator credential for a private specs repo (empty in the
+      # local bare-repo fixture — the git daemon needs no auth).
+      SPEC_REGISTRY_GIT_TOKEN: ${SPEC_REGISTRY_GIT_TOKEN:-}
+      SPEC_REGISTRY_GIT_USER: ${SPEC_REGISTRY_GIT_USER:-x-access-token}
+      SPEC_REGISTRY_GIT_AUTH_URL: ${SPEC_REGISTRY_GIT_AUTH_URL:-}
     volumes:
       - service-data:/data
       - type: bind

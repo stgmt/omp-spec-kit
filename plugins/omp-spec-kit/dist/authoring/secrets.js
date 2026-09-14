@@ -1,5 +1,7 @@
 export const SECRET_PATTERNS = Object.freeze([
-  ["authorization", /\b(?:proxy-)?authorization\s*:\s*(?:bearer|basic|token)\s+[^\s"']+/iu],
+  // Documentation placeholders (`Bearer <credential>`, `${TOKEN}`, `{{token}}`)
+  // are not credentials: the value must not be a bracketed placeholder.
+  ["authorization", /\b(?:proxy-)?authorization\s*:\s*(?:bearer|basic|token)\s+(?!<[^>\s]*>|\$\{[^}\s]*\}|\{\{[^}\s]*\}\})[^\s"']+/iu],
   ["bearer-token", /\b(?:bearer|token)\s+[A-Za-z0-9._~+/=-]{16,}/iu],
   ["cookie", /\b(?:set-)?cookie\s*:\s*[^;\r\n=]+=[^;\r\n]+/iu],
   ["pem-private-key", /-----BEGIN(?: [A-Z0-9]+)? PRIVATE KEY-----/u],

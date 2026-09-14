@@ -45,6 +45,11 @@ services:
       SPEC_REGISTRY_SYNC_MS: ${SPEC_REGISTRY_SYNC_MS:-30000}
       SPEC_REGISTRY_BOT_NAME: ${SPEC_REGISTRY_BOT_NAME:-spec-registryd bot}
       SPEC_REGISTRY_BOT_EMAIL: ${SPEC_REGISTRY_BOT_EMAIL:-bot@spec-registryd.invalid}
+      # Operator-issued credential for the private specs repo: injected
+      # server-side only, never into config files or MCP responses.
+      SPEC_REGISTRY_GIT_TOKEN: ${SPEC_REGISTRY_GIT_TOKEN:-}
+      SPEC_REGISTRY_GIT_USER: ${SPEC_REGISTRY_GIT_USER:-x-access-token}
+      SPEC_REGISTRY_GIT_AUTH_URL: ${SPEC_REGISTRY_GIT_AUTH_URL:-}
     volumes:
       - registry-data:/data
       - type: bind

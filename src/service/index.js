@@ -1,6 +1,6 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { GitClient, botIdentityFromEnv } from "./git.js";
+import { GitClient, botIdentityFromEnv, gitAuthFromEnv } from "./git.js";
 import { loadProjectsConfig, MountManager } from "./mounts.js";
 import { createYouTrackAuth } from "./auth.js";
 import { createServiceApp } from "./http.js";
@@ -13,7 +13,7 @@ import { buildRegistryIndex } from "./registry.js";
 import { computeDrift } from "./drift.js";
 import { startSync } from "./sync.js";
 
-export async function bootService({ configPath, cloneDir, git = new GitClient(), identity, logger = () => {} }) {
+export async function bootService({ configPath, cloneDir, git = new GitClient({ gitAuth: gitAuthFromEnv() }), identity, logger = () => {} }) {
   const config = await loadProjectsConfig(configPath);
   const resolvedCloneDir = path.resolve(cloneDir ?? path.join(path.dirname(configPath), "..", "data", "specs-clone"));
   const mounts = new MountManager({ config, cloneDir: resolvedCloneDir, git, identity, logger });
@@ -66,7 +66,7 @@ export function buildServiceStack({ mounts, config, git, identity = botIdentityF
 }
 
 export async function startService({ configPath, cloneDir, storeFile, syncIntervalMs = Number(process.env.SPEC_REGISTRY_SYNC_MS ?? 0), port = Number(process.env.SPEC_REGISTRY_PORT ?? 8642), host = process.env.SPEC_REGISTRY_HOST ?? "127.0.0.1", identity = botIdentityFromEnv(), logger = console.error, env = process.env }) {
-  const git = new GitClient();
+  const git = new GitClient({ gitAuth: gitAuthFromEnv(env) });
   const { config, mounts } = await bootService({ configPath, cloneDir, git, identity, logger });
   const resolvedCloneDir = mounts.cloneDir;
   const store = await createStore({ file: storeFile ?? env.SPEC_REGISTRY_STORE ?? path.join(path.dirname(resolvedCloneDir), "registry.db") });

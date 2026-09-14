@@ -5,7 +5,7 @@
 FROM node:22-bookworm-slim
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends git \
+  && apt-get install -y --no-install-recommends git ca-certificates \
   && rm -rf /var/lib/apt/lists/* \
   # The container is single-purpose and runs as non-root; mounted specs-repo
   # paths are host-owned, so the dubious-ownership check is disabled here.
