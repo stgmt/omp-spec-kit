@@ -1,3 +1,4 @@
+import { KERNEL_SCHEMA_VERSION } from "../../src/kernel/index.js";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -68,7 +69,7 @@ When("the registry and every handler are called", { timeout: 30000 }, async func
   }
   this.stagedMcp.results = [];
   for (const [name, arguments_] of READ_COMPLETE_CALLS) {
-    const response = await this.stagedMcp.server.request("tools/call", { name, arguments: { schemaVersion: "spec-kernel@1", requestId: `bdd-${name}`, ...arguments_ } });
+    const response = await this.stagedMcp.server.request("tools/call", { name, arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: `bdd-${name}`, ...arguments_ } });
     this.stagedMcp.results.push({ name, response });
   }
 });
@@ -87,12 +88,12 @@ Then(/the registry has exactly (?:10|11) names and every call has a bounded enve
 });
 
 When("an authoring spec patch is executed with dryRun false", { timeout: 30000 }, async function () {
-  const overview = await this.stagedMcp.server.request("tools/call", { name: "spec_catalog", arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-overview", view: "overview", specSlugs: [] } });
+  const overview = await this.stagedMcp.server.request("tools/call", { name: "spec_catalog", arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-overview", view: "overview", specSlugs: [] } });
   const fingerprint = overview.result.structuredContent.graph.fingerprint;
   const applied = await this.stagedMcp.server.request("tools/call", {
     name: "spec_patch",
     arguments: {
-      schemaVersion: "spec-kernel@1",
+      schemaVersion: KERNEL_SCHEMA_VERSION,
       requestId: "bdd-apply",
       intent: "patch",
       dryRun: false,
@@ -103,12 +104,12 @@ When("an authoring spec patch is executed with dryRun false", { timeout: 30000 }
     },
   });
   this.stagedMcp.apply = applied.result.structuredContent;
-  const appendOverview = await this.stagedMcp.server.request("tools/call", { name: "spec_catalog", arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-append-overview", view: "overview", specSlugs: [] } });
+  const appendOverview = await this.stagedMcp.server.request("tools/call", { name: "spec_catalog", arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-append-overview", view: "overview", specSlugs: [] } });
   const appendFingerprint = appendOverview.result.structuredContent.graph.fingerprint;
   const appendApplied = await this.stagedMcp.server.request("tools/call", {
     name: "spec_patch",
     arguments: {
-      schemaVersion: "spec-kernel@1",
+      schemaVersion: KERNEL_SCHEMA_VERSION,
       requestId: "bdd-append-apply",
       intent: "patch",
       dryRun: false,
@@ -121,12 +122,12 @@ When("an authoring spec patch is executed with dryRun false", { timeout: 30000 }
   this.stagedMcp.append = { applied: appendApplied.result.structuredContent };
   const refreshedOverview = await this.stagedMcp.server.request("tools/call", {
     name: "spec_catalog",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-rename-overview", view: "overview", specSlugs: [] },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-rename-overview", view: "overview", specSlugs: [] },
   });
   const renameApplied = await this.stagedMcp.server.request("tools/call", {
     name: "spec_patch",
     arguments: {
-      schemaVersion: "spec-kernel@1",
+      schemaVersion: KERNEL_SCHEMA_VERSION,
       requestId: "bdd-rename-apply",
       intent: "patch",
       dryRun: false,
@@ -172,11 +173,11 @@ When("authoring safety guards are exercised", { timeout: 30000 }, async function
   });
   const linked = await this.stagedMcp.server.request("tools/call", {
     name: "spec_patch",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-linked-create", intent: "createSpec", spec: "evil", reason: "reject linked path", title: "Escape" },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-linked-create", intent: "createSpec", spec: "evil", reason: "reject linked path", title: "Escape" },
   });
   const existing = await this.stagedMcp.server.request("tools/call", {
     name: "spec_patch",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-existing-create", intent: "createSpec", spec: "product", reason: "reject overwrite", title: "Overwrite" },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-existing-create", intent: "createSpec", spec: "product", reason: "reject overwrite", title: "Overwrite" },
   });
   this.stagedMcp.safety = { linked: linked.result.structuredContent, existing: existing.result.structuredContent };
 });
@@ -199,11 +200,11 @@ When("the read server receives alias and unknown-field calls", { timeout: 30000 
   });
   const alias = await this.stagedMcp.server.request("tools/call", {
     name: "spec_catalog",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-alias", view: "inventory", spec_slugs: [], include_documents: false, limit: 1, cursor: null },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-alias", view: "inventory", spec_slugs: [], include_documents: false, limit: 1, cursor: null },
   });
   const unknown = await this.stagedMcp.server.request("tools/call", {
     name: "spec_catalog",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-unknown", view: "specs", unexpected: true },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-unknown", view: "specs", unexpected: true },
   });
   const invalidShape = await this.stagedMcp.server.request("tools/call", {
     name: "spec_catalog",
@@ -259,7 +260,7 @@ When("an incomplete evidence stream is queried", { timeout: 30000 }, async funct
   });
   const result = await this.stagedMcp.server.request("tools/call", {
     name: "spec_evidence",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-incomplete-evidence", view: "result", scenarioId: "product:SCEN-specification-only-init" },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-incomplete-evidence", view: "result", scenarioId: "product:SCEN-specification-only-init" },
   });
   this.stagedMcp.evidenceResult = result.result.structuredContent;
 });
@@ -274,7 +275,7 @@ Then("the evidence result is unknown and stale", function () {
 When("a new specification is created and archived through the spec patch door", { timeout: 30000 }, async function () {
   const firstAttempt = await this.stagedMcp.server.request("tools/call", {
     name: "spec_patch",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-archive-create", intent: "createSpec", spec: "archive-bdd", reason: "create archive fixture", title: "Archive BDD", dryRun: false },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-archive-create", intent: "createSpec", spec: "archive-bdd", reason: "create archive fixture", title: "Archive BDD", dryRun: false },
   });
   const firstResult = firstAttempt.result.structuredContent;
   assert.equal(firstResult.ok, true, JSON.stringify(firstResult));
@@ -283,13 +284,13 @@ When("a new specification is created and archived through the spec patch door", 
 
   const created = await this.stagedMcp.server.request("tools/call", {
     name: "spec_patch",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-archive-create-retry", intent: "createSpec", spec: "archive-bdd", reason: "create archive fixture", title: "Archive BDD", dryRun: false },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-archive-create-retry", intent: "createSpec", spec: "archive-bdd", reason: "create archive fixture", title: "Archive BDD", dryRun: false },
   });
   const createdApplied = created.result.structuredContent;
   assert.equal(createdApplied.data.outcome, "APPLIED", JSON.stringify(createdApplied));
   const archive = await this.stagedMcp.server.request("tools/call", {
     name: "spec_patch",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-archive-apply", intent: "archiveSpec", spec: "archive-bdd", reason: "archive exact fixture", dryRun: false },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-archive-apply", intent: "archiveSpec", spec: "archive-bdd", reason: "archive exact fixture", dryRun: false },
   });
   const archivedApply = archive.result.structuredContent;
   assert.equal(archivedApply.data.outcome, "APPLIED", JSON.stringify(archivedApply));
@@ -415,7 +416,7 @@ Then("every read-only call preserves the project byte snapshot", function () {
 });
 
 When("MCP envelope recovery cases are exercised", { timeout: 30000 }, async function () {
-  const request = (name, arguments_) => this.stagedMcp.server.request("tools/call", { name, arguments: { schemaVersion: "spec-kernel@1", ...arguments_ } });
+  const request = (name, arguments_) => this.stagedMcp.server.request("tools/call", { name, arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, ...arguments_ } });
   const firstPage = await request("spec_entities", { requestId: "bdd-recovery-first", mode: "find", kinds: [], canonicalIds: [], text: null, projection: "summary", limit: 1, cursor: null });
   const firstValue = firstPage.result.structuredContent;
   const cursor = firstValue.page?.nextCursor;
@@ -477,11 +478,11 @@ When("the additive registry, evidence states, and safe authoring are exercised",
   this.stagedMcp.v05Names = listed.result.tools.map((tool) => tool.name);
   const overview = await this.stagedMcp.server.request("tools/call", {
     name: "spec_catalog",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-overview", view: "overview", specSlugs: [] },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "v05-overview", view: "overview", specSlugs: [] },
   });
   const nodeResponse = await this.stagedMcp.server.request("tools/call", {
     name: "spec_entities",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-node", mode: "get", canonicalId: "product:SCEN-specification-only-init", projection: "summary", includeIncidentCounts: false },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "v05-node", mode: "get", canonicalId: "product:SCEN-specification-only-init", projection: "summary", includeIncidentCounts: false },
   });
   const binding = {
     graphFingerprint: overview.result.structuredContent.graph.fingerprint,
@@ -495,7 +496,7 @@ When("the additive registry, evidence states, and safe authoring are exercised",
     .replace("__SCENARIO_CONTENT_HASH__", binding.scenarioContentHash));
   const evidenceRequest = (view, requestId) => this.stagedMcp.server.request("tools/call", {
     name: "spec_evidence",
-    arguments: { schemaVersion: "spec-kernel@1", requestId, view, scenarioId: "product:SCEN-specification-only-init" },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId, view, scenarioId: "product:SCEN-specification-only-init" },
   });
   const passing = await evidenceRequest("result", "v05-passing");
   const trace = await evidenceRequest("trace", "v05-trace");
@@ -507,11 +508,11 @@ When("the additive registry, evidence states, and safe authoring are exercised",
   const incomplete = await evidenceRequest("result", "v05-incomplete");
   const unknownScenario = await this.stagedMcp.server.request("tools/call", {
     name: "spec_evidence",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-unknown-scenario", view: "result", scenarioId: "product:SCEN-unknown" },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "v05-unknown-scenario", view: "result", scenarioId: "product:SCEN-unknown" },
   });
   const invalid = await this.stagedMcp.server.request("tools/call", {
     name: "spec_evidence",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-invalid", view: "result" },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "v05-invalid", view: "result" },
   });
   await writeFile(path.join(evidenceDir, "last-test-run.ndjson"), fixture
     .replace("__GRAPH_FINGERPRINT__", binding.graphFingerprint)
@@ -525,10 +526,10 @@ When("the additive registry, evidence states, and safe authoring are exercised",
   const afterMutation = await evidenceRequest("result", "v05-after-mutation");
   const changedOverview = await this.stagedMcp.server.request("tools/call", {
     name: "spec_catalog",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "v05-changed-overview", view: "overview", specSlugs: [] },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "v05-changed-overview", view: "overview", specSlugs: [] },
   });
   const patchArgs = {
-    schemaVersion: "spec-kernel@1",
+    schemaVersion: KERNEL_SCHEMA_VERSION,
     requestId: "v05-apply",
     intent: "patch",
     dryRun: false,
@@ -765,7 +766,7 @@ Then("the call fails with error code {string}", function (expectedCode) {
 When("createRoadmap is called on a non-roadmap spec", { timeout: 30000 }, async function () {
   this.boundaryResult = await this.stagedMcp.server.request("tools/call", {
     name: "spec_patch",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-roadmap-refuse", intent: "createRoadmap", spec: "product", reason: "refuse non-roadmap", title: "Bad", dryRun: true },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-roadmap-refuse", intent: "createRoadmap", spec: "product", reason: "refuse non-roadmap", title: "Bad", dryRun: true },
   });
 });
 
@@ -786,7 +787,7 @@ When("assembleRoadmap is applied and re-run as dryRun", { timeout: 30000 }, asyn
   // Apply assembleRoadmap (dryRun: false)
   this.roadmapApply = await server.request("tools/call", {
     name: "spec_patch",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-roadmap-apply", intent: "assembleRoadmap", spec: "roadmap-e2e", reason: "apply assembly", dryRun: false },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-roadmap-apply", intent: "assembleRoadmap", spec: "roadmap-e2e", reason: "apply assembly", dryRun: false },
   });
 
   // Read the applied content
@@ -795,7 +796,7 @@ When("assembleRoadmap is applied and re-run as dryRun", { timeout: 30000 }, asyn
   // Re-run as dryRun to check idempotency
   this.roadmapRerun = await server.request("tools/call", {
     name: "spec_patch",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "bdd-roadmap-rerun", intent: "assembleRoadmap", spec: "roadmap-e2e", reason: "idempotency check", dryRun: true },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-roadmap-rerun", intent: "assembleRoadmap", spec: "roadmap-e2e", reason: "idempotency check", dryRun: true },
   });
 });
 

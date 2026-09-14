@@ -1,3 +1,4 @@
+import { KERNEL_SCHEMA_VERSION } from "../../src/kernel/index.js";
 import assert from "node:assert/strict";
 import { After, Before, Given, Then, When } from "@cucumber/cucumber";
 import path from "node:path";
@@ -405,7 +406,7 @@ Then("the envelope rejects it fail-closed with error code {string}", function (e
   const envelope = this.kernel.lastEnvelope;
   assert.strictEqual(envelope.ok, false);
   assert.strictEqual(envelope.error.code, expectedCode);
-  assert.strictEqual(envelope.schemaVersion, "spec-kernel@1");
+  assert.strictEqual(envelope.schemaVersion, KERNEL_SCHEMA_VERSION);
   assert.strictEqual(envelopeData(envelope), null, "a rejected envelope must carry no success payload");
   assert.ok(typeof envelope.operation === "string" && envelope.operation.length > 0, "operation is echoed");
 });

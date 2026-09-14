@@ -9,6 +9,7 @@ import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { KERNEL_SCHEMA_VERSION } from "../src/kernel/index.js";
 
 const PHASE_NAMES = ["payload", "imports", "enrollment", "capability-config-load", "manager-construction", "target-only-connection", "managed-query", "managed-authoring", "extension-enforcement", "disconnect", "receipt"];
 
@@ -360,7 +361,7 @@ if (!terminalPhase) {
 	const managedQueryResult = await phase("managed-query", async () => {
 		const tool = await managedTool("spec_catalog");
 		const args = {
-			schemaVersion: "spec-kernel@1",
+			schemaVersion: KERNEL_SCHEMA_VERSION,
 			requestId: "omp-manager-handoff-probe",
 			view: "inventory",
 			specSlugs: [],
@@ -386,7 +387,7 @@ if (!terminalPhase) {
 		} catch (error) {
 			throw new Error(`OMP-managed spec_inventory query returned non-JSON text: ${error.message}`);
 		}
-		if (envelope.schemaVersion !== "spec-kernel@1" || envelope.operation !== "catalog" || envelope.ok !== true || envelope.data?.kind !== "inventory") {
+		if (envelope.schemaVersion !== KERNEL_SCHEMA_VERSION || envelope.operation !== "catalog" || envelope.ok !== true || envelope.data?.kind !== "inventory") {
 			throw new Error(`OMP-managed spec_inventory query returned an invalid canonical envelope: ${JSON.stringify(envelope)}`);
 		}
 		const returnedCount = envelope.page?.returned;
@@ -419,16 +420,16 @@ if (!terminalPhase) {
 }
 if (!terminalPhase) {
 	const managedAuthoringResult = await phase("managed-authoring", async () => {
-		const overviewCall = await executeManagedTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "omp-manager-overview", view: "overview", specSlugs: [] }, "omp-manager-overview");
+		const overviewCall = await executeManagedTool("spec_catalog", { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "omp-manager-overview", view: "overview", specSlugs: [] }, "omp-manager-overview");
 		if (!overviewCall.envelope.ok || typeof overviewCall.envelope.graph?.fingerprint !== "string") throw new Error("OMP-managed spec_catalog did not return a graph fingerprint; keys=" + Object.keys(overviewCall.envelope).join(",") + "; dataKeys=" + Object.keys(overviewCall.envelope.data ?? {}).join(","));
 		const target = path.join(cwd, "." + "specs", "plugin-distribution", "README.md");
 		const beforeBytes = await readFile(target, "utf8");
 
-		const readForEditCall = await executeManagedTool("spec_documents", { schemaVersion: "spec-kernel@1", requestId: "omp-manager-read-for-edit", action: "read", spec: "plugin-distribution", doc: "README.md", readForEdit: true }, "omp-manager-read-for-edit");
+		const readForEditCall = await executeManagedTool("spec_documents", { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "omp-manager-read-for-edit", action: "read", spec: "plugin-distribution", doc: "README.md", readForEdit: true }, "omp-manager-read-for-edit");
 		if (!readForEditCall.envelope.ok || readForEditCall.envelope.data?.content !== beforeBytes) throw new Error("OMP-managed readForEdit content did not match the fixture bytes");
 		if (readForEditCall.envelope.data?.sha256 !== sha256(Buffer.from(beforeBytes, "utf8"))) throw new Error("OMP-managed readForEdit sha256 did not match the fixture bytes");
 		const previewCall = await executeManagedTool("spec_patch", {
-			schemaVersion: "spec-kernel@1",
+			schemaVersion: KERNEL_SCHEMA_VERSION,
 			intent: "patch",
 			requestId: "omp-manager-preview",
 
@@ -441,7 +442,7 @@ if (!terminalPhase) {
 		const midBytes = await readFile(target, "utf8");
 		if (midBytes !== beforeBytes) throw new Error("OMP-managed preview changed project document on disk");
 		const applyCall = await executeManagedTool("spec_patch", {
-			schemaVersion: "spec-kernel@1",
+			schemaVersion: KERNEL_SCHEMA_VERSION,
 			intent: "patch",
 			requestId: "omp-manager-apply",
 
@@ -453,9 +454,9 @@ if (!terminalPhase) {
 		if (!applyCall.envelope.ok || applyCall.envelope.data?.outcome !== "APPLIED") throw new Error("OMP-managed spec_patch did not apply");
 		const finalBytes = await readFile(target, "utf8");
 		if (!finalBytes.includes("OMP managed authoring proof")) throw new Error("OMP-managed apply did not change the project document");
-		const mismatchCall = await executeManagedTool("spec_patch", { schemaVersion: "spec-kernel@1", requestId: "omp-manager-explicit-mismatch", intent: "patch", dryRun: true, repositoryRootFingerprint: "0".repeat(64), spec: "plugin-distribution", reason: "OMP managed mismatch proof", operations: [{ kind: "insert_at_eof", document: "README.md", text: "mismatch" }] }, "omp-manager-explicit-mismatch", { allowError: true });
+		const mismatchCall = await executeManagedTool("spec_patch", { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "omp-manager-explicit-mismatch", intent: "patch", dryRun: true, repositoryRootFingerprint: "0".repeat(64), spec: "plugin-distribution", reason: "OMP managed mismatch proof", operations: [{ kind: "insert_at_eof", document: "README.md", text: "mismatch" }] }, "omp-manager-explicit-mismatch", { allowError: true });
 		if (mismatchCall.envelope.ok || mismatchCall.envelope.error?.causeCode !== "REPOSITORY_ROOT_FINGERPRINT_MISMATCH") throw new Error("OMP-managed explicit fingerprint mismatch was not refused");
-		const finalOverview = await executeManagedTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "omp-manager-final-overview", view: "overview", specSlugs: [] }, "omp-manager-final-overview");
+		const finalOverview = await executeManagedTool("spec_catalog", { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "omp-manager-final-overview", view: "overview", specSlugs: [] }, "omp-manager-final-overview");
 		if (!finalOverview.envelope.ok || finalOverview.envelope.graph?.valid !== true) throw new Error("OMP-managed final spec_catalog did not return a valid graph");
 		managedAuthoring = {
 			toolNames: [overviewCall.tool.mcpToolName, applyCall.tool.mcpToolName],

@@ -1,5 +1,6 @@
 import { pathToFileURL } from "node:url";
 import assert from "node:assert/strict";
+import { KERNEL_SCHEMA_VERSION } from "../../src/kernel/index.js";
 import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -24,7 +25,7 @@ const INITIALIZE_PARAMS = Object.freeze({
 });
 
 function toolArguments(tool) {
-  const shared = { schemaVersion: "spec-kernel@1", requestId: `mri-${tool}` };
+  const shared = { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: `mri-${tool}` };
   switch (tool) {
     case "spec_inventory":
       return { ...shared, specSlugs: ["plugin-distribution"], includeDocuments: false, limit: 50, cursor: null };
@@ -140,11 +141,11 @@ When("the installed package launcher serves project-a without an override", asyn
   await startInstalledServer(this.mri);
   this.mri.overview = await this.mri.server.request("tools/call", {
     name: "spec_catalog",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
   });
   this.mri.overviewOracle = await this.mri.directService.runQuery("catalog", { view: "overview", specSlugs: ["plugin-distribution"] }, {
     requestId: "mri-spec_overview",
-    schemaVersion: "spec-kernel@1",
+    schemaVersion: KERNEL_SCHEMA_VERSION,
   });
 });
 
@@ -158,25 +159,25 @@ Then("relative unresolved or package-root overrides cannot select package-decoy"
   await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: "package-decoy" });
   const relative = await this.mri.server.request("tools/call", {
     name: "spec_catalog",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
   });
   assert.deepStrictEqual(relative.result.structuredContent, this.mri.overviewOracle);
   await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: "OMP_SPEC_KIT_ROOT" });
   const unresolved = await this.mri.server.request("tools/call", {
     name: "spec_catalog",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
   });
   assert.deepStrictEqual(unresolved.result.structuredContent, this.mri.overviewOracle);
   await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: this.mri.packageRoot });
   const packageOverride = await this.mri.server.request("tools/call", {
     name: "spec_catalog",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
   });
   assert.deepStrictEqual(packageOverride.result.structuredContent, this.mri.overviewOracle);
   await startInstalledServer(this.mri, { OMP_SPEC_KIT_ROOT: this.mri.packageAlias });
   const packageAliasOverride = await this.mri.server.request("tools/call", {
     name: "spec_catalog",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "mri-spec_overview", view: "overview", specSlugs: ["plugin-distribution"] },
   });
   assert.deepStrictEqual(packageAliasOverride.result.structuredContent, this.mri.overviewOracle);
 });
@@ -186,7 +187,7 @@ When("an explicit validated absolute override selects project-b", async function
   this.mri.projectBInventory = await this.mri.server.request("tools/call", {
     name: "spec_catalog",
     arguments: {
-      schemaVersion: "spec-kernel@1",
+      schemaVersion: KERNEL_SCHEMA_VERSION,
       requestId: "mri-project-b-inventory",
       view: "inventory",
       specSlugs: ["project-b"],
@@ -198,7 +199,7 @@ When("an explicit validated absolute override selects project-b", async function
   this.mri.projectBInventoryOracle = await this.mri.directServiceB.runQuery(
     "catalog",
     { view: "inventory", specSlugs: ["project-b"], includeDocuments: true, limit: 50, cursor: null },
-    { requestId: "mri-project-b-inventory", schemaVersion: "spec-kernel@1" },
+    { requestId: "mri-project-b-inventory", schemaVersion: KERNEL_SCHEMA_VERSION },
   );
 });
 
@@ -234,7 +235,7 @@ When("the client sends JSON-RPC 1.0 with id 7 and then a valid request", async f
   this.mri.invalidResponse = await this.mri.server.sendFrame({ jsonrpc: "1.0", id: 7, method: "ping" }, 1000);
   this.mri.recoveryResponse = await this.mri.server.request("tools/call", {
     name: "spec_catalog",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "mri-recovery", view: "overview", specSlugs: ["plugin-distribution"] },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "mri-recovery", view: "overview", specSlugs: ["plugin-distribution"] },
   });
 });
 
@@ -275,7 +276,7 @@ When("the client sends malformed JSON and then a valid request", async function 
   this.mri.invalidResponse = await this.mri.server.sendRaw('{"jsonrpc":', null, 1000);
   this.mri.recoveryResponse = await this.mri.server.request("tools/call", {
     name: "spec_catalog",
-    arguments: { schemaVersion: "spec-kernel@1", requestId: "mri-recovery", view: "overview", specSlugs: ["plugin-distribution"] },
+    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "mri-recovery", view: "overview", specSlugs: ["plugin-distribution"] },
   });
 });
 
@@ -358,7 +359,7 @@ When("the bounded pinned OMP manager handoff runs from project-a", async functio
   };
   const inventoryRequest = {
     requestId: "omp-manager-handoff-probe",
-    schemaVersion: "spec-kernel@1",
+    schemaVersion: KERNEL_SCHEMA_VERSION,
   };
   this.mri.managerInventoryOracle = await this.mri.directService.runQuery("inventory", inventoryArgs, inventoryRequest);
   this.mri.managerDecoyInventoryOracle = await createSpecService(this.mri.packageRoot).runQuery(

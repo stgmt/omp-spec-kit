@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { KERNEL_SCHEMA_VERSION } from "../src/kernel/index.js";
 import { spawnMcpServer } from "./helpers/mcp-world.mjs";
 import { executeQuery } from "../src/kernel/query/service.js";
 import { TOOL_CONTRACTS, jsonSchemaFor } from "../src/adapters/tool-contracts.js";
@@ -27,7 +28,7 @@ async function main() {
     console.log("1. Testing entire corpus without specSlugs...");
     const c1 = await server.request("tools/call", {
       name: "spec_inspect",
-      arguments: { schemaVersion: "spec-kernel@1", check: "validation" },
+      arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, check: "validation" },
     });
     const d1 = c1.result?.structuredContent?.data;
     assert.equal(d1?.kind, "validation");
@@ -43,7 +44,7 @@ async function main() {
     console.log("2. Testing single and multiple existing specifications...");
     const c2Single = await server.request("tools/call", {
       name: "spec_inspect",
-      arguments: { schemaVersion: "spec-kernel@1", check: "validation", specSlugs: ["plugin-distribution"] },
+      arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, check: "validation", specSlugs: ["plugin-distribution"] },
     });
     const d2Single = c2Single.result?.structuredContent?.data;
     assert.equal(d2Single?.kind, "validation");
@@ -55,7 +56,7 @@ async function main() {
     const c2Multi = await server.request("tools/call", {
       name: "spec_inspect",
       arguments: {
-        schemaVersion: "spec-kernel@1",
+        schemaVersion: KERNEL_SCHEMA_VERSION,
         check: "validation",
         specSlugs: ["spec-mcp-operations", "plugin-distribution"], // intentionally unordered
       },
@@ -73,14 +74,14 @@ async function main() {
     console.log("3. Testing invalid syntax and unknown slug errors...");
     const c3Invalid = await server.request("tools/call", {
       name: "spec_inspect",
-      arguments: { schemaVersion: "spec-kernel@1", check: "validation", specSlugs: ["bad slug with spaces!"] },
+      arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, check: "validation", specSlugs: ["bad slug with spaces!"] },
     });
     assert.equal(c3Invalid.result?.structuredContent?.ok, false);
     assert.equal(c3Invalid.result?.structuredContent?.error?.code, "INVALID_PARAMETER");
 
     const c3Unknown = await server.request("tools/call", {
       name: "spec_inspect",
-      arguments: { schemaVersion: "spec-kernel@1", check: "validation", specSlugs: ["unknown-nonexistent-slug"] },
+      arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, check: "validation", specSlugs: ["unknown-nonexistent-slug"] },
     });
     assert.equal(c3Unknown.result?.structuredContent?.ok, false);
     assert.equal(c3Unknown.result?.structuredContent?.error?.code, "NOT_FOUND");
@@ -97,7 +98,7 @@ async function main() {
       markdownLinkOccurrences: 0,
     };
     const validGraph = {
-      schemaVersion: "spec-kernel@1",
+      schemaVersion: KERNEL_SCHEMA_VERSION,
       fingerprint: "f1",
       valid: true,
       documents: [{ specSlug: "test-slug" }],
@@ -110,7 +111,7 @@ async function main() {
       limits: mockLimits,
     };
     const validRes = executeQuery(validGraph, {
-      schemaVersion: "spec-kernel@1",
+      schemaVersion: KERNEL_SCHEMA_VERSION,
       requestId: "val-test",
       operation: "validation",
       args: { severities: [], codes: [], specSlugs: ["test-slug"], paths: [], limit: 50, cursor: null },
@@ -120,7 +121,7 @@ async function main() {
     assert.equal(validRes.data.verdict, "VALID");
 
     const invalidGraph = {
-      schemaVersion: "spec-kernel@1",
+      schemaVersion: KERNEL_SCHEMA_VERSION,
       fingerprint: "f2",
       valid: false,
       documents: [{ specSlug: "test-slug" }],
@@ -133,7 +134,7 @@ async function main() {
       limits: mockLimits,
     };
     const invalidRes = executeQuery(invalidGraph, {
-      schemaVersion: "spec-kernel@1",
+      schemaVersion: KERNEL_SCHEMA_VERSION,
       requestId: "inval-test",
       operation: "validation",
       args: { severities: [], codes: [], specSlugs: ["test-slug"], paths: [], limit: 50, cursor: null },
@@ -146,7 +147,7 @@ async function main() {
     // 5. фильтр, скрывающий ошибку из items, но не меняющий valid, verdict, counts.errors и counts.total
     console.log("5. Testing filter hiding error without changing valid, verdict, or counts.errors/total...");
     const mixedGraph = {
-      schemaVersion: "spec-kernel@1",
+      schemaVersion: KERNEL_SCHEMA_VERSION,
       fingerprint: "f3",
       valid: false,
       documents: [{ specSlug: "test-slug" }],
@@ -161,7 +162,7 @@ async function main() {
     };
     // Query asking for WARNINGs only
     const filteredRes = executeQuery(mixedGraph, {
-      schemaVersion: "spec-kernel@1",
+      schemaVersion: KERNEL_SCHEMA_VERSION,
       requestId: "filter-test",
       operation: "validation",
       args: { severities: ["WARNING"], codes: [], specSlugs: ["test-slug"], paths: [], limit: 50, cursor: null },
@@ -180,7 +181,7 @@ async function main() {
     console.log("6. Testing counts.matched and stable multi-page pagination...");
     const page1Res = await server.request("tools/call", {
       name: "spec_inspect",
-      arguments: { schemaVersion: "spec-kernel@1", check: "validation", limit: 5 },
+      arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, check: "validation", limit: 5 },
     });
     const page1Data = page1Res.result?.structuredContent?.data;
     const page1Page = page1Res.result?.structuredContent?.page;
@@ -191,7 +192,7 @@ async function main() {
 
     const page2Res = await server.request("tools/call", {
       name: "spec_inspect",
-      arguments: { schemaVersion: "spec-kernel@1", check: "validation", limit: 5, cursor: page1Page.nextCursor },
+      arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, check: "validation", limit: 5, cursor: page1Page.nextCursor },
     });
     const page2Data = page2Res.result?.structuredContent?.data;
     const page2Page = page2Res.result?.structuredContent?.page;
@@ -209,7 +210,7 @@ async function main() {
     // Passing page 1 cursor to a call with altered severities filter
     const alteredFilterRes = await server.request("tools/call", {
       name: "spec_inspect",
-      arguments: { schemaVersion: "spec-kernel@1", check: "validation", limit: 5, severities: ["INFO"], cursor: page1Page.nextCursor },
+      arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, check: "validation", limit: 5, severities: ["INFO"], cursor: page1Page.nextCursor },
     });
     assert.equal(alteredFilterRes.result?.structuredContent?.ok, false);
     assert.equal(alteredFilterRes.result?.structuredContent?.error?.code, "STALE_CURSOR");
@@ -217,7 +218,7 @@ async function main() {
     // Passing page 1 cursor to a call with altered scope (specSlugs)
     const alteredScopeRes = await server.request("tools/call", {
       name: "spec_inspect",
-      arguments: { schemaVersion: "spec-kernel@1", check: "validation", limit: 5, specSlugs: ["plugin-distribution"], cursor: page1Page.nextCursor },
+      arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, check: "validation", limit: 5, specSlugs: ["plugin-distribution"], cursor: page1Page.nextCursor },
     });
     assert.equal(alteredScopeRes.result?.structuredContent?.ok, false);
     assert.equal(alteredScopeRes.result?.structuredContent?.error?.code, "STALE_CURSOR");
@@ -225,7 +226,7 @@ async function main() {
     // Malformed cursor
     const badCursorRes = await server.request("tools/call", {
       name: "spec_inspect",
-      arguments: { schemaVersion: "spec-kernel@1", check: "validation", cursor: "not-a-valid-cursor" },
+      arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, check: "validation", cursor: "not-a-valid-cursor" },
     });
     assert.equal(badCursorRes.result?.structuredContent?.ok, false);
     assert.ok(["INVALID_CURSOR", "STALE_CURSOR"].includes(badCursorRes.result?.structuredContent?.error?.code));
@@ -234,7 +235,7 @@ async function main() {
     // 8. диагностика без specSlug: входит в корпус и исключается из выбранной спеки
     console.log("8. Testing diagnostics without specSlug: included in corpus, excluded from specific spec...");
     const noSlugGraph = {
-      schemaVersion: "spec-kernel@1",
+      schemaVersion: KERNEL_SCHEMA_VERSION,
       fingerprint: "f-noslug",
       valid: false,
       documents: [{ specSlug: "my-spec" }],
@@ -249,7 +250,7 @@ async function main() {
     };
     // Corpus query: both participate
     const corpusQuery = executeQuery(noSlugGraph, {
-      schemaVersion: "spec-kernel@1",
+      schemaVersion: KERNEL_SCHEMA_VERSION,
       requestId: "q-corpus",
       operation: "validation",
       args: { severities: [], codes: [], specSlugs: [], paths: [], limit: 50, cursor: null },
@@ -259,7 +260,7 @@ async function main() {
 
     // Spec-specific query: d-corpus-only must NOT participate in counts or items
     const specQuery = executeQuery(noSlugGraph, {
-      schemaVersion: "spec-kernel@1",
+      schemaVersion: KERNEL_SCHEMA_VERSION,
       requestId: "q-spec",
       operation: "validation",
       args: { severities: [], codes: [], specSlugs: ["my-spec"], paths: [], limit: 50, cursor: null },
@@ -294,7 +295,7 @@ async function main() {
     console.log("10. Testing additionalProperties: false and refusal of incompatible fields...");
     const c10Unknown = await server.request("tools/call", {
       name: "spec_inspect",
-      arguments: { schemaVersion: "spec-kernel@1", check: "validation", unexpectedField: 123 },
+      arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, check: "validation", unexpectedField: 123 },
     });
     assert.equal(c10Unknown.result?.structuredContent?.ok, false);
     assert.ok(["UNKNOWN_FIELD", "INVALID_REQUEST"].includes(c10Unknown.result?.structuredContent?.error?.code));
@@ -302,7 +303,7 @@ async function main() {
     // Cross-branch field (spec from anchor/archivalProof branch)
     const c10Cross = await server.request("tools/call", {
       name: "spec_inspect",
-      arguments: { schemaVersion: "spec-kernel@1", check: "validation", spec: "plugin-distribution" },
+      arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, check: "validation", spec: "plugin-distribution" },
     });
     assert.equal(c10Cross.result?.structuredContent?.ok, false);
     assert.equal(c10Cross.result?.structuredContent?.error?.code, "INVALID_REQUEST");
@@ -310,14 +311,14 @@ async function main() {
     // Old check names
     const c10Old1 = await server.request("tools/call", {
       name: "spec_inspect",
-      arguments: { schemaVersion: "spec-kernel@1", check: "specValidation", spec: "plugin-distribution" },
+      arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, check: "specValidation", spec: "plugin-distribution" },
     });
     assert.equal(c10Old1.result?.structuredContent?.ok, false);
     assert.equal(c10Old1.result?.structuredContent?.error?.code, "INVALID_REQUEST");
 
     const c10Old2 = await server.request("tools/call", {
       name: "spec_inspect",
-      arguments: { schemaVersion: "spec-kernel@1", check: "diagnostics" },
+      arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, check: "diagnostics" },
     });
     assert.equal(c10Old2.result?.structuredContent?.ok, false);
     assert.equal(c10Old2.result?.structuredContent?.error?.code, "INVALID_REQUEST");

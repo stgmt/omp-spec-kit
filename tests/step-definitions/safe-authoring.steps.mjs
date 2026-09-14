@@ -1,3 +1,4 @@
+import { KERNEL_SCHEMA_VERSION } from "../../src/kernel/index.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { access, cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
@@ -12,7 +13,7 @@ import { runExtensionProbe, spawnMcpServer } from "../helpers/mcp-world.mjs";
 
 const REPOSITORY_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const SERVER_PATH = path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit", "dist", "mcp", "server.js");
-const SCHEMA_VERSION = "spec-kernel@1";
+const SCHEMA_VERSION = KERNEL_SCHEMA_VERSION;
 const PACKAGE_VERSION = JSON.parse(await readFile(path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit", "package.json"), "utf8")).version;
 
 async function call(world, name, arguments_ = {}) {
@@ -214,7 +215,7 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     assert.equal(names.includes("apply_proposed_patch"), false);
     assert.equal(names.includes("propose_patch"), false);
     for (const removed of ["spec_propose_patch", "apply_proposed_patch", "apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) assert.equal(names.includes(removed), false, removed + " must stay unknown");
-    const unknown = await this.server.request("tools/call", { name: "apply_spec_change", arguments: { schemaVersion: "spec-kernel@1", requestId: "safe-removed-verb" } });
+    const unknown = await this.server.request("tools/call", { name: "apply_spec_change", arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "safe-removed-verb" } });
     assert.equal(unknown.error?.code, -32602, "removed tools must be unknown, not gated");
     const propRetired = await this.server.request("tools/call", { name: "spec_propose_patch", arguments: {} });
     assert.equal(propRetired.error?.code, -32602);

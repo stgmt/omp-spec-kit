@@ -1,3 +1,4 @@
+import { KERNEL_SCHEMA_VERSION } from "../../src/kernel/index.js";
 import assert from "node:assert/strict";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -62,7 +63,7 @@ function assertRelativePaths(value) {
 }
 
 function assertEnvelope(value, name, requestId, projectRoot, repositoryRoot) {
-  assert.equal(value.schemaVersion, "spec-kernel@1", name);
+  assert.equal(value.schemaVersion, KERNEL_SCHEMA_VERSION, name);
   assert.equal(value.requestId, requestId, name);
   assert.equal(value.operation, OPERATIONS[name], name);
   assert.equal(typeof value.ok, "boolean", name);
@@ -86,7 +87,7 @@ function restartOf(surface) {
 
 async function callRow({ callTool, name, args, projectRoot, repositoryRoot, requestId, allowEvidenceMutation = false }) {
   const before = await snapshotTree(projectRoot);
-  const response = await callTool(name, { schemaVersion: "spec-kernel@1", requestId, ...args });
+  const response = await callTool(name, { schemaVersion: KERNEL_SCHEMA_VERSION, requestId, ...args });
   const value = structured(response);
   assertEnvelope(value, name, requestId, projectRoot, repositoryRoot);
   const after = await snapshotTree(projectRoot);
@@ -252,7 +253,7 @@ async function runInvalidMatrix({ callTool, projectRoot, repositoryRoot }) {
   assert.equal(metadataValue.ok, true);
   assert.equal(metadataValue.data.valid, false);
   assert.ok(metadataValue.data.issues.some((issue) => issue.field === "verificationMethod"));
-  const aliases = await callTool("spec_catalog", { schemaVersion: "spec-kernel@1", requestId: "tool-e2e-invalid-array", view: "specs", spec_slugs: [] });
+  const aliases = await callTool("spec_catalog", { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "tool-e2e-invalid-array", view: "specs", spec_slugs: [] });
   const aliasValue = structured(aliases);
   assert.equal(aliasValue.ok, false);
   assert.equal(aliasValue.error.code, "INVALID_REQUEST");

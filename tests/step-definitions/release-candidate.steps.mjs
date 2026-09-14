@@ -1,3 +1,4 @@
+import { KERNEL_SCHEMA_VERSION } from "../../src/kernel/index.js";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -342,7 +343,7 @@ When("the candidate archive is extracted into a clean project", async function (
   await this.releaseServer.request("initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "candidate-bdd", version: "1" } });
   this.extractedOverview = await this.releaseServer.request("tools/call", {
     name: "spec_overview",
-    arguments: { specSlugs: ["plugin-distribution"], requestId: "candidate-extract-overview", schemaVersion: "spec-kernel@1" },
+    arguments: { specSlugs: ["plugin-distribution"], requestId: "candidate-extract-overview", schemaVersion: KERNEL_SCHEMA_VERSION },
   });
 });
 
