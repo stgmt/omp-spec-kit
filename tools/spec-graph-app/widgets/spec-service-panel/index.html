@@ -1,0 +1,113 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body.plugin { font: 13px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 12px; color: #1f2328; }
+  h3 { margin: 0 0 8px; font-size: 14px; }
+  .err { color: #b42318; white-space: pre-wrap; }
+  .state { font-size: 12px; color: #57606a; margin-top: 8px; }
+  .spec { display: block; padding: 4px 8px; margin: 2px 0; border: 1px solid #d0d7de; border-radius: 6px; background: #f6f8fa; font-family: Consolas, monospace; font-size: 12px; }
+  .btns { margin-top: 10px; display: flex; gap: 8px; }
+  button { padding: 6px 14px; border-radius: 6px; border: 1px solid #1f883d; background: #1f883d; color: #fff; cursor: pointer; font-size: 13px; }
+  button:disabled { opacity: .5; cursor: default; }
+  pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 8px; font-size: 11px; overflow: auto; max-height: 160px; }
+</style>
+</head>
+<body class="plugin">
+<div id="root" data-state="loading">
+  <h3>Spec Service</h3>
+  <p class="state" data-testid="state">Loading specs from spec-registryd…</p>
+</div>
+<script>
+  (function () {
+    var root = document.getElementById('root');
+    var SPEC_SLUG = 'alpha-spec';
+    var host = null;
+
+    function escapeHtml(text) {
+      return String(text == null ? '' : text).replace(/[&<>"']/g, function (ch) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+      });
+    }
+
+    function callService(payload) {
+      // fetchApp resolves to /api/extensionEndpoints/{app}/{path}: the handler
+      // file name is part of the path (verified against the live endpoint URL).
+      return host.fetchApp('spec-handler/spec', { method: 'POST', body: payload }).then(function (response) {
+        if (response && typeof response.json === 'function') return response.json();
+        return response;
+      });
+    }
+    function renderError(envelope) {
+      root.setAttribute('data-state', 'error');
+      var message = (envelope && envelope.error) || 'service call failed';
+      if (envelope && envelope.body) message += ' — ' + envelope.body;
+      root.innerHTML = '<h3>Spec Service</h3><p class="err" data-testid="service-error">' + escapeHtml(message) + '</p>';
+    }
+
+    function renderSpecs(envelope) {
+      var data = envelope && envelope.data ? envelope.data : {};
+      var specs = data.specs || [];
+      root.setAttribute('data-state', 'ready');
+      var html = '<h3>Spec Service</h3>';
+      html += '<p class="state" data-testid="spec-count">Specs visible to you: ' + specs.length + '</p>';
+      html += '<div data-testid="spec-list">';
+      for (var i = 0; i < specs.length; i += 1) {
+        html += '<span class="spec" data-spec="' + escapeHtml(specs[i]) + '">' + escapeHtml(specs[i]) + '</span>';
+      }
+      html += '</div>';
+      html += '<div class="btns"><button data-testid="apply-patch" type="button">Apply TASK-1 patch</button></div>';
+      html += '<pre data-testid="apply-result" hidden></pre>';
+      root.innerHTML = html;
+      var button = root.querySelector('[data-testid="apply-patch"]');
+      var output = root.querySelector('[data-testid="apply-result"]');
+      button.addEventListener('click', function () {
+        button.disabled = true;
+        output.hidden = false;
+        output.textContent = 'applying…';
+        callService({
+          id: 'widget-apply',
+          method: 'tools/call',
+          params: {
+            name: 'spec_patch',
+            arguments: {
+              intent: 'patch',
+              spec: SPEC_SLUG,
+              reason: 'YouTrack widget apply',
+              dryRun: false,
+              operations: [{ kind: 'insert_at_eof', document: 'TASKS.md', text: '\n## TASK-90 — applied from YouTrack widget\n- **Status:** done\n' }],
+              requestId: 'widget-apply'
+            }
+          }
+        }).then(function (envelope) {
+          var structured = envelope && envelope.result ? envelope.result.structuredContent : envelope;
+          var outcome = structured && structured.data ? structured.data.outcome : null;
+          output.setAttribute('data-outcome', String(outcome || (structured && structured.error && structured.error.code) || 'unknown'));
+          output.textContent = JSON.stringify(structured, null, 2);
+        }).catch(function (error) {
+          output.setAttribute('data-outcome', 'transport-error');
+          output.textContent = String(error && error.message ? error.message : error);
+        });
+      });
+    }
+
+    YTApp.register().then(function (registered) {
+      host = registered;
+      return callService({ id: 'widget-list', method: 'tools/call', params: { name: 'spec_catalog', arguments: { view: 'specs' } } });
+    })
+      .then(function (envelope) {
+        var structured = envelope && envelope.result ? envelope.result.structuredContent : envelope;
+        if (!structured || structured.ok !== true) {
+          renderError(structured || envelope);
+          return;
+        }
+        renderSpecs(structured);
+      })
+      .catch(function (error) {
+        renderError({ error: String(error && error.message ? error.message : error) });
+      });
+  })();
+</script>
+</body>
+</html>

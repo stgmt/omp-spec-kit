@@ -8,6 +8,8 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 const APP_DIR = path.join(REPO_ROOT, "tools", "spec-graph-app");
 const APP_FILES = Object.freeze([
   "manifest.json",
+  "settings.json",
+  "spec-handler.js",
   "spec-writeback.js",
   "widgets",
   "prototypes.html",
