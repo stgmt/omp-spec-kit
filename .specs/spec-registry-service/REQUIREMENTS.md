@@ -26,9 +26,9 @@ AI agents reach the registry only through the hosted MCP endpoint in the compose
 
 Humans and non-developer agents read specs and propose changes through the YouTrack app on the **operator's YouTrack instance** (the only human entry point in v1). Binding a consumer's own YouTrack server is post-v1: it happens through the operator's YouTrack too — after login, a guided flow calls the onboarding API, which auto-provisions a tenant + token; nothing is issued manually. Proposal-level edits return the existing proposal preview (diffs + proposalHash) so the UI can show "what will change" before apply.
 
-## R-7 — Minimal viable auth and tenant scoping
+## R-7 — Verified identity and tenant scoping
 
-Consumers never receive git credentials or filesystem access — the envelope is the whole interface. v1 auth is **per-tenant bearer tokens issued automatically**: the extension calls the service onboarding API after YouTrack login and returns a token bound to the caller's tenant → allowed-projects set (a leaked token compromises only that tenant). Asserted caller identity (`X-Spec-Author`/envelope field) is logged on every write. The seam for full YouTrack Hub authN/Z is specified in DESIGN so it can be added without protocol changes.
+Consumers never receive git credentials or filesystem access — the envelope is the whole interface. Authentication is **YouTrack-backed** (TASK-12, pulled ahead of TASK-8): a request authenticates either through the app bridge (the YouTrack app backend presents its secret and the session user it obtained from `ctx.currentUser`; the service re-verifies that user with its own service token) or with the user's own YouTrack permanent token (verified as itself). Groups resolve `user → tenant → allowed projects` plus a role (reader/writer/owner from configured role groups); the service issues and stores no tokens of its own. The verified login is recorded in claims, commit trailers, and the access log — the asserted-identity trust model is retired. No auth configuration → the service refuses to start; YouTrack unreachable → fail-closed. The seam for YouTrack Hub token introspection and per-user role management remains specified in DESIGN.
 
 ## R-8 — Deployment as compose stack
 

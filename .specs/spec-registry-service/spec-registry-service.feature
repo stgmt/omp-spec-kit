@@ -67,6 +67,22 @@ Feature: Centralized spec registry service
     Then the returned content matches digest D
     And a version unknown to the ledger fails closed
 
+  @id:SCEN-verified-identity
+  Scenario: Identity is verified, never asserted
+    Given a request arrives with a caller-supplied X-Spec-Author header
+    When the service authenticates the caller against the live YouTrack
+    Then the header value is ignored and logged as a warning
+    And the commit trailer and access log carry the verified YouTrack login
+
+  @id:SCEN-role-gates
+  Scenario: Roles gate operations
+    Given a user whose role groups resolve to "reader"
+    When the user lists tools
+    Then no write tool is listed
+    And a write attempt is refused as requiring the writer role
+    When an owner forces a write over another user's active claim
+    Then the write is applied and the forced override is logged
+
   @id:SCEN-drift-report
   Scenario: Break-glass push is visible
     Given an admin pushed directly to the specs repo

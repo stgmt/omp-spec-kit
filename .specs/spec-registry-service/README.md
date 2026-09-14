@@ -10,8 +10,9 @@ It does not own: kernel document semantics (inherited), the plugin's OMP host-si
 
 ## Public states
 
-- **NEXT:** multi-tenant centralized registry on one dedicated specs repo (`owner/project/.specs`) with service-only writes.
-- **LATER:** full YouTrack Hub authN/authZ, publish ledger hardening, external-consumer spec packs (registry Option B/OCI), external-YouTrack binding (TASK-13), omp-spec-kit corpus import (TASK-14).
+- **DONE (phase 1 + TASK-11 + TASK-12):** service core (mount manager, `POST /mcp` on the official MCP SDK, write path with bot-pushed commits, `node:sqlite` store, `/registry` + `/drift`, coalescing sync), compose stack (self-contained git/YouTrack/proxy profiles), YouTrack-backed verified identity with owner/writer/reader roles (live E2E: `tests/e2e/`, compose project `spec-auth-e2e`).
+- **NEXT:** plugin remote `.mcp.json` (TASK-7), YouTrack app surface completion + agent onboarding (TASK-8), publish pipeline (TASK-9).
+- **LATER:** external-YouTrack binding (TASK-13), omp-spec-kit corpus import (TASK-14), consumer pins (TASK-15), external-consumer spec packs (registry Option B/OCI).
 
 ## Documents
 

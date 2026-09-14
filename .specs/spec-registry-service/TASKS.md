@@ -32,6 +32,7 @@ Status: DRAFT
 ## TASK-5 — Write path wiring: tenant token check → claim check → ProposalCompiler → commitDocuments → push as bot with trailers
 - **Status:** done
 - **Done When:** a remote `spec_patch` lands as an attributed bot commit on the specs repo; `CONFLICT` semantics unchanged; every request resolves `token → tenant → allowed projects` and rejects `project` values outside the caller's set.
+- **Note:** the tenant-token layer was superseded by TASK-12 (verified identity, no service-issued tokens); the write pipeline itself is unchanged.
 - **Requirements:** R-2, R-3, R-7, FR-4, FR-5, FR-6
 - **Evidence:** `src/service/tenants.js` (sha256-hashed seed tenants), `src/service/claims.js` + `src/service/ops/claim.js` (`spec_claim`/`spec_release`, TTL, CLAIM_HELD with holder/expiry), `src/service/writepath.js` (claim check → kernel apply → git add/commit/push as bot with `Spec-Author:`/`Spec-Request-Id:` trailers; success only after push confirmation; push failure → retryable `GIT_PUSH_FAILED`, clone ahead). E2E on bare remote incl. CONFLICT retryable, force-over-claim, push failure (`tests/service/writepath.test.mjs`). Commit 22b6cb3.
 
