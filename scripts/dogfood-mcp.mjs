@@ -9,8 +9,10 @@ import {
   MCP_SERVER_INSTRUCTIONS,
   TOOL_CONTRACTS,
 } from "../src/adapters/tool-contracts.js";
+import { resolveCorpusRoot } from "./corpus-root.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const corpusRoot = resolveCorpusRoot();
 const contracts = TOOL_CONTRACTS;
 const serverPath = path.join(repositoryRoot, "src", "mcp", "server.js");
 
@@ -70,7 +72,7 @@ const child = spawnSync(process.execPath, [serverPath], {
   cwd: repositoryRoot,
   env: {
     ...process.env,
-    OMP_SPEC_KIT_ROOT: repositoryRoot,
+    OMP_SPEC_KIT_ROOT: corpusRoot,
   },
   input: `${callMessages().map((message) => JSON.stringify(message)).join("\n")}\n`,
   encoding: "utf8",
@@ -137,7 +139,7 @@ const rows = contracts.map((contract, index) => {
 const report = {
   schema: "omp-spec-kit-mcp-runtime-census@1",
   stage: "single-surface",
-  root: repositoryRoot,
+  root: corpusRoot,
   registryCount: names.length,
   rows,
   status: "passed",

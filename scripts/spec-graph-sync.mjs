@@ -1133,8 +1133,21 @@ async function provisionEnumValues(client, projectId, { log = console.log } = {}
   }
 }
 
+/**
+ * The canonical corpus is served by the spec registry and no longer lives in
+ * this repository, so projecting the working tree would read an EMPTY board
+ * and reconcile YouTrack against it. An explicit corpus root is therefore
+ * required — fail closed instead of silently destroying the projection.
+ */
+function requireCorpusRoot() {
+  const raw = process.env.OMP_SPEC_KIT_ROOT;
+  if (typeof raw === "string" && raw.length > 0 && path.isAbsolute(raw) && existsSync(path.join(raw, ".specs"))) return raw;
+  fail("set OMP_SPEC_KIT_ROOT to a corpus checkout: the canonical corpus lives in the specs repository and is served by the registry");
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const root = requireCorpusRoot();
   const client = new YouTrackClient({ host: args.host, token: args.token, password: args.password });
   const projects = await client.get("/api/admin/projects?fields=id,name,shortName");
   const project = (projects ?? []).find((entry) => entry.shortName === args.project);
@@ -1143,7 +1156,7 @@ async function main() {
     await provisionLinkTypes(client, { migrate: args.migrate });
     await provisionEnumValues(client, project.id);
   }
-  const sourceReader = new McpBoardReader({ root: ROOT });
+  const sourceReader = new McpBoardReader({ root });
   const tracker = new YouTrackProjectionStore({ client, projectId: project.id, projectShortName: project.shortName });
   const state = new YouTrackSyncStateStore({
     client,
@@ -1152,7 +1165,7 @@ async function main() {
     markerSecret: ensureMarkerSecret(),
   });
   if (args.serve) {
-    const writeback = new McpTaskStatusWriteback({ root: ROOT });
+    const writeback = new McpTaskStatusWriteback({ root });
     const sweep = new StatusSweepService({ sourceReader, tracker, syncState: state, writeback });
     startServe({
       port: args.port,

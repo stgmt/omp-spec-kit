@@ -20,6 +20,7 @@ import {
 	readStrictJson,
 } from "./release-candidate-utils.mjs";
 import { cucumberMessages, requiredScenarioMultiplicity } from "./create-release-evidence.mjs";
+import { corpusPath } from "./corpus-root.mjs";
 
 const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, index) => `plugin-distribution:FR-${index + 19}`));
 const PRIOR_TAG = "v0.3.2";
@@ -63,7 +64,7 @@ function parseArgs(argv) {
 // Parses the FR ↔ scenario-id map and exact Scenario Outline multiplicities
 // from the same source bytes consumed by release assembly.
 async function scenarioRequirements(repositoryRoot) {
-	const text = await readFile(path.join(repositoryRoot, ".specs", "plugin-distribution", "plugin-distribution.feature"), "utf8");
+	const text = await readFile(corpusPath(path.join("plugin-distribution", "plugin-distribution.feature"), { baseDir: repositoryRoot }), "utf8");
 	const multiplicities = requiredScenarioMultiplicity(text);
 	const requirements = new Map();
 	let tags = [];

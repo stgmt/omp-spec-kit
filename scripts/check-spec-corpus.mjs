@@ -15,6 +15,16 @@ import { readRepositorySpecs } from "../src/kernel/adapters/fs.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SPECS_ROOT = path.join(ROOT, ".specs");
+// The canonical corpus lives in the specs repository and is served by the spec
+// registry: it is deliberately absent from this repository (and from CI). This
+// lint stays runnable only against an explicit checkout; the live corpus is
+// checked through the service (`npm run check:corpus:remote`).
+if (!fs.existsSync(SPECS_ROOT)) {
+  console.error(
+    "spec-corpus check: no .specs corpus in this repository — the canonical corpus is served by the spec registry; run `npm run check:corpus:remote` instead",
+  );
+  process.exit(1);
+}
 const EXPECTED_SPECS = Object.freeze([
   "agent-ux-elicitation-guard",
   "plugin-distribution",

@@ -41,6 +41,17 @@ function gitShow(commit, relativePath) {
   }
 }
 
+/**
+ * Default source commit: the most recent commit that still carried `.specs/`.
+ * The corpus no longer lives in the working tree, so HEAD is not a usable
+ * default any more — the frozen bytes stay reachable through history.
+ */
+function lastCorpusCommit() {
+  const commit = execFileSync("git", ["log", "-1", "--format=%H", "--diff-filter=d", "--", ".specs"], { cwd: root, encoding: "utf8" }).trim();
+  if (!/^[0-9a-f]{40}$/u.test(commit)) fail("no commit carrying .specs/ found in history");
+  return commit;
+}
+
 function sourcePaths() {
   return specs.flatMap((spec) => [
     ...fixedDocuments.map((document) => `.specs/${spec}/${document}`),
@@ -107,7 +118,7 @@ async function refresh(commit) {
 
 const check = process.argv.includes("--check");
 const commitArgument = process.argv.find((argument) => argument.startsWith("--commit="));
-const commit = commitArgument?.slice("--commit=".length) ?? execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+const commit = commitArgument?.slice("--commit=".length) ?? lastCorpusCommit();
 if (!/^[0-9a-f]{40}$/u.test(commit)) fail(`commit must be a full 40-hex id: ${commit}`);
 if (check) {
   await verifyFixture(await loadManifest());
