@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createClaimStore } from "../../../src/service/claims.js";
-import { createTenantDirectory, contextFor } from "../../../src/service/tenants.js";
-import { TenantConfigError } from "../../../src/service/tenants.js";
+import { parseTenants, resolveTenantScopes, TenantConfigError } from "../../../src/service/tenants.js";
+import { parseAuthConfig, AuthConfigError } from "../../../src/service/auth.js";
 
 describe("claim store", () => {
   it("grants, renews, and releases a lease", () => {
@@ -41,41 +41,62 @@ describe("claim store", () => {
   });
 });
 
-describe("tenant directory", () => {
-  const tenants = createTenantDirectory({
-    tenants: [
-      { token: "token-alpha-123456", tenant: "alpha", projects: ["stgmt/a", "stgmt/b"] },
-      { token: "token-beta-1234567", tenant: "beta", projects: ["acme/c"], defaultProject: "acme/c" },
-    ],
-  });
+describe("tenant definitions", () => {
+  const tenants = parseTenants([
+    { tenant: "alpha", projects: ["stgmt/a", "stgmt/b"], hubGroups: ["spec-alpha"] },
+    { tenant: "beta", projects: ["acme/c"], hubGroups: ["spec-beta"], defaultProject: "acme/c" },
+  ]);
 
-  it("resolves token to tenant, scopes, and default", () => {
-    const record = tenants.resolve("token-alpha-123456");
-    assert.equal(record.tenant, "alpha");
-    assert.deepEqual(record.projects, ["stgmt/a", "stgmt/b"]);
-    assert.equal(record.defaultProject, null);
-    const beta = tenants.resolve("token-beta-1234567");
-    assert.equal(beta.defaultProject, "acme/c");
-  });
-
-  it("keeps only the token hash and refuses unknown tokens", () => {
-    assert.equal(tenants.resolve("nope"), null);
-    assert.equal(tenants.resolve(null), null);
-  });
-
-  it("builds the caller context with asserted identity", () => {
-    const ctx = contextFor(tenants.resolve("token-alpha-123456"), "stigm");
-    assert.deepEqual(ctx, { tenant: "alpha", scopes: ["stgmt/a", "stgmt/b"], defaultScope: null, identity: "stigm" });
-    assert.equal(contextFor(tenants.resolve("token-alpha-123456"), "").identity, null);
+  it("resolves scopes by group intersection with exact default rules", () => {
+    const alpha = resolveTenantScopes(["spec-alpha", "All Users"], tenants);
+    assert.deepEqual(alpha.matched, ["alpha"]);
+    assert.deepEqual(alpha.scopes, ["stgmt/a", "stgmt/b"]);
+    assert.equal(alpha.defaultScope, null, "several scopes without a default must not resolve a default");
+    const beta = resolveTenantScopes(["spec-beta"], tenants);
+    assert.deepEqual(beta.scopes, ["acme/c"]);
+    assert.equal(beta.defaultScope, "acme/c");
+    const both = resolveTenantScopes(["spec-alpha", "spec-beta"], tenants);
+    assert.deepEqual(both.scopes, ["stgmt/a", "stgmt/b", "acme/c"], "multiple tenants union their scopes");
+    assert.equal(both.defaultScope, null);
+    const none = resolveTenantScopes(["All Users"], tenants);
+    assert.deepEqual(none.matched, []);
   });
 
   it("rejects misconfigured tenants", () => {
-    assert.throws(() => createTenantDirectory({ tenants: [{ token: "short", tenant: "x", projects: ["a/b"] }] }), TenantConfigError);
-    assert.throws(() => createTenantDirectory({ tenants: [{ token: "token-aaaa-12345", tenant: "x", projects: [] }] }), TenantConfigError);
-    assert.throws(() => createTenantDirectory({ tenants: [{ token: "token-aaaa-12345", tenant: "x", projects: ["a/b"], defaultProject: "c/d" }] }), TenantConfigError);
-    assert.throws(() => createTenantDirectory({ tenants: [
-      { token: "token-aaaa-12345", tenant: "x", projects: ["a/b"] },
-      { token: "token-aaaa-12345", tenant: "y", projects: ["c/d"] },
-    ] }), TenantConfigError);
+    assert.throws(() => parseTenants([{ tenant: "x", projects: [], hubGroups: ["g"] }]), TenantConfigError);
+    assert.throws(() => parseTenants([{ tenant: "x", projects: ["a/b"], hubGroups: [] }]), TenantConfigError);
+    assert.throws(() => parseTenants([{ tenant: "x", projects: ["a/b"], hubGroups: ["g"], defaultProject: "c/d" }]), TenantConfigError);
+    assert.throws(() => parseTenants([
+      { tenant: "x", projects: ["a/b"], hubGroups: ["g"] },
+      { tenant: "x", projects: ["c/d"], hubGroups: ["h"] },
+    ]), TenantConfigError);
+  });
+});
+
+describe("auth configuration", () => {
+  const valid = {
+    youtrack: { baseUrl: "https://youtrack.example.com", serviceToken: "service-token-1234567890" },
+    appBridge: { token: "bridge-token-1234567890" },
+    roleGroups: { owner: ["spec-owners"], writer: ["spec-writers"], reader: ["spec-readers"] },
+  };
+
+  it("accepts a valid block and strips trailing slashes", () => {
+    const parsed = parseAuthConfig({ ...valid, youtrack: { ...valid.youtrack, baseUrl: "https://youtrack.example.com/" } });
+    assert.equal(parsed.youtrack.baseUrl, "https://youtrack.example.com");
+    assert.deepEqual(parsed.roleGroups.reader, ["spec-readers"]);
+  });
+
+  it("requires https for public hosts but allows private ones", () => {
+    assert.throws(() => parseAuthConfig({ ...valid, youtrack: { ...valid.youtrack, baseUrl: "http://youtrack.example.com" } }), AuthConfigError);
+    const privateHost = parseAuthConfig({ ...valid, youtrack: { ...valid.youtrack, baseUrl: "http://youtrack:8080" } });
+    assert.equal(privateHost.youtrack.baseUrl, "http://youtrack:8080");
+    assert.doesNotThrow(() => parseAuthConfig({ ...valid, youtrack: { ...valid.youtrack, baseUrl: "http://localhost:8080" } }));
+  });
+
+  it("refuses missing or too-short credentials and empty role groups", () => {
+    assert.throws(() => parseAuthConfig(undefined), AuthConfigError);
+    assert.throws(() => parseAuthConfig({ ...valid, appBridge: { token: "short" } }), AuthConfigError);
+    assert.throws(() => parseAuthConfig({ ...valid, youtrack: { baseUrl: "https://x.example.com", serviceToken: "short" } }), AuthConfigError);
+    assert.throws(() => parseAuthConfig({ ...valid, roleGroups: { owner: [], writer: [], reader: [] } }), AuthConfigError);
   });
 });

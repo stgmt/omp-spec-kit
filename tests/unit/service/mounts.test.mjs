@@ -34,13 +34,18 @@ describe("projects config parsing", () => {
       specsRepo: "file:///tmp/specs.git",
       branch: "main",
       projects: [{ id: "stgmt/omp-spec-kit" }, "acme/billing"],
+      auth: {
+        youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
+        appBridge: { token: "bridge-token-1234567890" },
+        roleGroups: { reader: ["spec-readers"] },
+      },
     });
     assert.deepEqual(config.projects, ["stgmt/omp-spec-kit", "acme/billing"]);
     assert.equal(config.branch, "main");
   });
 
   it("rejects missing specsRepo, empty projects, and duplicate ids", () => {
-    assert.throws(() => parseProjectsConfig({ projects: [{ id: "a/b" }] }), ConfigError);
+    assert.throws(() => parseProjectsConfig({ projects: [{ id: "a/b" }] }), ConfigError); // auth block is mandatory
     assert.throws(() => parseProjectsConfig({ specsRepo: "x", projects: [] }), ConfigError);
     assert.throws(() => parseProjectsConfig({ specsRepo: "x", projects: [{ id: "a/b" }, { id: "a/b" }] }), ConfigError);
   });
@@ -57,7 +62,11 @@ describe("mount manager", () => {
   it("resolves project roots inside the clone and refuses escapes", async () => {
     const dir = await tempDir();
     const mounts = new MountManager({
-      config: parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "stgmt/omp-spec-kit" }] }),
+      config: parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "stgmt/omp-spec-kit" }], auth: {
+        youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
+        appBridge: { token: "bridge-token-1234567890" },
+        roleGroups: { reader: ["spec-readers"] },
+      }, }),
       cloneDir: dir,
     });
     assert.equal(mounts.resolveProjectRoot("stgmt/omp-spec-kit"), path.resolve(dir, "stgmt", "omp-spec-kit"));
@@ -67,7 +76,11 @@ describe("mount manager", () => {
   it("requireConfigured refuses unknown projects with PROJECT_NOT_CONFIGURED", async () => {
     const dir = await tempDir();
     const mounts = new MountManager({
-      config: parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "stgmt/omp-spec-kit" }] }),
+      config: parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "stgmt/omp-spec-kit" }], auth: {
+        youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
+        appBridge: { token: "bridge-token-1234567890" },
+        roleGroups: { reader: ["spec-readers"] },
+      }, }),
       cloneDir: dir,
     });
     assert.throws(() => mounts.requireConfigured("acme/billing"), /PROJECT_NOT_CONFIGURED|not configured/u);
@@ -76,7 +89,11 @@ describe("mount manager", () => {
   it("caches one createSpecService instance per project", async () => {
     const dir = await tempDir();
     const mounts = new MountManager({
-      config: parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "stgmt/omp-spec-kit" }] }),
+      config: parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "stgmt/omp-spec-kit" }], auth: {
+        youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
+        appBridge: { token: "bridge-token-1234567890" },
+        roleGroups: { reader: ["spec-readers"] },
+      }, }),
       cloneDir: dir,
     });
     const first = mounts.serviceFor("stgmt/omp-spec-kit");
@@ -88,7 +105,11 @@ describe("mount manager", () => {
     const dir = await tempDir();
     const git = fakeGit();
     const mounts = new MountManager({
-      config: parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "stgmt/omp-spec-kit" }] }),
+      config: parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "stgmt/omp-spec-kit" }], auth: {
+        youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
+        appBridge: { token: "bridge-token-1234567890" },
+        roleGroups: { reader: ["spec-readers"] },
+      }, }),
       cloneDir: dir,
       git,
       identity: { name: "spec-bot", email: "bot@example.invalid" },

@@ -6,6 +6,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { after, describe, it } from "node:test";
 import { bootService } from "../../src/service/index.js";
+import { readLiveConfig } from "../e2e/lib/live-fixture.mjs";
 
 const execFileAsync = promisify(execFile);
 const tempDirs = [];
@@ -32,7 +33,8 @@ describe("service boot on a local bare remote", () => {
     await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
     const cloneDir = path.join(base, "clone");
     const configPath = path.join(base, "projects.json");
-    await writeFile(configPath, JSON.stringify({ specsRepo: bare, branch: "main", projects: [{ id: "stgmt/alpha" }] }));
+    const auth = (await readLiveConfig()).auth;
+    await writeFile(configPath, JSON.stringify({ specsRepo: bare, branch: "main", projects: [{ id: "stgmt/alpha" }], tenants: [{ tenant: "alpha", projects: ["stgmt/alpha"], hubGroups: ["spec-alpha"], defaultProject: "stgmt/alpha" }], auth }));
 
     const { report } = await bootService({ configPath, cloneDir, identity: IDENTITY, logger: () => {} });
     assert.equal(report["stgmt/alpha"].graphStatus, "ready");
@@ -50,7 +52,8 @@ describe("service boot on a local bare remote", () => {
     await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
     const cloneDir = path.join(base, "clone");
     const configPath = path.join(base, "projects.json");
-    await writeFile(configPath, JSON.stringify({ specsRepo: bare, branch: "main", projects: [{ id: "stgmt/alpha" }] }));
+    const auth = (await readLiveConfig()).auth;
+    await writeFile(configPath, JSON.stringify({ specsRepo: bare, branch: "main", projects: [{ id: "stgmt/alpha" }], tenants: [{ tenant: "alpha", projects: ["stgmt/alpha"], hubGroups: ["spec-alpha"], defaultProject: "stgmt/alpha" }], auth }));
     await bootService({ configPath, cloneDir, identity: IDENTITY, logger: () => {} });
     const commitsAfterFirst = Number(await git(bare, ["rev-list", "--count", "main"]));
 
