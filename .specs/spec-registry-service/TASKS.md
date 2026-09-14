@@ -44,9 +44,10 @@ Status: DRAFT
 ## Phase 2 — Entry points
 
 ## TASK-12 — YouTrack-backed authN/Z (verified identity, reader/writer/owner roles) — pulled ahead of TASK-8
-- **Status:** todo
+- **Status:** done
 - **Done When:** per-user identity enforced against the live YouTrack (app bridge re-verifies `GET /api/users/{login}`; direct tokens via `GET /api/users/me`); claim `force` requires owner role (non-owner hard-denied); asserted-`identity` trust model retired (header ignored, verified login in trailers/audit); no auth config → service refuses to start; YouTrack unreachable → fail-closed.
 - **Requirements:** R-7, NFR-5, FR-7, FR-8
+- **Evidence:** `src/service/auth.js` (two verified paths; groups resolved with the service token because Hub field visibility hides a non-admin's group list from `users/me`; 60 s cache; fail-closed 503; banned → 403). Roles gate operations and filter `tools/list` (`dispatch.js`); claims/`Spec-Author` trailers carry the verified login (`claims.js`, `writepath.js`); `X-Spec-Author`/envelope `identity` retired; `ledger.js` stores no tokens (no `tenants` table). YouTrack app auth path: `tools/spec-graph-app/spec-handler.js` (ctx.currentUser → bridge, `connection.bearerAuth` for the secret setting) + `widgets/spec-service-panel`. Verified live end-to-end in the dedicated test compose (`tests/e2e/`, real YouTrack with browser login, real git daemon, real service — 12/12 scenarios: scoping, 403 NO_SCOPES, role gates, CLAIM_HELD, owner-only force, token revocation, ban, audit, restart, bridge header). Gates: `test:unit` 101/101, `test:service` 17/17 (live), `test:e2e:auth` 12/12, `check:spec-corpus`, `dogfood:mcp` green.
 
 ## TASK-7 — Plugin `.mcp.json` remote mode + retire local stdio for managed projects
 - **Status:** todo
