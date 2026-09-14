@@ -43,6 +43,11 @@ Status: DRAFT
 
 ## Phase 2 — Entry points
 
+## TASK-12 — YouTrack-backed authN/Z (verified identity, reader/writer/owner roles) — pulled ahead of TASK-8
+- **Status:** todo
+- **Done When:** per-user identity enforced against the live YouTrack (app bridge re-verifies `GET /api/users/{login}`; direct tokens via `GET /api/users/me`); claim `force` requires owner role (non-owner hard-denied); asserted-`identity` trust model retired (header ignored, verified login in trailers/audit); no auth config → service refuses to start; YouTrack unreachable → fail-closed.
+- **Requirements:** R-7, NFR-5, FR-7, FR-8
+
 ## TASK-7 — Plugin `.mcp.json` remote mode + retire local stdio for managed projects
 - **Status:** todo
 - **Done When:** plugin connects to the stack endpoint; local server only for `OMP_SPEC_KIT_ROOT` unmanaged checkouts.
@@ -50,7 +55,7 @@ Status: DRAFT
 
 ## TASK-8 — YouTrack app integration: spec view + proposal apply via `/mcp` + self-service token issuance
 - **Status:** todo
-- **Done When:** human can read spec and apply a proposal from the YT app; user identity lands in `Spec-Author:`; a "connect agent" action in the app calls the onboarding API and returns a ready `.mcp.json` token snippet (no manual token issuing anywhere).
+- **Done When:** human can read spec and apply a proposal from the YT app; user identity lands in `Spec-Author:` (verified YouTrack login — the auth path and minimal service panel land with TASK-12, the full interactive UI is this task); a "connect agent" action in the app calls the onboarding API, which **mints a YouTrack permanent token for the caller via the YouTrack API** (the service issues no tokens of its own) and returns a ready `.mcp.json` token snippet (no manual token issuing anywhere).
 - **Requirements:** R-6, FR-13, R-7
 
 ## Phase 3 — Publish, deploy
@@ -65,13 +70,6 @@ Status: DRAFT
 - **Done When:** clean-host `docker compose up` passes AC-7.
 - **Requirements:** R-8, FR-15
 - **Evidence:** `deploy/Dockerfile` (node:22-slim + git CLI, non-root, healthcheck on `/health`), `deploy/docker-compose.yml` (named volume for clone+SQLite, bind-mounted operator config, loopback-only direct port; optional profiles: `git` — in-stack bare repo + git daemon for a fully self-contained host, `youtrack` — clean-host YouTrack, `proxy` — nginx TLS termination with operator certs), `deploy/git/Dockerfile`, `deploy/proxy/nginx.conf`, `.dockerignore`, `config/projects.example.json`. AC-7 verified live on this host: fresh bare specs-repo + config + token → `docker compose up` → clones, creates `stgmt/alpha/.specs` skeleton as bot, healthy; read call over `POST /mcp` → HTTP 200; write loop → `APPLIED` + bot commit on the remote. Boot-to-healthy: 7.8 s (includes image build check). Self-contained `git` profile verified live too: skeleton pushed to the in-stack daemon, read call ok. youtrack-sync joins the stack with TASK-8 (the sweep has no standalone entrypoint yet — the compose key is intentionally absent, not stubbed). Landed with this commit.
-
-## Backlog — Auth seam realization
-
-## TASK-12 — YouTrack Hub authN/Z (token introspection, reader/writer/owner roles)
-- **Status:** todo
-- **Done When:** per-user identity enforced (Hub token introspection); claim `force` requires owner role; asserted-`identity` trust model retired.
-- **Requirements:** R-7
 
 ## TASK-13 — External YouTrack binding (post-v1): guided onboarding flow
 - **Status:** todo
@@ -96,6 +94,6 @@ Status: DRAFT
 - **RISK-2 — Spec↔code decoupling.** Specs and code never land in one PR anymore; linkage lives in the ledger + registry view (which spec a project touched, which version is published). There is no committed pin keeping the two in lockstep — drift between claimed and actual implementation is invisible until queried; accepted for v1, revisitable via TASK-15 if consumers need pins.
 - **RISK-3 — Cross-project spec references.** Deferred entirely; the kernel has no cross-mount edge model. If needed later, likely via ledger entries (`project/slug@version`), not live graph edges.
 - **RISK-4 — Specs repo is one blast radius.** All projects share one repo: a bad global state (history rewrite, repo corruption) hits every tenant. Mitigations: git integrity + journal, operator-side mirror/backup of the specs repo. Per-user branches were considered and rejected (index aggregation).
-- **RISK-5 — Claim enforcement is real but identity is weak in v1.** Non-holder writes are refused without `force:` — mechanically enforced. What's weak is *who is behind a claim*: the token proves tenant, `Spec-Author` is asserted/spoofable until TASK-12 (YouTrack Hub authN/Z).
+- **RISK-5 — Identity is verified (TASK-12); residual: token theft.** Non-holder writes are refused without `force:`; `force` is owner-only (hard-denied otherwise). Identity behind a claim is the verified YouTrack login (re-checked against YouTrack; `X-Spec-Author` retired). Residual: a stolen user token acts as that user until revoked in YouTrack — scope is limited to that user's projects.
 - **RISK-6 — Ruleset availability.** Actor/path-restriction rulesets depend on the GitHub plan. For the specs repo the v1 perimeter is simpler: private repo + no collaborators + a single operator-issued token = only the service pushes. Product-repo `.specs/` guard stays a CI check (FR-2) applied per migrated repo.
-- **RISK-7 — Token-only perimeter.** v1 auth is per-tenant bearer tokens; a leak compromises that tenant's allowed projects only, but identity assertions (`Spec-Author`) are spoofable and claims stay advisory until TASK-12 (YouTrack Hub authN/Z). TLS is required since the endpoint serves external YouTrack instances.
+- **RISK-7 — YouTrack is the authentication SPOF.** Every credential is verified against YouTrack (app bridge or direct token); YouTrack unreachable → fail-closed `UNAVAILABLE` (the 60 s cache softens blips). The service issues and stores no tokens; revocation/ban in YouTrack takes effect within the cache TTL. TLS is required since the endpoint serves external YouTrack instances.

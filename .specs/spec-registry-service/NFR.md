@@ -20,7 +20,7 @@ Single-writer serialization per project is acceptable: spec write volume is huma
 
 ### NFR-5 — Security baseline (v1)
 
-The endpoint is reachable beyond localhost (agents and third-party YouTrack instances) — TLS via the compose reverse proxy is required, not optional. Per-tenant bearer tokens on all endpoints; every token resolves to a tenant→allowed-projects set. No anonymous access. `detectSecret` runs on every write (existing behavior, unchanged).
+The endpoint is reachable beyond localhost (agents and third-party YouTrack instances) — TLS via the compose reverse proxy is required, not optional. **Authentication is YouTrack-backed; the service issues and stores no tokens of its own.** Two credential paths, both verified against the live YouTrack on every (uncached) request: (a) the app bridge — the YouTrack app backend authenticates with its own secret and asserts the user, and the service re-verifies that user via `GET /api/users/{login}`; (b) a user's YouTrack permanent token presented directly, verified via `GET /api/users/me`. Every request resolves `user → groups → tenant → allowed projects` plus a role (owner/writer/reader) before any operation runs. No anonymous access; no auth configuration → the service refuses to start. YouTrack unreachable → fail-closed (retryable `UNAVAILABLE`), never an unverified pass. `detectSecret` runs on every write (existing behavior, unchanged).
 
 ### NFR-6 — Operability
 

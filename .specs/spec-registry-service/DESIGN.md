@@ -47,11 +47,11 @@ Status: DRAFT
 ## Concurrency semantics
 
 - Request → auth → claim check → compile with `expectedSha`/`repositoryRootFingerprint` → `commitDocuments` under per-project lock → push. Stale base → `CONFLICT` (retryable — existing protocol).
-- `spec_claim(slug, ttl)` / `spec_release(slug)`: soft lease; expired lease auto-releases. Claims are advisory-except-for-owner policy: non-holder writes require `force: true` and are logged (v1) — hard denial lands with full auth (R-7 seam).
+- `spec_claim(slug, ttl)` / `spec_release(slug)`: soft lease; expired lease auto-releases. Claims name the verified YouTrack login (FR-7). Non-holder writes without `force` are hard-denied (`CLAIM_HELD`); `force` is owner-only — a non-owner `force` is hard-denied, an owner `force` proceeds and is logged.
 
 ## Transports
 
-- **MCP for all clients — one access point**: Streamable HTTP `POST /mcp`, served by the **official `@modelcontextprotocol/sdk`** (`StreamableHTTPServerTransport` in stateless mode per SDK docs — no session id, `GET` → 405). Same tool contracts and envelope; new optional envelope field `project` (call parameter; absent → token's default scope — see Caller context). KERNEL_SCHEMA_VERSION bumps to `spec-kernel@2`. The YouTrack app is just another MCP client: widget → `host.fetchApp()` → app HTTP handler → `http.Connection.postSync` → `POST /mcp` (`tools/call`) — a ~15-line JSON-RPC wrapper in the handler, no MCP client library needed. There is **no separate REST/RPC surface** to maintain.
+- **MCP for all clients — one access point**: Streamable HTTP `POST /mcp`, served by the **official `@modelcontextprotocol/sdk`** (`StreamableHTTPServerTransport` in stateless mode per SDK docs — no session id, `GET` → 405). Same tool contracts and envelope; new optional envelope field `project` (call parameter; absent → token's default scope — see Caller context). `tools/list` is filtered by the caller's role: readers see the nine read tools plus `spec_registry`/`spec_drift`; writers add `spec_patch`, `spec_claim`, `spec_release`; owners see the full surface. KERNEL_SCHEMA_VERSION bumps to `spec-kernel@2`. The YouTrack app is just another MCP client: widget → `host.fetchApp()` → app HTTP handler → `http.Connection.postSync` → `POST /mcp` (`tools/call`) — a ~15-line JSON-RPC wrapper in the handler, no MCP client library needed. There is **no separate REST/RPC surface** to maintain.
 - Local stdio MCP: retired for managed projects (`.mcp.json` → remote `type: "http"`). Kept buildable for unmanaged/offline use.
 
 ## Multi-tenant project model
@@ -78,20 +78,20 @@ The registry is **operator-hosted**: specs exist only in the operator's git repo
 
 | Consumer | Surface | Credential | When |
 |---|---|---|---|
-| Human in operator's YouTrack | app widgets → app backend → `POST /mcp` | YouTrack session → tenant token held server-side | v1 |
-| Dev's AI agent | MCP `type: "http"` → `https://<host>/mcp` | per-tenant bearer token (header) | v1 |
-| Human in **their own** YouTrack | same extension installed, bound to this backend | per-tenant bearer token | post-v1 |
+| Human in operator's YouTrack | app widgets → app backend → `POST /mcp` | YouTrack session → app bridge (app secret + verified user) | v1 |
+| Dev's AI agent | MCP `type: "http"` → `https://<host>/mcp` | the user's YouTrack permanent token (header) | v1 |
+| Human in **their own** YouTrack | same extension installed, bound to this backend | YouTrack session of the bound instance | post-v1 |
 
-Onboarding is **automated, not an operator action**. The extension calls the service onboarding API: after YouTrack login, a user-facing action issues a tenant record + token bound to the caller's allowed `project` set and returns it for `.mcp.json` (agent use) or shows an install guide (binding their own YouTrack). External-YouTrack binding lands post-v1 but the flow is already shaped this way: log into the operator's YouTrack → guided binding → API auto-provisions the tenant + token — no manual token issuing ever.
+Onboarding is **automated, not an operator action**. The extension calls the service onboarding API: after YouTrack login, a user-facing action mints a YouTrack permanent token for the caller (via the YouTrack API, using the service's service token) and returns it for `.mcp.json` (agent use) or shows an install guide (binding their own YouTrack). External-YouTrack binding lands post-v1 but the flow is already shaped this way: log into the operator's YouTrack → guided binding → API auto-provisions the token — no manual token issuing ever.
 
-Every request resolves `token → tenant → allowed projects`; the `project` field is checked against that set (absent → tenant default). A leaked token compromises only that tenant's allowed projects.
+Every request resolves `user → groups → tenant → allowed projects`; the `project` field is checked against that set (absent → default only when exactly one tenant matched). A leaked token compromises only the projects the user could reach, until revoked in YouTrack.
 
 ## Caller context (v1)
 
-- Token is the only credential a caller holds: it resolves to a **tenant** and an allowed `owner/project` scope set. It does **not** resolve to a user — per-user identity is asserted (`identity` field / `X-Spec-Author` header), recorded everywhere, spoofable until TASK-12. (Tokens are issued per onboarding event; whether an operator issues one per user or one per tenant is an ops choice, not a protocol difference.)
-- `project` is a call parameter — or the token's default scope when absent; refused when ambiguous or outside the allowed set. `spec`/slug is always explicit on targeted ops. Exception: *listing* ops (`spec_registry`, `spec_drift`) treat absent `project` as "all scopes in my allowed set" — they exist to show the caller what they can see.
-- **No repo binding in v1**: the service does not care which repo the caller sits in — scope comes from the token, not the checkout. Repo-declared scope (a committed binding file) is a deferred safety rail against silent misrouting, not a v1 mechanism.
-- **Onboarding can only grant scopes the operator already configured** in `projects.json` — creating a new project is an operator config step; onboarding issues tokens against existing scopes.
+- Identity is **verified against the live YouTrack** on every uncached request: the app bridge re-verifies the asserted user (`GET /api/users/{login}`), direct tokens are verified as themselves (`GET /api/users/me`). The verified `login` is recorded in claims, commit trailers, and the access log; `X-Spec-Author`/envelope `identity` are retired.
+- `project` is a call parameter — or the caller's default scope when absent; refused when ambiguous or outside the allowed set. `spec`/slug is always explicit on targeted ops. Exception: *listing* ops (`spec_registry`, `spec_drift`) treat absent `project` as "all scopes in my allowed set" — they exist to show the caller what they can see.
+- **No repo binding in v1**: the service does not care which repo the caller sits in — scope comes from the verified groups, not the checkout. Repo-declared scope (a committed binding file) is a deferred safety rail against silent misrouting, not a v1 mechanism.
+- **Onboarding can only grant scopes the operator already configured** in `projects.json` — creating a new project is an operator config step; onboarding mints tokens against existing scopes.
 
 ## Publish (R-9)
 
@@ -102,15 +102,22 @@ Every request resolves `token → tenant → allowed projects`; the `project` fi
 | Failure | Behavior |
 |---|---|
 | Service down | Consumers lose access entirely — by design they have no repo access; writes return `UNAVAILABLE`/retryable. The **operator** falls back to cloning the specs repo; break-glass admin push allowed, logged, drift-reported. |
+| YouTrack down | Authentication cannot be verified → fail-closed: `UNAVAILABLE`/retryable (503), never an unverified pass. The 60 s verification cache softens blips; claims/ledger/audit stay in sqlite. |
+| No auth configuration | The service refuses to start (fail fast at boot) — there is no unauthenticated mode. |
 | Non-bot push to `specs` | Rejected by ruleset; if bypassed via admin, drift reporter flags it and the service re-validates/reprojects. |
 | `.specs/` appears on code branch | Required check fails the PR. |
 | Stale writer | `CONFLICT` + retryable — existing semantics. |
 | Claim holder disappears | TTL expiry releases the lease. |
 | Version regress (same version, new digest) | Publish step refuses: version must advance; digest mismatch on an existing version = reject + alert. |
 
-## Auth seam (R-7)
+## Auth seam (R-7) — implemented
 
-v1: `Authorization: Bearer <tenant-token>` on `/mcp`; each token maps to a tenant and its allowed `project` set (required — external YouTrack bindings can't share one token). Asserted caller identity (`Spec-Author` header / envelope field) is logged on every write but not cryptographically verified. Seam: replace the verifier with YouTrack Hub token introspection + role map (reader/writer/owner) — call shape and the tenant→projects model unchanged.
+`Authorization: Bearer <credential>` on `/mcp`; credentials are YouTrack-backed and the service stores no tokens of its own. Two verified paths, both re-checked against the live YouTrack:
+
+- **App bridge (YouTrack UI)**: the app backend authenticates with its own secret (app setting, read by the HTTP handler) and asserts the caller it obtained from the verified YouTrack session (`ctx.currentUser.login`, YouTrack 2025.3+ exposes the user's groups in the same context). The service then re-verifies that user with its own service token: `GET /api/users/{login}?fields=id,login,name,banned,groups(id,name)`. The browser cannot set this assertion; the handler runs inside YouTrack and is reachable only through the app's REST endpoint, which YouTrack authenticates as the session user.
+- **Direct (agents)**: a user's YouTrack permanent token presented as the bearer credential; the service verifies it via `GET /api/users/me` with the caller's token — 200 proves the token, 401 refuses.
+
+Both paths resolve `user → groups → tenant → allowed scopes` (FR-8) and a role from configured role groups (owner/writer/reader). `banned` → 403. Successful verifications are cached per token hash for a short TTL (default 60 s, `SPEC_REGISTRY_AUTH_CACHE_MS`); negative results are never cached. YouTrack unreachable → fail-closed retryable `UNAVAILABLE`. Asserted identity fields (`X-Spec-Author` / envelope `identity`) are retired: ignored, logged as a warning. Seam realized — the tenant→projects model and call shape are unchanged.
 
 ## Why not the alternatives (summary; detail in RESEARCH.md)
 
