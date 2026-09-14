@@ -8,7 +8,8 @@
   },
   "scripts": {
     "build": "node scripts/build-plugin.mjs",
-    "verify": "node scripts/verify-marketplace.mjs && node scripts/verify-package.mjs && npm run check:spec-port && npm run check:blast && npm run check:mutations",
+    "verify": "npm run check:no-root-specs && node scripts/verify-marketplace.mjs && node scripts/verify-package.mjs && npm run check:spec-port && npm run check:blast && npm run check:mutations",
+    "check:no-root-specs": "node scripts/check-no-root-specs.mjs",
     "check:spec-corpus": "node scripts/check-spec-corpus.mjs",
     "check:corpus:remote": "node scripts/check-corpus-via-mcp.mjs",
     "check:spec-port": "node scripts/check-spec-port.mjs",

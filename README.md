@@ -77,6 +77,8 @@ The MCP server reads the active OMP project. It does not use editor LSP as a sub
 
 Direct untrusted writes to `.specs` are not an alternative API. Use `spec_patch` to preview and apply changes through hash-checked transactions.
 
+The canonical corpus lives in the dedicated specs repository and is served by the spec registry over MCP; this repository carries no `.specs/` (see `scripts/check-no-root-specs.mjs`). Code gates run against the frozen fixture under `tests/fixtures/kernel/authoring-real-corpus`; the live corpus is checked through the service with `npm run check:corpus:remote`.
+
 ## Project documentation
 
 - [`SECURITY.md`](SECURITY.md) — security and disclosure policy
