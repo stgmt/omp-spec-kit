@@ -23,6 +23,26 @@ A contribution should explain:
 
 Do not create a marketplace catalog or plugin payload before the v0.1.0 gate is intentionally started. Do not add a second plugin, extension control plane, or copied dev-pomogator runtime.
 
+## Local verification
+
+```bash
+npm ci
+npm run build          # regenerates plugins/omp-spec-kit/dist (verify-package fails when it is stale)
+npm run verify         # hermetic: code gates only, no corpus and no network
+npm test               # build + verify + dogfood + BDD suites + unit
+```
+
+Two prerequisites are not covered by `npm ci`:
+
+- **OMP runtime fixture** — `test:safe-authoring` (and therefore `npm test`) drives a real OMP
+  manager against `tests/fixtures/omp-discovery-runtime`, which needs its own dependencies:
+  `cd tests/fixtures/omp-discovery-runtime && bun install --frozen-lockfile --ignore-scripts --no-progress`.
+  The suite fails fast with that instruction when the fixture is missing.
+- **Registry endpoint** — `npm run check:corpus:remote` verifies the live corpus through the spec
+  registry and needs a running stack plus a token (`OMP_SPEC_REGISTRY_URL`,
+  `OMP_SPEC_REGISTRY_TOKEN` or `OMP_SPEC_REGISTRY_TOKEN_FILE`). It is not part of `npm run verify`:
+  the canonical corpus is served by the registry, never read from a checkout.
+
 ## Imported snapshot
 
 Files under `docs/upstream/dev-pomogator/spec-generator-v4/` are immutable provenance references. Do not edit them in place. A source update requires a new immutable commit decision, regenerated per-file hashes, byte comparison against Git object data, a reviewed migration-matrix delta, and resolved redistribution rights.

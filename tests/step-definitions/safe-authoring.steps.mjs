@@ -44,7 +44,20 @@ function expectedDocuments(proposal) {
   return proposal.data.operations.map((operation) => ({ path: operation.path, beforeSha256: operation.beforeSha256 }));
 }
 
+async function requireRuntimeFixture() {
+  const runtimeRoot = path.join(REPOSITORY_ROOT, "tests", "fixtures", "omp-discovery-runtime", "node_modules", "@oh-my-pi", "pi-coding-agent");
+  try {
+    await access(path.join(runtimeRoot, "package.json"));
+  } catch {
+    throw new Error(
+      "the OMP runtime fixture is not installed — run `cd tests/fixtures/omp-discovery-runtime && bun install --frozen-lockfile --ignore-scripts --no-progress`",
+    );
+  }
+  return runtimeRoot;
+}
+
 async function runCandidateManagerE2E() {
+  const runtimeRoot = await requireRuntimeFixture();
   const probeRoot = await mkdtemp(path.join(tmpdir(), "omp-safe-manager-project-"));
   const probeHome = await mkdtemp(path.join(tmpdir(), "omp-safe-manager-home-"));
   try {
@@ -54,7 +67,7 @@ async function runCandidateManagerE2E() {
     delete env.OMP_SPEC_KIT_STAGE;
     const result = spawnSync("bun", [
       path.join(REPOSITORY_ROOT, "scripts", "probe-omp-discovery-v18.0.11.mjs"),
-      "--runtime-root", path.join(REPOSITORY_ROOT, "tests", "fixtures", "omp-discovery-runtime", "node_modules", "@oh-my-pi", "pi-coding-agent"),
+      "--runtime-root", runtimeRoot,
       "--cwd", probeRoot,
       "--package-root", path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit"),
       "--phase-mode", "bounded",

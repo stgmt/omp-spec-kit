@@ -45,16 +45,21 @@ async function token() {
 }
 
 async function call(bearer, name, args) {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      accept: "application/json, text/event-stream",
-      authorization: `Bearer ${bearer}`,
-    },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }),
-    signal: AbortSignal.timeout(60_000),
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json, text/event-stream",
+        authorization: `Bearer ${bearer}`,
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }),
+      signal: AbortSignal.timeout(60_000),
+    });
+  } catch (error) {
+    fail(`registry unreachable at ${url}: ${error instanceof Error ? error.message : String(error)}`);
+  }
   const text = await response.text();
   if (!response.ok) fail(`${name} -> HTTP ${response.status}: ${text.slice(0, 200)}`);
   let payload = text;
