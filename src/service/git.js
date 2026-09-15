@@ -161,6 +161,12 @@ export class GitClient {
     await this.run(["push", remote, ...(refspec ? [refspec] : [])], { cwd });
   }
 
+  /** Author emails of the commits a push would send (`range` may be a tip). */
+  async commitAuthors(range, { cwd } = {}) {
+    const { stdout } = await this.run(["log", "--no-merges", "--format=%ae", range], { cwd });
+    return stdout.split("\n").map((line) => line.trim()).filter(Boolean);
+  }
+
   async statusPorcelain({ cwd } = {}) {
     const { stdout } = await this.run(["status", "--porcelain"], { cwd });
     return stdout;

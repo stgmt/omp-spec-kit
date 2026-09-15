@@ -70,10 +70,12 @@ export async function loadLiveFixture() {
         headers: { authorization: `Basic ${Buffer.from(`admin:${ADMIN_PASSWORD}`).toString("base64")}`, accept: "application/json" },
       }).then((r) => r.json());
       const scope = services.services.map((service) => ({ id: service.id }));
+      // The name is unique per process: test files run in parallel and must not
+      // revoke each other's token. The bootstrap clears stale ones per run.
       const tokenResponse = await fetch(`${YT_URL}/hub/api/rest/users/${user.id}/permanenttokens?fields=token`, {
         method: "POST",
         headers: { authorization: `Basic ${Buffer.from(`admin:${ADMIN_PASSWORD}`).toString("base64")}`, "content-type": "application/json" },
-        body: JSON.stringify({ name: `suite-${login}-${Date.now()}`, scope }),
+        body: JSON.stringify({ name: `suite-${login}-${process.pid}-${Date.now()}`, scope }),
         signal: AbortSignal.timeout(15_000),
       });
       if (!tokenResponse.ok) throw new Error(`live fixture: token minting failed for ${login} (${tokenResponse.status})`);

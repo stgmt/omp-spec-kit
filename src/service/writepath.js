@@ -45,6 +45,25 @@ function shortHash(hash) {
 }
 
 /**
+ * The service is the only writer to the specs repository, so everything it
+ * pushes must be bot-authored. A foreign author in the range means the clone's
+ * context is not what we think it is (a hijacked git environment, an operator
+ * committing into the clone) — pushing it would publish commits the service
+ * never authored, which is exactly how test commits once reached `main`.
+ */
+async function foreignAuthors({ git, cwd, branch, identity }) {
+  const range = `origin/${branch}..HEAD`;
+  let emails;
+  try {
+    emails = await git.commitAuthors(range, { cwd });
+  } catch {
+    // No remote branch yet (first push): only the tip can be judged.
+    emails = await git.commitAuthors("HEAD", { cwd });
+  }
+  return [...new Set(emails.filter((email) => email !== identity.email))];
+}
+
+/**
  * Write path (TASK-5): claim check -> kernel apply -> git add/commit/push as
  * the bot with Spec-Author/Spec-Request-Id trailers. Success is reported to
  * the caller only after the push is confirmed (FR-5); a failed push leaves
@@ -75,6 +94,16 @@ export function createWritePipeline({ mounts, claims, git, identity, logger = ()
       if (!(envelope.ok && envelope.data?.outcome === "APPLIED")) return { envelope };
 
       const receipt = envelope.data.receipt ?? {};
+      const branch = mounts.config.branch;
+      const pushBotCommits = async () => {
+        const foreign = await foreignAuthors({ git, cwd: mounts.cloneDir, branch, identity });
+        if (foreign.length > 0) {
+          const refusal = new Error(`the clone carries commits authored by ${foreign.join(", ")}`);
+          refusal.causeCode = "FOREIGN_COMMITS";
+          throw refusal;
+        }
+        await git.push({ refspec: `HEAD:refs/heads/${branch}` }, { cwd: mounts.cloneDir });
+      };
       try {
         const changed = (receipt.changedDocuments ?? [])
           .map((change) => `${project}/${change.path}`.split("\\").join("/"))
@@ -92,23 +121,41 @@ export function createWritePipeline({ mounts, claims, git, identity, logger = ()
           authorEmail: identity.email,
           cwd: mounts.cloneDir,
         });
-        await git.push({ refspec: `HEAD:refs/heads/${mounts.config.branch}` }, { cwd: mounts.cloneDir });
+        await pushBotCommits();
         logger(`pushed ${project} ${short(receipt.proposalHash)}`);
       } catch (error) {
+        const foreignRefusal = (caught) =>
+          caught?.causeCode === "FOREIGN_COMMITS"
+            ? {
+                envelope: errorEnvelope("specPatch", requestId, "INTERNAL_ERROR", `refusing to publish: ${caught.message}`, {
+                  retryable: false,
+                  causeCode: "FOREIGN_COMMITS",
+                  specSlug: spec,
+                }),
+              }
+            : null;
+        // Never publish commits the service did not author: a foreign author
+        // means the clone's git context is not what we think it is.
+        const direct = foreignRefusal(error);
+        if (direct) return direct;
         // A rejected push means the remote moved (break-glass, another writer):
         // replay the local commit on top of it and retry once, so the write is
         // never silently dropped and the clone does not stay stuck ahead.
-        const recovered = await reconcileClone({ git, cwd: mounts.cloneDir, branch: mounts.config.branch, identity, logger })
-          .then(() => git.push({ refspec: `HEAD:refs/heads/${mounts.config.branch}` }, { cwd: mounts.cloneDir }))
+        const recovered = await reconcileClone({ git, cwd: mounts.cloneDir, branch, identity, logger })
+          .then(pushBotCommits)
           .then(() => true)
           .catch((retryError) => {
             logger(`push retry after reconcile failed: ${retryError.message}`);
-            return false;
+            return retryError;
           });
-        if (recovered) {
+        if (recovered === true) {
           logger(`pushed ${project} ${short(receipt.proposalHash)} after reconcile`);
           return { envelope };
         }
+        // A foreign author discovered during the retry is the same policy
+        // refusal, not a transient failure: never report it as retryable.
+        const afterReconcile = foreignRefusal(recovered);
+        if (afterReconcile) return afterReconcile;
         return {
           envelope: errorEnvelope("specPatch", requestId, "INTERNAL_ERROR", `write applied locally but the push to the specs repo failed: ${error.message}`, {
             retryable: true,

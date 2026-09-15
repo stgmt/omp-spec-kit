@@ -171,6 +171,52 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     assert.equal(await git(cloneDir, ["rev-parse", "--abbrev-ref", "HEAD"]), "main");
   });
 
+  it("refuses to publish commits the service did not author", async () => {
+    const { bare, cloneDir, url, tokens } = await setup();
+    await git(cloneDir, ["config", "user.email", "bot@example.invalid"]);
+    await git(cloneDir, ["config", "user.name", "spec-bot"]);
+    // A foreign commit inside the clone — what a hijacked git context or an
+    // operator committing into the clone looks like.
+    await writeFile(path.join(cloneDir, "FOREIGN.md"), "# foreign\n");
+    await git(cloneDir, ["add", "."]);
+    await git(cloneDir, ["-c", "user.email=intruder@example.invalid", "-c", "user.name=intruder", "commit", "-m", "foreign: not the service"]);
+
+    const remoteBefore = await git(bare, ["rev-parse", "main"]);
+    const result = await callTool(url, tokens.alice, "spec_patch", patchArgs({ requestId: "w-foreign" }));
+    assert.equal(result.isError, true, "a foreign author must be refused, not published");
+    assert.equal(result.structuredContent.error.causeCode, "FOREIGN_COMMITS");
+    assert.equal(result.structuredContent.error.retryable, false);
+    assert.equal(await git(bare, ["rev-parse", "main"]), remoteBefore, "nothing may reach the remote");
+    assert.match(await git(bare, ["log", "--format=%s", "-1", "main"]), /seed/u);
+  });
+
+  it("keeps the foreign-commit refusal non-retryable when it surfaces after a reconcile", async () => {
+    const { bare, cloneDir, url, tokens } = await setup();
+    await git(cloneDir, ["config", "user.email", "bot@example.invalid"]);
+    await git(cloneDir, ["config", "user.name", "spec-bot"]);
+    // A foreign commit in the clone AND a moved remote: the first push is
+    // rejected, the reconcile replays both sides, and the retry must still
+    // refuse on authorship — as a policy refusal, not a transient failure.
+    await writeFile(path.join(cloneDir, "FOREIGN.md"), "# foreign\n");
+    await git(cloneDir, ["add", "."]);
+    await git(cloneDir, ["-c", "user.email=intruder@example.invalid", "-c", "user.name=intruder", "commit", "-m", "foreign: not the service"]);
+
+    const operator = await tempDir("spec-write-foreign-");
+    await execFileAsync("git", ["clone", bare, operator]);
+    await git(operator, ["config", "user.email", "operator@example.invalid"]);
+    await git(operator, ["config", "user.name", "operator"]);
+    await writeFile(path.join(operator, "BREAK-GLASS.md"), "# break-glass\n");
+    await execFileAsync("git", ["-C", operator, "add", "."]);
+    await execFileAsync("git", ["-C", operator, "commit", "-m", "chore: operator note"]);
+    await execFileAsync("git", ["-C", operator, "push", "-q", "origin", "HEAD:refs/heads/main"]);
+    await rm(operator, { recursive: true, force: true });
+
+    const result = await callTool(url, tokens.alice, "spec_patch", patchArgs({ requestId: "w-foreign-retry" }));
+    assert.equal(result.isError, true);
+    assert.equal(result.structuredContent.error.causeCode, "FOREIGN_COMMITS", JSON.stringify(result.structuredContent.error));
+    assert.equal(result.structuredContent.error.retryable, false, "a policy refusal must never be reported as retryable");
+  });
+
   it("refuses a stale fingerprint with CONFLICT retryable", async () => {
     const { url, tokens } = await setup();
     const result = await callTool(url, tokens.alice, "spec_patch", patchArgs({ repositoryRootFingerprint: "stale-fingerprint", requestId: "w2" }));

@@ -112,6 +112,30 @@ export function createYouTrackAdmin({ login, password, logger = () => {} }) {
       if (typeof token?.token !== "string") throw new Error(`permanent token for ${name} has no token value`);
       return token;
     },
+    async listPermanentTokens({ userId }) {
+      // The Hub API pages at 100; a run must see every token to clean up.
+      const all = [];
+      for (let skip = 0; ; skip += 100) {
+        const page = await call("GET", `/hub/api/rest/users/${userId}/permanenttokens?fields=id,name&$skip=${skip}`);
+        const batch = page?.permanenttokens ?? [];
+        all.push(...batch);
+        if (batch.length < 100) break;
+      }
+      return all;
+    },
+    /**
+     * Test lifecycle: a suite run must not pile up credentials, so the token it
+     * is about to replace is revoked first. `name` matches exactly, `prefix`
+     * matches the timestamped names earlier runs left behind.
+     */
+    async revokePermanentTokens({ userId, name, prefix }) {
+      const tokens = await this.listPermanentTokens({ userId });
+      const doomed = tokens.filter((token) => (name ? token.name === name : false) || (prefix ? String(token.name).startsWith(prefix) : false));
+      for (const token of doomed) {
+        await this.revokePermanentToken({ userId, tokenId: token.id });
+      }
+      return doomed.length;
+    },
     async revokePermanentToken({ userId, tokenId }) {
       await call("DELETE", `/hub/api/rest/users/${userId}/permanenttokens/${tokenId}`, { expect: [200, 204] });
     },

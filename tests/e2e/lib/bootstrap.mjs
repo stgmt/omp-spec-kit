@@ -139,11 +139,15 @@ export async function bootstrapFixture({ logger = () => {} } = {}) {
     for (const groupName of spec.groups) {
       await admin.addUserToGroup(groups[groupName].id, user.id);
     }
+    // Lifecycle: replace the previous run's token instead of piling up a new one.
+    await admin.revokePermanentTokens({ userId: user.id, name: `${userLogin}-e2e` });
+    await admin.revokePermanentTokens({ userId: user.id, prefix: `suite-${userLogin}` });
     const token = await admin.createPermanentToken({ userId: user.id, name: `${userLogin}-e2e`, serviceIds });
     users[userLogin] = { id: user.id, login: userLogin, password: spec.password, token: token.token, tokenId: token.id, role: spec.role };
     logger(`provisioned ${userLogin} (${spec.role ?? "no groups"})`);
   }
 
+  await admin.revokePermanentTokens({ userId: me.id, name: "e2e-service" });
   const adminToken = await admin.createPermanentToken({ userId: me.id, name: "e2e-service", serviceIds });
 
   const project = await admin.createProject({ name: "Spec E2E", shortName: "SPEC", leaderId: meNative.id });

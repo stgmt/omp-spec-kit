@@ -110,9 +110,16 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
         });
       }
 
-      // One token per (login, purpose): revoke the previous one first.
-      const listed = await youtrackJson(`/hub/api/rest/users/${user.id}/permanenttokens?fields=id,name`);
-      const previous = (listed?.permanenttokens ?? []).filter((token) => token?.name === ONBOARDING_TOKEN_NAME);
+      // One token per (login, purpose): revoke the previous one first. The Hub
+      // API pages at 100, so walk every page — a caller with a long history
+      // would otherwise keep a stale credential alive.
+      const previous = [];
+      for (let skip = 0; ; skip += 100) {
+        const page = await youtrackJson(`/hub/api/rest/users/${user.id}/permanenttokens?fields=id,name&$skip=${skip}`);
+        const batch = page?.permanenttokens ?? [];
+        previous.push(...batch.filter((token) => token?.name === ONBOARDING_TOKEN_NAME));
+        if (batch.length < 100) break;
+      }
       for (const token of previous) {
         await youtrackJson(`/hub/api/rest/users/${user.id}/permanenttokens/${token.id}`, { method: "DELETE" });
       }
