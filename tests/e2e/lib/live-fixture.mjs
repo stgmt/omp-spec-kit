@@ -6,6 +6,13 @@ import { isolateGitEnvironment } from "../../helpers/git-env.mjs";
 
 const CONFIG_PATH = path.join(E2E_DIR, "artifacts", "projects.json");
 
+/**
+ * One token per (process, login): every test in a file shares it, so a suite
+ * run mints one credential per file instead of one per test. The bootstrap
+ * revokes the previous run's `suite-<login>` tokens, so the stand stays flat.
+ */
+const suiteTokens = new Map();
+
 /** Config written by the last run-live bootstrap (auth block included). */
 export async function readLiveConfig() {
   const config = JSON.parse(await readFile(CONFIG_PATH, "utf8").catch(() => "null"));
@@ -60,6 +67,7 @@ export async function loadLiveFixture() {
     },
     users,
     async userToken(login) {
+      if (suiteTokens.has(login)) return suiteTokens.get(login);
       const response = await fetch(`${YT_URL}/hub/api/rest/users?query=login:${login}&fields=id,login`, {
         headers: { authorization: `Basic ${Buffer.from(`admin:${ADMIN_PASSWORD}`).toString("base64")}`, accept: "application/json" },
         signal: AbortSignal.timeout(10_000),
@@ -70,16 +78,19 @@ export async function loadLiveFixture() {
         headers: { authorization: `Basic ${Buffer.from(`admin:${ADMIN_PASSWORD}`).toString("base64")}`, accept: "application/json" },
       }).then((r) => r.json());
       const scope = services.services.map((service) => ({ id: service.id }));
-      // The name is unique per process: test files run in parallel and must not
-      // revoke each other's token. The bootstrap clears stale ones per run.
+      // Stable purpose name: the bootstrap revokes the previous run's tokens
+      // with this prefix, and parallel files cannot revoke each other because
+      // nothing revokes here.
       const tokenResponse = await fetch(`${YT_URL}/hub/api/rest/users/${user.id}/permanenttokens?fields=token`, {
         method: "POST",
         headers: { authorization: `Basic ${Buffer.from(`admin:${ADMIN_PASSWORD}`).toString("base64")}`, "content-type": "application/json" },
-        body: JSON.stringify({ name: `suite-${login}-${process.pid}-${Date.now()}`, scope }),
+        body: JSON.stringify({ name: `suite-${login}`, scope }),
         signal: AbortSignal.timeout(15_000),
       });
       if (!tokenResponse.ok) throw new Error(`live fixture: token minting failed for ${login} (${tokenResponse.status})`);
-      return (await tokenResponse.json()).token;
+      const token = (await tokenResponse.json()).token;
+      suiteTokens.set(login, token);
+      return token;
     },
   };
 }
