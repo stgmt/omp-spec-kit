@@ -86,6 +86,9 @@ async function main() {
   // leaves the app uninstalled so the suite can upload it through the UI.
   const bootstrapOnly = process.argv.includes("--bootstrap-only");
   const skipApp = process.argv.includes("--skip-app");
+  if (skipApp && !bootstrapOnly) {
+    console.warn("--skip-app only makes sense with --bootstrap-only: the scenarios need the app installed");
+  }
   await mkdir(ARTIFACTS, { recursive: true });
 
   if (reset) {

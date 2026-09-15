@@ -3,7 +3,7 @@ import { execFile } from "node:child_process";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { AfterAll, Before, BeforeAll, Given, setDefaultTimeout, Then, When } from "@cucumber/cucumber";
+import { After, AfterAll, Before, BeforeAll, Given, setDefaultTimeout, Status, Then, When } from "@cucumber/cucumber";
 import { chromium } from "playwright-core";
 import { ADMIN_PASSWORD, APP_NAME, BRIDGE_TOKEN, USERS } from "../e2e/lib/bootstrap.mjs";
 import { E2E_DIR, SERVICE_URL, YT_URL } from "../e2e/lib/compose.mjs";
@@ -69,6 +69,17 @@ Before(async function () {
 
 AfterAll(async () => {
   await live.browser?.close();
+});
+
+// Failure artifact: whatever the operator would see on screen at the point
+// of failure — admin page and alice's issue page side by side.
+After(async function (scenario) {
+  if (scenario.result?.status !== Status.FAILED) return;
+  for (const [name, page] of [["admin", this.adminPage], ["alice", this.alicePage]]) {
+    if (page && !page.isClosed()) {
+      await page.screenshot({ path: path.join(ARTIFACTS, `live-failed-${name}.png`), fullPage: true }).catch(() => {});
+    }
+  }
 });
 
 Given("the live stack without the spec-graph-app installed", async function () {
