@@ -11,9 +11,9 @@ import { cp, mkdir, rm } from "node:fs/promises";
 import path, { posix } from "node:path";
 import yazl from "yazl";
 
-// Fixed timestamp + explicit mode keep the archive byte-deterministic across
-// platforms (ZIP epoch is 1980; without mode yazl stores the file's real
-// mode, which differs between NTFS and Linux).
+// Fixed timestamp, explicit mode, and stored (uncompressed) entries keep the
+// archive byte-deterministic: mode differs between NTFS and Linux, and
+// deflate output may differ across zlib versions shipped with Node.
 const ZIP_MTIME = new Date("1980-01-01T00:00:00Z");
 const ZIP_MODE = 0o100664;
 
@@ -102,7 +102,7 @@ export async function buildPackage(appDir, { outDir, zipPath }) {
   await mkdir(path.dirname(zipPath), { recursive: true });
   const zip = new yazl.ZipFile();
   for (const rel of files) {
-    zip.addFile(path.join(appDir, rel), rel, { mtime: ZIP_MTIME, mode: ZIP_MODE });
+    zip.addFile(path.join(appDir, rel), rel, { mtime: ZIP_MTIME, mode: ZIP_MODE, compress: false });
   }
   zip.end();
   await new Promise((resolve, reject) => {
