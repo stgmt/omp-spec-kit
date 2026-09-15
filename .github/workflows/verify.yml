@@ -29,6 +29,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: spec-graph-app
+          if-no-files-found: error
           path: |
             dist/spec-graph-app/
             dist/spec-graph-app-*.zip

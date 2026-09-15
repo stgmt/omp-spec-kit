@@ -20,7 +20,7 @@ Pick one of two routes. Both need a YouTrack account with **Update Project**
 ```text
 npm run build:youtrack-app
 npx youtrack-app app upload --host https://your-ytrack.example --token <perm-token> --directory dist/spec-graph-app
-npx youtrack-app app attach --host <same> --token <same> --name spec-graph-app --project <PROJECT-KEY>
+npx youtrack-app app attach --host <same> --token <same> --app spec-graph-app --project <PROJECT-KEY>
 ```
 
 The permanent token needs `Update Project` on the target project. Set

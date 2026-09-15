@@ -8,12 +8,14 @@
 import { createHash } from "node:crypto";
 import { createWriteStream, existsSync, readFileSync } from "node:fs";
 import { cp, mkdir, rm } from "node:fs/promises";
-import path from "node:path";
-import { posix } from "node:path";
+import path, { posix } from "node:path";
 import yazl from "yazl";
 
-// Fixed timestamp keeps the archive byte-deterministic (ZIP epoch is 1980).
+// Fixed timestamp + explicit mode keep the archive byte-deterministic across
+// platforms (ZIP epoch is 1980; without mode yazl stores the file's real
+// mode, which differs between NTFS and Linux).
 const ZIP_MTIME = new Date("1980-01-01T00:00:00Z");
+const ZIP_MODE = 0o100664;
 
 const HTML_REF = /(?:src|href)\s*=\s*["']([^"']+)["']/g;
 const JS_REF = /(?:from|require\(|import\()\s*["']([^"']+)["']/g;
@@ -36,7 +38,7 @@ function isExternalRef(ref) {
 
 function localRefs(rel, content) {
   const refs = [];
-  const patterns = /\.(?:html?|css)$/i.test(rel) ? [HTML_REF] : /\.(?:m?js)$/i.test(rel) ? [HTML_REF, JS_REF] : [];
+  const patterns = /\.(?:html?|css)$/i.test(rel) ? [HTML_REF] : /\.(?:m?js)$/i.test(rel) ? [JS_REF] : [];
   for (const re of patterns) {
     re.lastIndex = 0;
     for (let m; (m = re.exec(content));) {
@@ -100,7 +102,7 @@ export async function buildPackage(appDir, { outDir, zipPath }) {
   await mkdir(path.dirname(zipPath), { recursive: true });
   const zip = new yazl.ZipFile();
   for (const rel of files) {
-    zip.addFile(path.join(appDir, rel), rel, { mtime: ZIP_MTIME });
+    zip.addFile(path.join(appDir, rel), rel, { mtime: ZIP_MTIME, mode: ZIP_MODE });
   }
   zip.end();
   await new Promise((resolve, reject) => {

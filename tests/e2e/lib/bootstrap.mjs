@@ -95,7 +95,7 @@ export async function deployApp({ admin, token, logger = () => {} }) {
     await buildPackage(appDir, { outDir, zipPath: path.join(work, `${APP_NAME}.zip`) });
     const { YT_URL } = await import("./compose.mjs");
     const cli = path.join(REPO_ROOT, "node_modules", "@jetbrains", "youtrack-apps-tools", "bin", "youtrack-app");
-    const { stdout } = await execFileAsync(process.execPath, [cli, "app", "upload", "--directory", outDir], {
+    await execFileAsync(process.execPath, [cli, "app", "upload", "--directory", outDir], {
       env: { ...process.env, YOUTRACK_HOST: YT_URL, YOUTRACK_TOKEN: token },
       timeout: 120_000,
     });
@@ -105,7 +105,6 @@ export async function deployApp({ admin, token, logger = () => {} }) {
       throw new Error(`installed app version ${app.version} != manifest version ${manifest.version}`);
     }
     logger(`deployed ${APP_NAME} ${app.version} into YouTrack (${app.id}) via youtrack-app CLI`);
-    void stdout;
     return app.id;
   } finally {
     await rm(work, { recursive: true, force: true });

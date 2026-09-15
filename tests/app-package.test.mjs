@@ -134,12 +134,16 @@ test("buildPackage writes a staged tree and a deterministic zip", async () => {
 
 test("the real app derives to exactly the JetBrains launch checklist", () => {
   const appDir = path.join(process.cwd(), "tools", "spec-graph-app");
+  const manifest = JSON.parse(readFileSync(path.join(appDir, "manifest.json"), "utf8"));
   const files = derivePackageFiles(appDir);
   assert.ok(files.includes("manifest.json"));
   assert.ok(files.includes("settings.json"));
-  for (const w of ["spec-board", "spec-panel", "spec-service-panel"]) {
-    assert.ok(files.includes(`widgets/${w}/index.html`), `missing widgets/${w}/index.html`);
+  for (const widget of manifest.widgets ?? []) {
+    assert.ok(files.includes(`widgets/${widget.indexPath}`), `missing widgets/${widget.indexPath}`);
   }
-  assert.ok(files.includes("spec-handler.js"));
+  for (const handler of manifest.httpHandlers ?? []) {
+    const file = /\.m?js$/i.test(handler.file) ? handler.file : `${handler.file}.js`;
+    assert.ok(files.includes(file), `missing handler ${file}`);
+  }
   assert.ok(!files.some((f) => f.endsWith(".zip") || f.startsWith("prototypes")), "dev files must not ship");
 });

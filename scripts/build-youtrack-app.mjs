@@ -13,7 +13,12 @@ import { buildPackage } from "./app-package.mjs";
 
 function argValue(flag, fallback) {
   const i = process.argv.indexOf(flag);
-  return i === -1 ? fallback : process.argv[i + 1];
+  if (i === -1) return fallback;
+  const value = process.argv[i + 1];
+  if (value === undefined || value.startsWith("--")) {
+    throw new Error(`build-youtrack-app: ${flag} requires a value`);
+  }
+  return value;
 }
 
 const appDir = path.resolve(repositoryRoot, argValue("--app", "tools/spec-graph-app"));
