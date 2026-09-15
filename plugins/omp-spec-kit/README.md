@@ -12,6 +12,36 @@ Every MCP `QueryEnvelope` and OMP `spec_inventory` result includes `provenance` 
 
 The command `/spec-inventory` and skill `spec-inventory` provide guidance only. They do not implement another scanner or runtime.
 
+## Managed (remote) mode
+
+The shipped `.mcp.json` declares the local stdio server — the mode for **unmanaged** checkouts. In a
+managed project the canonical corpus lives in the specs repository and is served by the registry, so
+the client must reach the endpoint instead of spawning a local server. Add an OMP-native definition
+named `omp-spec-kit` — in the project's `.omp/mcp.json` (committed, so every checkout is managed) or
+in the active profile's user config — using `config/omp-managed.mcp.json.example` as the template:
+
+```json
+{
+  "mcpServers": {
+    "omp-spec-kit": {
+      "type": "http",
+      "url": "${OMP_SPEC_REGISTRY_URL}",
+      "headers": { "Authorization": "Bearer ${OMP_SPEC_REGISTRY_TOKEN}" }
+    }
+  }
+}
+```
+
+OMP resolves that definition ahead of this package's declaration (native config precedes extension
+packages; the first definition wins and duplicate names are not merged), so the local server is
+retired for the project without changing the shipped payload. Both variables are read from the
+environment when the config is loaded; the token is the caller's verified YouTrack token — the
+service issues and stores none of its own. `scripts/probe-managed-remote.mjs` asserts this
+resolution and proves it behaviourally.
+
+On hosts with a global HTTP proxy, add the endpoint host to `NO_PROXY` (`127.0.0.1,localhost` for a
+local stack): the runtime routes HTTP through the proxy otherwise and the connection times out.
+
 ## v0.3.0 advisory
 
 v0.3.0 MCP results can use package cwd rather than active project cwd. See [the advisory](../../docs/advisories/v0.3.0-mcp-root.md). Upgrade to the candidate, reload plugin metadata, and start a fresh OMP session.
