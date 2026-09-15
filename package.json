@@ -26,6 +26,7 @@
     "test:unit": "node --import ./tests/helpers/isolate-git-env.mjs --test tests/spec-graph-sync/serve.test.js tests/spec-graph-sync/sync.test.js tests/spec-graph-sync/store.test.js tests/spec-graph-sync/sweep.test.js tests/spec-graph-sync/writeback.test.js tests/authoring-elicitation-edges.test.mjs tests/authoring-task-status.test.mjs tests/authoring-secrets.test.mjs tests/kernel-fields.test.mjs tests/roadmap-assemble.test.mjs tests/app-package.test.mjs tests/unit/service/mounts.test.mjs tests/unit/service/tenants-claims.test.mjs tests/unit/service/git-auth.test.mjs tests/unit/service/onboarding.test.mjs",
     "test:service": "node --experimental-sqlite --import ./tests/helpers/isolate-git-env.mjs --test tests/service/integration.test.mjs tests/service/http.test.mjs tests/service/writepath.test.mjs tests/service/task6.test.mjs tests/service/onboarding.test.mjs",
     "test:app-install": "npx cucumber-js tests/features/app-install.feature --import tests/step-definitions/app-install.steps.mjs --tags @app-install --format progress --force-exit",
+    "test:app-install-live": "npx cucumber-js tests/features/app-install-live.feature --import tests/step-definitions/app-install-live.steps.mjs --tags @app-install-live --format progress --force-exit",
     "test:e2e:auth": "node tests/e2e/run-live.mjs",
     "service:start": "node --experimental-sqlite src/service/index.js",
     "test:release-archive": "node scripts/smoke-release-archive.mjs",

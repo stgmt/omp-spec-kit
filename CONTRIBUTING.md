@@ -42,6 +42,10 @@ Two prerequisites are not covered by `npm ci`:
   registry and needs a running stack plus a token (`OMP_SPEC_REGISTRY_URL`,
   `OMP_SPEC_REGISTRY_TOKEN` or `OMP_SPEC_REGISTRY_TOKEN_FILE`). It is not part of `npm run verify`:
   the canonical corpus is served by the registry, never read from a checkout.
+- **Live YouTrack stack** — `test:e2e:auth` and `test:app-install-live` drive the real compose
+  stack `spec-auth-e2e` (Docker + Chrome). They bring the stack up themselves; neither is part of
+  `npm test`. The BDD suite replays the full operator path through the UI: ZIP upload, project
+  attach, app settings, then the issue widget serving remote specs.
 
 ## Imported snapshot
 

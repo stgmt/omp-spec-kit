@@ -117,7 +117,7 @@ export async function deployApp({ admin, token, logger = () => {} }) {
  * with its bridge settings, and the seeded specs repo. Returns the handles
  * the scenarios need. No mocks anywhere.
  */
-export async function bootstrapFixture({ logger = () => {} } = {}) {
+export async function bootstrapFixture({ deployApp: shouldDeployApp = true, logger = () => {} } = {}) {
   const admin = createYouTrackAdmin({ login: "admin", password: ADMIN_PASSWORD, logger });
   const me = await admin.me();
   const meNative = await admin.meNative();
@@ -156,10 +156,15 @@ export async function bootstrapFixture({ logger = () => {} } = {}) {
     await admin.addUserToProjectTeam({ hubProjectId, userId: users[userLogin].id });
   }
   logger("project team: alice, bob, carol, dave (dave has no service groups)");
-  const appId = await deployApp({ admin, token: adminToken.token, logger });
-  await admin.setAppSettings(appId, { serviceUrl: "http://spec-registryd:8642", serviceBridgeToken: BRIDGE_TOKEN });
-  await admin.attachAppToProject(appId, project.id);
-  const app = await admin.appById(appId);
+  // The UI-driven BDD suite installs and configures the app through the
+  // browser itself; deployApp:false keeps the operator path honest.
+  let app = null;
+  if (shouldDeployApp) {
+    const appId = await deployApp({ admin, token: adminToken.token, logger });
+    await admin.setAppSettings(appId, { serviceUrl: "http://spec-registryd:8642", serviceBridgeToken: BRIDGE_TOKEN });
+    await admin.attachAppToProject(appId, project.id);
+    app = await admin.appById(appId);
+  }
 
   const { YT_URL } = await import("./compose.mjs");
   let issue = null;

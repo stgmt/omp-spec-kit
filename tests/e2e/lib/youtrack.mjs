@@ -194,6 +194,15 @@ export function createYouTrackAdmin({ login, password, logger = () => {} }) {
       });
       logger("attached app to project");
     },
+    /**
+     * Removes an installed app — the UI-BDD precondition "the app is not
+     * installed" is set via the API so the scenario itself can test the
+     * browser upload. 404 tolerated: the precondition is satisfied either way.
+     */
+    async uninstallApp(appId) {
+      await call("DELETE", `/api/admin/apps/${appId}`, { expect: [200, 204, 404] });
+      logger("uninstalled app");
+    },
     async issueCount(projectShortName) {
       const issues = await call("GET", `/api/issues?query=project:${projectShortName}&fields=id,idReadable&$top=1`);
       return Array.isArray(issues) ? issues.length : 0;
