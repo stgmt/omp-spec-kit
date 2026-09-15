@@ -22,6 +22,9 @@ function fakeGit() {
   return {
     calls,
     async clone() { calls.push(["clone"]); },
+    async fetch() { calls.push(["fetch"]); },
+    // The fake clone has no origin ref yet: boot reconciliation short-circuits.
+    async revParse(ref) { calls.push(["revParse", ref]); return null; },
     async add(paths) { calls.push(["add", ...paths]); },
     async commit({ message }) { calls.push(["commit", message]); },
     async push({ refspec }) { calls.push(["push", refspec]); },

@@ -1,4 +1,5 @@
 import { commitMessage } from "./git.js";
+import { reconcileClone } from "./sync.js";
 
 function errorEnvelope(operation, requestId, code, message, extra = {}) {
   return {
@@ -73,8 +74,8 @@ export function createWritePipeline({ mounts, claims, git, identity, logger = ()
       const envelope = await mounts.serviceFor(project).runQuery("specPatch", args, { requestId, schemaVersion });
       if (!(envelope.ok && envelope.data?.outcome === "APPLIED")) return { envelope };
 
+      const receipt = envelope.data.receipt ?? {};
       try {
-        const receipt = envelope.data.receipt ?? {};
         const changed = (receipt.changedDocuments ?? [])
           .map((change) => `${project}/${change.path}`.split("\\").join("/"))
           .filter((p) => !p.includes(".."));
@@ -94,6 +95,20 @@ export function createWritePipeline({ mounts, claims, git, identity, logger = ()
         await git.push({ refspec: `HEAD:refs/heads/${mounts.config.branch}` }, { cwd: mounts.cloneDir });
         logger(`pushed ${project} ${short(receipt.proposalHash)}`);
       } catch (error) {
+        // A rejected push means the remote moved (break-glass, another writer):
+        // replay the local commit on top of it and retry once, so the write is
+        // never silently dropped and the clone does not stay stuck ahead.
+        const recovered = await reconcileClone({ git, cwd: mounts.cloneDir, branch: mounts.config.branch, identity, logger })
+          .then(() => git.push({ refspec: `HEAD:refs/heads/${mounts.config.branch}` }, { cwd: mounts.cloneDir }))
+          .then(() => true)
+          .catch((retryError) => {
+            logger(`push retry after reconcile failed: ${retryError.message}`);
+            return false;
+          });
+        if (recovered) {
+          logger(`pushed ${project} ${short(receipt.proposalHash)} after reconcile`);
+          return { envelope };
+        }
         return {
           envelope: errorEnvelope("specPatch", requestId, "INTERNAL_ERROR", `write applied locally but the push to the specs repo failed: ${error.message}`, {
             retryable: true,

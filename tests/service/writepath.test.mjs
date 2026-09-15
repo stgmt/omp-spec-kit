@@ -105,6 +105,72 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     assert.match(remoteTasks, /TASK-99 — e2e write/u);
   });
 
+  it("reconciles a diverged clone so a moved remote never blocks the next write", async () => {
+    const { bare, cloneDir, url, tokens } = await setup();
+    // Simulate a push that was rejected earlier: the clone carries a local
+    // commit of its own while the remote moves ahead out of band.
+    await git(cloneDir, ["config", "user.email", "bot@example.invalid"]);
+    await git(cloneDir, ["config", "user.name", "spec-bot"]);
+    await git(cloneDir, ["commit", "--allow-empty", "-m", "local-only: simulated rejected push"]);
+
+    const operator = await tempDir("spec-write-operator-");
+    await execFileAsync("git", ["clone", bare, operator]);
+    await git(operator, ["config", "user.email", "operator@example.invalid"]);
+    await git(operator, ["config", "user.name", "operator"]);
+    await writeFile(path.join(operator, "BREAK-GLASS.md"), "# break-glass\n\nOperator pushed directly.\n");
+    await execFileAsync("git", ["-C", operator, "add", "."]);
+    await execFileAsync("git", ["-C", operator, "commit", "-m", "chore: operator break-glass note"]);
+    await execFileAsync("git", ["-C", operator, "push", "-q", "origin", "HEAD:refs/heads/main"]);
+    await rm(operator, { recursive: true, force: true });
+
+    const result = await callTool(url, tokens.alice, "spec_patch", patchArgs({ requestId: "w-reconcile" }));
+    assert.equal(result.isError, false, JSON.stringify(result?.structuredContent?.error ?? {}));
+    assert.equal(result.structuredContent.data.outcome, "APPLIED", "the write must land even though the remote moved");
+
+    const log = await git(bare, ["log", "--format=%s", "-4", "main"]);
+    assert.match(log, /operator break-glass note/u, "the out-of-band commit must stay on the remote");
+    assert.match(log, /local-only: simulated rejected push/u, "the local commit must be replayed, not dropped");
+    assert.match(log, /apply/u, "the bot commit must land on top of both");
+    assert.match(await git(bare, ["show", "main:stgmt/alpha/.specs/spec-kernel/TASKS.md"]), /TASK-99/u);
+  });
+
+  it("keeps the local commit and stays up when a break-glass rewrite conflicts", async () => {
+    const { bare, cloneDir, url, tokens } = await setup();
+    await git(cloneDir, ["config", "user.email", "bot@example.invalid"]);
+    await git(cloneDir, ["config", "user.name", "spec-bot"]);
+    // A local commit rewriting a document the remote will rewrite too.
+    await writeFile(
+      path.join(cloneDir, "stgmt", "alpha", ".specs", "spec-kernel", "TASKS.md"),
+      "# Tasks\n\nStatus: DRAFT\n\n## TASK-77 — local only\n- **Status:** todo\n",
+    );
+    await git(cloneDir, ["add", "."]);
+    await git(cloneDir, ["commit", "-m", "local-only: conflicting write"]);
+
+    const operator = await tempDir("spec-write-conflict-");
+    await execFileAsync("git", ["clone", bare, operator]);
+    await git(operator, ["config", "user.email", "operator@example.invalid"]);
+    await git(operator, ["config", "user.name", "operator"]);
+    await writeFile(
+      path.join(operator, "stgmt", "alpha", ".specs", "spec-kernel", "TASKS.md"),
+      "# Tasks\n\nStatus: DRAFT\n\n## TASK-78 — operator rewrite\n- **Status:** todo\n",
+    );
+    await execFileAsync("git", ["-C", operator, "add", "."]);
+    await execFileAsync("git", ["-C", operator, "commit", "-m", "chore: operator rewrite of TASKS.md"]);
+    await execFileAsync("git", ["-C", operator, "push", "-q", "origin", "HEAD:refs/heads/main"]);
+    await rm(operator, { recursive: true, force: true });
+
+    const result = await callTool(url, tokens.alice, "spec_patch", patchArgs({ requestId: "w-conflict" }));
+    assert.equal(result.isError, true, "a conflicting divergence must surface as an error, not a crash");
+    assert.equal(result.structuredContent.error.retryable, true);
+    assert.equal(result.structuredContent.error.causeCode, "GIT_PUSH_FAILED");
+    // The local commits are never dropped, and no rebase is left half-done.
+    const subjects = await git(cloneDir, ["log", "--format=%s", "-3"]);
+    assert.match(subjects, /local-only: conflicting write/u, "the local commit must survive the aborted rebase");
+    const status = await git(cloneDir, ["status", "--porcelain"]);
+    assert.ok(!status.includes("rebase"), `no rebase must be left in progress: ${status}`);
+    assert.equal(await git(cloneDir, ["rev-parse", "--abbrev-ref", "HEAD"]), "main");
+  });
+
   it("refuses a stale fingerprint with CONFLICT retryable", async () => {
     const { url, tokens } = await setup();
     const result = await callTool(url, tokens.alice, "spec_patch", patchArgs({ repositoryRootFingerprint: "stale-fingerprint", requestId: "w2" }));

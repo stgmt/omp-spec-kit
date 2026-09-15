@@ -5,6 +5,7 @@ import { recoverInterruptedTransactions } from "../authoring/transactions.js";
 import { GitClient, GitError, botIdentityFromEnv, commitMessage } from "./git.js";
 import { parseAuthConfig } from "./auth.js";
 import { parseTenants } from "./tenants.js";
+import { reconcileClone } from "./sync.js";
 
 const PROJECT_ID_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/;
 const LOCK_FILE = ".omp-spec-kit-write.lock";
@@ -96,6 +97,10 @@ export class MountManager {
 
   async boot() {
     await this.ensureClone();
+    // Boot reconciliation (FR-5/FR-16): a clone left ahead of the remote — a
+    // skeleton push that lost a race, an out-of-band operator push — must be
+    // replayed before any new skeleton push, or every write stays rejected.
+    await reconcileClone({ git: this.git, cwd: this.cloneDir, branch: this.config.branch, identity: this.identity, logger: this.logger });
     const report = {};
     for (const projectId of this.config.projects) {
       const root = this.resolveProjectRoot(projectId);

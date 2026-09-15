@@ -15,6 +15,14 @@ export const USERS = Object.freeze({
   carol: { password: "CarolPass!2026", groups: ["spec-alpha", "spec-alpha-owners"], role: "owner" },
   dave: { password: "DavePass!2026", groups: [], role: null },
   erin: { password: "ErinPass!2026", groups: ["spec-alpha", "spec-alpha-writers"], role: "writer" },
+  // Two matched tenants: proves the AC-4 rule that an omitted `project` is
+  // refused when more than one tenant matches, and that an explicit project
+  // stays inside its own scope.
+  frank: {
+    password: "FrankPass!2026",
+    groups: ["spec-alpha", "spec-alpha-writers", "spec-beta", "spec-beta-writers"],
+    role: "writer",
+  },
 });
 export const BRIDGE_TOKEN = "e2e-bridge-token-0123456789";
 export const APP_NAME = "spec-graph-app";
@@ -25,6 +33,19 @@ const SEED_FILES = Object.freeze({
   "FR.md": "# Functional requirements\n\nStatus: DRAFT\n\n## FR-1 — seeded requirement\n\nThe system SHALL expose the seeded spec to authorized callers only.\n",
   "ACCEPTANCE_CRITERIA.md": "# Acceptance criteria\n\nStatus: DRAFT\n\n## AC-1 — seeded criterion\n\n**Given** the seeded corpus, **when** an authorized caller reads it, **then** it is visible.\n",
 });
+
+// Second project for the AC-4 isolation scenarios: its own scope, its own spec.
+const BETA_SEED_FILES = Object.freeze({
+  "README.md": "# Beta Spec\n\nStatus: DRAFT\n\nSecond seeded corpus for the live auth E2E.\n",
+  "TASKS.md": "# Tasks\n\nStatus: DRAFT\n\n## TASK-1 — beta seed task\n- **Status:** todo\n- **Done When:** the beta corpus is readable inside its own scope.\n- **Requirements:** FR-1\n",
+  "FR.md": "# Functional requirements\n\nStatus: DRAFT\n\n## FR-1 — beta seeded requirement\n\nThe system SHALL keep beta readable only through the beta scope.\n",
+  "ACCEPTANCE_CRITERIA.md": "# Acceptance criteria\n\nStatus: DRAFT\n\n## AC-1 — beta seeded criterion\n\n**Given** the beta corpus, **when** an authorized beta caller reads it, **then** it is visible.\n",
+});
+
+const SEED_TREES = Object.freeze([
+  { project: "stgmt/alpha", spec: "alpha-spec", files: SEED_FILES },
+  { project: "stgmt/beta", spec: "beta-spec", files: BETA_SEED_FILES },
+]);
 
 async function git(cwd, args) {
   return (await execFileAsync("git", args, { cwd })).stdout.trim();
@@ -37,19 +58,22 @@ async function git(cwd, args) {
  * reliable one and still exercises the real daemon + receive-pack.
  */
 export async function seedSpecsRepo({ logger = () => {} } = {}) {
-  const heredocs = Object.entries(SEED_FILES)
-    .map(([name, content]) => `cat > "stgmt/alpha/.specs/alpha-spec/${name}" <<'SEED_EOF'\n${content}SEED_EOF`)
-    .join("\n");
+  const heredocs = SEED_TREES.flatMap((tree) =>
+    Object.entries(tree.files).map(
+      ([name, content]) =>
+        `if [ ! -f "${tree.project}/.specs/${tree.spec}/${name}" ]; then cat > "${tree.project}/.specs/${tree.spec}/${name}" <<'SEED_EOF'\n${content}SEED_EOF\nfi`,
+    ),
+  ).join("\n");
   const script = [
     "set -e",
     "rm -rf /tmp/seed && git clone -q git://127.0.0.1/specs.git /tmp/seed",
     "cd /tmp/seed",
     "git config user.email seed@example.invalid",
     "git config user.name seed",
-    "mkdir -p stgmt/alpha/.specs/alpha-spec",
+    ...SEED_TREES.map((tree) => `mkdir -p ${tree.project}/.specs/${tree.spec}`),
     heredocs,
     "git add .",
-    'if git status --porcelain | grep -q .; then git commit -qm "seed: alpha-spec" && git push -q origin HEAD:refs/heads/main && echo SEEDED; else echo UP_TO_DATE; fi',
+    'if git status --porcelain | grep -q .; then git commit -qm "seed: alpha-spec + beta-spec" && git push -q origin HEAD:refs/heads/main && echo SEEDED; else echo UP_TO_DATE; fi',
     "rm -rf /tmp/seed",
   ].join("\n");
   const { stdout } = await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-git-1", "sh", "-c", script]);
@@ -101,7 +125,7 @@ export async function bootstrapFixture({ logger = () => {} } = {}) {
   const meNative = await admin.meNative();
   const serviceIds = [await admin.youtrackServiceId(), await admin.hubServiceId()];
 
-  const groupNames = ["spec-alpha", "spec-alpha-readers", "spec-alpha-writers", "spec-alpha-owners"];
+  const groupNames = ["spec-alpha", "spec-alpha-readers", "spec-alpha-writers", "spec-alpha-owners", "spec-beta", "spec-beta-writers"];
   const groups = {};
   for (const name of groupNames) {
     groups[name] = await admin.createGroup(name);
@@ -161,8 +185,11 @@ export async function bootstrapFixture({ logger = () => {} } = {}) {
   const config = {
     specsRepo: "git://spec-git/specs.git",
     branch: "main",
-    projects: [{ id: "stgmt/alpha" }],
-    tenants: [{ tenant: "alpha", projects: ["stgmt/alpha"], hubGroups: ["spec-alpha"], defaultProject: "stgmt/alpha" }],
+    projects: [{ id: "stgmt/alpha" }, { id: "stgmt/beta" }],
+    tenants: [
+      { tenant: "alpha", projects: ["stgmt/alpha"], hubGroups: ["spec-alpha"], defaultProject: "stgmt/alpha" },
+      { tenant: "beta", projects: ["stgmt/beta"], hubGroups: ["spec-beta"], defaultProject: "stgmt/beta" },
+    ],
     auth: {
       youtrack: { baseUrl: "http://youtrack:8080", serviceToken: adminToken.token },
       appBridge: { token: BRIDGE_TOKEN },

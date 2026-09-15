@@ -170,6 +170,24 @@ export class GitClient {
   async mergeFF(ref, { cwd } = {}) {
     await this.run(["merge", "--ff-only", ref], { cwd });
   }
+
+  /**
+   * Replay local commits on top of the remote (reconciliation, FR-5/FR-16).
+   * Rebase creates commits, so it needs the bot identity like `commit` does —
+   * the image ships no global git identity.
+   */
+  async rebaseOnto(ref, { cwd, identity } = {}) {
+    const args = [];
+    if (identity?.name && identity?.email) {
+      args.push("-c", `user.name=${identity.name}`, "-c", `user.email=${identity.email}`);
+    }
+    args.push("rebase", ref);
+    await this.run(args, { cwd });
+  }
+
+  async rebaseAbort({ cwd } = {}) {
+    await this.run(["rebase", "--abort"], { cwd }).catch(() => {});
+  }
 }
 
 export function botIdentityFromEnv(env = process.env) {

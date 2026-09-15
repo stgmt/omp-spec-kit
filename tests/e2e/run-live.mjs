@@ -346,6 +346,75 @@ print(db.execute("SELECT holder FROM claims WHERE spec_key = 'stgmt/alpha/alpha-
     return "401 MISSING_USER";
   });
 
+  await scenario("S13", "AC-4 multi-project: an explicit project stays inside its own scope", async () => {
+    const beta = await callTool(users.frank.token, "spec_catalog", { project: "stgmt/beta", view: "specs" });
+    assert.equal(beta.isError, false, JSON.stringify(beta.structuredContent?.error ?? {}));
+    assert.deepEqual(beta.structuredContent.data.specs, ["beta-spec"], "beta must serve only its own spec");
+    const alpha = await callTool(users.frank.token, "spec_catalog", { project: "stgmt/alpha", view: "specs" });
+    assert.ok(alpha.structuredContent.data.specs.includes("alpha-spec"));
+    assert.ok(!alpha.structuredContent.data.specs.includes("beta-spec"), "alpha must not expose beta's spec");
+    const crossRead = await callTool(users.frank.token, "spec_documents", {
+      project: "stgmt/beta", action: "read", spec: "alpha-spec", doc: "README.md",
+    });
+    assert.equal(crossRead.isError, true, "a spec of another project must not be reachable through beta");
+    const foreign = await callTool(users.alice.token, "spec_catalog", { project: "stgmt/beta", view: "specs" });
+    assert.equal(foreign.isError, true, "a project outside the caller's scopes must be refused");
+    return "beta=[beta-spec]; alpha=[alpha-spec]; cross-project read and foreign project refused";
+  });
+
+  await scenario("S14", "AC-4 multi-project: two matched tenants force an explicit project", async () => {
+    const ambiguous = await mcpCall(users.frank.token, {
+      method: "tools/call", params: { name: "spec_catalog", arguments: { view: "specs" } },
+    });
+    const envelope = ambiguous.json?.result?.structuredContent;
+    assert.equal(envelope?.ok, false, "two matched tenants must refuse an omitted project");
+    assert.match(envelope.error.message, /project is required/, `unexpected refusal: ${envelope.error.message}`);
+    const single = await callTool(users.alice.token, "spec_catalog", { view: "specs" });
+    assert.equal(single.isError, false, "a single matched tenant resolves its default project");
+    assert.ok(single.structuredContent.data.specs.includes("alpha-spec"));
+    return `ambiguous refused (${envelope.error.code}); single-tenant default resolves`;
+  });
+
+  await scenario("S15", "AC-6 proposal parity: the app path matches the agent path; a stale apply is refused", async () => {
+    const operations = [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-93 — parity probe\n" }];
+    const reason = "proposal parity probe";
+    // The proposal hash covers the requestId, so "the same call" means the
+    // same arguments on both paths; a dryRun preview is never replayed, so
+    // reusing the id for the second path is safe.
+    const requestId = "s15-parity";
+    const app = await mcpCall(fixture.config.auth.appBridge.token, {
+      method: "tools/call",
+      params: { name: "spec_patch", arguments: { intent: "patch", spec: "alpha-spec", reason, dryRun: true, operations, requestId } },
+      headers: { "x-spec-user": "alice" },
+    });
+    const appEnvelope = app.json?.result?.structuredContent;
+    assert.equal(appEnvelope?.data?.outcome, "PREVIEW", JSON.stringify(appEnvelope?.error ?? {}));
+    const agent = await callTool(users.alice.token, "spec_patch", {
+      intent: "patch", spec: "alpha-spec", reason, dryRun: true, operations, requestId,
+    });
+    assert.equal(agent.structuredContent.data.outcome, "PREVIEW");
+    assert.deepEqual(appEnvelope.data.operations, agent.structuredContent.data.operations, "previews must match the agent path");
+    assert.equal(appEnvelope.data.proposalHash, agent.structuredContent.data.proposalHash, "proposalHash must match");
+    assert.equal(appEnvelope.data.baseGenerationSha256, agent.structuredContent.data.baseGenerationSha256);
+    const drifted = await callTool(users.alice.token, "spec_patch", {
+      intent: "patch", spec: "alpha-spec", reason: "drift the snapshot", dryRun: false, requestId: "s15-drift",
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-94 — drift probe\n" }],
+    });
+    assert.equal(drifted.structuredContent.data.outcome, "APPLIED", JSON.stringify(drifted.structuredContent?.error ?? {}));
+    const stale = await callTool(users.alice.token, "spec_patch", {
+      intent: "patch", spec: "alpha-spec", reason, dryRun: false, operations, requestId: "s15-stale",
+      repositoryRootFingerprint: appEnvelope.data.baseGenerationSha256,
+    });
+    assert.equal(stale.isError, true, "a proposal built on a stale snapshot must be refused, not applied");
+    const refusal = stale.structuredContent.data?.error ?? stale.structuredContent.error;
+    assert.equal(refusal?.code, "CONFLICT", JSON.stringify(refusal ?? {}));
+    assert.equal(refusal?.retryable, true);
+    // The refusal path carries the compile message (the causeCode itself is
+    // dropped there — recorded as an observation, not a blocker).
+    assert.match(refusal?.message ?? "", /does not match the current graph snapshot/, `unexpected refusal: ${refusal?.message}`);
+    return `preview parity ok (${appEnvelope.data.proposalHash.slice(0, 12)}…); stale apply refused`;
+  });
+
   const failed = results.filter((entry) => !entry.ok);
   console.log(`\n${results.length - failed.length}/${results.length} scenarios passed`);
   if (failed.length > 0) {
