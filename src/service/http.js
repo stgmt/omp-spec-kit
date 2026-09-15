@@ -71,6 +71,25 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
     }
   });
 
+  app.post("/onboarding/token", authGate, async (req, res) => {
+    if (typeof endpoints.onboarding !== "function") {
+      res.status(501).json({ error: "onboarding endpoint is not wired" });
+      return;
+    }
+    try {
+      const requested = req.body?.serviceUrl;
+      const serviceUrl = typeof requested === "string" && requested.length > 0 ? requested : `${req.protocol}://${req.get("host")}`;
+      res.json(await endpoints.onboarding({ ctx: req.ctx, serviceUrl }));
+    } catch (error) {
+      const status = Number.isSafeInteger(error?.status) ? error.status : 500;
+      res.status(status).json({
+        error: error?.code ?? "ONBOARDING_FAILED",
+        message: String(error?.message ?? error),
+        ...(error?.retryable === true ? { retryable: true } : {}),
+      });
+    }
+  });
+
   app.get("/mcp", (_req, res) => {
     res.set("Allow", "POST");
     res.status(405).json({ error: "method not allowed: this endpoint is stateless and serves JSON-RPC over POST only" });

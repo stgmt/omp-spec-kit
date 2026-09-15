@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { E2E_DIR, SERVICE_URL, YT_URL } from "./compose.mjs";
 import { ADMIN_PASSWORD, USERS } from "./bootstrap.mjs";
+import { isolateGitEnvironment } from "../../helpers/git-env.mjs";
 
 const CONFIG_PATH = path.join(E2E_DIR, "artifacts", "projects.json");
 
@@ -20,6 +21,9 @@ export async function readLiveConfig() {
  * authentication is YouTrack-backed by design.
  */
 export async function loadLiveFixture() {
+  // A hook-started run inherits GIT_DIR/GIT_INDEX_FILE, which would make the
+  // suite commit into the product worktree instead of its temp repositories.
+  isolateGitEnvironment();
   const health = await fetch(`${SERVICE_URL}/health`, { signal: AbortSignal.timeout(5_000) }).catch(() => null);
   if (!health?.ok) {
     throw new Error("live fixture is not running: start it with `node tests/e2e/run-live.mjs` (compose project spec-auth-e2e)");

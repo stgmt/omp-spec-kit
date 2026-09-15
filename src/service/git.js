@@ -1,7 +1,18 @@
 import { execFile } from "node:child_process";
+import path from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+
+/** Git context variables that override cwd/`-C` and must never reach a child. */
+const GIT_CONTEXT_VARS = Object.freeze([
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_INDEX_FILE",
+  "GIT_COMMON_DIR",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+]);
 
 const queues = new Map();
 
@@ -71,7 +82,14 @@ export class GitClient {
   }
 
   childEnv() {
-    return { ...this.env, ...gitAuthEnv(this.gitAuth) };
+    // The service always names its repository through `cwd`, so the git context
+    // variables a parent may carry — a pre-commit hook sets GIT_DIR and
+    // GIT_INDEX_FILE, and they override cwd and `-C` in every descendant — must
+    // not reach the child: without this a hook-started service would commit
+    // into whatever repository the hook belongs to.
+    const env = { ...this.env };
+    for (const key of GIT_CONTEXT_VARS) delete env[key];
+    return { ...env, ...gitAuthEnv(this.gitAuth) };
   }
 
   redact(text) {
@@ -82,6 +100,13 @@ export class GitClient {
   run(args, { cwd = this.defaultCwd } = {}) {
     if (!Array.isArray(args) || args.some((arg) => typeof arg !== "string")) {
       return Promise.reject(new GitError("git arguments must be an array of strings", { args }));
+    }
+    // Fail closed: a git call without a cwd would run against whatever
+    // directory the process happens to sit in — in a test run that is the
+    // product worktree, where a stray commit would land on the checked-out
+    // branch. Every call must name its repository.
+    if (typeof cwd !== "string" || cwd.length === 0) {
+      return Promise.reject(new GitError(`git ${args[0]} refused: no cwd (the service never runs git against the process cwd)`, { args }));
     }
     return enqueue(`${cwd ?? ""}`, () =>
       execFileAsync("git", args, { cwd, windowsHide: true, maxBuffer: 32 * 1024 * 1024, env: this.childEnv() })
@@ -109,7 +134,9 @@ export class GitClient {
     const args = ["clone", "--no-tags"];
     if (branch) args.push("--branch", branch);
     args.push("--", url, destination);
-    await this.run(args);
+    // `clone` creates the destination itself, so it runs from the destination's
+    // parent — never from the process cwd.
+    await this.run(args, { cwd: path.dirname(path.resolve(destination)) });
   }
 
   async fetch({ remote = "origin", cwd } = {}) {

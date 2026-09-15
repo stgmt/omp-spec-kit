@@ -12,6 +12,7 @@ import { createStore } from "./ledger.js";
 import { buildRegistryIndex } from "./registry.js";
 import { computeDrift } from "./drift.js";
 import { startSync } from "./sync.js";
+import { createOnboarding } from "./onboarding.js";
 
 export async function bootService({ configPath, cloneDir, git = new GitClient({ gitAuth: gitAuthFromEnv() }), identity, logger = () => {} }) {
   const config = await loadProjectsConfig(configPath);
@@ -43,6 +44,7 @@ export function buildServiceStack({ mounts, config, git, identity = botIdentityF
   };
   const registryOps = createRegistryOps({ registryIndex, driftReport });
   const writePath = createWritePipeline({ mounts, claims, git, identity, logger });
+  const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger });
   let sync = null;
   if (syncIntervalMs > 0) {
     sync = startSync({ mounts, git, branch: config.branch, identity, cwd: mounts.cloneDir, intervalMs: syncIntervalMs, logger });
@@ -60,6 +62,7 @@ export function buildServiceStack({ mounts, config, git, identity = botIdentityF
     endpoints: {
       registry: () => registryIndex(),
       drift: () => driftReport(),
+      onboarding: (input) => onboarding.issueToken(input),
     },
     audit: (entry) => store?.logAccess?.(entry),
   };

@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it, after } from "node:test";
 import { GitClient, GitError, gitAuthEnv, gitAuthFromEnv } from "../../../src/service/git.js";
+import { isolateGitEnvironment } from "../../helpers/git-env.mjs";
+
+// Real git runs in this file: never inherit a hook's GIT_DIR/GIT_INDEX_FILE.
+isolateGitEnvironment();
 
 const tempDirs = [];
 after(async () => {
@@ -69,6 +73,26 @@ describe("git client credential handling", () => {
   it("passes no auth config when no credential is configured", () => {
     const env = new GitClient({ env: { PATH: "/usr/bin" } }).childEnv();
     assert.equal(env.GIT_CONFIG_COUNT, undefined);
+  });
+
+  it("refuses a git call without a cwd instead of running against the process directory", async () => {
+    const client = new GitClient({ gitAuth: { token: TOKEN } });
+    await assert.rejects(
+      () => client.run(["status"]),
+      (error) => {
+        assert.ok(error instanceof GitError);
+        assert.match(error.message, /no cwd/u);
+        return true;
+      },
+    );
+    await assert.rejects(() => client.revParse("HEAD"), (error) => error instanceof GitError && /no cwd/u.test(error.message));
+    // An explicit cwd still works, and `clone` derives one from the destination.
+    const cwd = await tempDir();
+    const withCwd = new GitClient({ gitAuth: { token: TOKEN } });
+    await withCwd.run(["init", "-q", "."], { cwd });
+    const target = path.join(await tempDir(), "clone");
+    await withCwd.clone(cwd, target);
+    assert.ok((await stat(path.join(target, ".git"))).isDirectory());
   });
 
   it("redacts the token from errors raised by the git CLI", async () => {
