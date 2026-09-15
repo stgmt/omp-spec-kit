@@ -7,8 +7,10 @@
     "node": "22"
   },
   "scripts": {
-    "build": "node scripts/build-plugin.mjs",
-    "verify": "npm run check:no-root-specs && node scripts/verify-marketplace.mjs && node scripts/verify-package.mjs && npm run check:spec-port && npm run check:blast && npm run check:mutations",
+    "build": "node scripts/build-plugin.mjs && npm run build:youtrack-app",
+    "build:youtrack-app": "node scripts/build-youtrack-app.mjs",
+    "verify": "npm run check:no-root-specs && node scripts/verify-marketplace.mjs && node scripts/verify-package.mjs && npm run check:spec-port && npm run check:youtrack-app && npm run check:blast && npm run check:mutations",
+    "check:youtrack-app": "youtrack-app app validate --directory tools/spec-graph-app",
     "check:no-root-specs": "node scripts/check-no-root-specs.mjs",
     "check:spec-corpus": "node scripts/check-spec-corpus.mjs",
     "check:corpus:remote": "node scripts/check-corpus-via-mcp.mjs",
@@ -21,8 +23,9 @@
     "test:safe-authoring": "npx cucumber-js tests/features/safe-authoring.feature --import tests/step-definitions/safe-authoring.steps.mjs --tags @safe-authoring --format progress --force-exit",
     "test:tool-e2e": "npx cucumber-js tests/features/staged-mcp.feature --import tests/step-definitions/staged-mcp.steps.mjs --tags @tool-e2e --format progress --force-exit",
     "test:staged": "npx cucumber-js tests/features/staged-mcp.feature --import tests/step-definitions/staged-mcp.steps.mjs --format progress --force-exit",
-    "test:unit": "node --import ./tests/helpers/isolate-git-env.mjs --test tests/spec-graph-sync/serve.test.js tests/spec-graph-sync/sync.test.js tests/spec-graph-sync/store.test.js tests/spec-graph-sync/sweep.test.js tests/spec-graph-sync/writeback.test.js tests/authoring-elicitation-edges.test.mjs tests/authoring-task-status.test.mjs tests/authoring-secrets.test.mjs tests/kernel-fields.test.mjs tests/roadmap-assemble.test.mjs tests/unit/service/mounts.test.mjs tests/unit/service/tenants-claims.test.mjs tests/unit/service/git-auth.test.mjs tests/unit/service/onboarding.test.mjs",
+    "test:unit": "node --import ./tests/helpers/isolate-git-env.mjs --test tests/spec-graph-sync/serve.test.js tests/spec-graph-sync/sync.test.js tests/spec-graph-sync/store.test.js tests/spec-graph-sync/sweep.test.js tests/spec-graph-sync/writeback.test.js tests/authoring-elicitation-edges.test.mjs tests/authoring-task-status.test.mjs tests/authoring-secrets.test.mjs tests/kernel-fields.test.mjs tests/roadmap-assemble.test.mjs tests/app-package.test.mjs tests/unit/service/mounts.test.mjs tests/unit/service/tenants-claims.test.mjs tests/unit/service/git-auth.test.mjs tests/unit/service/onboarding.test.mjs",
     "test:service": "node --experimental-sqlite --import ./tests/helpers/isolate-git-env.mjs --test tests/service/integration.test.mjs tests/service/http.test.mjs tests/service/writepath.test.mjs tests/service/task6.test.mjs tests/service/onboarding.test.mjs",
+    "test:app-install": "npx cucumber-js tests/features/app-install.feature --import tests/step-definitions/app-install.steps.mjs --tags @app-install --format progress --force-exit",
     "test:e2e:auth": "node tests/e2e/run-live.mjs",
     "service:start": "node --experimental-sqlite src/service/index.js",
     "test:release-archive": "node scripts/smoke-release-archive.mjs",
@@ -34,7 +37,9 @@
   },
   "devDependencies": {
     "@cucumber/cucumber": "13.2.1",
-    "playwright-core": "1.63.0"
+    "playwright-core": "1.63.0",
+    "yauzl": "^3.2.0",
+    "yazl": "^3.3.1"
   },
   "dependencies": {
     "@jetbrains/youtrack-apps-tools": "^1.0.3",

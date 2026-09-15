@@ -159,6 +159,13 @@ export function createYouTrackAdmin({ login, password, logger = () => {} }) {
     async appById(appId) {
       return call("GET", `/api/admin/apps/${appId}?fields=id,name,version`);
     },
+    /** The apps list paginates (~42 built-ins before user apps). */
+    async appByName(name) {
+      const apps = await call("GET", "/api/admin/apps?fields=id,name,version&$top=500");
+      const app = (Array.isArray(apps) ? apps : []).find((entry) => entry.name === name);
+      if (!app) throw new Error(`app not installed: ${name}`);
+      return app;
+    },
     /** Hub project id (the YouTrack REST id and the Hub id differ). */
     async hubProjectId(shortName) {
       const page = await call("GET", `/hub/api/rest/projects?query=${encodeURIComponent(shortName)}&fields=id,key,name`);

@@ -22,6 +22,7 @@ export async function renderReleaseNotes({ candidatePath, evidencePath, tag, rep
     `- Candidate digest: \`${candidate.candidateDigest}\``,
     `- Package tree digest: \`${candidate.packageTreeDigest}\``,
     `- Archive SHA-256: \`${candidate.archive.sha256}\``,
+    `- YouTrack app: \`${candidate.youtrackApp.file}\` (SHA-256 \`${candidate.youtrackApp.sha256}\`) — upload via Administration → Apps → Add app… → Upload ZIP file`,
     `- Peeled tag commit: \`${candidate.commit}\``,
     "- OMP runtime: `18.0.11`",
     "- Distribution evidence: lifecycle producers, Docker BDD, manager discovery, and nine closed MRI receipts.",

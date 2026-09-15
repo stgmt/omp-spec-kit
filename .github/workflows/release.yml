@@ -183,7 +183,10 @@ jobs:
           archive="$(node -p "require('./release-candidate/candidate.json').archive.file")"
           expected_sha="$(node -p "require('./release-candidate/candidate.json').archive.sha256")"
           expected_commit="$(node -p "require('./release-candidate/candidate.json').commit")"
+          app_zip="$(node -p "require('./release-candidate/candidate.json').youtrackApp.file")"
+          expected_app_sha="$(node -p "require('./release-candidate/candidate.json').youtrackApp.sha256")"
           echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          echo "app_zip=$app_zip" >> "$GITHUB_OUTPUT"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             existing_commit="$(git rev-parse "$TAG^{commit}")"
             if [ "$existing_commit" != "$expected_commit" ]; then
@@ -192,9 +195,15 @@ jobs:
             fi
             mkdir existing-assets
             gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$archive" --dir existing-assets
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$app_zip" --dir existing-assets
             actual_sha="$(sha256sum "existing-assets/$archive" | cut -d ' ' -f1)"
             if [ "$actual_sha" != "$expected_sha" ]; then
               echo "::error::existing release archive differs from verified candidate"
+              exit 1
+            fi
+            actual_app_sha="$(sha256sum "existing-assets/$app_zip" | cut -d ' ' -f1)"
+            if [ "$actual_app_sha" != "$expected_app_sha" ]; then
+              echo "::error::existing release app zip differs from verified candidate"
               exit 1
             fi
             echo "created=0" >> "$GITHUB_OUTPUT"
@@ -206,6 +215,7 @@ jobs:
             --title "omp-spec-kit $TAG" \
             --notes-file release-candidate/release-notes.md \
             "release-candidate/$archive" \
+            "release-candidate/$app_zip" \
             release-candidate/candidate.json \
             release-candidate/evidence.json
           echo "created=1" >> "$GITHUB_OUTPUT"
@@ -215,5 +225,6 @@ jobs:
         with:
           subject-path: |
             release-candidate/${{ steps.publish.outputs.archive }}
+            release-candidate/${{ steps.publish.outputs.app_zip }}
             release-candidate/candidate.json
             release-candidate/evidence.json

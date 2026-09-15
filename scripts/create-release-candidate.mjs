@@ -1,8 +1,9 @@
 import { execFileSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PLUGIN_VERSION } from "./verify-marketplace.mjs";
+import { buildPackage } from "./app-package.mjs";
 import {
   assertCommit,
   assertTag,
@@ -73,13 +74,24 @@ export async function createReleaseCandidate({
   const archivePath = path.join(outputDirectory, archiveName);
   await writeFile(archivePath, tarBytes);
 
+  // The YouTrack app package is built inside the candidate step so the release
+  // artifact and its digest come from the tagged checkout, not a prior build.
+  const appSource = path.join(repositoryRoot, "tools", "spec-graph-app");
+  const appManifest = JSON.parse(await readFile(path.join(appSource, "manifest.json"), "utf8"));
+  const appZipName = `spec-graph-app-${appManifest.version}.zip`;
+  const appBuild = await buildPackage(appSource, {
+    outDir: path.join(outputDirectory, "spec-graph-app"),
+    zipPath: path.join(outputDirectory, appZipName),
+  });
+
   const withoutDigest = {
-    schema: "omp-spec-kit-release-candidate@1",
+    schema: "omp-spec-kit-release-candidate@2",
     version: PLUGIN_VERSION,
     tag,
     commit,
     packageTreeDigest: packageTreeDigest(files),
     archive: { file: archiveName, sha256: sha256(tarBytes), bytes: tarBytes.length },
+    youtrackApp: { file: appZipName, sha256: appBuild.sha256, bytes: appBuild.bytes, version: appManifest.version },
     files: toPublicFileRows(files),
   };
   const candidate = { ...withoutDigest, candidateDigest: candidateDigest(withoutDigest) };

@@ -13,18 +13,20 @@ async function createGitFreeCandidate(outputDirectory) {
   const files = await collectRegularFiles(path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit"));
   const archiveBytes = await createDeterministicTar(files);
   const withoutDigest = {
-    schema: "omp-spec-kit-release-candidate@1",
+    schema: "omp-spec-kit-release-candidate@2",
     version: "0.4.1",
     tag: "v0.4.1",
     commit: "5a01a8ac76d87f4a8cc600f763cbb3228375c199",
     packageTreeDigest: packageTreeDigest(files),
     archive: { file: "omp-spec-kit-0.4.1.tar", sha256: sha256(archiveBytes), bytes: archiveBytes.length },
+    youtrackApp: { file: "spec-graph-app-0.4.1.zip", sha256: sha256("release-evidence-app-placeholder"), bytes: 33, version: "0.4.1" },
     files: toPublicFileRows(files),
   };
   const candidate = { ...withoutDigest, candidateDigest: candidateDigest(withoutDigest) };
   const manifestPath = path.join(outputDirectory, "candidate.json");
   await mkdir(outputDirectory, { recursive: true });
   await writeFile(manifestPath, canonicalJson(candidate), "utf8");
+  await writeFile(path.join(outputDirectory, "spec-graph-app-0.4.1.zip"), "release-evidence-app-placeholder");
   return { candidate, manifestPath };
 }
 Given("a v0.4.1 candidate and complete evidence record", async function () {

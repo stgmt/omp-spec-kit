@@ -81,33 +81,32 @@ export async function seedSpecsRepo({ logger = () => {} } = {}) {
   logger(`specs repo: ${stdout.trim().split("\n").pop()}`);
 }
 
-export async function deployApp({ admin, logger = () => {} }) {
+/**
+ * Installs the app through the official JetBrains CLI against the same
+ * manifest-derived package CI builds (one build path for CI, release and
+ * this fixture), then verifies the installed version matches the manifest.
+ */
+export async function deployApp({ admin, token, logger = () => {} }) {
   const appDir = path.join(REPO_ROOT, "tools", "spec-graph-app");
-  const files = ["manifest.json", "settings.json", "spec-handler.js", "spec-writeback.js", "widgets", "prototypes.html", "prototypes-data.json"];
   const work = await mkdtemp(path.join(tmpdir(), "spec-e2e-app-"));
-  const zipPath = path.join(work, `${APP_NAME}.zip`);
   try {
-    const archive = await execFileAsync("powershell", [
-      "-NoProfile",
-      "-Command",
-      `Compress-Archive -Path ${files.map((file) => `'${path.join(appDir, file)}'`).join(",")} -DestinationPath '${zipPath}'`,
-    ]);
-    void archive;
-    const zipBytes = await readFile(zipPath);
-    const form = new FormData();
-    form.set("file", new Blob([zipBytes], { type: "application/zip" }), `${APP_NAME}.zip`);
+    const { buildPackage } = await import("../../../scripts/app-package.mjs");
+    const outDir = path.join(work, "package");
+    await buildPackage(appDir, { outDir, zipPath: path.join(work, `${APP_NAME}.zip`) });
     const { YT_URL } = await import("./compose.mjs");
-    const response = await fetch(`${YT_URL}/api/admin/apps/import`, {
-      method: "POST",
-      headers: { authorization: `Basic ${Buffer.from(`admin:${ADMIN_PASSWORD}`).toString("base64")}` },
-      body: form,
-      signal: AbortSignal.timeout(120_000),
+    const cli = path.join(REPO_ROOT, "node_modules", "@jetbrains", "youtrack-apps-tools", "bin", "youtrack-app");
+    const { stdout } = await execFileAsync(process.execPath, [cli, "app", "upload", "--directory", outDir], {
+      env: { ...process.env, YOUTRACK_HOST: YT_URL, YOUTRACK_TOKEN: token },
+      timeout: 120_000,
     });
-    if (!response.ok) throw new Error(`app import failed: ${response.status} ${(await response.text()).slice(0, 300)}`);
-    const imported = await response.json();
-    if (typeof imported?.id !== "string") throw new Error(`app import returned no id: ${JSON.stringify(imported).slice(0, 120)}`);
-    logger(`deployed ${APP_NAME} into YouTrack (${imported.id})`);
-    return imported.id;
+    const app = await admin.appByName(APP_NAME);
+    const manifest = JSON.parse(await readFile(path.join(appDir, "manifest.json"), "utf8"));
+    if (app.version !== manifest.version) {
+      throw new Error(`installed app version ${app.version} != manifest version ${manifest.version}`);
+    }
+    logger(`deployed ${APP_NAME} ${app.version} into YouTrack (${app.id}) via youtrack-app CLI`);
+    void stdout;
+    return app.id;
   } finally {
     await rm(work, { recursive: true, force: true });
   }
@@ -158,7 +157,7 @@ export async function bootstrapFixture({ logger = () => {} } = {}) {
     await admin.addUserToProjectTeam({ hubProjectId, userId: users[userLogin].id });
   }
   logger("project team: alice, bob, carol, dave (dave has no service groups)");
-  const appId = await deployApp({ admin, logger });
+  const appId = await deployApp({ admin, token: adminToken.token, logger });
   await admin.setAppSettings(appId, { serviceUrl: "http://spec-registryd:8642", serviceBridgeToken: BRIDGE_TOKEN });
   await admin.attachAppToProject(appId, project.id);
   const app = await admin.appById(appId);

@@ -524,12 +524,13 @@ When("the MRI lifecycle receipt composer runs against a synthetic candidate", { 
 	await visit(candidateRoot, "");
 	files.sort((left, right) => left.path.localeCompare(right.path));
 	const withoutDigest = {
-		schema: "omp-spec-kit-release-candidate@1",
+		schema: "omp-spec-kit-release-candidate@2",
 		version: pluginVersion,
 		tag,
 		commit: headCommit,
 		packageTreeDigest: createHash("sha256").update(Buffer.from(JSON.stringify(files.map(({ path: filePath, bytes, sha256: digest, mode }) => [filePath, mode, bytes, digest])))).digest("hex"),
 		archive: { file: "package-tree.tar", bytes: 0, sha256: createHash("sha256").update("lc006-archive-placeholder").digest("hex") },
+		youtrackApp: { file: "spec-graph-app-0.0.0.zip", bytes: 0, sha256: createHash("sha256").update("lc006-app-placeholder").digest("hex"), version: "0.0.0" },
 		files,
 	};
 	const candidateDigest = createHash("sha256").update(`${JSON.stringify(withoutDigest, null, 2)}\n`).digest("hex");

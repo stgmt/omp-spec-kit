@@ -25,6 +25,13 @@ jobs:
       - run: npm run build
       - run: npm run verify
       - run: npm run test:unit
+      - name: YouTrack app package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-graph-app
+          path: |
+            dist/spec-graph-app/
+            dist/spec-graph-app-*.zip
 
   bdd:
     runs-on: ubuntu-latest

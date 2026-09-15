@@ -186,12 +186,12 @@ export function toPublicFileRows(files) {
 
 export function assertCandidateShape(candidate, label) {
   if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) fail(`${label} must be an object`);
-  const required = ["schema", "version", "tag", "commit", "packageTreeDigest", "archive", "files", "candidateDigest"];
+  const required = ["schema", "version", "tag", "commit", "packageTreeDigest", "archive", "youtrackApp", "files", "candidateDigest"];
   const actual = Object.keys(candidate).sort();
   if (actual.length !== required.length || actual.some((key, index) => key !== required.sort()[index])) {
     fail(`${label} has unexpected fields`);
   }
-  if (candidate.schema !== "omp-spec-kit-release-candidate@1") fail(`${label} schema mismatch`);
+  if (candidate.schema !== "omp-spec-kit-release-candidate@2") fail(`${label} schema mismatch`);
   assertTag(candidate.tag);
   if (candidate.version !== candidate.tag.slice(1)) fail(`${label} version/tag mismatch`);
   assertCommit(candidate.commit);
@@ -202,6 +202,13 @@ export function assertCandidateShape(candidate, label) {
   }
   if (path.basename(candidate.archive.file) !== candidate.archive.file || !isSha256(candidate.archive.sha256) || !Number.isInteger(candidate.archive.bytes) || candidate.archive.bytes < 0) {
     fail(`${label} archive identity invalid`);
+  }
+  if (!candidate.youtrackApp || typeof candidate.youtrackApp !== "object" || Array.isArray(candidate.youtrackApp)) fail(`${label} youtrackApp invalid`);
+  if (!Object.hasOwn(candidate.youtrackApp, "file") || !Object.hasOwn(candidate.youtrackApp, "sha256") || !Object.hasOwn(candidate.youtrackApp, "bytes") || !Object.hasOwn(candidate.youtrackApp, "version")) {
+    fail(`${label} youtrackApp fields invalid`);
+  }
+  if (path.basename(candidate.youtrackApp.file) !== candidate.youtrackApp.file || !isSha256(candidate.youtrackApp.sha256) || !Number.isInteger(candidate.youtrackApp.bytes) || candidate.youtrackApp.bytes < 0 || typeof candidate.youtrackApp.version !== "string") {
+    fail(`${label} youtrackApp identity invalid`);
   }
   if (!Array.isArray(candidate.files) || candidate.files.length === 0) fail(`${label} files must be non-empty`);
   const seen = new Set();
