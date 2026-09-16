@@ -29,7 +29,12 @@ const live = { issue: null, zipPath: null, manifest: null, browser: null };
 const admin = () => createYouTrackAdmin({ login: "admin", password: ADMIN_PASSWORD });
 const basicAuth = `Basic ${Buffer.from(`admin:${ADMIN_PASSWORD}`).toString("base64")}`;
 
-BeforeAll({ timeout: 900_000 }, async () => {
+// These hooks bootstrap a real compose stack and a browser — they must not
+// fire for unrelated cucumber runs. The docker-bdd container glob-imports
+// every step file for its release-evidence pass, where compose/docker and
+// chrome do not exist; register the hooks only outside the container.
+const hostOnly = process.env.OMP_SPEC_KIT_BDD_CONTAINER !== "1";
+if (hostOnly) BeforeAll({ timeout: 900_000 }, async () => {
   // Real stack, no app: the scenario uploads it through the UI itself.
   const { stdout } = await execFileAsync(
     process.execPath, [RUN_LIVE, "--bootstrap-only", "--skip-app"],
@@ -62,18 +67,18 @@ BeforeAll({ timeout: 900_000 }, async () => {
   live.browser = await chromium.launch({ channel: "chrome", headless: true });
 });
 
-Before(async function () {
+if (hostOnly) Before(async function () {
   this.adminPage = await live.browser.newPage();
   this.adminPage.setDefaultTimeout(60_000);
 });
 
-AfterAll(async () => {
+if (hostOnly) AfterAll(async () => {
   await live.browser?.close();
 });
 
 // Failure artifact: whatever the operator would see on screen at the point
 // of failure — admin page and alice's issue page side by side.
-After(async function (scenario) {
+if (hostOnly) After(async function (scenario) {
   if (scenario.result?.status !== Status.FAILED) return;
   for (const [name, page] of [["admin", this.adminPage], ["alice", this.alicePage]]) {
     if (page && !page.isClosed()) {
