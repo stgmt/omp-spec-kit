@@ -6,11 +6,11 @@ import { YT_URL } from "./compose.mjs";
  * YouTrack 2025.3.161254; every call throws on an unexpected status so a
  * version drift fails the E2E loudly instead of silently.
  */
-export function createYouTrackAdmin({ login, password, logger = () => {} }) {
+export function createYouTrackAdmin({ login, password, baseUrl = YT_URL, logger = () => {} }) {
   const basic = `Basic ${Buffer.from(`${login}:${password}`).toString("base64")}`;
 
   async function call(method, pathname, { body, auth = basic, raw = false, expect = [200, 201] } = {}) {
-    const response = await fetch(`${YT_URL}${pathname}`, {
+    const response = await fetch(`${baseUrl}${pathname}`, {
       method,
       headers: {
         authorization: auth,

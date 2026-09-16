@@ -28,5 +28,9 @@
   },
   "repoPolicy": {
     "allowedHosts": ["github.com"]
-  }
+  },
+  "idpPolicy": {
+    "allowedHosts": []
+  },
+  "publicUrl": "https://spec-registryd.example.com"
 }

@@ -52,7 +52,7 @@ export function repoHostAllowed(repoUrl, allowedHosts) {
 
 export function parseProjectsConfig(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new ConfigError("projects config must be a JSON object");
-  const { specsRepo, branch = "main", projects, tenants, auth, repoPolicy } = raw;
+  const { specsRepo, branch = "main", projects, tenants, auth, repoPolicy, idpPolicy, publicUrl } = raw;
   if (typeof specsRepo !== "string" || specsRepo.length === 0) throw new ConfigError("specsRepo is required");
   if (typeof branch !== "string" || branch.length === 0) throw new ConfigError("branch must be a non-empty string");
   if (!Array.isArray(projects) || projects.length === 0) throw new ConfigError("projects must be a non-empty array");
@@ -73,7 +73,22 @@ export function parseProjectsConfig(raw) {
   if (allowedHosts !== undefined && (!Array.isArray(allowedHosts) || allowedHosts.some((host) => typeof host !== "string" || host.length === 0))) {
     throw new ConfigError("repoPolicy.allowedHosts must be an array of host names");
   }
-  return { specsRepo, branch, projects: ids, tenants: parsedTenants, auth: parsedAuth, repoPolicy: { allowedHosts: allowedHosts ?? [] } };
+  const idpAllowedHosts = idpPolicy?.allowedHosts;
+  if (idpAllowedHosts !== undefined && (!Array.isArray(idpAllowedHosts) || idpAllowedHosts.some((host) => typeof host !== "string" || host.length === 0))) {
+    throw new ConfigError("idpPolicy.allowedHosts must be an array of host names");
+  }
+  // publicUrl is the externally reachable service base used in install
+  // bundles — localhost is fine for the dev contour, a real URL for remote
+  // YouTrack instances to call back.
+  if (publicUrl !== undefined && (typeof publicUrl !== "string" || !/^https?:\/\//.test(publicUrl))) {
+    throw new ConfigError("publicUrl must be an http(s) URL when set");
+  }
+  return {
+    specsRepo, branch, projects: ids, tenants: parsedTenants, auth: parsedAuth,
+    repoPolicy: { allowedHosts: allowedHosts ?? [] },
+    idpPolicy: { allowedHosts: idpAllowedHosts ?? [] },
+    publicUrl: publicUrl ?? null,
+  };
 }
 
 export async function loadProjectsConfig(configPath) {
@@ -110,7 +125,7 @@ function mountKey(repoUrl, branch) {
  * `mounts.cloneDir`/`git` now resolves per project through `for(project)`.
  */
 export class MountManager {
-  constructor({ config, cloneDir, git = new GitClient(), gitFactory = null, identity = botIdentityFromEnv(), store = null, secretsKey = null, logger = () => {} }) {
+  constructor({ config, cloneDir, git = new GitClient(), gitFactory = null, identity = botIdentityFromEnv(), store = null, secretsKey = null, extraProjects = () => [], logger = () => {} }) {
     this.config = config;
     this.cloneDir = path.resolve(cloneDir);
     this.clonesRoot = path.join(path.dirname(this.cloneDir), "clones");
@@ -119,6 +134,7 @@ export class MountManager {
     this.identity = identity;
     this.store = store;
     this.secretsKey = secretsKey;
+    this.extraProjects = extraProjects;
     this.logger = logger;
     this.services = new Map();
     this.mounts = new Map();
@@ -239,7 +255,9 @@ export class MountManager {
   }
 
   requireConfigured(projectId) {
-    if (!this.config.projects.includes(projectId)) {
+    // IdP-bound tenant projects are configured through their binding — the
+    // customer's YouTrack registers its own projects, no config edit needed.
+    if (!this.config.projects.includes(projectId) && !this.extraProjects().includes(projectId)) {
       const error = new Error(`project is not configured on this service: ${projectId}`);
       error.code = "PROJECT_NOT_CONFIGURED";
       throw error;

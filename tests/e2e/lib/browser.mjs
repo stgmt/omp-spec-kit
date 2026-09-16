@@ -9,12 +9,12 @@ import { YT_URL } from "./compose.mjs";
  * a fresh volume completes the forced change (to `<password>b`); later runs
  * log in with the rotated value. Candidate list keeps this idempotent.
  */
-export async function browserLogin(page, login, password) {
+export async function browserLogin(page, login, password, baseUrl = YT_URL) {
   const candidates = [password, `${password}b`];
   for (const candidate of candidates) {
     let formReady = false;
     for (let attempt = 0; attempt < 3 && !formReady; attempt += 1) {
-      await page.goto(`${YT_URL}/login`, { waitUntil: "domcontentloaded" });
+      await page.goto(`${baseUrl}/login`, { waitUntil: "domcontentloaded" });
       formReady = await page.locator("#username, input[name='username']").first()
         .waitFor({ state: "visible", timeout: 25_000 })
         .then(() => true)
@@ -34,13 +34,18 @@ export async function browserLogin(page, login, password) {
       await page.waitForTimeout(800);
       await page.getByRole("button", { name: /change password/i }).first().click({ timeout: 30_000 });
       await page.waitForTimeout(5_000);
-      // forced change does not grant a session: log in again with the new value
-      await page.goto(`${YT_URL}/login`, { waitUntil: "domcontentloaded" });
-      await page.locator("#username, input[name='username']").first().waitFor({ state: "visible", timeout: 30_000 });
-      await page.locator("#username, input[name='username']").first().fill(login);
-      await page.locator("#password, input[name='password']").first().fill(rotated);
-      await page.getByRole("button", { name: /log in/i }).first().click();
-      await page.waitForTimeout(4_000);
+      // A forced change may or may not grant a session (version-dependent):
+      // if it did, the post-check below picks it up; otherwise log in again
+      // with the rotated value.
+      const alreadyAuthed = await page.evaluate(() => Object.keys(localStorage).some((key) => key.endsWith("-token"))).catch(() => false);
+      if (!alreadyAuthed) {
+        await page.goto(`${baseUrl}/login`, { waitUntil: "domcontentloaded" });
+        await page.locator("#username, input[name='username']").first().waitFor({ state: "visible", timeout: 30_000 });
+        await page.locator("#username, input[name='username']").first().fill(login);
+        await page.locator("#password, input[name='password']").first().fill(rotated);
+        await page.getByRole("button", { name: /log in/i }).first().click();
+        await page.waitForTimeout(4_000);
+      }
     }
     const deadline = Date.now() + 30_000;
     let authed = false;
@@ -50,7 +55,7 @@ export async function browserLogin(page, login, password) {
       await page.waitForTimeout(1_000);
     }
     if (authed) {
-      await page.goto(`${YT_URL}/issues`, { waitUntil: "domcontentloaded" });
+      await page.goto(`${baseUrl}/issues`, { waitUntil: "domcontentloaded" });
       await page.waitForTimeout(4_000);
       if (!page.url().includes("/hub/auth/login") && !page.url().includes("/login")) return;
     }

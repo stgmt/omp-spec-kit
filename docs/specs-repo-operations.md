@@ -86,3 +86,49 @@ Semantics:
   the bound repo; non-bot commits there surface as `non-bot-commit` drift
   with the repo attached, and an unreachable bound repo surfaces as
   `repo-unreachable` without stalling sync for the others.
+
+## Customer-owned YouTrack / external IdP (TASK-13)
+
+A customer can point the service at their own YouTrack instance. One binding
+= one tenant: users verified against that YouTrack get scopes, roles, and
+their app-bridge traffic under the bound tenant only. Binding state lives in
+`idp_bindings`/`idp_credentials` in the store file; `.mcp.json` never carries
+IdP URLs or tokens.
+
+- `GET /idp/bindings` — bindings the caller may see (binder sees their own,
+  owners see all).
+- `POST /idp/probe` `{youtrackUrl, serviceToken}` — reachability + capability
+  check against the remote YouTrack (`users/me` + a `users` listing), persists
+  nothing.
+- `POST /idp/bind` `{tenant, youtrackUrl, serviceToken, projects, hubGroups,
+  roleGroups, defaultProject?}` — any verified operator-YouTrack user may
+  bind; external-IdP users cannot nest-bind. Probes first, then seals the
+  service token with AES-256-GCM and mints an app-bridge secret that is
+  returned **once** in `install.serviceBridgeToken` together with
+  `install.serviceUrl` (`config.publicUrl`, else the request host).
+- `POST /idp/unbind` `{tenant}` — the binder or an owner. Revokes external
+  access on the next auth check (the token cache expires in ≤ `SPEC_REGISTRY_AUTH_CACHE_MS`).
+
+Semantics:
+
+- Tenant self-service: projects registered through a binding count as
+  configured — the customer needs no operator config entry, and their scopes
+  never overlap operator tenants.
+- Group gating: `hubGroups` decides scope membership (a user outside all
+  listed groups gets `NO_SCOPES`), `roleGroups` maps their YouTrack groups to
+  `owner`/`writer`/`reader`.
+- `serviceToken` is a permanent token able to enumerate users+groups on the
+  customer's Hub (an admin token satisfies the probe). It is unsealed only
+  inside the auth path, never returned or logged.
+- `X-Spec-Idp: <tenant>` is a routing hint for direct tokens — it reorders
+  which IdP verifies first, never grants or denies; a wrong hint still
+  resolves through the remaining IdPs.
+- Bridge auth: the minted `serviceBridgeToken` + `X-Spec-User` header let the
+  customer's installed app backend assert its users; the service verifies the
+  asserted login against the bound YouTrack, not the operator's.
+- URL policy (`idpPolicy.allowedHosts`): https on public hosts; http only on
+  private hosts (compose, on-prem). An empty allowlist means any https public
+  host.
+- An unbound or unreachable external YouTrack degrades only its own tenant:
+  auth falls through to other IdPs, and binding deletion takes effect at the
+  next cache miss.

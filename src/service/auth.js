@@ -36,17 +36,30 @@ export function bearerToken(req) {
 }
 
 /**
- * AuthN/Z against the live YouTrack (TASK-12). Two verified credential paths:
+ * AuthN/Z against live YouTrack IdPs (TASK-12, TASK-13). Two verified
+ * credential paths:
  *   - app bridge: the YouTrack app backend authenticates with its own secret
  *     and asserts the session user (X-Spec-User); the service re-verifies that
- *     user with its own service token (`GET /api/users/{login}`);
+ *     user with that IdP's service token (`GET /api/users/{login}`);
  *   - direct: a user's YouTrack permanent token presented as the bearer
  *     credential, verified as itself (`GET /api/users/me`).
  * Both resolve `user -> groups -> tenant -> scopes` plus a role. Fail-closed:
  * YouTrack unreachable -> retryable UNAVAILABLE, never an unverified pass.
+ *
+ * Multi-IdP: `idps` supplies externally bound YouTrack instances (one tenant
+ * per binding). The bridge secret identifies the IdP by hash; a direct token
+ * is verified against the hinted (`X-Spec-Idp`) or default IdP first, then
+ * remaining bound IdPs in order — the hint is a routing preference only, it
+ * never widens authorization.
  */
-export function createYouTrackAuth({ youtrack, appBridgeToken, tenants, roleGroups, cacheTtlMs = DEFAULT_CACHE_MS, fetchImpl = fetch, logger = () => {} }) {
-  const bridgeHash = sha256(appBridgeToken);
+export function createYouTrackAuth({ youtrack, appBridgeToken, tenants, roleGroups, idps = null, cacheTtlMs = DEFAULT_CACHE_MS, fetchImpl = fetch, logger = () => {} }) {
+  const defaultIdp = {
+    isDefault: true,
+    tenant: null,
+    baseUrl: youtrack.baseUrl,
+    serviceToken: youtrack.serviceToken,
+    bridgeTokenHash: sha256(appBridgeToken),
+  };
   const cache = new Map();
 
   function cacheKey(tokenHash, assertedLogin) {
@@ -80,13 +93,13 @@ export function createYouTrackAuth({ youtrack, appBridgeToken, tenants, roleGrou
   }
 
   /**
-   * Authorization data (groups) is resolved with the SERVICE token: Hub field
-   * visibility hides a non-admin's group list from `users/me`, so the caller's
-   * own token proves identity only — verified live on 2025.3.
+   * Authorization data (groups) is resolved with the IdP's SERVICE token: Hub
+   * field visibility hides a non-admin's group list from `users/me`, so the
+   * caller's own token proves identity only — verified live on 2025.3.
    */
-  async function fetchUserWithServiceToken(login) {
-    const url = `${youtrack.baseUrl}/hub/api/rest/users?query=login:${encodeURIComponent(login)}&fields=${USER_FIELDS}`;
-    const response = await fetchJson(url, youtrack.serviceToken);
+  async function fetchUserWithServiceToken(login, idp) {
+    const url = `${idp.baseUrl}/hub/api/rest/users?query=login:${encodeURIComponent(login)}&fields=${USER_FIELDS}`;
+    const response = await fetchJson(url, idp.serviceToken);
     if (response.status === 401 || response.status === 403) throw new AuthError(503, "UNAVAILABLE", "YouTrack rejected the service token", { retryable: true });
     if (!response.ok) throw new AuthError(503, "UNAVAILABLE", `YouTrack user lookup failed (${response.status})`, { retryable: true });
     const page = await response.json();
@@ -97,11 +110,11 @@ export function createYouTrackAuth({ youtrack, appBridgeToken, tenants, roleGrou
     return user;
   }
 
-  /** Identity proof: the caller's token must resolve to a real YouTrack user. */
-  async function verifyTokenIdentity(token) {
-    const url = `${youtrack.baseUrl}/hub/api/rest/users/me?fields=id,login,banned`;
+  /** Identity proof: the caller's token must resolve to a real YouTrack user on that IdP. */
+  async function verifyTokenIdentity(token, idp) {
+    const url = `${idp.baseUrl}/hub/api/rest/users/me?fields=id,login,banned`;
     const response = await fetchJson(url, token);
-    if (response.status === 401 || response.status === 403) throw new AuthError(401, "INVALID_TOKEN", "YouTrack rejected the token");
+    if (response.status === 401 || response.status === 403) return null;
     if (!response.ok) throw new AuthError(503, "UNAVAILABLE", `YouTrack token verification failed (${response.status})`, { retryable: true });
     const raw = await response.json();
     if (typeof raw?.login !== "string" || raw.login.length === 0) {
@@ -110,21 +123,38 @@ export function createYouTrackAuth({ youtrack, appBridgeToken, tenants, roleGrou
     return { login: raw.login, userId: raw.id ?? null, banned: raw.banned === true };
   }
 
-  function roleFor(groups) {
+  function roleFor(groups, mapping) {
     for (const role of ["owner", "writer", "reader"]) {
-      const groupsForRole = roleGroups[role] ?? [];
+      const groupsForRole = mapping[role] ?? [];
       if (groups.some((group) => groupsForRole.includes(group))) return role;
     }
     return null;
   }
 
-  function resolveContext(user) {
+  function resolveContext(user, idp) {
     if (user.banned) throw new AuthError(403, "BANNED", `user is banned in YouTrack: ${user.login}`);
+    if (idp.isDefault !== true) {
+      // An external IdP maps to exactly one tenant (its binding): scopes and
+      // role groups come from the binding, not the static tenant config.
+      if (!user.groups.some((group) => idp.hubGroups.includes(group))) {
+        throw new AuthError(403, "NO_SCOPES", `no scopes matched for user ${user.login}`);
+      }
+      const role = roleFor(user.groups, idp.roleGroups);
+      if (!role) throw new AuthError(403, "NO_ROLE", `no role group for user ${user.login}`);
+      return {
+        tenant: [idp.tenant],
+        scopes: [...idp.projects],
+        defaultScope: idp.defaultProject ?? idp.projects[0] ?? null,
+        identity: { login: user.login, userId: user.userId, name: user.name },
+        role,
+        idp: idp.tenant,
+      };
+    }
     const matched = tenants.filter((tenant) => user.groups.some((group) => tenant.hubGroups.includes(group)));
     if (matched.length === 0) throw new AuthError(403, "NO_SCOPES", `no scopes matched for user ${user.login}`);
     const scopes = [...new Set(matched.flatMap((tenant) => tenant.projects))];
     const defaultScope = matched.length === 1 ? matched[0].defaultProject ?? null : null;
-    const role = roleFor(user.groups);
+    const role = roleFor(user.groups, roleGroups);
     if (!role) throw new AuthError(403, "NO_ROLE", `no role group for user ${user.login}`);
     return {
       tenant: matched.map((tenant) => tenant.tenant),
@@ -132,7 +162,14 @@ export function createYouTrackAuth({ youtrack, appBridgeToken, tenants, roleGrou
       defaultScope,
       identity: { login: user.login, userId: user.userId, name: user.name },
       role,
+      idp: null,
     };
+  }
+
+  /** Active bound IdPs plus the default, in deterministic order. */
+  async function allIdps() {
+    const bound = idps === null ? [] : await idps.list();
+    return [defaultIdp, ...bound.filter((idp) => idp?.status === "active")];
   }
 
   return {
@@ -141,30 +178,45 @@ export function createYouTrackAuth({ youtrack, appBridgeToken, tenants, roleGrou
       if (token === null) throw new AuthError(401, "MISSING_TOKEN", "missing bearer token");
 
       const tokenHash = sha256(token);
-      const isBridge = hashesEqual(tokenHash, bridgeHash);
-      const assertedLogin = isBridge && typeof req.headers?.["x-spec-user"] === "string" && req.headers["x-spec-user"].length > 0
+      const assertedLoginHeader = typeof req.headers?.["x-spec-user"] === "string" && req.headers["x-spec-user"].length > 0
         ? req.headers["x-spec-user"]
         : null;
-      if (isBridge && assertedLogin === null) {
-        throw new AuthError(401, "MISSING_USER", "app bridge requests must carry the verified X-Spec-User header");
-      }
-
-      const key = cacheKey(tokenHash, assertedLogin);
+      const key = cacheKey(tokenHash, assertedLoginHeader);
       const cached = cache.get(key);
       if (cached && cached.expiresAt > Date.now()) return cached.ctx;
 
+      const candidates = await allIdps();
+      const bridgeIdp = candidates.find((idp) => hashesEqual(tokenHash, idp.bridgeTokenHash)) ?? null;
+      const assertedLogin = bridgeIdp !== null ? assertedLoginHeader : null;
+      if (bridgeIdp !== null && assertedLogin === null) {
+        throw new AuthError(401, "MISSING_USER", "app bridge requests must carry the verified X-Spec-User header");
+      }
+
       let user;
-      if (isBridge) {
-        user = await fetchUserWithServiceToken(assertedLogin);
+      let resolvedIdp;
+      if (bridgeIdp !== null) {
+        resolvedIdp = bridgeIdp;
+        user = await fetchUserWithServiceToken(assertedLogin, bridgeIdp);
       } else {
-        const identity = await verifyTokenIdentity(token);
-        user = await fetchUserWithServiceToken(identity.login);
+        // Direct token: the optional X-Spec-Idp header reorders the candidate
+        // list only — it is a routing hint, never authorization.
+        const hint = typeof req.headers?.["x-spec-idp"] === "string" ? req.headers["x-spec-idp"] : null;
+        const ordered = hint === null ? candidates
+          : [...candidates.filter((idp) => idp.tenant === hint), ...candidates.filter((idp) => idp.tenant !== hint)];
+        let identity = null;
+        resolvedIdp = null;
+        for (const idp of ordered) {
+          identity = await verifyTokenIdentity(token, idp);
+          if (identity !== null) { resolvedIdp = idp; break; }
+        }
+        if (identity === null) throw new AuthError(401, "INVALID_TOKEN", "YouTrack rejected the token");
+        user = await fetchUserWithServiceToken(identity.login, resolvedIdp);
       }
 
       if (typeof req.headers?.["x-spec-author"] === "string" && req.headers["x-spec-author"].length > 0) {
         logger(`ignored retired X-Spec-Author header (verified login: ${user.login})`);
       }
-      const ctx = resolveContext(user);
+      const ctx = resolveContext(user, resolvedIdp);
       cache.set(key, { ctx, expiresAt: Date.now() + cacheTtlMs });
       return ctx;
     },

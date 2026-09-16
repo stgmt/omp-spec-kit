@@ -29,12 +29,15 @@ export class OnboardingError extends Error {
   }
 }
 
-export function buildManagedSnippet(serviceUrl, token, project = null) {
+export function buildManagedSnippet(serviceUrl, token, project = null, idp = null) {
   const headers = { Authorization: `Bearer ${token}` };
   // X-Spec-Project pins the client's default scope; it is a routing hint,
   // never authorization — the service still validates it against the token's
   // verified scopes.
   if (typeof project === "string" && project.length > 0) headers["X-Spec-Project"] = project;
+  // X-Spec-Idp tells the service which bound YouTrack issued the token —
+  // same hint semantics as X-Spec-Project.
+  if (typeof idp === "string" && idp.length > 0) headers["X-Spec-Idp"] = idp;
   return `${JSON.stringify(
     {
       $schema: "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
@@ -51,16 +54,34 @@ export function buildManagedSnippet(serviceUrl, token, project = null) {
   )}\n`;
 }
 
-export function createOnboarding({ config, audit, logger = () => {}, fetchImpl = fetch }) {
+export function createOnboarding({ config, audit, logger = () => {}, fetchImpl = fetch, idps = null }) {
   const youtrack = config.auth.youtrack;
 
-  async function youtrackJson(path, { method = "GET", body } = {}) {
+  /**
+   * The Hub endpoint to mint on: the operator's YouTrack by default, or the
+   * caller's bound IdP when they were verified by an external instance —
+   * their permanent token must live where their identity does.
+   */
+  async function idpFor(ctx) {
+    const tenant = ctx?.idp;
+    if (tenant == null || idps === null) {
+      return { baseUrl: youtrack.baseUrl, serviceToken: youtrack.serviceToken };
+    }
+    const bound = await idps.list();
+    const idp = bound.find((row) => row.tenant === tenant && row.status === "active");
+    if (!idp) {
+      throw new OnboardingError(`the IdP tenant ${tenant} is no longer bound`, { status: 404, code: "IDP_NOT_BOUND" });
+    }
+    return { baseUrl: idp.baseUrl, serviceToken: idp.serviceToken };
+  }
+
+  async function youtrackJson(idp, path, { method = "GET", body } = {}) {
     let response;
     try {
-      response = await fetchImpl(`${youtrack.baseUrl}${path}`, {
+      response = await fetchImpl(`${idp.baseUrl}${path}`, {
         method,
         headers: {
-          authorization: `Bearer ${youtrack.serviceToken}`,
+          authorization: `Bearer ${idp.serviceToken}`,
           accept: "application/json",
           ...(body === undefined ? {} : { "content-type": "application/json" }),
         },
@@ -97,7 +118,8 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
       if (typeof login !== "string" || login.length === 0) {
         throw new OnboardingError("caller identity is missing", { status: 401, code: "UNAUTHENTICATED" });
       }
-      const users = await youtrackJson(`/hub/api/rest/users?query=login:${encodeURIComponent(login)}&fields=id,login,banned`);
+      const idp = await idpFor(ctx);
+      const users = await youtrackJson(idp, `/hub/api/rest/users?query=login:${encodeURIComponent(login)}&fields=id,login,banned`);
       const user = users?.users?.[0];
       if (!user?.id) {
         throw new OnboardingError(`YouTrack has no user ${login}`, { status: 404, code: "UNKNOWN_USER" });
@@ -106,7 +128,7 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
         throw new OnboardingError(`user ${login} is banned`, { status: 403, code: "BANNED" });
       }
 
-      const services = await youtrackJson("/hub/api/rest/services?fields=id,applicationName");
+      const services = await youtrackJson(idp, "/hub/api/rest/services?fields=id,applicationName");
       const scope = (services?.services ?? []).map((service) => ({ id: service.id }));
       if (scope.length === 0) {
         throw new OnboardingError("YouTrack returned no Hub services to scope the token", {
@@ -120,16 +142,16 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
       // would otherwise keep a stale credential alive.
       const previous = [];
       for (let skip = 0; ; skip += 100) {
-        const page = await youtrackJson(`/hub/api/rest/users/${user.id}/permanenttokens?fields=id,name&$skip=${skip}`);
+        const page = await youtrackJson(idp, `/hub/api/rest/users/${user.id}/permanenttokens?fields=id,name&$skip=${skip}`);
         const batch = page?.permanenttokens ?? [];
         previous.push(...batch.filter((token) => token?.name === ONBOARDING_TOKEN_NAME));
         if (batch.length < 100) break;
       }
       for (const token of previous) {
-        await youtrackJson(`/hub/api/rest/users/${user.id}/permanenttokens/${token.id}`, { method: "DELETE" });
+        await youtrackJson(idp, `/hub/api/rest/users/${user.id}/permanenttokens/${token.id}`, { method: "DELETE" });
       }
 
-      const minted = await youtrackJson(`/hub/api/rest/users/${user.id}/permanenttokens?fields=id,name,token`, {
+      const minted = await youtrackJson(idp, `/hub/api/rest/users/${user.id}/permanenttokens?fields=id,name,token`, {
         method: "POST",
         body: { name: ONBOARDING_TOKEN_NAME, scope },
       });
@@ -159,7 +181,7 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
           result: `ok:token-issued:revoked-${previous.length}`,
         });
       } catch {}
-      return { token: minted.token, url, mcpJson: buildManagedSnippet(serviceUrl, minted.token, pinned) };
+      return { token: minted.token, url, mcpJson: buildManagedSnippet(serviceUrl, minted.token, pinned, ctx?.idp ?? null) };
     },
   };
 }

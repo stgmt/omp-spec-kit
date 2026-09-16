@@ -3,24 +3,24 @@ import { containerLogs, waitFor, YT_URL } from "./compose.mjs";
 
 const CHROME_CHANNEL = "chrome";
 
-function wizardTokenFromLogs() {
-  const logs = containerLogs("youtrack", { tail: 500 });
+function wizardTokenFromLogs(serviceName = "youtrack") {
+  const logs = containerLogs(serviceName, { tail: 500 });
   const match = logs.match(/wizard_token=([A-Za-z0-9_-]+)/);
   return match ? match[1] : null;
 }
 
-async function waitForWizardToken({ timeoutMs = 180_000, intervalMs = 3_000 } = {}) {
+async function waitForWizardToken({ serviceName = "youtrack", timeoutMs = 180_000, intervalMs = 3_000 } = {}) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const token = wizardTokenFromLogs();
+    const token = wizardTokenFromLogs(serviceName);
     if (token) return token;
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
-  throw new Error("wizard token not found in youtrack container logs within the timeout");
+  throw new Error(`wizard token not found in ${serviceName} container logs within the timeout`);
 }
 
-export async function youtrackNeedsWizard() {
-  const response = await fetch(`${YT_URL}/api/config`, { signal: AbortSignal.timeout(10_000) }).catch(() => null);
+export async function youtrackNeedsWizard(url = YT_URL) {
+  const response = await fetch(`${url}/api/config`, { signal: AbortSignal.timeout(10_000) }).catch(() => null);
   if (!response || !response.ok) return true;
   const text = await response.text();
   return !text.trim().startsWith("{");
@@ -45,14 +45,14 @@ async function clickWhenEnabled(page, locator, timeoutMs = 30_000) {
  * welcome link -> base URL (Next + Continue dialog) -> admin credentials ->
  * license (Finish) -> setup wait page -> /api/config serves JSON.
  */
-export async function completeWizard({ adminPassword, logger = console.log }) {
-  const token = await waitForWizardToken();
+export async function completeWizard({ adminPassword, url = YT_URL, serviceName = "youtrack", logger = console.log }) {
+  const token = await waitForWizardToken({ serviceName });
   logger(`wizard: completing setup in browser (token ${token.slice(0, 6)}…)`);
   const browser = await chromium.launch({ channel: CHROME_CHANNEL, headless: true });
   try {
     const page = await browser.newPage();
     page.setDefaultTimeout(60_000);
-    await page.goto(`${YT_URL}/?wizard_token=${token}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${url}/?wizard_token=${token}`, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(3_000);
 
     await page.locator("a", { hasText: "Set up" }).first().click();
@@ -94,7 +94,7 @@ export async function completeWizard({ adminPassword, logger = console.log }) {
       }
       throw new Error(`wizard stuck at step ${step} (${page.url()})`);
     }
-    await waitFor(`${YT_URL}/api/config`, {
+    await waitFor(`${url}/api/config`, {
       label: "YouTrack setup to finish",
       timeoutMs: 300_000,
       accept: async (response) => response.ok && (await response.text()).trim().startsWith("{"),
@@ -104,7 +104,7 @@ export async function completeWizard({ adminPassword, logger = console.log }) {
     const basic = `Basic ${Buffer.from(`admin:${adminPassword}`).toString("base64")}`;
     const deadline = Date.now() + 300_000;
     for (;;) {
-      const response = await fetch(`${YT_URL}/hub/api/rest/users/me?fields=id,login`, {
+      const response = await fetch(`${url}/hub/api/rest/users/me?fields=id,login`, {
         headers: { authorization: basic, accept: "application/json" },
         signal: AbortSignal.timeout(10_000),
       }).catch(() => null);

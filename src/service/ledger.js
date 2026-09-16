@@ -56,6 +56,25 @@ CREATE TABLE IF NOT EXISTS repo_credentials (
   username TEXT,
   created_at TEXT
 );
+CREATE TABLE IF NOT EXISTS idp_bindings (
+  tenant TEXT PRIMARY KEY,
+  youtrack_url TEXT NOT NULL UNIQUE,
+  projects TEXT NOT NULL,
+  hub_groups TEXT NOT NULL,
+  role_groups TEXT NOT NULL,
+  default_project TEXT,
+  bridge_token_hash TEXT NOT NULL,
+  status TEXT NOT NULL,
+  bound_by TEXT,
+  bound_at TEXT,
+  last_error TEXT,
+  updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS idp_credentials (
+  tenant TEXT PRIMARY KEY,
+  service_token_enc TEXT NOT NULL,
+  created_at TEXT
+);
 `;
 
 /**
@@ -179,6 +198,62 @@ class SqliteStore {
     this.db.prepare("DELETE FROM repo_credentials WHERE project = ?").run(project);
   }
 
+  putIdpBinding(binding) {
+    this.db.prepare(
+      "INSERT INTO idp_bindings (tenant, youtrack_url, projects, hub_groups, role_groups, default_project, bridge_token_hash, status, bound_by, bound_at, last_error, updated_at) " +
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+      "ON CONFLICT(tenant) DO UPDATE SET youtrack_url = excluded.youtrack_url, projects = excluded.projects, hub_groups = excluded.hub_groups, " +
+      "role_groups = excluded.role_groups, default_project = excluded.default_project, bridge_token_hash = excluded.bridge_token_hash, " +
+      "status = excluded.status, bound_by = excluded.bound_by, bound_at = excluded.bound_at, last_error = excluded.last_error, updated_at = excluded.updated_at",
+    ).run(
+      binding.tenant, binding.youtrackUrl, JSON.stringify(binding.projects), JSON.stringify(binding.hubGroups), JSON.stringify(binding.roleGroups),
+      binding.defaultProject ?? null, binding.bridgeTokenHash, binding.status,
+      binding.boundBy ?? null, binding.boundAt ?? null, binding.lastError ?? null, binding.updatedAt ?? new Date().toISOString(),
+    );
+  }
+
+  #idpBindingRow(row) {
+    if (!row) return null;
+    return {
+      tenant: row.tenant, youtrackUrl: row.youtrack_url,
+      projects: JSON.parse(row.projects), hubGroups: JSON.parse(row.hub_groups), roleGroups: JSON.parse(row.role_groups),
+      defaultProject: row.default_project, bridgeTokenHash: row.bridge_token_hash, status: row.status,
+      boundBy: row.bound_by, boundAt: row.bound_at, lastError: row.last_error, updatedAt: row.updated_at,
+    };
+  }
+
+  getIdpBinding(tenant) {
+    return this.#idpBindingRow(this.db.prepare("SELECT * FROM idp_bindings WHERE tenant = ?").get(tenant));
+  }
+
+  getIdpBindingByUrl(youtrackUrl) {
+    return this.#idpBindingRow(this.db.prepare("SELECT * FROM idp_bindings WHERE youtrack_url = ?").get(youtrackUrl));
+  }
+
+  listIdpBindings() {
+    return this.db.prepare("SELECT * FROM idp_bindings").all().map((row) => this.#idpBindingRow(row));
+  }
+
+  deleteIdpBinding(tenant) {
+    this.db.prepare("DELETE FROM idp_bindings WHERE tenant = ?").run(tenant);
+  }
+
+  putIdpCredential(tenant, { serviceTokenEnc }) {
+    this.db.prepare(
+      "INSERT INTO idp_credentials (tenant, service_token_enc, created_at) VALUES (?, ?, ?) " +
+      "ON CONFLICT(tenant) DO UPDATE SET service_token_enc = excluded.service_token_enc",
+    ).run(tenant, serviceTokenEnc, new Date().toISOString());
+  }
+
+  getIdpCredential(tenant) {
+    const row = this.db.prepare("SELECT service_token_enc FROM idp_credentials WHERE tenant = ?").get(tenant);
+    return row ? { serviceTokenEnc: row.service_token_enc } : null;
+  }
+
+  deleteIdpCredential(tenant) {
+    this.db.prepare("DELETE FROM idp_credentials WHERE tenant = ?").run(tenant);
+  }
+
   logAccess(entry) {
     this.db.prepare("INSERT INTO access_log (ts, login, role, tenant, project, op, spec, request_id, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
       .run(entry.ts ?? new Date().toISOString(), entry.login ?? null, entry.role ?? null, entry.tenant ?? null, entry.project ?? null, entry.op ?? null, entry.spec ?? null, entry.requestId ?? null, entry.result ?? null);
@@ -203,7 +278,7 @@ class JsonlStore {
   }
 
   static async open(file) {
-    let state = { claims: [], ledger: [], access_log: [], repo_bindings: [], repo_credentials: [] };
+    let state = { claims: [], ledger: [], access_log: [], repo_bindings: [], repo_credentials: [], idp_bindings: [], idp_credentials: [] };
     try {
       state = { ...state, ...JSON.parse(await readFile(file, "utf8")) };
     } catch {}
@@ -292,6 +367,48 @@ class JsonlStore {
 
   deleteCredential(project) {
     this.state.repo_credentials = this.state.repo_credentials.filter((c) => c.project !== project);
+    return this.persist();
+  }
+
+  putIdpBinding(binding) {
+    const record = { defaultProject: null, boundBy: null, boundAt: null, lastError: null, ...binding, updatedAt: new Date().toISOString() };
+    const existing = this.state.idp_bindings.find((b) => b.tenant === binding.tenant);
+    if (existing) Object.assign(existing, record);
+    else this.state.idp_bindings.push(record);
+    return this.persist();
+  }
+
+  getIdpBinding(tenant) {
+    return this.state.idp_bindings.find((b) => b.tenant === tenant) ?? null;
+  }
+
+  getIdpBindingByUrl(youtrackUrl) {
+    return this.state.idp_bindings.find((b) => b.youtrackUrl === youtrackUrl) ?? null;
+  }
+
+  listIdpBindings() {
+    return [...this.state.idp_bindings];
+  }
+
+  deleteIdpBinding(tenant) {
+    this.state.idp_bindings = this.state.idp_bindings.filter((b) => b.tenant !== tenant);
+    return this.persist();
+  }
+
+  putIdpCredential(tenant, { serviceTokenEnc }) {
+    const existing = this.state.idp_credentials.find((c) => c.tenant === tenant);
+    if (existing) Object.assign(existing, { serviceTokenEnc });
+    else this.state.idp_credentials.push({ tenant, serviceTokenEnc, createdAt: new Date().toISOString() });
+    return this.persist();
+  }
+
+  getIdpCredential(tenant) {
+    const row = this.state.idp_credentials.find((c) => c.tenant === tenant) ?? null;
+    return row ? { serviceTokenEnc: row.serviceTokenEnc } : null;
+  }
+
+  deleteIdpCredential(tenant) {
+    this.state.idp_credentials = this.state.idp_credentials.filter((c) => c.tenant !== tenant);
     return this.persist();
   }
 

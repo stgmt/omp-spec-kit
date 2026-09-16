@@ -122,6 +122,44 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
   app.post("/repos/bind", authGate, repoWrite((input) => endpoints.repoBind(input)));
   app.post("/repos/unbind", authGate, repoWrite((input) => endpoints.repoUnbind(input)));
 
+  // External IdP bindings (TASK-13): probe/bind/unbind a customer's own
+  // YouTrack. The minted bridge secret is returned once on bind, wrapped in
+  // the install instructions for their app settings.
+  app.get("/idp/bindings", authGate, async (req, res) => {
+    try {
+      res.json(await endpoints.idpBindings(req.ctx));
+    } catch (error) {
+      const status = Number.isSafeInteger(error?.status) ? error.status : 500;
+      res.status(status).json({ error: error?.code ?? "IDP_FAILED", message: String(error?.message ?? error) });
+    }
+  });
+  const idpWrite = (fn) => async (req, res) => {
+    try {
+      res.json(await fn({ ctx: req.ctx, ...req.body }, req));
+    } catch (error) {
+      const status = Number.isSafeInteger(error?.status) ? error.status : 500;
+      res.status(status).json({
+        error: error?.code ?? "IDP_OP_FAILED",
+        message: String(error?.message ?? error),
+        ...(error?.retryable === true ? { retryable: true } : {}),
+      });
+    }
+  };
+  app.post("/idp/probe", authGate, idpWrite((input) => endpoints.idpProbe(input)));
+  app.post("/idp/bind", authGate, idpWrite(async (input, req) => {
+    const result = await endpoints.idpBind(input);
+    if (typeof result?.bridgeToken === "string") {
+      const serviceUrl = mounts.config?.publicUrl ?? `${req.protocol}://${req.get("host")}`;
+      result.install = {
+        serviceUrl: `${serviceUrl.replace(/\/+$/, "")}`,
+        serviceBridgeToken: result.bridgeToken,
+        note: "store this bridge token in the YouTrack app settings on the bound instance — it is shown once",
+      };
+    }
+    return result;
+  }));
+  app.post("/idp/unbind", authGate, idpWrite((input) => endpoints.idpUnbind(input)));
+
   app.get("/mcp", (_req, res) => {
     res.set("Allow", "POST");
     res.status(405).json({ error: "method not allowed: this endpoint is stateless and serves JSON-RPC over POST only" });

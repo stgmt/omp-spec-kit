@@ -2,6 +2,30 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## [2.2.0] — 2026-09-16
+
+### External identity providers — bring-your-own YouTrack (TASK-13)
+
+A customer's own YouTrack can now be bound as a tenant identity provider: their users authenticate against their own Hub, get scopes/roles from the binding, and their installed app talks to the service under the new tenant — all configured from the YouTrack widget, no operator config edit required.
+
+- **REST**: `GET /idp/bindings`, `POST /idp/probe|bind|unbind` — any verified operator-YouTrack user may bind; the binder or an owner may unbind. Probe checks reachability + user-enumeration capability before anything persists.
+- **Binding model**: one binding = one tenant (`idp_bindings`/`idp_credentials` store tables). `hubGroups` gate scopes, `roleGroups` map their YouTrack groups to owner/writer/reader; bound projects count as configured — the customer needs no operator-side `projects.json` entry.
+- **Auth registry**: `auth.js` verifies direct tokens by deterministic fan-out across bound IdPs (`X-Spec-Idp` is a routing hint, never authorization); app-bridge secrets resolve by sha256 map and assert `X-Spec-User` against the bound YouTrack.
+- **Credentials**: the bound `serviceToken` is sealed AES-256-GCM (same vault as repo credentials) and unsealed only inside the auth path; the minted `serviceBridgeToken` is returned exactly once in `install {serviceUrl, serviceBridgeToken}` — `serviceUrl` comes from `config.publicUrl` (new optional key) or the request host.
+- **Widget**: "Your own YouTrack" section — tenant/URL/token/projects/groups form, test connection, bind, per-tenant status badges, unbind, and a persistent one-time install block that survives widget re-renders.
+- **.mcp.json**: onboarding snippets for bound tenants carry `X-Spec-Idp` so MCP clients route to the right IdP.
+- **Tenant isolation**: external users cannot nest-bind IdPs, never see operator scopes, and lose access on unbind within the auth-cache TTL.
+
+### Tests
+
+- `tests/idps.test.mjs` (6/6): probe policy/token matrix, bind, direct+bridge auth, tenant isolation, group gating, external write path, restart persistence, unbind revocation — against a real second YouTrack (`youtrack-ext`, compose port 8082).
+- `test:app-install-live` now 44/44 steps: alice binds through the widget UI, the app installs on the ext YouTrack via the official `youtrack-app` CLI with the minted settings, `mia` sees her tenant's `gamma-spec` in a real browser, unbind revokes both token and bridge secret.
+
+### Fixed
+
+- Widget: the one-time IdP install block no longer disappears on the widget's own post-bind refresh.
+- E2E: `browserLogin` tolerates YouTrack versions where a forced password change already grants a session.
+
 ## 2.1.0 — 2026-09-16
 
 Bring-your-own specs repository. Any project can leave the shared service-owned specs repository for a customer-controlled Git remote; the service binds, migrates, routes, and publishes against the bound remote while keeping every previously published version readable.

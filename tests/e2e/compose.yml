@@ -23,6 +23,22 @@ services:
     ports:
       - "127.0.0.1:8081:8080"
 
+  # TASK-13: a second YouTrack instance playing the customer's own IdP — bound
+  # to the service through /idp/* so its users authenticate under their own
+  # tenant. Same image, own volumes, host port 8082.
+  youtrack-ext:
+    image: jetbrains/youtrack:2025.3.161254
+    restart: unless-stopped
+    environment:
+      YOUTRACK_JVM_OPTS: "-Xmx1g"
+    volumes:
+      - yt-ext-data:/opt/youtrack/data
+      - yt-ext-conf:/opt/youtrack/conf
+      - yt-ext-logs:/opt/youtrack/logs
+      - yt-ext-backups:/opt/youtrack/backups
+    ports:
+      - "127.0.0.1:8082:8080"
+
   spec-git:
     build:
       context: ../..
@@ -71,5 +87,9 @@ volumes:
   yt-conf:
   yt-logs:
   yt-backups:
+  yt-ext-data:
+  yt-ext-conf:
+  yt-ext-logs:
+  yt-ext-backups:
   git-data:
   service-data:

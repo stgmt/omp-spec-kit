@@ -16,6 +16,7 @@ import { createOnboarding } from "./onboarding.js";
 import { createPublisher } from "./publish.js";
 import { createVersionedReads } from "./versioned.js";
 import { createRepoManager } from "./repos.js";
+import { createIdpManager } from "./idps.js";
 import { secretsKeyFromEnv } from "./secrets.js";
 
 export async function bootService({ configPath, cloneDir, git = new GitClient({ gitAuth: gitAuthFromEnv() }), identity, store = null, secretsKey = null, logger = () => {} }) {
@@ -27,6 +28,10 @@ export async function bootService({ configPath, cloneDir, git = new GitClient({ 
 }
 
 export function buildServiceStack({ mounts, config, identity = botIdentityFromEnv(), logger = () => {}, store, secretsKey = null, syncIntervalMs = 0, env = process.env }) {
+  const idpManager = createIdpManager({ store, config, secretsKey, logger });
+  // IdP-bound tenant projects are configured through their binding, not the
+  // operator config — MountManager consults the resolver on every check.
+  mounts.extraProjects = () => idpManager.projectScopes();
   const auth = createYouTrackAuth({
     youtrack: {
       baseUrl: env.SPEC_REGISTRY_YT_URL ?? config.auth.youtrack.baseUrl,
@@ -35,6 +40,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     appBridgeToken: env.SPEC_REGISTRY_APP_BRIDGE_TOKEN ?? config.auth.appBridgeToken,
     tenants: config.tenants,
     roleGroups: config.auth.roleGroups,
+    idps: { list: () => idpManager.listActiveIdps() },
     cacheTtlMs: Number(env.SPEC_REGISTRY_AUTH_CACHE_MS ?? 60_000),
     logger,
   });
@@ -61,7 +67,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   const registryOps = createRegistryOps({ registryIndex, driftReport });
   const publisher = store ? createPublisher({ mounts, store, identity, logger }) : null;
   const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher });
-  const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger });
+  const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger, idps: { list: () => idpManager.listActiveIdps() } });
   const versionedReads = createVersionedReads({ mounts, store });
   const repos = createRepoManager({ mounts, store, config, identity, secretsKey, logger });
   let sync = null;
@@ -88,6 +94,10 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
       repoBind: (input) => repos.bind(input),
       repoProbe: (input) => repos.probeAccess(input),
       repoUnbind: (input) => repos.unbind(input),
+      idpBindings: (ctx) => idpManager.bindings(ctx),
+      idpBind: (input) => idpManager.bind(input),
+      idpProbe: (input) => idpManager.probe(input),
+      idpUnbind: (input) => idpManager.unbind(input),
     },
     audit: (entry) => store?.logAccess?.(entry),
   };

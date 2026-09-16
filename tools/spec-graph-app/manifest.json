@@ -7,7 +7,7 @@
   "vendor": {
     "name": "omp-spec-kit"
   },
-  "version": "1.0.20",
+  "version": "1.0.21",
   "widgets": [
     {
       "description": "Committed snapshot neighbors for the current issue with Approve/Verify/Reopen buttons.",

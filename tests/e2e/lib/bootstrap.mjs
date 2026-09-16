@@ -42,9 +42,19 @@ const BETA_SEED_FILES = Object.freeze({
   "ACCEPTANCE_CRITERIA.md": "# Acceptance criteria\n\nStatus: DRAFT\n\n## AC-1 — beta seeded criterion\n\n**Given** the beta corpus, **when** an authorized beta caller reads it, **then** it is visible.\n",
 });
 
+// TASK-13: the external-IdP tenant's corpus — readable only through a binding
+// that registers acme/gamma, so seeding it is itself an isolation probe.
+const GAMMA_SEED_FILES = Object.freeze({
+  "README.md": "# Gamma Spec\n\nStatus: DRAFT\n\nExternal tenant corpus for the IdP binding E2E.\n",
+  "TASKS.md": "# Tasks\n\nStatus: DRAFT\n\n## TASK-1 — gamma seed task\n- **Status:** todo\n- **Done When:** readable only through the external tenant scope.\n- **Requirements:** FR-1\n",
+  "FR.md": "# Functional requirements\n\nStatus: DRAFT\n\n## FR-1 — gamma requirement\n\nThe system SHALL serve gamma only to callers of the bound external IdP.\n",
+  "ACCEPTANCE_CRITERIA.md": "# Acceptance criteria\n\nStatus: DRAFT\n\n## AC-1 — gamma criterion\n\n**Given** the external binding, **when** an external caller reads, **then** only their corpus is visible.\n",
+});
+
 const SEED_TREES = Object.freeze([
   { project: "stgmt/alpha", spec: "alpha-spec", files: SEED_FILES },
   { project: "stgmt/beta", spec: "beta-spec", files: BETA_SEED_FILES },
+  { project: "acme/gamma", spec: "gamma-spec", files: GAMMA_SEED_FILES },
 ]);
 
 async function git(cwd, args) {
@@ -86,7 +96,7 @@ export async function seedSpecsRepo({ logger = () => {} } = {}) {
  * manifest-derived package CI builds (one build path for CI, release and
  * this fixture), then verifies the installed version matches the manifest.
  */
-export async function deployApp({ admin, token, logger = () => {} }) {
+export async function deployApp({ admin, token, hostUrl = null, logger = () => {} }) {
   const appDir = path.join(REPO_ROOT, "tools", "spec-graph-app");
   const work = await mkdtemp(path.join(tmpdir(), "spec-e2e-app-"));
   try {
@@ -96,7 +106,7 @@ export async function deployApp({ admin, token, logger = () => {} }) {
     const { YT_URL } = await import("./compose.mjs");
     const cli = path.join(REPO_ROOT, "node_modules", "@jetbrains", "youtrack-apps-tools", "bin", "youtrack-app");
     await execFileAsync(process.execPath, [cli, "app", "upload", "--directory", outDir], {
-      env: { ...process.env, YOUTRACK_HOST: YT_URL, YOUTRACK_TOKEN: token },
+      env: { ...process.env, YOUTRACK_HOST: hostUrl ?? YT_URL, YOUTRACK_TOKEN: token },
       timeout: 120_000,
     });
     const app = await admin.appByName(APP_NAME);

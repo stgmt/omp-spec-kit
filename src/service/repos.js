@@ -203,6 +203,7 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
       login: ctx.identity?.login ?? null,
       role: ctx.role ?? null,
       tenant: ctx.tenant ?? null,
+      idp: ctx.idp ?? null,
       scopes: ctx.scopes ?? [],
       defaultScope: ctx.defaultScope ?? null,
       repos: (ctx.scopes ?? []).map((project) => {

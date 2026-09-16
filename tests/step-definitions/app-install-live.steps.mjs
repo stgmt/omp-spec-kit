@@ -5,11 +5,12 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { After, AfterAll, Before, BeforeAll, Given, setDefaultTimeout, Status, Then, When } from "@cucumber/cucumber";
 import { chromium } from "playwright-core";
-import { ADMIN_PASSWORD, APP_NAME, BRIDGE_TOKEN, USERS } from "../e2e/lib/bootstrap.mjs";
+import { ADMIN_PASSWORD, APP_NAME, BRIDGE_TOKEN, USERS, deployApp } from "../e2e/lib/bootstrap.mjs";
 import { E2E_DIR, SERVICE_URL, YT_URL } from "../e2e/lib/compose.mjs";
 import { createYouTrackAdmin } from "../e2e/lib/youtrack.mjs";
 import { browserLogin, widgetFrame } from "../e2e/lib/browser.mjs";
 import { attachAppToProjectViaUI, fillAppSettings, openAppsPage, openAppTab, uploadAppZip } from "../e2e/lib/app-admin-ui.mjs";
+import { ensureExtYoutrack, extAdmin, extBindBody, EXT_YT_HOST_URL, EXT_TENANT, EXT_USERS } from "../e2e/lib/idp-fixture.mjs";
 
 const execFileAsync = promisify(execFile);
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
@@ -83,7 +84,7 @@ if (hostOnly) AfterAll(async () => {
 // of failure — admin page and alice's issue page side by side.
 if (hostOnly) After(async function (scenario) {
   if (scenario.result?.status !== Status.FAILED) return;
-  for (const [name, page] of [["admin", this.adminPage], ["alice", this.alicePage]]) {
+  for (const [name, page] of [["admin", this.adminPage], ["alice", this.alicePage], ["mia", this.miaPage]]) {
     if (page && !page.isClosed()) {
       await page.screenshot({ path: path.join(ARTIFACTS, `live-failed-${name}.png`), fullPage: true }).catch(() => {});
     }
@@ -285,4 +286,152 @@ Then("the project uses the default repository again", async function () {
     "exec", "spec-auth-e2e-spec-git-1", "git", "--git-dir=/srv/git/specs.git", "show", "main:stgmt/alpha/.specs/alpha-spec/README.md",
   ]);
   assert.match(stdout, /Alpha Spec/u, "default repo must still carry alpha-spec");
+});
+
+// --- TASK-13: external YouTrack binding through the widget -----------------
+// The customer-IdP flow end to end: the ext YouTrack is a real second
+// instance in the same compose network; the app upload on it goes through
+// the official CLI exactly like the operator install.
+
+/** Widget frame once the IdP section is rendered. */
+async function widgetIdpFrame(page) {
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    for (const frame of page.frames()) {
+      const marker = await frame.locator('[data-testid="idp-form"], [data-testid="idp-list"], [data-testid="service-error"]').count().catch(() => 0);
+      if (marker > 0) return frame;
+    }
+    await page.waitForTimeout(1_000);
+  }
+  throw new Error("widget IdP section did not render");
+}
+
+Given("a second YouTrack is provisioned for the external tenant", async function () {
+  live.ext = await ensureExtYoutrack();
+  // A previous run's binding persists in the service volume — the widget
+  // only shows the install block on a fresh bind, so unbind first. Carol is
+  // an owner on the operator IdP and may unbind any tenant.
+  const carol = await admin().findUserByLogin("carol");
+  const serviceIds = [await admin().youtrackServiceId(), await admin().hubServiceId()];
+  const ownerToken = await admin().createPermanentToken({ userId: carol.id, name: "idp-e2e-owner", serviceIds });
+  await fetch(`${SERVICE_URL}/idp/unbind`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${ownerToken.token}`, "content-type": "application/json" },
+    body: JSON.stringify({ tenant: EXT_TENANT }),
+  }).then((r) => r.json()).catch(() => ({})); // NOT_BOUND tolerated
+  await admin().revokePermanentTokens({ userId: carol.id, name: "idp-e2e-owner" });
+  // The ext tenant needs its own project + anchor issue for the app to
+  // attach to, and mia on the project team so the widget renders for her.
+  const ext = extAdmin();
+  const me = await ext.meNative();
+  const project = await ext.createProject({ name: "Acme E2E", shortName: "ACME", leaderId: me.id });
+  const hubProjectId = await ext.hubProjectId("ACME");
+  await ext.addUserToProjectTeam({ hubProjectId, userId: live.ext.users.mia.id });
+  const existing = await fetch(`${EXT_YT_HOST_URL}/api/issues?query=project:ACME&fields=id,idReadable`, {
+    headers: { authorization: basicAuth, accept: "application/json" },
+    signal: AbortSignal.timeout(30_000),
+  }).then((r) => (r.ok ? r.json() : [])).catch(() => []);
+  if (Array.isArray(existing) && existing.length > 0) {
+    live.ext.issue = existing[0];
+  } else {
+    const created = await fetch(`${EXT_YT_HOST_URL}/api/issues?fields=id,idReadable`, {
+      method: "POST",
+      headers: { authorization: basicAuth, "content-type": "application/json" },
+      body: JSON.stringify({ project: { id: project.id }, summary: "External IdP E2E anchor issue" }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    assert.ok(created.ok, `ext anchor issue creation failed: ${created.status}`);
+    live.ext.issue = await created.json();
+  }
+  live.ext.project = project;
+});
+
+When("alice binds the external YouTrack in the widget", async function () {
+  const frame = await widgetIdpFrame(this.alicePage);
+  const body = extBindBody({ serviceToken: live.ext.serviceToken });
+  await frame.locator('[data-testid="idp-tenant"]').fill(body.tenant);
+  await frame.locator('[data-testid="idp-url"]').fill(body.youtrackUrl);
+  await frame.locator('[data-testid="idp-token"]').fill(body.serviceToken);
+  await frame.locator('[data-testid="idp-projects"]').fill(body.projects.join(","));
+  await frame.locator('[data-testid="idp-hubgroups"]').fill(body.hubGroups.join(","));
+  await frame.locator('[data-testid="idp-owners"]').fill(body.roleGroups.owner.join(","));
+  await frame.locator('[data-testid="idp-writers"]').fill(body.roleGroups.writer.join(","));
+  await frame.locator('[data-testid="idp-readers"]').fill(body.roleGroups.reader.join(","));
+  await frame.locator('[data-testid="idp-test"]').click();
+  await frame.locator('[data-testid="idp-result"][data-outcome="ok"]').waitFor({ state: "attached", timeout: 30_000 });
+  await frame.locator('[data-testid="idp-bind"]').click();
+  const deadline = Date.now() + 90_000;
+  while (Date.now() < deadline) {
+    const bound = await widgetIdpFrame(this.alicePage)
+      .then((f) => f.locator(`[data-testid="idp-row-${EXT_TENANT}"] [data-testid="idp-status-active"]`).count())
+      .catch(() => 0);
+    if (bound > 0) return;
+    await this.alicePage.waitForTimeout(1_500);
+  }
+  throw new Error("widget never reached the bound IdP state");
+});
+
+Then("the widget shows the minted app settings for the external tenant", async function () {
+  const frame = await widgetIdpFrame(this.alicePage);
+  const install = frame.locator('[data-testid="idp-install"]');
+  await install.waitFor({ state: "visible", timeout: 15_000 });
+  const text = await install.innerText();
+  const urlMatch = text.match(/serviceUrl = (\S+)/);
+  assert.ok(urlMatch, `install block missing serviceUrl: ${text}`);
+  const tokenMatch = text.match(/serviceBridgeToken = (\S+)/);
+  assert.ok(tokenMatch, `install block missing the minted bridge token: ${text}`);
+  live.ext.serviceUrl = urlMatch[1];
+  live.ext.bridgeToken = tokenMatch[1];
+  await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-widget-idp-bound.png"), fullPage: true }).catch(() => {});
+});
+
+When("the app is installed on the external YouTrack with the minted settings", async function () {
+  const appId = await deployApp({ admin: extAdmin(), token: live.ext.serviceToken, hostUrl: EXT_YT_HOST_URL });
+  // Use the settings exactly as the widget displayed them — the operator
+  // copies serviceUrl + bridge token into their own YouTrack's app settings.
+  await extAdmin().setAppSettings(appId, { serviceUrl: live.ext.serviceUrl, serviceBridgeToken: live.ext.bridgeToken });
+  await extAdmin().attachAppToProject(appId, live.ext.project.id);
+});
+
+Then("mia sees her tenant specs through the external app", async function () {
+  this.miaContext = await live.browser.newContext();
+  this.miaPage = await this.miaContext.newPage();
+  this.miaPage.setDefaultTimeout(60_000);
+  await browserLogin(this.miaPage, "mia", EXT_USERS.mia.password, EXT_YT_HOST_URL);
+  await this.miaPage.goto(`${EXT_YT_HOST_URL}/issue/${live.ext.issue.idReadable}`, { waitUntil: "domcontentloaded" });
+  const frame = await widgetFrame(this.miaPage);
+  const text = await frame.locator('[data-testid="spec-list"]').innerText();
+  assert.match(text, /gamma-spec/, `ext widget must list the tenant spec, got: ${text}`);
+  await this.miaPage.screenshot({ path: path.join(ARTIFACTS, "live-widget-idp-mia.png"), fullPage: true }).catch(() => {});
+});
+
+When("alice unbinds the external YouTrack in the widget", async function () {
+  const frame = await widgetIdpFrame(this.alicePage);
+  await frame.locator(`[data-testid="idp-row-${EXT_TENANT}"] [data-testid="idp-unbind"]`).click();
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    const gone = await widgetIdpFrame(this.alicePage)
+      .then((f) => f.locator(`[data-testid="idp-row-${EXT_TENANT}"]`).count())
+      .catch(() => 0);
+    if (gone === 0) return;
+    await this.alicePage.waitForTimeout(1_500);
+  }
+  throw new Error("widget still shows the binding after unbind");
+});
+
+Then("the external tenant loses access", async function () {
+  // Direct token and minted bridge secret both die with the binding — the
+  // auth cache may serve the previous ctx for up to its TTL, so poll.
+  const deadline = Date.now() + 30_000;
+  for (;;) {
+    const direct = await fetch(`${SERVICE_URL}/me`, { headers: { authorization: `Bearer ${live.ext.users.mia.token}` } });
+    const bridge = await fetch(`${SERVICE_URL}/me`, {
+      headers: { authorization: `Bearer ${live.ext.bridgeToken}`, "x-spec-user": "mia" },
+    });
+    if (direct.status === 401 && bridge.status === 401) return;
+    if (Date.now() > deadline) {
+      throw new Error(`access not revoked within 30s (direct=${direct.status}, bridge=${bridge.status})`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1_500));
+  }
 });

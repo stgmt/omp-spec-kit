@@ -37,3 +37,19 @@ Feature: Operator installs the spec-graph-app through the YouTrack UI
     And the project specs landed in her repository
     When alice unbinds the project in the widget
     Then the project uses the default repository again
+
+  Scenario: A writer binds a customer's YouTrack and its app authenticates under the new tenant
+    The widget's IdP section is the user-facing half of TASK-13: the writer
+    points the service at the customer's own YouTrack, the service probes it,
+    mints a bridge secret, and the app installed on that YouTrack serves its
+    users under the new tenant — all through real browser clicks against the
+    live stack and a second real YouTrack instance.
+    Given the spec-graph-app is installed with the service settings
+    And a second YouTrack is provisioned for the external tenant
+    And alice is viewing the SPEC anchor issue
+    When alice binds the external YouTrack in the widget
+    Then the widget shows the minted app settings for the external tenant
+    When the app is installed on the external YouTrack with the minted settings
+    Then mia sees her tenant specs through the external app
+    When alice unbinds the external YouTrack in the widget
+    Then the external tenant loses access

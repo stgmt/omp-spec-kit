@@ -35,6 +35,10 @@
     var host = null;
     var meInfo = null;
     var specsList = [];
+    var idpList = [];
+    // The minted bridge token survives the widget's own re-render — the user
+    // must be able to copy it after bind. Cleared only by a full page reload.
+    var lastIdpInstall = null;
 
     function escapeHtml(text) {
       return String(text == null ? '' : text).replace(/[&<>"']/g, function (ch) {
@@ -96,6 +100,48 @@
       return html;
     }
 
+    function idpSectionHtml() {
+      // Only operator-YouTrack users may bind external IdPs (me.idp == null).
+      if (!meInfo || meInfo.idp != null) return '';
+      var html = '<h4 style="margin-top:14px">Your own YouTrack</h4>';
+      html += '<div data-testid="idp-list">';
+      for (var k = 0; k < idpList.length; k += 1) {
+        var idp = idpList[k];
+        html += '<div class="state" data-testid="idp-row-' + escapeHtml(idp.tenant) + '">'
+          + escapeHtml(idp.tenant) + ' → ' + escapeHtml(idp.youtrackUrl) + ' '
+          + '<span class="badge badge-' + escapeHtml(idp.status === 'active' ? 'active' : 'error') + '" data-testid="idp-status-' + escapeHtml(idp.status) + '">' + escapeHtml(idp.status) + '</span>'
+          + (idp.status === 'active'
+            ? ' <button class="secondary" data-testid="idp-unbind" data-tenant="' + escapeHtml(idp.tenant) + '" type="button">Unbind</button>'
+            : '')
+          + '</div>';
+      }
+      html += '</div>';
+      html += '<div class="repo-form" data-testid="idp-form">';
+      html += '<label>Tenant name (lowercase slug)</label><input data-testid="idp-tenant" placeholder="acme">';
+      html += '<label>YouTrack URL</label><input data-testid="idp-url" placeholder="https://youtrack.acme.com">';
+      html += '<label>Service token (permanent token able to read users+groups)</label><input data-testid="idp-token" type="password" autocomplete="off">';
+      html += '<label>Projects (comma-separated owner/project)</label><input data-testid="idp-projects" placeholder="acme/gamma">';
+      html += '<label>Scope groups (comma-separated YT group names)</label><input data-testid="idp-hubgroups" placeholder="spec-users">';
+      html += '<label>Owner groups</label><input data-testid="idp-owners" placeholder="spec-owners">';
+      html += '<label>Writer groups</label><input data-testid="idp-writers" placeholder="spec-writers">';
+      html += '<label>Reader groups</label><input data-testid="idp-readers" placeholder="spec-readers">';
+      html += '<div class="btns">';
+      html += '<button class="secondary" data-testid="idp-test" type="button">Test connection</button>';
+      html += '<button data-testid="idp-bind" type="button">Bind YouTrack</button>';
+      html += '</div><p class="state" data-testid="idp-result"></p>';
+      if (lastIdpInstall) {
+        html += '<pre data-testid="idp-install">'
+          + 'App settings for ' + escapeHtml(lastIdpInstall.tenant) + ':\n'
+          + 'serviceUrl = ' + escapeHtml(lastIdpInstall.serviceUrl) + '\n'
+          + 'serviceBridgeToken = ' + escapeHtml(lastIdpInstall.serviceBridgeToken) + '\n'
+          + escapeHtml(lastIdpInstall.note || '')
+          + '</pre></div>';
+      } else {
+        html += '<pre data-testid="idp-install" hidden></pre></div>';
+      }
+      return html;
+    }
+
     function bindRepoHandlers() {
       var unbinds = root.querySelectorAll('[data-testid="repo-unbind"]');
       for (var u = 0; u < unbinds.length; u++) {
@@ -147,6 +193,79 @@
       });
     }
 
+    function csv(value) {
+      return value.split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s.length > 0; });
+    }
+
+    function bindIdpHandlers() {
+      var unbinds = root.querySelectorAll('[data-testid="idp-unbind"]');
+      for (var u = 0; u < unbinds.length; u++) {
+        unbinds[u].addEventListener('click', function (e) {
+          var button = e.target;
+          button.disabled = true;
+          callService({ id: 'widget-idp-unbind', method: 'idp/unbind', params: { tenant: button.getAttribute('data-tenant') } }).then(function () {
+            loadAll();
+          }).catch(function () { button.disabled = false; });
+        });
+      }
+      var form = root.querySelector('[data-testid="idp-form"]');
+      if (!form) return;
+      var result = form.querySelector('[data-testid="idp-result"]');
+      var install = form.querySelector('[data-testid="idp-install"]');
+      var fields = function () {
+        return {
+          tenant: form.querySelector('[data-testid="idp-tenant"]').value.trim(),
+          youtrackUrl: form.querySelector('[data-testid="idp-url"]').value.trim(),
+          serviceToken: form.querySelector('[data-testid="idp-token"]').value,
+          projects: csv(form.querySelector('[data-testid="idp-projects"]').value),
+          hubGroups: csv(form.querySelector('[data-testid="idp-hubgroups"]').value),
+          roleGroups: {
+            owner: csv(form.querySelector('[data-testid="idp-owners"]').value),
+            writer: csv(form.querySelector('[data-testid="idp-writers"]').value),
+            reader: csv(form.querySelector('[data-testid="idp-readers"]').value)
+          }
+        };
+      };
+      var run = function (method, button) {
+        button.disabled = true;
+        result.textContent = 'working…';
+        return callService({ id: 'widget-' + method, method: method, params: fields() }).then(function (envelope) {
+          if (envelope && envelope.error) {
+            var detail = '';
+            try { detail = (JSON.parse(envelope.body || '{}').message || JSON.parse(envelope.body || '{}').error) || ''; } catch (e) {}
+            result.textContent = envelope.error + (detail ? ': ' + detail : envelope.message ? ': ' + envelope.message : '');
+            result.setAttribute('data-outcome', 'error');
+          } else if (method === 'idp/probe') {
+            result.textContent = 'connection ok (service login: ' + escapeHtml(envelope.serviceLogin || '?') + ')';
+            result.setAttribute('data-outcome', 'ok');
+          } else {
+            result.textContent = 'bound — reloading…';
+            result.setAttribute('data-outcome', 'ok');
+            // The bridge token is shown exactly once — persist it across the
+            // widget's own re-render so the user can actually copy it.
+            if (envelope.install) {
+              lastIdpInstall = { tenant: envelope.binding.tenant, ...envelope.install };
+              install.hidden = false;
+              install.textContent = 'App settings for ' + envelope.binding.tenant + ':\n'
+                + 'serviceUrl = ' + envelope.install.serviceUrl + '\n'
+                + 'serviceBridgeToken = ' + envelope.install.serviceBridgeToken + '\n'
+                + envelope.install.note;
+            }
+            setTimeout(loadAll, 800);
+          }
+        }).catch(function (error) {
+          result.textContent = String(error && error.message ? error.message : error);
+          result.setAttribute('data-outcome', 'transport-error');
+        }).finally(function () { button.disabled = false; });
+      };
+      form.querySelector('[data-testid="idp-test"]').addEventListener('click', function (e) {
+        run('idp/probe', e.target);
+      });
+      form.querySelector('[data-testid="idp-bind"]').addEventListener('click', function (e) {
+        run('idp/bind', e.target);
+      });
+    }
+
     function render() {
       root.setAttribute('data-state', 'ready');
       var html = '<h3>Spec Service</h3>';
@@ -159,6 +278,7 @@
       html += '<div class="btns"><button data-testid="apply-patch" type="button">Apply TASK-1 patch</button></div>';
       html += '<pre data-testid="apply-result" hidden></pre>';
       html += repoSectionHtml();
+      html += idpSectionHtml();
       root.innerHTML = html;
       var button = root.querySelector('[data-testid="apply-patch"]');
       var output = root.querySelector('[data-testid="apply-result"]');
@@ -191,17 +311,20 @@
         });
       });
       bindRepoHandlers();
+      bindIdpHandlers();
     }
 
     function loadAll() {
       return Promise.all([
         callService({ id: 'widget-list', method: 'tools/call', params: { name: 'spec_catalog', arguments: { view: 'specs' } } }),
-        callService({ id: 'widget-me', method: 'service/me', params: {} })
+        callService({ id: 'widget-me', method: 'service/me', params: {} }),
+        callService({ id: 'widget-idps', method: 'idp/bindings', params: {} }).catch(function () { return { bindings: [] }; })
       ]).then(function (results) {
         var structured = results[0] && results[0].result ? results[0].result.structuredContent : results[0];
         if (!structured || structured.ok !== true) { renderError(structured || results[0]); return; }
         specsList = (structured.data && structured.data.specs) || [];
         meInfo = results[1] && results[1].login ? results[1] : null;
+        idpList = (results[2] && results[2].bindings) || [];
         render();
       });
     }

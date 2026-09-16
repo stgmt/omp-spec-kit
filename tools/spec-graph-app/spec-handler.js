@@ -63,6 +63,10 @@ exports.httpHandler = {
         else if (method === 'repo/probe') { restPath = '/repos/probe'; }
         else if (method === 'repo/bind') { restPath = '/repos/bind'; }
         else if (method === 'repo/unbind') { restPath = '/repos/unbind'; }
+        else if (method === 'idp/bindings') { restPath = '/idp/bindings'; restMethod = 'GET'; }
+        else if (method === 'idp/probe') { restPath = '/idp/probe'; }
+        else if (method === 'idp/bind') { restPath = '/idp/bind'; }
+        else if (method === 'idp/unbind') { restPath = '/idp/unbind'; }
         var response;
         if (restPath) {
           var restBody = restMethod === 'POST' ? JSON.stringify(payload.params || {}) : null;
