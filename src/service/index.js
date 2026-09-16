@@ -15,16 +15,18 @@ import { startSync } from "./sync.js";
 import { createOnboarding } from "./onboarding.js";
 import { createPublisher } from "./publish.js";
 import { createVersionedReads } from "./versioned.js";
+import { createRepoManager } from "./repos.js";
+import { secretsKeyFromEnv } from "./secrets.js";
 
-export async function bootService({ configPath, cloneDir, git = new GitClient({ gitAuth: gitAuthFromEnv() }), identity, logger = () => {} }) {
+export async function bootService({ configPath, cloneDir, git = new GitClient({ gitAuth: gitAuthFromEnv() }), identity, store = null, secretsKey = null, logger = () => {} }) {
   const config = await loadProjectsConfig(configPath);
   const resolvedCloneDir = path.resolve(cloneDir ?? path.join(path.dirname(configPath), "..", "data", "specs-clone"));
-  const mounts = new MountManager({ config, cloneDir: resolvedCloneDir, git, identity, logger });
+  const mounts = new MountManager({ config, cloneDir: resolvedCloneDir, git, identity, store, secretsKey, logger });
   const report = await mounts.boot();
   return { config, mounts, report };
 }
 
-export function buildServiceStack({ mounts, config, git, identity = botIdentityFromEnv(), logger = () => {}, store, syncIntervalMs = 0, env = process.env }) {
+export function buildServiceStack({ mounts, config, identity = botIdentityFromEnv(), logger = () => {}, store, secretsKey = null, syncIntervalMs = 0, env = process.env }) {
   const auth = createYouTrackAuth({
     youtrack: {
       baseUrl: env.SPEC_REGISTRY_YT_URL ?? config.auth.youtrack.baseUrl,
@@ -38,27 +40,33 @@ export function buildServiceStack({ mounts, config, git, identity = botIdentityF
   });
   const claims = createClaimStore({ store });
   const claimOps = createClaimOps({ claims });
-  const registryIndex = () => buildRegistryIndex({ mounts, claims, ledger: store ?? { getLedger: () => [] }, git });
+  const registryIndex = () => buildRegistryIndex({ mounts, claims, ledger: store ?? { getLedger: () => [] } });
   const driftReport = async () => {
-    // A drift report is only honest against a freshly fetched remote.
-    await git.fetch({ cwd: mounts.cloneDir }).catch(() => {});
-    const report = await computeDrift({ git, branch: config.branch, identity, cwd: mounts.cloneDir });
+    // A drift report is only honest against freshly fetched remotes — every
+    // mounted repo (default + bound) is fetched and checked.
+    const events = [];
+    for (const mount of mounts.activeMounts()) {
+      await mount.git.fetch({ cwd: mount.cwd }).catch(() => {});
+      const report = await computeDrift({ git: mount.git, branch: mount.branch, identity, cwd: mount.cwd }).catch((error) => ({ events: [{ kind: "repo-unreachable", detail: String(error?.message ?? error).split("\n")[0] }] }));
+      for (const event of report.events) events.push({ ...event, repo: mount.repoUrl });
+    }
     // Publish rejections are drift too: a version squatted by different
     // content must surface next to non-bot commits, not only in access_log.
     const rejections = store?.listAccess?.({ resultPrefix: "publish-rejected:", limit: 50 }) ?? [];
     for (const entry of rejections) {
-      report.events.push({ kind: "publish-rejected", spec: entry.spec, project: entry.project, detail: entry.result, detectedAt: entry.ts });
+      events.push({ kind: "publish-rejected", spec: entry.spec, project: entry.project, detail: entry.result, detectedAt: entry.ts });
     }
-    return report;
+    return { events, branch: config.branch };
   };
   const registryOps = createRegistryOps({ registryIndex, driftReport });
-  const publisher = store ? createPublisher({ mounts, git, store, identity, branch: config.branch, logger }) : null;
-  const writePath = createWritePipeline({ mounts, claims, git, identity, logger, publish: publisher });
+  const publisher = store ? createPublisher({ mounts, store, identity, logger }) : null;
+  const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher });
   const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger });
-  const versionedReads = createVersionedReads({ mounts, git, store });
+  const versionedReads = createVersionedReads({ mounts, store });
+  const repos = createRepoManager({ mounts, store, config, identity, secretsKey, logger });
   let sync = null;
   if (syncIntervalMs > 0) {
-    sync = startSync({ mounts, git, branch: config.branch, identity, cwd: mounts.cloneDir, intervalMs: syncIntervalMs, logger, afterReconcile: publisher ? () => publisher.publishAll() : null });
+    sync = startSync({ mounts, identity, intervalMs: syncIntervalMs, logger, afterReconcile: publisher ? () => publisher.publishAll() : null });
   }
   return {
     auth,
@@ -75,6 +83,11 @@ export function buildServiceStack({ mounts, config, git, identity = botIdentityF
       registry: () => registryIndex(),
       drift: () => driftReport(),
       onboarding: (input) => onboarding.issueToken(input),
+      me: (ctx) => repos.me(ctx),
+      repoBindings: (ctx) => repos.bindings(ctx),
+      repoBind: (input) => repos.bind(input),
+      repoProbe: (input) => repos.probeAccess(input),
+      repoUnbind: (input) => repos.unbind(input),
     },
     audit: (entry) => store?.logAccess?.(entry),
   };
@@ -82,10 +95,13 @@ export function buildServiceStack({ mounts, config, git, identity = botIdentityF
 
 export async function startService({ configPath, cloneDir, storeFile, syncIntervalMs = Number(process.env.SPEC_REGISTRY_SYNC_MS ?? 0), port = Number(process.env.SPEC_REGISTRY_PORT ?? 8642), host = process.env.SPEC_REGISTRY_HOST ?? "127.0.0.1", identity = botIdentityFromEnv(), logger = console.error, env = process.env }) {
   const git = new GitClient({ gitAuth: gitAuthFromEnv(env) });
-  const { config, mounts } = await bootService({ configPath, cloneDir, git, identity, logger });
-  const resolvedCloneDir = mounts.cloneDir;
+  const secretsKey = secretsKeyFromEnv(env);
+  // The store must exist before mounts: bound projects resolve their clone
+  // through repo_bindings during boot reconciliation.
+  const resolvedCloneDir = path.resolve(cloneDir ?? path.join(path.dirname(configPath), "..", "data", "specs-clone"));
   const store = await createStore({ file: storeFile ?? env.SPEC_REGISTRY_STORE ?? path.join(path.dirname(resolvedCloneDir), "registry.db") });
-  const stack = buildServiceStack({ mounts, config, git, identity, logger, store, syncIntervalMs, env });
+  const { config, mounts } = await bootService({ configPath, cloneDir: resolvedCloneDir, git, identity, store, secretsKey, logger });
+  const stack = buildServiceStack({ mounts, config, identity, logger, store, secretsKey, syncIntervalMs, env });
   const app = createServiceApp({ mounts, ...stack });
   const server = app.listen(port, host);
   await new Promise((resolve, reject) => {

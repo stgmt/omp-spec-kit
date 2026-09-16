@@ -2,6 +2,32 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 2.1.0 — 2026-09-16
+
+Bring-your-own specs repository. Any project can leave the shared service-owned specs repository for a customer-controlled Git remote; the service binds, migrates, routes, and publishes against the bound remote while keeping every previously published version readable.
+
+### Added
+
+- Per-project repository binding: `POST /repos/probe`, `POST /repos/bind`, `POST /repos/unbind`, `GET /repos` REST endpoints on the service. Binding requires a verified writer/owner role plus project scope; readers and out-of-scope callers are refused.
+- Snapshot migration: `bind` with `migrate: true` copies the project's current `.specs` tree into the target repository (no Git history transfer, write-lock artifacts stripped), commits and pushes it with the service bot identity, and flips routing only after the copy is verified.
+- Migration-safe versioned reads: the publish ledger records the repository URL and branch of every published version, so releases cut before a migration keep resolving from the previous repository clone.
+- Credential vault: repository tokens are sealed with AES-256-GCM (key from `SPEC_REGISTRY_SECRETS_KEY`), scoped to the repository URL they were bound for, never returned by the API, and redacted from logs.
+- Repository policy: remote URLs are checked against a host/scheme allowlist before any network access; `file:` URLs are accepted only when explicitly listed.
+- `X-Spec-Project` request header as a scope-checked default project hint; onboarding `.mcp.json` snippets can carry it so one MCP endpoint serves multiple projects without re-authenticating.
+- YouTrack widget repository section: project picker (scope-aware), remote URL/branch/token fields, test-connection, bind-and-migrate, unbind, and live binding status.
+- Multi-mount sync and drift isolation: one unreachable bound repository no longer stalls the periodic sync pass, drift reporting, or service boot for the rest.
+
+### Changed
+
+- `MountManager` is now a per-repository mount registry (`mounts.for(project)` resolves the project's active remote and its dedicated clone); the default shared repository is unchanged for unbound projects.
+- `GET /me` reports each scoped project's binding state (repository URL, branch, status).
+
+### Migration notes
+
+- Existing projects keep working against the default shared repository; binding is opt-in per project.
+- Migration is a snapshot copy, not a history move: versions published before the move stay published and keep resolving from the old clone through the ledger.
+- Operators should set `SPEC_REGISTRY_SECRETS_KEY` before accepting bindings; without it the service refuses to store credentials.
+
 ## 2.0.0 — 2026-09-16
 
 Centralized specification registry release. Canonical specifications move out of product repositories into a dedicated, service-owned specs repository; all specification reads and writes go through the `spec-registryd` MCP service.

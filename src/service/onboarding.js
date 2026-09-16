@@ -29,7 +29,12 @@ export class OnboardingError extends Error {
   }
 }
 
-export function buildManagedSnippet(serviceUrl, token) {
+export function buildManagedSnippet(serviceUrl, token, project = null) {
+  const headers = { Authorization: `Bearer ${token}` };
+  // X-Spec-Project pins the client's default scope; it is a routing hint,
+  // never authorization — the service still validates it against the token's
+  // verified scopes.
+  if (typeof project === "string" && project.length > 0) headers["X-Spec-Project"] = project;
   return `${JSON.stringify(
     {
       $schema: "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
@@ -37,7 +42,7 @@ export function buildManagedSnippet(serviceUrl, token) {
         "omp-spec-kit": {
           type: "http",
           url: `${String(serviceUrl).replace(/\/+$/u, "")}/mcp`,
-          headers: { Authorization: `Bearer ${token}` },
+          headers,
         },
       },
     },
@@ -87,7 +92,7 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
      * Mint (or re-mint) the caller's agent credential.
      * @param {{ ctx: { identity: { login: string }, role: string, tenant: string|string[]|null }, serviceUrl: string }} input
      */
-    async issueToken({ ctx, serviceUrl }) {
+    async issueToken({ ctx, serviceUrl, project = null }) {
       const login = ctx?.identity?.login;
       if (typeof login !== "string" || login.length === 0) {
         throw new OnboardingError("caller identity is missing", { status: 401, code: "UNAUTHENTICATED" });
@@ -132,6 +137,14 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
         throw new OnboardingError("YouTrack returned no token value", { status: 502, code: "UPSTREAM_ERROR" });
       }
 
+      // A requested project must be one of the caller's verified scopes —
+      // the snippet's X-Spec-Project hint would otherwise fail server-side
+      // scope validation on the first call anyway.
+      if (project !== null && !(Array.isArray(ctx?.scopes) && ctx.scopes.includes(project))) {
+        throw new OnboardingError(`project ${project} is outside the caller's scopes`, { status: 403, code: "SCOPE_FORBIDDEN" });
+      }
+      const pinned = project ?? ctx.defaultScope ?? null;
+
       const url = `${String(serviceUrl).replace(/\/+$/u, "")}/mcp`;
       logger(`onboarding: issued a YouTrack token for ${login} (scope: ${scope.length} services, revoked ${previous.length} previous)`);
       try {
@@ -146,7 +159,7 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
           result: `ok:token-issued:revoked-${previous.length}`,
         });
       } catch {}
-      return { token: minted.token, url, mcpJson: buildManagedSnippet(serviceUrl, minted.token) };
+      return { token: minted.token, url, mcpJson: buildManagedSnippet(serviceUrl, minted.token, pinned) };
     },
   };
 }

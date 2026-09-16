@@ -45,3 +45,44 @@ Simultaneous writes to one project serialize on the write lock: one writer
 lands, the rest receive `CONFLICT` with `retryable: true` and land on retry —
 a linear, bot-only history. Different projects proceed independently. There is
 no queue that users wait in; refusal-then-retry is the designed behaviour.
+
+## Customer-owned repositories (TASK-17)
+
+A project can leave the shared specs repository and live in its own. The
+binding is server-side state (`repo_bindings`/`repo_credentials` in the store
+file); clients never carry repo URLs or tokens in `.mcp.json`.
+
+- `GET /me` — caller's scopes with the repo each resolves to (`bound`,
+  `status`: `default`/`migrating`/`active`/`error`).
+- `GET /repos/bindings` — binding rows visible in the caller's scopes.
+- `POST /repos/probe` `{project, repoUrl, token, username?}` — reachability +
+  credential check (`ls-remote`), persists nothing.
+- `POST /repos/bind` `{project, repoUrl, branch?, token, migrate?}` —
+  owner/writer only, project must be in the caller's scopes. `migrate`
+  defaults to `true`: the project's `.specs` snapshot is copied into the
+  target repo as a bot commit and the landed tree is verified byte-for-byte
+  (git tree hash) against the source. `migrate: false` binds without copying —
+  a pre-seeded target repo wins; an empty one gets a skeleton `.specs`.
+- `POST /repos/unbind` `{project}` — back to the default repo. The bound
+  clone stays on disk because published ledger rows still reference it.
+
+Semantics:
+
+- Migration copies a **snapshot**, not git history — pushing refs would leak
+  every other project's ancestors out of the shared repo. Published versions
+  recorded before the move keep resolving from the previous clone (the ledger
+  stores `repo_url`/`repo_branch` per row).
+- While a binding is `migrating`, reads still hit the source repo and writes
+  are refused with retryable `SPEC_MIGRATING`. Re-binding the same
+  `(repoUrl, branch)` is an idempotent no-op.
+- Credentials: `token` is sealed with AES-256-GCM (key from
+  `SPEC_REGISTRY_SECRETS_KEY`, ≥16 chars) before it reaches the store. It is
+  never logged, returned, or placed in config. A credential only
+  authenticates the repo it was bound to — never reused across remotes.
+- URL policy (`repoPolicy.allowedHosts`): https on public hosts; http/git
+  only on private hosts (compose, on-prem); `file://` only when `"file"` is
+  explicitly listed. An empty allowlist means any https public host.
+- The same threat model applies per repo: the service is the only writer in
+  the bound repo; non-bot commits there surface as `non-bot-commit` drift
+  with the repo attached, and an unreachable bound repo surfaces as
+  `repo-unreachable` without stalling sync for the others.

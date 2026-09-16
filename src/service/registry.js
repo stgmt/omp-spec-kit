@@ -39,9 +39,10 @@ function catalogSlugs(catalogEnvelope) {
  * status/version, directory digest, claim state, published pointer. Rebuilt
  * from git on every call; never authoritative for content.
  */
-export async function buildRegistryIndex({ mounts, claims, ledger, git }) {
+export async function buildRegistryIndex({ mounts, claims, ledger }) {
   const projects = [];
   for (const projectId of mounts.projects) {
+    const mount = mounts.for(projectId);
     const root = mounts.resolveProjectRoot(projectId);
     const service = mounts.serviceFor(projectId);
     const state = await service.ensure();
@@ -57,7 +58,7 @@ export async function buildRegistryIndex({ mounts, claims, ledger, git }) {
       const digestResult = await specificationDirectoryDigest(root, slug);
       const claim = claims.get(projectId, slug);
       const published = ledger.getLedger(`${projectId}/${slug}`)[0] ?? null;
-      const lastChange = git ? await gitLastChange(git, mounts.cloneDir, specPath) : { owner: null, updatedAt: null };
+      const lastChange = await gitLastChange(mount.git, mount.cwd, specPath);
       specs.push({
         slug,
         status: authored.status,

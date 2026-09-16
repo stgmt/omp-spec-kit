@@ -25,5 +25,8 @@
       "writer": ["spec-writers"],
       "reader": ["spec-readers"]
     }
+  },
+  "repoPolicy": {
+    "allowedHosts": ["github.com"]
   }
 }

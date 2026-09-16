@@ -114,7 +114,7 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
     return { project: rawProject };
   }
 
-  async function callTool({ tool, args, ctx }) {
+  async function callTool({ tool, args, ctx, projectHint = null }) {
     const contract = contractsByName.get(tool);
     if (!contract) return { unknownTool: true };
     const raw = args && typeof args === "object" && !Array.isArray(args) ? args : {};
@@ -154,7 +154,10 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
     const isServiceOp = Object.hasOwn(serviceOps, contract.operation);
     const serviceEntry = isServiceOp ? serviceOps[contract.operation] : null;
     const listing = isServiceOp && serviceEntry.listing === true;
-    const resolved = resolveProject({ rawProject, ctx, operation, requestId, listing });
+    // X-Spec-Project (from .mcp.json) supplies a per-client default scope —
+    // a hint only, still validated against ctx.scopes like an explicit arg.
+    const hinted = rawProject === undefined && typeof projectHint === "string" && projectHint.length > 0 ? projectHint : rawProject;
+    const resolved = resolveProject({ rawProject: hinted, ctx, operation, requestId, listing });
     if (resolved.error) return { envelope: resolved.error };
 
     if (resolved.allScopes || !resolved.project) {

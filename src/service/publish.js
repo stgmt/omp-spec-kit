@@ -38,21 +38,20 @@ function isRefSafeVersion(version) {
  * rewritten. A per-spec mutex serializes the post-push and post-reconcile
  * paths so concurrent triggers can never double-publish.
  */
-export function createPublisher({ mounts, git, store, identity, branch, logger = () => {} }) {
+export function createPublisher({ mounts, store, identity, logger = () => {} }) {
   const inFlight = new Map();
-  const cwd = () => mounts.cloneDir;
 
-  async function snapshot(headSha, projectId, slug) {
+  async function snapshot(mount, headSha, projectId, slug) {
     const specPath = `${projectId}/.specs/${slug}`;
     let readme;
     try {
-      readme = await git.show(headSha, `${specPath}/README.md`, { cwd: cwd() });
+      readme = await mount.git.show(headSha, `${specPath}/README.md`, { cwd: mount.cwd });
     } catch {
       return null;
     }
     const status = authoredField(readme, "Status");
     const version = authoredField(readme, "Version");
-    const treeHash = await git.objectId(headSha, specPath, { cwd: cwd() });
+    const treeHash = await mount.git.objectId(headSha, specPath, { cwd: mount.cwd });
     return { specPath, status, version, treeHash };
   }
 
@@ -63,9 +62,9 @@ export function createPublisher({ mounts, git, store, identity, branch, logger =
     return { spec: specKey, outcome: "rejected", code, version, detail };
   }
 
-  async function record(projectId, slug, version, treeHash, commitSha) {
+  async function record(mount, projectId, slug, version, treeHash, commitSha) {
     const specKey = `${projectId}/${slug}`;
-    const inserted = await store?.insertLedgerIfAbsent?.({ specKey, version, digest: treeHash, commitSha });
+    const inserted = await store?.insertLedgerIfAbsent?.({ specKey, version, digest: treeHash, commitSha, repoUrl: mount.repoUrl, repoBranch: mount.branch });
     if (inserted === false) {
       // Lost an insert race outside the per-spec mutex (another publisher
       // path): the recorded row is the evidence — judge against it.
@@ -80,8 +79,11 @@ export function createPublisher({ mounts, git, store, identity, branch, logger =
 
   async function publishSpecNow(projectId, slug) {
     const specKey = `${projectId}/${slug}`;
+    const mount = mounts.for(projectId);
+    const git = mount.git;
+    const cwd = () => mount.cwd;
     const headSha = await git.revParse("HEAD", { cwd: cwd() });
-    const snap = await snapshot(headSha, projectId, slug);
+    const snap = await snapshot(mount, headSha, projectId, slug);
     if (!snap) return { spec: specKey, outcome: "skipped", reason: "unreadable" };
     if (snap.status !== "ACTIVE") return { spec: specKey, outcome: "skipped", reason: `status:${snap.status ?? "none"}` };
     if (!snap.version) return reject(projectId, slug, null, "VERSION_MISSING", "ACTIVE spec has no authored Version field");
@@ -158,12 +160,12 @@ export function createPublisher({ mounts, git, store, identity, branch, logger =
         const again = await git.lsRemote(`${tagRef}*`, { cwd: cwd() });
         const winner = remoteTagCommit(again, tagRef);
         if (winner === headSha) {
-          return record(projectId, slug, snap.version, snap.treeHash, headSha);
+          return record(mount, projectId, slug, snap.version, snap.treeHash, headSha);
         }
         if (!winner) throw error;
         return reject(projectId, slug, snap.version, "VERSION_EXISTS", `remote tag ${tag} appeared at ${winner.slice(0, 12)}`);
       }
-      return record(projectId, slug, snap.version, snap.treeHash, headSha);
+      return record(mount, projectId, slug, snap.version, snap.treeHash, headSha);
     }
 
     // Remote tag exists but the ledger has no row (crash between push and
@@ -175,7 +177,7 @@ export function createPublisher({ mounts, git, store, identity, branch, logger =
       remoteTree = null;
     }
     if (remoteTree !== null && remoteTree === snap.treeHash) {
-      await store?.insertLedgerIfAbsent?.({ specKey, version: snap.version, digest: remoteTree, commitSha: remoteSha });
+      await store?.insertLedgerIfAbsent?.({ specKey, version: snap.version, digest: remoteTree, commitSha: remoteSha, repoUrl: mount.repoUrl, repoBranch: mount.branch });
       return { spec: specKey, outcome: "adopted", version: snap.version, commit: remoteSha };
     }
     return reject(projectId, slug, snap.version, "VERSION_EXISTS", `remote tag ${tag} points at ${remoteSha.slice(0, 12)} with different content`);

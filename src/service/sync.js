@@ -38,22 +38,36 @@ export async function reconcileClone({ git, cwd, branch, identity, logger = () =
 }
 
 /**
- * Periodic fetch + reconcile (FR-10): fetch the specs repo on an interval;
- * fast-forward the clone when only the remote moved; report drift otherwise.
- * Reconciles coalesce: an interval shorter than one reconcile must not pile
- * up git work behind the queue.
+ * Periodic fetch + reconcile (FR-10): fetch every mounted specs repo on an
+ * interval; fast-forward a clone when only its remote moved; report drift
+ * otherwise. Reconciles coalesce: an interval shorter than one reconcile must
+ * not pile up git work behind the queue.
  */
-export function startSync({ mounts, git, branch, identity, cwd, intervalMs = 30_000, logger = () => {}, afterReconcile = null }) {
+export function startSync({ mounts, identity, intervalMs = 30_000, logger = () => {}, afterReconcile = null }) {
   async function reconcileOnce() {
-    const { moved } = await reconcileClone({ git, cwd, branch, identity, logger });
-    if (moved) {
+    let anyMoved = false;
+    const events = [];
+    for (const mount of mounts.activeMounts()) {
+      // Each mounted repo is independent: an unreachable or deleted bound
+      // repo must surface as drift, not take the whole sync pass down.
+      try {
+        const { moved } = await reconcileClone({ git: mount.git, cwd: mount.cwd, branch: mount.branch, identity, logger });
+        anyMoved = anyMoved || moved;
+        const drift = await computeDrift({ git: mount.git, branch: mount.branch, identity, cwd: mount.cwd });
+        for (const event of drift.events) events.push({ ...event, repo: mount.repoUrl });
+      } catch (error) {
+        events.push({ kind: "repo-unreachable", repo: mount.repoUrl, detail: String(error?.message ?? error).split("\n")[0], detectedAt: new Date().toISOString() });
+        logger(`sync: ${mount.repoUrl} unreachable: ${String(error?.message ?? error).split("\n")[0]}`);
+      }
+    }
+    if (anyMoved) {
       for (const projectId of mounts.projects) {
         mounts.serviceFor(projectId).refresh();
       }
       // Accepted remote commits may carry ACTIVE transitions — publish them.
       await afterReconcile?.().catch((error) => logger(`publish after reconcile failed: ${error.message}`));
     }
-    return computeDrift({ git, branch, identity, cwd });
+    return { events };
   }
 
   let inFlight = null;
@@ -62,7 +76,7 @@ export function startSync({ mounts, git, branch, identity, cwd, intervalMs = 30_
     inFlight = reconcileOnce()
       .catch((error) => {
         logger(`sync failed: ${error.message}`);
-        return { events: [], branch };
+        return { events: [] };
       })
       .finally(() => {
         inFlight = null;

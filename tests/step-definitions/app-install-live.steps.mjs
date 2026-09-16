@@ -36,8 +36,7 @@ const basicAuth = `Basic ${Buffer.from(`admin:${ADMIN_PASSWORD}`).toString("base
 // still be built. Register the hooks only when this invocation explicitly
 // targets the live feature (or is opted in via env for debugging).
 const hostOnly = process.env.OMP_SPEC_KIT_BDD_CONTAINER !== "1"
-  && (process.argv.some((arg) => arg.includes("app-install-live.feature"))
-    || process.env.OMP_SPEC_KIT_LIVE_E2E === "1");
+  && process.env.OMP_SPEC_KIT_LIVE_E2E === "1";
 if (hostOnly) BeforeAll({ timeout: 900_000 }, async () => {
   // Real stack, no app: the scenario uploads it through the UI itself.
   const { stdout } = await execFileAsync(
@@ -175,4 +174,115 @@ Then("the service widget lists alpha-spec", async function () {
   const text = await frame.locator('[data-testid="spec-list"]').innerText();
   assert.match(text, /alpha-spec/, "the UI-installed app must render the remote spec");
   await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-widget-specs.png"), fullPage: true }).catch(() => {});
+});
+
+// ---- TASK-17: BYO specs repository through the widget ----------------------
+
+const BYO_REPO_URL = "git://spec-git/byo.git";
+const BYO_REPO_PATH = "/srv/git/byo.git";
+
+/** Widget's inner frame once the repo section is rendered (spec list or repo list). */
+async function widgetRepoFrame(page) {
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    for (const frame of page.frames()) {
+      const marker = await frame.locator('[data-testid="repo-form"], [data-testid="repo-list"], [data-testid="service-error"]').count().catch(() => 0);
+      if (marker > 0) return frame;
+    }
+    await page.waitForTimeout(1_000);
+  }
+  throw new Error("widget repo section did not render");
+}
+
+Given("the spec-graph-app is installed with the service settings", async function () {
+  const app = await admin().appByName(APP_NAME);
+  assert.ok(app, `${APP_NAME} must be installed (previous scenario uploads it)`);
+  const config = await admin().call("GET", `/api/admin/apps/${app.id}/globalConfig?fields=globalSettings`);
+  const saved = JSON.parse(config.globalSettings ?? "{}");
+  assert.equal(saved.serviceUrl, SERVICE_SETTINGS.serviceUrl, "service settings must be in place");
+});
+
+Given("a second specs repo exists in the stack", async function () {
+  // The compose git daemon exports anything under /srv/git with receive-pack
+  // enabled — a second bare repo is a second tenant's repository.
+  const script = `if [ ! -d "${BYO_REPO_PATH}" ]; then git init --bare --initial-branch=main "${BYO_REPO_PATH}"; fi && ls "${BYO_REPO_PATH}/HEAD"`;
+  const { stdout } = await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-git-1", "sh", "-c", script]);
+  assert.match(stdout, /HEAD/u, `byo repo was not created: ${stdout}`);
+});
+
+Given("alice is viewing the SPEC anchor issue", async function () {
+  this.aliceContext = await live.browser.newContext();
+  this.alicePage = await this.aliceContext.newPage();
+  this.alicePage.setDefaultTimeout(60_000);
+  await browserLogin(this.alicePage, "alice", USERS.alice.password);
+  await this.alicePage.goto(`${YT_URL}/issue/${live.issue.idReadable}`, { waitUntil: "domcontentloaded" });
+  await widgetRepoFrame(this.alicePage);
+});
+
+When("alice tests the repository connection in the widget", async function () {
+  const frame = await widgetRepoFrame(this.alicePage);
+  await frame.locator('[data-testid="repo-url"]').fill(BYO_REPO_URL);
+  await frame.locator('[data-testid="repo-token"]').fill("e2e-unused-git-daemon");
+  await frame.locator('[data-testid="repo-branch"]').fill("main");
+  await frame.locator('[data-testid="repo-test"]').click();
+  await frame.locator('[data-testid="repo-result"][data-outcome="ok"]').waitFor({ state: "attached", timeout: 30_000 });
+});
+
+Then("the widget reports the repository connection is ok", async function () {
+  const frame = await widgetRepoFrame(this.alicePage);
+  const text = await frame.locator('[data-testid="repo-result"]').innerText();
+  assert.match(text, /connection ok/u, `probe outcome: ${text}`);
+});
+
+When("alice binds the project to her repository", async function () {
+  const frame = await widgetRepoFrame(this.alicePage);
+  await frame.locator('[data-testid="repo-url"]').fill(BYO_REPO_URL);
+  await frame.locator('[data-testid="repo-token"]').fill("e2e-unused-git-daemon");
+  await frame.locator('[data-testid="repo-bind"]').click();
+  // The widget reloads after a successful bind — wait for the bound state.
+  const deadline = Date.now() + 90_000;
+  while (Date.now() < deadline) {
+    const bound = await widgetRepoFrame(this.alicePage)
+      .then((f) => f.locator('[data-testid="repo-status-active"]').count())
+      .catch(() => 0);
+    if (bound > 0) return;
+    await this.alicePage.waitForTimeout(1_500);
+  }
+  throw new Error("widget never reached the bound state after bind");
+});
+
+Then("the widget shows the bound repository state", async function () {
+  const frame = await widgetRepoFrame(this.alicePage);
+  const text = await frame.locator('[data-testid="repo-list"]').innerText();
+  assert.match(text, /byo\.git/u, `binding not visible: ${text}`);
+  await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-widget-repo-bound.png"), fullPage: true }).catch(() => {});
+});
+
+Then("the project specs landed in her repository", async function () {
+  const { stdout } = await execFileAsync("docker", [
+    "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${BYO_REPO_PATH}`, "show", "main:stgmt/alpha/.specs/alpha-spec/README.md",
+  ]);
+  assert.match(stdout, /Alpha Spec/u, `migrated README missing in byo repo: ${stdout.slice(0, 200)}`);
+});
+
+When("alice unbinds the project in the widget", async function () {
+  const frame = await widgetRepoFrame(this.alicePage);
+  await frame.locator('[data-testid="repo-unbind"]').click();
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    const back = await widgetRepoFrame(this.alicePage)
+      .then((f) => f.locator('[data-testid="repo-status-default"]').count())
+      .catch(() => 0);
+    if (back > 0) return;
+    await this.alicePage.waitForTimeout(1_500);
+  }
+  throw new Error("widget never returned to the default state after unbind");
+});
+
+Then("the project uses the default repository again", async function () {
+  // The default clone still holds the migrated-away snapshot; reads resolve there.
+  const { stdout } = await execFileAsync("docker", [
+    "exec", "spec-auth-e2e-spec-git-1", "git", "--git-dir=/srv/git/specs.git", "show", "main:stgmt/alpha/.specs/alpha-spec/README.md",
+  ]);
+  assert.match(stdout, /Alpha Spec/u, "default repo must still carry alpha-spec");
 });

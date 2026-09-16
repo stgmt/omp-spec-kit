@@ -65,7 +65,7 @@ function isContainedPathFragment(value) {
  * may have moved on. The stored tree digest is re-verified against the commit
  * so a tampered ledger row cannot silently redirect reads.
  */
-export function createVersionedReads({ mounts, git, store }) {
+export function createVersionedReads({ mounts, store }) {
   return async function documents({ args, project, requestId, schemaVersion }) {
     const version = args.version;
     if (version == null) {
@@ -94,8 +94,13 @@ export function createVersionedReads({ mounts, git, store }) {
       };
     }
     const specPath = `${project}/.specs/${args.spec}`;
+    // The commit lives in the repo the version was published into — after a
+    // migration that is the previous clone, not the project's current mount.
+    const mount = row.repoUrl ? mounts.byRepo(row.repoUrl, row.repoBranch ?? "main", project) : mounts.for(project);
+    if (row.repoUrl) await mounts.ensureMount(mount).catch(() => {});
+    const { git, cwd } = mount;
     // Integrity: the commit's own tree hash must equal the recorded digest.
-    const tree = await git.objectId(row.commitSha, specPath, { cwd: mounts.cloneDir }).catch(() => null);
+    const tree = await git.objectId(row.commitSha, specPath, { cwd }).catch(() => null);
     if (tree !== row.digest) {
       return {
         envelope: errorEnvelope("documents", requestId, "PUBLICATION_INTEGRITY", `ledger digest does not match commit ${row.commitSha.slice(0, 12)} for ${specKey}@${version}`, {
@@ -106,8 +111,8 @@ export function createVersionedReads({ mounts, git, store }) {
     const docPath = `${specPath}/${args.doc}`;
     // Only a blob is a document: `git show <sha>:<dir>` would happily emit a
     // raw tree listing, and binary blobs would come back as UTF-8 garbage.
-    const type = await git.objectType(row.commitSha, docPath, { cwd: mounts.cloneDir }).catch(() => null);
-    const content = type === "blob" ? await git.show(row.commitSha, docPath, { cwd: mounts.cloneDir }).catch(() => null) : null;
+    const type = await git.objectType(row.commitSha, docPath, { cwd }).catch(() => null);
+    const content = type === "blob" ? await git.show(row.commitSha, docPath, { cwd }).catch(() => null) : null;
     if (type !== "blob" || content === null || content.includes("\0")) {
       return {
         envelope: errorEnvelope("documents", requestId, "DOCUMENT_NOT_FOUND", `${args.doc} is absent in ${specKey}@${version}`, {

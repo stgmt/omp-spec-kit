@@ -53,7 +53,25 @@ exports.httpHandler = {
         // would send the <***> mask).
         connection.bearerAuth(bridgeToken);
         connection.addHeader('X-Spec-User', login);
-        const response = connection.postSync('/mcp', null, JSON.stringify(payload));
+        // Service-HTTP methods (repo bindings, identity) are REST endpoints on
+        // the service, not MCP tools — route them beside the JSON-RPC tunnel.
+        var method = payload.method;
+        var restPath = null;
+        var restMethod = 'POST';
+        if (method === 'service/me') { restPath = '/me'; restMethod = 'GET'; }
+        else if (method === 'repo/bindings') { restPath = '/repos/bindings'; restMethod = 'GET'; }
+        else if (method === 'repo/probe') { restPath = '/repos/probe'; }
+        else if (method === 'repo/bind') { restPath = '/repos/bind'; }
+        else if (method === 'repo/unbind') { restPath = '/repos/unbind'; }
+        var response;
+        if (restPath) {
+          var restBody = restMethod === 'POST' ? JSON.stringify(payload.params || {}) : null;
+          response = restMethod === 'GET'
+            ? connection.getSync(restPath)
+            : connection.postSync(restPath, null, restBody);
+        } else {
+          response = connection.postSync('/mcp', null, JSON.stringify(payload));
+        }
         if (!response || response.code < 200 || response.code >= 300) {
           ctx.response.json({
             error: 'service request failed',

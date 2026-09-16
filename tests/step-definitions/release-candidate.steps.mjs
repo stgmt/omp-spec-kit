@@ -109,7 +109,14 @@ async function seedCandidate(world) {
   world.release = await createCandidateWorld(repositoryRoot(), world.releaseTempRoot, world.verifiedCucumberFixture);
 }
 
-Before({ tags: "@release-candidate-regression" }, async function () {
+// cucumber.mjs glob-imports every step file for ALL runs, so these hooks fire
+// on unrelated features too (observed: they ran for @app-install-live and
+// failed a foreign run on a stale source-input hash). Register them only when
+// this invocation actually targets a release-evidence/candidate feature.
+const releaseCandidateRun = process.env.OMP_SPEC_KIT_BDD_CONTAINER === "1"
+  || process.env.OMP_SPEC_KIT_RC_BDD === "1";
+
+if (releaseCandidateRun) Before({ tags: "@release-candidate-regression" }, async function () {
   this.releaseTempRoot = await mkdtemp(path.join(tmpdir(), "omp-spec-kit-release-bdd-"));
   this.verifiedCucumberFixture = await readVerifiedCucumberFixture(repositoryRoot());
   this.release = null;
@@ -117,7 +124,7 @@ Before({ tags: "@release-candidate-regression" }, async function () {
   this.publicTreeOriginal = null;
 });
 
-After({ tags: "@release-candidate-regression" }, async function () {
+if (releaseCandidateRun) After({ tags: "@release-candidate-regression" }, async function () {
   if (this.publicTreeOriginal !== null) await writeFile(this.publicTreeOriginal.path, this.publicTreeOriginal.bytes);
   if (this.releaseServer !== null) await this.releaseServer.close();
   if (this.releaseTempRoot !== null) await rm(this.releaseTempRoot, { recursive: true, force: true, maxRetries: 3 });

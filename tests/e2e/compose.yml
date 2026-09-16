@@ -54,6 +54,9 @@ services:
       SPEC_REGISTRY_GIT_TOKEN: ${SPEC_REGISTRY_GIT_TOKEN:-}
       SPEC_REGISTRY_GIT_USER: ${SPEC_REGISTRY_GIT_USER:-x-access-token}
       SPEC_REGISTRY_GIT_AUTH_URL: ${SPEC_REGISTRY_GIT_AUTH_URL:-}
+      # Seals bound-repo credentials at rest (TASK-17). Test-contour default
+      # only — production deployments must set a real key.
+      SPEC_REGISTRY_SECRETS_KEY: ${SPEC_REGISTRY_SECRETS_KEY:-e2e-local-secrets-key-not-for-production}
     volumes:
       - service-data:/data
       - type: bind

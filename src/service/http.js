@@ -79,7 +79,7 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
     try {
       const requested = req.body?.serviceUrl;
       const serviceUrl = typeof requested === "string" && requested.length > 0 ? requested : `${req.protocol}://${req.get("host")}`;
-      res.json(await endpoints.onboarding({ ctx: req.ctx, serviceUrl }));
+      res.json(await endpoints.onboarding({ ctx: req.ctx, serviceUrl, project: req.body?.project }));
     } catch (error) {
       const status = Number.isSafeInteger(error?.status) ? error.status : 500;
       res.status(status).json({
@@ -89,6 +89,38 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
       });
     }
   });
+
+  // Repo bindings (TASK-17): caller identity, scopes and the bound repo set.
+  app.get("/me", authGate, async (req, res) => {
+    try {
+      res.json(await endpoints.me(req.ctx));
+    } catch (error) {
+      res.status(500).json({ error: "me failed", message: String(error?.message ?? error) });
+    }
+  });
+  app.get("/repos/bindings", authGate, async (req, res) => {
+    try {
+      res.json(await endpoints.repoBindings(req.ctx));
+    } catch (error) {
+      res.status(500).json({ error: "bindings failed", message: String(error?.message ?? error) });
+    }
+  });
+
+  const repoWrite = (fn) => async (req, res) => {
+    try {
+      res.json(await fn({ ctx: req.ctx, ...req.body }));
+    } catch (error) {
+      const status = Number.isSafeInteger(error?.status) ? error.status : 500;
+      res.status(status).json({
+        error: error?.code ?? "REPO_OP_FAILED",
+        message: String(error?.message ?? error),
+        ...(error?.retryable === true ? { retryable: true } : {}),
+      });
+    }
+  };
+  app.post("/repos/probe", authGate, repoWrite((input) => endpoints.repoProbe(input)));
+  app.post("/repos/bind", authGate, repoWrite((input) => endpoints.repoBind(input)));
+  app.post("/repos/unbind", authGate, repoWrite((input) => endpoints.repoUnbind(input)));
 
   app.get("/mcp", (_req, res) => {
     res.set("Allow", "POST");
@@ -103,7 +135,7 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
     // Stateless mode per SDK docs: a fresh transport per request, no session id.
     const info = serverInfo();
     const server = new Server(info, { capabilities: { tools: {} } });
-    wireProtocolHandlers(server, dispatcher, req.ctx, audit);
+    wireProtocolHandlers(server, dispatcher, req.ctx, audit, { projectHint: req.headers["x-spec-project"] });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on("close", () => {
       transport.close();
@@ -120,7 +152,7 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
   return app;
 }
 
-function wireProtocolHandlers(server, dispatcher, ctx, audit) {
+function wireProtocolHandlers(server, dispatcher, ctx, audit, { projectHint } = {}) {
   server.setRequestHandler(InitializeRequestSchema, async (request) => {
     const requested = typeof request.params?.protocolVersion === "string" ? request.params.protocolVersion : "2025-03-26";
     const info = serverInfo();
@@ -138,7 +170,7 @@ function wireProtocolHandlers(server, dispatcher, ctx, audit) {
     if (typeof name !== "string") {
       throw Object.assign(new Error("Unknown tool: <missing>"), { code: -32602 });
     }
-    const { envelope, unknownTool } = await dispatcher.callTool({ tool: name, args: rawArguments, ctx });
+    const { envelope, unknownTool } = await dispatcher.callTool({ tool: name, args: rawArguments, ctx, projectHint });
     if (unknownTool) {
       throw Object.assign(new Error(`Unknown tool: ${name}`), { code: -32602 });
     }

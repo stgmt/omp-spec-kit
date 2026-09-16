@@ -254,6 +254,16 @@ export class GitClient {
     await this.run(args, { cwd });
   }
 
+  /**
+   * Credential/reachability probe for a repo URL — `ls-remote <url>` needs no
+   * local clone, so it runs from a plain directory and answers "can these
+   * credentials read this remote at all" before a binding is accepted.
+   */
+  async probeRemote(url, { cwd } = {}) {
+    const { stdout } = await this.run(["ls-remote", url, "HEAD"], { cwd });
+    return stdout.trim().split("\t")[0] || null;
+  }
+
   /** Remote refs matching a pattern → Map(ref → sha). Works without fetching tags. */
   async lsRemote(pattern, { remote = "origin", cwd } = {}) {
     const { stdout } = await this.run(["ls-remote", remote, pattern], { cwd });

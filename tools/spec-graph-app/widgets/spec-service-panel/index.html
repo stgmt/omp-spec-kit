@@ -5,13 +5,22 @@
 <style>
   body.plugin { font: 13px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 12px; color: #1f2328; }
   h3 { margin: 0 0 8px; font-size: 14px; }
+  h4 { margin: 14px 0 6px; font-size: 13px; }
   .err { color: #b42318; white-space: pre-wrap; }
   .state { font-size: 12px; color: #57606a; margin-top: 8px; }
   .spec { display: block; padding: 4px 8px; margin: 2px 0; border: 1px solid #d0d7de; border-radius: 6px; background: #f6f8fa; font-family: Consolas, monospace; font-size: 12px; }
   .btns { margin-top: 10px; display: flex; gap: 8px; }
   button { padding: 6px 14px; border-radius: 6px; border: 1px solid #1f883d; background: #1f883d; color: #fff; cursor: pointer; font-size: 13px; }
+  button.secondary { border-color: #d0d7de; background: #f6f8fa; color: #1f2328; }
   button:disabled { opacity: .5; cursor: default; }
   pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 8px; font-size: 11px; overflow: auto; max-height: 160px; }
+  .repo-form { border: 1px solid #d0d7de; border-radius: 8px; padding: 10px; margin-top: 8px; }
+  .repo-form label { display: block; font-size: 12px; color: #57606a; margin-top: 6px; }
+  .repo-form input, .repo-form select { width: 100%; box-sizing: border-box; padding: 5px 8px; border: 1px solid #d0d7de; border-radius: 6px; font-size: 12px; font-family: Consolas, monospace; }
+  .badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid #d0d7de; background: #f6f8fa; }
+  .badge.active { border-color: #1f883d; color: #1f883d; }
+  .badge.error { border-color: #b42318; color: #b42318; }
+  .badge.migrating { border-color: #9a6700; color: #9a6700; }
 </style>
 </head>
 <body class="plugin">
@@ -24,6 +33,8 @@
     var root = document.getElementById('root');
     var SPEC_SLUG = 'alpha-spec';
     var host = null;
+    var meInfo = null;
+    var specsList = [];
 
     function escapeHtml(text) {
       return String(text == null ? '' : text).replace(/[&<>"']/g, function (ch) {
@@ -46,19 +57,108 @@
       root.innerHTML = '<h3>Spec Service</h3><p class="err" data-testid="service-error">' + escapeHtml(message) + '</p>';
     }
 
-    function renderSpecs(envelope) {
-      var data = envelope && envelope.data ? envelope.data : {};
-      var specs = data.specs || [];
+    function repoBadge(status) {
+      var cls = status === 'active' ? 'active' : status === 'error' ? 'error' : status === 'migrating' ? 'migrating' : '';
+      return '<span class="badge ' + cls + '" data-testid="repo-status-' + escapeHtml(status) + '">' + escapeHtml(status) + '</span>';
+    }
+
+    function repoSectionHtml() {
+      var repos = (meInfo && meInfo.repos) || [];
+      if (!repos.length) return '';
+      var html = '<h4>Specs repository</h4>';
+      html += '<div data-testid="repo-list">';
+      for (var i = 0; i < repos.length; i++) {
+        var r = repos[i];
+        html += '<div class="state">' + escapeHtml(r.project) + ' → ' + escapeHtml(r.repoUrl) + ' ' + repoBadge(r.status) + '</div>';
+      }
+      html += '</div>';
+      var canBind = meInfo && (meInfo.role === 'owner' || meInfo.role === 'writer');
+      if (canBind) {
+        for (var k = 0; k < repos.length; k++) {
+          if (!repos[k].bound) continue;
+          html += '<div class="state"><button class="secondary" data-testid="repo-unbind" data-project="' + escapeHtml(repos[k].project) + '" type="button">Move ' + escapeHtml(repos[k].project) + ' back to the default repo</button></div>';
+        }
+      }
+      if (!canBind) return html;
+      html += '<div class="repo-form" data-testid="repo-form">';
+      html += '<label>Project</label><select data-testid="repo-project">';
+      for (var j = 0; j < repos.length; j++) {
+        html += '<option value="' + escapeHtml(repos[j].project) + '">' + escapeHtml(repos[j].project) + '</option>';
+      }
+      html += '</select>';
+      html += '<label>Repository URL</label><input data-testid="repo-url" placeholder="https://github.com/you/your-specs.git">';
+      html += '<label>Git token (fine-grained PAT, contents read/write)</label><input data-testid="repo-token" type="password" autocomplete="off">';
+      html += '<label>Branch</label><input data-testid="repo-branch" value="main">';
+      html += '<div class="btns">';
+      html += '<button class="secondary" data-testid="repo-test" type="button">Test connection</button>';
+      html += '<button data-testid="repo-bind" type="button">Bind &amp; migrate</button>';
+      html += '</div><p class="state" data-testid="repo-result"></p></div>';
+      return html;
+    }
+
+    function bindRepoHandlers() {
+      var unbinds = root.querySelectorAll('[data-testid="repo-unbind"]');
+      for (var u = 0; u < unbinds.length; u++) {
+        unbinds[u].addEventListener('click', function (e) {
+          var button = e.target;
+          button.disabled = true;
+          callService({ id: 'widget-unbind', method: 'repo/unbind', params: { project: button.getAttribute('data-project') } }).then(function () {
+            loadAll();
+          }).catch(function () { button.disabled = false; });
+        });
+      }
+      var form = root.querySelector('[data-testid="repo-form"]');
+      if (!form) return;
+      var result = form.querySelector('[data-testid="repo-result"]');
+      var fields = function () {
+        return {
+          project: form.querySelector('[data-testid="repo-project"]').value,
+          repoUrl: form.querySelector('[data-testid="repo-url"]').value.trim(),
+          token: form.querySelector('[data-testid="repo-token"]').value,
+          branch: form.querySelector('[data-testid="repo-branch"]').value.trim() || 'main'
+        };
+      };
+      var run = function (method, extra, button) {
+        button.disabled = true;
+        result.textContent = 'working…';
+        return callService({ id: 'widget-' + method, method: method, params: Object.assign(fields(), extra) }).then(function (envelope) {
+          if (envelope && envelope.error) {
+            var detail = '';
+            try { detail = (JSON.parse(envelope.body || '{}').message || JSON.parse(envelope.body || '{}').error) || ''; } catch (e) {}
+            result.textContent = envelope.error + (detail ? ': ' + detail : envelope.message ? ': ' + envelope.message : '');
+            result.setAttribute('data-outcome', 'error');
+          } else {
+            result.textContent = method === 'repo/probe'
+              ? 'connection ok' + (envelope.head ? ' (HEAD ' + String(envelope.head).slice(0, 12) + ')' : ' — empty repo')
+              : 'bound — reloading…';
+            result.setAttribute('data-outcome', 'ok');
+            if (method === 'repo/bind') setTimeout(loadAll, 600);
+          }
+        }).catch(function (error) {
+          result.textContent = String(error && error.message ? error.message : error);
+          result.setAttribute('data-outcome', 'transport-error');
+        }).finally(function () { button.disabled = false; });
+      };
+      form.querySelector('[data-testid="repo-test"]').addEventListener('click', function (e) {
+        run('repo/probe', {}, e.target);
+      });
+      form.querySelector('[data-testid="repo-bind"]').addEventListener('click', function (e) {
+        run('repo/bind', { migrate: true }, e.target);
+      });
+    }
+
+    function render() {
       root.setAttribute('data-state', 'ready');
       var html = '<h3>Spec Service</h3>';
-      html += '<p class="state" data-testid="spec-count">Specs visible to you: ' + specs.length + '</p>';
+      html += '<p class="state" data-testid="spec-count">Specs visible to you: ' + specsList.length + '</p>';
       html += '<div data-testid="spec-list">';
-      for (var i = 0; i < specs.length; i += 1) {
-        html += '<span class="spec" data-spec="' + escapeHtml(specs[i]) + '">' + escapeHtml(specs[i]) + '</span>';
+      for (var i = 0; i < specsList.length; i += 1) {
+        html += '<span class="spec" data-spec="' + escapeHtml(specsList[i]) + '">' + escapeHtml(specsList[i]) + '</span>';
       }
       html += '</div>';
       html += '<div class="btns"><button data-testid="apply-patch" type="button">Apply TASK-1 patch</button></div>';
       html += '<pre data-testid="apply-result" hidden></pre>';
+      html += repoSectionHtml();
       root.innerHTML = html;
       var button = root.querySelector('[data-testid="apply-patch"]');
       var output = root.querySelector('[data-testid="apply-result"]');
@@ -90,23 +190,28 @@
           output.textContent = String(error && error.message ? error.message : error);
         });
       });
+      bindRepoHandlers();
+    }
+
+    function loadAll() {
+      return Promise.all([
+        callService({ id: 'widget-list', method: 'tools/call', params: { name: 'spec_catalog', arguments: { view: 'specs' } } }),
+        callService({ id: 'widget-me', method: 'service/me', params: {} })
+      ]).then(function (results) {
+        var structured = results[0] && results[0].result ? results[0].result.structuredContent : results[0];
+        if (!structured || structured.ok !== true) { renderError(structured || results[0]); return; }
+        specsList = (structured.data && structured.data.specs) || [];
+        meInfo = results[1] && results[1].login ? results[1] : null;
+        render();
+      });
     }
 
     YTApp.register().then(function (registered) {
       host = registered;
-      return callService({ id: 'widget-list', method: 'tools/call', params: { name: 'spec_catalog', arguments: { view: 'specs' } } });
-    })
-      .then(function (envelope) {
-        var structured = envelope && envelope.result ? envelope.result.structuredContent : envelope;
-        if (!structured || structured.ok !== true) {
-          renderError(structured || envelope);
-          return;
-        }
-        renderSpecs(structured);
-      })
-      .catch(function (error) {
-        renderError({ error: String(error && error.message ? error.message : error) });
-      });
+      return loadAll();
+    }).catch(function (error) {
+      renderError({ error: String(error && error.message ? error.message : error) });
+    });
   })();
 </script>
 </body>

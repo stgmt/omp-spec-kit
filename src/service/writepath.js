@@ -69,7 +69,7 @@ async function foreignAuthors({ git, cwd, branch, identity }) {
  * the caller only after the push is confirmed (FR-5); a failed push leaves
  * the clone ahead of remote for retry/boot reconciliation.
  */
-export function createWritePipeline({ mounts, claims, git, identity, logger = () => {}, publish = null }) {
+export function createWritePipeline({ mounts, claims, identity, logger = () => {}, publish = null }) {
   return {
     async specPatch({ args, ctx, project, force, requestId, schemaVersion }) {
       const spec = typeof args.spec === "string" ? args.spec : null;
@@ -90,25 +90,36 @@ export function createWritePipeline({ mounts, claims, git, identity, logger = ()
         }
       }
 
+      if (args.dryRun !== true && typeof mounts.migrating === "function" && mounts.migrating(project)) {
+        return {
+          envelope: errorEnvelope("specPatch", requestId, "SPEC_MIGRATING", `project ${project} is migrating to another specs repo; retry when the move lands`, {
+            specSlug: spec,
+            retryable: true,
+            causeCode: "SPEC_MIGRATING",
+          }),
+        };
+      }
+
+      const mount = mounts.for(project);
+      const { git, cwd, branch } = mount;
       const envelope = await mounts.serviceFor(project).runQuery("specPatch", args, { requestId, schemaVersion });
       if (!(envelope.ok && envelope.data?.outcome === "APPLIED")) return { envelope };
 
       const receipt = envelope.data.receipt ?? {};
-      const branch = mounts.config.branch;
       const pushBotCommits = async () => {
-        const foreign = await foreignAuthors({ git, cwd: mounts.cloneDir, branch, identity });
+        const foreign = await foreignAuthors({ git, cwd, branch, identity });
         if (foreign.length > 0) {
           const refusal = new Error(`the clone carries commits authored by ${foreign.join(", ")}`);
           refusal.causeCode = "FOREIGN_COMMITS";
           throw refusal;
         }
-        await git.push({ refspec: `HEAD:refs/heads/${branch}` }, { cwd: mounts.cloneDir });
+        await git.push({ refspec: `HEAD:refs/heads/${branch}` }, { cwd });
       };
       try {
         const changed = (receipt.changedDocuments ?? [])
           .map((change) => `${project}/${change.path}`.split("\\").join("/"))
           .filter((p) => !p.includes(".."));
-        await git.add(changed, { cwd: mounts.cloneDir });
+        await git.add(changed, { cwd });
         await git.commit({
           message: commitMessage({
             subject: `spec(${project}): apply ${short(receipt.proposalHash)}`,
@@ -119,7 +130,7 @@ export function createWritePipeline({ mounts, claims, git, identity, logger = ()
           }),
           authorName: identity.name,
           authorEmail: identity.email,
-          cwd: mounts.cloneDir,
+          cwd,
         });
         await pushBotCommits();
         logger(`pushed ${project} ${short(receipt.proposalHash)}`);
@@ -148,7 +159,7 @@ export function createWritePipeline({ mounts, claims, git, identity, logger = ()
         // A rejected push means the remote moved (break-glass, another writer):
         // replay the local commit on top of it and retry once, so the write is
         // never silently dropped and the clone does not stay stuck ahead.
-        const recovered = await reconcileClone({ git, cwd: mounts.cloneDir, branch, identity, logger })
+        const recovered = await reconcileClone({ git, cwd, branch, identity, logger })
           .then(pushBotCommits)
           .then(() => true)
           .catch((retryError) => {
