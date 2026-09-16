@@ -28,7 +28,14 @@ export async function bootService({ configPath, cloneDir, git = new GitClient({ 
 }
 
 export function buildServiceStack({ mounts, config, identity = botIdentityFromEnv(), logger = () => {}, store, secretsKey = null, syncIntervalMs = 0, env = process.env }) {
-  const idpManager = createIdpManager({ store, config, secretsKey, logger });
+  const repos = createRepoManager({ mounts, store, config, identity, secretsKey, logger });
+  const idpManager = createIdpManager({
+    store, config, secretsKey, logger,
+    // The IdP binder provisions the tenant's specs repo in the same act — an
+    // external project without a repo binding refuses all data operations.
+    bindProjectRepo: (input) => repos.bindInternal(input),
+    unbindProjectRepo: (project) => repos.unbindInternal(project),
+  });
   // IdP-bound tenant projects are configured through their binding, not the
   // operator config — MountManager consults the resolver on every check.
   mounts.extraProjects = () => idpManager.projectScopes();
@@ -69,7 +76,6 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher });
   const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger, idps: { list: () => idpManager.listActiveIdps() } });
   const versionedReads = createVersionedReads({ mounts, store });
-  const repos = createRepoManager({ mounts, store, config, identity, secretsKey, logger });
   let sync = null;
   if (syncIntervalMs > 0) {
     sync = startSync({ mounts, identity, intervalMs: syncIntervalMs, logger, afterReconcile: publisher ? () => publisher.publishAll() : null });
@@ -88,7 +94,22 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     endpoints: {
       registry: () => registryIndex(),
       drift: () => driftReport(),
-      onboarding: (input) => onboarding.issueToken(input),
+      onboarding: async (input) => {
+        // Bring-your-own specs repo at onboarding: the caller's project is
+        // bound to their repository before the agent token is minted, so
+        // specs never land in the operator's shared repo by default.
+        if (input.repo && typeof input.repo === "object") {
+          const project = input.repo.project ?? input.project ?? input.ctx?.defaultScope ?? null;
+          if (typeof project !== "string" || project.length === 0) {
+            const error = new Error("repo.project or a caller default scope is required to bind a specs repo at onboarding");
+            error.status = 400;
+            error.code = "REPO_PROJECT_REQUIRED";
+            throw error;
+          }
+          await repos.bind({ ctx: input.ctx, project, repoUrl: input.repo.url, branch: input.repo.branch, token: input.repo.token, username: input.repo.username, migrate: input.repo.migrate });
+        }
+        return onboarding.issueToken(input);
+      },
       me: (ctx) => repos.me(ctx),
       repoBindings: (ctx) => repos.bindings(ctx),
       repoBind: (input) => repos.bind(input),

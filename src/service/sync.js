@@ -62,7 +62,9 @@ export function startSync({ mounts, identity, intervalMs = 30_000, logger = () =
     }
     if (anyMoved) {
       for (const projectId of mounts.projects) {
-        mounts.serviceFor(projectId).refresh();
+        // An external-tenant project without a repo binding has no service —
+        // skip it rather than wedging the whole reconcile pass.
+        try { mounts.serviceFor(projectId).refresh(); } catch {}
       }
       // Accepted remote commits may carry ACTIVE transitions — publish them.
       await afterReconcile?.().catch((error) => logger(`publish after reconcile failed: ${error.message}`));

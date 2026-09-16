@@ -62,7 +62,7 @@
     }
 
     function repoBadge(status) {
-      var cls = status === 'active' ? 'active' : (status === 'error' || status === 'required') ? 'error' : status === 'migrating' ? 'migrating' : '';
+      var cls = status === 'active' ? 'active' : status === 'error' ? 'error' : status === 'migrating' ? 'migrating' : '';
       return '<span class="badge ' + cls + '" data-testid="repo-status-' + escapeHtml(status) + '">' + escapeHtml(status) + '</span>';
     }
 
@@ -73,17 +73,14 @@
       html += '<div data-testid="repo-list">';
       for (var i = 0; i < repos.length; i++) {
         var r = repos[i];
-        html += '<div class="state">' + escapeHtml(r.project) + ' → ' + (r.repoUrl ? escapeHtml(r.repoUrl) : 'no repository — bind one below') + ' ' + repoBadge(r.status) + '</div>';
+        html += '<div class="state">' + escapeHtml(r.project) + ' → ' + escapeHtml(r.repoUrl) + ' ' + repoBadge(r.status) + '</div>';
       }
       html += '</div>';
       var canBind = meInfo && (meInfo.role === 'owner' || meInfo.role === 'writer');
       if (canBind) {
         for (var k = 0; k < repos.length; k++) {
           if (!repos[k].bound) continue;
-          var unbindLabel = meInfo.idp != null
-            ? 'Unbind the repository from ' + escapeHtml(repos[k].project)
-            : 'Move ' + escapeHtml(repos[k].project) + ' back to the default repo';
-          html += '<div class="state"><button class="secondary" data-testid="repo-unbind" data-project="' + escapeHtml(repos[k].project) + '" type="button">' + unbindLabel + '</button></div>';
+          html += '<div class="state"><button class="secondary" data-testid="repo-unbind" data-project="' + escapeHtml(repos[k].project) + '" type="button">Move ' + escapeHtml(repos[k].project) + ' back to the default repo</button></div>';
         }
       }
       if (!canBind) return html;
@@ -128,9 +125,6 @@
       html += '<label>Owner groups</label><input data-testid="idp-owners" placeholder="spec-owners">';
       html += '<label>Writer groups</label><input data-testid="idp-writers" placeholder="spec-writers">';
       html += '<label>Reader groups</label><input data-testid="idp-readers" placeholder="spec-readers">';
-      html += '<label>Specs repository URL — the tenant\'s own repo (recommended; unbound projects cannot store specs)</label><input data-testid="idp-repo-url" placeholder="https://github.com/you/your-specs.git">';
-      html += '<label>Specs repo git token</label><input data-testid="idp-repo-token" type="password" autocomplete="off">';
-      html += '<label>Specs repo branch</label><input data-testid="idp-repo-branch" value="main">';
       html += '<div class="btns">';
       html += '<button class="secondary" data-testid="idp-test" type="button">Test connection</button>';
       html += '<button data-testid="idp-bind" type="button">Bind YouTrack</button>';
@@ -219,7 +213,7 @@
       var result = form.querySelector('[data-testid="idp-result"]');
       var install = form.querySelector('[data-testid="idp-install"]');
       var fields = function () {
-        var f = {
+        return {
           tenant: form.querySelector('[data-testid="idp-tenant"]').value.trim(),
           youtrackUrl: form.querySelector('[data-testid="idp-url"]').value.trim(),
           serviceToken: form.querySelector('[data-testid="idp-token"]').value,
@@ -231,15 +225,6 @@
             reader: csv(form.querySelector('[data-testid="idp-readers"]').value)
           }
         };
-        var repoUrl = form.querySelector('[data-testid="idp-repo-url"]').value.trim();
-        if (repoUrl) {
-          f.repo = {
-            url: repoUrl,
-            token: form.querySelector('[data-testid="idp-repo-token"]').value,
-            branch: form.querySelector('[data-testid="idp-repo-branch"]').value.trim() || 'main'
-          };
-        }
-        return f;
       };
       var run = function (method, button) {
         button.disabled = true;
@@ -254,11 +239,7 @@
             result.textContent = 'connection ok (service login: ' + escapeHtml(envelope.serviceLogin || '?') + ')';
             result.setAttribute('data-outcome', 'ok');
           } else {
-            var repoErrors = envelope.repos
-              ? Object.keys(envelope.repos).filter(function (p) { return envelope.repos[p].error; })
-                .map(function (p) { return p + ': ' + (envelope.repos[p].message || envelope.repos[p].error); })
-              : [];
-            result.textContent = 'bound — reloading…' + (repoErrors.length ? ' (repo errors: ' + repoErrors.join('; ') + ')' : '');
+            result.textContent = 'bound — reloading…';
             result.setAttribute('data-outcome', 'ok');
             // The bridge token is shown exactly once — persist it across the
             // widget's own re-render so the user can actually copy it.

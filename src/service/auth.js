@@ -24,6 +24,7 @@ function sha256(value) {
 }
 
 function hashesEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string") return false;
   const left = Buffer.from(a, "hex");
   const right = Buffer.from(b, "hex");
   return left.length === right.length && timingSafeEqual(left, right);
@@ -205,11 +206,26 @@ export function createYouTrackAuth({ youtrack, appBridgeToken, tenants, roleGrou
           : [...candidates.filter((idp) => idp.tenant === hint), ...candidates.filter((idp) => idp.tenant !== hint)];
         let identity = null;
         resolvedIdp = null;
+        let unreachable = 0;
         for (const idp of ordered) {
-          identity = await verifyTokenIdentity(token, idp);
+          try {
+            identity = await verifyTokenIdentity(token, idp);
+          } catch (error) {
+            // A dead IdP must not take the fan-out down — its failure is
+            // scoped to its own tenant. Keep verifying against the rest;
+            // if nothing verifies, the honest answer is UNAVAILABLE only
+            // when a dead IdP might have been the token's issuer.
+            if (error instanceof AuthError && error.status === 503) { unreachable += 1; continue; }
+            throw error;
+          }
           if (identity !== null) { resolvedIdp = idp; break; }
         }
-        if (identity === null) throw new AuthError(401, "INVALID_TOKEN", "YouTrack rejected the token");
+        if (identity === null) {
+          if (unreachable > 0) {
+            throw new AuthError(503, "UNAVAILABLE", "the token could not be conclusively verified: at least one bound YouTrack is unreachable", { retryable: true });
+          }
+          throw new AuthError(401, "INVALID_TOKEN", "YouTrack rejected the token");
+        }
         user = await fetchUserWithServiceToken(identity.login, resolvedIdp);
       }
 

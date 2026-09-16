@@ -92,7 +92,7 @@ async function scenarioRequirements(repositoryRoot) {
   return { requirements, multiplicities };
 }
 function expectedManagerToolCount(version) {
-  if (version === "2.2.0" || version === "2.1.0" || version === "2.0.0" || version === "1.3.0" || version === "1.2.0" || version === "1.1.0" || version === "1.0.2" || version === "1.0.1" || version === "1.0.0" || version === "0.10.2") return 10;
+  if (version === "2.2.1" || version === "2.2.0" || version === "2.1.0" || version === "2.0.0" || version === "1.3.0" || version === "1.2.0" || version === "1.1.0" || version === "1.0.2" || version === "1.0.1" || version === "1.0.0" || version === "0.10.2") return 10;
   if (version === "0.10.1" || version === "0.10.0") return 10;
   if (version === "0.6.0" || version === "0.7.0") return 49;
   if (version === "0.8.1" || version === "0.8.2") return 11;

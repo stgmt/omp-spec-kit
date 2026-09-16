@@ -141,8 +141,32 @@ export class MountManager {
     this.defaultMount = this.registerMount({ key: "default", repoUrl: config.specsRepo, branch: config.branch, cwd: this.cloneDir, git: this.git });
   }
 
+  /** Every project the service knows: operator-configured plus IdP-claimed. */
   get projects() {
-    return this.config.projects;
+    return this.configuredProjects();
+  }
+
+  configuredProjects() {
+    return [...new Set([...this.config.projects, ...this.extraProjects()])];
+  }
+
+  /**
+   * A project registered only through an external-IdP binding. Its specs are
+   * customer data: they must live in the customer's own repo, so an unbound
+   * external project has NO mount — never a silent slice of the operator's
+   * shared repository.
+   */
+  isExternalProject(projectId) {
+    return !this.config.projects.includes(projectId) && this.extraProjects().includes(projectId);
+  }
+
+  requireRepoReady(projectId) {
+    if (this.isExternalProject(projectId) && !this.bindingFor(projectId)) {
+      const error = new Error(`project ${projectId} belongs to an external tenant and has no specs repository — bind one via POST /repos/bind before reading or writing specs`);
+      error.code = "REPO_BINDING_REQUIRED";
+      throw error;
+    }
+    return projectId;
   }
 
   registerMount(descriptor) {
@@ -180,12 +204,27 @@ export class MountManager {
    */
   for(projectId) {
     const row = this.store?.getBinding?.(projectId) ?? null;
-    if (!row) return this.defaultMount;
+    if (!row) {
+      this.requireRepoReady(projectId);
+      return this.defaultMount;
+    }
     if (row.status === "active") return this.byRepo(row.repoUrl, row.branch, projectId);
     if (row.status === "migrating") {
       return row.migratedFrom ? this.byRepo(row.migratedFrom, row.migratedFromBranch ?? row.branch, projectId) : this.defaultMount;
     }
+    this.requireRepoReady(projectId);
     return this.defaultMount;
+  }
+
+  /**
+   * Where a project's content lives BEFORE a binding exists — the migration
+   * source. Unlike `for`, this never refuses an unbound external project:
+   * binding that project to its own repo is precisely the allowed operation.
+   */
+  forSource(projectId) {
+    const row = this.store?.getBinding?.(projectId) ?? null;
+    if (!row) return this.defaultMount;
+    return this.for(projectId);
   }
 
   /**
@@ -214,7 +253,15 @@ export class MountManager {
   /** All mounts a project currently resolves through (active binding or default). */
   activeMounts() {
     const seen = new Map();
-    for (const projectId of this.config.projects) seen.set(this.for(projectId).key, this.for(projectId));
+    for (const projectId of this.projects) {
+      let mount;
+      try {
+        mount = this.for(projectId);
+      } catch {
+        continue; // unbound external project: no mount exists to reconcile
+      }
+      seen.set(mount.key, mount);
+    }
     return [...seen.values()];
   }
 

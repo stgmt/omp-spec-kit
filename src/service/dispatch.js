@@ -167,6 +167,9 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
     } else {
       try {
         mounts.requireConfigured(resolved.project);
+        // An external-tenant project without a repo binding refuses here —
+        // its specs must live in the customer's repo, never the operator's.
+        mounts.requireRepoReady?.(resolved.project);
       } catch (error) {
         return { envelope: invalidRequest(operation, requestId, error.message, { parameter: "project", receivedSummary: resolved.project }) };
       }

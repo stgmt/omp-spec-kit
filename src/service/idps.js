@@ -15,6 +15,20 @@ const PROBE_TIMEOUT_MS = 8_000;
 const TENANT_RE = /^[a-z][a-z0-9-]{1,39}$/;
 
 /**
+ * Hosts the service must never call for IdP verification: loopback beyond
+ * 127.0.0.1, wildcard, link-local/cloud-metadata, v4-mapped v6. A bound IdP
+ * gets called with a stored bearer token on every auth lookup — these
+ * destinations would make that an internal-network oracle.
+ */
+function idpHostDenied(host) {
+  const bare = host.replace(/^\[|\]$/g, "");
+  return bare === "::1" || bare === "::" || bare === "0.0.0.0"
+    || /^::ffff:/i.test(bare)
+    || /^169\.254\./.test(bare)
+    || /^fe[89a-f]/i.test(bare);
+}
+
+/**
  * External YouTrack URL policy: http(s) only, https required for public
  * hosts, optional idpPolicy.allowedHosts allowlist on top — same SSRF shape
  * as repoPolicy, since the service calls the bound URL with a stored token.
@@ -29,6 +43,9 @@ export function idpUrlAllowed(rawUrl, allowedHosts) {
   const host = parsed.hostname;
   const scheme = parsed.protocol.replace(/:$/, "");
   const isPrivateHost = host === "localhost" || host === "127.0.0.1" || !host.includes(".") || /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./.test(host) || host.endsWith(".local") || host.endsWith(".internal");
+  if (idpHostDenied(host)) {
+    return { ok: false, reason: `youtrack host is not a bindable address: ${host}` };
+  }
   if (!["https", "http"].includes(scheme)) {
     return { ok: false, reason: `youtrack url scheme must be http(s), got ${scheme}` };
   }
@@ -43,6 +60,10 @@ export function idpUrlAllowed(rawUrl, allowedHosts) {
 
 function normalizeUrl(raw) {
   const url = new URL(raw);
+  // userinfo must never persist: `https://user:pass@host` would otherwise be
+  // stored in the binding row and echoed back through /idp/bindings.
+  url.username = "";
+  url.password = "";
   url.pathname = url.pathname.replace(/\/+$/, "");
   url.search = "";
   url.hash = "";
@@ -94,7 +115,7 @@ function publicBinding(row) {
  * tenant's scopes/roles. The customer's service token is sealed at rest; the
  * minted app-bridge secret is shown once at bind and stored as a hash.
  */
-export function createIdpManager({ store, config, secretsKey, logger = () => {}, fetchImpl = fetch }) {
+export function createIdpManager({ store, config, secretsKey, logger = () => {}, fetchImpl = fetch, bindProjectRepo = null, unbindProjectRepo = null }) {
   const audit = (entry) => { try { store?.logAccess?.(entry); } catch {} };
 
   function requireStore() {
@@ -170,7 +191,40 @@ export function createIdpManager({ store, config, secretsKey, logger = () => {},
     return probeYoutrack(url, serviceToken);
   }
 
-  async function bind({ ctx, tenant, youtrackUrl, serviceToken, projects, hubGroups, roleGroups, defaultProject }) {
+  function sameSet(a, b) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v) => b.includes(v));
+  }
+
+  function sameRoleGroups(a, b) {
+    return ["owner", "writer", "reader"].every((role) => sameSet(a?.[role] ?? [], b?.[role] ?? []));
+  }
+
+  /**
+   * Optionally bind the tenant's projects to the customer's own specs repo
+   * in the same call — the tenant's specs then never touch the operator's
+   * shared repo. Per-project results are reported; a failed repo bind leaves
+   * the IdP binding in place and the project refusing REPO_BINDING_REQUIRED.
+   */
+  async function applyRepoBlock(repo, projectsNorm, boundBy) {
+    if (repo === undefined || repo === null) return undefined;
+    if (typeof repo !== "object" || Array.isArray(repo)) {
+      throw new IdpError(400, "BAD_INPUT", "repo must be an object {url, token, branch?, username?, migrate?}");
+    }
+    if (typeof bindProjectRepo !== "function") {
+      throw new IdpError(503, "REPO_BIND_UNAVAILABLE", "the repo manager is not wired — cannot bind tenant projects to a specs repo", { retryable: true });
+    }
+    const results = {};
+    for (const project of projectsNorm) {
+      try {
+        results[project] = await bindProjectRepo({ project, repoUrl: repo.url, branch: repo.branch, token: repo.token, username: repo.username, migrate: repo.migrate, boundBy });
+      } catch (error) {
+        results[project] = { error: error?.code ?? "REPO_BIND_FAILED", message: String(error?.message ?? error).split("\n")[0] };
+      }
+    }
+    return results;
+  }
+
+  async function bind({ ctx, tenant, youtrackUrl, serviceToken, projects, hubGroups, roleGroups, defaultProject, repo = null }) {
     requireStore();
     assertBindAllowed(ctx);
     const v = validateInput({ tenant, youtrackUrl, serviceToken, projects, hubGroups, roleGroups, defaultProject });
@@ -178,31 +232,79 @@ export function createIdpManager({ store, config, secretsKey, logger = () => {},
 
     const staticTenantNames = new Set((config.tenants ?? []).map((t) => t.tenant));
     if (staticTenantNames.has(tenant)) throw new IdpError(409, "TENANT_TAKEN", `tenant name collides with a configured tenant: ${tenant}`);
+
+    // Project scopes are exclusive: an external IdP may never claim a project
+    // the operator configuration manages or another binding already owns —
+    // binding `stgmt/alpha` would hand the customer's users the operator's
+    // specs, writes included.
+    const configured = new Set(config.projects ?? []);
+    const claimed = new Map();
+    for (const row of store.listIdpBindings() ?? []) {
+      for (const p of row.projects ?? []) claimed.set(p, row.tenant);
+    }
+    for (const project of v.projectsNorm) {
+      if (configured.has(project)) {
+        throw new IdpError(409, "IDP_PROJECT_TAKEN", `project is managed by the operator configuration and cannot be claimed by an external IdP: ${project}`);
+      }
+      const owner = claimed.get(project);
+      if (owner && owner !== tenant) {
+        throw new IdpError(409, "IDP_PROJECT_TAKEN", `project ${project} is already claimed by tenant ${owner}`);
+      }
+    }
+
     const existing = store.getIdpBinding(tenant);
-    if (existing?.status === "active" && existing.youtrackUrl === v.url) {
-      return { binding: publicBinding(existing), unchanged: true };
+    // Only the binder (or an owner) may touch a live binding — otherwise a
+    // stranger could re-point the tenant at their own YouTrack and silently
+    // rotate the bridge secret under the installed app.
+    if (existing && existing.boundBy !== ctx.identity?.login && ctx.role !== "owner") {
+      throw new IdpError(403, "FORBIDDEN", "only the binder or an owner may change an IdP binding");
     }
-    const urlOwner = store.getIdpBindingByUrl(v.url);
-    if (urlOwner && urlOwner.tenant !== tenant) {
-      throw new IdpError(409, "IDP_URL_TAKEN", `YouTrack ${v.url} is already bound as tenant ${urlOwner.tenant}`);
+    const identical = existing?.status === "active" && existing.youtrackUrl === v.url
+      && sameSet(existing.projects ?? [], v.projectsNorm)
+      && sameSet(existing.hubGroups ?? [], v.hubNorm)
+      && sameRoleGroups(existing.roleGroups ?? {}, v.rolesNorm)
+      && (existing.defaultProject ?? null) === (v.defaultProject ?? v.projectsNorm[0]);
+
+    let row;
+    let bridgeToken = null;
+    let probeResult = null;
+    if (identical) {
+      row = existing;
+    } else {
+      if (existing && existing.youtrackUrl === v.url) {
+        throw new IdpError(409, "IDP_EXISTS", `tenant ${tenant} is already bound to ${v.url} with different parameters — unbind first to change scope or group configuration`);
+      }
+      const urlOwner = store.getIdpBindingByUrl(v.url);
+      if (urlOwner && urlOwner.tenant !== tenant) {
+        throw new IdpError(409, "IDP_URL_TAKEN", `YouTrack ${v.url} is already bound as tenant ${urlOwner.tenant}`);
+      }
+
+      probeResult = await probeYoutrack(v.url, serviceToken);
+
+      // Bridge secret: minted by the service, shown once, stored as a hash —
+      // the row carries no usable credential.
+      bridgeToken = randomBytes(32).toString("base64url");
+      const bridgeTokenHash = createHash("sha256").update(bridgeToken).digest("hex");
+
+      await store.putIdpCredential(tenant, { serviceTokenEnc: sealSecret(secretsKey, serviceToken) });
+      await store.putIdpBinding({
+        tenant, youtrackUrl: v.url, projects: v.projectsNorm, hubGroups: v.hubNorm, roleGroups: v.rolesNorm,
+        defaultProject: v.defaultProject ?? v.projectsNorm[0], bridgeTokenHash, status: "active",
+        boundBy: ctx.identity?.login ?? null, boundAt: new Date().toISOString(), lastError: null,
+      });
+      audit({ login: ctx.identity?.login ?? null, role: ctx.role ?? null, tenant, project: null, op: "idp-bind", spec: null, result: `ok:${v.url}` });
+      logger(`idp-bind ${tenant} -> ${v.url}`);
+      row = store.getIdpBinding(tenant);
     }
 
-    const probeResult = await probeYoutrack(v.url, serviceToken);
-
-    // Bridge secret: minted by the service, shown once, stored as a hash —
-    // the row carries no usable credential.
-    const bridgeToken = randomBytes(32).toString("base64url");
-    const bridgeTokenHash = createHash("sha256").update(bridgeToken).digest("hex");
-
-    await store.putIdpCredential(tenant, { serviceTokenEnc: sealSecret(secretsKey, serviceToken) });
-    await store.putIdpBinding({
-      tenant, youtrackUrl: v.url, projects: v.projectsNorm, hubGroups: v.hubNorm, roleGroups: v.rolesNorm,
-      defaultProject: v.defaultProject ?? v.projectsNorm[0], bridgeTokenHash, status: "active",
-      boundBy: ctx.identity?.login ?? null, boundAt: new Date().toISOString(), lastError: null,
-    });
-    audit({ login: ctx.identity?.login ?? null, role: ctx.role ?? null, tenant, project: null, op: "idp-bind", spec: null, result: `ok:${v.url}` });
-    logger(`idp-bind ${tenant} -> ${v.url}`);
-    return { binding: publicBinding(store.getIdpBinding(tenant)), bridgeToken, probe: probeResult };
+    const repos = await applyRepoBlock(repo, v.projectsNorm, ctx.identity?.login ?? null);
+    return {
+      binding: publicBinding(row),
+      ...(bridgeToken !== null ? { bridgeToken } : {}),
+      ...(probeResult !== null ? { probe: probeResult } : {}),
+      ...(identical ? { unchanged: true } : {}),
+      ...(repos !== undefined ? { repos } : {}),
+    };
   }
 
   async function unbind({ ctx, tenant }) {
@@ -216,6 +318,12 @@ export function createIdpManager({ store, config, secretsKey, logger = () => {},
     }
     await store.deleteIdpBinding(tenant);
     await store.deleteIdpCredential(tenant);
+    // The tenant's projects cease to exist the moment the binding goes — an
+    // orphaned repo binding would otherwise resurface if the project id is
+    // later claimed by a different tenant.
+    for (const project of row.projects ?? []) {
+      try { await unbindProjectRepo?.(project); } catch {}
+    }
     audit({ login: ctx.identity?.login ?? null, role: ctx.role ?? null, tenant, project: null, op: "idp-unbind", spec: null, result: `ok:${row.youtrackUrl}` });
     logger(`idp-unbind ${tenant} (was ${row.youtrackUrl})`);
     return { unbound: tenant, previous: row.youtrackUrl };

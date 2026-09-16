@@ -42,9 +42,16 @@ function catalogSlugs(catalogEnvelope) {
 export async function buildRegistryIndex({ mounts, claims, ledger }) {
   const projects = [];
   for (const projectId of mounts.projects) {
-    const mount = mounts.for(projectId);
-    const root = mounts.resolveProjectRoot(projectId);
-    const service = mounts.serviceFor(projectId);
+    let mount, root, service;
+    try {
+      mount = mounts.for(projectId);
+      root = mounts.resolveProjectRoot(projectId);
+      service = mounts.serviceFor(projectId);
+    } catch (error) {
+      // Unbound external-tenant project: it exists but has no repo yet.
+      projects.push({ id: projectId, error: error?.code ?? "MOUNT_UNAVAILABLE" });
+      continue;
+    }
     const state = await service.ensure();
     if (state.status === "error") {
       projects.push({ id: projectId, error: state.readerError?.code ?? "ADAPTER_READ_ERROR" });

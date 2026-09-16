@@ -2,6 +2,35 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## [2.2.1] — 2026-09-16
+
+Adversarial-review hardening of the external-IdP feature plus the missing half of the multi-tenant story: customer specs now live in the customer's own repository, never the operator's.
+
+### Security fixes (v2.2.0 review findings)
+
+- **Project-claim takeover refused**: an external binding may no longer claim a project managed by the operator config or already claimed by another tenant — binding `stgmt/alpha` previously handed the customer's users the operator's specs, writes included (`IDP_PROJECT_TAKEN`, 409).
+- **Binding hijack refused**: only the binder or an owner may change or re-point an existing tenant binding; a stranger could previously overwrite any binding with their own YouTrack and rotate the bridge secret under the installed app.
+- **Fan-out resilience**: a dead or unreachable bound IdP no longer fails authentication for every caller — the fan-out skips it; a token no reachable IdP verifies returns 401, and `UNAVAILABLE` (503) is returned only when a dead IdP might have been the token's issuer.
+- **SSRF tightening**: `::1`, `0.0.0.0`, link-local/cloud-metadata (`169.254.*`), and v4-mapped IPv6 destinations are never bindable; credentials embedded in the YouTrack URL (`user:pass@host`) are stripped before storage.
+
+### Tenant specs live in the tenant's repository
+
+- `POST /idp/bind` accepts an optional `repo {url, token, branch?, username?, migrate?}` block binding every declared project to the customer's own specs repo in the same call; per-project results are reported under `repos`.
+- **External-tenant projects have no default repo**: an unbound external project refuses all data operations with `REPO_BINDING_REQUIRED` — the operator's shared repository is no longer a silent landing zone for customer specs.
+- `POST /onboarding/token` accepts the same `repo` block so a user can point their default scope at their own repository when minting an agent token.
+- `POST /repos/bind` accepts external-tenant projects (tenant writers/owners self-bind), and `idp/unbind` drops the tenant's repo bindings with the binding.
+- `/me` reports unbound external projects as `status: "required"`; publish, registry, drift and sync now cover bound external projects and tolerate unbound ones.
+- Widget: the IdP bind form carries the specs-repo fields, and unbound external projects render a `required` badge.
+
+### Re-bind semantics
+
+- Identical re-bind is a no-op (`unchanged`); the same URL with different scope/group parameters is refused (`IDP_EXISTS`) — changing a tenant's shape now requires an explicit unbind first.
+
+### Tests
+
+- `tests/idps.test.mjs` now 9/9: adds project-claim refusal, stranger re-bind refusal, drifted re-bind refusal, cross-tenant URL/project claims, credential-in-URL stripping, `REPO_BINDING_REQUIRED` gating, repo-block wiring with real migration into the customer repo, unbind repo-cleanup, and a unit-level dead-IdP fan-out proof.
+- `test:app-install-live` 46/46 steps: the widget bind carries the tenant repo block, the migrated `gamma-spec` is verified inside the tenant's own bare repo, then mia reads it through her app under tenant `acme`.
+
 ## [2.2.0] — 2026-09-16
 
 ### External identity providers — bring-your-own YouTrack (TASK-13)

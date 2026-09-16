@@ -46,9 +46,11 @@ Feature: Operator installs the spec-graph-app through the YouTrack UI
     live stack and a second real YouTrack instance.
     Given the spec-graph-app is installed with the service settings
     And a second YouTrack is provisioned for the external tenant
+    And the tenant has its own specs repo in the stack
     And alice is viewing the SPEC anchor issue
     When alice binds the external YouTrack in the widget
     Then the widget shows the minted app settings for the external tenant
+    And the tenant specs landed in the tenant repository
     When the app is installed on the external YouTrack with the minted settings
     Then mia sees her tenant specs through the external app
     When alice unbinds the external YouTrack in the widget

@@ -16,14 +16,15 @@ export class RepoError extends Error {
 
 const WRITE_ROLES = new Set(["owner", "writer"]);
 
-function assertBindAllowed(ctx, project, config) {
+function assertBindAllowed(ctx, project, config, mounts) {
   if (!WRITE_ROLES.has(ctx?.role)) {
     throw new RepoError(403, "FORBIDDEN_ROLE", `repo bindings require owner or writer role (caller role: ${ctx?.role ?? "none"})`);
   }
   if (!Array.isArray(ctx?.scopes) || !ctx.scopes.includes(project)) {
     throw new RepoError(403, "SCOPE_FORBIDDEN", `project ${project} is outside the caller's scopes`);
   }
-  if (!config.projects.includes(project)) {
+  const configured = typeof mounts?.configuredProjects === "function" ? mounts.configuredProjects() : config.projects;
+  if (!configured.includes(project)) {
     throw new RepoError(404, "PROJECT_NOT_CONFIGURED", `project is not configured on this service: ${project}`);
   }
 }
@@ -86,7 +87,7 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
   /** Reachability + credential check without persisting anything. */
   async function probeAccess({ ctx, project, repoUrl, token, username }) {
     requireStore();
-    assertBindAllowed(ctx, project, config);
+    assertBindAllowed(ctx, project, config, mounts);
     if (typeof repoUrl !== "string" || repoUrl.length === 0) throw new RepoError(400, "REPO_URL_REQUIRED", "repoUrl is required");
     const host = repoHostAllowed(repoUrl, config.repoPolicy?.allowedHosts);
     if (!host.ok) throw new RepoError(400, "REPO_HOST_FORBIDDEN", host.reason);
@@ -98,8 +99,17 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
   }
 
   async function bind({ ctx, project, repoUrl, branch, token, username, migrate = true }) {
+    assertBindAllowed(ctx, project, config, mounts);
+    return bindInternal({ project, repoUrl, branch, token, username, migrate, boundBy: ctx.identity?.login ?? null, role: ctx.role ?? null });
+  }
+
+  /**
+   * The bind body without the caller-scope gate. Used by the public path
+   * (which asserts scopes first) and by the IdP binder attaching a specs repo
+   * to a freshly bound tenant — the IdP-bind act itself is the authority.
+   */
+  async function bindInternal({ project, repoUrl, branch, token, username, migrate = true, boundBy = null, role = null }) {
     requireStore();
-    assertBindAllowed(ctx, project, config);
     if (typeof repoUrl !== "string" || repoUrl.length === 0) throw new RepoError(400, "REPO_URL_REQUIRED", "repoUrl is required");
     const host = repoHostAllowed(repoUrl, config.repoPolicy?.allowedHosts);
     if (!host.ok) throw new RepoError(400, "REPO_HOST_FORBIDDEN", host.reason);
@@ -121,7 +131,7 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     if (current?.status === "active" && current.repoUrl === repoUrl && current.branch === resolvedBranch) {
       return { binding: publicBinding(current), head, unchanged: true };
     }
-    const sourceMount = mounts.for(project);
+    const sourceMount = mounts.forSource(project);
     const migratedFrom = current?.status === "active" ? current.repoUrl : sourceMount.repoUrl;
     const migratedFromBranch = current?.status === "active" ? current.branch : sourceMount.branch;
 
@@ -131,7 +141,7 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     await store?.putCredential?.(project, { repoUrl, tokenEnc: sealSecret(secretsKey, token), username: auth.username ?? null });
     const put = (status, lastError = null) => store?.putBinding?.({
       project, repoUrl, branch: resolvedBranch, status,
-      boundBy: ctx.identity?.login ?? null, boundAt: new Date().toISOString(),
+      boundBy, boundAt: new Date().toISOString(),
       migratedFrom: migratedFrom === repoUrl || migratedFrom === config.specsRepo ? null : migratedFrom,
       migratedFromBranch: migratedFrom === repoUrl || migratedFrom === config.specsRepo ? null : migratedFromBranch,
       lastError,
@@ -150,7 +160,7 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
         await mount.git.commit({
           message: commitMessage({
             subject: `chore: migrate ${project} specs snapshot`,
-            trailers: { "Spec-Author": ctx.identity?.login ?? "service", "Spec-Migrated-From": migratedFrom },
+            trailers: { "Spec-Author": boundBy ?? "service", "Spec-Migrated-From": migratedFrom },
           }),
           authorName: identity.name,
           authorEmail: identity.email,
@@ -173,23 +183,35 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
       if (error instanceof RepoError) throw error;
       throw new RepoError(502, "REPO_BIND_FAILED", `binding failed: ${String(error?.message ?? error).split("\n")[0]}`);
     }
-    audit({ login: ctx.identity?.login ?? null, role: ctx.role ?? null, project, op: "repo-bind", spec: null, result: `ok:${hasContent ? "migrated" : "bound"}:${repoUrl}` });
+    audit({ login: boundBy, role, project, op: "repo-bind", spec: null, result: `ok:${hasContent ? "migrated" : "bound"}:${repoUrl}` });
     logger(`repo-bind ${project} -> ${repoUrl} (${hasContent ? "migrated" : "bound"})`);
     return { binding: publicBinding(store.getBinding(project)), head };
   }
 
   async function unbind({ ctx, project }) {
     requireStore();
-    assertBindAllowed(ctx, project, config);
+    assertBindAllowed(ctx, project, config, mounts);
     const row = store?.getBinding?.(project) ?? null;
     if (!row) throw new RepoError(404, "NOT_BOUND", `project ${project} has no repo binding`);
     // The bound clone stays on disk: ledger rows still reference its commits
     // for versioned reads across the migration boundary.
-    await store?.deleteBinding?.(project);
-    await store?.deleteCredential?.(project);
+    await unbindInternal(project);
     audit({ login: ctx.identity?.login ?? null, role: ctx.role ?? null, project, op: "repo-unbind", spec: null, result: `ok:${row.repoUrl}` });
     logger(`repo-unbind ${project} (was ${row.repoUrl})`);
     return { unbound: project, previous: row.repoUrl };
+  }
+
+  /**
+   * Credential-less cleanup used when an IdP unbind retires a tenant: the
+   * tenant's projects cease to be configured, so their repo bindings must go
+   * with it. The bound clone stays on disk for versioned reads.
+   */
+  async function unbindInternal(project) {
+    const row = store?.getBinding?.(project) ?? null;
+    if (!row) return null;
+    await store?.deleteBinding?.(project);
+    await store?.deleteCredential?.(project);
+    return row.repoUrl;
   }
 
   function bindings(ctx) {
@@ -208,10 +230,15 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
       defaultScope: ctx.defaultScope ?? null,
       repos: (ctx.scopes ?? []).map((project) => {
         const row = bound.get(project);
-        return { project, repoUrl: row?.status === "active" ? row.repoUrl : config.specsRepo, bound: row?.status === "active", status: row?.status ?? "default" };
+        // An external-tenant project with no binding has no repo at all —
+        // reporting "default" would pretend the operator's repo serves it.
+        const external = mounts.isExternalProject?.(project) === true;
+        const status = row?.status ?? (external ? "required" : "default");
+        const repoUrl = row?.status === "active" ? row.repoUrl : external ? null : config.specsRepo;
+        return { project, repoUrl, bound: row?.status === "active", status };
       }),
     };
   }
 
-  return { bind, unbind, bindings, me, probeAccess };
+  return { bind, bindInternal, unbind, unbindInternal, bindings, me, probeAccess };
 }

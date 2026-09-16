@@ -181,6 +181,8 @@ Then("the service widget lists alpha-spec", async function () {
 
 const BYO_REPO_URL = "git://spec-git/byo.git";
 const BYO_REPO_PATH = "/srv/git/byo.git";
+const EXT_REPO_URL = "git://spec-git/acme-specs.git";
+const EXT_REPO_PATH = "/srv/git/acme-specs.git";
 
 /** Widget's inner frame once the repo section is rendered (spec list or repo list). */
 async function widgetRepoFrame(page) {
@@ -346,6 +348,13 @@ Given("a second YouTrack is provisioned for the external tenant", async function
   live.ext.project = project;
 });
 
+Given("the tenant has its own specs repo in the stack", async function () {
+  // The customer's own repository — same git daemon, a different bare repo.
+  const script = `if [ ! -d "${EXT_REPO_PATH}" ]; then git init --bare --initial-branch=main "${EXT_REPO_PATH}"; fi && ls "${EXT_REPO_PATH}/HEAD"`;
+  const { stdout } = await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-git-1", "sh", "-c", script]);
+  assert.match(stdout, /HEAD/u, `tenant repo was not created: ${stdout}`);
+});
+
 When("alice binds the external YouTrack in the widget", async function () {
   const frame = await widgetIdpFrame(this.alicePage);
   const body = extBindBody({ serviceToken: live.ext.serviceToken });
@@ -357,6 +366,11 @@ When("alice binds the external YouTrack in the widget", async function () {
   await frame.locator('[data-testid="idp-owners"]').fill(body.roleGroups.owner.join(","));
   await frame.locator('[data-testid="idp-writers"]').fill(body.roleGroups.writer.join(","));
   await frame.locator('[data-testid="idp-readers"]').fill(body.roleGroups.reader.join(","));
+  // The tenant's own specs repo rides in the same bind — their specs must
+  // never land in the operator's shared repository.
+  await frame.locator('[data-testid="idp-repo-url"]').fill(EXT_REPO_URL);
+  await frame.locator('[data-testid="idp-repo-token"]').fill("e2e-unused-git-daemon");
+  await frame.locator('[data-testid="idp-repo-branch"]').fill("main");
   await frame.locator('[data-testid="idp-test"]').click();
   await frame.locator('[data-testid="idp-result"][data-outcome="ok"]').waitFor({ state: "attached", timeout: 30_000 });
   await frame.locator('[data-testid="idp-bind"]').click();
@@ -383,6 +397,20 @@ Then("the widget shows the minted app settings for the external tenant", async f
   live.ext.serviceUrl = urlMatch[1];
   live.ext.bridgeToken = tokenMatch[1];
   await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-widget-idp-bound.png"), fullPage: true }).catch(() => {});
+});
+
+Then("the tenant specs landed in the tenant repository", async function () {
+  // The repo block on idp/bind migrated acme/gamma's .specs snapshot out of
+  // the operator repo into the tenant's own bare repo.
+  const deadline = Date.now() + 60_000;
+  for (;;) {
+    const { stdout, failed } = await execFileAsync("docker", [
+      "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${EXT_REPO_PATH}`, "show", "main:acme/gamma/.specs/gamma-spec/README.md",
+    ]).then((r) => ({ stdout: r.stdout, failed: false })).catch(() => ({ stdout: "", failed: true }));
+    if (!failed && /gamma-spec|Gamma Spec/iu.test(stdout)) return;
+    if (Date.now() > deadline) throw new Error(`tenant repo never received the migrated specs: ${stdout.slice(0, 200)}`);
+    await new Promise((resolve) => setTimeout(resolve, 1_500));
+  }
 });
 
 When("the app is installed on the external YouTrack with the minted settings", async function () {

@@ -67,14 +67,15 @@ export async function ensureExtYoutrack({ logger = () => {} } = {}) {
 }
 
 /** Minimal bind body for the ext tenant against a service on the same network. */
-export function extBindBody({ serviceToken, youtrackUrl = EXT_YT_NET_URL }) {
+export function extBindBody({ serviceToken, youtrackUrl = EXT_YT_NET_URL, repo = undefined, projects = EXT_PROJECTS }) {
   return {
     tenant: EXT_TENANT,
     youtrackUrl,
     serviceToken,
-    projects: EXT_PROJECTS,
+    projects,
     hubGroups: EXT_HUB_GROUPS,
     roleGroups: EXT_ROLE_GROUPS,
-    defaultProject: EXT_PROJECTS[0],
+    defaultProject: projects[0],
+    ...(repo !== undefined ? { repo } : {}),
   };
 }

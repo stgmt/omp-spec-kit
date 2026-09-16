@@ -101,19 +101,34 @@ IdP URLs or tokens.
   check against the remote YouTrack (`users/me` + a `users` listing), persists
   nothing.
 - `POST /idp/bind` `{tenant, youtrackUrl, serviceToken, projects, hubGroups,
-  roleGroups, defaultProject?}` — any verified operator-YouTrack user may
-  bind; external-IdP users cannot nest-bind. Probes first, then seals the
+  roleGroups, defaultProject?, repo?}` — any verified operator-YouTrack user
+  may bind; external-IdP users cannot nest-bind. Probes first, then seals the
   service token with AES-256-GCM and mints an app-bridge secret that is
   returned **once** in `install.serviceBridgeToken` together with
   `install.serviceUrl` (`config.publicUrl`, else the request host).
+  The optional `repo {url, token, branch?, username?, migrate?}` block binds
+  every declared project to the customer's own specs repository in the same
+  call — per-project results are reported under `repos`.
 - `POST /idp/unbind` `{tenant}` — the binder or an owner. Revokes external
-  access on the next auth check (the token cache expires in ≤ `SPEC_REGISTRY_AUTH_CACHE_MS`).
+  access on the next auth check (the token cache expires in ≤ `SPEC_REGISTRY_AUTH_CACHE_MS`)
+  and drops the tenant's repo bindings with it.
 
 Semantics:
 
 - Tenant self-service: projects registered through a binding count as
   configured — the customer needs no operator config entry, and their scopes
-  never overlap operator tenants.
+  never overlap operator tenants. A project may not be claimed by a binding
+  when the operator config or another binding already owns it
+  (`IDP_PROJECT_TAKEN`), and a tenant's binding can only be changed by its
+  binder or an owner — never silently re-pointed by a stranger.
+- **Tenant specs live in the tenant's repo, never the operator's.** An
+  external-IdP project without a repo binding refuses every data operation
+  with `REPO_BINDING_REQUIRED` until one is bound — through the `repo` block
+  on `idp/bind` or `POST /repos/bind` by a tenant writer/owner. Operator
+  projects keep the configured shared repo as their default.
+- Re-binding rules: identical parameters are a no-op (`unchanged`); the same
+  URL with different scope/group parameters is refused (`IDP_EXISTS`) —
+  unbind first to change a tenant's shape.
 - Group gating: `hubGroups` decides scope membership (a user outside all
   listed groups gets `NO_SCOPES`), `roleGroups` maps their YouTrack groups to
   `owner`/`writer`/`reader`.
@@ -128,7 +143,12 @@ Semantics:
   asserted login against the bound YouTrack, not the operator's.
 - URL policy (`idpPolicy.allowedHosts`): https on public hosts; http only on
   private hosts (compose, on-prem). An empty allowlist means any https public
-  host.
+  host. Loopback/wildcard/link-local/metadata destinations
+  (`::1`, `0.0.0.0`, `169.254.*`, v4-mapped v6) are never bindable, and
+  credentials embedded in the URL (`user:pass@`) are stripped before the
+  binding is stored.
 - An unbound or unreachable external YouTrack degrades only its own tenant:
-  auth falls through to other IdPs, and binding deletion takes effect at the
-  next cache miss.
+  auth fan-out skips a dead IdP instead of failing every caller, and binding
+  deletion takes effect at the next cache miss. A token that no reachable IdP
+  verifies is still refused — `UNAVAILABLE` (503) only when a dead IdP might
+  have been its issuer.

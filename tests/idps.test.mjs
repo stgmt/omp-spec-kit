@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { after, before, describe, it } from "node:test";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { startService } from "../src/service/index.js";
+import { createYouTrackAuth } from "../src/service/auth.js";
 import { loadLiveFixture } from "./e2e/lib/live-fixture.mjs";
 import { ensureExtYoutrack, extBindBody, EXT_TENANT, EXT_YT_HOST_URL, EXT_USERS } from "./e2e/lib/idp-fixture.mjs";
 
@@ -57,7 +59,13 @@ async function setup() {
   await execFileAsync("git", ["-C", seed, "commit", "-m", "seed"]);
   await execFileAsync("git", ["-C", seed, "push", "-q", "origin", "HEAD:refs/heads/main"]);
   await rm(seed, { recursive: true, force: true });
+  // The tenant's own specs repo: a second bare reached through file:// —
+  // real clone/push/ls-remote, opted in via repoPolicy like repos.test.mjs.
+  const byoBare = path.join(base, "byo.git");
+  await execFileAsync("git", ["init", "--bare", "--initial-branch=main", byoBare]);
+  const byoUrl = pathToFileURL(byoBare).href;
   const config = fixture.serviceConfigFor(bare);
+  config.repoPolicy = { allowedHosts: ["file"] };
   const configPath = path.join(base, "projects.json");
   await writeFile(configPath, JSON.stringify(config, null, 2));
   const service = await startService({
@@ -77,6 +85,8 @@ async function setup() {
     service,
     api,
     url: `${api}/mcp`,
+    byoBare,
+    byoUrl,
     tokens: {
       alice: await fixture.userToken("alice"),
       bob: await fixture.userToken("bob"),
@@ -216,12 +226,25 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     assert.equal(me.body.idp, null);
   });
 
-  it("external users read and write inside their own project scope", async () => {
-    const { api, url, tokens } = await setup();
-    await rest(api, tokens.alice, "POST", "/idp/bind", extBindBody({ serviceToken: ext.serviceToken, youtrackUrl: EXT_YT_HOST_URL }));
+  it("external users read and write inside their own project scope — from their own repo", async () => {
+    const { api, url, tokens, byoBare, byoUrl } = await setup();
+    const bound = await rest(api, tokens.alice, "POST", "/idp/bind", extBindBody({ serviceToken: ext.serviceToken, youtrackUrl: EXT_YT_HOST_URL }));
+    assert.equal(bound.status, 200, JSON.stringify(bound.body));
+
+    // Without a repo binding the external project refuses every data op —
+    // customer specs must never land in the operator's shared repo.
+    const refused = await callTool(url, tokens.mia, "spec_catalog", { view: "specs" }).then((r) => r.structuredContent);
+    assert.equal(refused.ok, false);
+    assert.match(refused.error.message, /repos\/bind|no specs repository/u);
+
+    // The tenant binds its own repo (mia is a writer in the acme scope) —
+    // migration carries the seeded .specs tree into byo.git.
+    const repoBound = await rest(api, tokens.mia, "POST", "/repos/bind", { project: "acme/gamma", repoUrl: byoUrl, token: "unused-for-file" });
+    assert.equal(repoBound.status, 200, JSON.stringify(repoBound.body));
+    assert.equal(repoBound.body.binding.status, "active");
 
     // mia patches a spec in her tenant project — the write lands under
-    // acme/gamma in the default repo through the normal bot pipeline.
+    // acme/gamma in the CUSTOMER repo, never the operator's.
     const patch = await callTool(url, tokens.mia, "spec_patch", {
       intent: "patch",
       spec: "gamma-spec",
@@ -233,14 +256,20 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     assert.equal(patch.ok, true, JSON.stringify(patch.error ?? {}));
     assert.equal(patch.data.outcome, "APPLIED");
 
+    const { stdout } = await execFileAsync("git", ["--git-dir", byoBare, "show", "main:acme/gamma/.specs/gamma-spec/README.md"]);
+    assert.match(stdout, /External write/u, `ext write did not land in the customer repo: ${stdout.slice(0, 200)}`);
+
     const catalog = await callTool(url, tokens.mia, "spec_catalog", { view: "specs" }).then((r) => r.structuredContent);
     assert.equal(catalog.ok, true);
     assert.ok(catalog.data.specs.includes("gamma-spec"), JSON.stringify(catalog.data));
   });
 
   it("restart preserves the binding; unbind revokes external access", async () => {
-    const { api, tokens, service } = await setup();
-    await rest(api, tokens.alice, "POST", "/idp/bind", extBindBody({ serviceToken: ext.serviceToken, youtrackUrl: EXT_YT_HOST_URL }));
+    const { api, tokens, service, byoUrl } = await setup();
+    await rest(api, tokens.alice, "POST", "/idp/bind", extBindBody({
+      serviceToken: ext.serviceToken, youtrackUrl: EXT_YT_HOST_URL,
+      repo: { url: byoUrl, token: "unused-for-file" },
+    }));
     const meBefore = await rest(api, tokens.mia, "GET", "/me");
     assert.equal(meBefore.status, 200);
 
@@ -253,8 +282,113 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     assert.equal(unbound.status, 200);
     assert.equal(unbound.body.unbound, EXT_TENANT);
 
+    // The tenant's repo binding goes with it — a stale row would resurface
+    // if another tenant later claimed the same project id.
+    assert.equal(service.store.getBinding("acme/gamma"), null);
+
     const meAfter = await rest(api, tokens.mia, "GET", "/me");
     assert.equal(meAfter.status, 401);
     assert.equal(meAfter.body.error, "INVALID_TOKEN");
+  });
+
+  it("refuses project-claim takeover, stranger re-bind, and credential-in-URL", async () => {
+    const { api, tokens, service } = await setup();
+
+    // Claiming an operator-configured project is refused before any probe.
+    const claim = await rest(api, tokens.alice, "POST", "/idp/bind", extBindBody({ serviceToken: ext.serviceToken, youtrackUrl: EXT_YT_HOST_URL, projects: ["stgmt/alpha"] }));
+    assert.equal(claim.status, 409);
+    assert.equal(claim.body.error, "IDP_PROJECT_TAKEN");
+
+    // A URL carrying userinfo must not persist credentials.
+    const withCreds = await rest(api, tokens.alice, "POST", "/idp/bind", extBindBody({ serviceToken: ext.serviceToken, youtrackUrl: EXT_YT_HOST_URL.replace("http://", "http://alice:SECRET@") }));
+    assert.equal(withCreds.status, 200, JSON.stringify(withCreds.body));
+    assert.equal(withCreds.body.binding.youtrackUrl, EXT_YT_HOST_URL);
+    assert.equal(service.store.getIdpBinding(EXT_TENANT).youtrackUrl, EXT_YT_HOST_URL);
+
+    // A stranger cannot re-bind the tenant to their own YouTrack — the
+    // ownership gate fires before any probe of the supplied URL.
+    const hijack = await rest(api, tokens.bob, "POST", "/idp/bind", extBindBody({ serviceToken: ext.serviceToken, youtrackUrl: "http://127.0.0.1:19998" }));
+    assert.equal(hijack.status, 403);
+    assert.equal(hijack.body.error, "FORBIDDEN");
+
+    // The binder re-binding the same URL with different parameters is an
+    // explicit 409 — a silent scope change would be worse than a refusal.
+    const drifted = await rest(api, tokens.alice, "POST", "/idp/bind", extBindBody({ serviceToken: ext.serviceToken, youtrackUrl: EXT_YT_HOST_URL, projects: ["acme/gamma", "acme/delta"] }));
+    assert.equal(drifted.status, 409);
+    assert.equal(drifted.body.error, "IDP_EXISTS");
+
+    // A second tenant may not reuse the bound YouTrack nor claim a project
+    // the first tenant owns.
+    const sameUrl = await rest(api, tokens.bob, "POST", "/idp/bind", { ...extBindBody({ serviceToken: ext.serviceToken, youtrackUrl: EXT_YT_HOST_URL, projects: ["acme/delta"] }), tenant: "acme-two" });
+    assert.equal(sameUrl.status, 409);
+    assert.equal(sameUrl.body.error, "IDP_URL_TAKEN");
+    const sameProject = await rest(api, tokens.bob, "POST", "/idp/bind", { ...extBindBody({ serviceToken: ext.serviceToken, youtrackUrl: "http://127.0.0.1:19998" }), tenant: "acme-two" });
+    assert.equal(sameProject.status, 409);
+    assert.equal(sameProject.body.error, "IDP_PROJECT_TAKEN");
+
+    await rest(api, tokens.carol, "POST", "/idp/unbind", { tenant: EXT_TENANT });
+  });
+
+  it("bind repo block wires the tenant's own repo in the same call", async () => {
+    const { api, url, tokens, byoBare, byoUrl } = await setup();
+    const bound = await rest(api, tokens.alice, "POST", "/idp/bind", extBindBody({
+      serviceToken: ext.serviceToken,
+      youtrackUrl: EXT_YT_HOST_URL,
+      repo: { url: byoUrl, token: "unused-for-file" },
+    }));
+    assert.equal(bound.status, 200, JSON.stringify(bound.body));
+    assert.equal(bound.body.repos["acme/gamma"].binding.status, "active");
+
+    // The migrated tree landed in the customer repo, and reads serve it.
+    const { stdout } = await execFileAsync("git", ["--git-dir", byoBare, "show", "main:acme/gamma/.specs/gamma-spec/TASKS.md"]);
+    assert.match(stdout, /TASK-1/u, `migrated TASKS missing in the customer repo: ${stdout.slice(0, 160)}`);
+
+    const catalog = await callTool(url, tokens.mia, "spec_catalog", { view: "specs" }).then((r) => r.structuredContent);
+    assert.equal(catalog.ok, true, JSON.stringify(catalog.error ?? {}));
+    assert.ok(catalog.data.specs.includes("gamma-spec"));
+
+    await rest(api, tokens.carol, "POST", "/idp/unbind", { tenant: EXT_TENANT });
+  });
+
+  it("a dead bound IdP degrades only its own tenant, not the fan-out", async () => {
+    // Unit-level: stub the IdP list and transport — a refusing bound IdP
+    // must not turn operator tokens or bad tokens into a global outage.
+    const auth = createYouTrackAuth({
+      youtrack: { baseUrl: "http://op.invalid", serviceToken: "op-service-token-0000" },
+      appBridgeToken: "op-bridge-token-000000000000",
+      tenants: [{ tenant: "alpha", projects: ["stgmt/alpha"], hubGroups: ["spec-alpha"], defaultProject: "stgmt/alpha" }],
+      roleGroups: { owner: ["spec-owners"], writer: ["spec-writers"], reader: ["spec-readers"] },
+      idps: {
+        list: async () => [{
+          tenant: "dead", baseUrl: "http://dead.invalid", serviceToken: "dead-service-token", bridgeTokenHash: "00",
+          status: "active", projects: ["acme/gamma"], hubGroups: ["g"], roleGroups: { reader: ["g"] }, defaultProject: "acme/gamma",
+        }],
+      },
+      cacheTtlMs: 1,
+      fetchImpl: async (url, init) => {
+        if (url.startsWith("http://dead.invalid")) throw new Error("connect ECONNREFUSED");
+        const bearer = init?.headers?.authorization ?? "";
+        if (url.includes("/users/me")) {
+          return bearer === "Bearer alice-token"
+            ? { ok: true, status: 200, json: async () => ({ login: "alice", id: "u1" }) }
+            : { ok: false, status: 401, json: async () => ({}) };
+        }
+        if (url.includes("/users?query=login:")) {
+          return { ok: true, status: 200, json: async () => ({ users: [{ login: "alice", id: "u1", transitiveGroups: [{ name: "spec-alpha" }, { name: "spec-writers" }] }] }) };
+        }
+        return { ok: false, status: 404, json: async () => ({}) };
+      },
+    });
+
+    // The operator's user still authenticates — the dead tenant is skipped.
+    const ctx = await auth.authenticate({ headers: { authorization: "Bearer alice-token" } });
+    assert.equal(ctx.identity.login, "alice");
+
+    // A token nobody could verify stays fail-closed: 503 (a dead IdP might
+    // have issued it), never a confident 401.
+    await assert.rejects(
+      () => auth.authenticate({ headers: { authorization: "Bearer garbage" } }),
+      (error) => error.status === 503 && error.code === "UNAVAILABLE",
+    );
   });
 });
