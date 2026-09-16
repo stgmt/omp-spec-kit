@@ -30,10 +30,14 @@ const admin = () => createYouTrackAdmin({ login: "admin", password: ADMIN_PASSWO
 const basicAuth = `Basic ${Buffer.from(`admin:${ADMIN_PASSWORD}`).toString("base64")}`;
 
 // These hooks bootstrap a real compose stack and a browser — they must not
-// fire for unrelated cucumber runs. The docker-bdd container glob-imports
-// every step file for its release-evidence pass, where compose/docker and
-// chrome do not exist; register the hooks only outside the container.
-const hostOnly = process.env.OMP_SPEC_KIT_BDD_CONTAINER !== "1";
+// fire for unrelated cucumber runs. cucumber.mjs glob-imports every step
+// file for ALL runs (docker-bdd container, safe-authoring, staged, …), so
+// the container check alone is not enough: on a host runner the stack would
+// still be built. Register the hooks only when this invocation explicitly
+// targets the live feature (or is opted in via env for debugging).
+const hostOnly = process.env.OMP_SPEC_KIT_BDD_CONTAINER !== "1"
+  && (process.argv.some((arg) => arg.includes("app-install-live.feature"))
+    || process.env.OMP_SPEC_KIT_LIVE_E2E === "1");
 if (hostOnly) BeforeAll({ timeout: 900_000 }, async () => {
   // Real stack, no app: the scenario uploads it through the UI itself.
   const { stdout } = await execFileAsync(
