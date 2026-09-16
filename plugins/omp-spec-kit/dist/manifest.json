@@ -1,6 +1,6 @@
 {
   "schema": "omp-spec-kit-dist-manifest@1",
-  "pluginVersion": "1.3.0",
+  "pluginVersion": "2.0.0",
   "files": {
     "adapters/document-service.js": {
       "sha256": "bc8cdf0b0590be3867546d13bac0faec80337c6a128d2300e9612d94dc1adb8f"
@@ -9,7 +9,7 @@
       "sha256": "b1c78660ebccc1978efcc7b8e08b75dd56c624f3400212a674863be5511a220d"
     },
     "adapters/tool-contracts.js": {
-      "sha256": "0be9f291f4750159e160348ab8a3e308d6b36c6adc3a668852bcd32317d1df66"
+      "sha256": "dd1725e5dde0eca8fe9f8a78502e6a16482aa3427c4a3e422ab152e2b0fefcc3"
     },
     "adapters/youtrack-projection.js": {
       "sha256": "fc2ca9d6911fa78d26a0b50bfc2c5f7b1f87f82f03f1c9b41b81aa608fcbd674"
@@ -45,7 +45,7 @@
       "sha256": "56e7e622ff072e292894d88811e668edf06de1a1613408b4e42dec9c6ef6cf60"
     },
     "extension.js": {
-      "sha256": "471d91151c311175a5e629459fe5ad2df0a0653a5fce8e5a49fd41925975b941"
+      "sha256": "184ac944183e76f95c68b46a339c357ab0d930b2c2f38f26df6efb6b59748062"
     },
     "gate/automatic-adapter.js": {
       "sha256": "82c385544c2aa793679512b93ef150cfd382722f0cbcc1dd28b99b710e3d3ed8"

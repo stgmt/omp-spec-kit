@@ -187,7 +187,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         fields: Object.freeze([field("spec", "string")]),
       }),
       read: Object.freeze({
-        description: "Read one contained specification document, optionally by section or bounded window.",
+        description: "Read one specification document, optionally by section or window.",
         fields: Object.freeze([
           field("spec", "string"),
           field("doc", "string"),
@@ -199,7 +199,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         ]),
       }),
       attachment: Object.freeze({
-        description: "Read one contained binary attachment as a bounded base64 payload.",
+        description: "Read one binary attachment as a base64 payload.",
         fields: Object.freeze([
           field("spec", "string"),
           field("path", "string"),
