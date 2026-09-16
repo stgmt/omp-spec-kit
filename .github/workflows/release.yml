@@ -171,6 +171,8 @@ jobs:
         with:
           name: omp-spec-kit-release-candidate-${{ github.ref_name }}
           path: release-candidate
+      - name: Install dependencies for reverify
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Reverify downloaded candidate without rebuilding
         run: node scripts/verify-release.mjs --candidate release-candidate/candidate.json --evidence release-candidate/evidence.json --tag "$GITHUB_REF_NAME"
       - name: Publish only matching candidate assets
