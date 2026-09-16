@@ -245,6 +245,49 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     assert.equal(ownerForce.isError, false, JSON.stringify(ownerForce.structuredContent?.error ?? {}));
   });
 
+  it("serializes concurrent writes on one spec into a linear bot-only history", async () => {
+    const { bare, url, tokens } = await setup();
+    const N = 6;
+    const before = Number(await git(bare, ["rev-list", "--count", "main"]));
+    // Ten-users-at-once, scaled to the CI box: the writes race through HTTP at
+    // the same instant; the write lock and the serialized git queue must turn
+    // them into a linear sequence — never interleaved, never dropped.
+    const attempt = (i) =>
+      callTool(url, tokens.alice, "spec_patch", patchArgs({
+        requestId: `w-concurrent-${i}`,
+        operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: `\n## TASK-${200 + i} — concurrent write ${i}\n` }],
+      }));
+    const results = await Promise.all(Array.from({ length: N }, (_, i) => attempt(i)));
+
+    const refusals = results.filter((r) => r.isError === true);
+    assert.ok(results.some((r) => r.isError === false), "at least the first writer must land");
+    for (const refusal of refusals) {
+      // Kernel refusals carry data.error; service-level errors carry error.
+      const error = refusal.structuredContent.error ?? refusal.structuredContent.data?.error;
+      assert.equal(error?.retryable, true, `a loser of the race must be retryable, not destructive: ${JSON.stringify(refusal.structuredContent)}`);
+    }
+    // Losers retry as any client would (CONFLICT is retryable by contract):
+    // every refused write must land on top of the winner's commit.
+    for (let i = 0; i < N; i += 1) {
+      if (results[i].isError !== true) continue;
+      const retried = await attempt(i);
+      assert.equal(retried.isError, false, `retry of ${i}: ${JSON.stringify(retried.structuredContent?.error ?? retried.structuredContent?.data?.error)}`);
+      assert.equal(retried.structuredContent.data.outcome, "APPLIED");
+      results[i] = retried;
+    }
+
+    const after = Number(await git(bare, ["rev-list", "--count", "main"]));
+    assert.equal(after - before, N, "exactly one commit per write — no merge commits, no lost writes");
+    const authors = await git(bare, ["log", `--format=%ae`, `-${N}`, "main"]);
+    for (const author of authors.split("\n")) {
+      assert.equal(author, IDENTITY.email, "every landed commit is bot-authored");
+    }
+    const remoteTasks = await git(bare, ["show", "main:stgmt/alpha/.specs/spec-kernel/TASKS.md"]);
+    for (let i = 0; i < N; i += 1) {
+      assert.match(remoteTasks, new RegExp(`TASK-${200 + i} — concurrent write ${i}`, "u"), `write ${i} must reach the remote`);
+    }
+  });
+
   it("reports a push failure as retryable and keeps the commit on the clone", async () => {
     const { bare, cloneDir, url, tokens } = await setup();
     await rm(bare, { recursive: true, force: true });

@@ -14,6 +14,7 @@
     "check:no-root-specs": "node scripts/check-no-root-specs.mjs",
     "check:spec-corpus": "node scripts/check-spec-corpus.mjs",
     "check:corpus:remote": "node scripts/check-corpus-via-mcp.mjs",
+    "check:specs-repo": "node scripts/check-specs-repo-protection.mjs",
     "check:spec-port": "node scripts/check-spec-port.mjs",
     "dogfood:mcp": "node scripts/dogfood-mcp.mjs",
     "dogfood:mcp:candidate": "node scripts/dogfood-mcp.mjs",
