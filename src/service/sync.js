@@ -43,13 +43,15 @@ export async function reconcileClone({ git, cwd, branch, identity, logger = () =
  * Reconciles coalesce: an interval shorter than one reconcile must not pile
  * up git work behind the queue.
  */
-export function startSync({ mounts, git, branch, identity, cwd, intervalMs = 30_000, logger = () => {} }) {
+export function startSync({ mounts, git, branch, identity, cwd, intervalMs = 30_000, logger = () => {}, afterReconcile = null }) {
   async function reconcileOnce() {
     const { moved } = await reconcileClone({ git, cwd, branch, identity, logger });
     if (moved) {
       for (const projectId of mounts.projects) {
         mounts.serviceFor(projectId).refresh();
       }
+      // Accepted remote commits may carry ACTIVE transitions — publish them.
+      await afterReconcile?.().catch((error) => logger(`publish after reconcile failed: ${error.message}`));
     }
     return computeDrift({ git, branch, identity, cwd });
   }

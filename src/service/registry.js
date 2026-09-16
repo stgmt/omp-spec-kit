@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { specificationDirectoryDigest } from "../authoring/transactions.js";
 
-function authoredField(text, name) {
+export function authoredField(text, name) {
   const match = typeof text === "string" ? text.match(new RegExp(`^${name}:\\s*(.+)$`, "um")) : null;
   return match ? match[1].trim() : null;
 }
