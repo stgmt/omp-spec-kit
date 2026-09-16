@@ -69,7 +69,7 @@ async function foreignAuthors({ git, cwd, branch, identity }) {
  * the caller only after the push is confirmed (FR-5); a failed push leaves
  * the clone ahead of remote for retry/boot reconciliation.
  */
-export function createWritePipeline({ mounts, claims, git, identity, logger = () => {} }) {
+export function createWritePipeline({ mounts, claims, git, identity, logger = () => {}, publish = null }) {
   return {
     async specPatch({ args, ctx, project, force, requestId, schemaVersion }) {
       const spec = typeof args.spec === "string" ? args.spec : null;
@@ -123,6 +123,13 @@ export function createWritePipeline({ mounts, claims, git, identity, logger = ()
         });
         await pushBotCommits();
         logger(`pushed ${project} ${short(receipt.proposalHash)}`);
+        // Publish is post-confirmation work (FR-11): the write already
+        // succeeded, so a publish failure is logged, never reported as a
+        // failed write.
+        await publish?.publishSpec(project, spec).then((result) => {
+          if (result?.outcome === "published" || result?.outcome === "adopted") logger(`published ${result.spec}@${result.version}`);
+          if (result?.outcome === "rejected") logger(`publish rejected ${result.spec}: ${result.code}`);
+        }).catch((publishError) => logger(`publish after write failed for ${project}/${spec}: ${publishError.message}`));
       } catch (error) {
         const foreignRefusal = (caught) =>
           caught?.causeCode === "FOREIGN_COMMITS"
@@ -150,6 +157,10 @@ export function createWritePipeline({ mounts, claims, git, identity, logger = ()
           });
         if (recovered === true) {
           logger(`pushed ${project} ${short(receipt.proposalHash)} after reconcile`);
+          await publish?.publishSpec(project, spec).then((result) => {
+            if (result?.outcome === "published" || result?.outcome === "adopted") logger(`published ${result.spec}@${result.version}`);
+            if (result?.outcome === "rejected") logger(`publish rejected ${result.spec}: ${result.code}`);
+          }).catch((publishError) => logger(`publish after write failed for ${project}/${spec}: ${publishError.message}`));
           return { envelope };
         }
         // A foreign author discovered during the retry is the same policy

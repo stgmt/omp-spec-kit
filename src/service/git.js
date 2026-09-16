@@ -221,6 +221,49 @@ export class GitClient {
   async rebaseAbort({ cwd } = {}) {
     await this.run(["rebase", "--abort"], { cwd }).catch(() => {});
   }
+
+  /** File contents at a revision (`git show <rev>:<path>`); throws when absent. */
+  async show(revision, filePath, { cwd } = {}) {
+    const { stdout } = await this.run(["show", `${revision}:${filePath}`], { cwd });
+    return stdout;
+  }
+
+  /**
+   * Tree/blob object id of a path at a revision (`git rev-parse <rev>:<path>`).
+   * For a directory this is the tree hash — a content-addressed digest of the
+   * whole spec snapshot, atomic with the commit it was resolved at.
+   */
+  async objectId(revision, filePath, { cwd } = {}) {
+    const { stdout } = await this.run(["rev-parse", `${revision}:${filePath}`], { cwd });
+    return stdout.trim();
+  }
+
+  /** Object type ("blob"/"tree"/...) of a path at a revision; throws when absent. */
+  async objectType(revision, filePath, { cwd } = {}) {
+    const { stdout } = await this.run(["cat-file", "-t", `${revision}:${filePath}`], { cwd });
+    return stdout.trim();
+  }
+
+  /** Annotated tag at a revision; the tagger identity is part of the attestation. */
+  async tag(name, revision, { message, authorName, authorEmail, cwd } = {}) {
+    const args = [];
+    if (authorName && authorEmail) {
+      args.push("-c", `user.name=${authorName}`, "-c", `user.email=${authorEmail}`);
+    }
+    args.push("tag", "-a", "-m", message ?? name, name, revision);
+    await this.run(args, { cwd });
+  }
+
+  /** Remote refs matching a pattern → Map(ref → sha). Works without fetching tags. */
+  async lsRemote(pattern, { remote = "origin", cwd } = {}) {
+    const { stdout } = await this.run(["ls-remote", remote, pattern], { cwd });
+    const refs = new Map();
+    for (const line of stdout.split("\n")) {
+      const [sha, ref] = line.split("\t");
+      if (sha && ref) refs.set(ref.trim(), sha.trim());
+    }
+    return refs;
+  }
 }
 
 export function botIdentityFromEnv(env = process.env) {

@@ -80,6 +80,19 @@ class SqliteStore {
     ).run(entry.specKey, entry.version, entry.digest, entry.commitSha ?? null, entry.publishedAt ?? new Date().toISOString());
   }
 
+  /**
+   * Publish-path insert: a recorded publication is immutable evidence, so an
+   * existing (spec_key, version) row is never overwritten — unlike appendLedger
+   * the conflicting row wins and false is returned for the caller to compare.
+   */
+  insertLedgerIfAbsent(entry) {
+    const info = this.db.prepare(
+      "INSERT INTO ledger (spec_key, version, digest, commit_sha, published_at) VALUES (?, ?, ?, ?, ?) " +
+      "ON CONFLICT(spec_key, version) DO NOTHING",
+    ).run(entry.specKey, entry.version, entry.digest, entry.commitSha ?? null, entry.publishedAt ?? new Date().toISOString());
+    return Number(info.changes) === 1;
+  }
+
   getLedger(specKey) {
     return this.db.prepare("SELECT spec_key, version, digest, commit_sha, published_at FROM ledger WHERE spec_key = ? ORDER BY published_at DESC").all(specKey)
       .map((row) => ({ specKey: row.spec_key, version: row.version, digest: row.digest, commitSha: row.commit_sha, publishedAt: row.published_at }));
@@ -88,6 +101,12 @@ class SqliteStore {
   logAccess(entry) {
     this.db.prepare("INSERT INTO access_log (ts, login, role, tenant, project, op, spec, request_id, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
       .run(entry.ts ?? new Date().toISOString(), entry.login ?? null, entry.role ?? null, entry.tenant ?? null, entry.project ?? null, entry.op ?? null, entry.spec ?? null, entry.requestId ?? null, entry.result ?? null);
+  }
+
+  listAccess({ resultPrefix, limit = 50 } = {}) {
+    return this.db.prepare("SELECT ts, login, role, tenant, project, op, spec, request_id, result FROM access_log WHERE result LIKE ? ORDER BY id DESC LIMIT ?")
+      .all(`${resultPrefix}%`, limit)
+      .map((row) => ({ ts: row.ts, login: row.login, role: row.role, tenant: row.tenant, project: row.project, op: row.op, spec: row.spec, requestId: row.request_id, result: row.result }));
   }
 
   close() {
@@ -145,6 +164,14 @@ class JsonlStore {
     return this.persist();
   }
 
+  async insertLedgerIfAbsent(entry) {
+    const existing = this.state.ledger.find((l) => l.specKey === entry.specKey && l.version === entry.version);
+    if (existing) return false;
+    this.state.ledger.push({ publishedAt: new Date().toISOString(), ...entry });
+    await this.persist();
+    return true;
+  }
+
   getLedger(specKey) {
     return this.state.ledger.filter((l) => l.specKey === specKey).sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
   }
@@ -153,6 +180,13 @@ class JsonlStore {
     this.state.access_log.push({ ts: new Date().toISOString(), ...entry });
     if (this.state.access_log.length > 10_000) this.state.access_log = this.state.access_log.slice(-10_000);
     return this.persist();
+  }
+
+  listAccess({ resultPrefix, limit = 50 } = {}) {
+    return this.state.access_log
+      .filter((entry) => typeof entry.result === "string" && entry.result.startsWith(resultPrefix))
+      .slice(-limit)
+      .reverse();
   }
 
   close() {}

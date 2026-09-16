@@ -195,6 +195,7 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("offset", "integer"),
           optionalField("limit", "integer"),
           optionalField("readForEdit", "boolean"),
+          optionalField("version", "nullableString"),
         ]),
       }),
       attachment: Object.freeze({

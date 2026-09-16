@@ -13,6 +13,8 @@ import { buildRegistryIndex } from "./registry.js";
 import { computeDrift } from "./drift.js";
 import { startSync } from "./sync.js";
 import { createOnboarding } from "./onboarding.js";
+import { createPublisher } from "./publish.js";
+import { createVersionedReads } from "./versioned.js";
 
 export async function bootService({ configPath, cloneDir, git = new GitClient({ gitAuth: gitAuthFromEnv() }), identity, logger = () => {} }) {
   const config = await loadProjectsConfig(configPath);
@@ -40,14 +42,23 @@ export function buildServiceStack({ mounts, config, git, identity = botIdentityF
   const driftReport = async () => {
     // A drift report is only honest against a freshly fetched remote.
     await git.fetch({ cwd: mounts.cloneDir }).catch(() => {});
-    return computeDrift({ git, branch: config.branch, identity, cwd: mounts.cloneDir });
+    const report = await computeDrift({ git, branch: config.branch, identity, cwd: mounts.cloneDir });
+    // Publish rejections are drift too: a version squatted by different
+    // content must surface next to non-bot commits, not only in access_log.
+    const rejections = store?.listAccess?.({ resultPrefix: "publish-rejected:", limit: 50 }) ?? [];
+    for (const entry of rejections) {
+      report.events.push({ kind: "publish-rejected", spec: entry.spec, project: entry.project, detail: entry.result, detectedAt: entry.ts });
+    }
+    return report;
   };
   const registryOps = createRegistryOps({ registryIndex, driftReport });
-  const writePath = createWritePipeline({ mounts, claims, git, identity, logger });
+  const publisher = store ? createPublisher({ mounts, git, store, identity, branch: config.branch, logger }) : null;
+  const writePath = createWritePipeline({ mounts, claims, git, identity, logger, publish: publisher });
   const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger });
+  const versionedReads = createVersionedReads({ mounts, git, store });
   let sync = null;
   if (syncIntervalMs > 0) {
-    sync = startSync({ mounts, git, branch: config.branch, identity, cwd: mounts.cloneDir, intervalMs: syncIntervalMs, logger });
+    sync = startSync({ mounts, git, branch: config.branch, identity, cwd: mounts.cloneDir, intervalMs: syncIntervalMs, logger, afterReconcile: publisher ? () => publisher.publishAll() : null });
   }
   return {
     auth,
@@ -55,10 +66,11 @@ export function buildServiceStack({ mounts, config, git, identity = botIdentityF
     sync,
     registryIndex,
     driftReport,
+    publisher,
     authenticate: (req) => auth.authenticate(req),
     serviceOps: { specClaim: claimOps.specClaim, specRelease: claimOps.specRelease, specRegistry: registryOps.specRegistry, specDrift: registryOps.specDrift },
     serviceContracts: [...CLAIM_CONTRACTS, ...REGISTRY_CONTRACTS],
-    wrappers: { specPatch: writePath.specPatch },
+    wrappers: { specPatch: writePath.specPatch, documents: versionedReads },
     endpoints: {
       registry: () => registryIndex(),
       drift: () => driftReport(),
@@ -83,7 +95,19 @@ export async function startService({ configPath, cloneDir, storeFile, syncInterv
     });
     server.once("error", reject);
   });
-  return { mounts, auth: stack.auth, claims: stack.claims, store, sync: stack.sync, server, port: server.address().port, host };
+  // Boot-time publish pass (FR-16-adjacent): commits that landed while the
+  // service was down — accepted drift pushes, crashed post-push publishes —
+  // still get their ACTIVE specs tagged and ledgered.
+  if (stack.publisher) {
+    stack.publisher.publishAll()
+      .then((results) => {
+        for (const result of results) {
+          if (result.outcome === "published" || result.outcome === "adopted") logger(`boot publish: ${result.spec}@${result.version}`);
+        }
+      })
+      .catch((error) => logger(`boot publish failed: ${error.message}`));
+  }
+  return { mounts, auth: stack.auth, claims: stack.claims, store, sync: stack.sync, publisher: stack.publisher, driftReport: stack.driftReport, server, port: server.address().port, host };
 }
 
 export async function main() {
