@@ -13,7 +13,9 @@ RUN npm ci --ignore-scripts --no-audit --no-fund \
  && bun install --frozen-lockfile --ignore-scripts --no-progress
 
 COPY .omp-plugin/ .omp-plugin/
-COPY .specs/ .specs/
+# The canonical corpus moved to the spec registry; the retired repository
+# corpus is frozen under tests/fixtures and still provides the BDD worktree.
+COPY tests/fixtures/kernel/real-corpus/.specs/ .specs/
 COPY docs/validation/omp-discovery-v18.0.10.md docs/validation/omp-discovery-v18.0.10.md
 COPY docs/validation/release-status-v0.3.2.json docs/validation/release-status-v0.3.2.json
 COPY docs/validation/release-status-v0.5.0.json docs/validation/release-status-v0.5.0.json
