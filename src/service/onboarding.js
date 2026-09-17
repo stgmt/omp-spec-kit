@@ -75,13 +75,13 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
     return { baseUrl: idp.baseUrl, serviceToken: idp.serviceToken };
   }
 
-  async function youtrackJson(idp, path, { method = "GET", body } = {}) {
+  async function youtrackJson(idp, path, { method = "GET", body, token = null } = {}) {
     let response;
     try {
       response = await fetchImpl(`${idp.baseUrl}${path}`, {
         method,
         headers: {
-          authorization: `Bearer ${idp.serviceToken}`,
+          authorization: `Bearer ${token ?? idp.serviceToken}`,
           accept: "application/json",
           ...(body === undefined ? {} : { "content-type": "application/json" }),
         },
@@ -98,11 +98,13 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
       const retryable = response.status >= 500;
-      throw new OnboardingError(`YouTrack ${method} ${path} failed: HTTP ${response.status} ${detail.slice(0, 200)}`, {
+      const error = new OnboardingError(`YouTrack ${method} ${path} failed: HTTP ${response.status} ${detail.slice(0, 200)}`, {
         status: retryable ? 503 : 502,
         code: retryable ? "UNAVAILABLE" : "UPSTREAM_ERROR",
         retryable,
       });
+      error.upstreamStatus = response.status;
+      throw error;
     }
     if (response.status === 204) return null;
     return response.json().catch(() => null);
@@ -113,7 +115,7 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
      * Mint (or re-mint) the caller's agent credential.
      * @param {{ ctx: { identity: { login: string }, role: string, tenant: string|string[]|null }, serviceUrl: string }} input
      */
-    async issueToken({ ctx, serviceUrl, project = null }) {
+    async issueToken({ ctx, serviceUrl, project = null, token = null }) {
       const login = ctx?.identity?.login;
       if (typeof login !== "string" || login.length === 0) {
         throw new OnboardingError("caller identity is missing", { status: 401, code: "UNAUTHENTICATED" });
@@ -128,35 +130,80 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
         throw new OnboardingError(`user ${login} is banned`, { status: 403, code: "BANNED" });
       }
 
-      const services = await youtrackJson(idp, "/hub/api/rest/services?fields=id,applicationName");
-      const scope = (services?.services ?? []).map((service) => ({ id: service.id }));
-      if (scope.length === 0) {
-        throw new OnboardingError("YouTrack returned no Hub services to scope the token", {
-          status: 502,
-          code: "UPSTREAM_ERROR",
-        });
-      }
+      // The credential the snippet wraps: minted through Hub, or supplied by
+      // the caller for tenants whose service token may not mint
+      // (MINT_NOT_PERMITTED) — the pasted token is verified against the same
+      // YouTrack first and must resolve to this very user. It is never
+      // persisted or logged either way.
+      let issuedToken;
+      let revoked = 0;
+      if (typeof token === "string" && token.length > 0) {
+        let verified = null;
+        try {
+          verified = await youtrackJson(idp, "/hub/api/rest/users/me?fields=id,login", { token });
+        } catch (error) {
+          if (error instanceof OnboardingError && (error.upstreamStatus === 401 || error.upstreamStatus === 403)) {
+            throw new OnboardingError("YouTrack rejected the pasted token — create a permanent token in your YouTrack profile", {
+              status: 400,
+              code: "TOKEN_INVALID",
+            });
+          }
+          throw error;
+        }
+        if (verified?.id !== user.id) {
+          throw new OnboardingError("the pasted token belongs to a different user", { status: 400, code: "TOKEN_MISMATCH" });
+        }
+        issuedToken = token;
+      } else {
+        // Minting a permanent token for another user needs elevated Hub rights
+        // that a read-only service token may not have — surface that as its own
+        // failure so the UI can fall back to a user-pasted token.
+        const mintCall = async (fn) => {
+          try {
+            return await fn();
+          } catch (error) {
+            if (error instanceof OnboardingError && error.upstreamStatus === 403) {
+              throw new OnboardingError("the IdP service token cannot mint permanent tokens for users — have the user create one in their YouTrack profile", {
+                status: 403,
+                code: "MINT_NOT_PERMITTED",
+              });
+            }
+            throw error;
+          }
+        };
 
-      // One token per (login, purpose): revoke the previous one first. The Hub
-      // API pages at 100, so walk every page — a caller with a long history
-      // would otherwise keep a stale credential alive.
-      const previous = [];
-      for (let skip = 0; ; skip += 100) {
-        const page = await youtrackJson(idp, `/hub/api/rest/users/${user.id}/permanenttokens?fields=id,name&$skip=${skip}`);
-        const batch = page?.permanenttokens ?? [];
-        previous.push(...batch.filter((token) => token?.name === ONBOARDING_TOKEN_NAME));
-        if (batch.length < 100) break;
-      }
-      for (const token of previous) {
-        await youtrackJson(idp, `/hub/api/rest/users/${user.id}/permanenttokens/${token.id}`, { method: "DELETE" });
-      }
+        const services = await mintCall(() => youtrackJson(idp, "/hub/api/rest/services?fields=id,applicationName"));
+        const scope = (services?.services ?? []).map((service) => ({ id: service.id }));
+        if (scope.length === 0) {
+          throw new OnboardingError("YouTrack returned no Hub services to scope the token", {
+            status: 502,
+            code: "UPSTREAM_ERROR",
+          });
+        }
 
-      const minted = await youtrackJson(idp, `/hub/api/rest/users/${user.id}/permanenttokens?fields=id,name,token`, {
-        method: "POST",
-        body: { name: ONBOARDING_TOKEN_NAME, scope },
-      });
-      if (typeof minted?.token !== "string" || minted.token.length === 0) {
-        throw new OnboardingError("YouTrack returned no token value", { status: 502, code: "UPSTREAM_ERROR" });
+        // One token per (login, purpose): revoke the previous one first. The Hub
+        // API pages at 100, so walk every page — a caller with a long history
+        // would otherwise keep a stale credential alive.
+        const previous = [];
+        for (let skip = 0; ; skip += 100) {
+          const page = await mintCall(() => youtrackJson(idp, `/hub/api/rest/users/${user.id}/permanenttokens?fields=id,name&$skip=${skip}`));
+          const batch = page?.permanenttokens ?? [];
+          previous.push(...batch.filter((row) => row?.name === ONBOARDING_TOKEN_NAME));
+          if (batch.length < 100) break;
+        }
+        for (const row of previous) {
+          await mintCall(() => youtrackJson(idp, `/hub/api/rest/users/${user.id}/permanenttokens/${row.id}`, { method: "DELETE" }));
+        }
+
+        const minted = await mintCall(() => youtrackJson(idp, `/hub/api/rest/users/${user.id}/permanenttokens?fields=id,name,token`, {
+          method: "POST",
+          body: { name: ONBOARDING_TOKEN_NAME, scope },
+        }));
+        if (typeof minted?.token !== "string" || minted.token.length === 0) {
+          throw new OnboardingError("YouTrack returned no token value", { status: 502, code: "UPSTREAM_ERROR" });
+        }
+        issuedToken = minted.token;
+        revoked = previous.length;
       }
 
       // A requested project must be one of the caller's verified scopes —
@@ -168,7 +215,7 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
       const pinned = project ?? ctx.defaultScope ?? null;
 
       const url = `${String(serviceUrl).replace(/\/+$/u, "")}/mcp`;
-      logger(`onboarding: issued a YouTrack token for ${login} (scope: ${scope.length} services, revoked ${previous.length} previous)`);
+      logger(`onboarding: ${token ? "accepted a caller-supplied" : "issued a"} YouTrack token for ${login} (revoked ${revoked} previous)`);
       try {
         audit?.({
           tenant: Array.isArray(ctx?.tenant) ? ctx.tenant.join(",") : ctx?.tenant ?? null,
@@ -178,10 +225,10 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
           op: "onboarding",
           spec: null,
           requestId: null,
-          result: `ok:token-issued:revoked-${previous.length}`,
+          result: token ? "ok:token-provided" : `ok:token-issued:revoked-${revoked}`,
         });
       } catch {}
-      return { token: minted.token, url, mcpJson: buildManagedSnippet(serviceUrl, minted.token, pinned, ctx?.idp ?? null) };
+      return { token: issuedToken, url, login, project: pinned, mcpJson: buildManagedSnippet(serviceUrl, issuedToken, pinned, ctx?.idp ?? null) };
     },
   };
 }

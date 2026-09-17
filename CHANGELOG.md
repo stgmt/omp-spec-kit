@@ -2,6 +2,28 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## [2.3.0] — 2026-09-17
+
+Guided onboarding in the YouTrack widget — the member journey that previously existed only as REST endpoints is now a real UI flow, proven end-to-end in a browser.
+
+### Added
+
+- **Guided onboarding wizard** in the `spec-service-panel` widget: *1 · Specs repository* (probe + bind & migrate, `required` badge for unbound tenant projects), *2 · Verify it works* (migration evidence — commit SHA + landed document count — plus a dry-run/real test patch against the user's own specs), *3 · Connect your agent* (one click renders the ready `.mcp.json`).
+- **`POST /onboarding/token` is routed through the app bridge** (`spec-handler.js`) — the widget can finally reach the endpoint; before this, "get my .mcp.json" existed only for curl users.
+- **Caller-supplied token fallback**: `/onboarding/token` accepts `token` — for tenants whose service token may not mint, the user pastes a permanent token from their YouTrack profile; the service verifies it resolves to the same caller (`TOKEN_INVALID`/`TOKEN_MISMATCH`) and wraps it in the snippet. Never persisted or logged.
+- **`MINT_NOT_PERMITTED`**: Hub 403s during minting map to a dedicated error so the UI can offer the paste-token fallback instead of dying at the last step.
+- **Mint capability probing**: `/idp/probe` and `/idp/bind` report `capabilities.mintTokens` so the admin learns at bind time whether members' tokens can be minted; the binding record and `/idp/bindings` carry it.
+- **Migration evidence**: `POST /repos/bind` returns `migrated: {commit, documents}` (pushed SHA + landed file count) or `null`; `POST /onboarding/token` returns `login` and `project` alongside the snippet.
+- Widget: copy button with sandboxed-iframe fallback (select-all + Ctrl+C), explicit token-rotation warning, Dismiss clears the secret from the DOM, `NO_SCOPES` users see an honest no-access state, readers never see bind controls, the hardcoded `alpha-spec` demo button is replaced by a patch test on the user's real specs.
+- E2E fixture: `publicUrl` in the live config so IdP-bind install instructions carry the network-reachable service URL.
+
+### Proven in the live BDD suite (7 scenarios, 93 steps, real Chrome + real stack)
+
+- Alice clicks "Get my .mcp.json" in the widget; the generated token is used against the real `/mcp` — the copied artifact is the verified artifact.
+- Mia (external tenant) completes the full arc in the widget: `required` → probe → bind → migration commit/count shown → `.mcp.json` pinned to `X-Spec-Idp: acme` → token authenticates as `mia` scoped to `acme/gamma` only.
+- Oda (no scope groups) sees the no-access state and no onboarding controls.
+- Noa (reader) sees the tenant specs, no bind controls, and still gets a working `.mcp.json`.
+
 ## [2.2.1] — 2026-09-16
 
 Adversarial-review hardening of the external-IdP feature plus the missing half of the multi-tenant story: customer specs now live in the customer's own repository, never the operator's.

@@ -99,6 +99,8 @@ describe("onboarding over POST /onboarding/token (live-verified identity)", () =
     const issued = JSON.parse(responseText);
     assert.ok(typeof issued.token === "string" && issued.token.length > 20, `no token in response: ${JSON.stringify(issued).slice(0, 200)}`);
     assert.equal(issued.url, `${serviceUrl}/mcp`);
+    assert.equal(issued.login, "alice", "the response must name the verified caller for the widget's confirmation line");
+    assert.equal(issued.project, "stgmt/alpha", "the response must name the pinned project scope");
     const snippet = JSON.parse(issued.mcpJson);
     assert.equal(snippet.mcpServers["omp-spec-kit"].headers.Authorization, `Bearer ${issued.token}`);
 
@@ -127,6 +129,34 @@ describe("onboarding over POST /onboarding/token (live-verified identity)", () =
     assert.equal(rows[0].login, "alice");
     const stored = await readFile(storePath);
     assert.ok(!stored.includes(issued.token), "the issued token value must not be stored");
+  });
+
+  it("accepts a caller-supplied YouTrack token after verifying it belongs to the caller", async () => {
+    const { serviceUrl, url, tokens } = await setup();
+    // The MINT_NOT_PERMITTED fallback: the widget pastes the user's own
+    // permanent token; the service verifies it resolves to alice before
+    // wrapping it in a snippet. Nothing is minted or persisted.
+    const response = await fetch(`${serviceUrl}/onboarding/token`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${tokens.alice}` },
+      body: JSON.stringify({ serviceUrl, token: tokens.alice }),
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200, JSON.stringify(body).slice(0, 300));
+    assert.equal(body.token, tokens.alice);
+    assert.equal(body.login, "alice");
+    assert.equal(body.project, "stgmt/alpha");
+
+    const listed = await mcpCall(url, body.token, { method: "tools/list" });
+    assert.equal(listed.status, 200, `pasted token must authenticate (got ${listed.status})`);
+
+    const foreign = await fetch(`${serviceUrl}/onboarding/token`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${tokens.alice}` },
+      body: JSON.stringify({ serviceUrl, token: "perm-bogus-token-that-is-not-hers" }),
+    });
+    assert.equal(foreign.status, 400, `a token YouTrack cannot resolve must be refused (got ${foreign.status})`);
+    assert.equal((await foreign.json()).error, "TOKEN_INVALID");
   });
 
   it("refuses an anonymous caller and an unknown route shape", async () => {

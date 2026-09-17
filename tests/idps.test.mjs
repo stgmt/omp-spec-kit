@@ -242,6 +242,8 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     const repoBound = await rest(api, tokens.mia, "POST", "/repos/bind", { project: "acme/gamma", repoUrl: byoUrl, token: "unused-for-file" });
     assert.equal(repoBound.status, 200, JSON.stringify(repoBound.body));
     assert.equal(repoBound.body.binding.status, "active");
+    assert.match(repoBound.body.migrated?.commit ?? "", /^[0-9a-f]{40}$/u, "bind must report the migration commit SHA");
+    assert.ok(repoBound.body.migrated.documents > 0, "bind must report the migrated document count");
 
     // mia patches a spec in her tenant project — the write lands under
     // acme/gamma in the CUSTOMER repo, never the operator's.

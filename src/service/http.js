@@ -79,7 +79,7 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
     try {
       const requested = req.body?.serviceUrl;
       const serviceUrl = typeof requested === "string" && requested.length > 0 ? requested : `${req.protocol}://${req.get("host")}`;
-      res.json(await endpoints.onboarding({ ctx: req.ctx, serviceUrl, project: req.body?.project, repo: req.body?.repo }));
+      res.json(await endpoints.onboarding({ ctx: req.ctx, serviceUrl, project: req.body?.project, repo: req.body?.repo, token: req.body?.token }));
     } catch (error) {
       const status = Number.isSafeInteger(error?.status) ? error.status : 500;
       res.status(status).json({

@@ -1,4 +1,4 @@
-import { cp, mkdir, stat } from "node:fs/promises";
+import { cp, mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { GitClient, commitMessage } from "./git.js";
 import { repoHostAllowed } from "./mounts.js";
@@ -69,10 +69,12 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
   async function copySpecsSnapshot(sourceMount, targetMount, projectId) {
     const sourceRoot = path.join(sourceMount.cwd, projectId);
     const targetRoot = path.join(targetMount.cwd, projectId);
+    let specsRoot;
     try {
-      if (!(await stat(path.join(sourceRoot, ".specs"))).isDirectory()) return false;
+      specsRoot = path.join(sourceRoot, ".specs");
+      if (!(await stat(specsRoot)).isDirectory()) return 0;
     } catch {
-      return false;
+      return 0;
     }
     await mkdir(path.dirname(targetRoot), { recursive: true });
     // Never carry a write-lock across: a held lock in the snapshot would
@@ -81,7 +83,17 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
       recursive: true,
       filter: (source) => !source.endsWith(".omp-spec-kit-write.lock"),
     });
-    return true;
+    // The migrated-document count is the onboarding verify step's proof —
+    // count the landed files, not the source listing.
+    let documents = 0;
+    const walk = async (dir) => {
+      for (const entry of await readdir(path.join(targetRoot, ".specs", dir), { withFileTypes: true })) {
+        if (entry.isDirectory()) await walk(path.join(dir, entry.name));
+        else documents += 1;
+      }
+    };
+    await walk(".");
+    return documents;
   }
 
   /** Reachability + credential check without persisting anything. */
@@ -149,13 +161,14 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     await put("migrating");
 
     const mount = mounts.byRepo(repoUrl, resolvedBranch, project);
-    let hasContent = false;
+    let migratedDocuments = 0;
+    let migratedCommit = null;
     try {
       await mounts.ensureMount(mount);
       // migrate:false means "the target repo stands on its own" — a pre-seeded
       // .specs there wins and the source snapshot is never copied over it.
-      if (migrate !== false) hasContent = await copySpecsSnapshot(sourceMount, mount, project);
-      if (hasContent) {
+      if (migrate !== false) migratedDocuments = await copySpecsSnapshot(sourceMount, mount, project);
+      if (migratedDocuments > 0) {
         await mount.git.add([project], { cwd: mount.cwd });
         await mount.git.commit({
           message: commitMessage({
@@ -167,6 +180,7 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
           cwd: mount.cwd,
         });
         await mount.git.push({ refspec: `HEAD:refs/heads/${resolvedBranch}` }, { cwd: mount.cwd });
+        migratedCommit = await mount.git.revParse("HEAD", { cwd: mount.cwd });
         // Verify the landed tree matches the source snapshot byte-for-byte.
         const sourceTree = await sourceMount.git.objectId("HEAD", `${project}/.specs`, { cwd: sourceMount.cwd }).catch(() => null);
         const targetTree = await mount.git.objectId("HEAD", `${project}/.specs`, { cwd: mount.cwd }).catch(() => null);
@@ -183,9 +197,13 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
       if (error instanceof RepoError) throw error;
       throw new RepoError(502, "REPO_BIND_FAILED", `binding failed: ${String(error?.message ?? error).split("\n")[0]}`);
     }
-    audit({ login: boundBy, role, project, op: "repo-bind", spec: null, result: `ok:${hasContent ? "migrated" : "bound"}:${repoUrl}` });
-    logger(`repo-bind ${project} -> ${repoUrl} (${hasContent ? "migrated" : "bound"})`);
-    return { binding: publicBinding(store.getBinding(project)), head };
+    audit({ login: boundBy, role, project, op: "repo-bind", spec: null, result: `ok:${migratedDocuments > 0 ? "migrated" : "bound"}:${repoUrl}` });
+    logger(`repo-bind ${project} -> ${repoUrl} (${migratedDocuments > 0 ? "migrated" : "bound"})`);
+    return {
+      binding: publicBinding(store.getBinding(project)),
+      head,
+      migrated: migratedCommit !== null ? { commit: migratedCommit, documents: migratedDocuments } : null,
+    };
   }
 
   async function unbind({ ctx, project }) {

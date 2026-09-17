@@ -202,6 +202,10 @@ export async function bootstrapFixture({ deployApp: shouldDeployApp = true, logg
   const config = {
     specsRepo: "git://spec-git/specs.git",
     branch: "main",
+    // The IdP-bind install block embeds this URL into the customer's app
+    // settings — it must be reachable from inside the compose network, not
+    // the host port the operator's REST call arrived on.
+    publicUrl: "http://spec-registryd:8642",
     projects: [{ id: "stgmt/alpha" }, { id: "stgmt/beta" }],
     tenants: [
       { tenant: "alpha", projects: ["stgmt/alpha"], hubGroups: ["spec-alpha"], defaultProject: "stgmt/alpha" },

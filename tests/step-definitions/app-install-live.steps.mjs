@@ -84,7 +84,7 @@ if (hostOnly) AfterAll(async () => {
 // of failure — admin page and alice's issue page side by side.
 if (hostOnly) After(async function (scenario) {
   if (scenario.result?.status !== Status.FAILED) return;
-  for (const [name, page] of [["admin", this.adminPage], ["alice", this.alicePage], ["mia", this.miaPage]]) {
+  for (const [name, page] of [["admin", this.adminPage], ["alice", this.alicePage], ["mia", this.miaPage], ["oda", this.odaPage], ["noa", this.noaPage]]) {
     if (page && !page.isClosed()) {
       await page.screenshot({ path: path.join(ARTIFACTS, `live-failed-${name}.png`), fullPage: true }).catch(() => {});
     }
@@ -329,6 +329,11 @@ Given("a second YouTrack is provisioned for the external tenant", async function
   const project = await ext.createProject({ name: "Acme E2E", shortName: "ACME", leaderId: me.id });
   const hubProjectId = await ext.hubProjectId("ACME");
   await ext.addUserToProjectTeam({ hubProjectId, userId: live.ext.users.mia.id });
+  // Team membership grants issue visibility only — spec scopes still come
+  // from the bound hubGroups, so noa (reader group) and oda (no groups) can
+  // open the issue while the service sees their true access level.
+  await ext.addUserToProjectTeam({ hubProjectId, userId: live.ext.users.noa.id });
+  await ext.addUserToProjectTeam({ hubProjectId, userId: live.ext.users.oda.id });
   const existing = await fetch(`${EXT_YT_HOST_URL}/api/issues?query=project:ACME&fields=id,idReadable`, {
     headers: { authorization: basicAuth, accept: "application/json" },
     signal: AbortSignal.timeout(30_000),
@@ -463,3 +468,263 @@ Then("the external tenant loses access", async function () {
     await new Promise((resolve) => setTimeout(resolve, 1_500));
   }
 });
+
+// ---- TASK-19: guided onboarding through the widget -------------------------
+// The member journey: required repo state -> bind -> migration evidence ->
+// .mcp.json whose own token is verified against the live service.
+
+/** Service REST call with a YouTrack permanent token (direct, not bridge). */
+async function serviceRest(token, method, route, body) {
+  const response = await fetch(`${SERVICE_URL}${route}`, {
+    method,
+    headers: { authorization: `Bearer ${token}`, ...(body === undefined ? {} : { "content-type": "application/json" }) },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  return { status: response.status, body: await response.json().catch(() => null) };
+}
+
+/** Widget frame once the member onboarding sections are rendered. */
+async function widgetOnboardingFrame(page) {
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    for (const frame of page.frames()) {
+      const marker = await frame
+        .locator('[data-testid="wizard"], [data-testid="no-access"], [data-testid="service-error"]')
+        .count()
+        .catch(() => 0);
+      if (marker > 0) return frame;
+    }
+    await page.waitForTimeout(1_000);
+  }
+  throw new Error("widget onboarding sections did not render");
+}
+
+/** Click "Get my .mcp.json" and return the parsed snippet the user copies. */
+async function requestAgentConfig(page) {
+  const frame = await widgetOnboardingFrame(page);
+  await frame.locator('[data-testid="agent-mint"]').click();
+  await frame.locator('[data-testid="agent-mcp"]').waitFor({ state: "visible", timeout: 60_000 });
+  const text = await frame.locator('[data-testid="agent-mcp"]').innerText();
+  return JSON.parse(text);
+}
+
+/** Fresh IdP binding via REST + the app installed on the ext YouTrack. */
+async function bindTenantAndInstallApp() {
+  // A stale binding from a previous run has no recoverable bridge token —
+  // replace it so the app settings below carry a live secret. Carol (owner)
+  // may unbind any tenant; alice rebinds.
+  const carol = await admin().findUserByLogin("carol");
+  const serviceIds = [await admin().youtrackServiceId(), await admin().hubServiceId()];
+  const ownerToken = await admin().createPermanentToken({ userId: carol.id, name: "idp-e2e-owner", serviceIds });
+  await serviceRest(ownerToken.token, "POST", "/idp/unbind", { tenant: EXT_TENANT });
+  await admin().revokePermanentTokens({ userId: carol.id, name: "idp-e2e-owner" });
+
+  const alice = await admin().findUserByLogin("alice");
+  const aliceToken = await admin().createPermanentToken({ userId: alice.id, name: "idp-e2e-binder", serviceIds });
+  const bound = await serviceRest(aliceToken.token, "POST", "/idp/bind", extBindBody({ serviceToken: live.ext.serviceToken }));
+  await admin().revokePermanentTokens({ userId: alice.id, name: "idp-e2e-binder" });
+  assert.equal(bound.status, 200, `idp bind failed: ${JSON.stringify(bound.body).slice(0, 300)}`);
+  assert.ok(bound.body.install?.serviceBridgeToken, `fresh bind must mint the bridge token: ${JSON.stringify(bound.body).slice(0, 300)}`);
+  live.ext.serviceUrl = bound.body.install.serviceUrl;
+  live.ext.bridgeToken = bound.body.install.serviceBridgeToken;
+
+  const appId = await deployApp({ admin: extAdmin(), token: live.ext.serviceToken, hostUrl: EXT_YT_HOST_URL });
+  await extAdmin().setAppSettings(appId, { serviceUrl: live.ext.serviceUrl, serviceBridgeToken: live.ext.bridgeToken });
+  await extAdmin().attachAppToProject(appId, live.ext.project.id);
+}
+
+async function extUserViewingIssue(login) {
+  const context = await live.browser.newContext();
+  const page = await context.newPage();
+  page.setDefaultTimeout(60_000);
+  await browserLogin(page, login, EXT_USERS[login].password, EXT_YT_HOST_URL);
+  await page.goto(`${EXT_YT_HOST_URL}/issue/${live.ext.issue.idReadable}`, { waitUntil: "domcontentloaded" });
+  return { context, page };
+}
+
+// -- Alice: agent configuration ---------------------------------------------
+
+When("alice requests her agent configuration in the widget", async function () {
+  this.lastSnippet = await requestAgentConfig(this.alicePage);
+});
+
+Then("the widget shows a ready .mcp.json for alice on her project", async function () {
+  const server = this.lastSnippet?.mcpServers?.["omp-spec-kit"];
+  assert.ok(server, `no mcpServers.omp-spec-kit in snippet: ${JSON.stringify(this.lastSnippet).slice(0, 200)}`);
+  assert.match(server.url, /\/mcp$/u, `snippet url must point at /mcp: ${server.url}`);
+  assert.match(server.headers?.Authorization ?? "", /^Bearer \S+/u, "snippet must carry a bearer token");
+  assert.equal(server.headers?.["X-Spec-Project"], "stgmt/alpha", "snippet must pin alice's project scope");
+  await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-widget-agent-alice.png"), fullPage: true }).catch(() => {});
+});
+
+Then("the generated token authenticates as alice against the live service", async function () {
+  const headers = this.lastSnippet.mcpServers["omp-spec-kit"].headers;
+  const token = headers.Authorization.replace(/^Bearer /u, "");
+  const me = await serviceRest(token, "GET", "/me");
+  assert.equal(me.status, 200, `snippet token rejected by /me: ${JSON.stringify(me.body).slice(0, 200)}`);
+  assert.equal(me.body.login, "alice");
+  assert.ok((me.body.scopes ?? []).includes("stgmt/alpha"), `alice scopes: ${JSON.stringify(me.body.scopes)}`);
+  // A real MCP call with the exact header set the snippet prescribes.
+  const response = await fetch(`${SERVICE_URL}/mcp`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      authorization: headers.Authorization,
+      ...(headers["X-Spec-Project"] ? { "x-spec-project": headers["X-Spec-Project"] } : {}),
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "spec_catalog", arguments: { view: "specs" } } }),
+  });
+  const json = await response.json();
+  assert.equal(json?.result?.structuredContent?.ok, true, `snippet token MCP call failed: ${JSON.stringify(json).slice(0, 300)}`);
+});
+
+// -- Mia: full tenant-member arc --------------------------------------------
+
+Given("the external tenant is bound and its app is installed", async function () {
+  await bindTenantAndInstallApp();
+});
+
+Given("mia is viewing the ACME anchor issue", async function () {
+  const { context, page } = await extUserViewingIssue("mia");
+  this.miaContext = context;
+  this.miaPage = page;
+  await widgetOnboardingFrame(this.miaPage);
+});
+
+Then("the widget marks the tenant project repository as required", async function () {
+  const frame = await widgetOnboardingFrame(this.miaPage);
+  await frame.locator('[data-testid="repo-status-required"]').waitFor({ state: "attached", timeout: 15_000 });
+  await this.miaPage.screenshot({ path: path.join(ARTIFACTS, "live-widget-mia-required.png"), fullPage: true }).catch(() => {});
+});
+
+When("mia binds the tenant repository in the widget", async function () {
+  const frame = await widgetOnboardingFrame(this.miaPage);
+  await frame.locator('[data-testid="repo-url"]').fill(EXT_REPO_URL);
+  await frame.locator('[data-testid="repo-token"]').fill("e2e-unused-git-daemon");
+  await frame.locator('[data-testid="repo-branch"]').fill("main");
+  await frame.locator('[data-testid="repo-bind"]').click();
+  const deadline = Date.now() + 90_000;
+  while (Date.now() < deadline) {
+    const bound = await widgetOnboardingFrame(this.miaPage)
+      .then((f) => f.locator('[data-testid="repo-status-active"]').count())
+      .catch(() => 0);
+    if (bound > 0) return;
+    await this.miaPage.waitForTimeout(1_500);
+  }
+  throw new Error("widget never reached the bound state after mia's bind");
+});
+
+Then("the widget shows the migration commit and document count", async function () {
+  const frame = await widgetOnboardingFrame(this.miaPage);
+  await frame.locator('[data-testid="migrated-commit"]').waitFor({ state: "attached", timeout: 30_000 });
+  const commit = (await frame.locator('[data-testid="migrated-commit"]').innerText()).trim();
+  assert.match(commit, /^[0-9a-f]{40}$/u, `migration commit must be a full SHA: ${commit}`);
+  const documents = Number((await frame.locator('[data-testid="migrated-docs"]').innerText()).trim());
+  assert.ok(documents > 0, `migrated document count must be positive: ${documents}`);
+  await this.miaPage.screenshot({ path: path.join(ARTIFACTS, "live-widget-mia-migrated.png"), fullPage: true }).catch(() => {});
+});
+
+When("mia requests her agent configuration in the widget", async function () {
+  this.lastSnippet = await requestAgentConfig(this.miaPage);
+});
+
+Then("the widget shows a ready .mcp.json pinned to the acme tenant", async function () {
+  const server = this.lastSnippet?.mcpServers?.["omp-spec-kit"];
+  assert.ok(server, `no mcpServers.omp-spec-kit in snippet: ${JSON.stringify(this.lastSnippet).slice(0, 200)}`);
+  assert.match(server.url, /\/mcp$/u);
+  assert.match(server.headers?.Authorization ?? "", /^Bearer \S+/u);
+  assert.equal(server.headers?.["X-Spec-Idp"], EXT_TENANT, "snippet must pin the tenant so tokens resolve to the bound YouTrack");
+  assert.equal(server.headers?.["X-Spec-Project"], "acme/gamma");
+});
+
+Then("the generated token authenticates as mia with only the acme scope", async function () {
+  const headers = this.lastSnippet.mcpServers["omp-spec-kit"].headers;
+  const token = headers.Authorization.replace(/^Bearer /u, "");
+  const me = await serviceRest(token, "GET", "/me");
+  assert.equal(me.status, 200, `snippet token rejected by /me: ${JSON.stringify(me.body).slice(0, 200)}`);
+  assert.equal(me.body.login, "mia");
+  assert.equal(me.body.idp, EXT_TENANT);
+  assert.deepEqual(me.body.scopes, ["acme/gamma"], `mia scopes must be the tenant's project only: ${JSON.stringify(me.body.scopes)}`);
+  const response = await fetch(`${SERVICE_URL}/mcp`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      authorization: headers.Authorization,
+      "x-spec-project": headers["X-Spec-Project"],
+      "x-spec-idp": headers["X-Spec-Idp"],
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "spec_catalog", arguments: { view: "specs" } } }),
+  });
+  const json = await response.json();
+  const specs = json?.result?.structuredContent?.data?.specs ?? [];
+  assert.ok(specs.includes("gamma-spec"), `mia's catalog must list her tenant spec: ${JSON.stringify(specs)}`);
+  assert.ok(!specs.includes("alpha-spec"), `mia must not see the operator's specs: ${JSON.stringify(specs)}`);
+  await this.miaPage.screenshot({ path: path.join(ARTIFACTS, "live-widget-mia-agent.png"), fullPage: true }).catch(() => {});
+});
+
+Then("the tenant specs are served from the tenant repository", async function () {
+  // Migration copies the seeded corpus into the tenant's repo; after binding,
+  // reads and writes resolve there — proven above by mia's scoped catalog.
+  const tenant = await execFileAsync("docker", [
+    "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${EXT_REPO_PATH}`, "ls-tree", "-r", "--name-only", "main",
+  ]);
+  assert.match(tenant.stdout, /acme\/gamma\/\.specs\//u, `tenant repo missing acme/gamma specs: ${tenant.stdout.slice(0, 300)}`);
+});
+
+// -- Oda: no scope groups ----------------------------------------------------
+
+Given("oda is viewing the ACME anchor issue", async function () {
+  const { context, page } = await extUserViewingIssue("oda");
+  this.odaContext = context;
+  this.odaPage = page;
+  await widgetOnboardingFrame(this.odaPage);
+});
+
+Then("the widget shows the no-access state and no onboarding controls", async function () {
+  const frame = await widgetOnboardingFrame(this.odaPage);
+  await frame.locator('[data-testid="no-access"]').waitFor({ state: "attached", timeout: 30_000 });
+  assert.equal(await frame.locator('[data-testid="agent-mint"]').count(), 0, "no-access users must not see the token mint control");
+  assert.equal(await frame.locator('[data-testid="repo-form"]').count(), 0, "no-access users must not see the repository form");
+  await this.odaPage.screenshot({ path: path.join(ARTIFACTS, "live-widget-oda-noaccess.png"), fullPage: true }).catch(() => {});
+});
+
+// -- Noa: reader -------------------------------------------------------------
+
+Given("the tenant repository is bound for the tenant project", async function () {
+  // Mia is the tenant writer — she may bind acme/gamma to the tenant repo.
+  const bound = await serviceRest(live.ext.users.mia.token, "POST", "/repos/bind", {
+    project: "acme/gamma",
+    repoUrl: EXT_REPO_URL,
+    token: "e2e-unused-git-daemon",
+    branch: "main",
+  });
+  assert.ok(bound.status === 200 || bound.status === 409, `tenant repo bind failed: ${JSON.stringify(bound.body).slice(0, 300)}`);
+});
+
+Given("noa is viewing the ACME anchor issue", async function () {
+  const { context, page } = await extUserViewingIssue("noa");
+  this.noaContext = context;
+  this.noaPage = page;
+  await widgetOnboardingFrame(this.noaPage);
+});
+
+Then("the service widget lists gamma-spec for noa", async function () {
+  const frame = await widgetOnboardingFrame(this.noaPage);
+  await frame.locator('[data-testid="spec-list"]').waitFor({ state: "attached", timeout: 15_000 });
+  const text = await frame.locator('[data-testid="spec-list"]').innerText();
+  assert.match(text, /gamma-spec/, `reader must see the tenant spec, got: ${text}`);
+});
+
+Then("the widget shows no repository bind controls for the reader", async function () {
+  const frame = await widgetOnboardingFrame(this.noaPage);
+  assert.equal(await frame.locator('[data-testid="repo-form"]').count(), 0, "a reader must not see the repository bind form");
+  assert.equal(await frame.locator('[data-testid="repo-bind"]').count(), 0);
+  await this.noaPage.screenshot({ path: path.join(ARTIFACTS, "live-widget-noa-reader.png"), fullPage: true }).catch(() => {});
+});
+
+When("noa requests her agent configuration in the widget", async function () {
+  this.lastSnippet = await requestAgentConfig(this.noaPage);
+});
+

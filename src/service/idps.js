@@ -105,6 +105,7 @@ function publicBinding(row) {
     boundBy: row.boundBy,
     boundAt: row.boundAt,
     lastError: row.lastError,
+    capabilities: row.capabilities ?? null,
   };
 }
 
@@ -156,9 +157,20 @@ export function createIdpManager({ store, config, secretsKey, logger = () => {},
     const meBody = await me.json().catch(() => null);
     if (typeof meBody?.login !== "string") throw new IdpError(400, "IDP_PROBE_FAILED", "users/me returned no login — is this a YouTrack Hub API?");
 
-    const users = await probeFetch(`${baseUrl}/hub/api/rest/users?$top=1&fields=id,login`, serviceToken);
+    const users = await probeFetch(`${baseUrl}/hub/api/rest/users?$top=5&fields=id,login`, serviceToken);
     if (!users.ok) throw new IdpError(400, "IDP_CAPABILITY", `service token cannot enumerate users (HTTP ${users.status}) — group resolution would fail`);
-    return { ok: true, serviceLogin: meBody.login };
+    // Mint capability matters at onboarding time: reading another user's
+    // permanenttokens needs the same elevated rights as minting one. A
+    // read-only service token passes users/me + enumeration but dies on
+    // mint — report it now instead of failing the member later.
+    const usersBody = await users.json().catch(() => null);
+    const other = (usersBody?.users ?? []).find((u) => u?.id && u.id !== meBody.id);
+    let mintTokens = null;
+    if (other?.id) {
+      const probe = await probeFetch(`${baseUrl}/hub/api/rest/users/${other.id}/permanenttokens?$top=1&fields=id`, serviceToken);
+      mintTokens = probe.ok;
+    }
+    return { ok: true, serviceLogin: meBody.login, capabilities: { mintTokens } };
   }
 
   function validateInput({ tenant, youtrackUrl, serviceToken, projects, hubGroups, roleGroups, defaultProject }) {
@@ -291,6 +303,7 @@ export function createIdpManager({ store, config, secretsKey, logger = () => {},
         tenant, youtrackUrl: v.url, projects: v.projectsNorm, hubGroups: v.hubNorm, roleGroups: v.rolesNorm,
         defaultProject: v.defaultProject ?? v.projectsNorm[0], bridgeTokenHash, status: "active",
         boundBy: ctx.identity?.login ?? null, boundAt: new Date().toISOString(), lastError: null,
+        capabilities: probeResult?.capabilities ?? null,
       });
       audit({ login: ctx.identity?.login ?? null, role: ctx.role ?? null, tenant, project: null, op: "idp-bind", spec: null, result: `ok:${v.url}` });
       logger(`idp-bind ${tenant} -> ${v.url}`);

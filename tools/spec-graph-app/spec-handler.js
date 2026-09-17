@@ -67,6 +67,7 @@ exports.httpHandler = {
         else if (method === 'idp/probe') { restPath = '/idp/probe'; }
         else if (method === 'idp/bind') { restPath = '/idp/bind'; }
         else if (method === 'idp/unbind') { restPath = '/idp/unbind'; }
+        else if (method === 'onboarding/token') { restPath = '/onboarding/token'; }
         var response;
         if (restPath) {
           var restBody = restMethod === 'POST' ? JSON.stringify(payload.params || {}) : null;

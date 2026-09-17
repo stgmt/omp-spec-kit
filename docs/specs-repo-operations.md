@@ -63,6 +63,9 @@ file); clients never carry repo URLs or tokens in `.mcp.json`.
   target repo as a bot commit and the landed tree is verified byte-for-byte
   (git tree hash) against the source. `migrate: false` binds without copying —
   a pre-seeded target repo wins; an empty one gets a skeleton `.specs`.
+  The response carries `migrated: {commit, documents}` — the pushed commit
+  SHA and the landed file count — or `null` when nothing was migrated; the
+  widget's verify step shows this as the proof of migration.
 - `POST /repos/unbind` `{project}` — back to the default repo. The bound
   clone stays on disk because published ledger rows still reference it.
 
@@ -99,7 +102,10 @@ IdP URLs or tokens.
   owners see all).
 - `POST /idp/probe` `{youtrackUrl, serviceToken}` — reachability + capability
   check against the remote YouTrack (`users/me` + a `users` listing), persists
-  nothing.
+  nothing. The response reports `capabilities.mintTokens`: `false` when the
+  service token cannot read another user's permanent tokens (the same rights
+  minting needs) — such tenants still work, but members generate their own
+  YouTrack tokens and paste them into the widget (see guided onboarding).
 - `POST /idp/bind` `{tenant, youtrackUrl, serviceToken, projects, hubGroups,
   roleGroups, defaultProject?, repo?}` — any verified operator-YouTrack user
   may bind; external-IdP users cannot nest-bind. Probes first, then seals the
@@ -152,3 +158,42 @@ Semantics:
   deletion takes effect at the next cache miss. A token that no reachable IdP
   verifies is still refused — `UNAVAILABLE` (503) only when a dead IdP might
   have been its issuer.
+
+## Guided onboarding (TASK-19)
+
+The `spec-service-panel` widget is the member's whole journey — no REST calls
+by hand:
+
+1. **Specs repository** — each scoped project shows its repo and status
+   (`active`/`default`/`required`). A `required` project has no repository
+   (external tenant without a binding): owner/writer users get the bind form
+   (URL, git token, branch), probe and bind+migrate run from the same panel.
+2. **Verify it works** — after a bind the panel shows the migration evidence
+   (`migrated.commit` SHA + `migrated.documents` count from the bind
+   response), re-reads the spec list from the newly bound repo, and offers a
+   patch test: dry-run first, real write opt-in. An empty repository shows an
+   honest "no specs yet" instead of a fake success.
+3. **Connect your agent** — `Get my .mcp.json` calls
+   `POST /onboarding/token` through the app bridge and renders the exact
+   snippet to paste into the project's `.mcp.json` (`Authorization`,
+   `X-Spec-Project`, `X-Spec-Idp` where bound). Issuing again revokes the
+   previous same-purpose token — the panel says so, and a Dismiss button
+   clears the secret from the DOM.
+
+Edge cases:
+
+- `MINT_NOT_PERMITTED` — the bound IdP's service token cannot mint permanent
+  tokens (`/idp/probe` and `/idp/bind` report `capabilities.mintTokens`).
+  The panel then accepts a user-created YouTrack permanent token: the
+  service verifies it resolves to the same caller (`TOKEN_INVALID` /
+  `TOKEN_MISMATCH` otherwise) and returns the snippet built around it.
+  The token is never persisted or logged either way.
+- `NO_SCOPES` — a verified user with no matching scope group sees a
+  no-access state and no bind/mint controls.
+- Readers see specs and can mint their own read-only token, but never the
+  repository bind/migrate controls.
+- The clipboard in a sandboxed app iframe is unreliable: Copy falls back to
+  selecting the snippet for manual Ctrl+C.
+
+`POST /onboarding/token` accepts `{serviceUrl, project?, repo?, token?}`;
+`repo{}` binds the caller's project to their own repository before issuing.

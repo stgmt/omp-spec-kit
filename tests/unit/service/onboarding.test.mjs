@@ -113,6 +113,81 @@ describe("onboarding (TASK-8): mints the caller's YouTrack token", () => {
     );
   });
 
+  it("maps Hub 403 on mint calls to MINT_NOT_PERMITTED so the UI can fall back to a pasted token", async () => {
+    const denied = createOnboarding({
+      config: CONFIG,
+      fetchImpl: fakeFetch([
+        { match: "/users?query=login:alice", json: { users: [{ id: "u-1", login: "alice" }] } },
+        { match: "/services", status: 403, text: "insufficient rights" },
+      ]).impl,
+    });
+    await assert.rejects(
+      () => denied.issueToken({ ctx: CTX, serviceUrl: "http://registry:8642" }),
+      (error) => error.status === 403 && error.code === "MINT_NOT_PERMITTED",
+    );
+
+    const deniedAtMint = createOnboarding({
+      config: CONFIG,
+      fetchImpl: fakeFetch([
+        { match: "/users?query=login:alice", json: { users: [{ id: "u-1", login: "alice" }] } },
+        { match: "/services", json: SERVICES },
+        { match: "/users/u-1/permanenttokens?fields=id,name", json: { permanenttokens: [] } },
+        { match: "/users/u-1/permanenttokens?fields=id,name,token", method: "POST", status: 403 },
+      ]).impl,
+    });
+    await assert.rejects(
+      () => deniedAtMint.issueToken({ ctx: CTX, serviceUrl: "http://registry:8642" }),
+      (error) => error.status === 403 && error.code === "MINT_NOT_PERMITTED",
+    );
+  });
+
+  it("accepts a caller-supplied token after verifying it belongs to the caller — no mint calls", async () => {
+    const audited = [];
+    const { impl, calls } = fakeFetch([
+      { match: "/users?query=login:alice", json: { users: [{ id: "u-1", login: "alice" }] } },
+      { match: "/users/me?fields=id,login", json: { id: "u-1", login: "alice" } },
+    ]);
+    const onboarding = createOnboarding({ config: CONFIG, audit: (entry) => audited.push(entry), fetchImpl: impl });
+
+    const result = await onboarding.issueToken({ ctx: CTX, serviceUrl: "http://registry:8642", token: "pasted-perm-xyz" });
+
+    assert.equal(result.token, "pasted-perm-xyz");
+    assert.equal(result.login, "alice");
+    const snippet = JSON.parse(result.mcpJson);
+    assert.equal(snippet.mcpServers["omp-spec-kit"].headers.Authorization, "Bearer pasted-perm-xyz");
+    const verify = calls.find((call) => call.url.includes("/users/me"));
+    assert.equal(verify.authorization, "Bearer pasted-perm-xyz", "the pasted token verifies itself, not the service token");
+    assert.ok(!calls.some((call) => call.method === "POST" || call.method === "DELETE"), "a pasted token must not touch the mint path");
+    assert.equal(audited[0].result, "ok:token-provided");
+    assert.ok(!JSON.stringify(audited[0]).includes("pasted-perm-xyz"), "the token value must never be audited");
+  });
+
+  it("refuses a pasted token that is rejected or belongs to another user", async () => {
+    const rejected = createOnboarding({
+      config: CONFIG,
+      fetchImpl: fakeFetch([
+        { match: "/users?query=login:alice", json: { users: [{ id: "u-1", login: "alice" }] } },
+        { match: "/users/me?fields=id,login", status: 401 },
+      ]).impl,
+    });
+    await assert.rejects(
+      () => rejected.issueToken({ ctx: CTX, serviceUrl: "http://registry:8642", token: "bad" }),
+      (error) => error.status === 400 && error.code === "TOKEN_INVALID",
+    );
+
+    const other = createOnboarding({
+      config: CONFIG,
+      fetchImpl: fakeFetch([
+        { match: "/users?query=login:alice", json: { users: [{ id: "u-1", login: "alice" }] } },
+        { match: "/users/me?fields=id,login", json: { id: "u-2", login: "mallory" } },
+      ]).impl,
+    });
+    await assert.rejects(
+      () => other.issueToken({ ctx: CTX, serviceUrl: "http://registry:8642", token: "mallorys-token" }),
+      (error) => error.status === 400 && error.code === "TOKEN_MISMATCH",
+    );
+  });
+
   it("builds the managed snippet from the same shape the plugin template documents", () => {
     const snippet = JSON.parse(buildManagedSnippet("https://specs.example.com", "perm-xyz"));
     assert.deepEqual(Object.keys(snippet.mcpServers), ["omp-spec-kit"]);
