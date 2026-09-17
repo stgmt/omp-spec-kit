@@ -1,19 +1,19 @@
 {
   "schema": "omp-spec-kit-release-candidate@2",
   "version": "2.2.1",
-  "tag": "v2.2.0",
-  "commit": "22b88729ab0718a1060cd1ab848e8e4bc0dd82a9",
-  "packageTreeDigest": "e38f76c9417ce7183db488cbd58a07c6c7f1a5f5f54f00feaf63b0a3b53087c2",
+  "tag": "v2.2.1",
+  "commit": "373498f4836414060c22fb2700e207db1fdd51eb",
+  "packageTreeDigest": "351274f7a2ce0b4e62d235475c06e86eee0b52932e46e3fdf8c18e6544fd2ea5",
   "archive": {
-    "file": "omp-spec-kit-2.2.0.tar",
-    "sha256": "b431eac04416fd91fb46cff205130c2986500b1de41bbe1c792bcfa1725815f4",
+    "file": "omp-spec-kit-2.2.1.tar",
+    "sha256": "6587657cd811e3d1668c5db50176277e75b9c1639a5e99116cf192f45cbb2dec",
     "bytes": 515584
   },
   "youtrackApp": {
-    "file": "spec-graph-app-1.0.21.zip",
-    "sha256": "77badcacaa95f4e6ffa31748747caab0c145408777383dffe004c32ec8b7d37c",
-    "bytes": 97807,
-    "version": "1.0.21"
+    "file": "spec-graph-app-1.0.22.zip",
+    "sha256": "5203bbe2b4d651a81459700c7f8380874d8e427d05c01a5411cc22fc5f19e674",
+    "bytes": 99215,
+    "version": "1.0.22"
   },
   "files": [
     {
@@ -128,7 +128,7 @@
       "path": "dist/extension.js",
       "mode": 420,
       "bytes": 544,
-      "sha256": "49fdd80b34daf24da11e87f1c6a4eb594ad4dc062972e2061bae129c43f55a66"
+      "sha256": "fce4ca9f43d7801c3118043ddbcc49c793ea5ab2141c4e23530688f26c9f5516"
     },
     {
       "path": "dist/gate/automatic-adapter.js",
@@ -260,7 +260,7 @@
       "path": "dist/manifest.json",
       "mode": 420,
       "bytes": 4644,
-      "sha256": "ffb6d83b5f41c04c4162b2e7e27c0d968f693068ec0a00d1e6cf5fdd6df756cb"
+      "sha256": "de1745a561ca8bab59f539551414e26c11931bbc4c33db1012870834170639dd"
     },
     {
       "path": "dist/mcp/server.js",
@@ -278,7 +278,7 @@
       "path": "package.json",
       "mode": 420,
       "bytes": 639,
-      "sha256": "b370820942b6e66a81b1d03ae43e24e50a120ea5aa5f24ac282b10376e911fad"
+      "sha256": "942d0c8a94afd00c00859f3c6668769c29fd5385a97a1ba9e35ba1d62a3533ae"
     },
     {
       "path": "README.md",
@@ -311,5 +311,5 @@
       "sha256": "ade24f9232ebf5ac9eca03e0ec05541508c5ce4d541e79553a0fa41a62520c4c"
     }
   ],
-  "candidateDigest": "dd06d03b4d0c285aba0990bf9012d320e84194460010f2cb8b85eb6dd338e1c3"
+  "candidateDigest": "ebf555206c434897b9e93fb27ebbbd17b676d65b6d73e841581f42677d31e111"
 }
