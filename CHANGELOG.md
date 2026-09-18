@@ -2,43 +2,45 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
-## 1.3.0 — 2026-09-13
+## 1.4.0 — 2026-09-18
 
-Roadmap canonical document and governed auto-assembly release.
+Anti-bike protection release: scenario-authoring changes now require a design review, and the engineering discipline ships as a skill.
 
 ### Added
 
-- `ROADMAP` is a conditional canonical document kind: `ROADMAP.md` is canonical only for `roadmap-*` specs (slug-prefix detection is authoritative). The graph builder auto-generates a `<slug>:ROADMAP` aggregate node and a `DECLARES` edge from the document node, making the roadmap entity a real canonical graph node instead of a board-only synthetic.
-- Pure deterministic roadmap assembler (`src/kernel/roadmap/assemble.js`): derives scope from `Implements:`/`Refs:` edges in the roadmap spec's own FR/TASK nodes, collects FR/UC/US items from covered specs, derives status from implementing task relationships, sorts by code-point order, and merges generated content inside `<!-- roadmap:auto:start -->` / `<!-- roadmap:auto:end -->` markers. Authored bytes outside markers are sovereign; unchanged graph produces byte-identical output (idempotent).
-- `replace_marked_region` operation in `applyOperation`: replaces content between HTML comment markers with duplicate-marker detection.
-- `createRoadmap` and `assembleRoadmap` intents in `spec_patch`: create a ROADMAP.md skeleton with marker region for `roadmap-*` specs, and assemble the generated region from the live graph through the governed receipted transactional path. The 10-tool MCP surface is unchanged; intent count rises from 13 to 15.
-- E2e BDD coverage for roadmap intents: refusal on non-roadmap specs, apply with receipt, and idempotent re-run (staged-mcp.feature).
+- `spec_patch` refuses any change to a `.feature` document containing a `Scenario:` or `Scenario Outline:` header unless the request carries a valid `designReview` payload (closed schema `omp-spec-kit/design-review@1`): a named external or user-visible boundary, 2-8 evidence references including at least one test and one non-test kind, 1-5 rejected alternatives, and a self-test check reporting a passed positive case and a mutation that failed as expected. Missing reviews return `DESIGN_REVIEW_REQUIRED`; malformed reviews return `DESIGN_REVIEW_INVALID`; the normalized review is bound into the proposal hash and a bounded receipt names each reviewed document with its after-hash.
+- The host `tool_call` policy blocks a `spec_patch` call that writes scenario content into a `.feature` document without `designReview` before dispatch.
+- New skill `engineering-anti-bike`: evidence-first claims, prior-art scan before custom implementation, self-test/fake-green check at BDD scenario authoring, and hypothesis Q&A discipline.
+
+### Changed
+
+- Shared authoring error-code normalization extracted into `src/authoring/error-codes.js`; the MCP branch of the tool-call classifier is a dedicated helper.
+
+## 1.3.2 — 2026-09-14
+
+Guarded-authoring and anchor-parity release.
+
+### Added
+
+- `spec_patch` now rejects proposals that introduce definition-integrity violations (`INVALID_LOCAL_ID`, `MALFORMED_HEADING`, `ID_NOT_ALLOWED_IN_DOCUMENT`, `DUPLICATE_DEFINITION`), comparing per-document diagnostic counts before and after the change: pre-existing violations never block unrelated edits, repairs keep passing, and the single gate covers both dryRun previews and applies.
 
 ### Fixed
 
-- Phase 1 commit (611c70a) was incomplete: core source changes in `types.js`, `fs.js`, `build.js`, and `check-spec-corpus.mjs` were not staged. Restored source/commit parity in `dc30d07`.
+- Heading anchors (`glfm-anchor@2`) collapse the hyphen runs left by removed punctuation, trim the edges, and drop underscores — matching the Marksman slug convention every authored corpus link uses and the corpus gate's own anchor check; 79 previously unresolvable corpus links now resolve, and sibling `<spec>.feature` documents are valid link targets.
+- `blocked`, `ready`, `in-progress`, and `deferred` task statuses normalize to themselves instead of silently displaying as `unknown`.
 
-### Local verification
+## 1.3.1 — 2026-09-13
 
-- 86 unit tests, 26 safe-authoring BDD scenarios, 66 staged-MCP BDD scenarios pass.
-- Mutation gate: 168/168 mutants killed. Tool surface: 10/10.
-- Live YouTrack sync: PARITY achieved (478 nodes, 467 links). ROADMAP card live on board.
-- Live `assembleRoadmap` write: 83 items assembled, idempotent re-run confirmed.
-- Live writeback round trip: YouTrack `Fixed` on SPEC-525 (`roadmap-roadmaps:TASK-8`) swept to `.specs` `done` through `StatusSweepService`.
+Diagnostic-coverage release: definition-shaped headings can no longer vanish silently.
 
-### Widget verification
+### Fixed
 
-- App `spec-graph-app` (`144-67`) is uploaded, attached to project SPEC, and enabled (`ProjectAppConfiguration` `181-16`).
-- Two widget extensions are registered: `spec-panel` (`163-15`, `ISSUE_BELOW_SUMMARY`) and `spec-board` (`163-16`, `DASHBOARD_WIDGET`).
-- Widget content is served byte-identical to source through `/api/appResources/144-67/widgets/{spec-panel,spec-board}/index.html` (10834 and 61361 bytes respectively, `diff` reports identical).
-- Issue `3-496` returns `spec-panel` in its `widgets` array via `/api/issues/3-496?fields=...`.
-- `spec-board` appears in `/api/admin/widgets/general` (dashboard widget catalog).
-- Access logs confirm the widget was loaded in a real browser session on 2026-09-08: `200 GET /api/appResources/144-67/widgets/spec-panel/index.html` and `200 GET /api/appResources/144-67/widgets/spec-board/index.html` from an authenticated Edge browser.
-- Headless Chrome render of the widget URL shows expected `YTApp is not defined` because the YouTrack Host API is only available inside the YouTrack iframe sandbox; the widget HTML itself loads and parses correctly.
+- Near-miss definition headings now surface as diagnostics for every role. The malformed-candidate check was dead code for the six roles whose ID prefix differs from the role name (FR, AC, DEC, RF, FC, SCHEMA), and a definition-shaped heading at an unsupported heading level produced no diagnostic at all; both classes now report `MALFORMED_HEADING` / `INVALID_LOCAL_ID` with level-aware messages.
+- A trailing parenthetical annotation no longer turns a canonical task status into `unknown` (`done (2026-09-13)`).
 
-### Known limitations
+### Changed
 
-- The ROADMAP aggregate card on YouTrack is currently isolated (0 links): the graph has a `DECLARES` edge from the document node but no `CONTAINS` edges from the aggregate, so the card has no visual relationships yet.
+- The repository's own specification corpus conforms to the canonical grammar it enforces: `Depends On` reference-field casing in plugin-distribution, definition heading levels in spec-registry-service, and registry-service AC identifiers renumbered to `AC-N.M` under their governing FRs with thematic NFR categories.
 
 ## 1.2.0 — 2026-09-13
 

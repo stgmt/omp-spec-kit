@@ -68,7 +68,7 @@ const allTreeDistDirectories = [
 ].sort();
 
 const expectedDirectories = Object.freeze([
-  ...new Set(["bin", "commands", "dist", "skills", "skills/release-operator", "skills/spec-elicitation", "skills/spec-inventory", "skills/tool-e2e", ...allTreeDistDirectories]),
+  ...new Set(["bin", "commands", "dist", "skills", "skills/engineering-anti-bike", "skills/release-operator", "skills/spec-elicitation", "skills/spec-inventory", "skills/tool-e2e", ...allTreeDistDirectories]),
 ]);
 const expectedFiles = Object.freeze([
   ".mcp.json",
@@ -80,6 +80,7 @@ const expectedFiles = Object.freeze([
   "dist/extension.js",
   "dist/manifest.json",
   "package.json",
+  "skills/engineering-anti-bike/SKILL.md",
   "skills/release-operator/SKILL.md",
   "skills/spec-elicitation/SKILL.md",
   "skills/spec-inventory/SKILL.md",

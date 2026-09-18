@@ -2,7 +2,7 @@
 // Every list below is declaration-ordered; count summaries use declaration order.
 
 export const KERNEL_SCHEMA_VERSION = "spec-kernel@1";
-export const ANCHOR_ALGORITHM_VERSION = "glfm-anchor@1";
+export const ANCHOR_ALGORITHM_VERSION = "glfm-anchor@2";
 export const DIST_MANIFEST_SCHEMA = "omp-spec-kit-dist-manifest@1";
 
 // DocumentKind -> required filename (fixed names only; FEATURE/SCHEMA are slug-derived).
@@ -299,10 +299,18 @@ export const TASK_STATUS_NORMALIZATION = Object.freeze({
   Planned: "planned",
   planned: "planned",
   todo: "todo",
+  Ready: "ready",
+  ready: "ready",
+  "In-progress": "in-progress",
+  "in-progress": "in-progress",
+  Blocked: "blocked",
+  blocked: "blocked",
   Done: "done",
   done: "done",
   Completed: "done",
   completed: "done",
+  Deferred: "deferred",
+  deferred: "deferred",
 });
 
 export const FILE_ACTIONS = Object.freeze(["create", "edit", "delete"]);

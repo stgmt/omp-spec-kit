@@ -8,6 +8,19 @@ const MUTATING_SHORT_NAMES = Object.freeze(new Set([
 const DIRECT_PATH_MUTATION_TOOLS = Object.freeze(new Set(["write", "edit", "apply_patch", "delete", "rename"]));
 const DIRECT_PATH_READ_TOOLS = Object.freeze(new Set(["read", "grep", "glob"]));
 const PATH_KEYS = Object.freeze(new Set(["path", "paths", "file", "files", "document", "documents"]));
+const FEATURE_SCENARIO_PATTERN = /\bScenario(?:\s+Outline)?\s*:/u;
+const FEATURE_CONTENT_FIELDS = Object.freeze(["content", "text", "newText"]);
+
+function featurePatchNeedsDesignReview(input) {
+  if (input?.designReview !== undefined && input?.designReview !== null) return false;
+  const operations = Array.isArray(input?.operations) ? input.operations : [];
+  return operations.some((op) => {
+    if (op === null || typeof op !== "object") return false;
+    const document = typeof op.document === "string" ? op.document : typeof op.doc === "string" ? op.doc : "";
+    if (!document.toLowerCase().endsWith(".feature")) return false;
+    return FEATURE_CONTENT_FIELDS.some((field) => typeof op[field] === "string" && FEATURE_SCENARIO_PATTERN.test(op[field]));
+  });
+}
 const SPEC_PATH_REFERENCE = /(?:^|[^a-z0-9])\.specs(?:$|[^a-z0-9])/iu;
 
 function validReadRangeChunk(chunk) {
@@ -154,7 +167,10 @@ function boundedReason(code, relativePath = null) {
   const target = typeof relativePath === "string" && relativePath !== "" && !/^[a-z]:[\\/]/iu.test(relativePath) && !relativePath.startsWith("/") && !relativePath.startsWith("\\")
     ? " target=" + relativePath
     : "";
-  const recovery = code === "TARGET_INDETERMINATE" ? " " + TARGET_RECOVERY : code === "SPEC_READ_REDIRECT" ? specReadRecovery(relativePath) : " use spec_patch with dryRun: true for preview or dryRun: false to apply";
+  const recovery = code === "TARGET_INDETERMINATE" ? " " + TARGET_RECOVERY
+    : code === "SPEC_READ_REDIRECT" ? specReadRecovery(relativePath)
+    : code === "DESIGN_REVIEW_REQUIRED" ? " attach designReview (schema omp-spec-kit/design-review@1) to the spec_patch call"
+    : " use spec_patch with dryRun: true for preview or dryRun: false to apply";
   const reason = code + ":" + target + recovery;
   if (Buffer.byteLength(reason, "utf8") <= 512) return reason;
   let boundedTarget = target;
@@ -189,6 +205,19 @@ function blocked(toolName, code, resolutions = [], mismatchField = null) {
   };
 }
 
+function classifyMcpToolCall(toolName, input, options, tools, familyA, familyB) {
+  const allTools = options.allTools ?? (typeof options.getAllTools === "function" ? options.getAllTools() : typeof options.pi?.getAllTools === "function" ? options.pi.getAllTools() : null);
+  const auth = resolveAuthority(toolName, allTools, familyA, familyB, tools.length);
+  if (!auth.ok) {
+    return blocked(toolName, auth.code, [], auth.reason);
+  }
+  const logicalName = auth.logicalName;
+  if (logicalName === "spec_patch" && featurePatchNeedsDesignReview(input)) {
+    return blocked(toolName, "DESIGN_REVIEW_REQUIRED", [], "designReview");
+  }
+  return { action: "allow", code: "AUTHORING_TOOL_ALLOWED", toolName, logicalName, touchesSpecs: true, mismatchField: null };
+}
+
 export function classifyToolCall(event, options = {}) {
   const toolName = typeof event?.toolName === "string" ? event.toolName : "";
   const input = event?.input ?? {};
@@ -202,13 +231,7 @@ export function classifyToolCall(event, options = {}) {
 
   const isCandidateMcp = familyA.has(toolName) || familyB.has(toolName);
   if (isCandidateMcp) {
-    const allTools = options.allTools ?? (typeof options.getAllTools === "function" ? options.getAllTools() : typeof options.pi?.getAllTools === "function" ? options.pi.getAllTools() : null);
-    const auth = resolveAuthority(toolName, allTools, familyA, familyB, tools.length);
-    if (!auth.ok) {
-      return blocked(toolName, auth.code, [], auth.reason);
-    }
-    const logicalName = auth.logicalName;
-    return { action: "allow", code: "AUTHORING_TOOL_ALLOWED", toolName, logicalName, touchesSpecs: true, mismatchField: null };
+    return classifyMcpToolCall(toolName, input, options, tools, familyA, familyB);
   }
 
   if (hasEmbeddedSpecReference(input)) return blocked(toolName, "RAW_SPEC_WRITE");

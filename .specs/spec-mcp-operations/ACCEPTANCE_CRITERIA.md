@@ -375,3 +375,12 @@ Given a real MCP server, tools/list declares the stable result schema and discov
 **Requirement:** [FR-39](FR.md#fr-39-spec-graph-board-view)
 
 **Scenario:** @feature39 @FR-39 @AC-39.1 @id:SCEN-mcp-spec-graph-board-view
+
+
+## AC-40.1: Scenario-authoring design review
+
+**EARS:** WHEN `spec_patch` changes a `.feature` document containing a `Scenario:` or `Scenario Outline:` header THEN a missing `designReview` SHALL return `DESIGN_REVIEW_REQUIRED`, a malformed review or a weakened self-test claim SHALL return `DESIGN_REVIEW_INVALID`, and a valid review SHALL apply with a receipt naming each reviewed document and its after-hash; WHEN the host `tool_call` policy sees such a call without `designReview` THEN it SHALL block before dispatch.
+
+**Requirement:** [FR-40](FR.md#fr-40-scenario-authoring-design-review)
+
+**Scenario:** `@feature40 @FR-40 @AC-40.1 @id:SCEN-mcp-scenario-authoring-design-review`

@@ -15,55 +15,22 @@ import { FIXED_DOCUMENT_FILES } from "../kernel/types.js";
 import { isValidSpecSlug } from "../kernel/identity.js";
 import { validateMetadata } from "../kernel/query/extended.js";
 import { assembleRoadmap as assembleRoadmapContent } from "../kernel/roadmap/assemble.js";
+import { validateDesignReviewForChanges } from "./design-review.js";
+import { error } from "./error-codes.js";
 
 const MAX_REASON_BYTES = 512;
 const MAX_DIFF_BYTES = 64 * 1024;
 
-const WRITE_ERROR_CODES = new Set([
-  "INVALID_REQUEST",
-  "PATH_FORBIDDEN",
-  "VALIDATION_FAILED",
-  "CONFLICT",
-  "RECOVERY_REQUIRED",
-  "DEADLINE_EXCEEDED",
-  "CONCURRENT_READ",
-  "ROLLBACK_FAILED",
-  "INTERNAL_ERROR",
-  "ELICITATION_REQUIRED",
+// Definition-integrity diagnostic classes a proposal must not introduce.
+// Compared as per-(code, path) counts before/after so pre-existing violations
+// elsewhere (or line shifts within an edited document) never block a write,
+// while any net-new occurrence fails the proposal.
+const DEFINITION_INTEGRITY_DIAGNOSTIC_CODES = new Set([
+  "INVALID_LOCAL_ID",
+  "MALFORMED_HEADING",
+  "ID_NOT_ALLOWED_IN_DOCUMENT",
+  "DUPLICATE_DEFINITION",
 ]);
-
-function isRetryable(code) {
-  return (
-    code === "CONFLICT" ||
-    code === "DEADLINE_EXCEEDED" ||
-    code === "CONCURRENT_READ" ||
-    code === "RECOVERY_REQUIRED" ||
-    code === "ROLLBACK_FAILED"
-  );
-}
-
-function safeErrorCode(code) {
-  if (WRITE_ERROR_CODES.has(code)) return code;
-  if (code === "DOC_NOT_FOUND" || code === "NOT_FOUND") return "PATH_FORBIDDEN";
-  return "VALIDATION_FAILED";
-}
-
-function error(code, message, extra = {}) {
-  const normalizedCode = safeErrorCode(code);
-  return {
-    ok: false,
-    error: {
-      code: normalizedCode,
-      message,
-      retryable: isRetryable(normalizedCode),
-      requestId: extra.requestId ?? null,
-      proposalHash: extra.proposalHash ?? null,
-      changedPaths: extra.changedPaths ?? [],
-      findings: extra.findings ?? [],
-      ...extra,
-    },
-  };
-}
 
 function success(data) {
   return { ok: true, data };
@@ -764,6 +731,49 @@ export class ProposalCompiler {
       return error("VALIDATION_FAILED", "resulting specification graph is invalid", { findings });
     }
 
+    const countByPath = (diagnostics) => {
+      const counts = new Map();
+      for (const diagnostic of diagnostics) {
+        if (!DEFINITION_INTEGRITY_DIAGNOSTIC_CODES.has(diagnostic.code)) continue;
+        const key = `${diagnostic.code}\u0000${diagnostic.span?.path ?? ""}`;
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+      return counts;
+    };
+    const baseline = buildKernelGraph({ files: snapshot.files });
+    const beforeCounts = countByPath(baseline.diagnostics);
+    const afterCounts = countByPath(resulting.diagnostics);
+    const firstAfter = new Map();
+    for (const diagnostic of resulting.diagnostics) {
+      if (!DEFINITION_INTEGRITY_DIAGNOSTIC_CODES.has(diagnostic.code)) continue;
+      const key = `${diagnostic.code}\u0000${diagnostic.span?.path ?? ""}`;
+      if (!firstAfter.has(key)) firstAfter.set(key, diagnostic);
+    }
+    const introducedFindings = [];
+    for (const [key, diagnostic] of firstAfter) {
+      if ((afterCounts.get(key) ?? 0) <= (beforeCounts.get(key) ?? 0)) continue;
+      const path = diagnostic.span?.path ?? "";
+      introducedFindings.push({
+        code: diagnostic.code,
+        ...(path ? { path } : {}),
+        ...(diagnostic.span?.startLine ? { line: diagnostic.span.startLine } : {}),
+        message: diagnostic.message ?? diagnostic.code,
+      });
+    }
+    if (introducedFindings.length > 0) {
+      introducedFindings.sort(
+        (left, right) =>
+          (left.path ?? "").localeCompare(right.path ?? "") || left.code.localeCompare(right.code),
+      );
+      return error("VALIDATION_FAILED", "proposal introduces malformed definition headings", {
+        findings: introducedFindings,
+      });
+    }
+
+    const reviewCheck = validateDesignReviewForChanges(input.designReview, [...documents.values()]);
+    if (!reviewCheck.ok) {
+      return error(reviewCheck.code, reviewCheck.message, { findings: reviewCheck.findings });
+    }
     const previews = [...documents.values()].map((entry) => entry.preview).sort((left, right) => left.document.localeCompare(right.document));
     const proposalMaterial = {
       requestId,
@@ -772,6 +782,7 @@ export class ProposalCompiler {
       reason,
       normalizedOperations,
       previews,
+      designReview: reviewCheck.material,
     };
     const proposalSha256 = sha256(canonicalJson(proposalMaterial));
 
@@ -786,6 +797,7 @@ export class ProposalCompiler {
       complete: true,
       changes: [...documents.values()],
       previews,
+      designReview: reviewCheck.receipt,
       kind: "patch",
     });
   }

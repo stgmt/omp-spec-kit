@@ -231,7 +231,8 @@ export function renderInline(text) {
     if (ch === "*" || ch === "_" || ch === "~") {
       // P1: strip emphasis delimiters only when a matching closer exists;
       // unmatched runs (intraword underscores such as snake_case_name) stay
-      // literal so glfm-anchor@1 preserves `_` and `-`.
+      // literal so the anchor derivation sees the full token before @2
+      // removes `_` along with other punctuation.
       let runLength = 0;
       while (i + runLength < text.length && text[i + runLength] === ch) runLength += 1;
       const delimiter = ch === "~" ? "~~" : ch === "_" ? "_" : "*";
@@ -280,18 +281,23 @@ export function renderInline(text) {
 const PUNCT_SYMBOL_RE = /[\p{P}\p{S}]/u;
 const WHITESPACE_RE = /\s/u;
 
-// glfm-anchor@1 base-anchor derivation from rendered heading text.
+// glfm-anchor@2 base-anchor derivation from rendered heading text.
 export function deriveBaseAnchor(plainText) {
-  let out = "";
+  const raw = [];
   for (const ch of plainText.normalize("NFC")) {
-    if (WHITESPACE_RE.test(ch)) out += "-";
-    else if (ch === "_" || ch === "-") out += ch;
+    if (WHITESPACE_RE.test(ch)) raw.push("-");
+    else if (ch === "-") raw.push(ch);
     else if (PUNCT_SYMBOL_RE.test(ch)) {
-      // removed
-    } else out += ch;
+      // removed — including `_`, matching the Marksman slug convention
+    } else raw.push(ch);
   }
-  // Unicode default lowercase, locale-independent.
-  return out.toLowerCase();
+  // Collapse runs of hyphens left by removed punctuation and trim the edges,
+  // matching the Marksman/GitHub-editor slug convention authored links use.
+  return raw
+    .join("")
+    .replace(/-{2,}/gu, "-")
+    .replace(/^-+|-+$/gu, "")
+    .toLowerCase();
 }
 
 // Allocate the smallest unused candidate against the complete previously

@@ -56,19 +56,19 @@ The MCP compatibility mappings are exact and intentionally finite as a first sli
 
 ## Decisions
 
-### DEC-1: One core
+## DEC-1: One core
 
 Parallel v1/v2 runtimes would duplicate invariants and make compatibility ambiguous. One core with historical adapters keeps released names without preserving obsolete machinery.
 
-### DEC-2: Occurrence first
+## DEC-2: Occurrence first
 
 Arrays are populated before indexes so duplicates, malformed references, and conservation failures remain observable.
 
-### DEC-3: Boundary ownership
+## DEC-3: Boundary ownership
 
 Containment, transport, request IDs, locks, versions, and server allowlists belong to host layers. The kernel receives validated source values and owns graph semantics only.
 
-### DEC-4: Historical evidence stays historical
+## DEC-4: Historical evidence stays historical
 
 The v0.3.2 runtime contract and real fixture receipts remain immutable compatibility evidence. They do not imply that the simplified core is already implemented.
 
@@ -117,27 +117,27 @@ Every parsed row receives one join outcome and every required scenario receives 
 
 ## Decisions
 
-### DEC-1: Trust the capture boundary, not self-declared hashes
+## DEC-5: Trust the capture boundary, not self-declared hashes
 
 The local adapter is trusted to observe the actual run and compute bindings. Re-hashing proves byte integrity, not producer authenticity. If adversarial attestation is later required, it is a separate capability with an external trust root.
 
-### DEC-2: Full scope is captured behavior
+## DEC-6: Full scope is captured behavior
 
 FULL is not a caller label. The adapter derives it from the invocation and expected set. Partial runs are useful diagnostics but never readiness authority.
 
-### DEC-3: Stable identity only
+## DEC-7: Stable identity only
 
 Qualified scenario ID and verified canonical tag are the authority path. Names help explain unmatched rows but cannot silently bind evidence.
 
-### DEC-4: Freshness is local to the tested scenario
+## DEC-8: Freshness is local to the tested scenario
 
 Scenario content, applicable step binding, and implementation identity protect the observable result. Current task membership comes from the current snapshot, so a newly required scenario becomes missing without invalidating unrelated results through a whole-graph hash.
 
-### DEC-5: One evidence identity
+## DEC-9: One evidence identity
 
 `(artifactSha256, producerResultId)` identifies result and trace. The result view does not copy trace identity, and trace paging does not invent another fingerprint protocol.
 
-### DEC-6: Product composition stays in product
+## DEC-10: Product composition stays in product
 
 This evaluator produces ordinary task/scenario evidence. Product decides release readiness. There is no evidence-specific check census or release manifest.
 

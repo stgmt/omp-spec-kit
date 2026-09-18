@@ -6,31 +6,31 @@ This research asks only whether the current OMP hook can block a call before exe
 
 ## Confirmed findings
 
-### RF-1: Current `tool_call` is sufficient
+## RF-1: Current `tool_call` is sufficient
 
 Pinned OMP v17.3.7 exposes a pre-execution `tool_call` event with the tool name and input and accepts a blocking result with a reason. The existing extension can therefore apply this policy without a host change. Source authority: installed `pi-coding-agent@17.3.7` at commit `8500092296621a6826b7136e840f8a59ea338958`, especially `src/extensibility/hooks/tool-wrapper.ts` and `src/extensibility/shared-events.ts`; the repository pin is recorded in `docs/omp-v17.3.7-contract.md`.
 
 **Decision:** register only `tool_call` in the existing extension factory.
 
-### RF-2: Name equality is the complete authoring exception
+## RF-2: Name equality is the complete authoring exception
 
 The requested product boundary has exactly one public mutation operation: `spec_patch`. The hook-visible name is compared by exact string equality before path resolution. Prefixes, suffixes, case changes, qualified lookalikes, and embedded names are not matches.
 
 **Decision:** keep one single-string constant; do not add another identity or discovery mechanism.
 
-### RF-3: Lexical matching is insufficient
+## RF-3: Lexical matching is insufficient
 
 Separator differences, dot segments, Windows case rules, `.specs2`, symlinks, junctions/reparse points, and new targets can make a string prefix answer wrong.
 
 **Decision:** normalize path syntax, anchor relative paths to the canonical project root, use component boundaries, inspect existing components with `lstat` and `realpath`, handle POSIX links and Windows reparse points, and resolve a new target through its nearest existing ancestor.
 
-### RF-4: Three outcomes are enough
+## RF-4: Three outcomes are enough
 
 For a non-allowlisted direct mutator, the only useful containment classes are `SPEC`, `NON_SPEC`, and `INDETERMINATE`. These yield one of two allowed outcomes or two blocking outcomes. Multiple targets are conservative: any `INDETERMINATE` blocks; otherwise any `SPEC` blocks; only all `NON_SPEC` allows.
 
 **Decision:** use the closed matrix in [ACCEPTANCE_CRITERIA.md](ACCEPTANCE_CRITERIA.md#ac-41-path-policy-matrix-is-closed).
 
-### RF-5: Installed reachability matters
+## RF-5: Installed reachability matters
 
 A separate extension entry would duplicate lifecycle and packaging. The existing `src/v0.1/extension.js` is the product entrypoint and `scripts/build-plugin.mjs` owns its built payload.
 

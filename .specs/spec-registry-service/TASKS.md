@@ -62,7 +62,7 @@ Status: DRAFT
 
 ## TASK-11 — docker-compose: service + volumes + optional youtrack-sync + proxy; documented env
 - **Status:** todo
-- **Done When:** clean-host `docker compose up` passes AC-7.
+- **Done When:** clean-host `docker compose up` passes AC-15.1.
 - **Requirements:** R-8, FR-15
 
 ## Backlog — Auth seam realization
@@ -86,7 +86,7 @@ Status: DRAFT
 
 ## Backlog — recorded risks (documented, no work scheduled)
 
-- **RISK-1 — SPOF on reads and writes.** Consumers have no repo access by design, so service outage = total outage for them. Operator mitigations exist (`git clone -b specs` fallback, break-glass push + drift report, AC-10) but no HA planned.
+- **RISK-1 — SPOF on reads and writes.** Consumers have no repo access by design, so service outage = total outage for them. Operator mitigations exist (`git clone -b specs` fallback, break-glass push + drift report, AC-10.1) but no HA planned.
 - **RISK-2 — Spec↔code decoupling.** Specs and code never land in one PR anymore; linkage is `spec-refs.json` discipline. If teams stop pinning, "which spec does this code implement" rots — accepted, monitored by `spec outdated`.
 - **RISK-3 — Cross-project spec references.** Deferred entirely; the kernel has no cross-mount edge model. If needed later, likely via ledger entries (`project/slug@version`), not live graph edges.
 - **RISK-4 — Specs repo is one blast radius.** All projects share one repo: a bad global state (history rewrite, repo corruption) hits every tenant. Mitigations: git integrity + journal, operator-side mirror/backup of the specs repo. Per-user branches were considered and rejected (index aggregation).

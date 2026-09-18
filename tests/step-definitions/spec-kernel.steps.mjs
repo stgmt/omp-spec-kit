@@ -221,7 +221,7 @@ Then('the allocated canonical anchors are exactly "foo foo-1 foo-1-1" and "foo-1
   assert.deepStrictEqual(design.map((heading) => heading.canonicalAnchor), ["foo-1", "foo", "foo-2"]);
 });
 
-Then("every allocation records the glfm-anchor@1 algorithm and minimal duplicate ordinals", function () {
+Then("every allocation records the glfm-anchor@2 algorithm and minimal duplicate ordinals", function () {
   const headings = this.kernel.producerBuild.graph.markdownHeadingOccurrences;
   assert.strictEqual(headings.length, 6);
   for (const path of [".specs/anchor-lab/README.md", ".specs/anchor-lab/DESIGN.md"]) {
@@ -229,7 +229,7 @@ Then("every allocation records the glfm-anchor@1 algorithm and minimal duplicate
     assert.strictEqual(new Set(perDocument).size, perDocument.length, `anchors must be unique in ${path}`);
   }
   for (const heading of headings) {
-    assert.strictEqual(heading.anchorAlgorithmVersion, "glfm-anchor@1");
+    assert.strictEqual(heading.anchorAlgorithmVersion, "glfm-anchor@2");
     const expectedOrdinal =
       heading.canonicalAnchor === heading.baseAnchor
         ? 0

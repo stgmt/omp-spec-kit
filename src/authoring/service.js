@@ -14,53 +14,12 @@ import {
   ELICITATION_SKILL_URI,
   FirstWriteElicitationGuard,
 } from "./elicitation-guard.js";
+import { error, isRetryable, safeErrorCode } from "./error-codes.js";
 
 export const AUTHORING_OPERATIONS = Object.freeze(["specPatch"]);
 
-const WRITE_ERROR_CODES = new Set([
-  "INVALID_REQUEST",
-  "PATH_FORBIDDEN",
-  "VALIDATION_FAILED",
-  "CONFLICT",
-  "RECOVERY_REQUIRED",
-  "DEADLINE_EXCEEDED",
-  "CONCURRENT_READ",
-  "ROLLBACK_FAILED",
-  "INTERNAL_ERROR",
-  "ELICITATION_REQUIRED",
-]);
-
-function isRetryable(code) {
-  return (
-    code === "CONFLICT" ||
-    code === "DEADLINE_EXCEEDED" ||
-    code === "CONCURRENT_READ" ||
-    code === "RECOVERY_REQUIRED" ||
-    code === "ROLLBACK_FAILED"
-  );
-}
-
-function safeErrorCode(code) {
-  if (WRITE_ERROR_CODES.has(code)) return code;
-  if (code === "DOC_NOT_FOUND" || code === "NOT_FOUND") return "PATH_FORBIDDEN";
-  return "VALIDATION_FAILED";
-}
-
-function error(code, message, extra = {}) {
-  const normalizedCode = safeErrorCode(code);
-  return {
-    ok: false,
-    error: {
-      code: normalizedCode,
-      message,
-      retryable: isRetryable(normalizedCode),
-      requestId: extra.requestId ?? null,
-      proposalHash: extra.proposalHash ?? null,
-      changedPaths: extra.changedPaths ?? [],
-      findings: extra.findings ?? [],
-      ...extra,
-    },
-  };
+function compileRefusalCode(code) {
+  return code === "CONFLICT" || code === "DESIGN_REVIEW_REQUIRED" || code === "DESIGN_REVIEW_INVALID";
 }
 
 function validateActorRef(actorRef) {
@@ -152,6 +111,7 @@ export class SpecPatchService {
         doc: input.doc ?? input.document ?? null,
         newDoc: input.newDoc ?? null,
         actorRef: input.actorRef ?? null,
+        designReview: input.designReview ?? null,
       };
       const requestKey = canonicalJson(identity);
       const prior = this.applied.get(requestId);
@@ -168,8 +128,8 @@ export class SpecPatchService {
 
     const compileRes = await this.compiler.compile(input, graph);
     if (!compileRes.ok) {
-      if (!dryRun && compileRes.error?.code === "CONFLICT") {
-        return refusal("CONFLICT", compileRes.error.message, compileRes.error.findings, compileRes.error.proposalHash);
+      if (!dryRun && compileRefusalCode(compileRes.error?.code)) {
+        return refusal(compileRes.error.code, compileRes.error.message, compileRes.error.findings, compileRes.error.proposalHash);
       }
       return compileRes;
     }
@@ -195,6 +155,7 @@ export class SpecPatchService {
             diff: change.preview.unifiedDiff,
           })),
           findings: proposal.findings ?? [],
+          ...(proposal.designReview ? { designReview: proposal.designReview } : {}),
           ...(proposal.archive ? { archive: { ...proposal.archive } } : {}),
         },
       };
@@ -221,6 +182,7 @@ export class SpecPatchService {
       doc: input.doc ?? input.document ?? null,
       newDoc: input.newDoc ?? null,
       actorRef: input.actorRef ?? null,
+      designReview: input.designReview ?? null,
     };
     const requestKey = canonicalJson(identity);
 
@@ -290,6 +252,7 @@ export class SpecPatchService {
             afterSha256: change.preview.afterSha256,
           })),
           ...(proposal.archive ? { archive: { ...proposal.archive } } : {}),
+          ...(proposal.designReview ? { designReview: proposal.designReview } : {}),
           findings: [],
         };
 

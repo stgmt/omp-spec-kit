@@ -53,23 +53,23 @@ The formatter preserves the code and redirect when truncating to 512 UTF-8 bytes
 
 ## Decisions
 
-### DEC-1: Use current tool_call only
+## DEC-1: Use current tool_call only
 
 The event already supports pre-execution block/reason behavior. Additional lifecycle events are unnecessary.
 
-### DEC-2: Exact two-name exception
+## DEC-2: Exact two-name exception
 
 The public mutation surface is two names. Exact equality is simpler and testable; a near miss follows normal containment.
 
-### DEC-3: Filesystem truth belongs to one resolver
+## DEC-3: Filesystem truth belongs to one resolver
 
 Path safety depends on canonical filesystem state, including links, reparse points, and not-yet-created leaves. Lexical prefix checks are insufficient.
 
-### DEC-4: Uncertainty blocks
+## DEC-4: Uncertainty blocks
 
 The policy exists to prevent raw spec writes. A failed containment proof cannot safely allow the call.
 
-### DEC-5: Reuse the existing extension factory
+## DEC-5: Reuse the existing extension factory
 
 One registration path avoids an unreachable or divergent second entrypoint and matches the shipped build layout.
 

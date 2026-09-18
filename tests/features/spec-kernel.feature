@@ -21,7 +21,7 @@ Feature: The v0.2 spec kernel core is pure, deterministic, and fail-closed
     Given a synthetic producer with adversarial duplicate heading sequences "Foo Foo Foo-1" and "Foo-1 Foo Foo"
     When the kernel builds the graph from the producer bytes
     Then the allocated canonical anchors are exactly "foo foo-1 foo-1-1" and "foo-1 foo foo-2"
-    And every allocation records the glfm-anchor@1 algorithm and minimal duplicate ordinals
+    And every allocation records the glfm-anchor@2 algorithm and minimal duplicate ordinals
 
   @id:SCEN-duplicate-election-lossless @feature4 @AC-4.1
   Scenario: Duplicate FR definitions keep both occurrences and refuse the identity without loss

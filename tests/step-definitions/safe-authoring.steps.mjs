@@ -799,6 +799,60 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     this.result = true;
     return;
   }
+  if (scenario === "design-review-gate") {
+    const featureDoc = "plugin-distribution.feature";
+    const featurePath = path.join(this.root, "." + "specs", "plugin-distribution", featureDoc);
+    const scenarioContent = "Feature: plugin distribution\n\n  @feature1 @FR-1 @AC-1.1 @id:SCEN-design-review-gate-proof\n  Scenario: gate proof\n    Then it holds\n";
+    const baseArgs = {
+      intent: "patch",
+      spec: "plugin-distribution",
+      reason: "design review gate scenario",
+      dryRun: false,
+      operations: [{ kind: "replace_document", document: featureDoc, content: scenarioContent }],
+    };
+    const preflight = classifyToolCall({ toolName: "mcp__omp_spec_kit_spec_patch", input: { ...baseArgs, requestId: "safe-dr-preflight" } }, { root: this.root });
+    assert.equal(preflight.action, "block", JSON.stringify(preflight));
+    assert.equal(preflight.code, "DESIGN_REVIEW_REQUIRED", JSON.stringify(preflight));
+    const missing = await call(this, "spec_patch", { ...baseArgs, requestId: "safe-dr-missing" });
+    assert.equal(missing.data?.outcome, "REFUSED", JSON.stringify(missing));
+    assert.equal(missing.data?.error?.code, "DESIGN_REVIEW_REQUIRED", JSON.stringify(missing));
+    const malformed = await call(this, "spec_patch", { ...baseArgs, requestId: "safe-dr-malformed", designReview: { schemaVersion: "wrong" } });
+    assert.equal(malformed.data?.outcome, "REFUSED", JSON.stringify(malformed));
+    assert.equal(malformed.data?.error?.code, "DESIGN_REVIEW_INVALID", JSON.stringify(malformed));
+    const review = {
+      schemaVersion: "omp-spec-kit/design-review@1",
+      decision: "proceed",
+      boundary: { kind: "external-contract", name: "spec_patch scenario-authoring gate", claim: "a .feature change containing a Scenario header must carry a design review receipt" },
+      evidence: [
+        { kind: "test", reference: "tests/features/safe-authoring.feature", observation: "this scenario exercises the gate through the live MCP server" },
+        { kind: "source", reference: "src/authoring/design-review.js", observation: "validateDesignReviewForChanges enforces the closed review schema and mutation claim" },
+      ],
+      alternatives: [{ option: "allow scenario edits without a review", reasonRejected: "a scenario that cannot name a failing mutation is decoration, not a test" }],
+      selfTestCheck: {
+        status: "passed",
+        mutation: "failed-as-expected",
+        command: "cucumber-js tests/features/safe-authoring.feature --tags @design-review",
+        hypothesis: "the gate refuses scenario-authoring patches without a valid designReview",
+        answer: "missing and malformed reviews are refused; a valid review applies and returns a receipt",
+        positiveCase: "valid designReview attached to a scenario patch",
+        negativeCase: "same patch without designReview",
+        expectedFailure: "DESIGN_REVIEW_INVALID when the mutation claim is weakened",
+        observedFailure: "mutated review refused with DESIGN_REVIEW_INVALID",
+      },
+    };
+    const mutated = await call(this, "spec_patch", { ...baseArgs, requestId: "safe-dr-mutated", designReview: { ...review, selfTestCheck: { ...review.selfTestCheck, mutation: "passed" } } });
+    assert.equal(mutated.data?.outcome, "REFUSED", JSON.stringify(mutated));
+    assert.equal(mutated.data?.error?.code, "DESIGN_REVIEW_INVALID", JSON.stringify(mutated));
+    const applied = await call(this, "spec_patch", { ...baseArgs, requestId: "safe-dr-applied", designReview: review });
+    assert.equal(applied.data?.outcome, "APPLIED", JSON.stringify(applied));
+    const reviewed = applied.data?.receipt?.designReview?.reviewedDocuments;
+    assert.ok(Array.isArray(reviewed), JSON.stringify(applied));
+    const entry = reviewed.find((item) => item.path === featureDoc);
+    assert.ok(entry, JSON.stringify(reviewed));
+    assert.equal(entry.afterSha256, sha256Hex(await readFile(featurePath)));
+    this.result = true;
+    return;
+  }
   throw new Error("unknown safe-authoring scenario: " + scenario);
 });
 

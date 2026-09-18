@@ -273,7 +273,7 @@ async function runBoundaryMatrix({ callTool, projectRoot, repositoryRoot, outsid
   for (const task of filteredTasks.data.tasks) assert.equal(task.status, "planned");
   const missingMethod = await callRow({ callTool, name: "spec_inspect", args: { check: "requirementsPolicy", verificationMethodMissing: true }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-policy-filter" });
   for (const result of missingMethod.data.results) assert.equal(result.metadata, null);
-  const markdownAnchor = await callRow({ callTool, name: "spec_inspect", args: { check: "anchor", anchor: ".specs/product/FR.md#fr-1--specification-first-public-init" }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-markdown-anchor" });
+  const markdownAnchor = await callRow({ callTool, name: "spec_inspect", args: { check: "anchor", anchor: ".specs/product/FR.md#fr-1-specification-first-public-init" }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-markdown-anchor" });
   assert.equal(markdownAnchor.data.registered, true);
   for (const view of ["status", "summary", "counts", "coverage"]) {
     const status = await callRow({ callTool, name: "spec_catalog", args: { view: "status", spec: "product", statusView: view }, projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-status-" + view });
