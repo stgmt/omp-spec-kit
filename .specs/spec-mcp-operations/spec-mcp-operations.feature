@@ -346,3 +346,11 @@ Scenario: Spec graph returns one complete board view
   And limit or cursor is rejected for this branch
   And an over-size response returns RESPONSE_TOO_LARGE without partial data
   And the registered tool count stays at 10
+@feature40 @FR-40 @AC-40.1 @id:SCEN-mcp-scenario-authoring-design-review
+Scenario: Scenario-authoring patches require a design review receipt
+  Given a disposable real authoring corpus and live MCP server
+  When a spec_patch call writes a Scenario header into a .feature document
+  Then a missing designReview is refused with DESIGN_REVIEW_REQUIRED
+  And a malformed or weakened review is refused with DESIGN_REVIEW_INVALID
+  And a valid review applies with a receipt naming the document after-hash
+  And the host tool_call policy blocks the same call before dispatch

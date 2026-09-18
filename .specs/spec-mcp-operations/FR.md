@@ -369,3 +369,11 @@ The branch SHALL not accept limit or cursor and SHALL never return a partial or 
 **Contract card:** kind functional; subject mcp-board-view; observables complete board DTO, fingerprint equality, scope filtering, raw edge aggregation, strict no-pagination branch, and unchanged ten-tool surface; verification direct JSON-RPC and staged BDD.
 **Acceptance:** [AC-39.1](ACCEPTANCE_CRITERIA.md#ac-391-spec-graph-board-view)
 **Scenario:** @feature39 @FR-39 @AC-39.1 @id:SCEN-mcp-spec-graph-board-view
+
+## FR-40: Scenario-authoring design review
+
+spec_patch SHALL refuse any change to a `.feature` document whose before or after bytes contain a `Scenario:` or `Scenario Outline:` header unless the request carries a valid `designReview` payload. The review SHALL conform to the closed schema `omp-spec-kit/design-review@1`: decision `proceed`, one boundary naming an external-contract, external-system, or user-visible-contract with a concrete claim, 2-8 evidence references including at least one `test` kind and at least one non-test kind, 1-5 rejected alternatives, and a selfTestCheck reporting status `passed` and mutation `failed-as-expected` with concrete command, hypothesis, answer, positive and negative cases, and distinct expected and observed failures. A missing review SHALL return `DESIGN_REVIEW_REQUIRED`; a malformed review SHALL return `DESIGN_REVIEW_INVALID`. The normalized review SHALL be bound into the proposal hash, and a successful preview or apply SHALL return a bounded receipt naming each reviewed document with its after-hash. The current-host `tool_call` policy SHALL block a `spec_patch` call that writes scenario content into a `.feature` document without `designReview` before dispatch.
+
+**Contract card:** kind `functional`; subject `scenario-authoring-design-review`; observables: typed refusals, proposal-hash binding, bounded receipt; negative cases: missing review, malformed review, weakened self-test claim, pre-dispatch block; verification: direct JSON-RPC and staged BDD.
+**Acceptance:** [AC-40.1](ACCEPTANCE_CRITERIA.md#ac-401-scenario-authoring-design-review)
+**Scenario:** `@feature40 @FR-40 @AC-40.1 @id:SCEN-mcp-scenario-authoring-design-review`
