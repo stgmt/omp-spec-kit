@@ -1,4 +1,7 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { TOOL_CONTRACTS } from "../adapters/tool-contracts.js";
+import { isValidSpecSlug } from "../kernel/identity.js";
 import { decidePathPolicy } from "./resolve-targets.js";
 
 const ALL_SHORT_NAMES = Object.freeze(new Set(TOOL_CONTRACTS.map((contract) => contract.tool)));
@@ -8,6 +11,82 @@ const MUTATING_SHORT_NAMES = Object.freeze(new Set([
 const DIRECT_PATH_MUTATION_TOOLS = Object.freeze(new Set(["write", "edit", "apply_patch", "delete", "rename"]));
 const DIRECT_PATH_READ_TOOLS = Object.freeze(new Set(["read", "grep", "glob"]));
 const PATH_KEYS = Object.freeze(new Set(["path", "paths", "file", "files", "document", "documents"]));
+// Matches every scenario header form cucumber-js executes — a superset of the
+// kernel parser's recognized set (Scenario, Scenario Outline, Example,
+// Scenario Template; space or tab indented). Docstring bodies are skipped so
+// quoted "Scenario:" text does not force a review.
+const FEATURE_SCENARIO_PATTERN = /^[ \t]*(?:Scenario|Scenario Outline|Scenario Template|Example):/mu;
+const FEATURE_DOCSTRING_RE = /^[ ]{0,3}("""|```)/u;
+const FEATURE_CONTENT_FIELDS = Object.freeze(["content", "text", "newText"]);
+const FEATURE_BYTE_OPS = Object.freeze(new Set(["delete_document", "rename_document", "deleteDocument", "renameDocument"]));
+
+function featureTextHasScenario(text) {
+  let docstringMarker = null;
+  for (const line of text.split("\n")) {
+    if (docstringMarker !== null) {
+      if (line.trimStart().startsWith(docstringMarker)) docstringMarker = null;
+      continue;
+    }
+    const marker = FEATURE_DOCSTRING_RE.exec(line);
+    if (marker && !line.trimStart().startsWith("#")) {
+      docstringMarker = marker[1];
+      continue;
+    }
+    if (FEATURE_SCENARIO_PATTERN.test(line)) return true;
+  }
+  return false;
+}
+
+function featureFileHasScenario(root, spec, document) {
+  // Canonical-form check before any filesystem access: a .feature document is
+  // canonical only as <spec>.feature, so anything else (incl. traversal) is
+  // never probed.
+  if (typeof root !== "string" || root === "") return false;
+  if (!isValidSpecSlug(spec) || document !== spec + ".feature") return false;
+  try {
+    const filePath = path.join(root, "." + "specs", spec, document);
+    return featureTextHasScenario(readFileSync(filePath, "utf8"));
+  } catch {
+    return false;
+  }
+}
+
+function specDirHasScenarioFeature(root, spec) {
+  if (typeof root !== "string" || root === "" || !isValidSpecSlug(spec)) return false;
+  try {
+    const dir = path.join(root, "." + "specs", spec);
+    for (const name of readdirSync(dir)) {
+      if (name === spec + ".feature" && featureTextHasScenario(readFileSync(path.join(dir, name), "utf8"))) return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+function featurePatchNeedsDesignReview(input, root) {
+  if ((input?.designReview ?? input?.design_review) !== undefined && (input?.designReview ?? input?.design_review) !== null) return false;
+  const spec = typeof input?.spec === "string" ? input.spec : "";
+  // Facade intents carry no operations array; mirror the server gate for the
+  // ones that can touch a scenario-bearing .feature document.
+  const intent = typeof input?.intent === "string" ? input.intent : "patch";
+  if (intent === "archiveSpec") return specDirHasScenarioFeature(root, spec);
+  if (intent === "deleteSpecDoc" || intent === "renameSpecDoc") {
+    const doc = typeof input?.doc === "string" ? input.doc : "";
+    return doc.toLowerCase().endsWith(".feature") && featureFileHasScenario(root, spec, doc);
+  }
+  const operations = Array.isArray(input?.operations) ? input.operations : [];
+  return operations.some((op) => {
+    if (op === null || typeof op !== "object") return false;
+    const document = typeof op.document === "string" ? op.document : typeof op.doc === "string" ? op.doc : "";
+    if (!document.toLowerCase().endsWith(".feature")) return false;
+    if (FEATURE_CONTENT_FIELDS.some((field) => typeof op[field] === "string" && featureTextHasScenario(op[field]))) return true;
+    // delete/rename carry no content fields; the server gate inspects before
+    // bytes, so preflight reads the file the same way (fail-open to the server).
+    if (FEATURE_BYTE_OPS.has(op.kind) && spec !== "" && featureFileHasScenario(root, spec, document)) return true;
+    return false;
+  });
+}
 const SPEC_PATH_REFERENCE = /(?:^|[^a-z0-9])\.specs(?:$|[^a-z0-9])/iu;
 
 function validReadRangeChunk(chunk) {
@@ -154,7 +233,10 @@ function boundedReason(code, relativePath = null) {
   const target = typeof relativePath === "string" && relativePath !== "" && !/^[a-z]:[\\/]/iu.test(relativePath) && !relativePath.startsWith("/") && !relativePath.startsWith("\\")
     ? " target=" + relativePath
     : "";
-  const recovery = code === "TARGET_INDETERMINATE" ? " " + TARGET_RECOVERY : code === "SPEC_READ_REDIRECT" ? specReadRecovery(relativePath) : " use spec_patch with dryRun: true for preview or dryRun: false to apply";
+  const recovery = code === "TARGET_INDETERMINATE" ? " " + TARGET_RECOVERY
+    : code === "SPEC_READ_REDIRECT" ? specReadRecovery(relativePath)
+    : code === "DESIGN_REVIEW_REQUIRED" ? " attach designReview (schema omp-spec-kit/design-review@1) to the spec_patch call"
+    : " use spec_patch with dryRun: true for preview or dryRun: false to apply";
   const reason = code + ":" + target + recovery;
   if (Buffer.byteLength(reason, "utf8") <= 512) return reason;
   let boundedTarget = target;
@@ -189,6 +271,19 @@ function blocked(toolName, code, resolutions = [], mismatchField = null) {
   };
 }
 
+function classifyMcpToolCall(toolName, input, options, tools, familyA, familyB, event) {
+  const allTools = options.allTools ?? (typeof options.getAllTools === "function" ? options.getAllTools() : typeof options.pi?.getAllTools === "function" ? options.pi.getAllTools() : null);
+  const auth = resolveAuthority(toolName, allTools, familyA, familyB, tools.length);
+  if (!auth.ok) {
+    return blocked(toolName, auth.code, [], auth.reason);
+  }
+  const logicalName = auth.logicalName;
+  if (logicalName === "spec_patch" && featurePatchNeedsDesignReview(input, options.root ?? event?.cwd ?? process.cwd())) {
+    return blocked(toolName, "DESIGN_REVIEW_REQUIRED", [], "designReview");
+  }
+  return { action: "allow", code: "AUTHORING_TOOL_ALLOWED", toolName, logicalName, touchesSpecs: true, mismatchField: null };
+}
+
 export function classifyToolCall(event, options = {}) {
   const toolName = typeof event?.toolName === "string" ? event.toolName : "";
   const input = event?.input ?? {};
@@ -202,13 +297,7 @@ export function classifyToolCall(event, options = {}) {
 
   const isCandidateMcp = familyA.has(toolName) || familyB.has(toolName);
   if (isCandidateMcp) {
-    const allTools = options.allTools ?? (typeof options.getAllTools === "function" ? options.getAllTools() : typeof options.pi?.getAllTools === "function" ? options.pi.getAllTools() : null);
-    const auth = resolveAuthority(toolName, allTools, familyA, familyB, tools.length);
-    if (!auth.ok) {
-      return blocked(toolName, auth.code, [], auth.reason);
-    }
-    const logicalName = auth.logicalName;
-    return { action: "allow", code: "AUTHORING_TOOL_ALLOWED", toolName, logicalName, touchesSpecs: true, mismatchField: null };
+    return classifyMcpToolCall(toolName, input, options, tools, familyA, familyB, event);
   }
 
   if (hasEmbeddedSpecReference(input)) return blocked(toolName, "RAW_SPEC_WRITE");

@@ -139,3 +139,9 @@ Feature: safe specification authoring
     Given a disposable real authoring corpus and live MCP server
     When the scenario "elicitation-concurrent-first-applies" runs
     Then the scenario passes
+
+  @safe-authoring @design-review
+  Scenario: Scenario-authoring patches require a design review receipt
+    Given a disposable real authoring corpus and live MCP server
+    When the scenario "design-review-gate" runs
+    Then the scenario passes

@@ -157,10 +157,12 @@ export function extractAttributes(documentKind, role, localId, title, bodyText, 
       };
     case "TASK": {
       const rawStatus = fieldValue(fields, "Status");
+      const normalizedStatus =
+        rawStatus === null ? null : rawStatus.replace(/\s*\(.*?\)\s*$/u, "").trim();
       let status;
-      if (rawStatus === null || rawStatus === "") status = "unknown";
-      else if (Object.hasOwn(TASK_STATUS_NORMALIZATION, rawStatus)) {
-        status = TASK_STATUS_NORMALIZATION[rawStatus];
+      if (normalizedStatus === null || normalizedStatus === "") status = "unknown";
+      else if (Object.hasOwn(TASK_STATUS_NORMALIZATION, normalizedStatus)) {
+        status = TASK_STATUS_NORMALIZATION[normalizedStatus];
       } else status = "unknown";
       return {
         status,

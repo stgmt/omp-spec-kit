@@ -320,7 +320,7 @@ export const TOOL_CONTRACTS = Object.freeze([
     tool: "spec_patch",
     label: "Spec Patch",
     operation: "specPatch",
-    description: "Preview or apply specification patches in memory or atomically to disk.",
+    description: "Preview or apply spec patches in memory or atomically to disk.",
     discriminator: "intent",
     commonFields: Object.freeze([
       field("requestId", "string"),
@@ -331,14 +331,15 @@ export const TOOL_CONTRACTS = Object.freeze([
     ]),
     variants: Object.freeze({
       patch: Object.freeze({
-        description: "Preview or apply a complete operations array against one specification.",
+        description: "Patch operations on one spec.",
         fields: Object.freeze([
           optionalField("repositoryRootFingerprint", "string"),
+          optionalField("designReview", "json"),
           field("operations", "operations"),
         ]),
       }),
       amendRequirement: Object.freeze({
-        description: "Preview or apply a requirement amendment.",
+        description: "Amend a requirement.",
         fields: Object.freeze([
           field("requirement", "string"),
           field("body", "string"),
@@ -346,58 +347,63 @@ export const TOOL_CONTRACTS = Object.freeze([
         ]),
       }),
       addAcceptanceCriterion: Object.freeze({
-        description: "Preview or apply a canonical acceptance criterion.",
+        description: "Add an acceptance criterion.",
         fields: Object.freeze([
           field("requirement", "string"),
           field("criterion", "string"),
         ]),
       }),
       addPhase: Object.freeze({
-        description: "Preview or apply a task phase.",
+        description: "Add a task phase.",
         fields: Object.freeze([field("title", "string")]),
       }),
       setEntityStatus: Object.freeze({
-        description: "Preview or apply a validated task status transition.",
+        description: "Apply a task status transition.",
         fields: Object.freeze([
           field("entity", "string"),
           field("status", "enum", TASK_STATUS_VALUES),
         ]),
       }),
       setSpecStatus: Object.freeze({
-        description: "Preview or apply an explicit specification status change.",
+        description: "Apply a spec status change.",
         fields: Object.freeze([field("status", "enum", SPEC_STATUS_VALUES)]),
       }),
       setRequirementMetadata: Object.freeze({
-        description: "Preview or apply a typed requirement metadata block.",
+        description: "Apply a requirement metadata block.",
         fields: Object.freeze([
           field("requirement", "string"),
           field("metadata", "json"),
         ]),
       }),
       deleteSpecDoc: Object.freeze({
-        description: "Preview or apply a contained document deletion.",
+        description: "Delete a spec document.",
         fields: Object.freeze([
           field("doc", "string"),
           optionalField("expectedSha", "string"),
+          optionalField("designReview", "json"),
         ]),
       }),
       renameSpecDoc: Object.freeze({
-        description: "Preview or apply a contained document rename.",
+        description: "Rename a spec document.",
         fields: Object.freeze([
           field("doc", "string"),
           field("newDoc", "string"),
+          optionalField("designReview", "json"),
         ]),
       }),
       createSpec: Object.freeze({
-        description: "Preview or apply a complete canonical specification scaffold.",
-        fields: Object.freeze([optionalField("title", "string")]),
+        description: "Create a canonical spec scaffold.",
+        fields: Object.freeze([
+          optionalField("title", "string"),
+          optionalField("designReview", "json"),
+        ]),
       }),
       archiveSpec: Object.freeze({
-        description: "Preview or apply an archival move after live inbound-reference proof.",
-        fields: Object.freeze([]),
+        description: "Archive a spec after inbound-reference proof.",
+        fields: Object.freeze([optionalField("designReview", "json")]),
       }),
       addBacklogTask: Object.freeze({
-        description: "Preview or apply a traced backlog task.",
+        description: "Add a traced backlog task.",
         fields: Object.freeze([
           field("title", "string"),
           optionalField("requirements", "json"),
@@ -990,6 +996,7 @@ export const TOOL_ARGUMENT_ALIASES = Object.freeze({
   replace_all: "replaceAll",
   new_doc: "newDoc",
   node_id: "canonicalId",
+  design_review: "designReview",
 });
 
 export function normalizeToolArguments(rawArguments) {

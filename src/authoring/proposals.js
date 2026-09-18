@@ -15,55 +15,21 @@ import { FIXED_DOCUMENT_FILES } from "../kernel/types.js";
 import { isValidSpecSlug } from "../kernel/identity.js";
 import { validateMetadata } from "../kernel/query/extended.js";
 import { assembleRoadmap as assembleRoadmapContent } from "../kernel/roadmap/assemble.js";
+import { validateDesignReviewForChanges } from "./design-review.js";
+import { error } from "./error-codes.js";
 
 const MAX_REASON_BYTES = 512;
 const MAX_DIFF_BYTES = 64 * 1024;
 
-const WRITE_ERROR_CODES = new Set([
-  "INVALID_REQUEST",
-  "PATH_FORBIDDEN",
-  "VALIDATION_FAILED",
-  "CONFLICT",
-  "RECOVERY_REQUIRED",
-  "DEADLINE_EXCEEDED",
-  "CONCURRENT_READ",
-  "ROLLBACK_FAILED",
-  "INTERNAL_ERROR",
-  "ELICITATION_REQUIRED",
+// Definition-integrity diagnostic classes a proposal must not introduce.
+// Compared as per-(code, path) counts before/after so pre-existing violations
+// elsewhere (or line shifts within an edited document) never block a write,
+// while any net-new occurrence fails the proposal.
+const DEFINITION_INTEGRITY_DIAGNOSTIC_CODES = new Set([
+  "INVALID_LOCAL_ID",
+  "MALFORMED_HEADING",
+  "DUPLICATE_DEFINITION",
 ]);
-
-function isRetryable(code) {
-  return (
-    code === "CONFLICT" ||
-    code === "DEADLINE_EXCEEDED" ||
-    code === "CONCURRENT_READ" ||
-    code === "RECOVERY_REQUIRED" ||
-    code === "ROLLBACK_FAILED"
-  );
-}
-
-function safeErrorCode(code) {
-  if (WRITE_ERROR_CODES.has(code)) return code;
-  if (code === "DOC_NOT_FOUND" || code === "NOT_FOUND") return "PATH_FORBIDDEN";
-  return "VALIDATION_FAILED";
-}
-
-function error(code, message, extra = {}) {
-  const normalizedCode = safeErrorCode(code);
-  return {
-    ok: false,
-    error: {
-      code: normalizedCode,
-      message,
-      retryable: isRetryable(normalizedCode),
-      requestId: extra.requestId ?? null,
-      proposalHash: extra.proposalHash ?? null,
-      changedPaths: extra.changedPaths ?? [],
-      findings: extra.findings ?? [],
-      ...extra,
-    },
-  };
-}
 
 function success(data) {
   return { ok: true, data };
@@ -590,10 +556,21 @@ export class ProposalCompiler {
         fileCount: source.files.length,
         destination: `.${'specs'}/archive/${spec}`,
       };
+      // Archival removes every document — including scenario-bearing .feature
+      // files — so it must pass the same design-review gate as delete_document.
+      // Real before bytes are loaded for .feature documents so the gate can
+      // inspect scenario headers; other documents keep empty placeholders.
+      const featureBytes = new Map();
+      for (const file of source.files) {
+        if (!/\.feature$/iu.test(file.path)) continue;
+        const loaded = await readDocumentBytes(this.root, spec, file.path);
+        if (!loaded.ok) return error(loaded.code, loaded.message);
+        featureBytes.set(file.path, loaded.bytes);
+      }
       const changes = source.files.map((file) => ({
         spec,
         document: file.path,
-        beforeBytes: Buffer.alloc(0),
+        beforeBytes: featureBytes.get(file.path) ?? Buffer.alloc(0),
         afterBytes: Buffer.alloc(0),
         operation: { kind: "archive_document", document: file.path, spec },
         deleteAfter: true,
@@ -606,6 +583,10 @@ export class ProposalCompiler {
           diffTruncated: false,
         },
       }));
+      const reviewCheck = validateDesignReviewForChanges(input.designReview, changes);
+      if (!reviewCheck.ok) {
+        return error(reviewCheck.code, reviewCheck.message, { findings: reviewCheck.findings });
+      }
       const proposalMaterial = {
         kind: "archive_spec",
         requestId,
@@ -614,6 +595,7 @@ export class ProposalCompiler {
         reason,
         normalizedOperations,
         archive,
+        designReview: reviewCheck.material,
       };
       const proposalSha256 = sha256(canonicalJson(proposalMaterial));
       return success({
@@ -630,6 +612,7 @@ export class ProposalCompiler {
         complete: true,
         changes,
         archive,
+        designReview: reviewCheck.receipt,
         kind: "archive",
       });
     }
@@ -764,6 +747,67 @@ export class ProposalCompiler {
       return error("VALIDATION_FAILED", "resulting specification graph is invalid", { findings });
     }
 
+    // Diagnostics are compared by identity (code + offending content), not by
+    // count: repairing N violations while introducing N different ones must
+    // still fail. Rename pairs are normalized so a pure rename does not re-key
+    // pre-existing diagnostics onto the new path.
+    const renamePairs = new Map();
+    for (const change of documents.values()) {
+      if (change.operation?.kind === "rename_document" && typeof change.operation.newDocument === "string") {
+        const oldKey = `.${'specs'}/${change.spec}/${change.operation.document}`;
+        const newKey = `.${'specs'}/${change.spec}/${change.operation.newDocument}`;
+        renamePairs.set(newKey, oldKey);
+      }
+    }
+    const diagnosticIdentity = (diagnostic) => {
+      const rawPath = diagnostic.span?.path ?? "";
+      const path = renamePairs.get(rawPath) ?? rawPath;
+      const content = diagnostic.canonicalId ?? diagnostic.actual ?? diagnostic.message ?? "";
+      return `${diagnostic.code}\u0000${path}\u0000${content}`;
+    };
+    const multisetOf = (diagnostics) => {
+      const counts = new Map();
+      for (const diagnostic of diagnostics) {
+        if (!DEFINITION_INTEGRITY_DIAGNOSTIC_CODES.has(diagnostic.code)) continue;
+        const key = diagnosticIdentity(diagnostic);
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+      return counts;
+    };
+    const baseline = buildKernelGraph({ files: snapshot.files });
+    const beforeCounts = multisetOf(baseline.diagnostics);
+    const afterCounts = multisetOf(resulting.diagnostics);
+    const firstAfter = new Map();
+    for (const diagnostic of resulting.diagnostics) {
+      if (!DEFINITION_INTEGRITY_DIAGNOSTIC_CODES.has(diagnostic.code)) continue;
+      const key = diagnosticIdentity(diagnostic);
+      if (!firstAfter.has(key)) firstAfter.set(key, diagnostic);
+    }
+    const introducedFindings = [];
+    for (const [key, diagnostic] of firstAfter) {
+      if ((afterCounts.get(key) ?? 0) <= (beforeCounts.get(key) ?? 0)) continue;
+      const path = diagnostic.span?.path ?? "";
+      introducedFindings.push({
+        code: diagnostic.code,
+        ...(path ? { path } : {}),
+        ...(diagnostic.span?.startLine ? { line: diagnostic.span.startLine } : {}),
+        message: diagnostic.message ?? diagnostic.code,
+      });
+    }
+    if (introducedFindings.length > 0) {
+      introducedFindings.sort(
+        (left, right) =>
+          (left.path ?? "").localeCompare(right.path ?? "") || left.code.localeCompare(right.code),
+      );
+      return error("VALIDATION_FAILED", "proposal introduces malformed definition headings", {
+        findings: introducedFindings,
+      });
+    }
+
+    const reviewCheck = validateDesignReviewForChanges(input.designReview, [...documents.values()]);
+    if (!reviewCheck.ok) {
+      return error(reviewCheck.code, reviewCheck.message, { findings: reviewCheck.findings });
+    }
     const previews = [...documents.values()].map((entry) => entry.preview).sort((left, right) => left.document.localeCompare(right.document));
     const proposalMaterial = {
       requestId,
@@ -772,6 +816,7 @@ export class ProposalCompiler {
       reason,
       normalizedOperations,
       previews,
+      designReview: reviewCheck.material,
     };
     const proposalSha256 = sha256(canonicalJson(proposalMaterial));
 
@@ -786,6 +831,7 @@ export class ProposalCompiler {
       complete: true,
       changes: [...documents.values()],
       previews,
+      designReview: reviewCheck.receipt,
       kind: "patch",
     });
   }
