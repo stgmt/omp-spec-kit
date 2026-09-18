@@ -71,9 +71,9 @@ When the answer is in the graph, the agent should use these MCP tools instead of
 - **v1.1.0 — shipped:** direct specification reads, exact document receipts, and root-fingerprint binding.
 - **v1.2.0 — shipped:** one-time first-write elicitation protection, read-selector symmetry, and real MCP release proof.
 - **v1.4.0 — shipped (1.3.x line):** scenario-authoring design-review gate (`DESIGN_REVIEW_REQUIRED`/`DESIGN_REVIEW_INVALID`), host `tool_call` preflight block, and the `engineering-anti-bike` skill.
-- **v2.4.0 — candidate:** merges the 1.3.x line into 2.x — design-review gate and anti-bike skill on the consolidated surface.
+- **v2.4.0 — shipped:** merges the 1.3.x line into 2.x — design-review gate and anti-bike skill on the consolidated surface.
 
-The v2.4.0 release is a candidate pending publication. See docs/validation/release-status-v2.4.0.json for the current release record.
+The v2.4.0 release is shipped and publicly attested. See docs/validation/release-status-v2.4.0.json for the complete release proof.
 
 ## Safety and boundaries
 

@@ -2,11 +2,81 @@
   "schema": "omp-spec-kit-public-release-status@1",
   "version": "2.4.0",
   "tag": "v2.4.0",
+  "releaseUrl": "https://github.com/stgmt/omp-spec-kit/releases/tag/v2.4.0",
+  "publishedAt": "2026-09-18T18:56:03Z",
+  "tagCommit": "cd06d83b043bf382522385ff72ce135874a2293c",
+  "candidateDigest": "ceb1a9c4b9ada4937e75876270d5a003e9d053a5c44a36f76d5f48a0981a6a29",
+  "packageTreeDigest": "cfc96512035374c1a7e172ceadc6c4f951c508e9764031c9a6e523d8179df5e4",
+  "archive": {
+    "name": "omp-spec-kit-2.4.0.tar",
+    "bytes": 541184,
+    "sha256": "a39a8fe3f3f908bc9f3b1ceaf52b0c3d6616f95ebf8df30c728fd9d094c92725"
+  },
+  "releaseAssets": [
+    {
+      "name": "candidate.json",
+      "bytes": 10087,
+      "sha256": "46c400b5942f81802fc8f998827c0bad6bd94f3d6ed3d296d22599ff2427e298"
+    },
+    {
+      "name": "evidence.json",
+      "bytes": 3304,
+      "sha256": "8fdd3912d4bea82b73add78e6c67ef6215d73efcc75b1a17b0ca745b9e4d36c7"
+    },
+    {
+      "name": "omp-spec-kit-2.4.0.tar",
+      "bytes": 541184,
+      "sha256": "a39a8fe3f3f908bc9f3b1ceaf52b0c3d6616f95ebf8df30c728fd9d094c92725"
+    },
+    {
+      "name": "spec-graph-app-1.0.23.zip",
+      "bytes": 113085,
+      "sha256": "816c9773d13223e1f760d9e7e1a3e95743d9daf95d06d2053d510b8b883702bf"
+    }
+  ],
+  "attestation": {
+    "verified": true,
+    "workflow": "https://github.com/stgmt/omp-spec-kit/.github/workflows/release.yml@refs/tags/v2.4.0",
+    "workflowCommit": "cd06d83b043bf382522385ff72ce135874a2293c",
+    "run": "https://github.com/stgmt/omp-spec-kit/actions/runs/35382718255/attempts/1",
+    "transparencyLog": "https://rekor.sigstore.dev"
+  },
+  "distributionAttestation": {
+    "verified": true,
+    "subject": "distribution-evidence.json",
+    "subjectSha256": "18e0cac8486d5f04df8e3d88bf16a43be843bc6cdb9ba0ceb46691020b8b8316",
+    "repository": "stgmt/omp-spec-kit",
+    "signerWorkflow": "https://github.com/stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml@refs/tags/v2.4.0",
+    "sourceRef": "refs/tags/v2.4.0",
+    "workflowCommit": "cd06d83b043bf382522385ff72ce135874a2293c",
+    "run": "https://github.com/stgmt/omp-spec-kit/actions/runs/35382718303/attempts/1",
+    "transparencyLog": "https://rekor.sigstore.dev"
+  },
+  "evidence": {
+    "schema": "omp-spec-kit-release-evidence@3",
+    "catalogDigest": "b21aefffcebad2715ffb2cd73686b81e8fd87d220cd6a0258da239604104f181",
+    "mriDiscoveryDigest": "f6abb830aaf2bb48f789a21f846ea96bbab07717a81c666ebbae70893ae8c473",
+    "distributionReceiptDigest": "18e0cac8486d5f04df8e3d88bf16a43be843bc6cdb9ba0ceb46691020b8b8316"
+  },
   "status": {
-    "public": false,
-    "installable": false,
-    "state": "CANDIDATE",
+    "public": true,
+    "installable": true,
+    "state": "SHIPPED",
     "surface": "SAFE_AUTHORING",
     "toolCount": 10
+  },
+  "provenance": {
+    "releaseMetadataCommand": "gh release view v2.4.0 --repo stgmt/omp-spec-kit",
+    "attestationCommand": "gh attestation verify candidate.json --repo stgmt/omp-spec-kit --format json",
+    "distributionRunCommand": "gh run download 35382718303 --repo stgmt/omp-spec-kit --name omp-spec-kit-distribution-evidence-v2.4.0",
+    "distributionAttestationCommand": "gh attestation verify distribution-evidence.json --repo stgmt/omp-spec-kit --source-ref refs/tags/v2.4.0 --format json",
+    "capturedOn": "2026-09-18"
+  },
+  "releaseNotes": {
+    "source": "https://github.com/stgmt/omp-spec-kit/releases/tag/v2.4.0",
+    "captureCommand": "gh api repos/stgmt/omp-spec-kit/releases/tags/v2.4.0 | jq -j .body",
+    "capturedOn": "2026-09-18",
+    "bodySha256": "83fa6b29d184ebf237b94ec8cc9989e1104f23735d1fcd2129ba2393e71e19bc",
+    "body": "# omp-spec-kit v2.4.0\n\n## Included changes\n\n- Moves canonical specifications out of product repositories into a dedicated service-owned specs repository; all specification reads and writes go through the `spec-registryd` MCP service with YouTrack-backed verified identity, roles, and project scopes.\n- Publishes an immutable annotated git tag `spec/<project>/<slug>/<version>` plus an insert-only ledger row when an authored `Status:` becomes `ACTIVE`; identical content no-ops, different content under an existing version is rejected and surfaced in `GET /drift`.\n- Adds versioned reads: `spec_documents(action:\"read\", version)` serves bytes from the tagged commit with digest re-verification and path containment.\n- Adds the onboarding API (per-user YouTrack token mint + ready `.mcp.json` snippet), managed remote plugin mode, and the YouTrack app packaged in CI via the official `youtrack-app` CLI.\n- Retires the in-repository `.specs` corpus: local trees are historical artifacts only — consumers and agents must go through the service.\n\n## Verified release\n\n- Candidate digest: `ceb1a9c4b9ada4937e75876270d5a003e9d053a5c44a36f76d5f48a0981a6a29`\n- Package tree digest: `cfc96512035374c1a7e172ceadc6c4f951c508e9764031c9a6e523d8179df5e4`\n- Archive SHA-256: `a39a8fe3f3f908bc9f3b1ceaf52b0c3d6616f95ebf8df30c728fd9d094c92725`\n- YouTrack app: `spec-graph-app-1.0.23.zip` (SHA-256 `816c9773d13223e1f760d9e7e1a3e95743d9daf95d06d2053d510b8b883702bf`) — upload via Administration → Apps → Add app… → Upload ZIP file\n- Peeled tag commit: `cd06d83b043bf382522385ff72ce135874a2293c`\n- OMP runtime: `18.0.11`\n- Distribution evidence: lifecycle producers, Docker BDD, manager discovery, and nine closed MRI receipts.\n\nInstall or upgrade at project scope, reload plugin metadata, then start a fresh OMP session before invoking MCP tools.\n\n"
   }
 }
