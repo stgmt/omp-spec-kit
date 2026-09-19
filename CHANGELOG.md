@@ -2,6 +2,7 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+HEAD
 ## 2.4.0 — 2026-09-18
 
 Merges the 1.3.x line (released as v1.4.0) into the 2.x product: scenario-authoring design review lands on the consolidated surface.
@@ -12,6 +13,26 @@ Merges the 1.3.x line (released as v1.4.0) into the 2.x product: scenario-author
 - The host `tool_call` policy blocks a `spec_patch` call that writes scenario content into a `.feature` document without `designReview` before dispatch.
 - New skill `engineering-anti-bike`: evidence-first claims, prior-art scan before custom implementation, self-test/fake-green check at BDD scenario authoring, and hypothesis Q&A discipline.
 - Shared authoring error-code normalization extracted into `src/authoring/error-codes.js`; the MCP branch of the tool-call classifier is a dedicated helper.
+
+## 2.5.0 — 2026-09-19
+
+### Changed — onboarding moved off issues onto the app's own page
+
+- **`spec-app` @ `MAIN_MENU_ITEM`**: a "Spec Service" page in the YouTrack main menu now hosts the full onboarding stepper (repo state/bind, verify, `.mcp.json` mint + paste-token fallback). `?step=agent` deep-links to the agent step. Installing the ZIP no longer surfaces setup inside issues — it creates nothing in the tracker.
+- **`spec-service-panel` reduced to a context card**: linked spec (when `SpecId` is set), repo status chips, and an `Open Spec Service` link — no wizard, bind forms, or MCP config inside an issue.
+- **Discovery via the native System-wide banner** (admin-configured in Global Settings); the apps API exposes no user-notification channel, so none is fabricated.
+- App version 1.0.24. Decision doc: `docs/decisions/app-page-onboarding.md`.
+
+### Fixed
+
+- **Failed repo bind no longer wedges the project**: `mounts.forSource` resolved `error`-status rows through `for()`, which throws `REPO_BINDING_REQUIRED` for external projects — a single `MIGRATION_TREE_MISMATCH` left every retry and catalog read dead. `forSource` now resolves an `error` row to its `migratedFrom` mount (or the default); `for()` still refuses reads/writes.
+
+### Formalized
+
+- **YouTrack-app request signature** extracted as `classifyRequest()` — `Bearer <bridgeToken>` matching a bound IdP's `bridgeTokenHash` plus asserted `X-Spec-User` is now a named, single-point contract; `X-Spec-User` on direct tokens is ignored. Decision doc: `docs/decisions/youtrack-app-request-signature.md`.
+- App settings descriptions now state where values come from (the once-shown install block / self-hosted URL); `serviceUrl` deliberately has no default.
+- New auth coverage: per-user bridge resolution under one install, forged/unknown/out-of-tenant `X-Spec-User` (`UNKNOWN_USER`, `NO_SCOPES`), `BANNED`, direct-token spoof immunity, onboarding `TOKEN_MISMATCH`.
+feat/spec-registry-service
 
 ## [2.3.0] — 2026-09-17
 

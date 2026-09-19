@@ -104,6 +104,31 @@ describe("mount manager", () => {
     assert.equal(first, second);
   });
 
+  it("forSource resolves the migration source for an error-state binding instead of wedging", async () => {
+    const dir = await tempDir();
+    const auth = {
+      youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
+      appBridge: { token: "bridge-token-1234567890" },
+      roleGroups: { reader: ["spec-readers"] },
+    };
+    const row = { project: "acme/gamma", repoUrl: "git://git/acme.git", branch: "main", status: "error", migratedFrom: null, migratedFromBranch: null };
+    const mounts = new MountManager({
+      config: parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "stgmt/omp-spec-kit" }], auth }),
+      cloneDir: dir,
+      store: { getBinding: () => row },
+      extraProjects: () => ["acme/gamma"],
+    });
+    // Reads/writes still refuse — the migration never landed — but the bind
+    // retry must find the source mount instead of dying on the same error.
+    assert.throws(() => mounts.for("acme/gamma"), (e) => e.code === "REPO_BINDING_REQUIRED");
+    assert.equal(mounts.forSource("acme/gamma"), mounts.defaultMount);
+    row.migratedFrom = "git://git/old.git";
+    assert.equal(mounts.forSource("acme/gamma").repoUrl, "git://git/old.git");
+    row.status = "active";
+    assert.equal(mounts.forSource("acme/gamma").repoUrl, "git://git/acme.git");
+    assert.equal(mounts.for("acme/gamma").repoUrl, "git://git/acme.git");
+  });
+
   it("boot creates a .specs skeleton and commits it as the bot", async () => {
     const dir = await tempDir();
     const git = fakeGit();

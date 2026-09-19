@@ -53,6 +53,28 @@ export function bearerToken(req) {
  * remaining bound IdPs in order — the hint is a routing preference only, it
  * never widens authorization.
  */
+
+/**
+ * The YouTrack-app request signature — how a call proves it arrived through
+ * the installed app rather than from a raw client:
+ *   Authorization: Bearer <bridgeToken>   (sha256 must equal a bound
+ *                                        IdP's bridgeTokenHash)
+ *   X-Spec-User: <login>                  (session user asserted by YouTrack;
+ *                                        always re-verified server-side)
+ * classifyRequest() is the single place that recognizes the signature; a
+ * bearer that matches no bridge hash is treated as a direct user token.
+ */
+export function classifyRequest(req, idpCandidates) {
+  const token = bearerToken(req);
+  if (token === null) return { kind: "anonymous" };
+  const tokenHash = sha256(token);
+  const bridgeIdp = idpCandidates.find((idp) => hashesEqual(tokenHash, idp.bridgeTokenHash)) ?? null;
+  if (bridgeIdp === null) return { kind: "direct", token, tokenHash };
+  const assertedLogin = typeof req.headers?.["x-spec-user"] === "string" && req.headers["x-spec-user"].length > 0
+    ? req.headers["x-spec-user"]
+    : null;
+  return { kind: "bridge", tokenHash, idp: bridgeIdp, assertedLogin };
+}
 export function createYouTrackAuth({ youtrack, appBridgeToken, tenants, roleGroups, idps = null, cacheTtlMs = DEFAULT_CACHE_MS, fetchImpl = fetch, logger = () => {} }) {
   const defaultIdp = {
     isDefault: true,
@@ -178,26 +200,28 @@ export function createYouTrackAuth({ youtrack, appBridgeToken, tenants, roleGrou
       const token = bearerToken(req);
       if (token === null) throw new AuthError(401, "MISSING_TOKEN", "missing bearer token");
 
-      const tokenHash = sha256(token);
+      // Cache key from the raw asserted-login header — identical for bridge
+      // and direct callers, so the lookup needs no IdP list and the store is
+      // only read on a miss.
       const assertedLoginHeader = typeof req.headers?.["x-spec-user"] === "string" && req.headers["x-spec-user"].length > 0
         ? req.headers["x-spec-user"]
         : null;
-      const key = cacheKey(tokenHash, assertedLoginHeader);
+      const key = cacheKey(sha256(token), assertedLoginHeader);
       const cached = cache.get(key);
       if (cached && cached.expiresAt > Date.now()) return cached.ctx;
 
       const candidates = await allIdps();
-      const bridgeIdp = candidates.find((idp) => hashesEqual(tokenHash, idp.bridgeTokenHash)) ?? null;
-      const assertedLogin = bridgeIdp !== null ? assertedLoginHeader : null;
-      if (bridgeIdp !== null && assertedLogin === null) {
+      const sig = classifyRequest(req, candidates);
+      const assertedLogin = sig.kind === "bridge" ? sig.assertedLogin : null;
+      if (sig.kind === "bridge" && assertedLogin === null) {
         throw new AuthError(401, "MISSING_USER", "app bridge requests must carry the verified X-Spec-User header");
       }
 
       let user;
       let resolvedIdp;
-      if (bridgeIdp !== null) {
-        resolvedIdp = bridgeIdp;
-        user = await fetchUserWithServiceToken(assertedLogin, bridgeIdp);
+      if (sig.kind === "bridge") {
+        resolvedIdp = sig.idp;
+        user = await fetchUserWithServiceToken(assertedLogin, sig.idp);
       } else {
         // Direct token: the optional X-Spec-Idp header reorders the candidate
         // list only — it is a routing hint, never authorization.

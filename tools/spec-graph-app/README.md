@@ -3,6 +3,14 @@
 In-UI spec-graph viewer backed by `spec-registryd`. The installable package is
 built in CI from this directory — never commit a hand-made archive.
 
+Installing the ZIP creates nothing in the tracker. The app adds a **Spec
+Service** page to the main YouTrack menu (`MAIN_MENU_ITEM`) — the whole
+member journey lives there: repository binding and verification, the
+`.mcp.json` mint, and the IdP console for operators. Issue pages carry only
+a thin context card (linked spec, repo status, a link to the page) — no
+onboarding inside tasks. Optional discovery aid: the native system-wide
+banner an admin configures in Global Settings.
+
 ## Install into your YouTrack
 
 Pick one of two routes. Both need a YouTrack account with **Update Project**
