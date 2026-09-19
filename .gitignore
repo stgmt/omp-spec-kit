@@ -38,3 +38,5 @@ Thumbs.db
 
 # live E2E artifacts (contain tokens, dbs, screenshots)
 tests/e2e/artifacts/
+# context-mode per-process session stats (transient)
+.github/context-mode/sessions/stats-pid-*.json
