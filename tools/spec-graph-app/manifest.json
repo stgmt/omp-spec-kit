@@ -35,7 +35,11 @@
       "extensionPoint": "DASHBOARD_WIDGET",
       "indexPath": "spec-board/index.html",
       "key": "spec-board",
-      "name": "Spec Board"
+      "name": "Spec Board",
+      "defaultDimensions": {
+        "width": "12fr",
+        "height": "8fr"
+      }
     }
   ],
   "httpHandlers": [
