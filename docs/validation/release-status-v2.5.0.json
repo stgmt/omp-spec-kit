@@ -1,0 +1,151 @@
+{
+  "schema": "omp-spec-kit-public-release-status@1",
+  "version": "2.5.0",
+  "tag": "v2.5.0",
+  "releaseUrl": "https://github.com/stgmt/omp-spec-kit/releases/tag/v2.5.0",
+  "publishedAt": "2026-09-19T02:02:23Z",
+  "tagCommit": "2792233e9435a95b7eb0dabe1f62f5260ac11839",
+  "candidateDigest": "b8383346191bb77fa082da51f16222556d99daa60099e4438212bd9dc7f8b9be",
+  "packageTreeDigest": "5a7134ff78725118ea2aabffd3d7ae1e629c6ccac73491f4a0535bf9a1139c1c",
+  "archive": {
+    "file": "omp-spec-kit-2.5.0.tar",
+    "sha256": "bcec9247e368a5f5d961f098d4f436c857b2af32efd47fb5511985937cc910f2",
+    "bytes": 541184
+  },
+  "releaseAssets": [
+    {
+      "name": "candidate.json",
+      "bytes": 10087
+    },
+    {
+      "name": "evidence.json",
+      "bytes": 3304
+    },
+    {
+      "name": "omp-spec-kit-2.5.0.tar",
+      "bytes": 541184
+    },
+    {
+      "name": "spec-graph-app-1.0.24.zip",
+      "bytes": 121837
+    }
+  ],
+  "attestation": {
+    "verified": true,
+    "method": "gh attestation verify --repo stgmt/omp-spec-kit"
+  },
+  "distributionAttestation": {
+    "verified": true,
+    "subject": "distribution-evidence.json",
+    "subjectSha256": "18e0cac8486d5f04df8e3d88bf16a43be843bc6cdb9ba0ceb46691020b8b8316",
+    "repository": "stgmt/omp-spec-kit",
+    "signerWorkflow": "https://github.com/stgmt/omp-spec-kit/.github/workflows/distribution-evidence.yml@refs/tags/v2.4.0",
+    "sourceRef": "refs/tags/v2.4.0",
+    "workflowCommit": "cd06d83b043bf382522385ff72ce135874a2293c",
+    "run": "https://github.com/stgmt/omp-spec-kit/actions/runs/35382718303/attempts/1",
+    "transparencyLog": "https://rekor.sigstore.dev"
+  },
+  "evidence": {
+    "schema": "omp-spec-kit-release-evidence@3",
+    "version": "2.5.0",
+    "tag": "v2.5.0",
+    "commit": "2792233e9435a95b7eb0dabe1f62f5260ac11839",
+    "candidateDigest": "b8383346191bb77fa082da51f16222556d99daa60099e4438212bd9dc7f8b9be",
+    "packageTreeDigest": "5a7134ff78725118ea2aabffd3d7ae1e629c6ccac73491f4a0535bf9a1139c1c",
+    "archiveSha256": "bcec9247e368a5f5d961f098d4f436c857b2af32efd47fb5511985937cc910f2",
+    "catalogDigest": "497249d805c88daab81982e386ed0bc9e29bee4541d9fafec4a1b676bf29c9cf",
+    "mri": {
+      "schema": "omp-spec-kit-mri-evidence@1",
+      "checks": {
+        "publicSafety": {
+          "status": "present",
+          "path": "receipts/public-safety.json",
+          "digest": "843417422fd0b4deeae3788b5e5b4b385729204a4d5a84182386a8293fad0540"
+        },
+        "dockerBdd": {
+          "status": "present",
+          "path": "receipts/docker-bdd-copy.json",
+          "digest": "cffe839859aea68b90bf8aa522761446e2f431f837e594087d1a690536137d60"
+        },
+        "priorV032": {
+          "status": "present",
+          "path": "receipts/prior-v0.3.2.json",
+          "digest": "27bb47ac617586620a09eea0a9de31c8f1d557cc610acaf63841e8206be342a3"
+        },
+        "upgradeFromV032": {
+          "status": "present",
+          "path": "receipts/upgrade-from-v0.3.2.json",
+          "digest": "9545e2e7342b09d31811ceb40070e9464f75eda2616f6475d54b2aa432e281ed"
+        },
+        "rollbackToV032": {
+          "status": "present",
+          "path": "receipts/rollback-to-v0.3.2.json",
+          "digest": "c92392b99bbd4c23c58240c5789199c675095c9510b1b0fbc6db44b533f7c076"
+        }
+      },
+      "frReceipts": {
+        "plugin-distribution:FR-19": {
+          "status": "present",
+          "path": "receipts/mri-FR-19.json",
+          "digest": "20f2e9226fab815a7da22270463d9e21b32466c7f7a35c50c5b1417376f733df"
+        },
+        "plugin-distribution:FR-20": {
+          "status": "present",
+          "path": "receipts/mri-FR-20.json",
+          "digest": "5ed0ef996ca909c67f0271ffba5b316b7d3c0332fb7523c142f2ca52fe5036d9"
+        },
+        "plugin-distribution:FR-21": {
+          "status": "present",
+          "path": "receipts/mri-FR-21.json",
+          "digest": "5f65c9d1578cc5e8335c4b5d57a022e7a79637815d57988213e4afa503101fab"
+        },
+        "plugin-distribution:FR-22": {
+          "status": "present",
+          "path": "receipts/mri-FR-22.json",
+          "digest": "f9b93d193f1cdf90ae61d7e6f00ae8d1ca75ef0ec64c42fa05fd9b32c601cecd"
+        },
+        "plugin-distribution:FR-23": {
+          "status": "present",
+          "path": "receipts/mri-FR-23.json",
+          "digest": "7945ef89e544f1a35fee895e9134f21f051dee2712cd9c25630b95e1c21a18fb"
+        },
+        "plugin-distribution:FR-24": {
+          "status": "present",
+          "path": "receipts/mri-FR-24.json",
+          "digest": "42e1439bd9a06db7abe1ce48c59eabe7f665f006c15ab489e4da64b90908af0f"
+        }
+      },
+      "discovery": {
+        "status": "present",
+        "path": "receipts/omp-discovery.json",
+        "digest": "ad6171cef1f6e9de61e3a43184090d7e4079c43b32c41853d47bd4dc5ce70673"
+      }
+    },
+    "distribution": {
+      "schema": "omp-spec-kit-distribution-evidence-input@1",
+      "trust": "github-artifact-attestation",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution-evidence.json",
+        "digest": "2819d8c807871cf8921590f3d64f496094f8bf86adc0aca22afac0f15461f806"
+      }
+    }
+  },
+  "status": {
+    "public": true,
+    "installable": true,
+    "state": "SHIPPED",
+    "surface": "SAFE_AUTHORING",
+    "toolCount": 10
+  },
+  "provenance": {
+    "releaseMetadataCommand": "gh release view v2.4.0 --repo stgmt/omp-spec-kit",
+    "attestationCommand": "gh attestation verify candidate.json --repo stgmt/omp-spec-kit --format json",
+    "distributionRunCommand": "gh run download 35382718303 --repo stgmt/omp-spec-kit --name omp-spec-kit-distribution-evidence-v2.4.0",
+    "distributionAttestationCommand": "gh attestation verify distribution-evidence.json --repo stgmt/omp-spec-kit --source-ref refs/tags/v2.4.0 --format json",
+    "capturedOn": "2026-09-18"
+  },
+  "releaseNotes": {
+    "body": "# omp-spec-kit v2.5.0\n\n## Included changes\n\n- Moves canonical specifications out of product repositories into a dedicated service-owned specs repository; all specification reads and writes go through the `spec-registryd` MCP service with YouTrack-backed verified identity, roles, and project scopes.\n- Publishes an immutable annotated git tag `spec/<project>/<slug>/<version>` plus an insert-only ledger row when an authored `Status:` becomes `ACTIVE`; identical content no-ops, different content under an existing version is rejected and surfaced in `GET /drift`.\n- Adds versioned reads: `spec_documents(action:\"read\", version)` serves bytes from the tagged commit with digest re-verification and path containment.\n- Adds the onboarding API (per-user YouTrack token mint + ready `.mcp.json` snippet), managed remote plugin mode, and the YouTrack app packaged in CI via the official `youtrack-app` CLI.\n- Retires the in-repository `.specs` corpus: local trees are historical artifacts only — consumers and agents must go through the service.\n\n## Verified release\n\n- Candidate digest: `b8383346191bb77fa082da51f16222556d99daa60099e4438212bd9dc7f8b9be`\n- Package tree digest: `5a7134ff78725118ea2aabffd3d7ae1e629c6ccac73491f4a0535bf9a1139c1c`\n- Archive SHA-256: `bcec9247e368a5f5d961f098d4f436c857b2af32efd47fb5511985937cc910f2`\n- YouTrack app: `spec-graph-app-1.0.24.zip` (SHA-256 `ec91e44a4edac67edc17429187e4b931822a9dd69d79fd339a9bae0069c18292`) — upload via Administration → Apps → Add app… → Upload ZIP file\n- Peeled tag commit: `2792233e9435a95b7eb0dabe1f62f5260ac11839`\n- OMP runtime: `18.0.11`\n- Distribution evidence: lifecycle producers, Docker BDD, manager discovery, and nine closed MRI receipts.\n\nInstall or upgrade at project scope, reload plugin metadata, then start a fresh OMP session before invoking MCP tools.\n"
+  }
+}
