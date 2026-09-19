@@ -46,44 +46,25 @@ async function main() {
     for (const d of (await mia.call("GET", "/api/dashboards?fields=id,name")) ?? []) {
       if (d.name === DASHBOARD_NAME) await mia.call("DELETE", `/api/dashboards/${d.id}`, { expect: [200, 204] });
     }
+    // Dashboard + Spec Board widget at full width via REST — verified live:
+    // POST .../widgets accepts {key, widget:{id}, x, y, width, height} in grid
+    // units; width 12 spans the dashboard (~1336px at 1600 viewport), so no
+    // manual resize is needed and card hovers land. The widget itself is a
+    // sandboxed iframe and cannot enlarge its own cell.
+    const app = await admin.appByName("spec-graph-app");
+    const boardWidget = (await admin.call("GET", `/api/admin/apps/${app.id}?fields=id,widgets(id,key)`)).widgets.find((w) => w.key === "spec-board");
+    assert.ok(boardWidget, "spec-board widget not registered on the installed app");
+    const dashboard = await mia.call("POST", "/api/dashboards?fields=id,name", { body: { name: DASHBOARD_NAME } });
+    assert.ok(dashboard?.id, "dashboard create returned no id");
+    await mia.call("POST", `/api/dashboards/${dashboard.id}/widgets?fields=id,x,y,width,height`, {
+      body: { key: "spec-board", widget: { id: boardWidget.id }, x: 0, y: 0, width: 12, height: 8 },
+    });
+
     const page = await (await browser.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
     try {
       await browserLogin(page, "mia", EXT_USERS.mia.password, EXT_YT_HOST_URL);
-      await page.goto(EXT_YT_HOST_URL + "/", { waitUntil: "domcontentloaded" });
-      await page.waitForTimeout(2500);
-
-      // Dashboard via the real UI — same selectors dogfood-video.mjs drives.
-      await page.locator('[data-test="ring-link dashboard-button"]').click();
-      await page.locator('[data-test="new-dashboard-button"]').click();
-      const nameInput = page.locator('[data-test="dashboard-name-input"]');
-      await nameInput.waitFor({ state: "visible", timeout: 15_000 });
-      await nameInput.click();
-      await nameInput.pressSequentially(DASHBOARD_NAME, { delay: 20 });
-      await page.waitForTimeout(500);
-      await page.locator('[data-test="create-button"]').click();
-      await page.waitForTimeout(2000);
-
-      await page.locator('[data-test="add-widget-button"]').first().click();
-      const boardItem = page.locator('[data-test*="ring-list-item"]').filter({ hasText: /^Spec Board/ }).first();
-      await boardItem.waitFor({ state: "visible", timeout: 15_000 });
-      await boardItem.click();
-      await page.waitForTimeout(6000);
-
-      // Resize the widget cell to fill the dashboard — in the default small
-      // cell the lane columns overflow the iframe viewport and card hovers
-      // do not land (verified live). Same drag as dogfood-video.mjs.
-      const gridItem = page.locator(".react-grid-item").first();
-      await gridItem.hover().catch(() => {});
-      await page.waitForTimeout(700);
-      const seHandle = gridItem.locator('div[class*="c_se__"], .react-resizable-handle').first();
-      const handleBox = await seHandle.boundingBox().catch(() => null);
-      if (handleBox) {
-        await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
-        await page.mouse.down();
-        await page.mouse.move(1560, 780, { steps: 12 });
-        await page.mouse.up();
-        await page.waitForTimeout(2500);
-      }
+      await page.goto(`${EXT_YT_HOST_URL}/dashboard?id=${dashboard.id}`, { waitUntil: "domcontentloaded" });
+      await page.waitForTimeout(9000);
 
       let widget = null;
       for (let i = 0; i < 20 && !widget; i++) {
