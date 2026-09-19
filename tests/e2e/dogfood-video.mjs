@@ -851,7 +851,7 @@ async function main() {
     // ══ Part 1 — install the app ZIP into the customer's own YouTrack ════
     {
       const { context, page, dir } = await newRecording(browser, "01-admin");
-      await titleCard(page, "omp-spec-kit — подключаем к своему YouTrack", "Свой YouTrack + ZIP приложения — больше ничего не нужно", 3800);
+      await titleCard(page, "omp-spec-kit — подключаем к своему YouTrack", "Свой YouTrack + ZIP из релиза — ставится за пару минут", 3800);
 
       // Honest prerequisite, on camera: the whole demo runs on a local
       // docker-compose stack. Show it is actually up and reachable on
@@ -860,7 +860,7 @@ async function main() {
         // Child processes inherit this shell's proxy env — strip it so the
         // curls we show hit localhost directly (same as a plain terminal).
         const noProxyEnv = { ...process.env, HTTP_PROXY: "", HTTPS_PROXY: "", http_proxy: "", https_proxy: "" };
-        const { stdout: psTable } = compose(["ps"]);
+        const { stdout: psTable } = compose(["ps", "youtrack-ext", "spec-git", "spec-registryd"]);
         const ytCode = (await execFileAsync("curl", ["-s", "-o", "NUL", "-w", "%{http_code}", EXT_YT_HOST_URL], { env: noProxyEnv }).catch(() => ({ stdout: "000" }))).stdout.trim();
         const svcCode = (await execFileAsync("curl", ["-s", "-o", "NUL", "-w", "%{http_code}", `${SERVICE_URL}/mcp`], { env: noProxyEnv }).catch(() => ({ stdout: "000" }))).stdout.trim();
         const gitRefs = (await execFileAsync("git", ["ls-remote", "git://127.0.0.1:9418/acme-specs.git"], { env: noProxyEnv }).catch(() => ({ stdout: "(no refs — пустой репозиторий)" }))).stdout;
@@ -870,7 +870,7 @@ async function main() {
           "Всё живёт в локальном docker-compose",
           "Проверяем, что контейнеры подняты и слушают localhost",
         ]);
-        await termCmd(page, "docker compose -p spec-auth-e2e -f tests/e2e/compose.yml ps");
+        await termCmd(page, "docker compose -p spec-auth-e2e -f tests/e2e/compose.yml ps youtrack-ext spec-git spec-registryd");
         await termOut(page, psTable.trimEnd().split("\n"));
         await termCmd(page, `curl -s -o NUL -w "%{http_code}" ${EXT_YT_HOST_URL}`);
         await termOut(page, [`${ytCode}   ← YouTrack на localhost:8082`], ytCode === "200" ? "#5fd98a" : "#ff7a7a");
@@ -880,14 +880,14 @@ async function main() {
         await termOut(page, gitRefs.trimEnd().split("\n"));
         await termOut(page, [
           "# не поднято?  docker compose -p spec-auth-e2e -f tests/e2e/compose.yml up -d",
-          "✓ стенд жив: два YouTrack, git-репозиторий спек и spec-registryd — всё на 127.0.0.1",
+          "✓ стенд жив: YouTrack, git-репозиторий спек и spec-registryd — всё на 127.0.0.1",
         ], "#5fd98a");
         await page.waitForTimeout(1_600);
       }
 
       const adminQuest = {
         goal: "Часть 1 · Подключение omp-spec-kit к YouTrack",
-        steps: ["Войти под администратором", "Скачать ZIP с релиза на GitHub", "Apps → Add app → Upload ZIP", "serviceUrl + bridgeToken — выдал вендор", "Включить для проекта ACME", "Системный баннер-подсказка"],
+        steps: ["Войти под администратором", "Скачать ZIP с релиза на GitHub", "Apps → Add app → Upload ZIP", "serviceUrl + bridgeToken — выдал сервис при привязке", "Включить для проекта ACME", "Системный баннер-подсказка"],
       };
       const extAdminPw = await currentPassword(browser, "admin", ADMIN_PASSWORD, EXT_YT_HOST_URL);
       await vLogin(page, "admin", extAdminPw, EXT_YT_HOST_URL, "Входим под администратором — приложения ставит админ", { ...adminQuest, current: 0 });
@@ -918,8 +918,8 @@ async function main() {
       await zipAsset.waitFor({ state: "visible", timeout: 30_000 });
       await zipAsset.scrollIntoViewIfNeeded().catch(() => {});
       await caption(page, [
-        "Смотри: релизы omp-spec-kit → Assets → spec-graph-app-*.zip — отсюда берут файл на проде",
-        "В записи ставим ZIP этой же сборки — скачиваем релизный для примера",
+        "Релизы omp-spec-kit → Assets → spec-graph-app-*.zip — на проде файл берут отсюда",
+        "В записи ставим свежую сборку из dist/ — на шаг новее опубликованного релиза",
       ]);
       const zipBox = await zipAsset.boundingBox().catch(() => null);
       if (zipBox) {
@@ -937,7 +937,7 @@ async function main() {
       await dismissSurveys(page);
       await questLog(page, adminQuest.goal, adminQuest.steps, 2);
       await caption(page, [
-        "Смотри: меню Administration → раздел Apps — сюда ставятся приложения",
+        "Меню Administration → раздел Apps — сюда ставятся приложения",
         "Add app → Upload ZIP — выбираем ZIP, который только что скачали с релиза",
       ]);
       await vclick(page, page.locator('div[data-test="ring-dropdown administration"]'), { settle: 1_200 });
@@ -962,7 +962,7 @@ async function main() {
       await questOverlay(page, true);
       await caption(page, [
         "Карточка Spec Service открылась — приложение установлено. Теперь настройки",
-        "Смотри: вкладка Settings — два поля из install-блока: сервис показал его один раз при привязке нашего YouTrack",
+        "Вкладка Settings — два поля из install-блока, который сервис показал один раз при привязке YouTrack",
       ]);
       await questLog(page, adminQuest.goal, adminQuest.steps, 3);
       const settingsTab = page.locator('a[data-test="ring-link"], button[data-test="ring-link"]').filter({ hasText: /^Settings/ }).first();
@@ -973,7 +973,7 @@ async function main() {
       await questLog(page, adminQuest.goal, adminQuest.steps, 4);
       await caption(page, [
         "Вкладка Projects → Manage projects — включаем приложение для ACME",
-        "Смотри: без этого виджет не появится в задачах проекта",
+        "Без этого виджет не появится в задачах проекта",
       ]);
       const projectsTab = page.locator('a[data-test="ring-link"], button[data-test="ring-link"]').filter({ hasText: /^Projects/ }).first();
       await vclick(page, projectsTab, { settle: 1_200 });
@@ -985,8 +985,8 @@ async function main() {
       await vclick(page, dlg.locator('[data-test="ok-button"], button:has-text("Save")').first(), { settle: 1_200 });
       await questLog(page, adminQuest.goal, adminQuest.steps, 5);
       await caption(page, [
-        "Опциональный шаг: нативный системный баннер YouTrack — подсказка всей команде",
-        "Его включает админ в Global Settings — приложение само уведомлений не шлёт (их API для аппов нет)",
+        "Опционально: нативный системный баннер YouTrack — подсказка всей команде",
+        "Включает админ в Global Settings — API уведомлений у приложений нет, делается вручную",
       ]);
       await page.goto(`${EXT_YT_HOST_URL}/admin/settings`, { waitUntil: "domcontentloaded" });
       await page.waitForTimeout(5_000);
@@ -1042,15 +1042,14 @@ async function main() {
 
       const miaQuest = {
         goal: "Часть 2 · Начало работы",
-        steps: ["Войти в свой YouTrack", "Баннер → меню Spec Service", "Страница: репозиторий привязан вендором", "Получить свой .mcp.json", "Задача: только контекст", "Подключить MCP в агенте", "Промпт: задача → спека → публикация"],
+        steps: ["Войти в свой YouTrack", "Баннер → меню Spec Service", "Страница: репозиторий уже привязан", "Получить свой .mcp.json", "Задача: только контекст", "Подключить MCP в агенте", "Промпт: задача → спека → публикация"],
       };
       const miaPw = await currentPassword(browser, "mia", EXT_USERS.mia.password, EXT_YT_HOST_URL);
       await vLogin(page, "mia", miaPw, EXT_YT_HOST_URL, "Входим в YouTrack", { ...miaQuest, current: 0 });
       // The discovery hook is the admin-configured system banner from part 1 —
       // the native YouTrack mechanism. App-side notifications don't exist.
       await caption(page, [
-        "Сверху — системный баннер, который включил админ: «меню → Spec Service»",
-        "Это нативная фича YouTrack: приложение само никому ничего не рассылает",
+        "Сверху — тот самый баннер из части 1: «настройте ИИ-агентов → Spec Service»",
       ]);
       await page.waitForTimeout(2_600);
       await questLog(page, miaQuest.goal, miaQuest.steps, 1);
@@ -1072,11 +1071,8 @@ async function main() {
 
       await questLog(page, miaQuest.goal, miaQuest.steps, 2);
       await caption(page, [
-        "acme/gamma → acme-specs.git [active] — привязку и миграцию сделал вендор при Bind. Что это значит под капотом:",
-        "• в git-репозитории создана область .specs/ — пишут только боты сервиса, руками никто не пушит",
-        "• все видят спеки централизованно в YouTrack в одном виде — через сервис, а не через git",
-        "• над одной спекой работают многие люди и агенты — записи сериализуются lock + claim, конфликт = честный retry",
-        "• в YouTrack видно только закоммиченное: каждая правка — атомарный коммит бота, аудит в git log",
+        "acme/gamma → acme-specs.git [active] — репозиторий спек привязан заранее, Мии настраивать нечего",
+        "Specs visible to you: 3 — там уже лежат спеки её проекта: gamma-spec, acme-portal, roadmap-growth",
       ]);
       await page.waitForTimeout(3_000);
 
@@ -1089,7 +1085,7 @@ async function main() {
       await questLog(page, miaQuest.goal, miaQuest.steps, 3);
       await caption(page, [
         "Жмём «Get my .mcp.json» — страница генерирует готовый конфиг с токеном",
-        "Смотри: url сервиса + Bearer + X-Spec-Idp: acme — агент увидит только проект acme/gamma, чужие спеки недоступны",
+        "url сервиса + Bearer + X-Spec-Idp: acme — агент увидит только проект acme/gamma, чужие спеки недоступны",
       ]);
       await vclick(page, frame.locator('[data-testid="agent-mint"]'), { settle: 800 });
       await frame.locator('[data-testid="agent-mcp"]').waitFor({ state: "visible", timeout: 60_000 });
@@ -1121,7 +1117,7 @@ async function main() {
         }
       }
       await caption(page, [
-        "Смотри: карточка показывает acme/gamma [active] и «Open Spec Service» → страницу с шага агента",
+        "Карточка показывает acme/gamma [active] и «Open Spec Service» → страницу с шага агента",
         "Никаких форм привязки и .mcp.json в задаче — онбординг живёт только на странице",
       ]);
       await page.waitForTimeout(2_400);
@@ -1145,34 +1141,45 @@ async function main() {
       const toolNames = tools.tools.map((t) => t.name);
       await agentAppend(page, "sys", `⟳ MCP servers reloaded`);
       await agentAppend(page, "sys", `✓ omp-spec-kit — ${toolNames.length} tools: ${toolNames.join(", ")}`);
-      await agentAppend(page, "sys", `✓ youtrack — issues, projects (их интеграция с трекером)`);
       await caption(page, [
-        "Смотри: после reload поднялись оба MCP — omp-spec-kit с инструментами спек и их YouTrack",
-        "Это настоящий listTools от сервиса, не текст на экране",
+        "После reload поднялся omp-spec-kit — список инструментов вернул сам сервис",
+        "Сессия идёт по токену Мии — сервис видит её, а не админа",
       ]);
       await page.waitForTimeout(1_600);
 
       const issueId = seededIssues[0];
       await questLog(page, miaQuest.goal, miaQuest.steps, 6);
       await caption(page, [
-        `Пишем промпт: разбери задачу ${issueId} из нашего YouTrack и собери по ней спеку`,
-        "Смотри: агент сам сходит в YouTrack-MCP за задачей, оценит blast radius и предложит план",
+        `Промпт: разбери задачу ${issueId} из YouTrack и собери по ней спеку`,
+        "Агент сам прочитает задачу, посмотрит граф спек и предложит план",
       ]);
-      await agentPrompt(page, `У тебя MCP по спекам (omp-spec-kit) и по YouTrack. Возьми задачу ${issueId} — ${EXT_YT_HOST_URL}/issue/${issueId} — оцени blast radius и сделай по ней спеку: анализ + план работ.`);
+      await agentPrompt(page, `Возьми задачу ${issueId} из YouTrack — ${EXT_YT_HOST_URL}/issue/${issueId} — и сделай по ней спеку: посмотри, что рядом по домену, и предложи план работ.`);
 
       // The agent's YouTrack read: a real REST fetch, rendered as a tool call.
       const issueRes = await extRest("GET", `/api/issues/${issueId}?fields=idReadable,summary,description`);
       const issue = issueRes.body;
       assert.ok(issue?.idReadable, `issue ${issueId} not found via REST: ${issueRes.status}`);
       await agentAppend(page, "tool",
-        `<span style="color:#6fb4ff">→ youtrack.get_issue</span>  ${issueId}\n` +
+        `<span style="color:#6fb4ff">→ youtrack REST</span>  GET /api/issues/${issueId}\n` +
         `<span style="color:#8b93a5">   ${(issue.summary ?? "").replace(/</g, "&lt;")}</span>`);
+      const catalogRes = await agent.callTool({ name: "spec_catalog", arguments: { view: "specs" } });
+      const catalogJson = catalogRes.structuredContent ?? JSON.parse(catalogRes.content[0].text);
+      const catalogSpecs = ((catalogJson?.data?.specs) ?? []).map((s) => s.slug ?? s).join(", ");
       await agentAppend(page, "tool",
         `<span style="color:#6fb4ff">→ spec_catalog</span>  { view: "specs" }\n` +
-        `<span style="color:#8b93a5">   acme-portal, gamma-spec, roadmap-growth — только свой тенант</span>`);
+        `<span style="color:#8b93a5">   ${catalogSpecs} — её проект, чужих спек тут нет</span>`);
+      // The agent's plan is grounded in the actual committed graph — a real
+      // spec_graph call, not narration: which edges sit next to the domain.
+      const graphRes = await agent.callTool({ name: "spec_graph", arguments: { view: "edges", canonicalId: "acme-portal:FR-1" } });
+      const graphJson = graphRes.structuredContent ?? JSON.parse(graphRes.content[0].text);
+      const graphEdges = ((graphJson?.data?.edges) ?? []).slice(0, 4);
+      const edgeLines = graphEdges.map((e) => `   ${e.from}  —${e.type}→  ${e.to}`).join("\n") || "   (нет рёбер)";
+      await agentAppend(page, "tool",
+        `<span style="color:#6fb4ff">→ spec_graph</span>  edges acme-portal:FR-1\n` +
+        `<span style="color:#8b93a5">${edgeLines}</span>`);
       await agentAppend(page, "agent",
-        `<b>Агент:</b> Задача «${issue.summary}». Blast radius: auth/session-слой, admin UI, спека acme-portal (FR-1 рядом по домену).\n` +
-        `План: новая спека <b>acme-sso</b> — FR-1 из формулировки задачи, TASK-1 как работа по ней, линк в roadmap-growth.`);
+        `<b>Агент:</b> Задача «${issue.summary}». По графу: acme-portal:FR-1 уже реализует TASK-1 — домен смежный, но своя спека чище.\n` +
+        `План: новая спека <b>acme-sso</b> — FR-1 из формулировки задачи, TASK-1 под неё, milestone в roadmap-growth.`);
 
       const run = `v-${Date.now()}`;
       try {
@@ -1184,8 +1191,8 @@ async function main() {
         // REFUSED: ELICITATION_REQUIRED, the agent retries after the hint.
 
         await caption(page, [
-          "Смотри: агент спрашивает перед публикацией — спека станет видна всей команде",
-          "Публикация = claim + spec_patch → атомарный коммит бота в их репозиторий",
+          "Агент спрашивает перед публикацией — спека станет видна всей команде",
+          "claim = эксклюзивная запись: чужая параллельная правка честно вернёт CONFLICT",
         ]);
         await agentAppend(page, "agent", `<b>Агент:</b> Запишу спеку в репозиторий acme/gamma — её увидит вся команда. Публикую?`);
         await agentPrompt(page, "да, публикуй");
@@ -1208,8 +1215,8 @@ async function main() {
         };
 
         await caption(page, [
-          "Смотри: каждый spec_patch — атомарный коммит бота в acme-specs.git",
-          "createSpec → FR-1 → TASK-1 (Implements FR-1) → линк в роадмап — реальные вызовы, реальные sha",
+          "Каждый spec_patch — атомарный коммит бота в acme-specs.git",
+          "createSpec → FR-1 → TASK-1 → NFR → milestone в роадмапе",
         ]);
         await patch("acme-sso", "createSpec", { title: "SSO для портала" },
           `<span style="color:#6fb4ff">→ spec_patch</span>  createSpec  acme-sso  <span style="color:#5fd98a">// committed</span>`);
@@ -1252,6 +1259,29 @@ async function main() {
         ]);
         await agentAppend(page, "agent", `<b>Агент:</b> Готово — <b>acme-sso</b> в репозитории. Последний коммит: <code>${head.trim().slice(0, 60)}</code>`);
         await agentAppend(page, "sys", `spec_release acme-sso, roadmap-growth — leases dropped`);
+
+        // Proof beats for the spec-minded viewer: the document as it lies in
+        // the repo, and who authored every commit — real reads, not narration.
+        const frDoc = await agent.callTool({ name: "spec_documents", arguments: { action: "read", spec: "acme-sso", doc: "FR.md" } });
+        const frJson = frDoc.structuredContent ?? JSON.parse(frDoc.content[0].text);
+        const frText = frJson?.data?.content ?? "";
+        await agentAppend(page, "tool", `<span style="color:#6fb4ff">→ spec_documents</span>  read acme-sso / FR.md`);
+        await agentShowFile(page, "acme-sso/.specs/FR.md", frText || "(пусто)");
+        await caption(page, [
+          "Спека, как она лежит в репозитории — FR-1 прямо из формулировки задачи ACME",
+        ]);
+        await page.waitForTimeout(3_000);
+        const { stdout: gitlog } = await execFileAsync("docker", [
+          "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${EXT_REPO_PATH}`,
+          "log", "--format=%h %an · %s", "-4", "main",
+        ]);
+        await agentAppend(page, "tool",
+          `<span style="color:#6fb4ff">→ git log</span>  acme-specs.git\n` +
+          `<span style="color:#8b93a5">${gitlog.trim().split("\n").map((l) => "   " + l).join("\n")}</span>`);
+        await caption(page, [
+          "git log: каждая правка — коммит от бота сервиса, руками в .specs никто не пушит",
+        ]);
+        await page.waitForTimeout(2_200);
       } finally {
         await agent.close();
       }
@@ -1259,7 +1289,7 @@ async function main() {
       // Off-camera CI beat: the repo → tracker projection. Captioned as
       // such — no person does this in the UI.
       await caption(page, [
-        "За кадром: их CI прогоняет spec-graph-sync — клонирует acme-specs и проецирует граф в YouTrack",
+        "За кадром: CI прогоняет spec-graph-sync — клонирует acme-specs и проецирует граф в YouTrack",
         "карточки SPEC-* + снапшот SPEC:SYNC-STATE — виджеты читают только закоммиченное",
       ]);
       const adminUser = await extA.findUserByLogin("admin");
@@ -1380,7 +1410,7 @@ async function main() {
         await hoverCard("acme-portal:TASK-1");
 
         await caption(page, [
-          "Смотри: клик по карточке — справа панель связей: кто покрывает, кто реализует",
+          "Клик по карточке — справа панель связей: кто покрывает, кто реализует",
           "acme-sso:TASK-1 — та самая задача Мии ACME из YouTrack; IMPLEMENTS → FR-1; роадмап покрывает спеку",
         ]);
         await vclick(page, widget.locator('[data-id="acme-sso:TASK-1"]').first(), { settle: 2_000 });

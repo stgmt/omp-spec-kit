@@ -827,6 +827,16 @@
 
     const NODE_MAP = new Map(RAW_NODES.map(n => [n.id, n]));
 
+    // Reverse adjacency built once — the transitive lineage traversal would
+    // otherwise rescan every node's link list per BFS step on each hover.
+    const IN_EDGES = new Map();
+    for (const n of RAW_NODES) {
+      for (const link of n.links || []) {
+        if (!IN_EDGES.has(link.target)) IN_EDGES.set(link.target, []);
+        IN_EDGES.get(link.target).push(n.id);
+      }
+    }
+
     // Discovered specs
     const specCounts = new Map();
     for (const n of RAW_NODES) {
@@ -1248,10 +1258,36 @@
       highlightLineage(nodeId);
     }
 
+    // Transitive lineage: the trace must run the whole chain (roadmap →
+    // milestone → FR → task), not just the hovered card's direct neighbours.
+    // BFS both ways over the committed edges — upstream along own links,
+    // downstream along reverse edges — capped so a giant corpus cannot
+    // stall the hover handler.
+    const LINEAGE_VISIT_CAP = 200;
+    function transitiveIds(nodeId, follow) {
+      const seen = new Set();
+      const queue = [nodeId];
+      while (queue.length && seen.size < LINEAGE_VISIT_CAP) {
+        const cur = queue.shift();
+        for (const nextId of follow(cur)) {
+          if (nextId === nodeId || seen.has(nextId) || !NODE_MAP.has(nextId)) continue;
+          seen.add(nextId);
+          queue.push(nextId);
+        }
+      }
+      return seen;
+    }
+    function outgoingIds(nodeId) {
+      const node = NODE_MAP.get(nodeId);
+      return (node?.links || []).map(l => l.target);
+    }
+    function incomingIds(nodeId) {
+      return IN_EDGES.get(nodeId) ?? [];
+    }
+
     function highlightLineage(nodeId) {
-      const { outgoing, incoming } = getLineage(nodeId);
-      const outIds = new Set(outgoing.map(u => u.node.id));
-      const inIds = new Set(incoming.map(d => d.node.id));
+      const outIds = transitiveIds(nodeId, outgoingIds);
+      const inIds = transitiveIds(nodeId, incomingIds);
 
       document.querySelectorAll('.node-card').forEach(c => {
         const cid = c.dataset.id;
@@ -1267,10 +1303,13 @@
         }
       });
 
+      // A wire lights when both its ends are part of the lineage — the rope
+      // now runs through intermediate hops, not just the hovered card.
+      const lit = new Set([nodeId, ...outIds, ...inIds]);
       document.querySelectorAll('.flow-wire').forEach(w => {
         const src = w.dataset.src;
         const tgt = w.dataset.tgt;
-        if (src === nodeId || tgt === nodeId) {
+        if (lit.has(src) && lit.has(tgt)) {
           w.classList.add('active');
         } else {
           w.classList.remove('active');
