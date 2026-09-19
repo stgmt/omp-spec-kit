@@ -2,18 +2,18 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "title": "Spec Registry Service",
-  "description": "Connection to spec-registryd (TASK-12 auth path). The bridge token must match auth.appBridge.token in the service config.",
+  "description": "Connection to spec-registryd (TASK-12 auth path). Both values come from the install block shown once when the IdP is bound — or from your own self-hosted deployment.",
   "properties": {
     "serviceUrl": {
       "title": "Service URL",
-      "description": "Base URL of spec-registryd, e.g. http://spec-registryd:8642 or https://specs.example.com",
+      "description": "Base URL of spec-registryd (its /mcp and REST endpoints). Take it from the install block shown once at IdP bind, or the URL of your own deployment — there is no default.",
       "type": "string",
       "minLength": 1,
       "x-scope": "GLOBAL"
     },
     "serviceBridgeToken": {
       "title": "Service bridge token",
-      "description": "Secret shared with the service (auth.appBridge.token)",
+      "description": "App-to-service secret from the install block (shown once, stored hashed). Identifies which IdP binding this app speaks for — it is not a user credential.",
       "type": "string",
       "format": "secret",
       "minLength": 16,

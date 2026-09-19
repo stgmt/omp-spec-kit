@@ -3,56 +3,28 @@
 <head>
 <meta charset="utf-8">
 <style>
-  body.plugin { font: 13px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 12px; color: #1f2328; }
-  h3 { margin: 0 0 8px; font-size: 14px; }
-  h4 { margin: 14px 0 6px; font-size: 13px; }
+  body.plugin { font: 13px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 10px 12px; color: #1f2328; }
   .err { color: #b42318; white-space: pre-wrap; }
-  .state { font-size: 12px; color: #57606a; margin-top: 8px; }
-  .spec { display: block; padding: 4px 8px; margin: 2px 0; border: 1px solid #d0d7de; border-radius: 6px; background: #f6f8fa; font-family: Consolas, monospace; font-size: 12px; }
-  .btns { margin-top: 10px; display: flex; gap: 8px; }
-  button { padding: 6px 14px; border-radius: 6px; border: 1px solid #1f883d; background: #1f883d; color: #fff; cursor: pointer; font-size: 13px; }
-  button.secondary { border-color: #d0d7de; background: #f6f8fa; color: #1f2328; }
-  button:disabled { opacity: .5; cursor: default; }
-  pre { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 8px; font-size: 11px; overflow: auto; max-height: 160px; }
-  .repo-form { border: 1px solid #d0d7de; border-radius: 8px; padding: 10px; margin-top: 8px; }
-  .repo-form label { display: block; font-size: 12px; color: #57606a; margin-top: 6px; }
-  .repo-form input, .repo-form select { width: 100%; box-sizing: border-box; padding: 5px 8px; border: 1px solid #d0d7de; border-radius: 6px; font-size: 12px; font-family: Consolas, monospace; }
+  .state { font-size: 12px; color: #57606a; margin-top: 4px; }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .badge { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid #d0d7de; background: #f6f8fa; }
   .badge.active { border-color: #1f883d; color: #1f883d; }
   .badge.error { border-color: #b42318; color: #b42318; }
   .badge.migrating { border-color: #9a6700; color: #9a6700; }
-  .badge.warn { border-color: #9a6700; color: #9a6700; }
-  .step { border: 1px solid #d0d7de; border-radius: 8px; padding: 10px; margin-top: 10px; }
-  .step > h4 { margin: 0 0 6px; }
-  .hint { font-size: 12px; color: #57606a; margin: 4px 0; }
-  .ok { color: #1f883d; }
+  code { font-family: Consolas, monospace; font-size: 12px; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 4px; padding: 0 4px; }
+  a.open { color: #3574f0; text-decoration: none; font-size: 13px; }
+  a.open:hover { text-decoration: underline; }
 </style>
 </head>
 <body class="plugin">
-<div id="root" data-state="loading">
-  <h3>Spec Service</h3>
-  <p class="state" data-testid="state">Loading specs from spec-registryd…</p>
-</div>
+<div id="root" data-state="loading"></div>
 <script>
   (function () {
     var root = document.getElementById('root');
     var host = null;
-    var meInfo = null;
-    var specsList = [];
-    var catalogError = null;
-    // The service refuses scope-less callers with NO_SCOPES before the wizard
-    // can introspect — translate that refusal into the honest empty state.
-    var noAccess = false;
-    var idpList = [];
-    // The minted bridge token survives the widget's own re-render — the user
-    // must be able to copy it after bind. Cleared only by a full page reload.
-    var lastIdpInstall = null;
-    // Migration evidence from the most recent repo bind — the verify step's
-    // proof that the specs landed in the user's own repository.
-    var lastMigration = null;
-    // Agent-config state: 'idle' | 'ready' | 'mint-denied' | 'error'. The
-    // minted token lives only here and in the DOM — dismissed on demand.
-    var agent = { status: 'idle', mcpJson: null, login: null, project: null, url: null, message: null };
+    // The app's own page (MAIN_MENU_ITEM) hosts all setup — this card is only
+    // issue context plus the door to it.
+    var APP_PAGE = '/app/spec-graph-app/spec-app';
 
     function escapeHtml(text) {
       return String(text == null ? '' : text).replace(/[&<>"']/g, function (ch) {
@@ -61,32 +33,32 @@
     }
 
     function callService(payload) {
-      // fetchApp resolves to /api/extensionEndpoints/{app}/{path}: the handler
-      // file name is part of the path (verified against the live endpoint URL).
       return host.fetchApp('spec-handler/spec', { method: 'POST', body: payload }).then(function (response) {
         if (response && typeof response.json === 'function') return response.json();
         return response;
       });
     }
 
-    // Service errors arrive as { error: 'service request failed', status, body }
-    // where body is the service's own JSON envelope { error: "<CODE>", message }.
     function errorDetail(envelope) {
       var code = null;
-      var message = '';
       try {
         var parsed = JSON.parse((envelope && envelope.body) || '{}');
         code = typeof parsed.error === 'string' ? parsed.error : null;
-        message = parsed.message || '';
       } catch (e) {}
-      return { code: code, message: message };
+      return { code: code };
     }
 
-    function renderError(envelope) {
-      root.setAttribute('data-state', 'error');
-      var message = (envelope && envelope.error) || 'service call failed';
-      if (envelope && envelope.body) message += ' — ' + envelope.body;
-      root.innerHTML = '<h3>Spec Service</h3><p class="err" data-testid="service-error">' + escapeHtml(message) + '</p>';
+    async function resolveIssueId() {
+      const direct = (host && (host.entity?.id || host.context?.entityId || host.entityId));
+      if (direct) return direct;
+      throw new Error('cannot resolve the current issue id');
+    }
+
+    function fieldText(issue, name) {
+      const field = (issue.customFields || []).find(function (entry) { return entry.name === name; });
+      const value = field && field.value;
+      if (value === null || value === undefined) return '';
+      return typeof value === 'string' ? value : (value.name || value.presentation || '');
     }
 
     function repoBadge(status) {
@@ -94,528 +66,75 @@
       return '<span class="badge ' + cls + '" data-testid="repo-status-' + escapeHtml(status) + '">' + escapeHtml(status) + '</span>';
     }
 
-    function repoSectionHtml() {
-      var repos = (meInfo && meInfo.repos) || [];
-      if (!repos.length) return '';
-      var html = '<div data-testid="repo-list">';
-      for (var i = 0; i < repos.length; i++) {
-        var r = repos[i];
-        html += '<div class="state">' + escapeHtml(r.project) + ' → ' + (r.repoUrl ? escapeHtml(r.repoUrl) : 'no repository — bind one below') + ' ' + repoBadge(r.status) + '</div>';
+    function openLink(extra) {
+      return '<a class="open" data-testid="spec-app-link" target="_top" href="'
+        + APP_PAGE + (extra || '') + '">Open Spec Service</a>';
+    }
+
+    function renderCard(opts) {
+      var html = '<div class="row" data-testid="spec-context">';
+      html += '<b>Spec Service</b>';
+      if (opts.linkedSpec) {
+        html += '<span class="state" style="margin-top:0">spec <code data-testid="linked-spec">' + escapeHtml(opts.linkedSpec) + '</code>'
+          + (opts.specKnown ? ' ' + '<span class="badge active" data-testid="linked-spec-status">served</span>' : '') + '</span>';
       }
+      for (var i = 0; i < (opts.repos || []).length; i++) {
+        var r = opts.repos[i];
+        html += '<span class="state" style="margin-top:0" data-testid="repo-chip">' + escapeHtml(r.project)
+          + ' ' + repoBadge(r.status) + '</span>';
+      }
+      html += openLink(opts.noAccess ? '' : '?step=agent');
       html += '</div>';
-      var canBind = meInfo && (meInfo.role === 'owner' || meInfo.role === 'writer');
-      if (canBind) {
-        for (var k = 0; k < repos.length; k++) {
-          if (!repos[k].bound) continue;
-          var unbindLabel = meInfo.idp != null
-            ? 'Unbind the repository from ' + escapeHtml(repos[k].project)
-            : 'Move ' + escapeHtml(repos[k].project) + ' back to the default repo';
-          html += '<div class="state"><button class="secondary" data-testid="repo-unbind" data-project="' + escapeHtml(repos[k].project) + '" type="button">' + unbindLabel + '</button></div>';
-        }
+      if (opts.noAccess) {
+        html += '<p class="state" data-testid="no-access">No spec scopes on your account — an administrator adds you to a scope group.</p>';
+      } else if (!opts.linkedSpec) {
+        html += '<p class="state" data-testid="no-linked-spec">No spec linked to this issue — linked specs and the agent setup live on the Spec Service page.</p>';
       }
-      if (!canBind) return html;
-      html += '<div class="repo-form" data-testid="repo-form">';
-      html += '<label>Project</label><select data-testid="repo-project">';
-      for (var j = 0; j < repos.length; j++) {
-        html += '<option value="' + escapeHtml(repos[j].project) + '">' + escapeHtml(repos[j].project) + '</option>';
-      }
-      html += '</select>';
-      html += '<label>Repository URL</label><input data-testid="repo-url" placeholder="https://github.com/you/your-specs.git">';
-      html += '<label>Git token (fine-grained PAT, contents read/write)</label><input data-testid="repo-token" type="password" autocomplete="off">';
-      html += '<label>Branch</label><input data-testid="repo-branch" value="main">';
-      html += '<div class="btns">';
-      html += '<button class="secondary" data-testid="repo-test" type="button">Test connection</button>';
-      html += '<button data-testid="repo-bind" type="button">Bind &amp; migrate</button>';
-      html += '</div><p class="state" data-testid="repo-result"></p></div>';
-      return html;
-    }
-
-    function verifySectionHtml() {
-      var html = '<div data-testid="verify-panel">';
-      if (lastMigration) {
-        html += '<p class="state" data-testid="verify-status">'
-          + 'Migrated <b data-testid="migrated-docs">' + escapeHtml(lastMigration.documents) + '</b> document(s) to '
-          + escapeHtml(lastMigration.project) + ' in commit <code data-testid="migrated-commit">' + escapeHtml(lastMigration.commit) + '</code>. '
-          + 'The list above is re-read from your repository.</p>';
-      } else {
-        html += '<p class="state" data-testid="verify-status">' + specsList.length + ' spec(s) served from your project repository.</p>';
-      }
-      html += '<div class="btns"><button class="secondary" data-testid="verify-refresh" type="button">Re-read specs</button></div>';
-      if (specsList.length > 0) {
-        html += '<div class="repo-form" data-testid="verify-form">';
-        html += '<label>Spec to patch</label><select data-testid="verify-spec">';
-        for (var i = 0; i < specsList.length; i += 1) {
-          html += '<option value="' + escapeHtml(specsList[i]) + '">' + escapeHtml(specsList[i]) + '</option>';
-        }
-        html += '</select>';
-        html += '<div class="btns">';
-        html += '<button class="secondary" data-testid="verify-dryrun" type="button">Test patch (dry run)</button>';
-        html += '<button data-testid="apply-patch" type="button">Apply test patch</button>';
-        html += '</div></div>';
-      } else {
-        html += '<p class="state" data-testid="verify-empty">No specs yet — the first patch creates the corpus.</p>';
-      }
-      html += '<pre data-testid="apply-result" hidden></pre>';
-      html += '</div>';
-      return html;
-    }
-
-    function agentSectionHtml() {
-      var html = '<div data-testid="agent-panel">';
-      html += '<p class="hint">Get a ready-to-paste <code>.mcp.json</code> for your agent. '
-        + 'Issuing a new token revokes the previous one — update the file if you re-generate.</p>';
-      var scopes = (meInfo && meInfo.scopes) || [];
-      if (scopes.length > 1) {
-        html += '<label class="hint" for="agent-project">Project</label><select id="agent-project" data-testid="agent-project">';
-        for (var i = 0; i < scopes.length; i += 1) {
-          var sel = scopes[i] === meInfo.defaultScope ? ' selected' : '';
-          html += '<option value="' + escapeHtml(scopes[i]) + '"' + sel + '>' + escapeHtml(scopes[i]) + '</option>';
-        }
-        html += '</select>';
-      }
-      html += '<div class="btns"><button data-testid="agent-mint" type="button">Get my .mcp.json</button></div>';
-      html += '<p class="state" data-testid="agent-result"' + (agent.message ? '' : ' hidden') + '>' + escapeHtml(agent.message || '') + '</p>';
-      if (agent.status === 'mint-denied') {
-        html += '<div class="repo-form" data-testid="agent-token-row">'
-          + '<p class="hint">The server cannot mint a token for you on this YouTrack. '
-          + 'Create a permanent token in your YouTrack profile (Profile → Account security → Tokens → New token) and paste it here:</p>'
-          + '<label>Your YouTrack permanent token</label><input data-testid="agent-token-input" type="password" autocomplete="off">'
-          + '<div class="btns"><button class="secondary" data-testid="agent-token-submit" type="button">Use my token</button></div>'
-          + '</div>';
-      }
-      if (agent.status === 'ready' && agent.mcpJson) {
-        html += '<p class="state">Signed in as <b data-testid="agent-login">' + escapeHtml(agent.login || '?') + '</b>'
-          + (agent.project ? ', project <b data-testid="agent-project-value">' + escapeHtml(agent.project) + '</b>' : '')
-          + ' → <code data-testid="agent-url">' + escapeHtml(agent.url || '') + '</code></p>';
-        html += '<pre data-testid="agent-mcp">' + escapeHtml(agent.mcpJson) + '</pre>';
-        html += '<p class="hint">Paste this into <code>.mcp.json</code> at the root of the project where your agent runs.</p>';
-        html += '<div class="btns">'
-          + '<button class="secondary" data-testid="agent-copy" type="button">Copy</button>'
-          + '<button class="secondary" data-testid="agent-dismiss" type="button">Dismiss (clears the token)</button>'
-          + '<span class="state" data-testid="agent-copy-status"></span>'
-          + '</div>';
-      }
-      html += '</div>';
-      return html;
-    }
-
-    function wizardHtml() {
-      if (!meInfo && !noAccess) return '';
-      var scopes = (meInfo && meInfo.scopes) || [];
-      if (noAccess || scopes.length === 0) {
-        return '<div class="step" data-testid="no-access">'
-          + '<h4>No spec access</h4>'
-          + '<p class="state">Your account has no spec scopes. An administrator must add you to a scope group before you can read or write specs.</p>'
-          + '</div>';
-      }
-      var html = '<div data-testid="wizard">';
-      html += '<div class="step" data-testid="wizard-step-repo"><h4>1 · Specs repository</h4>'
-        + '<p class="hint">Choose where your project\'s specs live. A project marked <b>required</b> has no repository yet — bind your own.</p>'
-        + repoSectionHtml() + '</div>';
-      html += '<div class="step" data-testid="wizard-step-verify"><h4>2 · Verify it works</h4>' + verifySectionHtml() + '</div>';
-      html += '<div class="step" data-testid="wizard-step-agent"><h4>3 · Connect your agent</h4>' + agentSectionHtml() + '</div>';
-      html += '</div>';
-      return html;
-    }
-
-    function idpSectionHtml() {
-      // Only operator-YouTrack users may bind external IdPs (me.idp == null).
-      if (noAccess || !meInfo || meInfo.idp != null) return '';
-      var html = '<h4 style="margin-top:14px">Your own YouTrack</h4>';
-      html += '<div data-testid="idp-list">';
-      for (var k = 0; k < idpList.length; k += 1) {
-        var idp = idpList[k];
-        html += '<div class="state" data-testid="idp-row-' + escapeHtml(idp.tenant) + '">'
-          + escapeHtml(idp.tenant) + ' → ' + escapeHtml(idp.youtrackUrl) + ' '
-          + '<span class="badge badge-' + escapeHtml(idp.status === 'active' ? 'active' : 'error') + '" data-testid="idp-status-' + escapeHtml(idp.status) + '">' + escapeHtml(idp.status) + '</span>'
-          + (idp.capabilities && idp.capabilities.mintTokens === false
-            ? ' <span class="badge warn" data-testid="idp-mint-warning">no token minting — members paste their own</span>'
-            : '')
-          + (idp.status === 'active'
-            ? ' <button class="secondary" data-testid="idp-unbind" data-tenant="' + escapeHtml(idp.tenant) + '" type="button">Unbind</button>'
-            : '')
-          + '</div>';
-      }
-      html += '</div>';
-      html += '<div class="repo-form" data-testid="idp-form">';
-      html += '<label>Tenant name (lowercase slug)</label><input data-testid="idp-tenant" placeholder="acme">';
-      html += '<label>YouTrack URL</label><input data-testid="idp-url" placeholder="https://youtrack.acme.com">';
-      html += '<label>Service token (permanent token able to read users+groups)</label><input data-testid="idp-token" type="password" autocomplete="off">';
-      html += '<label>Projects (comma-separated owner/project)</label><input data-testid="idp-projects" placeholder="acme/gamma">';
-      html += '<label>Scope groups (comma-separated YT group names)</label><input data-testid="idp-hubgroups" placeholder="spec-users">';
-      html += '<label>Owner groups</label><input data-testid="idp-owners" placeholder="spec-owners">';
-      html += '<label>Writer groups</label><input data-testid="idp-writers" placeholder="spec-writers">';
-      html += '<label>Reader groups</label><input data-testid="idp-readers" placeholder="spec-readers">';
-      html += '<label>Specs repository URL — the tenant\'s own repo (recommended; unbound projects cannot store specs)</label><input data-testid="idp-repo-url" placeholder="https://github.com/you/your-specs.git">';
-      html += '<label>Specs repo git token</label><input data-testid="idp-repo-token" type="password" autocomplete="off">';
-      html += '<label>Specs repo branch</label><input data-testid="idp-repo-branch" value="main">';
-      html += '<div class="btns">';
-      html += '<button class="secondary" data-testid="idp-test" type="button">Test connection</button>';
-      html += '<button data-testid="idp-bind" type="button">Bind YouTrack</button>';
-      html += '</div><p class="state" data-testid="idp-result"></p>';
-      if (lastIdpInstall) {
-        html += '<pre data-testid="idp-install">'
-          + 'App settings for ' + escapeHtml(lastIdpInstall.tenant) + ':\n'
-          + 'serviceUrl = ' + escapeHtml(lastIdpInstall.serviceUrl) + '\n'
-          + 'serviceBridgeToken = ' + escapeHtml(lastIdpInstall.serviceBridgeToken) + '\n'
-          + escapeHtml(lastIdpInstall.note || '')
-          + '</pre></div>';
-      } else {
-        html += '<pre data-testid="idp-install" hidden></pre></div>';
-      }
-      return html;
-    }
-
-    function bindRepoHandlers() {
-      var unbinds = root.querySelectorAll('[data-testid="repo-unbind"]');
-      for (var u = 0; u < unbinds.length; u++) {
-        unbinds[u].addEventListener('click', function (e) {
-          var button = e.target;
-          button.disabled = true;
-          callService({ id: 'widget-unbind', method: 'repo/unbind', params: { project: button.getAttribute('data-project') } }).then(function () {
-            loadAll();
-          }).catch(function () { button.disabled = false; });
-        });
-      }
-      var form = root.querySelector('[data-testid="repo-form"]');
-      if (!form) return;
-      var result = form.querySelector('[data-testid="repo-result"]');
-      var fields = function () {
-        return {
-          project: form.querySelector('[data-testid="repo-project"]').value,
-          repoUrl: form.querySelector('[data-testid="repo-url"]').value.trim(),
-          token: form.querySelector('[data-testid="repo-token"]').value,
-          branch: form.querySelector('[data-testid="repo-branch"]').value.trim() || 'main'
-        };
-      };
-      var run = function (method, extra, button) {
-        button.disabled = true;
-        result.textContent = 'working…';
-        return callService({ id: 'widget-' + method, method: method, params: Object.assign(fields(), extra) }).then(function (envelope) {
-          if (envelope && envelope.error) {
-            var detail = errorDetail(envelope);
-            result.textContent = envelope.error + (detail.message ? ': ' + detail.message : envelope.message ? ': ' + envelope.message : '');
-            result.setAttribute('data-outcome', 'error');
-            result.setAttribute('data-error-code', detail.code || '');
-          } else {
-            if (method === 'repo/bind' && envelope.migrated) {
-              lastMigration = { project: envelope.binding.project, commit: envelope.migrated.commit, documents: envelope.migrated.documents };
-            }
-            result.textContent = method === 'repo/probe'
-              ? 'connection ok' + (envelope.head ? ' (HEAD ' + String(envelope.head).slice(0, 12) + ')' : ' — empty repo')
-              : 'bound — reloading…';
-            result.setAttribute('data-outcome', 'ok');
-            if (method === 'repo/bind') setTimeout(loadAll, 600);
-          }
-        }).catch(function (error) {
-          result.textContent = String(error && error.message ? error.message : error);
-          result.setAttribute('data-outcome', 'transport-error');
-        }).finally(function () { button.disabled = false; });
-      };
-      form.querySelector('[data-testid="repo-test"]').addEventListener('click', function (e) {
-        run('repo/probe', {}, e.target);
-      });
-      form.querySelector('[data-testid="repo-bind"]').addEventListener('click', function (e) {
-        run('repo/bind', { migrate: true }, e.target);
-      });
-    }
-
-    function bindVerifyHandlers() {
-      var panel = root.querySelector('[data-testid="verify-panel"]');
-      if (!panel) return;
-      var refresh = panel.querySelector('[data-testid="verify-refresh"]');
-      if (refresh) {
-        refresh.addEventListener('click', function () {
-          refresh.disabled = true;
-          loadAll().finally(function () { refresh.disabled = false; });
-        });
-      }
-      var output = panel.querySelector('[data-testid="apply-result"]');
-      var runPatch = function (button, dryRun) {
-        var spec = panel.querySelector('[data-testid="verify-spec"]').value;
-        button.disabled = true;
-        output.hidden = false;
-        output.textContent = dryRun ? 'testing…' : 'applying…';
-        callService({
-          id: 'widget-apply',
-          method: 'tools/call',
-          params: {
-            name: 'spec_patch',
-            arguments: {
-              intent: 'patch',
-              spec: spec,
-              reason: 'YouTrack widget verify',
-              dryRun: dryRun,
-              operations: [{ kind: 'insert_at_eof', document: 'TASKS.md', text: '\n## TASK-90 — applied from YouTrack widget\n- **Status:** done\n' }],
-              requestId: 'widget-apply'
-            }
-          }
-        }).then(function (envelope) {
-          var structured = envelope && envelope.result ? envelope.result.structuredContent : envelope;
-          var outcome = structured && structured.data ? structured.data.outcome : null;
-          output.setAttribute('data-outcome', String(outcome || (structured && structured.error && structured.error.code) || 'unknown'));
-          output.textContent = JSON.stringify(structured, null, 2);
-        }).catch(function (error) {
-          output.setAttribute('data-outcome', 'transport-error');
-          output.textContent = String(error && error.message ? error.message : error);
-        }).finally(function () { button.disabled = false; });
-      };
-      var dryRun = panel.querySelector('[data-testid="verify-dryrun"]');
-      if (dryRun) dryRun.addEventListener('click', function (e) { runPatch(e.target, true); });
-      var apply = panel.querySelector('[data-testid="apply-patch"]');
-      if (apply) apply.addEventListener('click', function (e) { runPatch(e.target, false); });
-    }
-
-    function selectAll(node) {
-      var range = document.createRange();
-      range.selectNodeContents(node);
-      var sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-
-    function bindAgentHandlers() {
-      var panel = root.querySelector('[data-testid="agent-panel"]');
-      if (!panel) return;
-      var result = panel.querySelector('[data-testid="agent-result"]');
-      var projectParam = function () {
-        var select = panel.querySelector('[data-testid="agent-project"]');
-        return select ? select.value : (meInfo && meInfo.defaultScope) || null;
-      };
-      var requestToken = function (params, button) {
-        button.disabled = true;
-        result.hidden = false;
-        result.textContent = 'working…';
-        callService({ id: 'widget-agent', method: 'onboarding/token', params: params }).then(function (envelope) {
-          if (envelope && envelope.error) {
-            var detail = errorDetail(envelope);
-            if (detail.code === 'MINT_NOT_PERMITTED') {
-              agent = { status: 'mint-denied', mcpJson: null, login: null, project: null, url: null, message: detail.message || 'token minting is not permitted on this YouTrack' };
-              render();
-              return;
-            }
-            agent = { status: 'error', mcpJson: null, login: null, project: null, url: null, message: envelope.error + (detail.message ? ': ' + detail.message : '') };
-            render();
-            return;
-          }
-          agent = { status: 'ready', mcpJson: envelope.mcpJson, login: envelope.login, project: envelope.project, url: envelope.url, message: null };
-          render();
-        }).catch(function (error) {
-          result.textContent = String(error && error.message ? error.message : error);
-          result.setAttribute('data-outcome', 'transport-error');
-        }).finally(function () { button.disabled = false; });
-      };
-      var mint = panel.querySelector('[data-testid="agent-mint"]');
-      if (mint) {
-        mint.addEventListener('click', function (e) {
-          var params = {};
-          var project = projectParam();
-          if (project) params.project = project;
-          requestToken(params, e.target);
-        });
-      }
-      var tokenSubmit = panel.querySelector('[data-testid="agent-token-submit"]');
-      if (tokenSubmit) {
-        tokenSubmit.addEventListener('click', function (e) {
-          var input = panel.querySelector('[data-testid="agent-token-input"]');
-          var params = { token: input.value.trim() };
-          var project = projectParam();
-          if (project) params.project = project;
-          requestToken(params, e.target);
-        });
-      }
-      var copy = panel.querySelector('[data-testid="agent-copy"]');
-      if (copy) {
-        copy.addEventListener('click', function () {
-          var pre = panel.querySelector('[data-testid="agent-mcp"]');
-          var status = panel.querySelector('[data-testid="agent-copy-status"]');
-          var fallback = function () {
-            selectAll(pre);
-            status.textContent = 'clipboard unavailable — text selected, press Ctrl+C';
-          };
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(pre.textContent).then(function () {
-              status.textContent = 'copied';
-            }, fallback);
-          } else {
-            fallback();
-          }
-        });
-      }
-      var dismiss = panel.querySelector('[data-testid="agent-dismiss"]');
-      if (dismiss) {
-        dismiss.addEventListener('click', function () {
-          agent = { status: 'idle', mcpJson: null, login: null, project: null, url: null, message: null };
-          render();
-        });
-      }
-    }
-
-    function csv(value) {
-      return value.split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s.length > 0; });
-    }
-
-    function bindIdpHandlers() {
-      var unbinds = root.querySelectorAll('[data-testid="idp-unbind"]');
-      for (var u = 0; u < unbinds.length; u++) {
-        unbinds[u].addEventListener('click', function (e) {
-          var button = e.target;
-          button.disabled = true;
-          callService({ id: 'widget-idp-unbind', method: 'idp/unbind', params: { tenant: button.getAttribute('data-tenant') } }).then(function () {
-            loadAll();
-          }).catch(function () { button.disabled = false; });
-        });
-      }
-      var form = root.querySelector('[data-testid="idp-form"]');
-      if (!form) return;
-      var result = form.querySelector('[data-testid="idp-result"]');
-      var install = form.querySelector('[data-testid="idp-install"]');
-      var fields = function () {
-        var f = {
-          tenant: form.querySelector('[data-testid="idp-tenant"]').value.trim(),
-          youtrackUrl: form.querySelector('[data-testid="idp-url"]').value.trim(),
-          serviceToken: form.querySelector('[data-testid="idp-token"]').value,
-          projects: csv(form.querySelector('[data-testid="idp-projects"]').value),
-          hubGroups: csv(form.querySelector('[data-testid="idp-hubgroups"]').value),
-          roleGroups: {
-            owner: csv(form.querySelector('[data-testid="idp-owners"]').value),
-            writer: csv(form.querySelector('[data-testid="idp-writers"]').value),
-            reader: csv(form.querySelector('[data-testid="idp-readers"]').value)
-          }
-        };
-        var repoUrl = form.querySelector('[data-testid="idp-repo-url"]').value.trim();
-        if (repoUrl) {
-          f.repo = {
-            url: repoUrl,
-            token: form.querySelector('[data-testid="idp-repo-token"]').value,
-            branch: form.querySelector('[data-testid="idp-repo-branch"]').value.trim() || 'main'
-          };
-        }
-        return f;
-      };
-      var run = function (method, button) {
-        button.disabled = true;
-        result.textContent = 'working…';
-        return callService({ id: 'widget-' + method, method: method, params: fields() }).then(function (envelope) {
-          if (envelope && envelope.error) {
-            var detail = errorDetail(envelope);
-            result.textContent = envelope.error + (detail.message ? ': ' + detail.message : envelope.message ? ': ' + envelope.message : '');
-            result.setAttribute('data-outcome', 'error');
-          } else if (method === 'idp/probe') {
-            var mintNote = envelope.capabilities && envelope.capabilities.mintTokens === false
-              ? ' — warning: cannot mint user tokens, members will paste their own'
-              : '';
-            result.textContent = 'connection ok (service login: ' + escapeHtml(envelope.serviceLogin || '?') + ')' + mintNote;
-            result.setAttribute('data-outcome', 'ok');
-            result.setAttribute('data-mint', envelope.capabilities && envelope.capabilities.mintTokens === false ? 'denied' : 'ok');
-          } else {
-            var repoErrors = envelope.repos
-              ? Object.keys(envelope.repos).filter(function (p) { return envelope.repos[p].error; })
-                .map(function (p) { return p + ': ' + (envelope.repos[p].message || envelope.repos[p].error); })
-              : [];
-            var migratedProjects = envelope.repos
-              ? Object.keys(envelope.repos).filter(function (p) { return envelope.repos[p].migrated; })
-              : [];
-            if (migratedProjects.length) {
-              var m = envelope.repos[migratedProjects[0]];
-              lastMigration = { project: migratedProjects[0], commit: m.migrated.commit, documents: m.migrated.documents };
-            }
-            var mintWarn = envelope.probe && envelope.probe.capabilities && envelope.probe.capabilities.mintTokens === false
-              ? ' — warning: service token cannot mint user tokens, members will paste their own'
-              : '';
-            result.textContent = 'bound — reloading…' + (repoErrors.length ? ' (repo errors: ' + repoErrors.join('; ') + ')' : '') + mintWarn;
-            result.setAttribute('data-outcome', 'ok');
-            // The bridge token is shown exactly once — persist it across the
-            // widget's own re-render so the user can actually copy it.
-            if (envelope.install) {
-              lastIdpInstall = { tenant: envelope.binding.tenant, ...envelope.install };
-              install.hidden = false;
-              install.textContent = 'App settings for ' + envelope.binding.tenant + ':\n'
-                + 'serviceUrl = ' + envelope.install.serviceUrl + '\n'
-                + 'serviceBridgeToken = ' + envelope.install.serviceBridgeToken + '\n'
-                + envelope.install.note;
-            }
-            setTimeout(loadAll, 800);
-          }
-        }).catch(function (error) {
-          result.textContent = String(error && error.message ? error.message : error);
-          result.setAttribute('data-outcome', 'transport-error');
-        }).finally(function () { button.disabled = false; });
-      };
-      form.querySelector('[data-testid="idp-test"]').addEventListener('click', function (e) {
-        run('idp/probe', e.target);
-      });
-      form.querySelector('[data-testid="idp-bind"]').addEventListener('click', function (e) {
-        run('idp/bind', e.target);
-      });
-    }
-
-    function render() {
-      root.setAttribute('data-state', 'ready');
-      var html = '<h3>Spec Service</h3>';
-      html += '<p class="state" data-testid="spec-count">Specs visible to you: ' + specsList.length + '</p>';
-      html += '<div data-testid="spec-list">';
-      for (var i = 0; i < specsList.length; i += 1) {
-        html += '<span class="spec" data-spec="' + escapeHtml(specsList[i]) + '">' + escapeHtml(specsList[i]) + '</span>';
-      }
-      html += '</div>';
-      if (catalogError) {
-        html += '<p class="err" data-testid="spec-error-note">' + escapeHtml(catalogError) + '</p>';
-      }
-      html += wizardHtml();
-      html += idpSectionHtml();
       root.innerHTML = html;
-      bindRepoHandlers();
-      bindVerifyHandlers();
-      bindAgentHandlers();
-      bindIdpHandlers();
+      root.setAttribute('data-state', 'ready');
     }
 
-    function loadAll() {
-      return Promise.all([
-        callService({ id: 'widget-list', method: 'tools/call', params: { name: 'spec_catalog', arguments: { view: 'specs' } } }),
-        callService({ id: 'widget-me', method: 'service/me', params: {} }),
-        callService({ id: 'widget-idps', method: 'idp/bindings', params: {} }).catch(function () { return { bindings: [] }; })
-      ]).then(function (results) {
-        // A scope-less caller is refused at the auth gate (NO_SCOPES) — every
-        // call fails the same way, so detect it from any of them.
-        for (var n = 0; n < results.length; n += 1) {
-          if (errorDetail(results[n]).code === 'NO_SCOPES') {
-            noAccess = true;
-            specsList = [];
-            catalogError = null;
-            meInfo = null;
-            idpList = [];
-            render();
-            return;
-          }
-        }
-        noAccess = false;
-        var structured = results[0] && results[0].result ? results[0].result.structuredContent : results[0];
-        if (structured && structured.ok === false) {
-          // A business refusal (repository not bound yet, empty scope) is not
-          // a broken widget — the onboarding wizard still renders; the note
-          // explains why the list is empty.
-          specsList = [];
-          catalogError = (structured.error && (structured.error.message || structured.error.code)) || 'specs unavailable';
-        } else if (!structured || structured.ok !== true) {
-          renderError(structured || results[0]);
-          return;
-        } else {
-          specsList = (structured.data && structured.data.specs) || [];
-          catalogError = null;
-        }
-        meInfo = results[1] && results[1].login ? results[1] : null;
-        idpList = (results[2] && results[2].bindings) || [];
-        render();
-      });
+    function renderEmpty() {
+      // Not configured / not signed in / service down — stay silent on the
+      // issue rather than impersonating a broken task.
+      root.innerHTML = '';
+      root.setAttribute('data-state', 'empty');
     }
 
-    YTApp.register().then(function (registered) {
+    YTApp.register().then(async function (registered) {
       host = registered;
-      return loadAll();
-    }).catch(function (error) {
-      renderError({ error: String(error && error.message ? error.message : error) });
+      var results = await Promise.all([
+        callService({ id: 'widget-me', method: 'service/me', params: {} }),
+        callService({ id: 'widget-list', method: 'tools/call', params: { name: 'spec_catalog', arguments: { view: 'specs' } } }).catch(function () { return null; })
+      ]);
+      var me = results[0];
+      if (errorDetail(me).code === 'NO_SCOPES' || (me && me.scopes && me.scopes.length === 0)) {
+        renderCard({ noAccess: true });
+        return;
+      }
+      if (!me || me.error || !me.login) { renderEmpty(); return; }
+
+      var structured = results[1] && results[1].result ? results[1].result.structuredContent : results[1];
+      var specs = (structured && structured.data && structured.data.specs) || [];
+
+      var linkedSpec = '';
+      try {
+        var issueId = await resolveIssueId();
+        var issue = await host.fetchYouTrack(
+          'issues/' + encodeURIComponent(issueId) +
+          '?fields=idReadable,customFields(name,value(name,presentation))');
+        var specId = fieldText(issue, 'SpecId');
+        linkedSpec = specId ? specId.split(':')[0] : '';
+      } catch (e) {}
+
+      renderCard({
+        linkedSpec: linkedSpec,
+        specKnown: linkedSpec ? specs.indexOf(linkedSpec) !== -1 : false,
+        repos: me.repos || [],
+        noAccess: false
+      });
+    }).catch(function () {
+      renderEmpty();
     });
   })();
 </script>
