@@ -1,6 +1,6 @@
 {
   "schema": "omp-spec-kit-dist-manifest@1",
-  "pluginVersion": "2.4.0",
+  "pluginVersion": "2.5.0",
   "files": {
     "adapters/document-service.js": {
       "sha256": "bc8cdf0b0590be3867546d13bac0faec80337c6a128d2300e9612d94dc1adb8f"
@@ -51,7 +51,7 @@
       "sha256": "56e7e622ff072e292894d88811e668edf06de1a1613408b4e42dec9c6ef6cf60"
     },
     "extension.js": {
-      "sha256": "0422f34e06bcf23419a6a4e480c411c24e9e8639b585c301af165ae75601980a"
+      "sha256": "6b1610359cff57c5e4c90cd8a07065129511e7398d1fdcd89b7151401c457211"
     },
     "gate/automatic-adapter.js": {
       "sha256": "82c385544c2aa793679512b93ef150cfd382722f0cbcc1dd28b99b710e3d3ed8"
