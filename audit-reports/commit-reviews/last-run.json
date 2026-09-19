@@ -1,15 +1,15 @@
 {
   "schema": "review-last-run@1",
-  "runId": "2026-09-18T14-13-54-097Z-b557f9a70a59",
-  "repoRoot": "E:/repos/omp-spec-kit-merge-240",
-  "updatedAt": "2026-09-18T14:39:34.199Z",
-  "state": "blocked",
-  "verdict": "BLOCK",
-  "exitCode": 1,
-  "reportPath": "E:\\repos\\omp-spec-kit-merge-240\\audit-reports\\commit-reviews\\2026-09-18T14-13-54-096Z-b557f9a70a5971ba3c2203146dd1ea98ba357b8831bd2cbcf8c7f7f59e357b5a.md",
-  "durationMs": 1540102,
+  "runId": "2026-09-13T23-31-09-469Z-ad821496084e",
+  "repoRoot": "E:/repos/omp-spec-kit",
+  "updatedAt": "2026-09-13T23:35:51.756Z",
+  "state": "passed",
+  "verdict": "PASS",
+  "exitCode": 0,
+  "reportPath": "E:\\repos\\omp-spec-kit\\audit-reports\\commit-reviews\\2026-09-13T23-31-09-469Z-ad821496084e8c61a7d663339528e5f4b74546ec9d74f99cb37cb0c6dabc39c2.md",
+  "durationMs": 282287,
   "modelsTried": [
-    "@vision"
+    "@smol"
   ],
-  "finishedAt": "2026-09-18T14:39:34.199Z"
+  "finishedAt": "2026-09-13T23:35:51.756Z"
 }
