@@ -65,7 +65,7 @@ file); clients never carry repo URLs or tokens in `.mcp.json`.
   a pre-seeded target repo wins; an empty one gets a skeleton `.specs`.
   The response carries `migrated: {commit, documents}` — the pushed commit
   SHA and the landed file count — or `null` when nothing was migrated; the
-  widget's verify step shows this as the proof of migration.
+  app page's verify step shows this as the proof of migration.
 - `POST /repos/unbind` `{project}` — back to the default repo. The bound
   clone stays on disk because published ledger rows still reference it.
 
@@ -105,7 +105,7 @@ IdP URLs or tokens.
   nothing. The response reports `capabilities.mintTokens`: `false` when the
   service token cannot read another user's permanent tokens (the same rights
   minting needs) — such tenants still work, but members generate their own
-  YouTrack tokens and paste them into the widget (see guided onboarding).
+  YouTrack tokens and paste them into the app page (see guided onboarding).
 - `POST /idp/bind` `{tenant, youtrackUrl, serviceToken, projects, hubGroups,
   roleGroups, defaultProject?, repo?}` — any verified operator-YouTrack user
   may bind; external-IdP users cannot nest-bind. Probes first, then seals the
@@ -161,14 +161,18 @@ Semantics:
 
 ## Guided onboarding (TASK-19)
 
-The `spec-service-panel` widget is the member's whole journey — no REST calls
-by hand:
+The app's own page — `spec-app`, a `MAIN_MENU_ITEM` extension point — is the
+member's whole journey: **YouTrack main menu → Spec Service**. Installing the
+ZIP creates nothing in the tracker; the page hosts the full stepper, and
+`?step=agent` deep-links straight to the agent step. Discovery is the native
+**System-wide banner** an administrator configures in Global Settings — the
+apps API exposes no way to post user notifications, and none is fabricated.
 
 1. **Specs repository** — each scoped project shows its repo and status
    (`active`/`default`/`required`). A `required` project has no repository
    (external tenant without a binding): owner/writer users get the bind form
-   (URL, git token, branch), probe and bind+migrate run from the same panel.
-2. **Verify it works** — after a bind the panel shows the migration evidence
+   (URL, git token, branch), probe and bind+migrate run from the page.
+2. **Verify it works** — after a bind the page shows the migration evidence
    (`migrated.commit` SHA + `migrated.documents` count from the bind
    response), re-reads the spec list from the newly bound repo, and offers a
    patch test: dry-run first, real write opt-in. An empty repository shows an
@@ -177,8 +181,14 @@ by hand:
    `POST /onboarding/token` through the app bridge and renders the exact
    snippet to paste into the project's `.mcp.json` (`Authorization`,
    `X-Spec-Project`, `X-Spec-Idp` where bound). Issuing again revokes the
-   previous same-purpose token — the panel says so, and a Dismiss button
+   previous same-purpose token — the page says so, and a Dismiss button
    clears the secret from the DOM.
+
+The issue widget (`spec-service-panel`) is deliberately thin: an issue-aware
+context card with the linked spec when `SpecId` is set, repo status chips, and
+an **Open Spec Service** link to `/app/spec-graph-app/spec-app?step=agent`.
+No onboarding forms, no `.mcp.json`, no bind controls live inside an issue —
+a task is not a configuration surface.
 
 Edge cases:
 

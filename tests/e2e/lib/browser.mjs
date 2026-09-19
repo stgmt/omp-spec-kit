@@ -64,14 +64,15 @@ export async function browserLogin(page, login, password, baseUrl = YT_URL) {
 }
 
 /** Polls page frames until the service widget renders success or error. */
-export async function widgetFrame(page) {
-  const deadline = Date.now() + 60_000;
+export async function appFrame(page, { timeoutMs = 60_000 } = {}) {
+  await page.goto(`${YT_URL}/app/spec-graph-app/spec-app`, { waitUntil: "domcontentloaded" });
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     for (const frame of page.frames()) {
-      const marker = await frame.locator('[data-testid="spec-list"], [data-testid="service-error"]').count().catch(() => 0);
+      const marker = await frame.locator('[data-testid="spec-list"], [data-testid="service-error"], [data-testid="no-access"], [data-testid="wizard"]').count().catch(() => 0);
       if (marker > 0) return frame;
     }
     await page.waitForTimeout(1_000);
   }
-  throw new Error(`service widget did not render (frames: ${page.frames().map((f) => f.url()).join(", ").slice(0, 300)})`);
+  throw new Error(`spec-app page did not render (frames: ${page.frames().map((f) => f.url()).join(", ").slice(0, 300)})`);
 }

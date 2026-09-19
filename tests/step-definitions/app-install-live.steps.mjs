@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -8,7 +9,7 @@ import { chromium } from "playwright-core";
 import { ADMIN_PASSWORD, APP_NAME, BRIDGE_TOKEN, USERS, deployApp } from "../e2e/lib/bootstrap.mjs";
 import { E2E_DIR, SERVICE_URL, YT_URL } from "../e2e/lib/compose.mjs";
 import { createYouTrackAdmin } from "../e2e/lib/youtrack.mjs";
-import { browserLogin, widgetFrame } from "../e2e/lib/browser.mjs";
+import { browserLogin } from "../e2e/lib/browser.mjs";
 import { attachAppToProjectViaUI, fillAppSettings, openAppsPage, openAppTab, uploadAppZip } from "../e2e/lib/app-admin-ui.mjs";
 import { ensureExtYoutrack, extAdmin, extBindBody, EXT_YT_HOST_URL, EXT_TENANT, EXT_USERS } from "../e2e/lib/idp-fixture.mjs";
 
@@ -141,6 +142,24 @@ When("the admin fills the service connection settings with an unreachable URL", 
   await fillAppSettings(this.adminPage, { ...SERVICE_SETTINGS, serviceUrl: "http://spec-registryd:9999" });
 });
 
+// The app's own page (MAIN_MENU_ITEM) — all onboarding lives here, issues
+// only carry the context card. The URL was probed live on 2025.3: the nav
+// item links to /app/<appName>/<widgetKey>.
+const APP_PAGE_PATH = "/app/spec-graph-app/spec-app";
+
+async function openSpecAppPage(page, baseUrl = YT_URL) {
+  await page.goto(`${baseUrl}${APP_PAGE_PATH}`, { waitUntil: "domcontentloaded" });
+  await widgetOnboardingFrame(page);
+}
+
+When("alice opens the Spec Service app page", async function () {
+  this.aliceContext = await live.browser.newContext();
+  this.alicePage = await this.aliceContext.newPage();
+  this.alicePage.setDefaultTimeout(60_000);
+  await browserLogin(this.alicePage, "alice", USERS.alice.password);
+  await openSpecAppPage(this.alicePage);
+});
+
 When("alice opens the SPEC anchor issue", async function () {
   this.aliceContext = await live.browser.newContext();
   this.alicePage = await this.aliceContext.newPage();
@@ -149,11 +168,11 @@ When("alice opens the SPEC anchor issue", async function () {
   await this.alicePage.goto(`${YT_URL}/issue/${live.issue.idReadable}`, { waitUntil: "domcontentloaded" });
 });
 
-Then("the service widget shows a connection error", async function () {
-  const frame = await widgetFrame(this.alicePage);
+Then("the Spec Service page shows a connection error", async function () {
+  const frame = await widgetOnboardingFrame(this.alicePage);
   const text = await frame.locator('[data-testid="service-error"]').innerText();
   assert.ok(text.trim().length > 0, "an unreachable service must surface a readable error");
-  await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-widget-error.png"), fullPage: true }).catch(() => {});
+  await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-page-error.png"), fullPage: true }).catch(() => {});
 });
 
 When("the admin fills the service connection settings", async function () {
@@ -166,15 +185,15 @@ When("the admin fills the service connection settings", async function () {
   assert.equal(saved.serviceUrl, SERVICE_SETTINGS.serviceUrl, `settings not saved: ${config.globalSettings}`);
 });
 
-When("alice reloads the anchor issue", async function () {
-  await this.alicePage.goto(`${YT_URL}/issue/${live.issue.idReadable}`, { waitUntil: "domcontentloaded" });
+When("alice reloads the Spec Service page", async function () {
+  await openSpecAppPage(this.alicePage);
 });
 
-Then("the service widget lists alpha-spec", async function () {
-  const frame = await widgetFrame(this.alicePage);
+Then("the Spec Service page lists alpha-spec", async function () {
+  const frame = await widgetOnboardingFrame(this.alicePage);
   const text = await frame.locator('[data-testid="spec-list"]').innerText();
-  assert.match(text, /alpha-spec/, "the UI-installed app must render the remote spec");
-  await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-widget-specs.png"), fullPage: true }).catch(() => {});
+  assert.match(text, /alpha-spec/, "the app page must render the remote spec");
+  await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-page-specs.png"), fullPage: true }).catch(() => {});
 });
 
 // ---- TASK-17: BYO specs repository through the widget ----------------------
@@ -213,16 +232,15 @@ Given("a second specs repo exists in the stack", async function () {
   assert.match(stdout, /HEAD/u, `byo repo was not created: ${stdout}`);
 });
 
-Given("alice is viewing the SPEC anchor issue", async function () {
+Given("alice is on the Spec Service app page", async function () {
   this.aliceContext = await live.browser.newContext();
   this.alicePage = await this.aliceContext.newPage();
   this.alicePage.setDefaultTimeout(60_000);
   await browserLogin(this.alicePage, "alice", USERS.alice.password);
-  await this.alicePage.goto(`${YT_URL}/issue/${live.issue.idReadable}`, { waitUntil: "domcontentloaded" });
-  await widgetRepoFrame(this.alicePage);
+  await openSpecAppPage(this.alicePage);
 });
 
-When("alice tests the repository connection in the widget", async function () {
+When("alice tests the repository connection on the page", async function () {
   const frame = await widgetRepoFrame(this.alicePage);
   await frame.locator('[data-testid="repo-url"]').fill(BYO_REPO_URL);
   await frame.locator('[data-testid="repo-token"]').fill("e2e-unused-git-daemon");
@@ -231,7 +249,7 @@ When("alice tests the repository connection in the widget", async function () {
   await frame.locator('[data-testid="repo-result"][data-outcome="ok"]').waitFor({ state: "attached", timeout: 30_000 });
 });
 
-Then("the widget reports the repository connection is ok", async function () {
+Then("the page reports the repository connection is ok", async function () {
   const frame = await widgetRepoFrame(this.alicePage);
   const text = await frame.locator('[data-testid="repo-result"]').innerText();
   assert.match(text, /connection ok/u, `probe outcome: ${text}`);
@@ -254,7 +272,7 @@ When("alice binds the project to her repository", async function () {
   throw new Error("widget never reached the bound state after bind");
 });
 
-Then("the widget shows the bound repository state", async function () {
+Then("the page shows the bound repository state", async function () {
   const frame = await widgetRepoFrame(this.alicePage);
   const text = await frame.locator('[data-testid="repo-list"]').innerText();
   assert.match(text, /byo\.git/u, `binding not visible: ${text}`);
@@ -268,7 +286,7 @@ Then("the project specs landed in her repository", async function () {
   assert.match(stdout, /Alpha Spec/u, `migrated README missing in byo repo: ${stdout.slice(0, 200)}`);
 });
 
-When("alice unbinds the project in the widget", async function () {
+When("alice unbinds the project on the page", async function () {
   const frame = await widgetRepoFrame(this.alicePage);
   await frame.locator('[data-testid="repo-unbind"]').click();
   const deadline = Date.now() + 60_000;
@@ -355,12 +373,22 @@ Given("a second YouTrack is provisioned for the external tenant", async function
 
 Given("the tenant has its own specs repo in the stack", async function () {
   // The customer's own repository — same git daemon, a different bare repo.
-  const script = `if [ ! -d "${EXT_REPO_PATH}" ]; then git init --bare --initial-branch=main "${EXT_REPO_PATH}"; fi && ls "${EXT_REPO_PATH}/HEAD"`;
-  const { stdout } = await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-git-1", "sh", "-c", script]);
-  assert.match(stdout, /HEAD/u, `tenant repo was not created: ${stdout}`);
+  // Always reset it pristine: a previous scenario's migration leaves a
+  // populated .specs tree, and copySpecsSnapshot merges — a dirty target
+  // trips the post-migration tree-verify (MIGRATION_TREE_MISMATCH). A stale
+  // binding row goes first (an "active" row would make the next bind a
+  // no-op while the repo itself is empty), then the bare repo, then the
+  // service's cached clone of it.
+  if (live.ext?.users?.mia?.token) {
+    await serviceRest(live.ext.users.mia.token, "POST", "/repos/unbind", { project: "acme/gamma" }).catch(() => {});
+  }
+  const mountKey = createHash("sha256").update(`${EXT_REPO_URL}|main`, "utf8").digest("hex").slice(0, 12);
+  await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-git-1", "sh", "-c",
+    `rm -rf "${EXT_REPO_PATH}" && git init --bare --initial-branch=main "${EXT_REPO_PATH}"`]);
+  await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-registryd-1", "rm", "-rf", `/data/clones/${mountKey}`]).catch(() => {});
 });
 
-When("alice binds the external YouTrack in the widget", async function () {
+When("alice binds the external YouTrack on the page", async function () {
   const frame = await widgetIdpFrame(this.alicePage);
   const body = extBindBody({ serviceToken: live.ext.serviceToken });
   await frame.locator('[data-testid="idp-tenant"]').fill(body.tenant);
@@ -390,7 +418,7 @@ When("alice binds the external YouTrack in the widget", async function () {
   throw new Error("widget never reached the bound IdP state");
 });
 
-Then("the widget shows the minted app settings for the external tenant", async function () {
+Then("the page shows the minted app settings for the external tenant", async function () {
   const frame = await widgetIdpFrame(this.alicePage);
   const install = frame.locator('[data-testid="idp-install"]');
   await install.waitFor({ state: "visible", timeout: 15_000 });
@@ -426,19 +454,29 @@ When("the app is installed on the external YouTrack with the minted settings", a
   await extAdmin().attachAppToProject(appId, live.ext.project.id);
 });
 
-Then("mia sees her tenant specs through the external app", async function () {
+Then("mia sees her tenant specs on the external Spec Service page", async function () {
   this.miaContext = await live.browser.newContext();
   this.miaPage = await this.miaContext.newPage();
   this.miaPage.setDefaultTimeout(60_000);
   await browserLogin(this.miaPage, "mia", EXT_USERS.mia.password, EXT_YT_HOST_URL);
-  await this.miaPage.goto(`${EXT_YT_HOST_URL}/issue/${live.ext.issue.idReadable}`, { waitUntil: "domcontentloaded" });
-  const frame = await widgetFrame(this.miaPage);
-  const text = await frame.locator('[data-testid="spec-list"]').innerText();
-  assert.match(text, /gamma-spec/, `ext widget must list the tenant spec, got: ${text}`);
-  await this.miaPage.screenshot({ path: path.join(ARTIFACTS, "live-widget-idp-mia.png"), fullPage: true }).catch(() => {});
+  await openSpecAppPage(this.miaPage, EXT_YT_HOST_URL);
+  // The migrated corpus lands on the service's next sync tick — reload the
+  // page until the catalog shows the tenant spec rather than trusting one
+  // snapshot taken seconds after the bind.
+  const deadline = Date.now() + 45_000;
+  let text = "";
+  while (Date.now() < deadline) {
+    const frame = await widgetOnboardingFrame(this.miaPage);
+    text = await frame.locator('[data-testid="spec-list"]').innerText().catch(() => "");
+    if (/gamma-spec/.test(text)) break;
+    await this.miaPage.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
+    await this.miaPage.waitForTimeout(1_500);
+  }
+  assert.match(text, /gamma-spec/, `ext app page must list the tenant spec, got: ${text}`);
+  await this.miaPage.screenshot({ path: path.join(ARTIFACTS, "live-page-idp-mia.png"), fullPage: true }).catch(() => {});
 });
 
-When("alice unbinds the external YouTrack in the widget", async function () {
+When("alice unbinds the external YouTrack on the page", async function () {
   const frame = await widgetIdpFrame(this.alicePage);
   await frame.locator(`[data-testid="idp-row-${EXT_TENANT}"] [data-testid="idp-unbind"]`).click();
   const deadline = Date.now() + 60_000;
@@ -533,22 +571,22 @@ async function bindTenantAndInstallApp() {
   await extAdmin().attachAppToProject(appId, live.ext.project.id);
 }
 
-async function extUserViewingIssue(login) {
+async function extUserOnSpecAppPage(login) {
   const context = await live.browser.newContext();
   const page = await context.newPage();
   page.setDefaultTimeout(60_000);
   await browserLogin(page, login, EXT_USERS[login].password, EXT_YT_HOST_URL);
-  await page.goto(`${EXT_YT_HOST_URL}/issue/${live.ext.issue.idReadable}`, { waitUntil: "domcontentloaded" });
+  await openSpecAppPage(page, EXT_YT_HOST_URL);
   return { context, page };
 }
 
 // -- Alice: agent configuration ---------------------------------------------
 
-When("alice requests her agent configuration in the widget", async function () {
+When("alice requests her agent configuration on the page", async function () {
   this.lastSnippet = await requestAgentConfig(this.alicePage);
 });
 
-Then("the widget shows a ready .mcp.json for alice on her project", async function () {
+Then("the page shows a ready .mcp.json for alice on her project", async function () {
   const server = this.lastSnippet?.mcpServers?.["omp-spec-kit"];
   assert.ok(server, `no mcpServers.omp-spec-kit in snippet: ${JSON.stringify(this.lastSnippet).slice(0, 200)}`);
   assert.match(server.url, /\/mcp$/u, `snippet url must point at /mcp: ${server.url}`);
@@ -585,20 +623,19 @@ Given("the external tenant is bound and its app is installed", async function ()
   await bindTenantAndInstallApp();
 });
 
-Given("mia is viewing the ACME anchor issue", async function () {
-  const { context, page } = await extUserViewingIssue("mia");
+Given("mia is on the Spec Service app page on the external YouTrack", async function () {
+  const { context, page } = await extUserOnSpecAppPage("mia");
   this.miaContext = context;
   this.miaPage = page;
-  await widgetOnboardingFrame(this.miaPage);
 });
 
-Then("the widget marks the tenant project repository as required", async function () {
+Then("the page marks the tenant project repository as required", async function () {
   const frame = await widgetOnboardingFrame(this.miaPage);
   await frame.locator('[data-testid="repo-status-required"]').waitFor({ state: "attached", timeout: 15_000 });
   await this.miaPage.screenshot({ path: path.join(ARTIFACTS, "live-widget-mia-required.png"), fullPage: true }).catch(() => {});
 });
 
-When("mia binds the tenant repository in the widget", async function () {
+When("mia binds the tenant repository on the page", async function () {
   const frame = await widgetOnboardingFrame(this.miaPage);
   await frame.locator('[data-testid="repo-url"]').fill(EXT_REPO_URL);
   await frame.locator('[data-testid="repo-token"]').fill("e2e-unused-git-daemon");
@@ -615,7 +652,7 @@ When("mia binds the tenant repository in the widget", async function () {
   throw new Error("widget never reached the bound state after mia's bind");
 });
 
-Then("the widget shows the migration commit and document count", async function () {
+Then("the page shows the migration commit and document count", async function () {
   const frame = await widgetOnboardingFrame(this.miaPage);
   await frame.locator('[data-testid="migrated-commit"]').waitFor({ state: "attached", timeout: 30_000 });
   const commit = (await frame.locator('[data-testid="migrated-commit"]').innerText()).trim();
@@ -625,11 +662,11 @@ Then("the widget shows the migration commit and document count", async function 
   await this.miaPage.screenshot({ path: path.join(ARTIFACTS, "live-widget-mia-migrated.png"), fullPage: true }).catch(() => {});
 });
 
-When("mia requests her agent configuration in the widget", async function () {
+When("mia requests her agent configuration on the page", async function () {
   this.lastSnippet = await requestAgentConfig(this.miaPage);
 });
 
-Then("the widget shows a ready .mcp.json pinned to the acme tenant", async function () {
+Then("the page shows a ready .mcp.json pinned to the acme tenant", async function () {
   const server = this.lastSnippet?.mcpServers?.["omp-spec-kit"];
   assert.ok(server, `no mcpServers.omp-spec-kit in snippet: ${JSON.stringify(this.lastSnippet).slice(0, 200)}`);
   assert.match(server.url, /\/mcp$/u);
@@ -675,14 +712,13 @@ Then("the tenant specs are served from the tenant repository", async function ()
 
 // -- Oda: no scope groups ----------------------------------------------------
 
-Given("oda is viewing the ACME anchor issue", async function () {
-  const { context, page } = await extUserViewingIssue("oda");
+Given("oda is on the Spec Service app page on the external YouTrack", async function () {
+  const { context, page } = await extUserOnSpecAppPage("oda");
   this.odaContext = context;
   this.odaPage = page;
-  await widgetOnboardingFrame(this.odaPage);
 });
 
-Then("the widget shows the no-access state and no onboarding controls", async function () {
+Then("the page shows the no-access state and no onboarding controls", async function () {
   const frame = await widgetOnboardingFrame(this.odaPage);
   await frame.locator('[data-testid="no-access"]').waitFor({ state: "attached", timeout: 30_000 });
   assert.equal(await frame.locator('[data-testid="agent-mint"]').count(), 0, "no-access users must not see the token mint control");
@@ -694,37 +730,94 @@ Then("the widget shows the no-access state and no onboarding controls", async fu
 
 Given("the tenant repository is bound for the tenant project", async function () {
   // Mia is the tenant writer — she may bind acme/gamma to the tenant repo.
-  const bound = await serviceRest(live.ext.users.mia.token, "POST", "/repos/bind", {
+  const bind = () => serviceRest(live.ext.users.mia.token, "POST", "/repos/bind", {
     project: "acme/gamma",
     repoUrl: EXT_REPO_URL,
     token: "e2e-unused-git-daemon",
     branch: "main",
   });
+  let bound = await bind();
+  if (bound.status !== 200 && bound.status !== 409 && /MIGRATION_TREE_MISMATCH/.test(JSON.stringify(bound.body))) {
+    // A previous run left the repo migrated already — rebinding it produces a
+    // different tree than the corpus source. Reset the bare repo (and the
+    // service's cached clone of it) so the migration lands on a clean target.
+    await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-git-1", "sh", "-c",
+      `rm -rf "${EXT_REPO_PATH}" && git init --bare --initial-branch=main "${EXT_REPO_PATH}"`]);
+    const mountKey = createHash("sha256").update(`${EXT_REPO_URL}|main`, "utf8").digest("hex").slice(0, 12);
+    await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-registryd-1", "rm", "-rf", `/data/clones/${mountKey}`]).catch(() => {});
+    bound = await bind();
+  }
   assert.ok(bound.status === 200 || bound.status === 409, `tenant repo bind failed: ${JSON.stringify(bound.body).slice(0, 300)}`);
 });
 
-Given("noa is viewing the ACME anchor issue", async function () {
-  const { context, page } = await extUserViewingIssue("noa");
+Given("noa is on the Spec Service app page on the external YouTrack", async function () {
+  const { context, page } = await extUserOnSpecAppPage("noa");
   this.noaContext = context;
   this.noaPage = page;
-  await widgetOnboardingFrame(this.noaPage);
 });
 
-Then("the service widget lists gamma-spec for noa", async function () {
-  const frame = await widgetOnboardingFrame(this.noaPage);
-  await frame.locator('[data-testid="spec-list"]').waitFor({ state: "attached", timeout: 15_000 });
-  const text = await frame.locator('[data-testid="spec-list"]').innerText();
+Then("the Spec Service page lists gamma-spec for noa", async function () {
+  // Same sync-tick caveat as mia's list — reload until the catalog catches up.
+  const deadline = Date.now() + 45_000;
+  let text = "";
+  while (Date.now() < deadline) {
+    const frame = await widgetOnboardingFrame(this.noaPage);
+    text = await frame.locator('[data-testid="spec-list"]').innerText().catch(() => "");
+    if (/gamma-spec/.test(text)) break;
+    await this.noaPage.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
+    await this.noaPage.waitForTimeout(1_500);
+  }
   assert.match(text, /gamma-spec/, `reader must see the tenant spec, got: ${text}`);
 });
 
-Then("the widget shows no repository bind controls for the reader", async function () {
+Then("the page shows no repository bind controls for the reader", async function () {
   const frame = await widgetOnboardingFrame(this.noaPage);
   assert.equal(await frame.locator('[data-testid="repo-form"]').count(), 0, "a reader must not see the repository bind form");
   assert.equal(await frame.locator('[data-testid="repo-bind"]').count(), 0);
   await this.noaPage.screenshot({ path: path.join(ARTIFACTS, "live-widget-noa-reader.png"), fullPage: true }).catch(() => {});
 });
 
-When("noa requests her agent configuration in the widget", async function () {
+When("noa requests her agent configuration on the page", async function () {
   this.lastSnippet = await requestAgentConfig(this.noaPage);
 });
 
+
+// -- Issue context card: no onboarding controls live in tasks ----------------
+
+/** Frame holding the thin issue context card. */
+async function issueCardFrame(page) {
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    for (const frame of page.frames()) {
+      const marker = await frame.locator('[data-testid="spec-context"]').count().catch(() => 0);
+      if (marker > 0) return frame;
+    }
+    await page.waitForTimeout(1_000);
+  }
+  throw new Error("issue spec context card did not render");
+}
+
+Then("the issue shows the spec context card and no onboarding controls", async function () {
+  const frame = await issueCardFrame(this.alicePage);
+  await frame.locator('[data-testid="spec-app-link"]').waitFor({ state: "attached", timeout: 15_000 });
+  const forbidden = [];
+  for (const f of this.alicePage.frames()) {
+    for (const tid of ["wizard", "agent-panel", "agent-mint", "agent-mcp", "repo-form", "idp-form", "verify-form", "spec-list"]) {
+      if (await f.locator(`[data-testid="${tid}"]`).count().catch(() => 0)) forbidden.push(tid);
+    }
+  }
+  assert.deepEqual(forbidden, [], `onboarding controls must not render on issues: ${forbidden.join(", ")}`);
+  await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-issue-context.png"), fullPage: true }).catch(() => {});
+});
+
+When("alice follows the Spec Service link from the issue", async function () {
+  const frame = await issueCardFrame(this.alicePage);
+  await frame.locator('[data-testid="spec-app-link"]').click();
+  await this.alicePage.waitForURL(/\/app\/spec-graph-app\/spec-app/, { timeout: 30_000 });
+});
+
+Then("the Spec Service page renders its onboarding stepper", async function () {
+  const frame = await widgetOnboardingFrame(this.alicePage);
+  await frame.locator('[data-testid="wizard-step-agent"]').waitFor({ state: "attached", timeout: 15_000 });
+  await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-page-stepper.png"), fullPage: true }).catch(() => {});
+});

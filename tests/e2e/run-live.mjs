@@ -17,7 +17,7 @@ import { chromium } from "playwright-core";
 import { compose, composeEnv, containerLogs, E2E_DIR, SERVICE_URL, waitFor, YT_URL } from "./lib/compose.mjs";
 import { completeWizard, youtrackNeedsWizard } from "./lib/wizard.mjs";
 import { ADMIN_PASSWORD, bootstrapFixture, USERS } from "./lib/bootstrap.mjs";
-import { browserLogin, widgetFrame } from "./lib/browser.mjs";
+import { appFrame, browserLogin } from "./lib/browser.mjs";
 
 const execFileAsync = promisify(execFile);
 const ARTIFACTS = path.join(E2E_DIR, "artifacts");
@@ -132,7 +132,7 @@ async function main() {
       page.setDefaultTimeout(60_000);
       await browserLogin(page, "alice", USERS.alice.password);
       await page.goto(`${YT_URL}/issue/${fixture.issue.idReadable}`, { waitUntil: "domcontentloaded" });
-      const frame = await widgetFrame(page);
+      const frame = await appFrame(page);
       const text = await frame.locator('[data-testid="spec-list"]').innerText();
       assert.match(text, /alpha-spec/, "widget must list the spec that exists only in the service's specs repo");
       await page.screenshot({ path: path.join(ARTIFACTS, "s1-alice-widget.png"), fullPage: true }).catch(() => {});
@@ -149,7 +149,7 @@ async function main() {
       page.setDefaultTimeout(60_000);
       await browserLogin(page, "alice", USERS.alice.password);
       await page.goto(`${YT_URL}/issue/${fixture.issue.idReadable}`, { waitUntil: "domcontentloaded" });
-      const frame = await widgetFrame(page);
+      const frame = await appFrame(page);
       await frame.locator('[data-testid="apply-patch"]').click();
       await frame.locator('[data-testid="apply-result"][data-outcome="APPLIED"]').waitFor({ timeout: 60_000 });
       await page.screenshot({ path: path.join(ARTIFACTS, "s2-alice-applied.png"), fullPage: true }).catch(() => {});
@@ -169,7 +169,7 @@ async function main() {
       page.setDefaultTimeout(60_000);
       await browserLogin(page, "dave", USERS.dave.password);
       await page.goto(`${YT_URL}/issue/${fixture.issue.idReadable}`, { waitUntil: "domcontentloaded" });
-      const frame = await widgetFrame(page);
+      const frame = await appFrame(page);
       const text = await frame.locator('[data-testid="service-error"]').innerText();
       assert.match(text, /no scopes matched/, "service must refuse the scopeless user");
       return text.slice(0, 80);

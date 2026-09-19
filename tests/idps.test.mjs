@@ -199,6 +199,75 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     assert.equal(wrongHint.body.login, "mia");
   });
 
+  it("bridge signature: asserted users are re-verified per call, spoofs and out-of-tenant logins fail", async () => {
+    const { api, tokens } = await setup();
+    const bound = await rest(api, tokens.alice, "POST", "/idp/bind", extBindBody({ serviceToken: ext.serviceToken, youtrackUrl: EXT_YT_HOST_URL }));
+    assert.equal(bound.status, 200, JSON.stringify(bound.body));
+    const bridge = bound.body.bridgeToken;
+
+    // One installed app serves every user of the tenant — no per-user
+    // install: the same bridge secret resolves each asserted login against
+    // the bound IdP independently.
+    const bridgedMia = await rest(api, bridge, "GET", "/me", undefined, { "x-spec-user": "mia" });
+    assert.equal(bridgedMia.status, 200, JSON.stringify(bridgedMia.body));
+    assert.equal(bridgedMia.body.login, "mia");
+    assert.equal(bridgedMia.body.role, "writer");
+    const bridgedNoa = await rest(api, bridge, "GET", "/me", undefined, { "x-spec-user": "noa" });
+    assert.equal(bridgedNoa.status, 200, JSON.stringify(bridgedNoa.body));
+    assert.equal(bridgedNoa.body.role, "reader");
+
+    // The header is asserted, never trusted — the service re-verifies the
+    // login against the bound IdP: unknown logins and users outside the
+    // tenant's groups both fail closed.
+    const forged = await rest(api, bridge, "GET", "/me", undefined, { "x-spec-user": "not-a-user" });
+    assert.equal(forged.status, 401);
+    assert.equal(forged.body.error, "UNKNOWN_USER");
+    const noGroups = await rest(api, bridge, "GET", "/me", undefined, { "x-spec-user": "oda" });
+    assert.equal(noGroups.status, 403);
+    assert.equal(noGroups.body.error, "NO_SCOPES");
+    // Exists on the IdP but in no tenant group → refused, not widened.
+    const outsider = await rest(api, bridge, "GET", "/me", undefined, { "x-spec-user": "admin" });
+    assert.equal(outsider.status, 403);
+    assert.equal(outsider.body.error, "NO_SCOPES");
+
+    // X-Spec-User is bridge-only: a direct user token can never assert
+    // someone else's identity — noa's token still resolves noa.
+    const directSpoof = await rest(api, tokens.noa, "GET", "/me", undefined, { "x-spec-user": "mia" });
+    assert.equal(directSpoof.status, 200);
+    assert.equal(directSpoof.body.login, "noa");
+
+    // Banned beats membership: a banned user is refused even when their
+    // login resolves and they would otherwise match a group.
+    await ext.admin.banUser(ext.users.oda.id, true);
+    try {
+      const banned = await rest(api, bridge, "GET", "/me", undefined, { "x-spec-user": "oda" });
+      assert.equal(banned.status, 403);
+      assert.equal(banned.body.error, "BANNED");
+    } finally {
+      await ext.admin.banUser(ext.users.oda.id, false);
+    }
+  });
+
+  it("onboarding accepts only the caller's own pasted token", async () => {
+    const { api, tokens } = await setup();
+    await rest(api, tokens.alice, "POST", "/idp/bind", extBindBody({ serviceToken: ext.serviceToken, youtrackUrl: EXT_YT_HOST_URL }));
+
+    // Someone else's token must not mint your snippet.
+    const mismatch = await rest(api, tokens.mia, "POST", "/onboarding/token", { token: tokens.noa });
+    assert.equal(mismatch.status, 400);
+    assert.equal(mismatch.body.error, "TOKEN_MISMATCH");
+
+    // Your own token is verified as yourself and wrapped into a ready
+    // .mcp.json pinned to your tenant and project.
+    const own = await rest(api, tokens.mia, "POST", "/onboarding/token", { token: tokens.mia });
+    assert.equal(own.status, 200, JSON.stringify(own.body));
+    assert.equal(own.body.login, "mia");
+    assert.equal(own.body.project, "acme/gamma");
+    const snippet = JSON.parse(own.body.mcpJson);
+    assert.equal(snippet.mcpServers["omp-spec-kit"].headers["X-Spec-Idp"], EXT_TENANT);
+    assert.equal(snippet.mcpServers["omp-spec-kit"].headers["X-Spec-Project"], "acme/gamma");
+  });
+
   it("enforces tenant isolation and group gating for external users", async () => {
     const { api, url, tokens } = await setup();
     await rest(api, tokens.alice, "POST", "/idp/bind", extBindBody({ serviceToken: ext.serviceToken, youtrackUrl: EXT_YT_HOST_URL }));

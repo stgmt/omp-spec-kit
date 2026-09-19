@@ -30,7 +30,8 @@ export async function openAppsPage(page) {
 /**
  * Uploads the built package through the native file chooser, exactly as the
  * "Upload ZIP file…" menu does for a human operator. Returns after YouTrack
- * confirms the upload with its toast and selects the app card.
+ * selects the uploaded app's card (?selected=<appId>) — the "is uploaded!"
+ * toast text is not reliable across YouTrack versions.
  */
 export async function uploadAppZip(page, zipPath) {
   await page.getByRole("button", { name: /add app/i }).first().click();
@@ -39,7 +40,7 @@ export async function uploadAppZip(page, zipPath) {
     page.getByRole("button", { name: /upload zip file/i }).click(),
   ]);
   await chooser.setFiles(zipPath);
-  await page.getByText(/is uploaded!/i).first().waitFor({ state: "visible", timeout: 60_000 });
+  await page.waitForURL(/[?&]selected=\d+-/, { timeout: 60_000 });
 }
 
 /** App card tabs carry data-test="ring-link"; the sidebar "Projects" does not. */

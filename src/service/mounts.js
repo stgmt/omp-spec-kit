@@ -220,11 +220,16 @@ export class MountManager {
    * Where a project's content lives BEFORE a binding exists — the migration
    * source. Unlike `for`, this never refuses an unbound external project:
    * binding that project to its own repo is precisely the allowed operation.
+   * An `error` row resolves the same way — the migration never landed, so the
+   * retry must still find the source instead of wedging on REPO_BINDING_REQUIRED.
    */
   forSource(projectId) {
     const row = this.store?.getBinding?.(projectId) ?? null;
     if (!row) return this.defaultMount;
-    return this.for(projectId);
+    if (row.status === "active") return this.byRepo(row.repoUrl, row.branch, projectId);
+    return row.migratedFrom
+      ? this.byRepo(row.migratedFrom, row.migratedFromBranch ?? row.branch, projectId)
+      : this.defaultMount;
   }
 
   /**
