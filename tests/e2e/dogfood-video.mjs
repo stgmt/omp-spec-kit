@@ -864,23 +864,31 @@ async function main() {
       await titleCard(page, "omp-spec-kit — подключаем к своему YouTrack", "Свой YouTrack + ZIP из релиза — ставится за пару минут", 3800);
 
       // Honest prerequisite, on camera: the whole demo runs on a local
-      // docker-compose stack. Show it is actually up and reachable on
-      // localhost before any YouTrack UI appears — no "it just works".
+      // docker-compose stack — and we show the actual `up -d` first, not a
+      // "trust me it is running" ps on a pre-existing stand.
       {
         // Child processes inherit this shell's proxy env — strip it so the
         // curls we show hit localhost directly (same as a plain terminal).
         const noProxyEnv = { ...process.env, HTTP_PROXY: "", HTTPS_PROXY: "", http_proxy: "", https_proxy: "" };
-        const { stdout: psTable } = compose(["ps", "youtrack-ext", "spec-git", "spec-registryd"]);
+        const { stdout: upStdout, stderr: upStderr } = compose(["up", "-d", "youtrack-ext", "spec-git", "spec-registryd"]);
+        // docker compose writes container status to stderr on Windows — merge both.
+        const upOut = `${upStdout}\n${upStderr}`;
+        const { stdout: psTable } = compose(["ps", "--format", "table {{.Service}}\\t{{.Status}}\\t{{.Ports}}", "youtrack-ext", "spec-git", "spec-registryd"]);
         const ytCode = (await execFileAsync("curl", ["-s", "-o", "NUL", "-w", "%{http_code}", EXT_YT_HOST_URL], { env: noProxyEnv }).catch(() => ({ stdout: "000" }))).stdout.trim();
         const svcCode = (await execFileAsync("curl", ["-s", "-o", "NUL", "-w", "%{http_code}", `${SERVICE_URL}/mcp`], { env: noProxyEnv }).catch(() => ({ stdout: "000" }))).stdout.trim();
         const gitRefs = (await execFileAsync("git", ["ls-remote", "git://127.0.0.1:9418/acme-specs.git"], { env: noProxyEnv }).catch(() => ({ stdout: "(no refs — пустой репозиторий)" }))).stdout;
-        await termInit(page, "terminal — проверяем стенд перед демо");
+        await termInit(page, "terminal — поднимаем стенд перед демо");
         await page.waitForTimeout(600); // setContent wiped the cursor element — let the injector respawn
         await caption(page, [
-          "Всё живёт в локальном docker-compose",
-          "Проверяем, что контейнеры подняты и слушают localhost",
+          "Стенд — локальный docker-compose: YouTrack, git с спеками, сервис реестра",
+          "Поднимаем одной командой и проверяем, что всё отвечает",
         ]);
-        await termCmd(page, "docker compose -p spec-auth-e2e -f tests/e2e/compose.yml ps youtrack-ext spec-git spec-registryd", "какие сервисы подняты: compose-статус только трёх нужных контейнеров");
+        await termCmd(page, "docker compose -p spec-auth-e2e -f tests/e2e/compose.yml up -d youtrack-ext spec-git spec-registryd", "поднимаем три сервиса стенда одной командой");
+        // On an already-running stack compose prints short "Running" lines;
+        // keep only the container status lines so the output stays readable.
+        const upLines = upOut.split("\n").map((l) => l.trim()).filter((l) => /Running|Started|Healthy|Created|Running/.test(l));
+        await termOut(page, upLines.length ? upLines.slice(0, 8) : ["(тихо — все три контейнера уже подняты)"]);
+        await termCmd(page, "docker compose -p spec-auth-e2e -f tests/e2e/compose.yml ps --format \"table {{.Service}}\\t{{.Status}}\\t{{.Ports}}\" youtrack-ext spec-git spec-registryd", "какие сервисы подняты и на каких портах слушают");
         await termOut(page, psTable.trimEnd().split("\n"));
         await termCmd(page, `curl -s -o NUL -w "%{http_code}" ${EXT_YT_HOST_URL}`, "YouTrack отвечает на :8082? ждём 200");
         await termOut(page, [`${ytCode}   ← YouTrack на localhost:8082`], ytCode === "200" ? "#5fd98a" : "#ff7a7a");
@@ -889,8 +897,7 @@ async function main() {
         await termCmd(page, "git ls-remote git://127.0.0.1:9418/acme-specs.git", "git-репозиторий спек отвечает по git:// — выводит его refs");
         await termOut(page, gitRefs.trimEnd().split("\n"));
         await termOut(page, [
-          "# не поднято?  docker compose -p spec-auth-e2e -f tests/e2e/compose.yml up -d",
-          "✓ стенд жив: YouTrack, git-репозиторий спек и spec-registryd — всё на 127.0.0.1",
+          "✓ стенд поднят и отвечает: YouTrack, git-репозиторий спек, spec-registryd — всё на 127.0.0.1",
         ], "#5fd98a");
         await page.waitForTimeout(1_600);
       }
