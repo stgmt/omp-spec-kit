@@ -3,14 +3,17 @@
 // reference projections (@featureN -> FR-N, @AC-N.M -> AC-N.M, structured
 // `Refs:` description lines). Pure; line-oriented with exact spans.
 
+import { isValidSpecSlug, localIdKind } from "../identity.js";
+import {
+  GHERKIN_EXAMPLES_RE,
+  GHERKIN_SCENARIO_HEADER_RE,
+  GHERKIN_TAG_LINE_RE,
+  getGherkinDocstringMarker,
+} from "../gherkin-syntax.js";
 import { Positions } from "./markdown.js";
-import { isValidSpecSlug } from "../identity.js";
 
 const SCEN_ID_RE = /^SCEN-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const STEP_RE = /^(Given|When|Then|And|But|\*)[ \t]+(.*)$/u;
-const TAG_LINE_RE = /^[ ]*((?:@[^\s@][^\s]*[ \t]*)+)$/u;
-const EXAMPLES_RE = /^[ \t]*Examples[ \t]*(?::.*)?$/u;
-const DOCSTRING_RE = /^[ ]{0,3}("""|```)/u;
 
 // Common non-English Gherkin keywords that mark an unsupported dialect.
 const FOREIGN_KEYWORDS = [
@@ -110,9 +113,9 @@ export function parseGherkinDocument({ path, specSlug, text }) {
       if (trimmed.startsWith(docstringMarker)) docstringMarker = null;
       continue;
     }
-    const docstring = DOCSTRING_RE.exec(rawLine);
-    if (docstring && !trimmed.startsWith("#")) {
-      docstringMarker = docstring[1];
+    const docstring = getGherkinDocstringMarker(rawLine);
+    if (docstring !== null) {
+      docstringMarker = docstring;
       continue;
     }
 
@@ -120,7 +123,7 @@ export function parseGherkinDocument({ path, specSlug, text }) {
     if (trimmed.startsWith("|") && !(current !== null && inExamples)) continue;
 
     if (!current) {
-      const tagLine = TAG_LINE_RE.exec(rawLine);
+      const tagLine = GHERKIN_TAG_LINE_RE.exec(rawLine);
       if (tagLine) {
         for (const tag of tagLine[1].split(/[ \t]+/)) {
           if (tag.startsWith("@")) pendingTags.push({ tag: tag.slice(1), line: i + 1 });
@@ -144,14 +147,11 @@ export function parseGherkinDocument({ path, specSlug, text }) {
       continue;
     }
 
-    const outlineMatch = /^[ \t]*(Scenario Template|Scenario Outline):[ \t]*(.*)$/u.exec(rawLine);
-    const scenarioMatch = outlineMatch === null
-      ? /^[ \t]*(Example|Scenario):[ \t]*(.*)$/u.exec(rawLine)
-      : null;
+    const scenarioMatch = GHERKIN_SCENARIO_HEADER_RE.exec(rawLine);
 
-    if (outlineMatch || scenarioMatch) {
+    if (scenarioMatch) {
       flushScenario();
-      const header = outlineMatch ?? scenarioMatch;
+      const header = scenarioMatch;
       current = {
         name: bound(header[2].trim(), 512),
         keyword: header[1],
@@ -169,7 +169,7 @@ export function parseGherkinDocument({ path, specSlug, text }) {
 
     if (current === null) continue;
 
-    if (EXAMPLES_RE.test(rawLine)) {
+    if (GHERKIN_EXAMPLES_RE.test(rawLine)) {
       inExamples = true;
       examplesCurrent = null;
       continue;
@@ -316,8 +316,6 @@ function finalizeScenario(scenario, specSlug, featureName, positions, text) {
     }
   }
 }
-
-import { localIdKind } from "../identity.js";
 
 function acTagRef(tag) {
   return /^AC-[1-9][0-9]*\.[1-9][0-9]*$/u.test(tag);

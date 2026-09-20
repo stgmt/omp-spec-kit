@@ -1,26 +1,6 @@
-const DESIGN_REVIEW_SCHEMA = "omp-spec-kit/design-review@1";
-// Matches every scenario header form cucumber-js executes — a superset of the
-// kernel parser's recognized set (Scenario, Scenario Outline, Example,
-// Scenario Template; space or tab indented). Docstring bodies are skipped.
-const SCENARIO_HEADER_RE = /^[ \t]*(?:Scenario|Scenario Outline|Scenario Template|Example):/mu;
-const DOCSTRING_MARKER_RE = /^[ ]{0,3}("""|```)/u;
+import { hasGherkinScenarioHeader } from "../kernel/gherkin-syntax.js";
 
-function hasScenarioHeader(text) {
-  let docstringMarker = null;
-  for (const line of text.split("\n")) {
-    if (docstringMarker !== null) {
-      if (line.trimStart().startsWith(docstringMarker)) docstringMarker = null;
-      continue;
-    }
-    const marker = DOCSTRING_MARKER_RE.exec(line);
-    if (marker && !line.trimStart().startsWith("#")) {
-      docstringMarker = marker[1];
-      continue;
-    }
-    if (SCENARIO_HEADER_RE.test(line)) return true;
-  }
-  return false;
-}
+const DESIGN_REVIEW_SCHEMA = "omp-spec-kit/design-review@1";
 const REVIEW_KEYS = new Set(["schemaVersion", "decision", "boundary", "evidence", "alternatives", "selfTestCheck"]);
 const BOUNDARY_KEYS = new Set(["kind", "name", "claim"]);
 const EVIDENCE_KEYS = new Set(["kind", "reference", "observation"]);
@@ -193,7 +173,7 @@ function scenarioDocumentChange(change) {
   if (!change || typeof change.document !== "string" || !/\.feature$/iu.test(change.document)) return false;
   const before = asText(change.beforeBytes);
   const after = asText(change.afterBytes);
-  return before !== after && (hasScenarioHeader(before) || hasScenarioHeader(after));
+  return before !== after && (hasGherkinScenarioHeader(before) || hasGherkinScenarioHeader(after));
 }
 
 export const DESIGN_REVIEW_SCHEMA_VERSION = DESIGN_REVIEW_SCHEMA;

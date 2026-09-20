@@ -65,4 +65,29 @@ describe("gherkin scenario keyword forms", () => {
     assert.deepEqual(scenario.examples[0].headers, ["a"]);
     assert.deepEqual(scenario.examples[0].rows, [["1"]]);
   });
+
+
+  it("accepts tab-indented scenario tags and keeps the scenario valid", () => {
+    const doc = parse("Feature: F\n\t@feature1 @id:SCEN-tab-001\n\tScenario: tabbed\n\t  Given a step\n");
+    assert.equal(doc.scenarios.length, 1);
+    assert.equal(doc.scenarios[0].rejected, false);
+    assert.equal(doc.scenarios[0].localId, "SCEN-tab-001");
+    assert.deepEqual(doc.scenarios[0].tags.map((tag) => tag.tag), ["feature1", "id:SCEN-tab-001"]);
+  });
+
+  it("captures tab-indented Examples rows", () => {
+    const doc = parse(
+      "Feature: F\n  Scenario Template: templ\n    Given <a>\n\tExamples:\n\t  | a |\n\t  | 1 |\n",
+    );
+    assert.deepEqual(doc.scenarios[0].examples, [{ headers: ["a"], rows: [["1"]] }]);
+  });
+
+  it("skips scenario-looking text inside tab-indented docstrings", () => {
+    const doc = parse(
+      "Feature: F\n\t@id:SCEN-doc-001\n\tScenario: doc\n\t  Given a step\n\t\"\"\"\n\t  Scenario: quoted\n\t\"\"\"\n",
+    );
+    assert.equal(doc.scenarios.length, 1);
+    assert.equal(doc.scenarios[0].localId, "SCEN-doc-001");
+    assert.deepEqual(doc.scenarios[0].steps, [{ keyword: "Given", text: "a step" }]);
+  });
 });

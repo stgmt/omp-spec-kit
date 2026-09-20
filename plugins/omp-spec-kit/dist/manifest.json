@@ -18,7 +18,7 @@
       "sha256": "afb3b405aa258b31ed121e1bb67bea01ba8c57b405f1b7284d3326aa0151c01d"
     },
     "authoring/design-review.js": {
-      "sha256": "fc86843f6b267640aa75823ed422bc32436d45042ebe22c046aeb28b468b9f75"
+      "sha256": "ba88286f7885e217bb38f982822a8695ec6f5ce180aaab475eb435b7e804a40a"
     },
     "authoring/elicitation-guard.js": {
       "sha256": "3d69503a6d7208b0a966b8ecd7d06aae1d5a011b4daf08578b7efaae3e34a293"
@@ -42,7 +42,7 @@
       "sha256": "aa13e9ba61773b9ea028501081d3a2e64cfbe60ea72b8dbeeba8da2831e4eb53"
     },
     "enforcement/classifier.js": {
-      "sha256": "0fe37e856c1094ce70538560385ec0c5af99fb2e1f1928f0f33bec23e1c56b4c"
+      "sha256": "af6a0b7098d5d748207fdf20171a6994444d70219ebd542bb15228c549171968"
     },
     "enforcement/resolve-targets.js": {
       "sha256": "4a04cd3b09d286384fd6d85493d08b33f6c49a3310fe2ccd246279de1fd6fc60"
@@ -64,6 +64,9 @@
     },
     "kernel/diagnostics.js": {
       "sha256": "04c3778d0bcdaae9eccc277ef33004bf0012fdbe2357589452450481c1ec1687"
+    },
+    "kernel/gherkin-syntax.js": {
+      "sha256": "ed88857ef5cc48df9ffdd64a0009a47d043f02d04485ae91667647119812ef1b"
     },
     "kernel/graph/build.js": {
       "sha256": "5bd6cda597277865f686b65e6859fbae7bbe1276bb01ec6f57456d936519266c"
@@ -90,7 +93,7 @@
       "sha256": "923d29c3136d9f975e17058f61ec3e4b4be8ee6ccc6b11f550890b708f6cfac3"
     },
     "kernel/parsers/gherkin.js": {
-      "sha256": "442953b4ecd9c608c23d0bf33f15e08a1c2082f29f34bbea18e0d4cd6d46c46d"
+      "sha256": "7010498febc1c91c0ec60ef87269c3c8718b924c0eaaafb348f080a10b3aa1bc"
     },
     "kernel/parsers/markdown.js": {
       "sha256": "92d20981a640d81b37f182f44cd051aa588f8f38bb2be59a69e8929b39d66b51"

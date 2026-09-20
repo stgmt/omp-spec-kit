@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { TOOL_CONTRACTS } from "../adapters/tool-contracts.js";
+import { hasGherkinScenarioHeader } from "../kernel/gherkin-syntax.js";
 import { isValidSpecSlug } from "../kernel/identity.js";
 import { decidePathPolicy } from "./resolve-targets.js";
 
@@ -11,31 +12,8 @@ const MUTATING_SHORT_NAMES = Object.freeze(new Set([
 const DIRECT_PATH_MUTATION_TOOLS = Object.freeze(new Set(["write", "edit", "apply_patch", "delete", "rename"]));
 const DIRECT_PATH_READ_TOOLS = Object.freeze(new Set(["read", "grep", "glob"]));
 const PATH_KEYS = Object.freeze(new Set(["path", "paths", "file", "files", "document", "documents"]));
-// Matches every scenario header form cucumber-js executes — a superset of the
-// kernel parser's recognized set (Scenario, Scenario Outline, Example,
-// Scenario Template; space or tab indented). Docstring bodies are skipped so
-// quoted "Scenario:" text does not force a review.
-const FEATURE_SCENARIO_PATTERN = /^[ \t]*(?:Scenario|Scenario Outline|Scenario Template|Example):/mu;
-const FEATURE_DOCSTRING_RE = /^[ ]{0,3}("""|```)/u;
 const FEATURE_CONTENT_FIELDS = Object.freeze(["content", "text", "newText"]);
 const FEATURE_BYTE_OPS = Object.freeze(new Set(["delete_document", "rename_document", "deleteDocument", "renameDocument"]));
-
-function featureTextHasScenario(text) {
-  let docstringMarker = null;
-  for (const line of text.split("\n")) {
-    if (docstringMarker !== null) {
-      if (line.trimStart().startsWith(docstringMarker)) docstringMarker = null;
-      continue;
-    }
-    const marker = FEATURE_DOCSTRING_RE.exec(line);
-    if (marker && !line.trimStart().startsWith("#")) {
-      docstringMarker = marker[1];
-      continue;
-    }
-    if (FEATURE_SCENARIO_PATTERN.test(line)) return true;
-  }
-  return false;
-}
 
 function featureFileHasScenario(root, spec, document) {
   // Canonical-form check before any filesystem access: a .feature document is
@@ -45,7 +23,7 @@ function featureFileHasScenario(root, spec, document) {
   if (!isValidSpecSlug(spec) || document !== spec + ".feature") return false;
   try {
     const filePath = path.join(root, "." + "specs", spec, document);
-    return featureTextHasScenario(readFileSync(filePath, "utf8"));
+    return hasGherkinScenarioHeader(readFileSync(filePath, "utf8"));
   } catch {
     return false;
   }
@@ -56,7 +34,7 @@ function specDirHasScenarioFeature(root, spec) {
   try {
     const dir = path.join(root, "." + "specs", spec);
     for (const name of readdirSync(dir)) {
-      if (name === spec + ".feature" && featureTextHasScenario(readFileSync(path.join(dir, name), "utf8"))) return true;
+      if (name === spec + ".feature" && hasGherkinScenarioHeader(readFileSync(path.join(dir, name), "utf8"))) return true;
     }
   } catch {
     return false;
@@ -80,7 +58,7 @@ function featurePatchNeedsDesignReview(input, root) {
     if (op === null || typeof op !== "object") return false;
     const document = typeof op.document === "string" ? op.document : typeof op.doc === "string" ? op.doc : "";
     if (!document.toLowerCase().endsWith(".feature")) return false;
-    if (FEATURE_CONTENT_FIELDS.some((field) => typeof op[field] === "string" && featureTextHasScenario(op[field]))) return true;
+    if (FEATURE_CONTENT_FIELDS.some((field) => typeof op[field] === "string" && hasGherkinScenarioHeader(op[field]))) return true;
     // delete/rename carry no content fields; the server gate inspects before
     // bytes, so preflight reads the file the same way (fail-open to the server).
     if (FEATURE_BYTE_OPS.has(op.kind) && spec !== "" && featureFileHasScenario(root, spec, document)) return true;
