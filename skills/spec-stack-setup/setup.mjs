@@ -87,14 +87,14 @@ function writeConfig(serviceToken) {
 
 async function appZipPath() {
   const dist = path.join(REPO_ROOT, "dist");
-  const existing = existsSync(dist)
-    ? (await import("node:fs")).readdirSync(dist).filter((f) => /^spec-graph-app-.*\.zip$/.test(f)).sort().pop()
-    : null;
+  const zips = () => (existsSync(dist) ? readdirSync(dist).filter((f) => /^spec-graph-app-.*\.zip$/.test(f)).sort() : []);
+  const existing = zips().pop();
   if (existing) return path.join(dist, existing);
   log("building the app ZIP (npm run build:youtrack-app)");
   const r = spawnSync("npm", ["run", "build:youtrack-app"], { cwd: REPO_ROOT, shell: true, encoding: "utf8" });
   if (r.status !== 0) throw new Error(`app build failed:\n${r.stdout}\n${r.stderr}`);
-  const built = (await import("node:fs")).readdirSync(dist).filter((f) => /^spec-graph-app-.*\.zip$/.test(f)).sort().pop();
+  const built = zips().pop();
+  if (!built) throw new Error("app build produced no ZIP in dist/");
   return path.join(dist, built);
 }
 
@@ -263,9 +263,10 @@ async function provisionDashboard(admin) {
   const dashboards = await admin.call("GET", `/api/dashboards?fields=id,name`);
   let dash = (dashboards ?? []).find((d) => d.name === name);
   if (!dash) dash = await admin.call("POST", "/api/dashboards", { body: { name } });
-  // Re-provision the embedding: an earlier run may have created a small one.
-  const existing = await admin.call("GET", `/api/dashboards/${dash.id}/widgets?fields=id`);
-  for (const w of existing ?? []) {
+  // Re-provision OUR embedding only — widgets the user added themselves
+  // stay put; a stale spec-board cell from an earlier run is replaced.
+  const existing = await admin.call("GET", `/api/dashboards/${dash.id}/widgets?fields=id,key`);
+  for (const w of (existing ?? []).filter((w) => w.key === "spec-board")) {
     await admin.call("DELETE", `/api/dashboards/${dash.id}/widgets/${w.id}`).catch(() => {});
   }
   await admin.call("POST", `/api/dashboards/${dash.id}/widgets`, {

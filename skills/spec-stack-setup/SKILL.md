@@ -15,10 +15,10 @@ operator == customer), **spec-git** (bare specs repo + git daemon), and
 node skills/spec-stack-setup/setup.mjs
 ```
 
-`docker compose up -d` from this directory works too (`.env` pins the project
-name) — but `setup.mjs` is the complete path: it also completes the YouTrack
-wizard, writes the service config, installs the app, seeds the template spec
-and provisions the dashboard.
+`docker compose up -d` from this directory works too (`name:` in compose.yml
+pins the project) — but `setup.mjs` is the complete path: it also completes
+the YouTrack wizard, writes the service config, installs the app, seeds the
+template spec and provisions the dashboard.
 
 ## What setup.mjs does
 
@@ -40,7 +40,9 @@ and provisions the dashboard.
 7. Provisions the `SPEC` projection (project + custom fields + `spec-graph-sync`
    run) so the board's `SPEC:SYNC-STATE` pointer exists.
 8. Creates the `Spec Stack` dashboard with the `spec-board` widget at
-   `12fr × 8fr` and prints the link.
+   `width: 12, height: 8` grid cells (the manifest's `defaultDimensions`
+   `12fr × 8fr` covers widgets added by hand through the UI) and prints
+   the link.
 
 ## Output
 
