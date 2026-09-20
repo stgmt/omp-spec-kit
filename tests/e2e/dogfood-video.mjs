@@ -262,7 +262,17 @@ async function termInit(page, subtitle) {
     </div></body>`);
 }
 
-async function termCmd(page, cmd) {
+async function termCmd(page, cmd, note) {
+  if (note) {
+    await page.evaluate((n) => {
+      const el = document.createElement("div");
+      el.style.color = "#6a737d";
+      el.style.marginTop = "10px";
+      el.textContent = `# ${n}`;
+      document.getElementById("term").appendChild(el);
+    }, note);
+    await page.waitForTimeout(500);
+  }
   await page.evaluate(async (c) => {
     const el = document.createElement("div");
     el.innerHTML = `<span style="color:#4da3ff">$&nbsp;</span><span style="color:#7ee787"></span>`;
@@ -870,13 +880,13 @@ async function main() {
           "Всё живёт в локальном docker-compose",
           "Проверяем, что контейнеры подняты и слушают localhost",
         ]);
-        await termCmd(page, "docker compose -p spec-auth-e2e -f tests/e2e/compose.yml ps youtrack-ext spec-git spec-registryd");
+        await termCmd(page, "docker compose -p spec-auth-e2e -f tests/e2e/compose.yml ps youtrack-ext spec-git spec-registryd", "какие сервисы подняты: compose-статус только трёх нужных контейнеров");
         await termOut(page, psTable.trimEnd().split("\n"));
-        await termCmd(page, `curl -s -o NUL -w "%{http_code}" ${EXT_YT_HOST_URL}`);
+        await termCmd(page, `curl -s -o NUL -w "%{http_code}" ${EXT_YT_HOST_URL}`, "YouTrack отвечает на :8082? ждём 200");
         await termOut(page, [`${ytCode}   ← YouTrack на localhost:8082`], ytCode === "200" ? "#5fd98a" : "#ff7a7a");
-        await termCmd(page, `curl -s -o NUL -w "%{http_code}" ${SERVICE_URL}/mcp`);
+        await termCmd(page, `curl -s -o NUL -w "%{http_code}" ${SERVICE_URL}/mcp`, "сервис реестра спек слушает :8643? /mcp — только POST, поэтому 405 = жив");
         await termOut(page, [`${svcCode}   ← spec-registryd на localhost:8643 (405 — эндпоинт ждёт MCP-POST, это норма)`], svcCode === "405" || svcCode === "200" ? "#5fd98a" : "#ff7a7a");
-        await termCmd(page, "git ls-remote git://127.0.0.1:9418/acme-specs.git");
+        await termCmd(page, "git ls-remote git://127.0.0.1:9418/acme-specs.git", "git-репозиторий спек отвечает по git:// — выводит его refs");
         await termOut(page, gitRefs.trimEnd().split("\n"));
         await termOut(page, [
           "# не поднято?  docker compose -p spec-auth-e2e -f tests/e2e/compose.yml up -d",
