@@ -1332,41 +1332,13 @@ async function main() {
       await vclick(page, boardItem, { settle: 2_500 });
       await page.waitForTimeout(3_000); // widget iframe loads the snapshot
       await questOverlay(page, true);
-      // Default widget cell is tiny — drag the corner handle to fill the
-      // dashboard. YouTrack renders its own handles (div.c_handle__*.c_se__*)
-      // inside [data-test="dashboard-widget-resizeable"] — they appear on
-      // hover, so hover the widget first, then drag the SE handle itself.
-      await caption(page, "Тянем угол виджета — раскрываем доску на весь экран");
-      const itemWidth = () => page.evaluate(() =>
-        document.querySelector(".react-grid-item")?.getBoundingClientRect().width || 0);
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const item = page.locator(".react-grid-item").first();
-        await item.hover().catch(() => {});
-        await page.waitForTimeout(700);
-        const se = item.locator('div[class*="c_se__"], .react-resizable-handle').first();
-        let pt = await se.boundingBox().catch(() => null);
-        if (!pt) {
-          pt = await page.evaluate(() => {
-            const el = document.querySelector(".react-grid-item");
-            if (!el) return null;
-            const r = el.getBoundingClientRect();
-            return { x: r.x + r.width - 8, y: r.y + r.height - 8, width: 0, height: 0 };
-          });
-        }
-        if (!pt) break;
-        const sx = pt.x + pt.width / 2, sy = pt.y + pt.height / 2;
-        const tx = 1580, ty = 800; // viewport 1600×900, above the caption bar
-        await page.mouse.move(sx, sy);
-        await page.waitForTimeout(500);
-        await page.mouse.down();
-        for (let i = 1; i <= 30; i++) {
-          await page.mouse.move(sx + (tx - sx) * i / 30, sy + (ty - sy) * i / 30, { steps: 4 });
-          await page.waitForTimeout(55);
-        }
-        await page.mouse.up();
-        await page.waitForTimeout(2_500);
-        if (await itemWidth() > 900) break;
-      }
+      // defaultDimensions (12fr x 8fr) in the app manifest makes the widget
+      // land at full dashboard width on its own — no manual resize needed.
+      await caption(page, [
+        "Виджет заявляет свой размер в манифесте — сразу разворачивается на весь дашборд",
+        "defaultDimensions: 12fr × 8fr — никакого ручного ресайза",
+      ]);
+      await page.waitForTimeout(2_500);
       await questLog(page, boardQuest.goal, boardQuest.steps, 3);
       await page.waitForTimeout(1_500); // the final step marker registers
       await questOverlay(page, false);  // the trace beats need the full canvas
