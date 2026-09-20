@@ -870,10 +870,10 @@ async function main() {
         // Child processes inherit this shell's proxy env — strip it so the
         // curls we show hit localhost directly (same as a plain terminal).
         const noProxyEnv = { ...process.env, HTTP_PROXY: "", HTTPS_PROXY: "", http_proxy: "", https_proxy: "" };
-        const { stdout: upStdout, stderr: upStderr } = compose(["up", "-d", "youtrack-ext", "spec-git", "spec-registryd"]);
+        const { stdout: upStdout, stderr: upStderr } = compose(["up", "-d"]);
         // docker compose writes container status to stderr on Windows — merge both.
         const upOut = `${upStdout}\n${upStderr}`;
-        const { stdout: psTable } = compose(["ps", "--format", "table {{.Service}}\\t{{.Status}}\\t{{.Ports}}", "youtrack-ext", "spec-git", "spec-registryd"]);
+        const { stdout: psTable } = compose(["ps", "--format", "table {{.Service}}\\t{{.Status}}\\t{{.Ports}}"]);
         const ytCode = (await execFileAsync("curl", ["-s", "-o", "NUL", "-w", "%{http_code}", EXT_YT_HOST_URL], { env: noProxyEnv }).catch(() => ({ stdout: "000" }))).stdout.trim();
         const svcCode = (await execFileAsync("curl", ["-s", "-o", "NUL", "-w", "%{http_code}", `${SERVICE_URL}/mcp`], { env: noProxyEnv }).catch(() => ({ stdout: "000" }))).stdout.trim();
         const gitRefs = (await execFileAsync("git", ["ls-remote", "git://127.0.0.1:9418/acme-specs.git"], { env: noProxyEnv }).catch(() => ({ stdout: "(no refs — пустой репозиторий)" }))).stdout;
@@ -883,13 +883,15 @@ async function main() {
           "Стенд — локальный docker-compose: YouTrack, git с спеками, сервис реестра",
           "Поднимаем одной командой и проверяем, что всё отвечает",
         ]);
-        await termCmd(page, "docker compose -p spec-auth-e2e -f tests/e2e/compose.yml up -d youtrack-ext spec-git spec-registryd", "поднимаем три сервиса стенда одной командой");
+        await termCmd(page, "cd tests/e2e", "стек описан одним compose.yml — работаем из его директории");
+        await termCmd(page, "docker compose up -d", "весь стенд одной командой — имя проекта задано полем name: в compose.yml");
         // On an already-running stack compose prints short "Running" lines;
         // keep only the container status lines so the output stays readable.
         const upLines = upOut.split("\n").map((l) => l.trim()).filter((l) => /Running|Started|Healthy|Created|Running/.test(l));
         await termOut(page, upLines.length ? upLines.slice(0, 8) : ["(тихо — все три контейнера уже подняты)"]);
-        await termCmd(page, "docker compose -p spec-auth-e2e -f tests/e2e/compose.yml ps --format \"table {{.Service}}\\t{{.Status}}\\t{{.Ports}}\" youtrack-ext spec-git spec-registryd", "какие сервисы подняты и на каких портах слушают");
+        await termCmd(page, "docker compose ps --format \"table {{.Service}}\\t{{.Status}}\\t{{.Ports}}\"", "что поднялось и на каких портах слушает (4 сервиса)");
         await termOut(page, psTable.trimEnd().split("\n"));
+        await termOut(page, ["# youtrack — внутренний IdP сервиса (авторизация), youtrack-ext — демо-инстанс из демо"], "#6a737d");
         await termCmd(page, `curl -s -o NUL -w "%{http_code}" ${EXT_YT_HOST_URL}`, "YouTrack отвечает на :8082? ждём 200");
         await termOut(page, [`${ytCode}   ← YouTrack на localhost:8082`], ytCode === "200" ? "#5fd98a" : "#ff7a7a");
         await termCmd(page, `curl -s -o NUL -w "%{http_code}" ${SERVICE_URL}/mcp`, "сервис реестра спек слушает :8643? /mcp — только POST, поэтому 405 = жив");

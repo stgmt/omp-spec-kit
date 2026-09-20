@@ -9,6 +9,8 @@
 # Host ports are deliberately offset (8081/8643) so the stack never collides
 # with a developer's own YouTrack (8080) or service (8642).
 
+name: spec-auth-e2e
+
 services:
   youtrack:
     image: jetbrains/youtrack:2025.3.161254
@@ -76,7 +78,7 @@ services:
     volumes:
       - service-data:/data
       - type: bind
-        source: ${SPEC_AUTH_E2E_CONFIG:?set SPEC_AUTH_E2E_CONFIG to the generated projects.json}
+        source: ${SPEC_AUTH_E2E_CONFIG:-artifacts/projects.json}
         target: /data/config/projects.json
         read_only: true
     ports:
