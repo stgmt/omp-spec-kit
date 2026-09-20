@@ -235,7 +235,7 @@ function boundedReason(code, relativePath = null) {
     : "";
   const recovery = code === "TARGET_INDETERMINATE" ? " " + TARGET_RECOVERY
     : code === "SPEC_READ_REDIRECT" ? specReadRecovery(relativePath)
-    : code === "DESIGN_REVIEW_REQUIRED" ? " attach designReview (schema omp-spec-kit/design-review@1) to the spec_patch call"
+    : code === "DESIGN_REVIEW_REQUIRED" ? " attach designReview (schema omp-spec-kit/design-review@1; template in skill engineering-anti-bike) to the spec_patch call"
     : " use spec_patch with dryRun: true for preview or dryRun: false to apply";
   const reason = code + ":" + target + recovery;
   if (Buffer.byteLength(reason, "utf8") <= 512) return reason;

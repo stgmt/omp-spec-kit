@@ -827,6 +827,8 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     const preflight = classifyToolCall({ toolName: "mcp__omp_spec_kit_spec_patch", input: { ...baseArgs, requestId: "safe-dr-preflight" } }, { root: this.root });
     assert.equal(preflight.action, "block", JSON.stringify(preflight));
     assert.equal(preflight.code, "DESIGN_REVIEW_REQUIRED", JSON.stringify(preflight));
+    assert.match(preflight.reason, /template in skill engineering-anti-bike/u, JSON.stringify(preflight));
+    assert.ok(Buffer.byteLength(preflight.reason, "utf8") <= 512, JSON.stringify(preflight));
     const missing = await call(this, "spec_patch", { ...baseArgs, requestId: "safe-dr-missing" });
     assert.equal(missing.data?.outcome, "REFUSED", JSON.stringify(missing));
     assert.equal(missing.data?.error?.code, "DESIGN_REVIEW_REQUIRED", JSON.stringify(missing));

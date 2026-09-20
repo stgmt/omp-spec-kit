@@ -9,7 +9,7 @@ import { isValidSpecSlug } from "../identity.js";
 const SCEN_ID_RE = /^SCEN-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const STEP_RE = /^(Given|When|Then|And|But|\*)[ \t]+(.*)$/u;
 const TAG_LINE_RE = /^[ ]*((?:@[^\s@][^\s]*[ \t]*)+)$/u;
-const EXAMPLES_RE = /^[ ]*Examples(?:[ ]*:.*)?$/u;
+const EXAMPLES_RE = /^[ \t]*Examples[ \t]*(?::.*)?$/u;
 const DOCSTRING_RE = /^[ ]{0,3}("""|```)/u;
 
 // Common non-English Gherkin keywords that mark an unsupported dialect.
@@ -116,7 +116,8 @@ export function parseGherkinDocument({ path, specSlug, text }) {
       continue;
     }
 
-    if (trimmed === "" || trimmed.startsWith("#") || trimmed.startsWith("|")) continue;
+    if (trimmed === "" || trimmed.startsWith("#")) continue;
+    if (trimmed.startsWith("|") && !(current !== null && inExamples)) continue;
 
     if (!current) {
       const tagLine = TAG_LINE_RE.exec(rawLine);
@@ -143,15 +144,17 @@ export function parseGherkinDocument({ path, specSlug, text }) {
       continue;
     }
 
-    const outlineMatch = /^[ ]*Scenario Outline:[ \t]*(.*)$/u.exec(rawLine);
-    const plainScenarioMatch =
-      outlineMatch === null ? /^[ ]*Scenario:[ \t]*(.*)$/u.exec(rawLine) : null;
+    const outlineMatch = /^[ \t]*(Scenario Template|Scenario Outline):[ \t]*(.*)$/u.exec(rawLine);
+    const scenarioMatch = outlineMatch === null
+      ? /^[ \t]*(Example|Scenario):[ \t]*(.*)$/u.exec(rawLine)
+      : null;
 
-    if (outlineMatch || plainScenarioMatch) {
+    if (outlineMatch || scenarioMatch) {
       flushScenario();
+      const header = outlineMatch ?? scenarioMatch;
       current = {
-        name: bound((outlineMatch ?? plainScenarioMatch)[1].trim(), 512),
-        keyword: outlineMatch ? "Scenario Outline" : "Scenario",
+        name: bound(header[2].trim(), 512),
+        keyword: header[1],
         nameSpan: spanForLine(positions, text, i),
         tags: [...featureTags, ...pendingTags],
         steps: [],
@@ -223,6 +226,36 @@ export function parseGherkinDocument({ path, specSlug, text }) {
   flushScenario();
 
   return { positions, diagnostics, scenarios };
+}
+
+// Split one Gherkin table row at pipes; boundary empties are dropped and cell
+// text is trimmed (matches markdown.js splitPipeCells semantics without spans).
+function splitTableRow(lineText) {
+  const cells = [];
+  let cellStart = 0;
+  let escaped = false;
+  const pushCell = (endIndex) => {
+    cells.push({ text: lineText.slice(cellStart, endIndex).trim() });
+  };
+  for (let i = 0; i < lineText.length; i += 1) {
+    const ch = lineText[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (ch === "|") {
+      pushCell(i);
+      cellStart = i + 1;
+    }
+  }
+  pushCell(lineText.length);
+  if (cells.length > 1 && cells[0].text === "") cells.shift();
+  if (cells.length > 1 && cells[cells.length - 1].text === "") cells.pop();
+  return cells;
 }
 
 const QUALIFIED_TAG_RE =

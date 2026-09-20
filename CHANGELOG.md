@@ -2,7 +2,14 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
-HEAD
+## 2.5.1 — unreleased
+
+### Fixed
+
+- Kernel Gherkin parser now recognizes `Example:`, `Scenario Template:`, and tab-indented `Scenario:`/`Scenario Outline:` headers (cucumber-js superset), restoring parity with the v2.4 design-review gate; previously a gated-applied scenario could silently miss the spec graph (no `@id:SCEN` enforcement, no node).
+- Fixed latent `ReferenceError: splitTableRow` in `src/kernel/parsers/gherkin.js`: any `.feature` with an `Examples:` block crashed graph builds since the v0.2.0 kernel commit. Row-splitting semantics match `splitPipeCells` in `src/kernel/parsers/markdown.js`.
+- `DESIGN_REVIEW_REQUIRED` recovery hint now points to the `engineering-anti-bike` skill template, cutting agent recovery round-trips.
+
 ## 2.4.0 — 2026-09-18
 
 Merges the 1.3.x line (released as v1.4.0) into the 2.x product: scenario-authoring design review lands on the consolidated surface.

@@ -42,7 +42,7 @@
       "sha256": "aa13e9ba61773b9ea028501081d3a2e64cfbe60ea72b8dbeeba8da2831e4eb53"
     },
     "enforcement/classifier.js": {
-      "sha256": "26b156ed812236c7acbc4c897fb996b99528e365222d69e40a04b361437a3b42"
+      "sha256": "0fe37e856c1094ce70538560385ec0c5af99fb2e1f1928f0f33bec23e1c56b4c"
     },
     "enforcement/resolve-targets.js": {
       "sha256": "4a04cd3b09d286384fd6d85493d08b33f6c49a3310fe2ccd246279de1fd6fc60"
@@ -90,7 +90,7 @@
       "sha256": "923d29c3136d9f975e17058f61ec3e4b4be8ee6ccc6b11f550890b708f6cfac3"
     },
     "kernel/parsers/gherkin.js": {
-      "sha256": "aef0ff89b994a9c803c7c3c984ef1bc43ea61a6576c4b339c12a56e945dbf097"
+      "sha256": "442953b4ecd9c608c23d0bf33f15e08a1c2082f29f34bbea18e0d4cd6d46c46d"
     },
     "kernel/parsers/markdown.js": {
       "sha256": "92d20981a640d81b37f182f44cd051aa588f8f38bb2be59a69e8929b39d66b51"
