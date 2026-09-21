@@ -2,13 +2,26 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
-## 2.5.1 — unreleased
+## 2.6.0 — 2026-09-21
+
+### Added
+
+- **Spec Board transitive hover lineage** (`tools/spec-graph-app/widgets/spec-board/index.html`): hovering a node highlights the full upstream/downstream chain (e.g. ROADMAP → milestone TASK → FR) instead of one-hop neighbors — BFS over committed edges with a visited cap and a precomputed reverse adjacency map. Live regression coverage in `tests/e2e/spec-board-lineage.mjs` (`npm run test:e2e:board-lineage`).
+- **Spec Board lands fullscreen**: `defaultDimensions` `12fr × 8fr` in `manifest.json` makes the dashboard widget render at full grid width when added — verified live at 1336×1462 px in a 1600 px viewport, no manual resize.
+- **New skill `skills/spec-stack-setup/`**: cross-platform one-command demo contour — `docker compose up -d` (three services, `name:` in compose), YouTrack wizard + tenant groups + service token + `projects.json`, registryd restart, app ZIP import via `POST /api/admin/apps/import`, settings + project attach, template specs loaded through real MCP calls, SPEC projection sync, ready Spec Board dashboard link. Idempotent on re-run.
+- **Template specs shipped with the skill** — `spec-stack-skill` (FR×4, NFR×3, AC×4, TASK×4, three Gherkin scenarios) and `roadmap-stack` (roadmap + three milestone tasks) producing real cross-spec edges on the board.
+- `tests/e2e/lib/wizard.mjs` gains an optional `getLogs` override so a foreign compose project's container logs feed the wizard token.
+- `tests/e2e/compose.yml`: `name: spec-auth-e2e` + default `SPEC_AUTH_E2E_CONFIG` — a bare `docker compose up -d` works in `tests/e2e`.
 
 ### Fixed
 
 - Kernel Gherkin parser now recognizes `Example:`, `Scenario Template:`, and tab-indented `Scenario:`/`Scenario Outline:` headers (cucumber-js superset), restoring parity with the v2.4 design-review gate; previously a gated-applied scenario could silently miss the spec graph (no `@id:SCEN` enforcement, no node).
 - Fixed latent `ReferenceError: splitTableRow` in `src/kernel/parsers/gherkin.js`: any `.feature` with an `Examples:` block crashed graph builds since the v0.2.0 kernel commit. Row-splitting semantics match `splitPipeCells` in `src/kernel/parsers/markdown.js`.
 - `DESIGN_REVIEW_REQUIRED` recovery hint now points to the `engineering-anti-bike` skill template, cutting agent recovery round-trips.
+
+### Changed
+
+- Dogfood video terminal segment shows the real `docker compose up -d` output (Compose status captured from stderr), annotates each command with a `#` comment line, and drops the manual dashboard-resize scene made obsolete by `defaultDimensions`.
 
 ## 2.4.0 — 2026-09-18
 
