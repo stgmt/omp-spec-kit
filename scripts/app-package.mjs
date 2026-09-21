@@ -14,7 +14,12 @@ import yazl from "yazl";
 // Fixed timestamp, explicit mode, and stored (uncompressed) entries keep the
 // archive byte-deterministic: mode differs between NTFS and Linux, and
 // deflate output may differ across zlib versions shipped with Node.
-const ZIP_MTIME = new Date("1980-01-01T00:00:00Z");
+// Local-component construction + forceDosTimestamp are deliberate: yazl
+// encodes DOS time via the Date's *local* getters, while its UT extra field
+// stores the absolute epoch. A fixed DOS tuple therefore requires a local
+// Date, and a fixed archive requires dropping the epoch-bearing UT field —
+// otherwise identical trees hash differently across build timezones.
+const ZIP_MTIME = new Date(1980, 0, 1);
 const ZIP_MODE = 0o100664;
 
 const HTML_REF = /(?:src|href)\s*=\s*["']([^"']+)["']/g;
@@ -102,7 +107,7 @@ export async function buildPackage(appDir, { outDir, zipPath }) {
   await mkdir(path.dirname(zipPath), { recursive: true });
   const zip = new yazl.ZipFile();
   for (const rel of files) {
-    zip.addFile(path.join(appDir, rel), rel, { mtime: ZIP_MTIME, mode: ZIP_MODE, compress: false });
+    zip.addFile(path.join(appDir, rel), rel, { mtime: ZIP_MTIME, mode: ZIP_MODE, compress: false, forceDosTimestamp: true });
   }
   zip.end();
   await new Promise((resolve, reject) => {
