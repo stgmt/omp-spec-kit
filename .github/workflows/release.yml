@@ -121,6 +121,11 @@ jobs:
             echo "::error::no pipeline-time MRI lifecycle receipts available; evidence assembly refuses to proceed" >&2
             exit 1
           fi
+          # Post-release bookkeeping commits prior receipts into
+          # release-candidate/; the tagged checkout then carries stale copies
+          # and copyReceipt is intentionally fail-closed on EEXIST. Drop them
+          # so this run's fresh receipts are the only ones assembled.
+          rm -rf release-candidate/receipts release-candidate/messages release-candidate/evidence.json
           if [ -f "${{ steps.dist_evidence.outputs.path || 'dist-evidence/absent' }}" ]; then
             node scripts/create-release-evidence.mjs \
               --candidate release-candidate/candidate.json \
