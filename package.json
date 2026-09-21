@@ -29,6 +29,7 @@
     "test:app-install": "npx cucumber-js tests/features/app-install.feature --import tests/step-definitions/app-install.steps.mjs --tags @app-install --format progress --force-exit",
     "test:app-install-live": "npx cucumber-js tests/features/app-install-live.feature --import tests/step-definitions/app-install-live.steps.mjs --tags @app-install-live --format progress --force-exit",
     "test:e2e:auth": "node tests/e2e/run-live.mjs",
+    "test:e2e:board-lineage": "node tests/e2e/spec-board-lineage.mjs",
     "service:start": "node --experimental-sqlite src/service/index.js",
 
     "test:release-archive": "node scripts/smoke-release-archive.mjs",

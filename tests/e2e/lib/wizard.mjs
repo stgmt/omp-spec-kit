@@ -3,16 +3,16 @@ import { containerLogs, waitFor, YT_URL } from "./compose.mjs";
 
 const CHROME_CHANNEL = "chrome";
 
-function wizardTokenFromLogs(serviceName = "youtrack") {
-  const logs = containerLogs(serviceName, { tail: 500 });
+function wizardTokenFromLogs(logs) {
   const match = logs.match(/wizard_token=([A-Za-z0-9_-]+)/);
   return match ? match[1] : null;
 }
 
-async function waitForWizardToken({ serviceName = "youtrack", timeoutMs = 180_000, intervalMs = 3_000 } = {}) {
+async function waitForWizardToken({ serviceName = "youtrack", getLogs, timeoutMs = 180_000, intervalMs = 3_000 } = {}) {
+  const readLogs = getLogs ?? (() => containerLogs(serviceName, { tail: 500 }));
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const token = wizardTokenFromLogs(serviceName);
+    const token = wizardTokenFromLogs(readLogs());
     if (token) return token;
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
@@ -45,8 +45,8 @@ async function clickWhenEnabled(page, locator, timeoutMs = 30_000) {
  * welcome link -> base URL (Next + Continue dialog) -> admin credentials ->
  * license (Finish) -> setup wait page -> /api/config serves JSON.
  */
-export async function completeWizard({ adminPassword, url = YT_URL, serviceName = "youtrack", logger = console.log }) {
-  const token = await waitForWizardToken({ serviceName });
+export async function completeWizard({ adminPassword, url = YT_URL, serviceName = "youtrack", getLogs, logger = console.log }) {
+  const token = await waitForWizardToken({ serviceName, getLogs });
   logger(`wizard: completing setup in browser (token ${token.slice(0, 6)}…)`);
   const browser = await chromium.launch({ channel: CHROME_CHANNEL, headless: true });
   try {
