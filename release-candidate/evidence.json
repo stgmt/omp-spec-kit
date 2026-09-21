@@ -1,24 +1,24 @@
 {
   "schema": "omp-spec-kit-release-evidence@3",
-  "version": "2.6.0",
-  "tag": "v2.6.0",
-  "commit": "20fe46158fd50ba31cd47428657c7cb21f73a9db",
-  "candidateDigest": "00ea3e3bba497c60d4c46d23ac50e540b72a7956c78a1975a3268d29fa6b6825",
-  "packageTreeDigest": "91ecb042bde0bba4fc4ac7de3cc1bbe4362932e53f30c16f4d5fab34ea617f2a",
-  "archiveSha256": "2f79e85046478e4520304b42534e0f90e094152a2b91e85f12149375c4c5526e",
-  "catalogDigest": "c1b76d3f60b55b4462cd07783d18b9e2da78f3cf852270b52c21a9c4201160e1",
+  "version": "2.6.1",
+  "tag": "v2.6.1",
+  "commit": "76cf447e7e189c5e8a67e3c5a4b3dc595c1c38fe",
+  "candidateDigest": "ae36fba43dd1ad28f07e702b9e5670267f8a666db1e509c13ec3a3af7a87c04f",
+  "packageTreeDigest": "faaf43e438396fb763c43ca3c11ef5b4be04fcdcaa2aca15803ad6b009065207",
+  "archiveSha256": "12a6834c942cf3d944d687a12d419fc1b4ccaa1c317299a3293465190ad2d516",
+  "catalogDigest": "5ab02737f9106e0cf62dd1202d9b047173153a2a4d1ee07679ab0590da00de42",
   "mri": {
     "schema": "omp-spec-kit-mri-evidence@1",
     "checks": {
       "publicSafety": {
         "status": "present",
         "path": "receipts/public-safety.json",
-        "digest": "6c1da51dc3a3e2747d25ea848a5fd205e294d1750dcba9fbe9f300c671dc77c5"
+        "digest": "7a2fd71c8287dd7371cdf7f966cf121409f65f864c831829ba57b249257b7979"
       },
       "dockerBdd": {
         "status": "present",
         "path": "receipts/docker-bdd-copy.json",
-        "digest": "ed848a572f74c24ab5a362872094a5eeb9bb56439b66d31e393061d17cb31e77"
+        "digest": "1c9444d6d7084ea1d6807f55ebca34afc6bc8cb599216e856ed3c09734da11c1"
       },
       "priorV032": {
         "status": "present",
@@ -28,50 +28,50 @@
       "upgradeFromV032": {
         "status": "present",
         "path": "receipts/upgrade-from-v0.3.2.json",
-        "digest": "9f2d48d0d494cbd184cf8473052b395f9d58a8a6db239eca73b4fb32d2f112ab"
+        "digest": "219e609818dfb464808e4f26525d6038610e6804132dcaea4a3ee7f0ecdc98a7"
       },
       "rollbackToV032": {
         "status": "present",
         "path": "receipts/rollback-to-v0.3.2.json",
-        "digest": "422a8cd9cb6936ce2e93e822289383e55a36557c2c8102522ce8a822e56b5bf6"
+        "digest": "945ec525447ce7a51ffac2533568fe7f3e2d567ec670bcee90946cc72765dfaa"
       }
     },
     "frReceipts": {
       "plugin-distribution:FR-19": {
         "status": "present",
         "path": "receipts/mri-FR-19.json",
-        "digest": "b7ac13591cb400674f4dfef5f28d0e2915cedc82645bb4c59f65eb2e380ed1bb"
+        "digest": "2b8797925a2ef5b80d1a383ad7a814945de7722b981eb0f15e08f639b462013c"
       },
       "plugin-distribution:FR-20": {
         "status": "present",
         "path": "receipts/mri-FR-20.json",
-        "digest": "19398060c83dfad255442d0e695d3fd193069e34d769a82697550609f4c8bbcf"
+        "digest": "13f617a89e057dfd2e94b470f1989c7d3603d2e670f8e90c85a5e725ffbd021d"
       },
       "plugin-distribution:FR-21": {
         "status": "present",
         "path": "receipts/mri-FR-21.json",
-        "digest": "203ff9047cfb771f8085481fa1e7d33d9c3541ee00fbc00ae5c56b2077f5b1fd"
+        "digest": "2a52184b5c16cef9beaf53405440a443da8d095edf5a1efdb13c80bd2383a5af"
       },
       "plugin-distribution:FR-22": {
         "status": "present",
         "path": "receipts/mri-FR-22.json",
-        "digest": "5714b729e0f50d8549bcf405491681ee42e52230f874a99a774e2b6c80bfdf9f"
+        "digest": "31b450c1b6037f38ef6358885535597e4f480f4969a08ca7b1378af7ff113496"
       },
       "plugin-distribution:FR-23": {
         "status": "present",
         "path": "receipts/mri-FR-23.json",
-        "digest": "82213bb579d71db58be170d513f9ea93a51100a18be10333048297348422c7f7"
+        "digest": "7ffab197edbbc8302aab72a5daa069ad5f9ddcdf77a252166d931e9faf60574c"
       },
       "plugin-distribution:FR-24": {
         "status": "present",
         "path": "receipts/mri-FR-24.json",
-        "digest": "b0b4fdc40b68f937f83f1ed740b4a639e578bc3d8cbb95b547f8d2b19e762842"
+        "digest": "83c10badacfe1f528ad0d57d32f240c619da59833c4725d31c01208a2833ece8"
       }
     },
     "discovery": {
       "status": "present",
       "path": "receipts/omp-discovery.json",
-      "digest": "8f9060f358f1f8352784bc726c33436960cd268a087fa053c6e4b7379ac513cd"
+      "digest": "91efc5bd224325934927c4002e2d0bbe52f4de951865eafb11a25fb34a4faf70"
     }
   },
   "distribution": {
@@ -80,7 +80,7 @@
     "receipt": {
       "status": "present",
       "path": "receipts/distribution-evidence.json",
-      "digest": "f3a7260412a5982ac7368c8649daafa187c346a250f835e903290316eb5a89fe"
+      "digest": "514457c89caa7561c20f7c8c61d5f78e1a4e6d6541e43197541e613a2bb2f34b"
     }
   }
 }

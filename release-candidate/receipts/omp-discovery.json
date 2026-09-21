@@ -1,3 +1,8 @@
+# OMP 18.0.11 discovery receipt
+
+Captured by the tagged distribution-evidence workflow; the JSON below is the producer output.
+
+```json
 {
   "schema": "omp-manager-handoff-probe@2",
   "result": "completed",
@@ -8,58 +13,58 @@
     "checkpoints": {
       "payload": {
         "status": "completed",
-        "startedAt": "2026-09-21T13:31:06.219Z",
+        "startedAt": "2026-09-21T13:49:35.260Z",
         "elapsedMs": 4
       },
       "imports": {
         "status": "completed",
-        "startedAt": "2026-09-21T13:31:06.223Z",
-        "elapsedMs": 1039
+        "startedAt": "2026-09-21T13:49:35.264Z",
+        "elapsedMs": 1041
       },
       "enrollment": {
         "status": "completed",
-        "startedAt": "2026-09-21T13:31:07.262Z",
-        "elapsedMs": 10
+        "startedAt": "2026-09-21T13:49:36.305Z",
+        "elapsedMs": 6
       },
       "capability-config-load": {
         "status": "completed",
-        "startedAt": "2026-09-21T13:31:07.272Z",
-        "elapsedMs": 17
+        "startedAt": "2026-09-21T13:49:36.311Z",
+        "elapsedMs": 18
       },
       "manager-construction": {
         "status": "completed",
-        "startedAt": "2026-09-21T13:31:07.289Z",
+        "startedAt": "2026-09-21T13:49:36.332Z",
         "elapsedMs": 0
       },
       "target-only-connection": {
         "status": "completed",
-        "startedAt": "2026-09-21T13:31:07.289Z",
-        "elapsedMs": 91
+        "startedAt": "2026-09-21T13:49:36.332Z",
+        "elapsedMs": 74
       },
       "managed-query": {
         "status": "completed",
-        "startedAt": "2026-09-21T13:31:07.380Z",
-        "elapsedMs": 362
+        "startedAt": "2026-09-21T13:49:36.406Z",
+        "elapsedMs": 213
       },
       "managed-authoring": {
         "status": "completed",
-        "startedAt": "2026-09-21T13:31:07.742Z",
-        "elapsedMs": 1475
+        "startedAt": "2026-09-21T13:49:36.619Z",
+        "elapsedMs": 1515
       },
       "extension-enforcement": {
         "status": "completed",
-        "startedAt": "2026-09-21T13:31:09.217Z",
-        "elapsedMs": 472
+        "startedAt": "2026-09-21T13:49:38.134Z",
+        "elapsedMs": 530
       },
       "disconnect": {
         "status": "completed",
-        "startedAt": "2026-09-21T13:31:09.689Z",
-        "elapsedMs": 14
+        "startedAt": "2026-09-21T13:49:38.664Z",
+        "elapsedMs": 11
       },
       "receipt": {
         "status": "completed",
-        "startedAt": "2026-09-21T13:31:09.703Z",
-        "elapsedMs": 1
+        "startedAt": "2026-09-21T13:49:38.675Z",
+        "elapsedMs": 0
       }
     }
   },
@@ -75,8 +80,8 @@
     },
     "package": {
       "name": "omp-spec-kit",
-      "version": "2.6.0",
-      "packageJsonSha256": "cfb5c9715b50222b22e4f88b913b2284a44fa0fb39f9bc6c5b63630077074b96",
+      "version": "2.6.1",
+      "packageJsonSha256": "4c5f05a1960aa4bf77f7ec56611acf42b5bd05170fa94638ef42bd7c09690256",
       "mcpJsonSha256": "848a98db7304d9bafb96cc627c025216007ec18f78c66037b56f52074b5342b6",
       "payload": [
         {
@@ -87,7 +92,7 @@
         {
           "relative": "dist/extension.js",
           "bytes": 544,
-          "sha256": "a2fcd41035ce4046b8d176b0485bab037f3ac1452f7ac6c696dfc76c4a82624d"
+          "sha256": "3d4c0320ac9f22403e3c971c6f5726c123df11af8b7bf61eeade2f87b9d5e9f6"
         },
         {
           "relative": "dist/mcp/server.js",
@@ -98,8 +103,8 @@
       "verification": {
         "distManifest": {
           "relative": "dist/manifest.json",
-          "sha256": "f78f43e5d5e201f8f7fc6d4a18046aa80fa564c71aec431de3e327c68962d801",
-          "expectedSha256": "f78f43e5d5e201f8f7fc6d4a18046aa80fa564c71aec431de3e327c68962d801",
+          "sha256": "9350b49022e3da103e45f9f046f71db2dbc20165ab4baa4aa9c9a65ee537f772",
+          "expectedSha256": "9350b49022e3da103e45f9f046f71db2dbc20165ab4baa4aa9c9a65ee537f772",
           "fileCount": 40,
           "files": [
             {
@@ -185,7 +190,7 @@
             {
               "relative": "dist/extension.js",
               "bytes": 544,
-              "sha256": "a2fcd41035ce4046b8d176b0485bab037f3ac1452f7ac6c696dfc76c4a82624d"
+              "sha256": "3d4c0320ac9f22403e3c971c6f5726c123df11af8b7bf61eeade2f87b9d5e9f6"
             },
             {
               "relative": "dist/gate/automatic-adapter.js",
@@ -317,24 +322,24 @@
     "method": "new PluginManager(cwd).link(packageRoot)",
     "result": {
       "name": "omp-spec-kit",
-      "version": "2.6.0",
+      "version": "2.6.1",
       "path": "<package-copy>",
       "manifest": {
         "extensions": [
           "./dist/extension.js"
         ],
-        "version": "2.6.0"
+        "version": "2.6.1"
       },
       "enabledFeatures": null,
       "enabled": true
     },
     "lockfile": {
       "path": "<home>/.omp-discovery-producer/profiles/discovery-producer/plugins/omp-plugins.lock.json",
-      "sha256": "b79a60847281415754db9c58d6a359dbac561a6b9e6840b08d37fc779da11fde",
+      "sha256": "f98469a043c2e4f2fee7911587195452617f084dbcc6996ee051797281a5d646",
       "contents": {
         "plugins": {
           "omp-spec-kit": {
-            "version": "2.6.0",
+            "version": "2.6.1",
             "enabledFeatures": null,
             "enabled": true
           }
@@ -344,7 +349,7 @@
     },
     "link": {
       "path": "<home>/.omp-discovery-producer/profiles/discovery-producer/plugins/node_modules/omp-spec-kit",
-      "packageJsonSha256": "cfb5c9715b50222b22e4f88b913b2284a44fa0fb39f9bc6c5b63630077074b96"
+      "packageJsonSha256": "4c5f05a1960aa4bf77f7ec56611acf42b5bd05170fa94638ef42bd7c09690256"
     }
   },
   "capability": {
@@ -522,7 +527,7 @@
   },
   "extensionEnforcement": {
     "runtimeVersion": "18.0.11",
-    "packageVersion": "2.6.0",
+    "packageVersion": "2.6.1",
     "handlerCount": 1,
     "allowedTargets": [
       {
@@ -680,3 +685,4 @@
     ]
   }
 }
+```

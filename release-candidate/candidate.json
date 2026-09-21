@@ -1,18 +1,18 @@
 {
   "schema": "omp-spec-kit-release-candidate@2",
-  "version": "2.6.0",
-  "tag": "v2.6.0",
-  "commit": "20fe46158fd50ba31cd47428657c7cb21f73a9db",
-  "packageTreeDigest": "91ecb042bde0bba4fc4ac7de3cc1bbe4362932e53f30c16f4d5fab34ea617f2a",
+  "version": "2.6.1",
+  "tag": "v2.6.1",
+  "commit": "76cf447e7e189c5e8a67e3c5a4b3dc595c1c38fe",
+  "packageTreeDigest": "faaf43e438396fb763c43ca3c11ef5b4be04fcdcaa2aca15803ad6b009065207",
   "archive": {
-    "file": "omp-spec-kit-2.6.0.tar",
-    "sha256": "2f79e85046478e4520304b42534e0f90e094152a2b91e85f12149375c4c5526e",
+    "file": "omp-spec-kit-2.6.1.tar",
+    "sha256": "12a6834c942cf3d944d687a12d419fc1b4ccaa1c317299a3293465190ad2d516",
     "bytes": 542720
   },
   "youtrackApp": {
     "file": "spec-graph-app-1.0.25.zip",
-    "sha256": "37b4f36f9a606a4a35e876eb37c7abd7b2f9a79958d703728245939adb9d23f0",
-    "bytes": 123486,
+    "sha256": "8a6d72e42a20561977c7c01748a93063d3ebc1f38c26bf2f4c014cb4a4b270e8",
+    "bytes": 123423,
     "version": "1.0.25"
   },
   "files": [
@@ -140,7 +140,7 @@
       "path": "dist/extension.js",
       "mode": 420,
       "bytes": 544,
-      "sha256": "a2fcd41035ce4046b8d176b0485bab037f3ac1452f7ac6c696dfc76c4a82624d"
+      "sha256": "3d4c0320ac9f22403e3c971c6f5726c123df11af8b7bf61eeade2f87b9d5e9f6"
     },
     {
       "path": "dist/gate/automatic-adapter.js",
@@ -278,7 +278,7 @@
       "path": "dist/manifest.json",
       "mode": 420,
       "bytes": 5018,
-      "sha256": "f78f43e5d5e201f8f7fc6d4a18046aa80fa564c71aec431de3e327c68962d801"
+      "sha256": "9350b49022e3da103e45f9f046f71db2dbc20165ab4baa4aa9c9a65ee537f772"
     },
     {
       "path": "dist/mcp/server.js",
@@ -296,7 +296,7 @@
       "path": "package.json",
       "mode": 420,
       "bytes": 639,
-      "sha256": "cfb5c9715b50222b22e4f88b913b2284a44fa0fb39f9bc6c5b63630077074b96"
+      "sha256": "4c5f05a1960aa4bf77f7ec56611acf42b5bd05170fa94638ef42bd7c09690256"
     },
     {
       "path": "README.md",
@@ -335,5 +335,5 @@
       "sha256": "ade24f9232ebf5ac9eca03e0ec05541508c5ce4d541e79553a0fa41a62520c4c"
     }
   ],
-  "candidateDigest": "00ea3e3bba497c60d4c46d23ac50e540b72a7956c78a1975a3268d29fa6b6825"
+  "candidateDigest": "ae36fba43dd1ad28f07e702b9e5670267f8a666db1e509c13ec3a3af7a87c04f"
 }

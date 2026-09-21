@@ -1,0 +1,43 @@
+{
+  "schema": "omp-spec-kit-distribution-producer-receipt@1",
+  "status": "passed",
+  "version": "2.6.1",
+  "tag": "v2.6.1",
+  "commit": "76cf447e7e189c5e8a67e3c5a4b3dc595c1c38fe",
+  "candidateDigest": "ae36fba43dd1ad28f07e702b9e5670267f8a666db1e509c13ec3a3af7a87c04f",
+  "packageTreeDigest": "faaf43e438396fb763c43ca3c11ef5b4be04fcdcaa2aca15803ad6b009065207",
+  "archiveSha256": "12a6834c942cf3d944d687a12d419fc1b4ccaa1c317299a3293465190ad2d516",
+  "catalogDigest": "5ab02737f9106e0cf62dd1202d9b047173153a2a4d1ee07679ab0590da00de42",
+  "requirement": "plugin-distribution:FR-9",
+  "claim": "public-safety",
+  "fixtureDigest": "a5a894e750165bfaad9e93e7871f016a0f595a6d19aa6714ec3c004492c9880b",
+  "ompRevision": "@oh-my-pi/pi-coding-agent@18.0.11#33cc6b9a043a74e00a157e72ca909272796d8461",
+  "platform": {
+    "os": "linux",
+    "architecture": "x64",
+    "fixtureDigest": "a5a894e750165bfaad9e93e7871f016a0f595a6d19aa6714ec3c004492c9880b"
+  },
+  "applicability": {
+    "releasePosition": "subsequent",
+    "upgrade": "mandatory",
+    "rollback": "mandatory",
+    "reinstall": "mandatory"
+  },
+  "lifecycle": {
+    "upgrade": "not-run",
+    "rollback": "not-run",
+    "reinstall": "not-run"
+  },
+  "producer": {
+    "workflow": "distribution-lifecycle",
+    "runId": "35608058916"
+  },
+  "observations": [
+    {
+      "fixtureDigest": "a5a894e750165bfaad9e93e7871f016a0f595a6d19aa6714ec3c004492c9880b",
+      "id": "public-safety-passed",
+      "outcome": "passed",
+      "summary": "verify-public-tree passed with zero findings; report digest ca6d0875e766 bound to candidate ae36fba43dd1."
+    }
+  ]
+}

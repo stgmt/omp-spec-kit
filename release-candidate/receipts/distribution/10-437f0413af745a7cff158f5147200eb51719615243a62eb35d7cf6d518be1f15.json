@@ -1,21 +1,21 @@
 {
   "schema": "omp-spec-kit-distribution-producer-receipt@1",
   "status": "passed",
-  "version": "2.6.0",
-  "tag": "v2.6.0",
-  "commit": "20fe46158fd50ba31cd47428657c7cb21f73a9db",
-  "candidateDigest": "8984b4e2234481edf24a5f742063194c1db0d016750cc767cc80ec98c986fc17",
-  "packageTreeDigest": "91ecb042bde0bba4fc4ac7de3cc1bbe4362932e53f30c16f4d5fab34ea617f2a",
-  "archiveSha256": "2f79e85046478e4520304b42534e0f90e094152a2b91e85f12149375c4c5526e",
-  "catalogDigest": "c1b76d3f60b55b4462cd07783d18b9e2da78f3cf852270b52c21a9c4201160e1",
+  "version": "2.6.1",
+  "tag": "v2.6.1",
+  "commit": "76cf447e7e189c5e8a67e3c5a4b3dc595c1c38fe",
+  "candidateDigest": "ae36fba43dd1ad28f07e702b9e5670267f8a666db1e509c13ec3a3af7a87c04f",
+  "packageTreeDigest": "faaf43e438396fb763c43ca3c11ef5b4be04fcdcaa2aca15803ad6b009065207",
+  "archiveSha256": "12a6834c942cf3d944d687a12d419fc1b4ccaa1c317299a3293465190ad2d516",
+  "catalogDigest": "5ab02737f9106e0cf62dd1202d9b047173153a2a4d1ee07679ab0590da00de42",
   "requirement": "plugin-distribution:FR-5",
   "claim": "package-shape",
-  "fixtureDigest": "24299498414fa73c6a6cfe4585af4df4e7e4ffefaa7ca3a0b41384b7063f3a2e",
+  "fixtureDigest": "a5a894e750165bfaad9e93e7871f016a0f595a6d19aa6714ec3c004492c9880b",
   "ompRevision": "@oh-my-pi/pi-coding-agent@18.0.11#33cc6b9a043a74e00a157e72ca909272796d8461",
   "platform": {
     "os": "linux",
     "architecture": "x64",
-    "fixtureDigest": "24299498414fa73c6a6cfe4585af4df4e7e4ffefaa7ca3a0b41384b7063f3a2e"
+    "fixtureDigest": "a5a894e750165bfaad9e93e7871f016a0f595a6d19aa6714ec3c004492c9880b"
   },
   "applicability": {
     "releasePosition": "subsequent",
@@ -30,11 +30,11 @@
   },
   "producer": {
     "workflow": "distribution-lifecycle",
-    "runId": "35606080589"
+    "runId": "35608058916"
   },
   "observations": [
     {
-      "fixtureDigest": "24299498414fa73c6a6cfe4585af4df4e7e4ffefaa7ca3a0b41384b7063f3a2e",
+      "fixtureDigest": "a5a894e750165bfaad9e93e7871f016a0f595a6d19aa6714ec3c004492c9880b",
       "id": "package-shape-dist-manifest",
       "outcome": "passed",
       "summary": "Built dist payload reconciles: 40 manifest-listed files re-hashed at evidence time and matched."

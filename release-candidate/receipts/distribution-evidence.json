@@ -1,17 +1,17 @@
 {
   "schema": "omp-spec-kit-distribution-evidence@1",
-  "version": "2.6.0",
-  "tag": "v2.6.0",
-  "commit": "20fe46158fd50ba31cd47428657c7cb21f73a9db",
-  "candidateDigest": "8984b4e2234481edf24a5f742063194c1db0d016750cc767cc80ec98c986fc17",
-  "packageTreeDigest": "91ecb042bde0bba4fc4ac7de3cc1bbe4362932e53f30c16f4d5fab34ea617f2a",
-  "archiveSha256": "2f79e85046478e4520304b42534e0f90e094152a2b91e85f12149375c4c5526e",
-  "catalogDigest": "c1b76d3f60b55b4462cd07783d18b9e2da78f3cf852270b52c21a9c4201160e1",
+  "version": "2.6.1",
+  "tag": "v2.6.1",
+  "commit": "76cf447e7e189c5e8a67e3c5a4b3dc595c1c38fe",
+  "candidateDigest": "ae36fba43dd1ad28f07e702b9e5670267f8a666db1e509c13ec3a3af7a87c04f",
+  "packageTreeDigest": "faaf43e438396fb763c43ca3c11ef5b4be04fcdcaa2aca15803ad6b009065207",
+  "archiveSha256": "12a6834c942cf3d944d687a12d419fc1b4ccaa1c317299a3293465190ad2d516",
+  "catalogDigest": "5ab02737f9106e0cf62dd1202d9b047173153a2a4d1ee07679ab0590da00de42",
   "ompRevision": "@oh-my-pi/pi-coding-agent@18.0.11#33cc6b9a043a74e00a157e72ca909272796d8461",
   "platform": {
     "os": "linux",
     "architecture": "x64",
-    "fixtureDigest": "24299498414fa73c6a6cfe4585af4df4e7e4ffefaa7ca3a0b41384b7063f3a2e"
+    "fixtureDigest": "a5a894e750165bfaad9e93e7871f016a0f595a6d19aa6714ec3c004492c9880b"
   },
   "applicability": {
     "releasePosition": "subsequent",
@@ -19,15 +19,15 @@
     "rollback": "mandatory",
     "reinstall": "mandatory"
   },
-  "mriDiscoveryDigest": "0a9391b9443616f439331f33d2778228f82aea140706a85449a4069aca2fd46f",
+  "mriDiscoveryDigest": "91efc5bd224325934927c4002e2d0bbe52f4de951865eafb11a25fb34a4faf70",
   "records": [
     {
       "requirement": "plugin-distribution:FR-4",
       "claim": "install",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/0-fbd9c29417386ce7b3d3e0e992c7324d132f367945fcde153951d4b64fa40ee0.json",
-        "digest": "fbd9c29417386ce7b3d3e0e992c7324d132f367945fcde153951d4b64fa40ee0"
+        "path": "receipts/distribution/0-c69576e924f4c67b8e1ed8d2a33a01a459c975b12b401c25288c35144466c12e.json",
+        "digest": "c69576e924f4c67b8e1ed8d2a33a01a459c975b12b401c25288c35144466c12e"
       }
     },
     {
@@ -35,8 +35,8 @@
       "claim": "reload",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/1-37a6965bb24b51d58c0105da8b6861918843b58214471a44076da08a76649b40.json",
-        "digest": "37a6965bb24b51d58c0105da8b6861918843b58214471a44076da08a76649b40"
+        "path": "receipts/distribution/1-d82b223f62763dabc87d23a667414b4fb6df2833a63db5394e8ae1eb0625fbce.json",
+        "digest": "d82b223f62763dabc87d23a667414b4fb6df2833a63db5394e8ae1eb0625fbce"
       }
     },
     {
@@ -44,8 +44,8 @@
       "claim": "fresh-session-activation",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/2-932f50f567bdf3ee116f000a8ef65458e5299b1ff2aeb081ac113c77b530fe35.json",
-        "digest": "932f50f567bdf3ee116f000a8ef65458e5299b1ff2aeb081ac113c77b530fe35"
+        "path": "receipts/distribution/2-a49d0614c7c0b77cdbe227005ea1a3e635e94c7158ec65db1be26c6bc853405d.json",
+        "digest": "a49d0614c7c0b77cdbe227005ea1a3e635e94c7158ec65db1be26c6bc853405d"
       }
     },
     {
@@ -53,8 +53,8 @@
       "claim": "inventory",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/3-c24e6704484ecf3f98b894d116c526fc36e35f57662248fa0e29d5149cda3bbc.json",
-        "digest": "c24e6704484ecf3f98b894d116c526fc36e35f57662248fa0e29d5149cda3bbc"
+        "path": "receipts/distribution/3-dde4d0214cbff4c748cb7b43d5559ac06a25192ba08acb1403d0973f61a7ded9.json",
+        "digest": "dde4d0214cbff4c748cb7b43d5559ac06a25192ba08acb1403d0973f61a7ded9"
       }
     },
     {
@@ -62,8 +62,8 @@
       "claim": "uninstall-preservation",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/4-82bde07307f551f0d7128fd75bb320e8788986159a9f88b1e420f11a77814a48.json",
-        "digest": "82bde07307f551f0d7128fd75bb320e8788986159a9f88b1e420f11a77814a48"
+        "path": "receipts/distribution/4-fc642169c25d5d55527a0dc7ec3b8e2effc750e0624f0a0c76d9af23342c4dc7.json",
+        "digest": "fc642169c25d5d55527a0dc7ec3b8e2effc750e0624f0a0c76d9af23342c4dc7"
       }
     },
     {
@@ -71,8 +71,8 @@
       "claim": "reinstall",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/5-612159e8e705f500e631ded8f66599220093f73c6ee0d87b11896aba71229e72.json",
-        "digest": "612159e8e705f500e631ded8f66599220093f73c6ee0d87b11896aba71229e72"
+        "path": "receipts/distribution/5-9d2e764e75ac9be7fb10b8b36a59fede3c5164bf15693b8acf792118ad0deed7.json",
+        "digest": "9d2e764e75ac9be7fb10b8b36a59fede3c5164bf15693b8acf792118ad0deed7"
       }
     },
     {
@@ -80,8 +80,8 @@
       "claim": "upgrade",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/6-75e0a88c2b03763913703215e826e1ded7a93e9e62cd0f6ea65f6cd9195ce7d9.json",
-        "digest": "75e0a88c2b03763913703215e826e1ded7a93e9e62cd0f6ea65f6cd9195ce7d9"
+        "path": "receipts/distribution/6-e55f893525171ad5c7fb3978a69591654234c59504a849af55d2c1d8dda1b534.json",
+        "digest": "e55f893525171ad5c7fb3978a69591654234c59504a849af55d2c1d8dda1b534"
       }
     },
     {
@@ -89,8 +89,8 @@
       "claim": "rollback",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/7-48d20d8162560b67f78845a8613d46487a8493fd5198badbf9ce9b020ac56cec.json",
-        "digest": "48d20d8162560b67f78845a8613d46487a8493fd5198badbf9ce9b020ac56cec"
+        "path": "receipts/distribution/7-670f3c20f1ad5f1bc487326634bda688ea15e8d3c3053f53aff382d293676da9.json",
+        "digest": "670f3c20f1ad5f1bc487326634bda688ea15e8d3c3053f53aff382d293676da9"
       }
     },
     {
@@ -98,8 +98,8 @@
       "claim": "marketplace-shape",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/8-c4d6f015713d37904e2c06ad7c62057f9328f8f1f4852f70e3950453e2c896c8.json",
-        "digest": "c4d6f015713d37904e2c06ad7c62057f9328f8f1f4852f70e3950453e2c896c8"
+        "path": "receipts/distribution/8-8e5598b2da40083360d578e56d4e7d2b7a26e5c1f1ebf8699b521dfd4572f66e.json",
+        "digest": "8e5598b2da40083360d578e56d4e7d2b7a26e5c1f1ebf8699b521dfd4572f66e"
       }
     },
     {
@@ -107,8 +107,8 @@
       "claim": "clean-build",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/9-c3dfe70fc53990798322bce866f5a437b7889495af7fdff7285cdf6501d9e4c8.json",
-        "digest": "c3dfe70fc53990798322bce866f5a437b7889495af7fdff7285cdf6501d9e4c8"
+        "path": "receipts/distribution/9-66ef344dfd66d8d5554480d02309e0493661a72ce18a9fd200e74bf710028564.json",
+        "digest": "66ef344dfd66d8d5554480d02309e0493661a72ce18a9fd200e74bf710028564"
       }
     },
     {
@@ -116,8 +116,8 @@
       "claim": "package-shape",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/10-f568f84a41208fcae797b90d36060091c1e831e3d7d86ba67bf8cfa8934ab4e1.json",
-        "digest": "f568f84a41208fcae797b90d36060091c1e831e3d7d86ba67bf8cfa8934ab4e1"
+        "path": "receipts/distribution/10-437f0413af745a7cff158f5147200eb51719615243a62eb35d7cf6d518be1f15.json",
+        "digest": "437f0413af745a7cff158f5147200eb51719615243a62eb35d7cf6d518be1f15"
       }
     },
     {
@@ -125,8 +125,8 @@
       "claim": "deps-absent",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/11-d2c3f1ed4f9fd7d873e37db5be236040f2410cef4a22caac5dd3fe87c9d21453.json",
-        "digest": "d2c3f1ed4f9fd7d873e37db5be236040f2410cef4a22caac5dd3fe87c9d21453"
+        "path": "receipts/distribution/11-ef9d29a4122cd3d60521a6413454849fe8e5a59d2ef7deac1f7113f636b13e91.json",
+        "digest": "ef9d29a4122cd3d60521a6413454849fe8e5a59d2ef7deac1f7113f636b13e91"
       }
     },
     {
@@ -134,8 +134,8 @@
       "claim": "inventory",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/12-2825d79d42c7118c6617ab593f3b7e2a64ce103ce65195e0500c8bc88a9de5ff.json",
-        "digest": "2825d79d42c7118c6617ab593f3b7e2a64ce103ce65195e0500c8bc88a9de5ff"
+        "path": "receipts/distribution/12-7487013b983a2c53323d7deb5a82cc5cae2c6ca1c0b57e49900839dca4f933f1.json",
+        "digest": "7487013b983a2c53323d7deb5a82cc5cae2c6ca1c0b57e49900839dca4f933f1"
       }
     },
     {
@@ -143,8 +143,8 @@
       "claim": "inventory-containment",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/13-5cb8df84260f6fda1da03b20e0b5c3c14bef898fcf19203a35f36d90f9af5a44.json",
-        "digest": "5cb8df84260f6fda1da03b20e0b5c3c14bef898fcf19203a35f36d90f9af5a44"
+        "path": "receipts/distribution/13-05429fc065febc4608b5ca4b6aa45cffb61fe271882c33b259b0112306f68082.json",
+        "digest": "05429fc065febc4608b5ca4b6aa45cffb61fe271882c33b259b0112306f68082"
       }
     },
     {
@@ -152,8 +152,8 @@
       "claim": "version-consistency",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/14-eb919d1b3fbf379d5014569f815103d0caa58d4eae782e273643b14badeacf77.json",
-        "digest": "eb919d1b3fbf379d5014569f815103d0caa58d4eae782e273643b14badeacf77"
+        "path": "receipts/distribution/14-7c94d01499348d220db29c9268444c325f461dbd4f3ebac36dd57fbf7d36c39e.json",
+        "digest": "7c94d01499348d220db29c9268444c325f461dbd4f3ebac36dd57fbf7d36c39e"
       }
     },
     {
@@ -161,8 +161,8 @@
       "claim": "public-safety",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/15-68b4c7cd76fdcd51987fd31c996cd90b5514d74125249044bd475c5b6686cf1c.json",
-        "digest": "68b4c7cd76fdcd51987fd31c996cd90b5514d74125249044bd475c5b6686cf1c"
+        "path": "receipts/distribution/15-9a687961d7c786bcadee720b2682c436074cf574804975bf30b7c71da19cdc0c.json",
+        "digest": "9a687961d7c786bcadee720b2682c436074cf574804975bf30b7c71da19cdc0c"
       }
     },
     {
@@ -170,8 +170,8 @@
       "claim": "package-shape",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/16-147f711af609061219131832e6764241eee82faf7590a02241d8f11376f5f460.json",
-        "digest": "147f711af609061219131832e6764241eee82faf7590a02241d8f11376f5f460"
+        "path": "receipts/distribution/16-861d755990e493c1df6cfba1ec6a64458f4ac4e2548be19c3ea717d9d924edd9.json",
+        "digest": "861d755990e493c1df6cfba1ec6a64458f4ac4e2548be19c3ea717d9d924edd9"
       }
     },
     {
@@ -179,8 +179,8 @@
       "claim": "release-transaction",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/17-683cf49b4eff59d7e12c20da4ee7513d85d3d044564e27fc0c762153e949b09c.json",
-        "digest": "683cf49b4eff59d7e12c20da4ee7513d85d3d044564e27fc0c762153e949b09c"
+        "path": "receipts/distribution/17-ab881a1c2d86890458938e5034cca4b581779aaaf233af07d6344c58c7a543d0.json",
+        "digest": "ab881a1c2d86890458938e5034cca4b581779aaaf233af07d6344c58c7a543d0"
       }
     },
     {
@@ -188,8 +188,8 @@
       "claim": "evidence-honesty",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/18-bcf1752329d9c1852575b4d737dc1851d4f32f18b56e49d5b72317ed55b8dc7b.json",
-        "digest": "bcf1752329d9c1852575b4d737dc1851d4f32f18b56e49d5b72317ed55b8dc7b"
+        "path": "receipts/distribution/18-b69fdf98a0d2e7bccebe7d01ce124a93eba8e8537770befef694d25300924fa6.json",
+        "digest": "b69fdf98a0d2e7bccebe7d01ce124a93eba8e8537770befef694d25300924fa6"
       }
     },
     {
@@ -197,8 +197,8 @@
       "claim": "schema-containment",
       "receipt": {
         "status": "present",
-        "path": "receipts/distribution/19-5973b63be7a690b2e53c723e9d3c44d4d5f086df774d778fc14cb89093bdefdd.json",
-        "digest": "5973b63be7a690b2e53c723e9d3c44d4d5f086df774d778fc14cb89093bdefdd"
+        "path": "receipts/distribution/19-528c171bcd9420894e567e1c5f60ce8229c45afe7c860692ec38e32eac59a2c6.json",
+        "digest": "528c171bcd9420894e567e1c5f60ce8229c45afe7c860692ec38e32eac59a2c6"
       }
     }
   ]
