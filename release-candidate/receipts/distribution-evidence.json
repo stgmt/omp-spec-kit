@@ -1,0 +1,205 @@
+{
+  "schema": "omp-spec-kit-distribution-evidence@1",
+  "version": "2.6.0",
+  "tag": "v2.6.0",
+  "commit": "20fe46158fd50ba31cd47428657c7cb21f73a9db",
+  "candidateDigest": "8984b4e2234481edf24a5f742063194c1db0d016750cc767cc80ec98c986fc17",
+  "packageTreeDigest": "91ecb042bde0bba4fc4ac7de3cc1bbe4362932e53f30c16f4d5fab34ea617f2a",
+  "archiveSha256": "2f79e85046478e4520304b42534e0f90e094152a2b91e85f12149375c4c5526e",
+  "catalogDigest": "c1b76d3f60b55b4462cd07783d18b9e2da78f3cf852270b52c21a9c4201160e1",
+  "ompRevision": "@oh-my-pi/pi-coding-agent@18.0.11#33cc6b9a043a74e00a157e72ca909272796d8461",
+  "platform": {
+    "os": "linux",
+    "architecture": "x64",
+    "fixtureDigest": "24299498414fa73c6a6cfe4585af4df4e7e4ffefaa7ca3a0b41384b7063f3a2e"
+  },
+  "applicability": {
+    "releasePosition": "subsequent",
+    "upgrade": "mandatory",
+    "rollback": "mandatory",
+    "reinstall": "mandatory"
+  },
+  "mriDiscoveryDigest": "0a9391b9443616f439331f33d2778228f82aea140706a85449a4069aca2fd46f",
+  "records": [
+    {
+      "requirement": "plugin-distribution:FR-4",
+      "claim": "install",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/0-fbd9c29417386ce7b3d3e0e992c7324d132f367945fcde153951d4b64fa40ee0.json",
+        "digest": "fbd9c29417386ce7b3d3e0e992c7324d132f367945fcde153951d4b64fa40ee0"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-4",
+      "claim": "reload",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/1-37a6965bb24b51d58c0105da8b6861918843b58214471a44076da08a76649b40.json",
+        "digest": "37a6965bb24b51d58c0105da8b6861918843b58214471a44076da08a76649b40"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-4",
+      "claim": "fresh-session-activation",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/2-932f50f567bdf3ee116f000a8ef65458e5299b1ff2aeb081ac113c77b530fe35.json",
+        "digest": "932f50f567bdf3ee116f000a8ef65458e5299b1ff2aeb081ac113c77b530fe35"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-4",
+      "claim": "inventory",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/3-c24e6704484ecf3f98b894d116c526fc36e35f57662248fa0e29d5149cda3bbc.json",
+        "digest": "c24e6704484ecf3f98b894d116c526fc36e35f57662248fa0e29d5149cda3bbc"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-8",
+      "claim": "uninstall-preservation",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/4-82bde07307f551f0d7128fd75bb320e8788986159a9f88b1e420f11a77814a48.json",
+        "digest": "82bde07307f551f0d7128fd75bb320e8788986159a9f88b1e420f11a77814a48"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-8",
+      "claim": "reinstall",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/5-612159e8e705f500e631ded8f66599220093f73c6ee0d87b11896aba71229e72.json",
+        "digest": "612159e8e705f500e631ded8f66599220093f73c6ee0d87b11896aba71229e72"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-7",
+      "claim": "upgrade",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/6-75e0a88c2b03763913703215e826e1ded7a93e9e62cd0f6ea65f6cd9195ce7d9.json",
+        "digest": "75e0a88c2b03763913703215e826e1ded7a93e9e62cd0f6ea65f6cd9195ce7d9"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-8",
+      "claim": "rollback",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/7-48d20d8162560b67f78845a8613d46487a8493fd5198badbf9ce9b020ac56cec.json",
+        "digest": "48d20d8162560b67f78845a8613d46487a8493fd5198badbf9ce9b020ac56cec"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-1",
+      "claim": "marketplace-shape",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/8-c4d6f015713d37904e2c06ad7c62057f9328f8f1f4852f70e3950453e2c896c8.json",
+        "digest": "c4d6f015713d37904e2c06ad7c62057f9328f8f1f4852f70e3950453e2c896c8"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-5",
+      "claim": "clean-build",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/9-c3dfe70fc53990798322bce866f5a437b7889495af7fdff7285cdf6501d9e4c8.json",
+        "digest": "c3dfe70fc53990798322bce866f5a437b7889495af7fdff7285cdf6501d9e4c8"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-5",
+      "claim": "package-shape",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/10-f568f84a41208fcae797b90d36060091c1e831e3d7d86ba67bf8cfa8934ab4e1.json",
+        "digest": "f568f84a41208fcae797b90d36060091c1e831e3d7d86ba67bf8cfa8934ab4e1"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-5",
+      "claim": "deps-absent",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/11-d2c3f1ed4f9fd7d873e37db5be236040f2410cef4a22caac5dd3fe87c9d21453.json",
+        "digest": "d2c3f1ed4f9fd7d873e37db5be236040f2410cef4a22caac5dd3fe87c9d21453"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-3",
+      "claim": "inventory",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/12-2825d79d42c7118c6617ab593f3b7e2a64ce103ce65195e0500c8bc88a9de5ff.json",
+        "digest": "2825d79d42c7118c6617ab593f3b7e2a64ce103ce65195e0500c8bc88a9de5ff"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-6",
+      "claim": "inventory-containment",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/13-5cb8df84260f6fda1da03b20e0b5c3c14bef898fcf19203a35f36d90f9af5a44.json",
+        "digest": "5cb8df84260f6fda1da03b20e0b5c3c14bef898fcf19203a35f36d90f9af5a44"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-7",
+      "claim": "version-consistency",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/14-eb919d1b3fbf379d5014569f815103d0caa58d4eae782e273643b14badeacf77.json",
+        "digest": "eb919d1b3fbf379d5014569f815103d0caa58d4eae782e273643b14badeacf77"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-9",
+      "claim": "public-safety",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/15-68b4c7cd76fdcd51987fd31c996cd90b5514d74125249044bd475c5b6686cf1c.json",
+        "digest": "68b4c7cd76fdcd51987fd31c996cd90b5514d74125249044bd475c5b6686cf1c"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-2",
+      "claim": "package-shape",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/16-147f711af609061219131832e6764241eee82faf7590a02241d8f11376f5f460.json",
+        "digest": "147f711af609061219131832e6764241eee82faf7590a02241d8f11376f5f460"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-10",
+      "claim": "release-transaction",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/17-683cf49b4eff59d7e12c20da4ee7513d85d3d044564e27fc0c762153e949b09c.json",
+        "digest": "683cf49b4eff59d7e12c20da4ee7513d85d3d044564e27fc0c762153e949b09c"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-11",
+      "claim": "evidence-honesty",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/18-bcf1752329d9c1852575b4d737dc1851d4f32f18b56e49d5b72317ed55b8dc7b.json",
+        "digest": "bcf1752329d9c1852575b4d737dc1851d4f32f18b56e49d5b72317ed55b8dc7b"
+      }
+    },
+    {
+      "requirement": "plugin-distribution:FR-12",
+      "claim": "schema-containment",
+      "receipt": {
+        "status": "present",
+        "path": "receipts/distribution/19-5973b63be7a690b2e53c723e9d3c44d4d5f086df774d778fc14cb89093bdefdd.json",
+        "digest": "5973b63be7a690b2e53c723e9d3c44d4d5f086df774d778fc14cb89093bdefdd"
+      }
+    }
+  ]
+}

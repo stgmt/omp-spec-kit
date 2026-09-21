@@ -2,6 +2,12 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 2.6.1 — 2026-09-21
+
+### Fixed
+
+- `spec-graph-app` ZIP is now byte-deterministic across build timezones: yazl encodes DOS time from the Date's *local* getters and stores the absolute epoch in the UT extra field, so the same tree hashed differently on a UTC CI runner vs a +03:00 workstation (caught by the v2.6.0 release gate as a `candidateDigest` mismatch). Fixed via local-component `mtime` + `forceDosTimestamp`; proven identical under TZ=MSK/UTC/New_York. The v2.6.0 tag was cut but superseded before publication by this fix.
+
 ## 2.6.0 — 2026-09-21
 
 ### Added

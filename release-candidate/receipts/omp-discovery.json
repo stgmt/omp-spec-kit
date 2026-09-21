@@ -1,0 +1,682 @@
+{
+  "schema": "omp-manager-handoff-probe@2",
+  "result": "completed",
+  "phaseMode": {
+    "mode": "bounded",
+    "timeoutMs": 30000,
+    "terminalPhase": null,
+    "checkpoints": {
+      "payload": {
+        "status": "completed",
+        "startedAt": "2026-09-21T13:31:06.219Z",
+        "elapsedMs": 4
+      },
+      "imports": {
+        "status": "completed",
+        "startedAt": "2026-09-21T13:31:06.223Z",
+        "elapsedMs": 1039
+      },
+      "enrollment": {
+        "status": "completed",
+        "startedAt": "2026-09-21T13:31:07.262Z",
+        "elapsedMs": 10
+      },
+      "capability-config-load": {
+        "status": "completed",
+        "startedAt": "2026-09-21T13:31:07.272Z",
+        "elapsedMs": 17
+      },
+      "manager-construction": {
+        "status": "completed",
+        "startedAt": "2026-09-21T13:31:07.289Z",
+        "elapsedMs": 0
+      },
+      "target-only-connection": {
+        "status": "completed",
+        "startedAt": "2026-09-21T13:31:07.289Z",
+        "elapsedMs": 91
+      },
+      "managed-query": {
+        "status": "completed",
+        "startedAt": "2026-09-21T13:31:07.380Z",
+        "elapsedMs": 362
+      },
+      "managed-authoring": {
+        "status": "completed",
+        "startedAt": "2026-09-21T13:31:07.742Z",
+        "elapsedMs": 1475
+      },
+      "extension-enforcement": {
+        "status": "completed",
+        "startedAt": "2026-09-21T13:31:09.217Z",
+        "elapsedMs": 472
+      },
+      "disconnect": {
+        "status": "completed",
+        "startedAt": "2026-09-21T13:31:09.689Z",
+        "elapsedMs": 14
+      },
+      "receipt": {
+        "status": "completed",
+        "startedAt": "2026-09-21T13:31:09.703Z",
+        "elapsedMs": 1
+      }
+    }
+  },
+  "provenance": {
+    "harness": {
+      "path": "scripts/probe-omp-discovery-v18.0.11.mjs",
+      "sha256": "5020ae005401859ab06a0bb044fa2483baf7169ae3a36300e5b1b20a6d6c13a4"
+    },
+    "runtime": {
+      "name": "@oh-my-pi/pi-coding-agent",
+      "version": "18.0.11",
+      "packageJsonSha256": "dbd14cc1f445c16d485fa0571178a69100b8c485a42549d1643db390ebd2cc53"
+    },
+    "package": {
+      "name": "omp-spec-kit",
+      "version": "2.6.0",
+      "packageJsonSha256": "cfb5c9715b50222b22e4f88b913b2284a44fa0fb39f9bc6c5b63630077074b96",
+      "mcpJsonSha256": "848a98db7304d9bafb96cc627c025216007ec18f78c66037b56f52074b5342b6",
+      "payload": [
+        {
+          "relative": "bin/omp-spec-kit-mcp",
+          "bytes": 325,
+          "sha256": "9a49da3de54e9e75778412689d52afa09bc4a5a9810816f3095ecc7f098a6752"
+        },
+        {
+          "relative": "dist/extension.js",
+          "bytes": 544,
+          "sha256": "a2fcd41035ce4046b8d176b0485bab037f3ac1452f7ac6c696dfc76c4a82624d"
+        },
+        {
+          "relative": "dist/mcp/server.js",
+          "bytes": 9867,
+          "sha256": "74a743597f30d1dfa7afadb4d1def4ba9e16a0bf2d45dcbbda3ea934409c039f"
+        }
+      ],
+      "verification": {
+        "distManifest": {
+          "relative": "dist/manifest.json",
+          "sha256": "f78f43e5d5e201f8f7fc6d4a18046aa80fa564c71aec431de3e327c68962d801",
+          "expectedSha256": "f78f43e5d5e201f8f7fc6d4a18046aa80fa564c71aec431de3e327c68962d801",
+          "fileCount": 40,
+          "files": [
+            {
+              "relative": "dist/adapters/document-service.js",
+              "bytes": 12306,
+              "sha256": "bc8cdf0b0590be3867546d13bac0faec80337c6a128d2300e9612d94dc1adb8f"
+            },
+            {
+              "relative": "dist/adapters/query-service.js",
+              "bytes": 27835,
+              "sha256": "b1c78660ebccc1978efcc7b8e08b75dd56c624f3400212a674863be5511a220d"
+            },
+            {
+              "relative": "dist/adapters/tool-contracts.js",
+              "bytes": 34773,
+              "sha256": "eed54dc0198503245d0df9723a9b0560f25ae7dc21ad3ed6df45e4c439278a14"
+            },
+            {
+              "relative": "dist/adapters/youtrack-projection.js",
+              "bytes": 21118,
+              "sha256": "fc2ca9d6911fa78d26a0b50bfc2c5f7b1f87f82f03f1c9b41b81aa608fcbd674"
+            },
+            {
+              "relative": "dist/adapters/youtrack-status-sweep.js",
+              "bytes": 6226,
+              "sha256": "afb3b405aa258b31ed121e1bb67bea01ba8c57b405f1b7284d3326aa0151c01d"
+            },
+            {
+              "relative": "dist/authoring/design-review.js",
+              "bytes": 10493,
+              "sha256": "ba88286f7885e217bb38f982822a8695ec6f5ce180aaab475eb435b7e804a40a"
+            },
+            {
+              "relative": "dist/authoring/elicitation-guard.js",
+              "bytes": 1560,
+              "sha256": "3d69503a6d7208b0a966b8ecd7d06aae1d5a011b4daf08578b7efaae3e34a293"
+            },
+            {
+              "relative": "dist/authoring/error-codes.js",
+              "bytes": 1246,
+              "sha256": "18ce9f975c4057fa215b9364cdbcf72df45d3d9f34d7c0a1bee620bb4a248dce"
+            },
+            {
+              "relative": "dist/authoring/proposals.js",
+              "bytes": 36183,
+              "sha256": "96937afd345480ba57e08561aa67652b676eef55d1d374069de0833706f2ba2d"
+            },
+            {
+              "relative": "dist/authoring/secrets.js",
+              "bytes": 1093,
+              "sha256": "c675f88b73501829fa8ea31a1dbb7a7f5a57b57a4c05ed09beeb43470bbaec06"
+            },
+            {
+              "relative": "dist/authoring/service.js",
+              "bytes": 10412,
+              "sha256": "733ddee2979a772efddb60f8937727f46b97c41472e45e7ea9a3e35675c6839d"
+            },
+            {
+              "relative": "dist/authoring/transactions.js",
+              "bytes": 30736,
+              "sha256": "32ac6fe0b38f0e3b8ba803f5c848deec84f5ff831c74319898c07f63352b0df0"
+            },
+            {
+              "relative": "dist/enforcement/adapter.js",
+              "bytes": 792,
+              "sha256": "aa13e9ba61773b9ea028501081d3a2e64cfbe60ea72b8dbeeba8da2831e4eb53"
+            },
+            {
+              "relative": "dist/enforcement/classifier.js",
+              "bytes": 14282,
+              "sha256": "af6a0b7098d5d748207fdf20171a6994444d70219ebd542bb15228c549171968"
+            },
+            {
+              "relative": "dist/enforcement/resolve-targets.js",
+              "bytes": 5027,
+              "sha256": "4a04cd3b09d286384fd6d85493d08b33f6c49a3310fe2ccd246279de1fd6fc60"
+            },
+            {
+              "relative": "dist/evidence/service.js",
+              "bytes": 9484,
+              "sha256": "56e7e622ff072e292894d88811e668edf06de1a1613408b4e42dec9c6ef6cf60"
+            },
+            {
+              "relative": "dist/extension.js",
+              "bytes": 544,
+              "sha256": "a2fcd41035ce4046b8d176b0485bab037f3ac1452f7ac6c696dfc76c4a82624d"
+            },
+            {
+              "relative": "dist/gate/automatic-adapter.js",
+              "bytes": 699,
+              "sha256": "82c385544c2aa793679512b93ef150cfd382722f0cbcc1dd28b99b710e3d3ed8"
+            },
+            {
+              "relative": "dist/gate/validator.js",
+              "bytes": 2032,
+              "sha256": "4541d470c5266c7ed22f24c69b2916a0f0f2c9918b013e7bd475c70cf2ee39cd"
+            },
+            {
+              "relative": "dist/kernel/adapters/fs.js",
+              "bytes": 8379,
+              "sha256": "0266de4ab315a693ade57897faad3a821ded3eba18c9aa9fbaf6bc568f87ecdf"
+            },
+            {
+              "relative": "dist/kernel/diagnostics.js",
+              "bytes": 2838,
+              "sha256": "04c3778d0bcdaae9eccc277ef33004bf0012fdbe2357589452450481c1ec1687"
+            },
+            {
+              "relative": "dist/kernel/gherkin-syntax.js",
+              "bytes": 1161,
+              "sha256": "ed88857ef5cc48df9ffdd64a0009a47d043f02d04485ae91667647119812ef1b"
+            },
+            {
+              "relative": "dist/kernel/graph/build.js",
+              "bytes": 41506,
+              "sha256": "5bd6cda597277865f686b65e6859fbae7bbe1276bb01ec6f57456d936519266c"
+            },
+            {
+              "relative": "dist/kernel/graph/invariants.js",
+              "bytes": 2714,
+              "sha256": "bbcde11d9bad8c2d2a751a6a0c972d1aed4e9a64d028258181040d4cd03db04b"
+            },
+            {
+              "relative": "dist/kernel/graph/resolve-edges.js",
+              "bytes": 4314,
+              "sha256": "a55204d2f8646e5aa19ce63a935c2e514ee197fdd3f943bb98d087d3c8468d3e"
+            },
+            {
+              "relative": "dist/kernel/identity.js",
+              "bytes": 3947,
+              "sha256": "b0a732c337430be524b950898a54c271e3b22fb7f6e36eaebedb012556239094"
+            },
+            {
+              "relative": "dist/kernel/index.js",
+              "bytes": 717,
+              "sha256": "266b44e88d48bb282db75394e541b96f7e9ed9172cac814a6bfd5f599a989ac6"
+            },
+            {
+              "relative": "dist/kernel/limits.js",
+              "bytes": 1631,
+              "sha256": "4a18582fca95a0fe24073104d62a926580fdbfa5e661d186aa81c6f3716e1938"
+            },
+            {
+              "relative": "dist/kernel/normalize.js",
+              "bytes": 2576,
+              "sha256": "dcf259789cdbc0f11abe7e11bdfdf1fa564a4a29e947d147d0edf785e9b58979"
+            },
+            {
+              "relative": "dist/kernel/parsers/attributes.js",
+              "bytes": 7669,
+              "sha256": "923d29c3136d9f975e17058f61ec3e4b4be8ee6ccc6b11f550890b708f6cfac3"
+            },
+            {
+              "relative": "dist/kernel/parsers/gherkin.js",
+              "bytes": 9818,
+              "sha256": "7010498febc1c91c0ec60ef87269c3c8718b924c0eaaafb348f080a10b3aa1bc"
+            },
+            {
+              "relative": "dist/kernel/parsers/markdown.js",
+              "bytes": 25935,
+              "sha256": "92d20981a640d81b37f182f44cd051aa588f8f38bb2be59a69e8929b39d66b51"
+            },
+            {
+              "relative": "dist/kernel/parsers/md-blocks.js",
+              "bytes": 7767,
+              "sha256": "93fc7026dfc4924e09478f7e972ce4b286a63628ca12eeca96afd6da081bc8a4"
+            },
+            {
+              "relative": "dist/kernel/parsers/md-inline.js",
+              "bytes": 15534,
+              "sha256": "5ed8c30c1d78e1390451fce76bbc1c7b4e2ead293d4f4c6b4e66660fc615c476"
+            },
+            {
+              "relative": "dist/kernel/query/cursor.js",
+              "bytes": 1617,
+              "sha256": "6149e4ad947bc49544d59f78a04b55c410145245ba369b323ce221be29675942"
+            },
+            {
+              "relative": "dist/kernel/query/extended.js",
+              "bytes": 20371,
+              "sha256": "21a5f0a3ccd1a90f3da3bc5981d2c2bb3eb73d6b97fe81e1e50761738b42c0cf"
+            },
+            {
+              "relative": "dist/kernel/query/service.js",
+              "bytes": 58521,
+              "sha256": "8057d04f080b6fbfc9d23e8b84f39be997b79770b94eaa3a01b95d62ca5ff1a6"
+            },
+            {
+              "relative": "dist/kernel/roadmap/assemble.js",
+              "bytes": 8044,
+              "sha256": "dd06b9b873b773d4c4af9762429f67cfdebfe44354c49f15bcaeb9903a59b980"
+            },
+            {
+              "relative": "dist/kernel/types.js",
+              "bytes": 15206,
+              "sha256": "30c291f7e8b9e164feaadace275c9a9bc6483ed50cc2e80fa305946efe69a99f"
+            },
+            {
+              "relative": "dist/mcp/server.js",
+              "bytes": 9867,
+              "sha256": "74a743597f30d1dfa7afadb4d1def4ba9e16a0bf2d45dcbbda3ea934409c039f"
+            }
+          ]
+        },
+        "launcher": {
+          "relative": "bin/omp-spec-kit-mcp",
+          "bytes": 325,
+          "sha256": "9a49da3de54e9e75778412689d52afa09bc4a5a9810816f3095ecc7f098a6752",
+          "expectedSha256": "9a49da3de54e9e75778412689d52afa09bc4a5a9810816f3095ecc7f098a6752"
+        }
+      }
+    }
+  },
+  "enrollment": {
+    "method": "new PluginManager(cwd).link(packageRoot)",
+    "result": {
+      "name": "omp-spec-kit",
+      "version": "2.6.0",
+      "path": "<package-copy>",
+      "manifest": {
+        "extensions": [
+          "./dist/extension.js"
+        ],
+        "version": "2.6.0"
+      },
+      "enabledFeatures": null,
+      "enabled": true
+    },
+    "lockfile": {
+      "path": "<home>/.omp-discovery-producer/profiles/discovery-producer/plugins/omp-plugins.lock.json",
+      "sha256": "b79a60847281415754db9c58d6a359dbac561a6b9e6840b08d37fc779da11fde",
+      "contents": {
+        "plugins": {
+          "omp-spec-kit": {
+            "version": "2.6.0",
+            "enabledFeatures": null,
+            "enabled": true
+          }
+        },
+        "settings": {}
+      }
+    },
+    "link": {
+      "path": "<home>/.omp-discovery-producer/profiles/discovery-producer/plugins/node_modules/omp-spec-kit",
+      "packageJsonSha256": "cfb5c9715b50222b22e4f88b913b2284a44fa0fb39f9bc6c5b63630077074b96"
+    }
+  },
+  "capability": {
+    "id": "mcps",
+    "providers": [
+      "omp-plugins"
+    ],
+    "warnings": [
+      "[VS Code] Failed to read <project>/.vscode/mcp.json"
+    ],
+    "items": [
+      {
+        "name": "omp-spec-kit",
+        "command": "<home>/.omp-discovery-producer/profiles/discovery-producer/plugins/node_modules/omp-spec-kit/bin/omp-spec-kit-mcp",
+        "transport": "stdio",
+        "_source": {
+          "provider": "omp-plugins",
+          "providerName": "OMP Extension Packages",
+          "path": "<home>/.omp-discovery-producer/profiles/discovery-producer/plugins/node_modules/omp-spec-kit/.mcp.json",
+          "level": "user"
+        }
+      }
+    ],
+    "all": [
+      {
+        "name": "omp-spec-kit",
+        "command": "<home>/.omp-discovery-producer/profiles/discovery-producer/plugins/node_modules/omp-spec-kit/bin/omp-spec-kit-mcp",
+        "transport": "stdio",
+        "_source": {
+          "provider": "omp-plugins",
+          "providerName": "OMP Extension Packages",
+          "path": "<home>/.omp-discovery-producer/profiles/discovery-producer/plugins/node_modules/omp-spec-kit/.mcp.json",
+          "level": "user"
+        }
+      }
+    ]
+  },
+  "configLoad": {
+    "options": {
+      "enableProjectConfig": true,
+      "filterExa": true,
+      "filterBrowser": false
+    },
+    "inspection": {
+      "targetName": "omp-spec-kit:omp-spec-kit",
+      "packageName": "omp-spec-kit",
+      "loadedNames": [
+        "omp-spec-kit"
+      ],
+      "targetConfigs": {
+        "omp-spec-kit:omp-spec-kit": {
+          "type": "stdio",
+          "command": "<package-copy>/bin/omp-spec-kit-mcp",
+          "env": {}
+        }
+      },
+      "targetSources": {
+        "omp-spec-kit:omp-spec-kit": {
+          "provider": "probe",
+          "providerName": "verified-package-copy",
+          "path": "<package-copy>/.mcp.json",
+          "level": "project"
+        }
+      },
+      "excludedNames": [
+        "omp-spec-kit"
+      ]
+    }
+  },
+  "manager": {
+    "construction": "new MCPManager(cwd)",
+    "statusEvents": [
+      {
+        "type": "connecting",
+        "serverNames": [
+          "omp-spec-kit:omp-spec-kit"
+        ]
+      },
+      {
+        "type": "connected",
+        "serverName": "omp-spec-kit:omp-spec-kit"
+      }
+    ],
+    "connectionResult": {
+      "connectedServers": [
+        "omp-spec-kit:omp-spec-kit"
+      ],
+      "errors": {},
+      "exaApiKeysCount": 0,
+      "toolCount": 10,
+      "managedQuery": {
+        "tool": {
+          "name": "mcp__omp_spec_kit_omp_spec_kit_spec_catalog",
+          "mcpServerName": "omp-spec-kit:omp-spec-kit",
+          "mcpToolName": "spec_catalog"
+        },
+        "args": {
+          "schemaVersion": "spec-kernel@2",
+          "requestId": "omp-manager-handoff-probe",
+          "view": "inventory",
+          "specSlugs": [],
+          "includeDocuments": false,
+          "limit": 50,
+          "cursor": null
+        },
+        "result": {
+          "isError": false,
+          "details": {
+            "serverName": "omp-spec-kit:omp-spec-kit",
+            "mcpToolName": "spec_catalog",
+            "provider": "probe",
+            "providerName": "verified-package-copy"
+          },
+          "content": {
+            "text": "{\"schemaVersion\":\"spec-kernel@2\",\"requestId\":\"omp-manager-handoff-probe\",\"operation\":\"catalog\",\"ok\":true,\"graph\":{\"schemaVersion\":\"spec-kernel@2\",\"fingerprint\":\"2a267d70c7e422fc82c3b93e819c971cc5ad814b3a6aa75ae079fe06eb158099\",\"valid\":true,\"specCount\":3,\"documentCount\":45,\"nodeCount\":495,\"edgeOccurrenceCount\":1071,\"unresolvedReferenceCount\":0,\"markdownHeadingOccurrenceCount\":755,\"markdownLinkOccurrenceCount\":554,\"diagnosticCount\":30},\"page\":{\"limit\":50,\"returned\":3,\"totalMatched\":3,\"cursor\":null,\"nextCursor\":null,\"truncated\":false,\"responseBytes\":904},\"data\":{\"kind\":\"inventory\",\"specs\":[{\"specSlug\":\"plugin-distribution\",\"valid\":true,\"documentCount\":15,\"missingCanonicalDocuments\":[],\"nodeCount\":145,\"edgeOccurrenceCount\":328,\"unresolvedReferenceCount\":0,\"errorCount\":0,\"warningCount\":8,\"infoCount\":0,\"documents\":[]},{\"specSlug\":\"spec-mcp-access-gate\",\"valid\":true,\"documentCount\":15,\"missingCanonicalDocuments\":[],\"nodeCount\":62,\"edgeOccurrenceCount\":157,\"unresolvedReferenceCount\":0,\"errorCount\":0,\"warningCount\":10,\"infoCount\":0,\"documents\":[]},{\"specSlug\":\"spec-mcp-operations\",\"valid\":true,\"documentCount\":15,\"missingCanonicalDocuments\":[],\"nodeCount\":288,\"edgeOccurrenceCount\":586,\"unresolvedReferenceCount\":0,\"errorCount\":0,\"warningCount\":12,\"infoCount\":0,\"documents\":[]}],\"totals\":{\"specCount\":3,\"validSpecCount\":3,\"documentCount\":45,\"nodeCount\":495,\"edgeOccurrenceCount\":1071,\"unresolvedReferenceCount\":0,\"errorCount\":0,\"warningCount\":30,\"infoCount\":0}},\"error\":null,\"diagnostics\":[],\"provenance\":{\"serverName\":\"omp-spec-kit\",\"resolvedRootId\":\"b0ca3a7053d13232d7e455f6db5d4b9d1f6930ee43d70e4072c9a944354db3d4\",\"activeProjectRootId\":\"b0ca3a7053d13232d7e455f6db5d4b9d1f6930ee43d70e4072c9a944354db3d4\",\"rootMode\":\"active-project\",\"matchesActiveProject\":true}}",
+            "returnedCount": 3,
+            "observedCount": 3
+          }
+        },
+        "childRoot": {
+          "configHasCwd": false,
+          "processCwd": "<project>",
+          "piUtilsProjectDir": "<project>"
+        }
+      },
+      "managedAuthoring": {
+        "toolNames": [
+          "spec_catalog",
+          "spec_patch"
+        ],
+        "proposalHash": "8ea64801a78bb215206ff3a1d747436be998a448fee921fef526d86c7960441b",
+        "applyOutcome": "APPLIED",
+        "changedDocuments": [
+          {
+            "path": ".specs/plugin-distribution/README.md",
+            "beforeSha256": "ed28a5777a060c81d3f055607161aaefc2cb160c01cc13f50e2518cb821c6e7f",
+            "afterSha256": "a12afc67cc8e281fdf8ad399e738e633b3be1f1915d65b60b8cd7bcb682bca17"
+          }
+        ],
+        "finalDocumentContainsMarker": true,
+        "finalGraphValid": true
+      }
+    },
+    "disconnect": {
+      "before": {
+        "serverNames": [
+          "omp-spec-kit:omp-spec-kit"
+        ],
+        "servers": {
+          "omp-spec-kit:omp-spec-kit": {
+            "source": {
+              "provider": "probe",
+              "providerName": "verified-package-copy",
+              "path": "<package-copy>/.mcp.json",
+              "level": "project"
+            },
+            "config": {
+              "type": "stdio",
+              "command": "<package-copy>/bin/omp-spec-kit-mcp",
+              "env": {}
+            },
+            "status": "connected"
+          }
+        }
+      },
+      "after": {
+        "serverNames": [],
+        "servers": {}
+      }
+    },
+    "stateAfterDisconnect": {
+      "serverNames": [],
+      "servers": {}
+    }
+  },
+  "extensionEnforcement": {
+    "runtimeVersion": "18.0.11",
+    "packageVersion": "2.6.0",
+    "handlerCount": 1,
+    "allowedTargets": [
+      {
+        "tool": "read",
+        "target": "omp://",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "agent://missing",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "artifact://missing",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "memory://",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "local://missing",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "vault://",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "skill://plain-russian-progress",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "rule://missing",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "security://",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "mcp://",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "issue://1",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "pr://1",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "history://main",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "ssh://host/path",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "xd://propose",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "conflict://1",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "SKILL://plain-russian-progress",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "skill://plain-russian-progress:1-2",
+        "action": "continue"
+      },
+      {
+        "tool": "read",
+        "target": "local://missing:raw",
+        "action": "continue"
+      },
+      {
+        "tool": "write",
+        "target": "local://plan.md",
+        "action": "continue"
+      },
+      {
+        "tool": "write",
+        "target": "vault://notes/test",
+        "action": "continue"
+      },
+      {
+        "tool": "write",
+        "target": "ssh://host/path",
+        "action": "continue"
+      },
+      {
+        "tool": "write",
+        "target": "xd://propose",
+        "action": "continue"
+      },
+      {
+        "tool": "write",
+        "target": "conflict://1",
+        "action": "continue"
+      }
+    ],
+    "blockedTargets": [
+      {
+        "target": "xd://bad/name",
+        "code": "TARGET_INDETERMINATE",
+        "reason": "TARGET_INDETERMINATE: target=xd://bad/name Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply."
+      },
+      {
+        "target": "xd://bad?query",
+        "code": "TARGET_INDETERMINATE",
+        "reason": "TARGET_INDETERMINATE: target=xd://bad?query Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply."
+      },
+      {
+        "target": "https://example.test",
+        "code": "TARGET_INDETERMINATE",
+        "reason": "TARGET_INDETERMINATE: target=https://example.test Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply."
+      },
+      {
+        "target": "file://target",
+        "code": "TARGET_INDETERMINATE",
+        "reason": "TARGET_INDETERMINATE: target=file://target Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply."
+      },
+      {
+        "target": "s3://bucket/key",
+        "code": "TARGET_INDETERMINATE",
+        "reason": "TARGET_INDETERMINATE: target=s3://bucket/key Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply."
+      },
+      {
+        "target": "custom://resource",
+        "code": "TARGET_INDETERMINATE",
+        "reason": "TARGET_INDETERMINATE: target=custom://resource Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply."
+      }
+    ]
+  }
+}
