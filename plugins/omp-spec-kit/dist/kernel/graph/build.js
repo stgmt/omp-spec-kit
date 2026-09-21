@@ -4,6 +4,7 @@
 
 import { createHash } from "node:crypto";
 import {
+  ANCHOR_ALGORITHM_VERSION,
   DOCUMENT_KINDS,
   FIXED_DOCUMENT_FILES,
   NODE_KINDS,
@@ -272,7 +273,9 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
   // ---- Phase 2: parsing ----
   const parsedByPath = new Map();
   const globalAnchorIndex = new Map();
-  const acceptedPaths = new Set(usableEntries.filter((e) => e.documentKind !== "FEATURE").map((e) => e.row.path));
+  // FEATURE documents contribute no headings/anchors but remain valid link
+  // targets (sibling `<spec>.feature` links), so their paths stay in the index.
+  const acceptedPaths = new Set(usableEntries.map((e) => e.row.path));
 
   usableEntries.forEach((entry, index) => {
     checkCancelled();
@@ -612,7 +615,7 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
 
   const snapshot = {
     schemaVersion: KERNEL_SCHEMA_VERSION,
-    anchorAlgorithmVersion: "glfm-anchor@1",
+    anchorAlgorithmVersion: ANCHOR_ALGORITHM_VERSION,
     fingerprint,
     valid: !finalDiagnostics.some((diagnostic) => diagnostic.severity === "ERROR"),
     limits,

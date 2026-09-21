@@ -3,14 +3,17 @@
 // reference projections (@featureN -> FR-N, @AC-N.M -> AC-N.M, structured
 // `Refs:` description lines). Pure; line-oriented with exact spans.
 
+import { isValidSpecSlug, localIdKind } from "../identity.js";
+import {
+  GHERKIN_EXAMPLES_RE,
+  GHERKIN_SCENARIO_HEADER_RE,
+  GHERKIN_TAG_LINE_RE,
+  getGherkinDocstringMarker,
+} from "../gherkin-syntax.js";
 import { Positions } from "./markdown.js";
-import { isValidSpecSlug } from "../identity.js";
 
 const SCEN_ID_RE = /^SCEN-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const STEP_RE = /^(Given|When|Then|And|But|\*)[ \t]+(.*)$/u;
-const TAG_LINE_RE = /^[ ]*((?:@[^\s@][^\s]*[ \t]*)+)$/u;
-const EXAMPLES_RE = /^[ ]*Examples(?:[ ]*:.*)?$/u;
-const DOCSTRING_RE = /^[ ]{0,3}("""|```)/u;
 
 // Common non-English Gherkin keywords that mark an unsupported dialect.
 const FOREIGN_KEYWORDS = [
@@ -110,16 +113,17 @@ export function parseGherkinDocument({ path, specSlug, text }) {
       if (trimmed.startsWith(docstringMarker)) docstringMarker = null;
       continue;
     }
-    const docstring = DOCSTRING_RE.exec(rawLine);
-    if (docstring && !trimmed.startsWith("#")) {
-      docstringMarker = docstring[1];
+    const docstring = getGherkinDocstringMarker(rawLine);
+    if (docstring !== null) {
+      docstringMarker = docstring;
       continue;
     }
 
-    if (trimmed === "" || trimmed.startsWith("#") || trimmed.startsWith("|")) continue;
+    if (trimmed === "" || trimmed.startsWith("#")) continue;
+    if (trimmed.startsWith("|") && !(current !== null && inExamples)) continue;
 
     if (!current) {
-      const tagLine = TAG_LINE_RE.exec(rawLine);
+      const tagLine = GHERKIN_TAG_LINE_RE.exec(rawLine);
       if (tagLine) {
         for (const tag of tagLine[1].split(/[ \t]+/)) {
           if (tag.startsWith("@")) pendingTags.push({ tag: tag.slice(1), line: i + 1 });
@@ -143,15 +147,14 @@ export function parseGherkinDocument({ path, specSlug, text }) {
       continue;
     }
 
-    const outlineMatch = /^[ ]*Scenario Outline:[ \t]*(.*)$/u.exec(rawLine);
-    const plainScenarioMatch =
-      outlineMatch === null ? /^[ ]*Scenario:[ \t]*(.*)$/u.exec(rawLine) : null;
+    const scenarioMatch = GHERKIN_SCENARIO_HEADER_RE.exec(rawLine);
 
-    if (outlineMatch || plainScenarioMatch) {
+    if (scenarioMatch) {
       flushScenario();
+      const header = scenarioMatch;
       current = {
-        name: bound((outlineMatch ?? plainScenarioMatch)[1].trim(), 512),
-        keyword: outlineMatch ? "Scenario Outline" : "Scenario",
+        name: bound(header[2].trim(), 512),
+        keyword: header[1],
         nameSpan: spanForLine(positions, text, i),
         tags: [...featureTags, ...pendingTags],
         steps: [],
@@ -166,7 +169,7 @@ export function parseGherkinDocument({ path, specSlug, text }) {
 
     if (current === null) continue;
 
-    if (EXAMPLES_RE.test(rawLine)) {
+    if (GHERKIN_EXAMPLES_RE.test(rawLine)) {
       inExamples = true;
       examplesCurrent = null;
       continue;
@@ -223,6 +226,36 @@ export function parseGherkinDocument({ path, specSlug, text }) {
   flushScenario();
 
   return { positions, diagnostics, scenarios };
+}
+
+// Split one Gherkin table row at pipes; boundary empties are dropped and cell
+// text is trimmed (matches markdown.js splitPipeCells semantics without spans).
+function splitTableRow(lineText) {
+  const cells = [];
+  let cellStart = 0;
+  let escaped = false;
+  const pushCell = (endIndex) => {
+    cells.push({ text: lineText.slice(cellStart, endIndex).trim() });
+  };
+  for (let i = 0; i < lineText.length; i += 1) {
+    const ch = lineText[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (ch === "|") {
+      pushCell(i);
+      cellStart = i + 1;
+    }
+  }
+  pushCell(lineText.length);
+  if (cells.length > 1 && cells[0].text === "") cells.shift();
+  if (cells.length > 1 && cells[cells.length - 1].text === "") cells.pop();
+  return cells;
 }
 
 const QUALIFIED_TAG_RE =
@@ -283,8 +316,6 @@ function finalizeScenario(scenario, specSlug, featureName, positions, text) {
     }
   }
 }
-
-import { localIdKind } from "../identity.js";
 
 function acTagRef(tag) {
   return /^AC-[1-9][0-9]*\.[1-9][0-9]*$/u.test(tag);

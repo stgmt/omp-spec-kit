@@ -167,21 +167,32 @@
     }
 
     let issue;
-    let committed;
     try {
-      [issue, committed] = await Promise.all([
-        host.fetchYouTrack(
-          'issues/' + encodeURIComponent(issueId) +
-          '?fields=id,idReadable,summary,resolved,customFields(name,value(name,presentation))'
-        ),
-        loadCommittedSnapshot(host)
-      ]);
+      issue = await host.fetchYouTrack(
+        'issues/' + encodeURIComponent(issueId) +
+        '?fields=id,idReadable,summary,resolved,customFields(name,value(name,presentation))'
+      );
     } catch (error) {
-      showError('Spec Panel: cannot load committed snapshot or current issue: ' + error.message);
+      showError('Spec Panel: cannot load current issue: ' + error.message);
       return;
     }
 
     const specId = fieldText(issue, 'SpecId');
+    if (!specId) {
+      // Normal tracker issue, not a spec mirror — a red error on every
+      // ordinary card would be noise; a quiet note is honest.
+      root.innerHTML = '<p class="state">This issue is not linked to a spec.</p>';
+      return;
+    }
+
+    let committed;
+    try {
+      committed = await loadCommittedSnapshot(host);
+    } catch (error) {
+      showError('Spec Panel: cannot load committed snapshot: ' + error.message);
+      return;
+    }
+
     const node = committed.snapshot.nodes.find((entry) => entry.canonicalId === specId);
     if (!node) {
       showError('Spec Panel: current issue is not present in the committed snapshot.');

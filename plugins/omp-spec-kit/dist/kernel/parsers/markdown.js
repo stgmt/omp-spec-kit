@@ -147,17 +147,29 @@ function rolePrefixPattern(role) {
   }
 }
 
+const ROLE_STEMS = Object.freeze({
+  USER_STORY: "US-",
+  USE_CASE: "UC-",
+  RESEARCH_FINDING: "RF-",
+  RISK: "RISK-",
+  FUNCTIONAL_REQUIREMENT: "FR-",
+  NON_FUNCTIONAL_REQUIREMENT: "NFR-",
+  ACCEPTANCE_CRITERION: "AC-",
+  DECISION: "DEC-",
+  TASK: "TASK-",
+  FILE_CHANGE: "FC-",
+  FIXTURE: "FIXTURE-",
+  SCHEMA_ENTITY: "SCHEMA-",
+});
+
 function roleStem(role) {
-  switch (role) {
-    case "USER_STORY":
-      return "US-";
-    case "USE_CASE":
-      return "UC-";
-    case "NON_FUNCTIONAL_REQUIREMENT":
-      return "NFR-";
-    default:
-      return `${role}-`;
-  }
+  return ROLE_STEMS[role] ?? `${role}-`;
+}
+
+function idShapedPrefix(headingText) {
+  const idAttempt = new RegExp(`^(\\S+?)(?::[ ]| ${EM_DASH} |$)`, "u").exec(headingText);
+  const idPart = idAttempt ? idAttempt[1] : "";
+  return idPart !== "" && /^[A-Za-z][A-Za-z0-9.-]*$/u.test(idPart) ? idPart : null;
 }
 
 // Match one authored heading against a role production.
@@ -166,7 +178,27 @@ function roleStem(role) {
 // { status: "rejected", code, message, expected, actual }.
 export function matchDefinitionHeading(role, level, headingText) {
   const production = ROLE_HEADING_PRODUCTION[role];
-  if (!production || !production.levels.includes(level)) return null;
+  if (!production) return null;
+  if (!production.levels.includes(level)) {
+    if (!headingText.startsWith(roleStem(role))) return null;
+    const idPart = idShapedPrefix(headingText);
+    if (idPart !== null) {
+      return {
+        status: "rejected",
+        code: "MALFORMED_HEADING",
+        message: `definition-shaped heading "${bound(idPart, 64)}" at heading level ${level}; ${role} requires level ${production.levels.join(" or ")}`,
+        expected: `${role} definition heading at level ${production.levels.join(" or ")}`,
+        actual: bound(headingText, 128),
+      };
+    }
+    return {
+      status: "rejected",
+      code: "MALFORMED_HEADING",
+      message: `heading resembles a ${role} definition but uses an unsupported separator or suffix`,
+      expected: `${role}: title | ${role} ${EM_DASH} title`,
+      actual: bound(headingText, 128),
+    };
+  }
 
   const pattern = rolePrefixPattern(role);
   const colon = new RegExp(`^(${pattern}):[ ](.+)$`, "u").exec(headingText);
@@ -206,9 +238,8 @@ export function matchDefinitionHeading(role, level, headingText) {
   // the role stem but matches no accepted production. When the ID itself is
   // ID-shaped but fails the strict grammar, report INVALID_LOCAL_ID instead.
   if (headingText.startsWith(roleStem(role))) {
-    const idAttempt = new RegExp(`^(\\S+?)(?::[ ]| ${EM_DASH} |$)`, "u").exec(headingText);
-    const idPart = idAttempt ? idAttempt[1] : "";
-    if (idPart !== "" && /^[A-Za-z][A-Za-z0-9.-]*$/u.test(idPart)) {
+    const idPart = idShapedPrefix(headingText);
+    if (idPart !== null) {
       return {
         status: "rejected",
         code: "INVALID_LOCAL_ID",

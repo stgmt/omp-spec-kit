@@ -1,10 +1,15 @@
 {
   "schema": "review-last-run@1",
-  "runId": "2026-09-19T06-52-53-130Z-c48910acb054",
-  "repoRoot": "E:/repos/omp-spec-kit-spec-registry-service",
-  "updatedAt": "2026-09-19T06:58:27.877Z",
-  "state": "reviewing",
-  "model": "@task",
-  "pid": 29528,
-  "elapsedMs": 5004
+  "runId": "2026-09-13T23-31-09-469Z-ad821496084e",
+  "repoRoot": "E:/repos/omp-spec-kit",
+  "updatedAt": "2026-09-13T23:35:51.756Z",
+  "state": "passed",
+  "verdict": "PASS",
+  "exitCode": 0,
+  "reportPath": "E:\\repos\\omp-spec-kit\\audit-reports\\commit-reviews\\2026-09-13T23-31-09-469Z-ad821496084e8c61a7d663339528e5f4b74546ec9d74f99cb37cb0c6dabc39c2.md",
+  "durationMs": 282287,
+  "modelsTried": [
+    "@smol"
+  ],
+  "finishedAt": "2026-09-13T23:35:51.756Z"
 }

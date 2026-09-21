@@ -20,11 +20,11 @@ Update an existing project install with:
 omp plugin upgrade omp-spec-kit@omp-spec-kit --scope project
 ```
 
-This v1.2.0 release adds one-time elicitation protection for first specification creation, consistent Windows read-selector enforcement, and real server-side safe-authoring proof for the consolidated 10-tool MCP surface.
+This v2.4.0 release merges the 1.3.x line into the 2.x product: a design-review gate for scenario authoring (`spec_patch` refuses `.feature` changes that introduce or modify scenarios without a bounded `designReview` payload, the host `tool_call` policy blocks such calls before dispatch) and the `engineering-anti-bike` skill, on top of the spec-registry service and YouTrack app.
 
 ## Available today
 
-The v1.2.0 release exposes exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool.
+The v2.4.0 release exposes exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool.
 
 | Need | Tool | Variant |
 |---|---|---|
@@ -40,6 +40,8 @@ The v1.2.0 release exposes exactly 10 task-oriented MCP tools: 9 bounded read-on
 | Safe Authoring | `spec_patch` | `dryRun` preview or atomic apply with 13 typed intents |
 
 The read and evidence tools share one bounded graph and return structured results with current-project provenance. Evidence is content-addressed and stale when its captured graph or scenario binding no longer matches. `spec_patch` defaults to an in-memory preview; only `dryRun: false` can change a specification through hash-checked atomic transactions.
+
+`spec_evidence` reads cucumber-message NDJSON from fixed locations (`.omp-spec-kit/evidence/last-test-run.ndjson`, `.omp-spec-kit/evidence/bdd-results/run.ndjson`, `tests/fixtures/release-candidate/cucumber-messages.ndjson`) and matches scenarios by their `@id:` tag. With no BDD runner producing that stream, every scenario reports `NOT_RUN` — an expected empty state, not an error.
 
 ## Typical use
 
@@ -68,8 +70,10 @@ When the answer is in the graph, the agent should use these MCP tools instead of
 
 - **v1.1.0 — shipped:** direct specification reads, exact document receipts, and root-fingerprint binding.
 - **v1.2.0 — shipped:** one-time first-write elicitation protection, read-selector symmetry, and real MCP release proof.
+- **v1.4.0 — shipped (1.3.x line):** scenario-authoring design-review gate (`DESIGN_REVIEW_REQUIRED`/`DESIGN_REVIEW_INVALID`), host `tool_call` preflight block, and the `engineering-anti-bike` skill.
+- **v2.4.0 — shipped:** merges the 1.3.x line into 2.x — design-review gate and anti-bike skill on the consolidated surface.
 
-The v1.2.0 release is shipped and publicly attested. See docs/validation/release-status-v1.2.0.json for the complete release proof.
+The v2.4.0 release is shipped and publicly attested. See docs/validation/release-status-v2.4.0.json for the complete release proof.
 
 ## Safety and boundaries
 
@@ -85,6 +89,6 @@ The canonical corpus lives in the dedicated specs repository and is served by th
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution workflow
 - [`CHANGELOG.md`](CHANGELOG.md) — release history
 - [`ROADMAP.md`](ROADMAP.md) — user-visible delivery sequence
-- `docs/validation/release-status-v1.2.0.json` — current release status and verification record
+- `docs/validation/release-status-v2.4.0.json` — current release status and verification record
 
 License: MIT.

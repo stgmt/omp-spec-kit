@@ -105,6 +105,7 @@ const ARGUMENT_ALIASES = Object.freeze({
   scenario_id: "scenarioId",
   actor_ref: "actorRef",
   repository_root_fingerprint: "repositoryRootFingerprint",
+  design_review: "designReview",
   expected_sha: "expectedSha",
   old_string: "oldText",
   new_string: "newText",
