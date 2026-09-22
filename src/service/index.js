@@ -13,6 +13,7 @@ import { buildRegistryIndex } from "./registry.js";
 import { computeDrift } from "./drift.js";
 import { startSync } from "./sync.js";
 import { createOnboarding } from "./onboarding.js";
+import { createProjection } from "./projection.js";
 import { createPublisher } from "./publish.js";
 import { createVersionedReads } from "./versioned.js";
 import { createRepoManager } from "./repos.js";
@@ -73,12 +74,32 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   };
   const registryOps = createRegistryOps({ registryIndex, driftReport });
   const publisher = store ? createPublisher({ mounts, store, identity, logger }) : null;
-  const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher });
+  // Tracker projection is opt-in: deployments without a YouTrack write target
+  // (pure MCP service) leave it off; the demo stack enables it via env.
+  const projection = env.SPEC_REGISTRY_PROJECTION === "1" || env.SPEC_REGISTRY_PROJECTION === "true"
+    ? createProjection({
+        mounts,
+        baseUrl: env.SPEC_REGISTRY_YT_URL ?? config.auth.youtrack.baseUrl,
+        serviceToken: env.SPEC_REGISTRY_YT_SERVICE_TOKEN ?? config.auth.youtrack.serviceToken,
+        projectShortName: env.SPEC_REGISTRY_YT_PROJECT ?? "SPEC",
+        markerSecret: env.SPEC_SYNC_MARKER_KEY ?? `projection-marker:${secretsKey ?? "unkeyed"}`,
+        logger,
+      })
+    : null;
+  const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher, projection });
   const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger, idps: { list: () => idpManager.listActiveIdps() } });
   const versionedReads = createVersionedReads({ mounts, store });
   let sync = null;
   if (syncIntervalMs > 0) {
-    sync = startSync({ mounts, identity, intervalMs: syncIntervalMs, logger, afterReconcile: publisher ? () => publisher.publishAll() : null });
+    sync = startSync({
+      mounts, identity, intervalMs: syncIntervalMs, logger,
+      afterReconcile: async () => {
+        await publisher?.publishAll();
+        // An accepted remote move may carry spec edits: re-project so the
+        // tracker never sits behind a break-glass or out-of-band push.
+        projection?.syncNow();
+      },
+    });
   }
   return {
     auth,
@@ -87,6 +108,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     registryIndex,
     driftReport,
     publisher,
+    projection,
     authenticate: (req) => auth.authenticate(req),
     serviceOps: { specClaim: claimOps.specClaim, specRelease: claimOps.specRelease, specRegistry: registryOps.specRegistry, specDrift: registryOps.specDrift },
     serviceContracts: [...CLAIM_CONTRACTS, ...REGISTRY_CONTRACTS],
@@ -154,7 +176,11 @@ export async function startService({ configPath, cloneDir, storeFile, syncInterv
       })
       .catch((error) => logger(`boot publish failed: ${error.message}`));
   }
-  return { mounts, auth: stack.auth, claims: stack.claims, store, sync: stack.sync, publisher: stack.publisher, driftReport: stack.driftReport, server, port: server.address().port, host };
+  // Boot-time projection: covers commits that landed while the service was
+  // down AND projectionVersion upgrades — the pointer check makes it a no-op
+  // when the committed snapshot is already current.
+  stack.projection?.syncNow();
+  return { mounts, auth: stack.auth, claims: stack.claims, store, sync: stack.sync, publisher: stack.publisher, projection: stack.projection, driftReport: stack.driftReport, server, port: server.address().port, host };
 }
 
 export async function main() {

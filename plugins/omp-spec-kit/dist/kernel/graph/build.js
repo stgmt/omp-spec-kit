@@ -430,7 +430,7 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
       localId,
       kind: "ROADMAP",
       title,
-      body: "",
+      body: entry.text,
       span: { ...wholeFileSpan(entry.text), path: entry.row.path },
       documentKind: "ROADMAP",
       attributes: {

@@ -69,7 +69,7 @@ async function foreignAuthors({ git, cwd, branch, identity }) {
  * the caller only after the push is confirmed (FR-5); a failed push leaves
  * the clone ahead of remote for retry/boot reconciliation.
  */
-export function createWritePipeline({ mounts, claims, identity, logger = () => {}, publish = null }) {
+export function createWritePipeline({ mounts, claims, identity, logger = () => {}, publish = null, projection = null }) {
   return {
     async specPatch({ args, ctx, project, force, requestId, schemaVersion }) {
       const spec = typeof args.spec === "string" ? args.spec : null;
@@ -141,6 +141,10 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
           if (result?.outcome === "published" || result?.outcome === "adopted") logger(`published ${result.spec}@${result.version}`);
           if (result?.outcome === "rejected") logger(`publish rejected ${result.spec}: ${result.code}`);
         }).catch((publishError) => logger(`publish after write failed for ${project}/${spec}: ${publishError.message}`));
+        // Tracker projection is post-confirmation work too: the pushed commit
+        // re-projects cards + the committed snapshot; failures are logged by
+        // the projection loop, never reported as a failed write.
+        projection?.syncNow();
       } catch (error) {
         const foreignRefusal = (caught) =>
           caught?.causeCode === "FOREIGN_COMMITS"
@@ -172,6 +176,7 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
             if (result?.outcome === "published" || result?.outcome === "adopted") logger(`published ${result.spec}@${result.version}`);
             if (result?.outcome === "rejected") logger(`publish rejected ${result.spec}: ${result.code}`);
           }).catch((publishError) => logger(`publish after write failed for ${project}/${spec}: ${publishError.message}`));
+          projection?.syncNow();
           return { envelope };
         }
         // A foreign author discovered during the retry is the same policy

@@ -782,6 +782,7 @@ function boardNode(node) {
     kind: node.kind,
     title: node.title,
     body: typeof node.body === "string" ? node.body : "",
+    excerpt: bodyExcerpt(node.body),
     contentHash: node.contentHash,
     source: sourceSummary(node.span),
     evidence: typeof attributes.evidence === "string" ? attributes.evidence : null,
@@ -961,7 +962,7 @@ function runGetNode(graph, request, args, limits) {
   if (args.projection === "full") {
     payload = { ...node };
   } else {
-    payload = nodeSummary(node);
+    payload = nodeSummary(node, bodyExcerpt(node.body));
     delete payload.incidentInCount;
     delete payload.incidentOutCount;
   }
@@ -1126,6 +1127,21 @@ function buildExcerpt(haystack, at, length) {
   let excerpt = haystack.slice(windowStart, windowEnd).replace(/\s+/gu, " ").trim();
   if ([...excerpt].length > 240) excerpt = [...excerpt].slice(0, 240).join("");
   return excerpt;
+}
+
+// Prose preview for entity summaries: heading and ref lines are structure, not
+// description — skip them so the excerpt carries the node's actual text.
+function bodyExcerpt(body) {
+  if (typeof body !== "string") return null;
+  const text = body
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#") && !line.startsWith("**Refs:**"))
+    .join(" ")
+    .replace(/\s+/gu, " ")
+    .trim();
+  if (text.length === 0) return null;
+  return [...text].length > 240 ? [...text].slice(0, 240).join("") + "…" : text;
 }
 
 function runTrace(graph, request, args, limits) {

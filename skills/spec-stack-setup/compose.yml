@@ -51,6 +51,14 @@ services:
       SPEC_REGISTRY_STORE: /data/registry.db
       SPEC_REGISTRY_SYNC_MS: "5000"
       SPEC_REGISTRY_AUTH_CACHE_MS: "1000"
+      # Service-side tracker projection: every accepted commit (service write
+      # or reconciled remote move) re-projects cards + the board snapshot into
+      # the SPEC project — no manual spec-graph-sync run needed.
+      SPEC_REGISTRY_PROJECTION: "1"
+      SPEC_REGISTRY_YT_PROJECT: "SPEC"
+      # Marker-signing secret shared with any manual spec-graph-sync run;
+      # demo default only - production deployments set a real key.
+      SPEC_SYNC_MARKER_KEY: ${SPEC_SYNC_MARKER_KEY:-demo-projection-marker-key-not-for-production}
       SPEC_REGISTRY_BOT_NAME: spec-registryd bot
       SPEC_REGISTRY_BOT_EMAIL: bot@spec-registryd.invalid
       SPEC_REGISTRY_GIT_TOKEN: ${SPEC_REGISTRY_GIT_TOKEN:-}

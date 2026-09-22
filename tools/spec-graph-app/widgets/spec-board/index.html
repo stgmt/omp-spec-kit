@@ -151,6 +151,10 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .stats-badge.snapshot-stale {
+    color: #d97706;
+  }
+
   /* Main Content Area */
   main.viewport {
     flex: 1;
@@ -816,6 +820,15 @@
 
     const NODE_MAP = new Map(RAW_NODES.map(n => [n.id, n]));
 
+    // Snapshot freshness: the marker's committedAt is the last projection
+    // write. Older than 5 min means the service-side projection is down or
+    // never ran — tint the badge instead of implying live data.
+    const COMMITTED_AT = committed.marker && committed.marker.committedAt ? new Date(committed.marker.committedAt) : null;
+    const SNAPSHOT_STALE = COMMITTED_AT === null || (Date.now() - COMMITTED_AT.getTime()) > 5 * 60 * 1000;
+    const SNAPSHOT_LABEL = COMMITTED_AT
+      ? COMMITTED_AT.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : 'unknown';
+
     // Reverse adjacency built once — the transitive lineage traversal would
     // otherwise rescan every node's link list per BFS step on each hover.
     const IN_EDGES = new Map();
@@ -875,8 +888,8 @@
           </button>
         </div>
 
-        <div class="stats-badge" id="global-stats-badge">
-          Загружено: ${RAW_NODES.length} узлов · ${availableSpecs.length} спецификаций
+        <div class="stats-badge${SNAPSHOT_STALE ? ' snapshot-stale' : ''}" id="global-stats-badge" title="Время последней проекции снапшота в YouTrack">
+          Загружено: ${RAW_NODES.length} узлов · ${availableSpecs.length} спецификаций · снапшот ${SNAPSHOT_LABEL}
         </div>
       </header>
 

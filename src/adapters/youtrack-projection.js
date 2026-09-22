@@ -133,6 +133,15 @@ const DISPLAY_REVERSE_LINK_TYPE = Object.freeze({
 
 export const SYNC_STATE_SPEC_ID = "SPEC:SYNC-STATE";
 
+/**
+ * Shape version of the projected payload: bump when the marker, snapshot, or
+ * card layout changes in a way an older committed snapshot cannot express
+ * (e.g. new fields the board widget consumes). The skip check treats a
+ * pointer with an older version as stale even when content is unchanged, so
+ * a code upgrade re-projects without waiting for a spec edit.
+ */
+export const PROJECTION_VERSION = 2;
+
 const BOARD_KINDS = new Set(Object.keys(KIND_LABELS));
 
 export class SpecGraphReader {
@@ -314,6 +323,7 @@ export function buildProjectionPlan(board) {
   const projectionDigest = digest({ issues, links });
   return {
     fingerprint: board.fingerprint,
+    projectionVersion: PROJECTION_VERSION,
     scope: snapshot.scope,
     issues,
     links,
@@ -503,7 +513,8 @@ export class YouTrackProjectionService {
     const actual = await this.#tracker.readProjection();
     const parity = compareProjection(actual, plan);
     const canSkip = pointer?.valid === true && pointer.fingerprint === plan.fingerprint &&
-      pointer.snapshotHash === plan.snapshotHash && pointer.projectionDigest === plan.projectionDigest && parity.equal;
+      pointer.snapshotHash === plan.snapshotHash && pointer.projectionDigest === plan.projectionDigest &&
+      pointer.projectionVersion === plan.projectionVersion && parity.equal;
     if (canSkip) {
       return { outcome: "SKIPPED", fingerprint: plan.fingerprint, writeCalls: 0, plan, parity };
     }

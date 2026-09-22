@@ -69,7 +69,7 @@
       "sha256": "ed88857ef5cc48df9ffdd64a0009a47d043f02d04485ae91667647119812ef1b"
     },
     "kernel/graph/build.js": {
-      "sha256": "5bd6cda597277865f686b65e6859fbae7bbe1276bb01ec6f57456d936519266c"
+      "sha256": "068139285af182948d32d2e126d2cd5cd4116c8f3e157b5d249ad4f13586d12c"
     },
     "kernel/graph/invariants.js": {
       "sha256": "bbcde11d9bad8c2d2a751a6a0c972d1aed4e9a64d028258181040d4cd03db04b"
@@ -111,7 +111,7 @@
       "sha256": "21a5f0a3ccd1a90f3da3bc5981d2c2bb3eb73d6b97fe81e1e50761738b42c0cf"
     },
     "kernel/query/service.js": {
-      "sha256": "8057d04f080b6fbfc9d23e8b84f39be997b79770b94eaa3a01b95d62ca5ff1a6"
+      "sha256": "71d31f325157b1be33f6b9fafd4d7f398f8a79510550312281838ce888c03cc9"
     },
     "kernel/roadmap/assemble.js": {
       "sha256": "dd06b9b873b773d4c4af9762429f67cfdebfe44354c49f15bcaeb9903a59b980"
