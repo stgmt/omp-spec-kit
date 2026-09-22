@@ -13,6 +13,7 @@ import { buildRegistryIndex } from "./registry.js";
 import { computeDrift } from "./drift.js";
 import { startSync } from "./sync.js";
 import { createOnboarding } from "./onboarding.js";
+import { digest } from "../adapters/youtrack-projection.js";
 import { createProjection } from "./projection.js";
 import { createPublisher } from "./publish.js";
 import { createVersionedReads } from "./versioned.js";
@@ -82,7 +83,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
         baseUrl: env.SPEC_REGISTRY_YT_URL ?? config.auth.youtrack.baseUrl,
         serviceToken: env.SPEC_REGISTRY_YT_SERVICE_TOKEN ?? config.auth.youtrack.serviceToken,
         projectShortName: env.SPEC_REGISTRY_YT_PROJECT ?? "SPEC",
-        markerSecret: env.SPEC_SYNC_MARKER_KEY ?? `projection-marker:${secretsKey ?? "unkeyed"}`,
+        markerSecret: env.SPEC_SYNC_MARKER_KEY ?? digest(`projection-marker:${secretsKey ?? "unkeyed"}`),
         logger,
       })
     : null;
@@ -94,10 +95,14 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     sync = startSync({
       mounts, identity, intervalMs: syncIntervalMs, logger,
       afterReconcile: async () => {
-        await publisher?.publishAll();
-        // An accepted remote move may carry spec edits: re-project so the
-        // tracker never sits behind a break-glass or out-of-band push.
-        projection?.syncNow();
+        try {
+          await publisher?.publishAll();
+        } finally {
+          // Publish failure must not suppress projection: an accepted remote
+          // move may carry spec edits, and the tracker should never sit
+          // behind a break-glass or out-of-band push.
+          projection?.syncNow();
+        }
       },
     });
   }

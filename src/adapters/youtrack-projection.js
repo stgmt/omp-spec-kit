@@ -212,7 +212,7 @@ export function stableJson(value) {
   return JSON.stringify(value);
 }
 
-function digest(value) {
+export function digest(value) {
   return createHash("sha256").update(stableJson(value), "utf8").digest("hex");
 }
 

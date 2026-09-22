@@ -1,17 +1,14 @@
-import { createHash } from "node:crypto";
 import {
   PROJECTION_VERSION,
   YouTrackProjectionService,
   buildProjectionPlan,
-  stableJson,
+  digest,
 } from "../adapters/youtrack-projection.js";
 import {
   YouTrackClient,
   YouTrackProjectionStore,
   YouTrackSyncStateStore,
 } from "../adapters/youtrack-store.js";
-
-const digest = (value) => createHash("sha256").update(stableJson(value), "utf8").digest("hex");
 
 /**
  * Service-side YouTrack projection: the committed spec corpus is mirrored into
@@ -53,7 +50,15 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
     const fingerprints = [];
     const specSlugs = [];
     for (const projectId of mounts.projects) {
-      const service = mounts.serviceFor(projectId);
+      let service;
+      try {
+        service = mounts.serviceFor(projectId);
+      } catch (error) {
+        // An IdP-scoped project without a repo binding owns no specs — its
+        // absence must not kill the projection for every bound project.
+        if (error?.code === "REPO_BINDING_REQUIRED") continue;
+        throw error;
+      }
       const envelope = await service.runQuery("graph", { view: "board", specSlugs: [] });
       if (!envelope?.ok) {
         throw new Error(`board read failed for ${projectId}: ${envelope?.error?.message ?? "no envelope"}`);

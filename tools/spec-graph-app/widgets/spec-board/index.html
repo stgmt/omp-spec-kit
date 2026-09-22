@@ -820,11 +820,12 @@
 
     const NODE_MAP = new Map(RAW_NODES.map(n => [n.id, n]));
 
-    // Snapshot freshness: the marker's committedAt is the last projection
-    // write. Older than 5 min means the service-side projection is down or
-    // never ran — tint the badge instead of implying live data.
+    // Snapshot freshness: committedAt is shown as-is (age alone is not
+    // staleness — a quiet corpus legitimately has an old marker). The amber
+    // tint means the marker predates service-side projection (no
+    // projectionVersion), i.e. the snapshot may sit behind every spec edit.
     const COMMITTED_AT = committed.marker && committed.marker.committedAt ? new Date(committed.marker.committedAt) : null;
-    const SNAPSHOT_STALE = COMMITTED_AT === null || (Date.now() - COMMITTED_AT.getTime()) > 5 * 60 * 1000;
+    const SNAPSHOT_STALE = committed.marker == null || committed.marker.projectionVersion == null;
     const SNAPSHOT_LABEL = COMMITTED_AT
       ? COMMITTED_AT.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       : 'unknown';

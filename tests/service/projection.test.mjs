@@ -193,6 +193,37 @@ describe("service projection", () => {
       globalThis.fetch = realFetch;
     }
   });
+
+  it("an unbound IdP project does not kill the projection", async () => {
+    const yt = fakeYouTrack();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, init) => yt.handler(url, init);
+    try {
+      const mounts = {
+        projects: ["demo/stack", "ext/tenant"],
+        serviceFor: (projectId) => {
+          if (projectId === "ext/tenant") {
+            const error = new Error("project ext/tenant has no specs repository");
+            error.code = "REPO_BINDING_REQUIRED";
+            throw error;
+          }
+          return { runQuery: async () => ({ ok: true, data: board() }) };
+        },
+      };
+      const projection = createProjection({
+        mounts,
+        baseUrl: "http://yt.test",
+        serviceToken: "tok",
+        projectShortName: "SPEC",
+        markerSecret: MARKER_SECRET,
+      });
+      await projection.syncOnce();
+      const marker = yt.state.issues.find((i) => (i.description ?? "").startsWith("SPEC-SYNC-STATE"));
+      assert.ok(marker, "projection survived the unbound project");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
 });
 
 describe("projection skip check", () => {
