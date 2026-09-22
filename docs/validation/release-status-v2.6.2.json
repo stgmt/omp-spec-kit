@@ -1,0 +1,34 @@
+{
+  "schema": "omp-spec-kit-public-release-status@1",
+  "version": "2.6.2",
+  "tag": "v2.6.2",
+  "releaseUrl": "https://github.com/stgmt/omp-spec-kit/releases/tag/v2.6.2",
+  "publishedAt": "2026-09-22T07:16:28Z",
+  "tagCommit": "0c0875b9fd5aadd4ba6bb59734c8cf4c740d1cdb",
+  "candidateDigest": "b36d2116e2a8d9943fb8116884520feef4c9735d2ddceaf2e15f700c5ed1174c",
+  "packageTreeDigest": "7b068038c0e8259448c189dcff83cff7055867c2ee5b089bb5885edaa447d971",
+  "archive": {
+    "file": "omp-spec-kit-2.6.2.tar",
+    "sha256": "1f38a864db70c26298a678d7735dcf5ef98c41f5736ced2d07786d87017d36fb",
+    "bytes": 542720
+  },
+  "releaseAssets": [
+    {
+      "name": "candidate.json",
+      "bytes": 10270
+    },
+    {
+      "name": "evidence.json",
+      "bytes": 3304
+    },
+    {
+      "name": "omp-spec-kit-2.6.2.tar",
+      "bytes": 542720
+    },
+    {
+      "name": "spec-graph-app-1.0.25.zip",
+      "bytes": 123423
+    }
+  ],
+  "note": "Published by the release workflow (github-actions[bot]) end-to-end after the tracked-receipts EEXIST fix; local candidate.json byte-identical to the published asset."
+}
