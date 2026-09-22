@@ -37,7 +37,8 @@ const APP_NAME = "spec-graph-app";
 const YT_HOST = "http://127.0.0.1:8089";
 const YT_NET = "http://youtrack:8080"; // in-network name the service calls
 const GIT_NET = "git://spec-git/specs.git"; // auto-created by the git container
-const SVC_HOST = "http://127.0.0.1:8644";
+const SVC_HOST = "http://127.0.0.1:8644"; // host-side: waits, MCP seeding
+const SVC_NET = "http://spec-registryd:8642"; // in-network: the app bridge calls this from inside the YouTrack container — 127.0.0.1 there is the container itself
 const TENANT = "demo";
 const SCOPE = "demo/stack";
 const YT_PROJECT = "DEMO";
@@ -315,7 +316,7 @@ async function main() {
     throw e;
   });
   const app = await admin.appByName(APP_NAME);
-  await admin.setAppSettings(app.id, { serviceUrl: SVC_HOST, serviceBridgeToken: BRIDGE_TOKEN });
+  await admin.setAppSettings(app.id, { serviceUrl: SVC_NET, serviceBridgeToken: BRIDGE_TOKEN });
   const project = await admin.createProject({ name: "Spec Stack Demo", shortName: YT_PROJECT, leaderId: (await admin.meNative()).id });
   await admin.attachAppToProject(app.id, project.id).catch(() => {});
 
