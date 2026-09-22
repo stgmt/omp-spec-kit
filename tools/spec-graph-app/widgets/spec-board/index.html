@@ -404,18 +404,6 @@
     color: var(--text-muted);
   }
 
-  .link-indicators {
-    display: flex;
-    gap: 4px;
-  }
-
-  .link-pill {
-    padding: 1px 4px;
-    border-radius: 3px;
-    font-size: 9px;
-    font-weight: 600;
-  }
-
   /* SVG Overlay for Connections */
   .flow-wires-svg {
     position: absolute;
@@ -1220,9 +1208,6 @@
         <div class="card-title">${escapeHtml(node.title)}</div>
         <div class="card-footer">
           <span>${escapeHtml(node.id)}</span>
-          <div class="link-indicators">
-            ${node.links.length > 0 ? `<span class="link-pill" style="background:var(--bg-surface-overlay)">${node.links.length} связей</span>` : ''}
-          </div>
         </div>
       `;
 
