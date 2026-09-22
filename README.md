@@ -20,11 +20,37 @@ Update an existing project install with:
 omp plugin upgrade omp-spec-kit@omp-spec-kit --scope project
 ```
 
-This v2.4.0 release merges the 1.3.x line into the 2.x product: a design-review gate for scenario authoring (`spec_patch` refuses `.feature` changes that introduce or modify scenarios without a bounded `designReview` payload, the host `tool_call` policy blocks such calls before dispatch) and the `engineering-anti-bike` skill, on top of the spec-registry service and YouTrack app.
+## Two surfaces, one product
+
+The plugin install above gives your OMP session the **local kernel**: the 10 MCP tools read the `.specs/` corpus of the project you open OMP in — no services required.
+
+The **hosted path** is the spec-registry service (`spec-registryd`): canonical specifications live in a dedicated Git repository, writes go through the service's MCP endpoint with YouTrack-verified identity, roles, and project scopes. Consumers connect with a `.mcp.json` that carries `Authorization` + `X-Spec-Project` headers.
+
+## Self-hosted demo stack
+
+A complete working contour — YouTrack (identity + app host), `spec-git` (canonical specs repo), and `spec-registryd` — ships in [`skills/spec-stack-setup/`](skills/spec-stack-setup/SKILL.md) and comes up with one command:
+
+```sh
+node skills/spec-stack-setup/setup.mjs
+```
+
+It brings the Docker Compose stack up, completes the YouTrack wizard, wires the service token and registry config, installs the YouTrack app, seeds template specifications through real MCP calls, and prints a ready Spec Board dashboard link (`http://127.0.0.1:8089/dashboard?id=…`, login `admin` / `SpecDemo!2026`). Idempotent — re-running converges.
+
+### YouTrack app
+
+The YouTrack app (`spec-graph-app`) ships as a ZIP asset on each GitHub release. Install into your YouTrack via **Administration → Apps → Add app → Upload ZIP**, or headlessly:
+
+```sh
+curl -X POST -H "Authorization: Bearer <admin-token>" \
+  -F "file=@spec-graph-app-1.0.25.zip" \
+  https://<youtrack>/api/admin/apps/import
+```
+
+After install, open the app's **Spec Service** page (main menu) — it walks through repository binding and produces the `.mcp.json` snippet (minted YouTrack token included) to paste into your agent's MCP config. The Spec Board dashboard widget renders the committed specification graph projected into YouTrack issues.
 
 ## Available today
 
-The v2.4.0 release exposes exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool.
+The v2.6.1 release exposes exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool.
 
 | Need | Tool | Variant |
 |---|---|---|
@@ -72,8 +98,11 @@ When the answer is in the graph, the agent should use these MCP tools instead of
 - **v1.2.0 — shipped:** one-time first-write elicitation protection, read-selector symmetry, and real MCP release proof.
 - **v1.4.0 — shipped (1.3.x line):** scenario-authoring design-review gate (`DESIGN_REVIEW_REQUIRED`/`DESIGN_REVIEW_INVALID`), host `tool_call` preflight block, and the `engineering-anti-bike` skill.
 - **v2.4.0 — shipped:** merges the 1.3.x line into 2.x — design-review gate and anti-bike skill on the consolidated surface.
+- **v2.5.0 — shipped:** onboarding moved off issues onto the app's own Spec Service page; YouTrack-app request signing; managed remote plugin mode.
+- **v2.6.0 — tagged, superseded before publication:** Spec Board transitive hover lineage, fullscreen `defaultDimensions`, `spec-stack-setup` skill; the app ZIP build was not byte-reproducible across timezones.
+- **v2.6.1 — shipped:** deterministic app ZIP across build timezones, plus all of v2.6.0's content.
 
-The v2.4.0 release is shipped and publicly attested. See docs/validation/release-status-v2.4.0.json for the complete release proof.
+The v2.6.1 release is shipped and publicly attested. See docs/validation/release-status-v2.6.1.json for the complete release proof.
 
 ## Safety and boundaries
 
@@ -89,6 +118,6 @@ The canonical corpus lives in the dedicated specs repository and is served by th
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution workflow
 - [`CHANGELOG.md`](CHANGELOG.md) — release history
 - [`ROADMAP.md`](ROADMAP.md) — user-visible delivery sequence
-- `docs/validation/release-status-v2.4.0.json` — current release status and verification record
+- `docs/validation/release-status-v2.6.1.json` — current release status and verification record
 
 License: MIT.
