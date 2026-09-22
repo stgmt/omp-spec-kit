@@ -2,6 +2,16 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 2.6.2 — 2026-09-22
+
+### Documentation
+
+- README now covers the full user path end-to-end: the two surfaces (local kernel via `plugin install` vs hosted spec registry), the `skills/spec-stack-setup` one-command demo contour, YouTrack app ZIP install (UI and REST), and the Spec Service onboarding page that produces `.mcp.json`. Release history extended through v2.6.1.
+
+### Fixed
+
+- `release` workflow: drops stale tracked `release-candidate/receipts/` before evidence assembly — post-release bookkeeping commits those receipts, and the next tag's checkout made the intentionally fail-closed `copyReceipt` hit EEXIST (killed the v2.6.1 verify job; the release itself was already verified and published).
+
 ## 2.6.1 — 2026-09-21
 
 ### Fixed
