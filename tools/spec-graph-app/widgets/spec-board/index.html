@@ -777,6 +777,7 @@
         type: TYPE_LABELS[source.kind] || 'Tracked',
         state,
         title: source.title || source.localId,
+        excerpt: typeof source.excerpt === 'string' && source.excerpt.length > 0 ? source.excerpt : null,
         links: []
       };
     });
@@ -928,7 +929,10 @@
               </div>
               <div class="drawer-body">
                 <h3 id="v1-d-title" style="font-size:14px; margin-bottom:12px; font-weight:600;">Выберите карточку</h3>
-                
+                <div class="detail-section" id="v1-d-excerpt-wrap" style="display:none">
+                  <p id="v1-d-excerpt" style="font-size:12px; color:var(--text-secondary); line-height:1.5; margin:0"></p>
+                </div>
+
                 <div class="detail-section">
                   <div class="detail-section-title">Спецификация и ID</div>
                   <div style="font-family:monospace; color:var(--text-secondary)" id="v1-d-specid">—</div>
@@ -1385,6 +1389,13 @@
       stateEl.className = `card-state-pill ${stateClass}`;
 
       document.getElementById('v1-d-title').textContent = node.title;
+      const excerptWrap = document.getElementById('v1-d-excerpt-wrap');
+      if (node.excerpt) {
+        document.getElementById('v1-d-excerpt').textContent = node.excerpt;
+        excerptWrap.style.display = '';
+      } else {
+        excerptWrap.style.display = 'none';
+      }
       document.getElementById('v1-d-specid').textContent = node.specId;
       document.getElementById('v1-d-issueid').textContent = node.trackerId
         ? `Issue: ${node.trackerId} (${node.type})`
