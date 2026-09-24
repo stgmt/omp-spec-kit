@@ -6,7 +6,7 @@
       "sha256": "e964f7b73918a713ddf1b70b6c6949d05f5b9f08ec4d1263e245c04f022bcd33"
     },
     "adapters/query-service.js": {
-      "sha256": "8fe89c57ebabc93a9bf6ed50414ced36c7adb7dcf2253c1fb1830f9b6e815b6b"
+      "sha256": "081fac814cb1ad1e23ebcd66e37f89f90d39c2a45b95641a37ac2ede83ec5e2b"
     },
     "adapters/tool-contracts.js": {
       "sha256": "bebd460bae2a051ca6be3a166f26c92e34f226af77a271bf86bc2173b6715551"
@@ -123,7 +123,7 @@
       "sha256": "30c291f7e8b9e164feaadace275c9a9bc6483ed50cc2e80fa305946efe69a99f"
     },
     "mcp/server.js": {
-      "sha256": "ed8d04b1a52a8dee2656d40cf5f7d0d2c19d3c1b29f8906dd04f270b6a515446"
+      "sha256": "f960c4f9671b2470dde4e194921bdcc65f968328bef8c2d951dded052b8f5343"
     }
   }
 }

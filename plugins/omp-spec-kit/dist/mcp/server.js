@@ -144,6 +144,16 @@ const service = serviceFor(null);
  * without .specs yet) once the root itself is real.
  */
 function resolveDeclaredWorktree(value) {
+  if (typeof value !== "string" || value.length === 0) {
+    return {
+      ok: false,
+      code: "INVALID_REQUEST",
+      message: "declaredWorktree must be a non-empty string",
+      parameter: "declaredWorktree",
+      expected: "absolute path",
+      receivedType: typeof value,
+    };
+  }
   if (!path.isAbsolute(value)) {
     return {
       ok: false,
@@ -272,9 +282,13 @@ async function handleMessage(message) {
           const args = normalized.args;
           const hasRequestId = (contract.fields ?? []).some((entry) => entry.name === "requestId") || (contract.commonFields ?? []).some((entry) => entry.name === "requestId");
           if (hasRequestId && requestId !== null && args.requestId === undefined) args.requestId = requestId;
-          const declaredRoot = typeof args.declaredWorktree === "string" && args.declaredWorktree.length > 0
-            ? resolveDeclaredWorktree(args.declaredWorktree)
-            : null;
+          // declaredWorktree is routing metadata: when present it must be a
+          // non-empty absolute path to a real directory. Anything else is a
+          // caller error — silently falling back to the default root would
+          // reintroduce the exact wrong-corpus write this field exists to fix.
+          const declaredRoot = args.declaredWorktree === undefined || args.declaredWorktree === null
+            ? null
+            : resolveDeclaredWorktree(args.declaredWorktree);
           const validation = declaredRoot !== null && !declaredRoot.ok
             ? declaredRoot
             : validateContractArguments(contract, args);

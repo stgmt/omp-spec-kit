@@ -238,11 +238,20 @@ function makeAdapterSuccessEnvelope({ operation, requestId, data }) {
  */
 export function createRootedServices(defaultRoot, context = {}) {
   const services = new Map();
+  const MAX_ROOTS = 64;
   return (requestedRoot = null) => {
     const root = canonicalPhysicalPath(requestedRoot ?? defaultRoot);
     const key = physicalPathKey(root);
     if (!services.has(key)) {
-      services.set(key, createSpecService(root, context));
+      if (services.size >= MAX_ROOTS) {
+        throw new Error(`too many distinct worktree roots in one session (>${MAX_ROOTS})`);
+      }
+      // Only defaultRoot carries the launcher's root context; a declared
+      // worktree service must report itself, not the launch root.
+      const rootContext = key === physicalPathKey(defaultRoot)
+        ? context
+        : { rootMode: "declared-worktree" };
+      services.set(key, createSpecService(root, rootContext));
     }
     return services.get(key);
   };
