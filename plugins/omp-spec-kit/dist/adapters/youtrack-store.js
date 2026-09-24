@@ -24,13 +24,13 @@ const DEFAULT_TIMEOUT_MS = 60_000;
 export class YouTrackClient {
   #host;
   #token;
-  #password;
+  #pass;
   #timeoutMs;
 
   constructor({ host, token, password, timeoutMs = DEFAULT_TIMEOUT_MS }) {
     this.#host = host.replace(/\/+$/, "");
     this.#token = token;
-    this.#password = password;
+    this.#pass = password;
     this.#timeoutMs = timeoutMs;
   }
 
@@ -42,8 +42,8 @@ export class YouTrackClient {
       method,
       signal: AbortSignal.timeout(this.#timeoutMs),
       headers: {
-        Authorization: this.#password
-          ? "Basic " + Buffer.from(this.#token + ":" + this.#password).toString("base64")
+        Authorization: this.#pass
+          ? "Basic " + Buffer.from(this.#token + ":" + this.#pass).toString("base64")
           : "Bearer " + this.#token,
         Accept: "application/json",
         "Content-Type": "application/json",

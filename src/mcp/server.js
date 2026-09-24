@@ -172,7 +172,9 @@ function resolveDeclaredWorktree(value) {
     return {
       ok: false,
       code: "INVALID_REQUEST",
-      message: `declaredWorktree does not exist or is not a directory: ${resolved}`,
+      // The caller already knows the path it sent; echoing it would put an
+      // absolute filesystem path into the envelope, which the contract forbids.
+      message: "declaredWorktree does not exist or is not a directory",
       parameter: "declaredWorktree",
       expected: "existing worktree directory",
     };

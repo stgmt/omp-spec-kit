@@ -321,7 +321,7 @@ function validateCurrentStatus() {
     fail("release status is absent or identity-drifted");
   }
   if (status.status.state === "CANDIDATE") {
-    if ((version === "2.6.2" || version === "2.6.1" || version === "2.6.0" || version === "2.5.0" || version === "2.4.0" || version === "2.3.0" || version === "2.2.1" || version === "2.2.0" || version === "2.1.0" || version === "2.0.0" || version === "1.4.0" || version === "1.3.2" || version === "1.3.1" || version === "1.3.0" || version === "1.1.0" || version === "1.0.2" || version === "1.0.1" || version === "1.0.0" || version === "0.10.2")) {
+    if ((version === "2.7.0" || version === "2.6.2" || version === "2.6.1" || version === "2.6.0" || version === "2.5.0" || version === "2.4.0" || version === "2.3.0" || version === "2.2.1" || version === "2.2.0" || version === "2.1.0" || version === "2.0.0" || version === "1.4.0" || version === "1.3.2" || version === "1.3.1" || version === "1.3.0" || version === "1.1.0" || version === "1.0.2" || version === "1.0.1" || version === "1.0.0" || version === "0.10.2")) {
       if (
         status.status.public !== false ||
         status.status.installable !== false ||

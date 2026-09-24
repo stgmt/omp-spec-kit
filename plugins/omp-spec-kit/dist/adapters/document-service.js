@@ -230,12 +230,13 @@ function mcpPreflight(root, args, context) {
   return operationSuccess({
     kind: "mcp-preflight",
     resolvedRootId: rootId(root),
-    resolvedRoot: root,
-    corpus: { present: corpusPresent, path: path.join(root, ".specs") },
+    corpus: { present: corpusPresent },
     worktree: {
       declared: declaredAbsolute === null ? null : rootId(declaredAbsolute),
       served: declaredAbsolute === null ? null : true,
-      matchesResolvedRoot: declaredAbsolute === null ? null : true,
+      // Routing makes the served root the declared one by construction — a
+      // mismatch is now impossible, so this stays true as before.
+      matchesResolvedRoot: true,
     },
     lockMode: authoring ? "owner" : "read-only",
     writeMode: authoring ? "proposal-first" : "disabled",

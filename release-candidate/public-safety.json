@@ -1,8 +1,10 @@
 {
   "schema": "omp-spec-kit-public-safety@1",
-  "status": "passed",
-  "candidateDigest": "b36d2116e2a8d9943fb8116884520feef4c9735d2ddceaf2e15f700c5ed1174c",
-  "packageTreeDigest": "7b068038c0e8259448c189dcff83cff7055867c2ee5b089bb5885edaa447d971",
-  "findings": [],
-  "digest": "ebc333612ea5c600167a169e2b2c0ccc1cf7ffc7977f384c0bf9d8c2a0ccd11e"
+  "status": "failed",
+  "candidateDigest": "e39035bb7834aaff65b92827c3c311da0724b19b35ed2787dc1ca67a7ece7523",
+  "packageTreeDigest": "e99d6d5b3f032447253ad0e5226af7b02c34d9b7960193c2aa20eafbf5394b64",
+  "findings": [
+    "secret-like-content:generic-secret:dist/adapters/youtrack-store.js"
+  ],
+  "digest": "33c685cd74097697875a2a14a214ee6cb7aaa27202995b706de0ecb97fdfdc0d"
 }

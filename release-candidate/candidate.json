@@ -1,18 +1,18 @@
 {
   "schema": "omp-spec-kit-release-candidate@2",
-  "version": "2.6.2",
-  "tag": "v2.6.2",
-  "commit": "0c0875b9fd5aadd4ba6bb59734c8cf4c740d1cdb",
-  "packageTreeDigest": "7b068038c0e8259448c189dcff83cff7055867c2ee5b089bb5885edaa447d971",
+  "version": "2.7.0",
+  "tag": "v2.7.0",
+  "commit": "afd3db7342ba17e276c7f64c573b0b0c3c0d4aca",
+  "packageTreeDigest": "e99d6d5b3f032447253ad0e5226af7b02c34d9b7960193c2aa20eafbf5394b64",
   "archive": {
-    "file": "omp-spec-kit-2.6.2.tar",
-    "sha256": "1f38a864db70c26298a678d7735dcf5ef98c41f5736ced2d07786d87017d36fb",
-    "bytes": 542720
+    "file": "omp-spec-kit-2.7.0.tar",
+    "sha256": "558503b906255a44008bbf1430985e9c8a9486a45374af33d70cda8592d62c3a",
+    "bytes": 571904
   },
   "youtrackApp": {
     "file": "spec-graph-app-1.0.25.zip",
-    "sha256": "8a6d72e42a20561977c7c01748a93063d3ebc1f38c26bf2f4c014cb4a4b270e8",
-    "bytes": 123423,
+    "sha256": "b9c008341a2d4d5dbf5f8367fa4f61673f8695b3b71caf18e0a520a9f567393a",
+    "bytes": 125832,
     "version": "1.0.25"
   },
   "files": [
@@ -43,32 +43,38 @@
     {
       "path": "dist/adapters/document-service.js",
       "mode": 420,
-      "bytes": 12306,
-      "sha256": "bc8cdf0b0590be3867546d13bac0faec80337c6a128d2300e9612d94dc1adb8f"
+      "bytes": 13001,
+      "sha256": "fe85562a378e0044d79b63ac751291da76af70a11be58114f3707e9b328bdb91"
     },
     {
       "path": "dist/adapters/query-service.js",
       "mode": 420,
-      "bytes": 27835,
-      "sha256": "b1c78660ebccc1978efcc7b8e08b75dd56c624f3400212a674863be5511a220d"
+      "bytes": 28983,
+      "sha256": "081fac814cb1ad1e23ebcd66e37f89f90d39c2a45b95641a37ac2ede83ec5e2b"
     },
     {
       "path": "dist/adapters/tool-contracts.js",
       "mode": 420,
-      "bytes": 34773,
-      "sha256": "eed54dc0198503245d0df9723a9b0560f25ae7dc21ad3ed6df45e4c439278a14"
+      "bytes": 35251,
+      "sha256": "1be7af59458a6e1f75066b854ae64e77c14eade7fa83d907b027a1256c37ec5f"
     },
     {
       "path": "dist/adapters/youtrack-projection.js",
       "mode": 420,
-      "bytes": 21118,
-      "sha256": "fc2ca9d6911fa78d26a0b50bfc2c5f7b1f87f82f03f1c9b41b81aa608fcbd674"
+      "bytes": 21641,
+      "sha256": "7d791d923ec9082708bf5c84fee7b24e117db28c461f8c9180053f84c03fab7f"
     },
     {
       "path": "dist/adapters/youtrack-status-sweep.js",
       "mode": 420,
       "bytes": 6226,
       "sha256": "afb3b405aa258b31ed121e1bb67bea01ba8c57b405f1b7284d3326aa0151c01d"
+    },
+    {
+      "path": "dist/adapters/youtrack-store.js",
+      "mode": 420,
+      "bytes": 22945,
+      "sha256": "25cb97bc2d43bfb05c53387c053ea8e144ca1e61778682e5284291d045382513"
     },
     {
       "path": "dist/authoring/design-review.js",
@@ -140,7 +146,7 @@
       "path": "dist/extension.js",
       "mode": 420,
       "bytes": 544,
-      "sha256": "5796ef690a42e8ed84b50ee8e3221ed02e2f0a801ccd9cc3e5f21ff160bc2dd5"
+      "sha256": "59fdf84e39af13ab601bdd9f7d622d6cac203787f477555c04e6333d634228ea"
     },
     {
       "path": "dist/gate/automatic-adapter.js",
@@ -175,8 +181,8 @@
     {
       "path": "dist/kernel/graph/build.js",
       "mode": 420,
-      "bytes": 41506,
-      "sha256": "5bd6cda597277865f686b65e6859fbae7bbe1276bb01ec6f57456d936519266c"
+      "bytes": 41514,
+      "sha256": "068139285af182948d32d2e126d2cd5cd4116c8f3e157b5d249ad4f13586d12c"
     },
     {
       "path": "dist/kernel/graph/invariants.js",
@@ -259,8 +265,8 @@
     {
       "path": "dist/kernel/query/service.js",
       "mode": 420,
-      "bytes": 58521,
-      "sha256": "8057d04f080b6fbfc9d23e8b84f39be997b79770b94eaa3a01b95d62ca5ff1a6"
+      "bytes": 59157,
+      "sha256": "71d31f325157b1be33f6b9fafd4d7f398f8a79510550312281838ce888c03cc9"
     },
     {
       "path": "dist/kernel/roadmap/assemble.js",
@@ -277,14 +283,14 @@
     {
       "path": "dist/manifest.json",
       "mode": 420,
-      "bytes": 5018,
-      "sha256": "89bc79a9973674930f70421981f2a87c8712ee8f95079bbc3482ce312387cf06"
+      "bytes": 5144,
+      "sha256": "28890e328bf99e83888385ed7634c8cdb394ea3fe1fed2be8db4f948575a6cd4"
     },
     {
       "path": "dist/mcp/server.js",
       "mode": 420,
-      "bytes": 9867,
-      "sha256": "74a743597f30d1dfa7afadb4d1def4ba9e16a0bf2d45dcbbda3ea934409c039f"
+      "bytes": 12202,
+      "sha256": "b669a54cfc08bffea5bd79c3e0b4ab62b7299488e1d2b553660025e3ca74625e"
     },
     {
       "path": "LICENSE",
@@ -296,7 +302,7 @@
       "path": "package.json",
       "mode": 420,
       "bytes": 639,
-      "sha256": "e4d74c04e201bd193332dbf645df79a43e4b9dd797f69180ffa950836f997f57"
+      "sha256": "000a58e7b875d2dbb2e1f5cf5758067a904f85414e7da5de594433d14847d516"
     },
     {
       "path": "README.md",
@@ -335,5 +341,5 @@
       "sha256": "ade24f9232ebf5ac9eca03e0ec05541508c5ce4d541e79553a0fa41a62520c4c"
     }
   ],
-  "candidateDigest": "b36d2116e2a8d9943fb8116884520feef4c9735d2ddceaf2e15f700c5ed1174c"
+  "candidateDigest": "e39035bb7834aaff65b92827c3c311da0724b19b35ed2787dc1ca67a7ece7523"
 }

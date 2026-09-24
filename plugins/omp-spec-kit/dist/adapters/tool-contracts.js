@@ -578,15 +578,10 @@ function branchSchemaType(f) {
 }
 
 export function jsonSchemaFor(contract) {
-  const declaredWorktreeSchema = {
-    type: "string",
-    description: "Absolute path of the worktree whose spec corpus should serve this call; omit for the server's default root.",
-  };
   if (!contract.discriminator) {
     const properties = {
       schemaVersion: { type: "string" },
       requestId: { type: ["string", "null"] },
-      declaredWorktree: declaredWorktreeSchema,
     };
     const required = [];
     for (const entry of contract.fields) {
@@ -610,7 +605,6 @@ export function jsonSchemaFor(contract) {
     },
     schemaVersion: { type: "string" },
     requestId: { type: ["string", "null"] },
-    declaredWorktree: declaredWorktreeSchema,
   };
 
   if (Array.isArray(contract.commonFields)) {
@@ -946,7 +940,7 @@ export function annotationsFor(contract) {
     : READ_TOOL_ANNOTATIONS;
 }
 
-export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. ${ELICITATION_HINT}`;
+export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts declaredWorktree (absolute path) to serve that worktree's spec corpus — use it when your session works across multiple git worktrees. ${ELICITATION_HINT}`;
 
 export const KERNEL_ENVELOPE_OUTPUT_SCHEMA = Object.freeze({
   type: "object",
