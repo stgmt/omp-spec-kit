@@ -32,6 +32,19 @@ describe("multi-worktree routing", () => {
     assert.notDeepEqual(slugsA, slugsB, "the two worktrees answer different corpora");
   });
 
+  it("preflight reports mutationReady:false on a worktree without .specs", async () => {
+    const a = worktreeWithSpec("spec-alpha");
+    const bare = mkdtempSync(path.join(tmpdir(), "wt-bare-"));
+    const serviceFor = createRootedServices(a);
+    const env = await serviceFor(bare).runQuery("mcpPreflight", { declaredWorktree: bare });
+    assert.equal(env.ok, true);
+    assert.equal(env.data.corpus?.present, false, "no .specs -> corpus absent");
+    assert.equal(env.data.mutationReady, false, "writes would fail -> mutationReady honest");
+    const envA = await serviceFor(a).runQuery("mcpPreflight", { declaredWorktree: a });
+    assert.equal(envA.data.corpus?.present, true);
+    assert.equal(envA.data.mutationReady, true);
+  });
+
   it("reuses one service per root (graph cache is not rebuilt per call)", () => {
     const a = worktreeWithSpec("spec-alpha");
     const serviceFor = createRootedServices(a);

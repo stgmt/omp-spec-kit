@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { statSync } from "node:fs";
 import { lstat, readdir, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { isValidSpecSlug } from "../kernel/identity.js";
@@ -219,10 +220,18 @@ function mcpPreflight(root, args, context) {
   // that worktree's root — the gate is a router, not a refusal. The response
   // reports the path actually being served so the caller can verify intent.
   const authoring = true;
+  // Writes need a corpus: spec_patch fails at graph-read time on a root with
+  // no .specs directory, so mutationReady must reflect corpus presence rather
+  // than promise a write the kernel will refuse.
+  let corpusPresent = false;
+  try {
+    corpusPresent = statSync(path.join(root, ".specs")).isDirectory();
+  } catch {}
   return operationSuccess({
     kind: "mcp-preflight",
     resolvedRootId: rootId(root),
     resolvedRoot: root,
+    corpus: { present: corpusPresent, path: path.join(root, ".specs") },
     worktree: {
       declared: declaredAbsolute === null ? null : rootId(declaredAbsolute),
       served: declaredAbsolute === null ? null : true,
@@ -232,7 +241,7 @@ function mcpPreflight(root, args, context) {
     writeMode: authoring ? "proposal-first" : "disabled",
     versions: { mcp: KERNEL_SCHEMA_VERSION, plugin: "1.0.0", omp: "18.0.11" },
     dependencies: { graph: "ready", watcher: "disabled", lock: authoring ? "available" : "disabled", sqlite: "disabled" },
-    mutationReady: authoring,
+    mutationReady: authoring && corpusPresent,
   });
 }
 

@@ -3,7 +3,7 @@
   "pluginVersion": "2.6.2",
   "files": {
     "adapters/document-service.js": {
-      "sha256": "e964f7b73918a713ddf1b70b6c6949d05f5b9f08ec4d1263e245c04f022bcd33"
+      "sha256": "4370b362250e3929199e2232729b18ce1cffc6afb400214b80c44f4a7258991d"
     },
     "adapters/query-service.js": {
       "sha256": "081fac814cb1ad1e23ebcd66e37f89f90d39c2a45b95641a37ac2ede83ec5e2b"
