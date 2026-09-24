@@ -215,17 +215,24 @@ async function readAttachment(root, args) {
 function mcpPreflight(root, args, context) {
   const declared = args.declaredWorktree;
   const declaredAbsolute = typeof declared === "string" && path.isAbsolute(declared) ? path.resolve(declared) : null;
-  const matches = declaredAbsolute === null || (process.platform === "win32" ? declaredAbsolute.toLowerCase() === root.toLowerCase() : declaredAbsolute === root);
+  // The server now routes per call: when a worktree was declared, `root` IS
+  // that worktree's root — the gate is a router, not a refusal. The response
+  // reports the path actually being served so the caller can verify intent.
   const authoring = true;
   return operationSuccess({
     kind: "mcp-preflight",
     resolvedRootId: rootId(root),
-    worktree: { declared: declaredAbsolute === null ? null : rootId(declaredAbsolute), matchesResolvedRoot: matches },
+    resolvedRoot: root,
+    worktree: {
+      declared: declaredAbsolute === null ? null : rootId(declaredAbsolute),
+      served: declaredAbsolute === null ? null : true,
+      matchesResolvedRoot: declaredAbsolute === null ? null : true,
+    },
     lockMode: authoring ? "owner" : "read-only",
     writeMode: authoring ? "proposal-first" : "disabled",
     versions: { mcp: KERNEL_SCHEMA_VERSION, plugin: "1.0.0", omp: "18.0.11" },
     dependencies: { graph: "ready", watcher: "disabled", lock: authoring ? "available" : "disabled", sqlite: "disabled" },
-    mutationReady: authoring && matches,
+    mutationReady: authoring,
   });
 }
 

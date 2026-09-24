@@ -578,10 +578,15 @@ function branchSchemaType(f) {
 }
 
 export function jsonSchemaFor(contract) {
+  const declaredWorktreeSchema = {
+    type: "string",
+    description: "Absolute path of the worktree whose spec corpus should serve this call; omit for the server's default root.",
+  };
   if (!contract.discriminator) {
     const properties = {
       schemaVersion: { type: "string" },
       requestId: { type: ["string", "null"] },
+      declaredWorktree: declaredWorktreeSchema,
     };
     const required = [];
     for (const entry of contract.fields) {
@@ -605,6 +610,7 @@ export function jsonSchemaFor(contract) {
     },
     schemaVersion: { type: "string" },
     requestId: { type: ["string", "null"] },
+    declaredWorktree: declaredWorktreeSchema,
   };
 
   if (Array.isArray(contract.commonFields)) {
@@ -749,7 +755,11 @@ export function validateContractArguments(contract, args) {
     };
   }
 
-  const COMMON_METADATA_KEYS = new Set(["schemaVersion", "requestId"]);
+  // declaredWorktree is transport-level routing metadata like requestId: it
+  // selects which repository root serves the call (multi-worktree agents
+  // share one server; each call may name a different worktree). It is not an
+  // operation argument, so every tool accepts it without contract churn.
+  const COMMON_METADATA_KEYS = new Set(["schemaVersion", "requestId", "declaredWorktree"]);
 
   if (contract.discriminator) {
     const discKey = contract.discriminator;

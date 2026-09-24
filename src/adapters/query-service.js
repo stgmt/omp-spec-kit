@@ -229,6 +229,25 @@ function makeAdapterSuccessEnvelope({ operation, requestId, data }) {
   };
 }
 
+/**
+ * Multi-root dispatch: one stdio server can serve agents working across
+ * several git worktrees. `declaredWorktree` on a call selects the corpus
+ * root; each distinct root gets its own lazily-built service (its own graph
+ * cache and its own .specs write lock — concurrency between worktrees is
+ * per-root by construction).
+ */
+export function createRootedServices(defaultRoot, context = {}) {
+  const services = new Map();
+  return (requestedRoot = null) => {
+    const root = canonicalPhysicalPath(requestedRoot ?? defaultRoot);
+    const key = physicalPathKey(root);
+    if (!services.has(key)) {
+      services.set(key, createSpecService(root, context));
+    }
+    return services.get(key);
+  };
+}
+
 export function createSpecService(root, context = {}) {
   if (typeof root !== "string" || root.length === 0) {
     throw new Error("createSpecService requires an explicit repository root");

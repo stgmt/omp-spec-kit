@@ -3,19 +3,22 @@
   "pluginVersion": "2.6.2",
   "files": {
     "adapters/document-service.js": {
-      "sha256": "bc8cdf0b0590be3867546d13bac0faec80337c6a128d2300e9612d94dc1adb8f"
+      "sha256": "e964f7b73918a713ddf1b70b6c6949d05f5b9f08ec4d1263e245c04f022bcd33"
     },
     "adapters/query-service.js": {
-      "sha256": "b1c78660ebccc1978efcc7b8e08b75dd56c624f3400212a674863be5511a220d"
+      "sha256": "8fe89c57ebabc93a9bf6ed50414ced36c7adb7dcf2253c1fb1830f9b6e815b6b"
     },
     "adapters/tool-contracts.js": {
-      "sha256": "eed54dc0198503245d0df9723a9b0560f25ae7dc21ad3ed6df45e4c439278a14"
+      "sha256": "bebd460bae2a051ca6be3a166f26c92e34f226af77a271bf86bc2173b6715551"
     },
     "adapters/youtrack-projection.js": {
-      "sha256": "fc2ca9d6911fa78d26a0b50bfc2c5f7b1f87f82f03f1c9b41b81aa608fcbd674"
+      "sha256": "7d791d923ec9082708bf5c84fee7b24e117db28c461f8c9180053f84c03fab7f"
     },
     "adapters/youtrack-status-sweep.js": {
       "sha256": "afb3b405aa258b31ed121e1bb67bea01ba8c57b405f1b7284d3326aa0151c01d"
+    },
+    "adapters/youtrack-store.js": {
+      "sha256": "25cb97bc2d43bfb05c53387c053ea8e144ca1e61778682e5284291d045382513"
     },
     "authoring/design-review.js": {
       "sha256": "ba88286f7885e217bb38f982822a8695ec6f5ce180aaab475eb435b7e804a40a"
@@ -120,7 +123,7 @@
       "sha256": "30c291f7e8b9e164feaadace275c9a9bc6483ed50cc2e80fa305946efe69a99f"
     },
     "mcp/server.js": {
-      "sha256": "74a743597f30d1dfa7afadb4d1def4ba9e16a0bf2d45dcbbda3ea934409c039f"
+      "sha256": "ed8d04b1a52a8dee2656d40cf5f7d0d2c19d3c1b29f8906dd04f270b6a515446"
     }
   }
 }

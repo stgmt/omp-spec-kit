@@ -10,9 +10,11 @@
 //   2. otherwise the server process working directory.
 
 import { createInterface } from "node:readline";
+import { statSync } from "node:fs";
+import path from "node:path";
 import { KERNEL_SCHEMA_VERSION } from "../kernel/index.js";
 import {
-  createSpecService,
+  createRootedServices,
   resolveRepositoryContext,
 } from "../adapters/query-service.js";
 import { annotationsFor, KERNEL_ENVELOPE_OUTPUT_SCHEMA, MCP_SERVER_INSTRUCTIONS, TOOL_CONTRACTS as activeContracts, jsonSchemaFor, validateContractArguments } from "../adapters/tool-contracts.js";
@@ -128,9 +130,45 @@ function normalizeArguments(rawArguments) {
 
 const contractsByName = new Map(activeContracts.map((contract) => [contract.tool, contract]));
 const rootContext = resolveRepositoryContext();
-const service = createSpecService(rootContext.resolvedRoot, {
+// Multi-worktree routing: a call may name declaredWorktree and be served by
+// that worktree's corpus — one server covers every worktree of the session.
+const serviceFor = createRootedServices(rootContext.resolvedRoot, {
   ...rootContext,
 });
+const service = serviceFor(null);
+
+/**
+ * A declared worktree must be an absolute path to an existing directory —
+ * anything else is a caller error, reported before a service is built for it.
+ * The kernel's own read reports the empty-corpus case (a valid worktree
+ * without .specs yet) once the root itself is real.
+ */
+function resolveDeclaredWorktree(value) {
+  if (!path.isAbsolute(value)) {
+    return {
+      ok: false,
+      code: "INVALID_REQUEST",
+      message: "declaredWorktree must be an absolute filesystem path",
+      parameter: "declaredWorktree",
+      expected: "absolute path",
+    };
+  }
+  const resolved = path.resolve(value);
+  let isDirectory = false;
+  try {
+    isDirectory = statSync(resolved).isDirectory();
+  } catch {}
+  if (!isDirectory) {
+    return {
+      ok: false,
+      code: "INVALID_REQUEST",
+      message: `declaredWorktree does not exist or is not a directory: ${resolved}`,
+      parameter: "declaredWorktree",
+      expected: "existing worktree directory",
+    };
+  }
+  return { ok: true, root: resolved };
+}
 function argumentErrorEnvelope(operation, requestId, validation) {
   const envelope = internalErrorEnvelope(operation, requestId, service.provenance);
   return {
@@ -234,9 +272,14 @@ async function handleMessage(message) {
           const args = normalized.args;
           const hasRequestId = (contract.fields ?? []).some((entry) => entry.name === "requestId") || (contract.commonFields ?? []).some((entry) => entry.name === "requestId");
           if (hasRequestId && requestId !== null && args.requestId === undefined) args.requestId = requestId;
-          const validation = validateContractArguments(contract, args);
+          const declaredRoot = typeof args.declaredWorktree === "string" && args.declaredWorktree.length > 0
+            ? resolveDeclaredWorktree(args.declaredWorktree)
+            : null;
+          const validation = declaredRoot !== null && !declaredRoot.ok
+            ? declaredRoot
+            : validateContractArguments(contract, args);
           envelope = validation.ok
-            ? await service.runQuery(contract.operation, args, { requestId, schemaVersion })
+            ? await serviceFor(declaredRoot?.root ?? null).runQuery(contract.operation, args, { requestId, schemaVersion })
             : argumentErrorEnvelope(contract.operation, requestId, validation);
         }
       }
