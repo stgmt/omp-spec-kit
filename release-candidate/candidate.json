@@ -2,11 +2,11 @@
   "schema": "omp-spec-kit-release-candidate@2",
   "version": "2.7.0",
   "tag": "v2.7.0",
-  "commit": "afd3db7342ba17e276c7f64c573b0b0c3c0d4aca",
-  "packageTreeDigest": "e99d6d5b3f032447253ad0e5226af7b02c34d9b7960193c2aa20eafbf5394b64",
+  "commit": "ea73428ad0f50547c6fa9f6277ab1180dd4eeb18",
+  "packageTreeDigest": "095a2fdf860fd8e3d9952e50c5013f0fd5ccd72c700d9d7b4ab2f26860f0f5b4",
   "archive": {
     "file": "omp-spec-kit-2.7.0.tar",
-    "sha256": "558503b906255a44008bbf1430985e9c8a9486a45374af33d70cda8592d62c3a",
+    "sha256": "45b0a2c73cb1871c8c4a473a4b384fdbcfc8164302fce5529b128b403c7a903c",
     "bytes": 571904
   },
   "youtrackApp": {
@@ -73,8 +73,8 @@
     {
       "path": "dist/adapters/youtrack-store.js",
       "mode": 420,
-      "bytes": 22945,
-      "sha256": "25cb97bc2d43bfb05c53387c053ea8e144ca1e61778682e5284291d045382513"
+      "bytes": 22929,
+      "sha256": "75a173ac8def460448f45954116c061d598027a826e5b117b3f0ac2b6962cf66"
     },
     {
       "path": "dist/authoring/design-review.js",
@@ -284,7 +284,7 @@
       "path": "dist/manifest.json",
       "mode": 420,
       "bytes": 5144,
-      "sha256": "28890e328bf99e83888385ed7634c8cdb394ea3fe1fed2be8db4f948575a6cd4"
+      "sha256": "5748b6f83e0ddca29b232b9b994d9c8b58976d51438101d2cd7fc205b5cca91d"
     },
     {
       "path": "dist/mcp/server.js",
@@ -341,5 +341,5 @@
       "sha256": "ade24f9232ebf5ac9eca03e0ec05541508c5ce4d541e79553a0fa41a62520c4c"
     }
   ],
-  "candidateDigest": "e39035bb7834aaff65b92827c3c311da0724b19b35ed2787dc1ca67a7ece7523"
+  "candidateDigest": "9653993d037d6e4e9a446a5e7d3d1e6430fe212622e9e8d7edcc5408abf293b5"
 }
