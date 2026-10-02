@@ -139,8 +139,12 @@ export const SYNC_STATE_SPEC_ID = "SPEC:SYNC-STATE";
  * (e.g. new fields the board widget consumes). The skip check treats a
  * pointer with an older version as stale even when content is unchanged, so
  * a code upgrade re-projects without waiting for a spec edit.
+ *
+ * v3: the marker carries mountHeads/mountsClean/specProjects so the service
+ * can cheap-skip on git HEADs and the writeback listener can resolve a
+ * specSlug to its serving project without guessing.
  */
-export const PROJECTION_VERSION = 2;
+export const PROJECTION_VERSION = 3;
 
 const BOARD_KINDS = new Set(Object.keys(KIND_LABELS));
 
@@ -331,6 +335,13 @@ export function buildProjectionPlan(board) {
     projectionDigest,
     snapshot,
     snapshotHash: digest(snapshot),
+    // Service-side extras (absent on the script path): git state the merged
+    // board was built from, and the specSlug -> projectId map writeback uses
+    // to route a spec_patch to the owning mount.
+    mountHeads: board.mountHeads ?? null,
+    mountsClean: board.mountsClean ?? null,
+    specProjects: board.specProjects ?? null,
+    skippedProjects: board.skippedProjects ?? null,
   };
 }
 
@@ -510,6 +521,14 @@ export class YouTrackProjectionService {
     const board = await this.#sourceReader.readBoard({ specSlugs });
     const plan = buildProjectionPlan(board);
     const pointer = await this.#syncState.readCommitted();
+    // A source reader that cannot see the service's mounts (script-mode
+    // readers) must not re-sign the committed MOUNT certification — preserved
+    // mountHeads/mountsClean would let cheapCheck trust measurements this sync
+    // never took. specProjects is the exception: it is writeback routing, not
+    // a mount claim, and dropping it breaks the listener until a service sync.
+    if (pointer?.valid === true) {
+      plan.specProjects ??= pointer.specProjects ?? null;
+    }
     const actual = await this.#tracker.readProjection();
     const parity = compareProjection(actual, plan);
     const canSkip = pointer?.valid === true && pointer.fingerprint === plan.fingerprint &&
