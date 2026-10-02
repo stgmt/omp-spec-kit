@@ -1,8 +1,8 @@
 {
   "schema": "omp-spec-kit-public-safety@1",
   "status": "passed",
-  "candidateDigest": "9653993d037d6e4e9a446a5e7d3d1e6430fe212622e9e8d7edcc5408abf293b5",
-  "packageTreeDigest": "095a2fdf860fd8e3d9952e50c5013f0fd5ccd72c700d9d7b4ab2f26860f0f5b4",
+  "candidateDigest": "1174d07800df40f36348ee52fdd41e2a5963538530cdfe4b04ffda305fb8a6bb",
+  "packageTreeDigest": "12b9107aca1044b373eb5daf93ccd3edd15745c4d31e72a2603912a4ad13c126",
   "findings": [],
-  "digest": "8afeec9034becb3931c71a439286aaad9cfd878c6124d2fdea37f0178a830afb"
+  "digest": "4c0ab871d52595d88240dfc483d310e4c08085ca3c06ae70a3fefc06c31503f7"
 }

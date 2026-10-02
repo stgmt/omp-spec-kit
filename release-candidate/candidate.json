@@ -1,13 +1,13 @@
 {
   "schema": "omp-spec-kit-release-candidate@2",
-  "version": "2.7.0",
-  "tag": "v2.7.0",
-  "commit": "ea73428ad0f50547c6fa9f6277ab1180dd4eeb18",
-  "packageTreeDigest": "095a2fdf860fd8e3d9952e50c5013f0fd5ccd72c700d9d7b4ab2f26860f0f5b4",
+  "version": "2.8.0",
+  "tag": "v2.8.0",
+  "commit": "232399c8bb2026dc9300b408c5651383fcef6d3e",
+  "packageTreeDigest": "12b9107aca1044b373eb5daf93ccd3edd15745c4d31e72a2603912a4ad13c126",
   "archive": {
-    "file": "omp-spec-kit-2.7.0.tar",
-    "sha256": "45b0a2c73cb1871c8c4a473a4b384fdbcfc8164302fce5529b128b403c7a903c",
-    "bytes": 571904
+    "file": "omp-spec-kit-2.8.0.tar",
+    "sha256": "056fafa4f0e25a3a7dcf67f47681d68ba3285b676d2cf7fe430fd2f7c97da5c8",
+    "bytes": 578560
   },
   "youtrackApp": {
     "file": "spec-graph-app-1.0.25.zip",
@@ -47,6 +47,12 @@
       "sha256": "fe85562a378e0044d79b63ac751291da76af70a11be58114f3707e9b328bdb91"
     },
     {
+      "path": "dist/adapters/marker-secret.js",
+      "mode": 420,
+      "bytes": 3815,
+      "sha256": "9fa0f9d8ce03fcf5b55aea18576227fd051aefda059e2d15b7843f9e785e41c8"
+    },
+    {
       "path": "dist/adapters/query-service.js",
       "mode": 420,
       "bytes": 28983,
@@ -61,8 +67,8 @@
     {
       "path": "dist/adapters/youtrack-projection.js",
       "mode": 420,
-      "bytes": 21641,
-      "sha256": "7d791d923ec9082708bf5c84fee7b24e117db28c461f8c9180053f84c03fab7f"
+      "bytes": 22727,
+      "sha256": "4b9f78f04a38e8a2d67114fe5da208a0a4e546c2380314763a184359d014f375"
     },
     {
       "path": "dist/adapters/youtrack-status-sweep.js",
@@ -73,8 +79,8 @@
     {
       "path": "dist/adapters/youtrack-store.js",
       "mode": 420,
-      "bytes": 22929,
-      "sha256": "75a173ac8def460448f45954116c061d598027a826e5b117b3f0ac2b6962cf66"
+      "bytes": 23682,
+      "sha256": "e070a7c0bb8460f4fe5b07ee4929161f70dd2ca290e8e9aec6451906b2605ec3"
     },
     {
       "path": "dist/authoring/design-review.js",
@@ -146,7 +152,7 @@
       "path": "dist/extension.js",
       "mode": 420,
       "bytes": 544,
-      "sha256": "59fdf84e39af13ab601bdd9f7d622d6cac203787f477555c04e6333d634228ea"
+      "sha256": "320afa1778511a593ca18e1b5244917bd116eb3863cf749b633508e1d79c14bc"
     },
     {
       "path": "dist/gate/automatic-adapter.js",
@@ -283,8 +289,8 @@
     {
       "path": "dist/manifest.json",
       "mode": 420,
-      "bytes": 5144,
-      "sha256": "5748b6f83e0ddca29b232b9b994d9c8b58976d51438101d2cd7fc205b5cca91d"
+      "bytes": 5269,
+      "sha256": "2570658a8a396f750c7cc6eced77c13b9fc4e1fa70f2800bcfb8a89823510dbe"
     },
     {
       "path": "dist/mcp/server.js",
@@ -302,7 +308,7 @@
       "path": "package.json",
       "mode": 420,
       "bytes": 639,
-      "sha256": "000a58e7b875d2dbb2e1f5cf5758067a904f85414e7da5de594433d14847d516"
+      "sha256": "fe940e44765ce8ceb854df0bd5758485b8297f2803a0013a91981a7c15f628dd"
     },
     {
       "path": "README.md",
@@ -341,5 +347,5 @@
       "sha256": "ade24f9232ebf5ac9eca03e0ec05541508c5ce4d541e79553a0fa41a62520c4c"
     }
   ],
-  "candidateDigest": "9653993d037d6e4e9a446a5e7d3d1e6430fe212622e9e8d7edcc5408abf293b5"
+  "candidateDigest": "1174d07800df40f36348ee52fdd41e2a5963538530cdfe4b04ffda305fb8a6bb"
 }
