@@ -280,7 +280,9 @@ export class YouTrackProjectionStore {
       if (fieldValue(existing, "SpecKind") !== wanted.kind) patches.push(["SpecKind", wanted.kind]);
       if (fieldValue(existing, "Type") !== wanted.typeValue) patches.push(["Type", wanted.typeValue]);
       if (fieldValue(existing, "ContentHash") !== wanted.contentHash) patches.push(["ContentHash", wanted.contentHash]);
-      if (wanted.status && fieldValue(existing, "State") && fieldValue(existing, "State") !== STATUS_MAP[wanted.status]) patches.push(["State", STATUS_MAP[wanted.status]]);
+      // A card whose State was cleared by hand is drifted too: the empty
+      // value differs from the wanted mapping and must be re-patched.
+      if (wanted.status && fieldValue(existing, "State") !== STATUS_MAP[wanted.status]) patches.push(["State", STATUS_MAP[wanted.status]]);
       for (const [field, value] of patches) {
         await this.#client.command(field + " " + value, [existing.id]);
         writeCalls += 1;
@@ -457,8 +459,19 @@ export class YouTrackSyncStateStore {
     return expected.length === actual.length && timingSafeEqual(expected, actual);
   }
 
+  /**
+   * Pointer candidates: a bounded filtered query can evict the real marker
+   * (relevance/recency ordering under SpecId spam) or legitimately return an
+   * empty page for a non-queryable field while markers exist — both silently
+   * corrupt the committed state. The full project listing cannot be evicted,
+   * so pointer discovery stays on the unbounded read.
+   */
+  async #listPointerIssues() {
+    return this.#client.listProjectIssues(this.#projectShortName);
+  }
+
   async readCommitted() {
-    const issues = await this.#client.listProjectIssues(this.#projectShortName);
+    const issues = await this.#listPointerIssues();
     const candidates = issues
       .filter((issue) => fieldValue(issue, "SpecId") === SYNC_STATE_SPEC_ID)
       .sort((a, b) => issueIdOrder(a.id, b.id));
@@ -503,6 +516,10 @@ export class YouTrackSyncStateStore {
       scope: plan.scope,
       nodeCount: plan.snapshot.nodes.length,
       edgeCount: plan.snapshot.edges.length,
+      mountHeads: plan.mountHeads ?? null,
+      mountsClean: plan.mountsClean ?? null,
+      specProjects: plan.specProjects ?? null,
+      skippedProjects: plan.skippedProjects ?? null,
       cardIds,
       snapshot: plan.snapshot,
       committedAt: new Date().toISOString(),

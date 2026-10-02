@@ -13,7 +13,7 @@ import { buildRegistryIndex } from "./registry.js";
 import { computeDrift } from "./drift.js";
 import { startSync } from "./sync.js";
 import { createOnboarding } from "./onboarding.js";
-import { digest } from "../adapters/youtrack-projection.js";
+import { resolveMarkerSecret } from "../adapters/marker-secret.js";
 import { createProjection } from "./projection.js";
 import { createPublisher } from "./publish.js";
 import { createVersionedReads } from "./versioned.js";
@@ -30,7 +30,23 @@ export async function bootService({ configPath, cloneDir, git = new GitClient({ 
 }
 
 export function buildServiceStack({ mounts, config, identity = botIdentityFromEnv(), logger = () => {}, store, secretsKey = null, syncIntervalMs = 0, env = process.env }) {
-  const repos = createRepoManager({ mounts, store, config, identity, secretsKey, logger });
+  // Tracker projection is opt-in: deployments without a YouTrack write target
+  // (pure MCP service) leave it off; the demo stack enables it via env.
+  // Created before repos: bind/unbind callbacks below trigger re-projection.
+  const projection = env.SPEC_REGISTRY_PROJECTION === "1" || env.SPEC_REGISTRY_PROJECTION === "true"
+    ? createProjection({
+        mounts,
+        baseUrl: env.SPEC_REGISTRY_YT_URL ?? config.auth.youtrack.baseUrl,
+        serviceToken: env.SPEC_REGISTRY_YT_SERVICE_TOKEN ?? config.auth.youtrack.serviceToken,
+        projectShortName: env.SPEC_REGISTRY_YT_PROJECT ?? "SPEC",
+        // Shared with any manual spec-graph-sync/listener run: both sides must
+        // sign the committed marker with the same secret (env → key file →
+        // derived) or writeback ownership checks silently never verify.
+        markerSecret: resolveMarkerSecret({ env, secretsKey, logger }),
+        logger,
+      })
+    : null;
+  const repos = createRepoManager({ mounts, store, config, identity, secretsKey, logger, afterRepoChange: () => projection?.syncNow() });
   const idpManager = createIdpManager({
     store, config, secretsKey, logger,
     // The IdP binder provisions the tenant's specs repo in the same act — an
@@ -75,18 +91,6 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   };
   const registryOps = createRegistryOps({ registryIndex, driftReport });
   const publisher = store ? createPublisher({ mounts, store, identity, logger }) : null;
-  // Tracker projection is opt-in: deployments without a YouTrack write target
-  // (pure MCP service) leave it off; the demo stack enables it via env.
-  const projection = env.SPEC_REGISTRY_PROJECTION === "1" || env.SPEC_REGISTRY_PROJECTION === "true"
-    ? createProjection({
-        mounts,
-        baseUrl: env.SPEC_REGISTRY_YT_URL ?? config.auth.youtrack.baseUrl,
-        serviceToken: env.SPEC_REGISTRY_YT_SERVICE_TOKEN ?? config.auth.youtrack.serviceToken,
-        projectShortName: env.SPEC_REGISTRY_YT_PROJECT ?? "SPEC",
-        markerSecret: env.SPEC_SYNC_MARKER_KEY ?? digest(`projection-marker:${secretsKey ?? "unkeyed"}`),
-        logger,
-      })
-    : null;
   const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher, projection });
   const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger, idps: { list: () => idpManager.listActiveIdps() } });
   const versionedReads = createVersionedReads({ mounts, store });
@@ -146,6 +150,10 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
       idpBind: (input) => idpManager.bind(input),
       idpProbe: (input) => idpManager.probe(input),
       idpUnbind: (input) => idpManager.unbind(input),
+      // Ops surface for the tracker projection: sync on demand (reconcile a
+      // manual tracker cleanup, force a v-bump rewrite) and inspect the loop.
+      projectionSync: () => (projection ? projection.syncOnce().then(() => projection.status()) : Promise.resolve({ enabled: false })),
+      projectionStatus: () => (projection ? { enabled: true, ...projection.status() } : { enabled: false }),
     },
     audit: (entry) => store?.logAccess?.(entry),
   };

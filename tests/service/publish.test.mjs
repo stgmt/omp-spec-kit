@@ -129,7 +129,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
   it("leaves DRAFT specs unpublished", async () => {
     const { bare, service, url, tokens } = await setup();
     const result = await callTool(url, tokens.alice, "spec_patch", patchArgs({
-      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-1 — draft edit\n" }],
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-900 — draft edit\n" }],
       requestId: "draft-1",
     }));
     assert.equal(result.structuredContent.data.outcome, "APPLIED");

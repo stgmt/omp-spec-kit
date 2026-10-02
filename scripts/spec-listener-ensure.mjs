@@ -17,6 +17,14 @@
  * tracker-side spec-writeback rule; without it events get 401 and the
  * periodic sweep remains the convergence path.
  *
+ * Registry mode: when the canonical corpus lives behind spec-registryd, set
+ * SPEC_REGISTRY_URL + SPEC_AGENT_TOKEN (an onboarding-issued agent token) so
+ * board reads and spec_patch go through the service write path — otherwise a
+ * writeback lands in a local OMP_SPEC_KIT_ROOT checkout the registry never
+ * sees, and the next projection run reverts the tracker card. The listener
+ * must share the projection's marker secret: SPEC_SYNC_MARKER_KEY identical
+ * to the service env (or the same ~/.omp/spec-sync-marker-key file).
+ *
  * Usage:
  *   node scripts/spec-listener-ensure.mjs [--port 8787] [--check]
  *     --check   probe only; exit 0 when the listener answers, 1 otherwise
@@ -125,6 +133,20 @@ async function main() {
     console.error("spec-listener-ensure: YOUTRACK_TOKEN or YOUTRACK_PASSWORD is required to serve");
     process.exitCode = 2;
     return;
+  }
+  if (!process.env.SPEC_REGISTRY_URL) {
+    console.error(
+      "spec-listener-ensure: warning — SPEC_REGISTRY_URL is unset; writeback will patch a LOCAL " +
+        "OMP_SPEC_KIT_ROOT checkout that the registry never sees (the next projection reverts the card). " +
+        "Set SPEC_REGISTRY_URL + SPEC_AGENT_TOKEN to route spec_patch through the service.",
+    );
+  }
+  if (!process.env.SPEC_SYNC_MARKER_KEY) {
+    console.error(
+      "spec-listener-ensure: warning — SPEC_SYNC_MARKER_KEY is unset; the listener resolves the marker " +
+        "secret from ~/.omp/spec-sync-marker-key. If the registry service signs markers with a different " +
+        "secret, every writeback fails ownership verification (409) and the sweep applies nothing.",
+    );
   }
   const { pid, logPath } = spawnListener(args.port, writebackToken);
   console.log(JSON.stringify({ op: "ensure", tokenFile: TOKEN_PATH, note: "LISTENER_TOKEN in spec-writeback.js must match this token" }));

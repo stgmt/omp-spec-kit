@@ -42,6 +42,7 @@ function board(nodes = [node("demo:FR-1", "FUNCTIONAL_REQUIREMENT", "Human requi
 function fakeYouTrack(state = {}) {
   state.issues ??= [];
   state.writes ??= 0;
+  state.projectId ??= "0-1";
   let nextId = 100;
   const specIdOf = (issue) =>
     (issue.customFields ?? []).find((f) => f.name === "SpecId")?.value?.text ??
@@ -54,12 +55,13 @@ function fakeYouTrack(state = {}) {
     const json = (data, status = 200) =>
       new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
     if (method === "GET" && u.pathname === "/api/admin/projects") {
-      return json([{ id: "0-1", shortName: "SPEC" }]);
+      return json(state.failProject ? { error: "gone" } : [{ id: state.projectId, shortName: "SPEC" }], state.failProject ? 404 : 200);
     }
     if (method === "GET" && u.pathname === "/api/issues") {
+      if (state.failIssues) return json({ error: "gone" }, 404);
       return json(state.issues.map((i) => ({ ...i, customFields: i.customFields })));
     }
-    if (method === "GET" && u.pathname.startsWith("/api/admin/projects/0-1/customFields")) {
+    if (method === "GET" && u.pathname.startsWith(`/api/admin/projects/${state.projectId}/customFields`)) {
       return json([]);
     }
     if (method === "GET" && u.pathname === "/api/issueLinkTypes") {
@@ -88,12 +90,26 @@ function fakeYouTrack(state = {}) {
   return { handler, specIdOf, state };
 }
 
-function fakeMounts(boardData) {
+function fakeGit({ head = "h".repeat(40), dirty = false } = {}) {
+  return {
+    revParse: async () => head,
+    statusPorcelain: async () => (dirty ? " M FR.md\n" : ""),
+  };
+}
+
+function fakeMounts(boardData, { head, dirty, boardReads } = {}) {
+  const mount = { git: fakeGit({ head, dirty }), cwd: "/fake" };
   return {
     projects: ["demo/stack"],
+    for: () => mount,
     serviceFor: () => ({
-      runQuery: async (operation, args) =>
-        operation === "graph" && args.view === "board" ? { ok: true, data: boardData } : { ok: false, error: { message: "unsupported" } },
+      runQuery: async (operation, args) => {
+        if (operation === "graph" && args.view === "board") {
+          if (boardReads) boardReads.count += 1;
+          return { ok: true, data: boardData };
+        }
+        return { ok: false, error: { message: "unsupported" } };
+      },
     }),
   };
 }
@@ -117,6 +133,10 @@ describe("service projection", () => {
       const parsed = JSON.parse(marker.description.split("\n")[1]);
       assert.equal(parsed.projectionVersion, PROJECTION_VERSION);
       assert.equal(parsed.nodeCount, 1);
+      assert.equal(parsed.mountHeads["demo/stack"], "h".repeat(40), "marker records the mount HEAD the board was built from");
+      assert.equal(parsed.mountsClean, true);
+      assert.equal(parsed.specProjects["demo-spec"], "demo/stack", "marker maps each spec slug to its serving project");
+      assert.deepEqual(parsed.skippedProjects, []);
     } finally {
       globalThis.fetch = realFetch;
     }
@@ -199,8 +219,17 @@ describe("service projection", () => {
     const realFetch = globalThis.fetch;
     globalThis.fetch = (url, init) => yt.handler(url, init);
     try {
+      const mount = { git: fakeGit(), cwd: "/fake" };
       const mounts = {
         projects: ["demo/stack", "ext/tenant"],
+        for: (projectId) => {
+          if (projectId === "ext/tenant") {
+            const error = new Error("project ext/tenant has no specs repository");
+            error.code = "REPO_BINDING_REQUIRED";
+            throw error;
+          }
+          return mount;
+        },
         serviceFor: (projectId) => {
           if (projectId === "ext/tenant") {
             const error = new Error("project ext/tenant has no specs repository");
@@ -252,5 +281,344 @@ describe("projection skip check", () => {
     });
     const result = await svc.sync();
     assert.equal(result.outcome, "SYNCED", "stale projectionVersion is never skipped");
+  });
+});
+
+describe("projection cheap path", () => {
+  it("skips a second run without building the board when mounts are unchanged", async () => {
+    const yt = fakeYouTrack();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, init) => yt.handler(url, init);
+    const boardReads = { count: 0 };
+    const mounts = {
+      projects: ["demo/stack"],
+      for: () => ({ git: fakeGit(), cwd: "/fake" }),
+      serviceFor: () => ({
+        runQuery: async (operation, args) => {
+          if (operation !== "graph" || args.view !== "board") return { ok: false };
+          boardReads.count += 1;
+          return { ok: true, data: board() };
+        },
+      }),
+    };
+    try {
+      const projection = createProjection({
+        mounts,
+        baseUrl: "http://yt.test",
+        serviceToken: "tok",
+        projectShortName: "SPEC",
+        markerSecret: MARKER_SECRET,
+      });
+      await projection.syncOnce();
+      assert.equal(boardReads.count, 1);
+      const writesAfterFirst = yt.state.writes;
+      await projection.syncOnce();
+      assert.equal(boardReads.count, 1, "matching mountHeads on a clean clone skips the board build");
+      assert.equal(yt.state.writes, writesAfterFirst, "the cheap path issues no tracker writes at all");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("a dirty clone falls through to the full sync and the marker records it", async () => {
+    const yt = fakeYouTrack();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, init) => yt.handler(url, init);
+    const boardReads = { count: 0 };
+    const mounts = {
+      projects: ["demo/stack"],
+      for: () => ({ git: fakeGit({ dirty: true }), cwd: "/fake" }),
+      serviceFor: () => ({
+        runQuery: async (operation, args) => {
+          if (operation !== "graph" || args.view !== "board") return { ok: false };
+          boardReads.count += 1;
+          return { ok: true, data: board() };
+        },
+      }),
+    };
+    try {
+      const projection = createProjection({
+        mounts,
+        baseUrl: "http://yt.test",
+        serviceToken: "tok",
+        projectShortName: "SPEC",
+        markerSecret: MARKER_SECRET,
+      });
+      await projection.syncOnce();
+      await projection.syncOnce();
+      assert.equal(boardReads.count, 2, "dirty mount forces the board build");
+      const marker = yt.state.issues.find((i) => (i.description ?? "").startsWith("SPEC-SYNC-STATE"));
+      const parsed = JSON.parse(marker.description.split("\n")[1]);
+      assert.equal(parsed.mountsClean, false, "marker records the dirty state honestly");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("a mount that moves between HEAD read and board read fails the sync instead of certifying unseen content", async () => {
+    const yt = fakeYouTrack();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, init) => yt.handler(url, init);
+    let call = 0;
+    const mount = {
+      git: {
+        // First revParse returns the old head, the verification call a new one —
+        // the shape of a commit+push landing inside the board read.
+        revParse: async () => (call++ === 0 ? "a".repeat(40) : "b".repeat(40)),
+        statusPorcelain: async () => "",
+      },
+      cwd: "/fake",
+    };
+    const mounts = {
+      projects: ["demo/stack"],
+      for: () => mount,
+      serviceFor: () => ({
+        runQuery: async (operation, args) =>
+          operation === "graph" && args.view === "board" ? { ok: true, data: board() } : { ok: false },
+      }),
+    };
+    try {
+      const projection = createProjection({
+        mounts,
+        baseUrl: "http://yt.test",
+        serviceToken: "tok",
+        projectShortName: "SPEC",
+        markerSecret: MARKER_SECRET,
+      });
+      await projection.syncOnce();
+      const last = projection.status().last;
+      assert.equal(last.ok, false);
+      assert.match(last.error, /moved mid-read/);
+      assert.equal(yt.state.writes, 0, "no marker is published for a board whose mount moved");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("two mounts emitting the same canonicalId fail the sync naming both projects", async () => {
+    const yt = fakeYouTrack();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, init) => yt.handler(url, init);
+    const mount = { git: fakeGit(), cwd: "/fake" };
+    const mounts = {
+      projects: ["alpha/repo", "beta/repo"],
+      for: () => mount,
+      serviceFor: () => ({
+        runQuery: async (operation, args) =>
+          operation === "graph" && args.view === "board"
+            ? { ok: true, data: { ...board([node("dup:FR-1", "FUNCTIONAL_REQUIREMENT", "R")]), scope: { mode: "corpus", specSlugs: ["dup"] } } }
+            : { ok: false },
+      }),
+    };
+    try {
+      const projection = createProjection({
+        mounts,
+        baseUrl: "http://yt.test",
+        serviceToken: "tok",
+        projectShortName: "SPEC",
+        markerSecret: MARKER_SECRET,
+      });
+      await projection.syncOnce();
+      const last = projection.status().last;
+      assert.equal(last.ok, false);
+      assert.match(last.error, /duplicate spec node dup:FR-1.*served by both alpha\/repo and beta\/repo/);
+      assert.equal(yt.state.writes, 0);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("a 404 on the tracker project resets the cached id and the next sync re-resolves", async () => {
+    const yt = fakeYouTrack();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, init) => yt.handler(url, init);
+    try {
+      const projection = createProjection({
+        mounts: fakeMounts(board()),
+        baseUrl: "http://yt.test",
+        serviceToken: "tok",
+        projectShortName: "SPEC",
+        markerSecret: MARKER_SECRET,
+      });
+      await projection.syncOnce();
+      assert.equal(projection.status().last.ok, true);
+      // Operator deletes the SPEC project in the tracker: issue reads 404.
+      yt.state.failIssues = true;
+      await projection.syncOnce();
+      assert.equal(projection.status().last.ok, false);
+      assert.match(projection.status().last.error, /=> 404/);
+      // The project is recreated under a different id — the stale id must not wedge.
+      yt.state.projectId = "0-9";
+      yt.state.failIssues = false;
+      await projection.syncOnce();
+      assert.equal(projection.status().last.ok, true, "re-resolved project id recovers the sync");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("two mounts claiming the same spec slug fail the sync instead of misrouting writeback", async () => {
+    const yt = fakeYouTrack();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, init) => yt.handler(url, init);
+    const mount = { git: fakeGit(), cwd: "/fake" };
+    const mounts = {
+      projects: ["alpha/repo", "beta/repo"],
+      for: () => mount,
+      // Disjoint node sets — the canonicalId guard does not fire; the slug
+      // collision alone must still be fatal.
+      serviceFor: (projectId) => ({
+        runQuery: async (operation, args) =>
+          operation === "graph" && args.view === "board"
+            ? {
+                ok: true,
+                data: {
+                  ...board([node(projectId === "alpha/repo" ? "alpha-spec:FR-1" : "beta-spec:FR-1", "FUNCTIONAL_REQUIREMENT", "R")]),
+                  scope: { mode: "corpus", specSlugs: ["shared-slug"] },
+                },
+              }
+            : { ok: false },
+      }),
+    };
+    try {
+      const projection = createProjection({
+        mounts,
+        baseUrl: "http://yt.test",
+        serviceToken: "tok",
+        projectShortName: "SPEC",
+        markerSecret: MARKER_SECRET,
+      });
+      await projection.syncOnce();
+      const last = projection.status().last;
+      assert.equal(last.ok, false);
+      assert.match(last.error, /shared-slug.*served by both alpha\/repo and beta\/repo/);
+      assert.equal(yt.state.writes, 0);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("a project flipping from skipped to served fails the cheap check and forces a full sync", async () => {
+    const yt = fakeYouTrack();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, init) => yt.handler(url, init);
+    const demoMount = { git: fakeGit(), cwd: "/fake" };
+    const acmeMount = { git: fakeGit(), cwd: "/fake-acme" };
+    const acmeBound = { value: false };
+    const boardReads = { count: 0 };
+    const mounts = {
+      projects: ["demo/stack", "acme/unbound"],
+      for: (projectId) => {
+        if (projectId === "acme/unbound" && !acmeBound.value) {
+          const error = new Error("project acme/unbound has no specs repository");
+          error.code = "REPO_BINDING_REQUIRED";
+          throw error;
+        }
+        return projectId === "acme/unbound" ? acmeMount : demoMount;
+      },
+      serviceFor: (projectId) => {
+        if (projectId === "acme/unbound" && !acmeBound.value) {
+          const error = new Error("project acme/unbound has no specs repository");
+          error.code = "REPO_BINDING_REQUIRED";
+          throw error;
+        }
+        return {
+          runQuery: async (operation, args) => {
+            if (operation !== "graph" || args.view !== "board") return { ok: false };
+            boardReads.count += 1;
+            const slug = projectId === "acme/unbound" ? "acme-spec" : "demo-spec";
+            return {
+              ok: true,
+              data: {
+                ...board([node(slug + ":FR-1", "FUNCTIONAL_REQUIREMENT", "R")]),
+                scope: { mode: "corpus", specSlugs: [slug] },
+              },
+            };
+          },
+        };
+      },
+    };
+    try {
+      const projection = createProjection({
+        mounts,
+        baseUrl: "http://yt.test",
+        serviceToken: "tok",
+        projectShortName: "SPEC",
+        markerSecret: MARKER_SECRET,
+      });
+      await projection.syncOnce();
+      const marker = yt.state.issues.find((i) => (i.description ?? "").startsWith("SPEC-SYNC-STATE"));
+      const first = JSON.parse(marker.description.split("\n")[1]);
+      assert.deepEqual(first.skippedProjects, ["acme/unbound"]);
+      // The tenant binds its repo between syncs — the served/skipped set
+      // changed, so mountHeads alone cannot prove freshness.
+      acmeBound.value = true;
+      const readsAfterFirst = boardReads.count;
+      await projection.syncOnce();
+      assert.ok(boardReads.count > readsAfterFirst, "served↔skipped transition forces the board build");
+      const second = JSON.parse(marker.description.split("\n")[1]);
+      assert.deepEqual(Object.keys(second.mountHeads).sort(), ["acme/unbound", "demo/stack"]);
+      assert.deepEqual(second.skippedProjects, []);
+      assert.equal(second.specProjects["acme-spec"], "acme/unbound");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("a moved mount HEAD forces a resync", async () => {
+    const yt = fakeYouTrack();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, init) => yt.handler(url, init);
+    const head = { value: "h".repeat(40) };
+    const boardReads = { count: 0 };
+    const mounts = {
+      projects: ["demo/stack"],
+      for: () => ({ git: { revParse: async () => head.value, statusPorcelain: async () => "" }, cwd: "/fake" }),
+      serviceFor: () => ({
+        runQuery: async (operation, args) => {
+          if (operation !== "graph" || args.view !== "board") return { ok: false };
+          boardReads.count += 1;
+          return { ok: true, data: board() };
+        },
+      }),
+    };
+    try {
+      const projection = createProjection({
+        mounts,
+        baseUrl: "http://yt.test",
+        serviceToken: "tok",
+        projectShortName: "SPEC",
+        markerSecret: MARKER_SECRET,
+      });
+      await projection.syncOnce();
+      head.value = "x".repeat(40);
+      await projection.syncOnce();
+      assert.equal(boardReads.count, 2, "a HEAD move rebuilds the board");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("status() reports the serialized loop state", async () => {
+    const yt = fakeYouTrack();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, init) => yt.handler(url, init);
+    try {
+      const projection = createProjection({
+        mounts: fakeMounts(board()),
+        baseUrl: "http://yt.test",
+        serviceToken: "tok",
+        projectShortName: "SPEC",
+        markerSecret: MARKER_SECRET,
+      });
+      assert.equal(projection.status().running, false);
+      assert.equal(projection.status().last, null);
+      await projection.syncOnce();
+      const status = projection.status();
+      assert.equal(status.last.ok, true);
+      assert.equal(status.last.outcome, "SYNCED");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
   });
 });

@@ -160,6 +160,30 @@ describe("YouTrackSyncStateStore marker integrity", () => {
     assert.deepEqual(committed.cardIds, { "demo:TASK-1": "SPEC-1" });
   });
 
+  it("pointer discovery scans the unbounded listing — a bounded filtered page cannot evict the marker", async () => {
+    // SpecId spam (>100 forged pointer rows) must not hide the real marker:
+    // the store reads the full project listing rather than a truncated query
+    // page whose ordering an attacker can poison.
+    const marker = signedMarker({
+      schemaVersion: "BoardSnapshotV1",
+      complete: true,
+      fingerprint: "fp",
+      snapshotHash: "sh",
+      cardIds: { "demo:TASK-1": "SPEC-2" },
+      snapshot: { nodes: [] },
+    });
+    const spam = Array.from({ length: 150 }, (_, i) => pointerRow(`9-${i}`, { complete: false }));
+    const client = fakeClient({ issues: [...spam, pointerRow("3-5", marker)] });
+    const committed = await store(client).readCommitted();
+    assert.equal(committed.valid, true);
+    assert.deepEqual(committed.cardIds, { "demo:TASK-1": "SPEC-2" });
+    assert.equal(
+      client.calls.some((call) => call[0] === "GET" && call[1].startsWith("/api/issues?query=")),
+      false,
+      "no bounded query page may stand between the store and the committed marker",
+    );
+  });
+
   it("refuses unsigned and wrongly signed markers as committed baselines", async () => {
     const unsigned = pointerRow("3-5", { schemaVersion: "BoardSnapshotV1", complete: true, fingerprint: "fp", snapshotHash: "sh", cardIds: { "demo:TASK-1": "SPEC-99" } });
     const forged = signedMarker({ schemaVersion: "BoardSnapshotV1", complete: true, fingerprint: "fp", snapshotHash: "sh", cardIds: {} });
@@ -194,5 +218,46 @@ describe("YouTrackSyncStateStore marker integrity", () => {
     const create = client.calls.find((call) => call[0] === "POST" && call[1] === "/api/issues?fields=id,idReadable");
     assert.equal(create[2].customFields[0].$type, "TextIssueCustomField");
     assert.equal(create[2].customFields[0].value.text, SYNC_STATE_SPEC_ID);
+  });
+});
+
+describe("YouTrackProjectionStore card patching", () => {
+  it("re-patches State when the tracker-side field was cleared", async () => {
+    const existing = {
+      id: "3-7",
+      idReadable: "SPEC-7",
+      summary: "demo:TASK-1 — Task 1",
+      description: "",
+      customFields: [
+        { name: "SpecId", value: "demo:TASK-1" },
+        { name: "SpecKind", value: { name: "TASK" } },
+        { name: "Type", value: { name: "Task" } },
+        { name: "ContentHash", value: "h1" },
+        // State is deliberately absent — a manual clear in the tracker is
+        // drift like any other and must be re-patched.
+      ],
+    };
+    const client = fakeClient({
+      issues: [existing],
+      get: (apiPath) => (apiPath.startsWith("/api/admin/projects/") ? [] : null),
+    });
+    const store = new YouTrackProjectionStore({ client, projectId: "0-0", projectShortName: "SPEC" });
+    await store.readProjection();
+    await store.upsertCards([
+      {
+        specId: "demo:TASK-1",
+        kind: "TASK",
+        typeValue: "Task",
+        title: "Task 1",
+        excerpt: "x",
+        status: "todo",
+        contentHash: "h1",
+        evidence: null,
+      },
+    ]);
+    const stateCommands = client.calls.filter((call) => call[0] === "COMMAND" && call[1].startsWith("State "));
+    assert.equal(stateCommands.length, 1);
+    assert.equal(stateCommands[0][1], "State Open");
+    assert.deepEqual(stateCommands[0][2], ["3-7"]);
   });
 });

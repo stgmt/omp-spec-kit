@@ -77,6 +77,31 @@ again (wizard, groups, token, specs, dashboard).
    `12fr × 8fr` covers widgets added by hand through the UI) and prints
    the link.
 
+## Writeback (tracker → spec), optional
+
+`docker compose --profile writeback up -d` additionally starts
+`spec-listener` (`spec-graph-sync --serve` inside the service image). The
+YouTrack *spec-writeback* workflow rule POSTs card state changes to
+`http://spec-listener:8787/writeback`; the listener re-verifies ownership
+against the signed `SPEC:SYNC-STATE` marker and applies `spec_patch` through
+the registry's `/mcp` — a real bot commit + push, so the next projection run
+confirms the status instead of reverting the card.
+
+Required env (`.env` next to compose.yml):
+
+| Var | Meaning |
+| --- | --- |
+| `YOUTRACK_TOKEN` | admin token — listener re-verifies cards against the tracker |
+| `SPEC_AGENT_TOKEN` | onboarding-issued agent token scoped to the spec projects (`POST /onboarding/token`); identities land in `Spec-Author` trailers |
+| `SPEC_WRITEBACK_TOKEN` | shared secret the tracker rule sends as `LISTENER_TOKEN` |
+| `SPEC_SYNC_MARKER_KEY` | **must equal the service's value** — mismatched secrets make ownership checks fail every writeback |
+
+Without `SPEC_REGISTRY_URL`/`SPEC_AGENT_TOKEN` the script falls back to a
+local `OMP_SPEC_KIT_ROOT` checkout whose edits never reach the registry —
+that mode predates the service-managed corpus and must not run against a
+`SPEC_REGISTRY_PROJECTION=1` deployment. Only one writer may project: do not
+scale `spec-registryd` replicas while projection is on.
+
 ## Output
 
 ```

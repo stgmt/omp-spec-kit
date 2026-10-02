@@ -71,6 +71,41 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
     }
   });
 
+  // Tracker projection ops: inspect the serialized sync loop and force a
+  // re-projection on demand (after tracker-side cleanup or a v-bump). These
+  // are operator surface — a sync writes cards across EVERY mounted project
+  // and re-publishes the committed marker, so tenant-scoped caller roles
+  // (writer/reader) must not reach them.
+  const ownerGate = (req, res, next) => {
+    if (req.ctx?.role !== "owner") {
+      res.status(403).json({ error: "FORBIDDEN_ROLE", message: `projection ops require the owner role (caller role: ${req.ctx?.role ?? "none"})` });
+      return;
+    }
+    next();
+  };
+  app.get("/projection/status", authGate, ownerGate, async (req, res) => {
+    if (typeof endpoints.projectionStatus !== "function") {
+      res.status(501).json({ error: "projection status endpoint is not wired" });
+      return;
+    }
+    try {
+      res.json(await endpoints.projectionStatus(req.ctx));
+    } catch (error) {
+      res.status(500).json({ error: "projection status failed", message: String(error?.message ?? error) });
+    }
+  });
+  app.post("/projection/sync", authGate, ownerGate, async (req, res) => {
+    if (typeof endpoints.projectionSync !== "function") {
+      res.status(501).json({ error: "projection sync endpoint is not wired" });
+      return;
+    }
+    try {
+      res.json(await endpoints.projectionSync(req.ctx));
+    } catch (error) {
+      res.status(500).json({ error: "projection sync failed", message: String(error?.message ?? error) });
+    }
+  });
+
   app.post("/onboarding/token", authGate, async (req, res) => {
     if (typeof endpoints.onboarding !== "function") {
       res.status(501).json({ error: "onboarding endpoint is not wired" });

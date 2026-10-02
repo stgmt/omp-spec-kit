@@ -17,6 +17,9 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY src ./src
+# spec-graph-sync serves as the optional writeback listener (command override
+# in compose); it imports ../src/adapters, so both trees ride in the image.
+COPY scripts/spec-graph-sync.mjs scripts/spec-listener-ensure.mjs ./scripts/
 
 # /data holds: config/projects.json (mounted), specs-clone/, registry.db
 RUN mkdir -p /data && chown -R node:node /data

@@ -75,6 +75,41 @@ services:
     ports:
       - "127.0.0.1:8644:8642"
 
+  # Optional tracker->spec writeback listener (docker compose --profile
+  # writeback up -d). The YouTrack spec-writeback rule POSTs card state
+  # changes to http://spec-listener:8787/writeback; the listener re-verifies
+  # the card against the tracker and routes spec_patch through the registry's
+  # /mcp write path (bot commit + push), so the next projection does not
+  # revert the card. SPEC_SYNC_MARKER_KEY must equal the service's value or
+  # ownership verification fails on every event.
+  spec-listener:
+    build:
+      context: ../..
+      dockerfile: deploy/Dockerfile
+    image: spec-registryd:local
+    profiles: ["writeback"]
+    restart: unless-stopped
+    depends_on:
+      - spec-registryd
+      - youtrack
+    # --bind 0.0.0.0: the default 127.0.0.1 is the CONTAINER's loopback and
+    # would refuse YouTrack's POSTs from the compose network; the auth
+    # boundary here is SPEC_WRITEBACK_TOKEN, not the bind address.
+    command: ["node", "scripts/spec-graph-sync.mjs", "--serve", "--port", "8787", "--bind", "0.0.0.0", "--host", "http://youtrack:8080"]
+    environment:
+      YOUTRACK_TOKEN: ${YOUTRACK_TOKEN:?spec-listener needs a YouTrack admin token to re-verify cards}
+      # Listener -> registry write path: spec_patch goes through /mcp as a
+      # real commit+push. SPEC_AGENT_TOKEN is an onboarding-issued agent token
+      # scoped to the spec projects (minted by spec-stack-setup).
+      SPEC_REGISTRY_URL: http://spec-registryd:8642
+      SPEC_AGENT_TOKEN: ${SPEC_AGENT_TOKEN:?spec-listener needs an agent token for spec_patch}
+      SPEC_WRITEBACK_TOKEN: ${SPEC_WRITEBACK_TOKEN:?set and mirror in the tracker rule LISTENER_TOKEN}
+      # No default on the verifier side: the listener authenticates marker
+      # signatures with this key, so a committed weak default would accept a
+      # forged pointer. Set it explicitly and keep it equal to the service's.
+      SPEC_SYNC_MARKER_KEY: ${SPEC_SYNC_MARKER_KEY:?spec-listener must verify markers with the service's SPEC_SYNC_MARKER_KEY}
+      SPEC_SYNC_SWEEP_INTERVAL_MS: ${SPEC_SYNC_SWEEP_INTERVAL_MS:-300000}
+
 volumes:
   yt-data:
   yt-conf:

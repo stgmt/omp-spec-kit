@@ -51,7 +51,7 @@ function publicBinding(row) {
  * project's ancestors). Pre-migration published versions stay readable from
  * the previous clone, which is kept on disk.
  */
-export function createRepoManager({ mounts, store, config, identity, secretsKey, logger = () => {} }) {
+export function createRepoManager({ mounts, store, config, identity, secretsKey, logger = () => {}, afterRepoChange = null }) {
   const audit = (entry) => { try { store?.logAccess?.(entry); } catch {} };
 
   function requireStore() {
@@ -192,6 +192,10 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
       // must exist in the bound repo either way.
       await mounts.ensureSkeletonInMount(mount, project);
       await put("active");
+      // The migration/skeleton pushes above bypass the write pipeline — the
+      // tracker projection must be told explicitly or bound specs wait for
+      // the next unrelated trigger before their cards exist.
+      afterRepoChange?.();
     } catch (error) {
       await put("error", String(error?.message ?? error).slice(0, 500));
       if (error instanceof RepoError) throw error;
@@ -229,6 +233,9 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     if (!row) return null;
     await store?.deleteBinding?.(project);
     await store?.deleteCredential?.(project);
+    // The unbound project's specs leave the corpus — the tracker should drop
+    // their cards on the next projection, not whenever something else fires.
+    afterRepoChange?.();
     return row.repoUrl;
   }
 

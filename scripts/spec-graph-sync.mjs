@@ -10,10 +10,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import http from "node:http";
 import { lstat, mkdir, open, readFile, rename, rm } from "node:fs/promises";
-import { constants as fsConstants, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { constants as fsConstants, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { spawn } from "node:child_process";
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac } from "node:crypto";
 import { createInterface } from "node:readline";
 import {
   BUTTON_TRANSITIONS,
@@ -31,6 +31,7 @@ import {
   specStatusForTrackerState,
   stableJson,
   validateWritebackEvent,
+  digest,
 } from "../src/adapters/youtrack-projection.js";
 import {
   YouTrackClient,
@@ -39,6 +40,7 @@ import {
   issueIdOrder,
   parseMarker,
 } from "../src/adapters/youtrack-store.js";
+import { resolveMarkerSecret } from "../src/adapters/marker-secret.js";
 import { StatusSweepService, planCardWriteback } from "../src/adapters/youtrack-status-sweep.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -226,27 +228,198 @@ export class McpTaskStatusWriteback {
   }
 }
 
+/**
+ * HTTP transport to the registry service's /mcp endpoint — the mode used when
+ * the canonical corpus lives behind spec-registryd. spec_patch then flows
+ * through the real write path: claim check, kernel apply, bot commit, push,
+ * publish, and a projection trigger — instead of a local checkout the
+ * registry never sees.
+ */
+class HttpMcpClient {
+  #baseUrl;
+  #token;
+  #project;
+  #timeoutMs;
 
-const MARKER_KEY_PATH = path.join(homedir(), ".omp", "spec-sync-marker-key");
+  constructor({ baseUrl, token, project = "", timeoutMs = MCP_CALL_TIMEOUT_MS }) {
+    this.#baseUrl = String(baseUrl ?? "").replace(/\/+$/, "");
+    this.#token = token;
+    this.#project = project;
+    this.#timeoutMs = timeoutMs;
+  }
+
+  async #post(message) {
+    const headers = { "Content-Type": "application/json", Accept: "application/json, text/event-stream" };
+    if (this.#token) headers.Authorization = "Bearer " + this.#token;
+    if (this.#project) headers["x-spec-project"] = this.#project;
+    const response = await fetch(this.#baseUrl + "/mcp", {
+      method: "POST",
+      signal: AbortSignal.timeout(this.#timeoutMs),
+      headers,
+      body: JSON.stringify(message),
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error("MCP HTTP " + response.status + ": " + text.slice(0, 200));
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      throw new Error("MCP HTTP call returned invalid JSON: " + text.slice(0, 120));
+    }
+    if (json.error) throw new Error(json.error.message ?? "MCP request failed");
+    return json.result;
+  }
+
+  async callTool(name, args = {}) {
+    // Stateless endpoint: a fresh transport per request, so the handshake
+    // precedes every call exactly like the stdio client does per child.
+    await this.#post({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-03-26",
+        capabilities: {},
+        clientInfo: { name: "spec-graph-sync", version: "1" },
+      },
+    });
+    const result = await this.#post({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: { name, arguments: args },
+    });
+    const envelope = result?.structuredContent ?? JSON.parse(result?.content?.[0]?.text ?? "null");
+    if (!envelope?.ok) throw new Error(envelope?.error?.message ?? "MCP request failed");
+    return envelope.data;
+  }
+}
+
+/**
+ * Board reader over the registry service: the committed marker's specProjects
+ * map names the serving mount for each spec slug, so the merged board is one
+ * spec_graph call per project — the same shape the service-side projection
+ * builds internally.
+ */
+export class HttpBoardReader {
+  #client;
+  #specProjects;
+
+  constructor({ client, specProjects }) {
+    this.#client = client;
+    this.#specProjects = specProjects;
+  }
+
+  async readBoard({ specSlugs = [] } = {}) {
+    const map = await this.#specProjects();
+    const projects = [...new Set(Object.values(map))].sort();
+    const nodes = [];
+    const edges = [];
+    const fingerprints = [];
+    const slugs = [];
+    const seen = new Map();
+    const served = Object.create(null);
+    // No v3 specProjects (pre-upgrade marker, or the token scopes a single
+    // corpus): one board call without a project hint covers that case.
+    const targets = projects.length > 0 ? projects : [null];
+    for (const project of targets) {
+      const args = { view: "board", specSlugs };
+      if (project) args.project = project;
+      const board = await this.#client.callTool("spec_graph", args);
+      for (const node of board?.nodes ?? []) {
+        // Same collision contract as the service-side mergedBoard: a canonicalId
+        // or spec slug claimed by two mounts makes writeback routing ambiguous —
+        // failing beats silently re-signing an arbitrary winner into the marker.
+        const nodeOwner = seen.get(node.canonicalId);
+        if (nodeOwner !== undefined && nodeOwner !== project) {
+          throw new Error(`duplicate spec node ${node.canonicalId} is served by both ${nodeOwner} and ${project}`);
+        }
+        if (nodeOwner === project) continue; // same board emitted the node twice
+        seen.set(node.canonicalId, project);
+        nodes.push(node);
+      }
+      edges.push(...(board?.edges ?? []));
+      if (typeof board?.fingerprint === "string") fingerprints.push(board.fingerprint);
+      for (const slug of board?.scope?.specSlugs ?? []) {
+        slugs.push(slug);
+        if (project) {
+          const slugOwner = served[slug];
+          if (slugOwner !== undefined && slugOwner !== project) {
+            throw new Error(`spec ${slug} is served by both ${slugOwner} and ${project}`);
+          }
+          served[slug] = project;
+        }
+      }
+    }
+    fingerprints.sort();
+    slugs.sort();
+    return {
+      fingerprint: digest({ boards: fingerprints }),
+      scope: { mode: "corpus", specSlugs: slugs },
+      complete: true,
+      page: null,
+      nodes,
+      edges,
+      counts: { nodes: nodes.length, edges: edges.length },
+      // The marker must keep a usable specProjects map — publishCommitted signs
+      // whatever the board carries, so a reader that fetched per-project boards
+      // re-derives the routing table instead of nulling it out.
+      ...(Object.keys(served).length > 0 ? { specProjects: served } : {}),
+    };
+  }
+}
+
+/**
+ * Status writeback over the registry write path: the spec_patch lands as a
+ * real bot commit + push, so the next projection run sees the status the
+ * tracker already holds instead of reverting the card back.
+ */
+export class HttpTaskStatusWriteback {
+  #client;
+  #specProjects;
+
+  constructor({ client, specProjects }) {
+    this.#client = client;
+    this.#specProjects = specProjects;
+  }
+
+  async setSpecTaskStatus({ specId, status }) {
+    const separator = typeof specId === "string" ? specId.indexOf(":") : -1;
+    if (separator <= 0 || separator === specId.length - 1) throw new TypeError("specId must be specSlug:localId");
+    if (!Object.prototype.hasOwnProperty.call(STATUS_MAP, status)) throw new TypeError("status must be planned, todo, or done");
+    const spec = specId.slice(0, separator);
+    const map = await this.#specProjects();
+    const project = map[spec];
+    if (typeof project !== "string" || project === "") {
+      throw new Error(
+        "cannot resolve the serving project for " + spec +
+          " — the committed marker predates specProjects (v3); run one service sync first",
+      );
+    }
+    return this.#client.callTool("spec_patch", {
+      requestId: "youtrack-writeback-" + Date.now(),
+      reason: "YouTrack task status writeback for " + specId,
+      spec,
+      project,
+      intent: "setEntityStatus",
+      entity: specId.slice(separator + 1),
+      status,
+      dryRun: false,
+    }).then((data) => ({ writeCalls: 1, data }));
+  }
+}
+
+
 const SYNC_LOCK_PATH = path.join(homedir(), ".omp", "spec-graph-sync.lock");
 
 /**
- * The marker-signing secret: SPEC_SYNC_MARKER_KEY (>= 32 chars) wins, else a
- * stable random key persisted under ~/.omp mode 0600 — the same convention as
- * the writeback token in spec-listener-ensure.mjs. Without it a tracker-side
- * edit of the pointer issue could forge cardIds ownership and drive spec_patch.
+ * The marker-signing secret: shared resolution with the service-side
+ * projection (SPEC_SYNC_MARKER_KEY → persisted key file → generated). Without
+ * it a tracker-side edit of the pointer issue could forge cardIds ownership
+ * and drive spec_patch.
  */
 function ensureMarkerSecret() {
-  const fromEnv = process.env.SPEC_SYNC_MARKER_KEY;
-  if (typeof fromEnv === "string" && fromEnv.length >= 32) return fromEnv;
-  try {
-    const existing = readFileSync(MARKER_KEY_PATH, "utf8").trim();
-    if (existing.length >= 32) return existing;
-  } catch {}
-  const generated = randomBytes(24).toString("hex");
-  mkdirSync(path.dirname(MARKER_KEY_PATH), { recursive: true, mode: 0o700 });
-  writeFileSync(MARKER_KEY_PATH, generated + "\n", { mode: 0o600 });
-  return generated;
+  return resolveMarkerSecret({ allowGenerate: true });
 }
 
 /**
@@ -294,6 +467,11 @@ function parseArgs(argv) {
     password: process.env.YOUTRACK_PASSWORD ?? "",
     writebackToken: process.env.SPEC_WRITEBACK_TOKEN ?? "",
     project: PROJECT_SHORT_NAME,
+    // Registry mode: reads/writes go through the service's HTTP MCP so a
+    // spec_patch becomes a real commit+push. OMP_SPEC_KIT_ROOT is not needed.
+    registryUrl: process.env.SPEC_REGISTRY_URL ?? "",
+    agentToken: process.env.SPEC_AGENT_TOKEN ?? "",
+    registryProject: process.env.SPEC_REGISTRY_PROJECT ?? "",
     dryRun: false,
     serve: false,
     provision: false,
@@ -325,6 +503,9 @@ function parseArgs(argv) {
   // host.docker.internal, so loopback is not an authentication boundary.
   if (args.serve && !args.writebackToken) {
     fail("--serve requires SPEC_WRITEBACK_TOKEN in the environment");
+  }
+  if (args.registryUrl && !args.agentToken) {
+    fail("SPEC_REGISTRY_URL is set — provide SPEC_AGENT_TOKEN (an onboarding-issued agent token) for the service /mcp calls");
   }
   return args;
 }
@@ -621,7 +802,9 @@ function requireCorpusRoot() {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const root = requireCorpusRoot();
+  // Registry mode serves the corpus over HTTP MCP — no local checkout needed.
+  const httpMode = args.registryUrl !== "";
+  const root = httpMode ? null : requireCorpusRoot();
   const client = new YouTrackClient({ host: args.host, token: args.token, password: args.password, timeoutMs: YOUTRACK_CALL_TIMEOUT_MS });
   const projects = await client.get("/api/admin/projects?fields=id,name,shortName");
   const project = (projects ?? []).find((entry) => entry.shortName === args.project);
@@ -630,16 +813,31 @@ async function main() {
     await provisionLinkTypes(client, { migrate: args.migrate });
     await provisionEnumValues(client, project.id);
   }
-  const sourceReader = new McpBoardReader({ root });
-  const tracker = new YouTrackProjectionStore({ client, projectId: project.id, projectShortName: project.shortName });
   const state = new YouTrackSyncStateStore({
     client,
     projectId: project.id,
     projectShortName: project.shortName,
     markerSecret: ensureMarkerSecret(),
   });
+  // specSlug -> projectId comes from the committed v3 marker: the writeback
+  // routes each spec_patch to the mount that actually owns the spec.
+  const specProjectsProvider = async () => {
+    const committed = await state.readCommitted();
+    return committed?.valid === true && committed.specProjects && typeof committed.specProjects === "object"
+      ? committed.specProjects
+      : {};
+  };
+  const httpClient = httpMode
+    ? new HttpMcpClient({ baseUrl: args.registryUrl, token: args.agentToken, project: args.registryProject })
+    : null;
+  const sourceReader = httpMode
+    ? new HttpBoardReader({ client: httpClient, specProjects: specProjectsProvider })
+    : new McpBoardReader({ root });
+  const tracker = new YouTrackProjectionStore({ client, projectId: project.id, projectShortName: project.shortName });
   if (args.serve) {
-    const writeback = new McpTaskStatusWriteback({ root });
+    const writeback = httpMode
+      ? new HttpTaskStatusWriteback({ client: httpClient, specProjects: specProjectsProvider })
+      : new McpTaskStatusWriteback({ root });
     const sweep = new StatusSweepService({ sourceReader, tracker, syncState: state, writeback });
     startServe({
       port: args.port,
@@ -679,4 +877,4 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   main().catch((error) => fail(error instanceof Error ? error.message : String(error)));
 }
 
-export { BUTTON_TRANSITIONS, YouTrackProjectionStore, YouTrackSyncStateStore, buildProjectionPlan, desiredDescription, desiredSummary, fieldValue, specStatusForTrackerState, validateWritebackEvent };
+export { BUTTON_TRANSITIONS, YouTrackProjectionStore, YouTrackSyncStateStore, buildProjectionPlan, desiredDescription, desiredSummary, fieldValue, specStatusForTrackerState, validateWritebackEvent, HttpMcpClient };

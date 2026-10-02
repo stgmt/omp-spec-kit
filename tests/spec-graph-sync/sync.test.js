@@ -153,6 +153,85 @@ describe("YouTrack projection adapter", () => {
     assert.equal(result.writeCalls, 4);
     assert.deepEqual(events, ["read-source", "read-state", "read-tracker", "cards", "links", "stale", "publish"]);
   });
+  it("a republish by a mount-blind reader preserves the routing map but not mount certification", async () => {
+    // Script-mode source readers cannot see the service's mounts. The sync
+    // preserves specProjects (writeback routing) so a republish does not break
+    // the listener — but mountHeads/mountsClean are certifications the blind
+    // reader never measured: re-signing them would let cheapCheck skip the
+    // repair sync forever. They must publish as null so the next service sync
+    // takes the full path.
+    const pointer = {
+      valid: true,
+      fingerprint: "0".repeat(64),
+      snapshotHash: "1".repeat(64),
+      projectionDigest: "2".repeat(64),
+      projectionVersion: 3,
+      cardIds: {},
+      mountHeads: { "demo/stack": "a".repeat(40) },
+      mountsClean: true,
+      specProjects: { demo: "demo/stack" },
+      skippedProjects: ["acme/unbound"],
+    };
+    const published = [];
+    const service = new YouTrackProjectionService({
+      sourceReader: { readBoard: async () => board() },
+      tracker: {
+        readProjection: async () => ({ issues: [], links: [] }),
+        upsertCards: async () => ({ writeCalls: 0, cardIds: {} }),
+        reconcileLinks: async () => ({ writeCalls: 0 }),
+        removeStaleCards: async () => ({ writeCalls: 0 }),
+      },
+      syncState: {
+        readCommitted: async () => pointer,
+        publishCommitted: async (plan) => {
+          published.push(plan);
+          return { writeCalls: 1 };
+        },
+      },
+    });
+    const result = await service.sync();
+    assert.equal(result.outcome, "SYNCED");
+    const plan = published[0];
+    assert.deepEqual(plan.specProjects, { demo: "demo/stack" }, "writeback routing survives a blind republish");
+    assert.equal(plan.mountHeads, null, "mount certification is not re-signed for mounts the reader never measured");
+    assert.equal(plan.mountsClean, null, "cleanliness is not attested for unmeasured mounts");
+    assert.equal(plan.skippedProjects, null);
+  });
+
+  it("a board-carried layout wins over the stale pointer fields", async () => {
+    const pointer = {
+      valid: true,
+      fingerprint: "0".repeat(64),
+      snapshotHash: "1".repeat(64),
+      projectionDigest: "2".repeat(64),
+      projectionVersion: 3,
+      cardIds: {},
+      specProjects: { demo: "old/stale" },
+      mountHeads: { "old/stale": "b".repeat(40) },
+    };
+    const published = [];
+    const freshBoard = { ...board(), specProjects: { demo: "demo/stack" }, mountHeads: { "demo/stack": "c".repeat(40) }, mountsClean: true, skippedProjects: [] };
+    const service = new YouTrackProjectionService({
+      sourceReader: { readBoard: async () => freshBoard },
+      tracker: {
+        readProjection: async () => ({ issues: [], links: [] }),
+        upsertCards: async () => ({ writeCalls: 0, cardIds: {} }),
+        reconcileLinks: async () => ({ writeCalls: 0 }),
+        removeStaleCards: async () => ({ writeCalls: 0 }),
+      },
+      syncState: {
+        readCommitted: async () => pointer,
+        publishCommitted: async (plan) => {
+          published.push(plan);
+          return { writeCalls: 1 };
+        },
+      },
+    });
+    await service.sync();
+    assert.deepEqual(published[0].specProjects, { demo: "demo/stack" });
+    assert.deepEqual(published[0].mountHeads, { "demo/stack": "c".repeat(40) });
+  });
+
   it("normalizes unknown source task status before tracker projection", () => {
     const source = board();
     source.nodes = source.nodes.map((entry) => entry.kind === "TASK" ? { ...entry, taskStatus: "unknown", body: "No status marker" } : entry);
