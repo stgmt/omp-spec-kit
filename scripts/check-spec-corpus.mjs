@@ -12,6 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildKernelGraph } from "../src/kernel/index.js";
 import { readRepositorySpecs } from "../src/kernel/adapters/fs.js";
+import { assertCandidateSurface } from "./candidate-status.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SPECS_ROOT = path.join(ROOT, ".specs");
@@ -321,52 +322,10 @@ function validateCurrentStatus() {
     fail("release status is absent or identity-drifted");
   }
   if (status.status.state === "CANDIDATE") {
-    if ((version === "2.8.0" || version === "2.7.0" || version === "2.6.2" || version === "2.6.1" || version === "2.6.0" || version === "2.5.0" || version === "2.4.0" || version === "2.3.0" || version === "2.2.1" || version === "2.2.0" || version === "2.1.0" || version === "2.0.0" || version === "1.4.0" || version === "1.3.2" || version === "1.3.1" || version === "1.3.0" || version === "1.1.0" || version === "1.0.2" || version === "1.0.1" || version === "1.0.0" || version === "0.10.2")) {
-      if (
-        status.status.public !== false ||
-        status.status.installable !== false ||
-        status.status.surface !== "SAFE_AUTHORING" ||
-        status.status.toolCount !== 10
-      ) {
-        fail("candidate status is not the 10-tool consolidated surface");
-      }
-      return version;
-    }
-    if (version === "0.10.1") {
-      if (
-        status.status.public !== false ||
-        status.status.installable !== false ||
-        status.status.surface !== "SAFE_AUTHORING" ||
-        status.status.toolCount !== 10
-      ) {
-        fail("candidate status is not the 10-tool consolidated surface");
-      }
-      return version;
-    }
-    if (version === "0.8.1" || version === "0.8.2") {
-      if (
-        status.status.public !== false ||
-        status.status.installable !== false ||
-        status.status.surface !== "SAFE_AUTHORING" ||
-        status.status.toolCount !== 11
-      ) {
-        fail("candidate status is not the 11-tool consolidated surface");
-      }
-      return version;
-    }
-    if (version === "0.6.0" || version === "0.7.0") {
-      if (
-        status.status.public !== false ||
-        status.status.installable !== false ||
-        status.status.surface !== "SAFE_AUTHORING" ||
-        status.status.toolCount !== 49
-      ) {
-        fail("candidate status is not the 49-tool safe authoring surface");
-      }
-      return version;
-    }
-    if (status.status.public !== false || status.status.installable !== false || status.status.surface !== "EVIDENCE_NAVIGATION" || status.status.toolCount !== 27) {
-      fail("v0.5 candidate status is not the additive evidence/navigation surface");
+    try {
+      assertCandidateSurface(version, status);
+    } catch (error) {
+      fail(error instanceof Error ? error.message : String(error));
     }
     return version;
   }

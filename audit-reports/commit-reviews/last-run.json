@@ -1,11 +1,10 @@
 {
   "schema": "review-last-run@1",
-  "runId": "2026-10-02T09-29-07-231Z-skipped",
+  "runId": "2026-10-02T12-30-34-552Z-4a3eb1fbe518",
   "repoRoot": "E:/repos/omp-spec-kit",
-  "updatedAt": "2026-10-02T09:29:07.349Z",
-  "state": "skipped",
-  "verdict": "SKIPPED",
-  "exitCode": 0,
-  "finishedAt": "2026-10-02T09:29:07.349Z",
-  "durationMs": 118
+  "updatedAt": "2026-10-02T13:11:22.969Z",
+  "state": "reviewing",
+  "model": "@smol",
+  "pid": 61692,
+  "elapsedMs": 2447577
 }
