@@ -1,10 +1,16 @@
 {
   "schema": "review-last-run@1",
-  "runId": "2026-10-02T12-30-34-552Z-4a3eb1fbe518",
+  "runId": "2026-10-02T13-29-59-692Z-7a4bea15f080",
   "repoRoot": "E:/repos/omp-spec-kit",
-  "updatedAt": "2026-10-02T13:11:22.969Z",
-  "state": "reviewing",
-  "model": "@smol",
-  "pid": 61692,
-  "elapsedMs": 2447577
+  "updatedAt": "2026-10-02T13:40:35.478Z",
+  "state": "blocked",
+  "verdict": "BLOCK",
+  "exitCode": 1,
+  "reportPath": "E:\\repos\\omp-spec-kit\\audit-reports\\commit-reviews\\2026-10-02T13-29-59-691Z-7a4bea15f08047be40f6bc9bbd0e2815869014ce8200db0003dbdf9b61e3e279.md",
+  "durationMs": 635786,
+  "modelsTried": [
+    "@smol",
+    "@task"
+  ],
+  "finishedAt": "2026-10-02T13:40:35.478Z"
 }
