@@ -10,11 +10,11 @@ import { after, describe, it } from "node:test";
 import { MountManager, parseProjectsConfig } from "../../../src/service/mounts.js";
 import { buildServiceStack } from "../../../src/service/index.js";
 import { stableJson, digest } from "../../../src/adapters/youtrack-projection.js";
-import { resolveMarkerSecret } from "../../../src/adapters/marker-secret.js";
 
 const execFileAsync = promisify(execFile);
 const FIXTURE_SPEC = path.resolve("tests/fixtures/kernel/real-corpus/.specs/spec-kernel");
 const SECRETS_KEY = "k".repeat(32);
+const MARKER_ENV_KEY = "m".repeat(40);
 const tempDirs = [];
 after(async () => {
   await Promise.all(tempDirs.map((dir) => rm(dir, { recursive: true, force: true }).catch(() => {})));
@@ -91,7 +91,7 @@ describe("buildServiceStack projection wiring", () => {
     assert.deepEqual(await stack.endpoints.projectionSync(), { enabled: false });
   });
 
-  it("projection enabled: the marker secret resolves through the shared chain (secretsKey-derived)", async () => {
+  it("projection enabled: the marker signature verifies against the env-provided shared key", async () => {
     const { dir, bare } = await seededBare();
     const config = stackConfig(bare);
     const mounts = new MountManager({ config, cloneDir: path.join(dir, "clone"), store: memoryStore(), secretsKey: SECRETS_KEY, identity: { name: "b", email: "b@x" } });
@@ -129,7 +129,7 @@ describe("buildServiceStack projection wiring", () => {
         config,
         store: memoryStore(),
         secretsKey: SECRETS_KEY,
-        env: { SPEC_REGISTRY_PROJECTION: "1", SPEC_REGISTRY_YT_URL: "http://yt.test" },
+        env: { SPEC_REGISTRY_PROJECTION: "1", SPEC_REGISTRY_YT_URL: "http://yt.test", SPEC_SYNC_MARKER_KEY: MARKER_ENV_KEY },
         logger: () => {},
       });
       assert.ok(stack.projection, "projection constructed");
@@ -138,15 +138,35 @@ describe("buildServiceStack projection wiring", () => {
       assert.ok(markerWrite, `the sync published a marker (last=${JSON.stringify(stack.projection.status().last)})`);
       const marker = JSON.parse(markerWrite.description.slice("SPEC-SYNC-STATE\n".length));
       const { signature, ...unsigned } = marker;
-      // The secret came from the shared resolver — whatever arm wins locally
-      // (env/file/derived), it is the SAME value a manual spec-graph-sync run
-      // would resolve and verify with.
-      const secret = resolveMarkerSecret({ env: {}, secretsKey: SECRETS_KEY });
-      const expected = createHmac("sha256", secret).update(stableJson(unsigned), "utf8").digest("hex");
+      // The env arm resolves deterministically and is used verbatim — the
+      // signature must verify against exactly this key regardless of any
+      // marker key file on the machine running the suite.
+      const expected = createHmac("sha256", MARKER_ENV_KEY).update(stableJson(unsigned), "utf8").digest("hex");
       assert.equal(signature, expected);
     } finally {
       globalThis.fetch = realFetch;
     }
+  });
+
+  it("projection enabled: a set-but-short SPEC_SYNC_MARKER_KEY fails closed at stack build", async () => {
+    const { dir, bare } = await seededBare();
+    const config = stackConfig(bare);
+    const mounts = new MountManager({ config, cloneDir: path.join(dir, "clone"), store: memoryStore(), secretsKey: SECRETS_KEY, identity: { name: "b", email: "b@x" } });
+    // Reverting the service to the former inline `env.SPEC_SYNC_MARKER_KEY ??`
+    // expression would silently sign with the short key — this assertion is
+    // the discriminating guard on the shared-resolver wiring.
+    assert.throws(
+      () =>
+        buildServiceStack({
+          mounts,
+          config,
+          store: memoryStore(),
+          secretsKey: SECRETS_KEY,
+          env: { SPEC_REGISTRY_PROJECTION: "1", SPEC_REGISTRY_YT_URL: "http://yt.test", SPEC_SYNC_MARKER_KEY: "too-short" },
+          logger: () => {},
+        }),
+      /SPEC_SYNC_MARKER_KEY is set but only \d+ chars/,
+    );
   });
 
   it("repo bind/unbind through the composed stack fires projection.syncNow once each", async () => {
