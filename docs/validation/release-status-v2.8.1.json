@@ -1,0 +1,34 @@
+{
+  "schema": "omp-spec-kit-public-release-status@1",
+  "version": "2.8.1",
+  "tag": "v2.8.1",
+  "releaseUrl": "https://github.com/stgmt/omp-spec-kit/releases/tag/v2.8.1",
+  "publishedAt": "2026-10-05T21:24:41Z",
+  "tagCommit": "4b84fafdeafb68d580ab3363bea8e2a6abffe366",
+  "candidateDigest": "9ca68c19dd6334268d759b9b2b5e2015f86c275db4fca4bf413787952839fbde",
+  "packageTreeDigest": "946db5583fd2220ccd8840cf039fc18d62bdb421204b088c4c89184048c45bc8",
+  "archive": {
+    "file": "omp-spec-kit-2.8.1.tar",
+    "sha256": "092733993edc3063cdd98d08cad0a2772712b41693ee5823fa56353fa4cefbfd",
+    "bytes": 578560
+  },
+  "releaseAssets": [
+    {
+      "name": "candidate.json",
+      "bytes": 10641
+    },
+    {
+      "name": "evidence.json",
+      "bytes": 3304
+    },
+    {
+      "name": "omp-spec-kit-2.8.1.tar",
+      "bytes": 578560
+    },
+    {
+      "name": "spec-graph-app-1.0.25.zip",
+      "bytes": 125832
+    }
+  ],
+  "note": "Published by the release workflow (github-actions[bot]) end-to-end on the tagged checkout; archive sha256 matches the published asset digest."
+}
