@@ -1,12 +1,12 @@
 {
   "schema": "omp-spec-kit-release-candidate@2",
-  "version": "2.8.0",
-  "tag": "v2.8.0",
-  "commit": "232399c8bb2026dc9300b408c5651383fcef6d3e",
-  "packageTreeDigest": "12b9107aca1044b373eb5daf93ccd3edd15745c4d31e72a2603912a4ad13c126",
+  "version": "2.8.1",
+  "tag": "v2.8.1",
+  "commit": "4b84fafdeafb68d580ab3363bea8e2a6abffe366",
+  "packageTreeDigest": "946db5583fd2220ccd8840cf039fc18d62bdb421204b088c4c89184048c45bc8",
   "archive": {
-    "file": "omp-spec-kit-2.8.0.tar",
-    "sha256": "056fafa4f0e25a3a7dcf67f47681d68ba3285b676d2cf7fe430fd2f7c97da5c8",
+    "file": "omp-spec-kit-2.8.1.tar",
+    "sha256": "092733993edc3063cdd98d08cad0a2772712b41693ee5823fa56353fa4cefbfd",
     "bytes": 578560
   },
   "youtrackApp": {
@@ -152,7 +152,7 @@
       "path": "dist/extension.js",
       "mode": 420,
       "bytes": 544,
-      "sha256": "320afa1778511a593ca18e1b5244917bd116eb3863cf749b633508e1d79c14bc"
+      "sha256": "ae7bfe5b1cfdc4e0bdb8afde876fef94214cf5899ed27b29595d07d430f2d35a"
     },
     {
       "path": "dist/gate/automatic-adapter.js",
@@ -290,7 +290,7 @@
       "path": "dist/manifest.json",
       "mode": 420,
       "bytes": 5269,
-      "sha256": "2570658a8a396f750c7cc6eced77c13b9fc4e1fa70f2800bcfb8a89823510dbe"
+      "sha256": "485ad1d9c4d7986957675ddd9983fa709329e206852e8716cd1d78a05adde33e"
     },
     {
       "path": "dist/mcp/server.js",
@@ -308,7 +308,7 @@
       "path": "package.json",
       "mode": 420,
       "bytes": 639,
-      "sha256": "fe940e44765ce8ceb854df0bd5758485b8297f2803a0013a91981a7c15f628dd"
+      "sha256": "33ac4b8432daf5deeebc1ce639b856a0fcf00743b929752a7de7f01f3ebaa572"
     },
     {
       "path": "README.md",
@@ -347,5 +347,5 @@
       "sha256": "ade24f9232ebf5ac9eca03e0ec05541508c5ce4d541e79553a0fa41a62520c4c"
     }
   ],
-  "candidateDigest": "1174d07800df40f36348ee52fdd41e2a5963538530cdfe4b04ffda305fb8a6bb"
+  "candidateDigest": "9ca68c19dd6334268d759b9b2b5e2015f86c275db4fca4bf413787952839fbde"
 }
