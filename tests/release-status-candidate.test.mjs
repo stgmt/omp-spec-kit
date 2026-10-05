@@ -16,8 +16,9 @@ const TEN_TOOL_CANDIDATE = Object.freeze({
   },
 });
 
-test("candidate surface gate accepts a 2.8.0 CANDIDATE release-status fixture", () => {
+test("candidate surface gate accepts a 2.8.x CANDIDATE release-status fixture", () => {
   assert.doesNotThrow(() => assertCandidateSurface("2.8.0", TEN_TOOL_CANDIDATE));
+  assert.doesNotThrow(() => assertCandidateSurface("2.8.1", TEN_TOOL_CANDIDATE));
 });
 
 test("candidate surface gate rejects a version outside the whitelist", () => {
@@ -38,8 +39,9 @@ test("candidate surface gate rejects a whitelisted version with drifted surface"
   );
 });
 
-test("expectedManagerToolCount(2.8.0) matches the live manager tool catalog", () => {
+test("expectedManagerToolCount(2.8.x) matches the live manager tool catalog", () => {
   assert.equal(expectedManagerToolCount("2.8.0"), TOOL_CONTRACTS.length);
+  assert.equal(expectedManagerToolCount("2.8.1"), TOOL_CONTRACTS.length);
   assert.equal(TOOL_CONTRACTS.length, 10);
 });
 
