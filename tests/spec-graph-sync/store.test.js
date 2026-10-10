@@ -4,6 +4,7 @@ import { createHmac } from "node:crypto";
 import {
   YouTrackProjectionStore,
   YouTrackSyncStateStore,
+  provisionLinkTypes,
 } from "../../scripts/spec-graph-sync.mjs";
 import { stableJson, SYNC_STATE_SPEC_ID } from "../../src/adapters/youtrack-projection.js";
 
@@ -207,6 +208,44 @@ describe("YouTrackSyncStateStore marker integrity", () => {
     assert.deepEqual(client.calls.filter((call) => call[0] === "DELETE").map((call) => call[1]), ["/api/issues/3-9"]);
   });
 
+  it("publishCommitted defaults to a complete marker when options are omitted", async () => {
+    const client = fakeClient({ issues: [] });
+    await store(client).publishCommitted(plan());
+    const create = client.calls.find((call) => call[0] === "POST" && call[1] === "/api/issues?fields=id,idReadable");
+    const marker = JSON.parse(create[2].description.slice("SPEC-SYNC-STATE\n".length));
+    assert.equal(marker.complete, true);
+    const { signature, ...unsigned } = marker;
+    assert.equal(signature, createHmac("sha256", MARKER_SECRET).update(stableJson(unsigned), "utf8").digest("hex"), "default marker must be verifiably signed");
+  });
+
+  it("publishCommitted posts a signed complete:false marker when writes were partial", async () => {
+    const client = fakeClient({ issues: [] });
+    await store(client).publishCommitted(plan(), { cardIds: { "demo:TASK-1": "SPEC-1" }, complete: false });
+    const create = client.calls.find((call) => call[0] === "POST" && call[1] === "/api/issues?fields=id,idReadable");
+    const marker = JSON.parse(create[2].description.slice("SPEC-SYNC-STATE\n".length));
+    assert.equal(marker.complete, false);
+    const { signature, ...unsigned } = marker;
+    assert.equal(signature, createHmac("sha256", MARKER_SECRET).update(stableJson(unsigned), "utf8").digest("hex"), "partial marker must still be verifiably signed");
+  });
+
+  it("a signed partial marker verifies for writeback routing but stays incomplete", async () => {
+    const marker = signedMarker({
+      schemaVersion: "BoardSnapshotV1",
+      complete: false,
+      fingerprint: "fp",
+      snapshotHash: "sh",
+      cardIds: { "demo:TASK-1": "SPEC-1" },
+      specProjects: { demo: "demo/stack" },
+      snapshot: { nodes: [] },
+    });
+    const client = fakeClient({ issues: [pointerRow("3-5", marker)] });
+    const committed = await store(client).readCommitted();
+    assert.equal(committed.valid, true, "authentic partial marker must verify — writeback routes through it");
+    assert.equal(committed.complete, false, "completeness is reported, not laundered");
+    assert.deepEqual(committed.cardIds, { "demo:TASK-1": "SPEC-1" });
+    assert.deepEqual(committed.specProjects, { demo: "demo/stack" });
+  });
+
   it("honors a text-typed SpecId field when creating the pointer", async () => {
     const client = fakeClient({
       issues: [],
@@ -259,5 +298,128 @@ describe("YouTrackProjectionStore card patching", () => {
     assert.equal(stateCommands.length, 1);
     assert.equal(stateCommands[0][1], "State Open");
     assert.deepEqual(stateCommands[0][2], ["3-7"]);
+  });
+});
+
+describe("provisionLinkTypes direction-label integrity", () => {
+  const typeRow = (name, extra = {}) => ({ id: "162-x", name, directed: true, sourceToTarget: name, targetToSource: name + "-back", ...extra });
+
+  it("deletes legacy inverse types under --migrate and relabels colliding directed types in place", async () => {
+    const client = fakeClient({
+      get: () => [
+        typeRow("satisfies", { sourceToTarget: "satisfies", targetToSource: "satisfied by" }),
+        { id: "162-5", name: "satisfied-by", directed: true, sourceToTarget: "satisfied by", targetToSource: "satisfies" },
+        { id: "162-10", name: "depends-on", directed: true, sourceToTarget: "depends on", targetToSource: "required for" },
+      ],
+    });
+    await provisionLinkTypes(client, { migrate: true, log: () => {} });
+    assert.deepEqual(client.calls.filter((c) => c[0] === "DELETE"), [["DELETE", "/api/issueLinkTypes/162-5"]]);
+    const relabel = client.calls.find((c) => c[0] === "POST" && c[1] === "/api/issueLinkTypes/162-10?fields=id,name");
+    assert.deepEqual(relabel?.[2], { sourceToTarget: "depends-on", targetToSource: "required-by" }, "labels that collide with the stock Depend type are rewritten in place");
+    const creates = client.calls.filter((c) => c[0] === "POST" && c[1] === "/api/issueLinkTypes?fields=id,name");
+    assert.ok(creates.every((c) => c[2].name !== "satisfied-by"), "inverse-named types are never (re)created");
+  });
+
+  it("refuses to drop a legacy inverse type without --migrate", async () => {
+    const client = fakeClient({
+      get: () => [{ id: "162-5", name: "satisfied-by", directed: true }],
+    });
+    await assert.rejects(() => provisionLinkTypes(client, { migrate: false, log: () => {} }), /--migrate/);
+    assert.equal(client.calls.filter((c) => c[0] === "DELETE").length, 0);
+  });
+
+  it("creates all canonical types with unique direction labels on an empty tracker", async () => {
+    const expected = {
+      satisfies: ["satisfies", "satisfied by"],
+      verifies: ["verifies", "verified by"],
+      covers: ["covers", "covered by"],
+      implements: ["implements", "implemented by"],
+      "depends-on": ["depends-on", "required-by"],
+      constrains: ["constrains", "constrained by"],
+      contains: ["contains", "contained by"],
+    };
+    const client = fakeClient({ get: () => [] });
+    await provisionLinkTypes(client, { log: () => {} });
+    const creates = client.calls
+      .filter((c) => c[0] === "POST" && c[1] === "/api/issueLinkTypes?fields=id,name")
+      .map((c) => c[2]);
+    assert.deepEqual(creates.map((c) => c.name).sort(), Object.keys(expected).sort());
+    for (const c of creates) {
+      assert.equal(c.directed, true, `${c.name} must be directed`);
+      assert.deepEqual([c.sourceToTarget, c.targetToSource], expected[c.name]);
+    }
+    // The accessor collision this whole change exists to prevent: no two
+    // types may declare the same direction label.
+    const labels = creates.flatMap((c) => [c.sourceToTarget, c.targetToSource]);
+    assert.equal(new Set(labels).size, labels.length, "direction labels must be globally unique");
+  });
+
+  it("refuses an undirected non-legacy type without --migrate; recreates it directed with", async () => {
+    const undirected = [{ id: "162-9", name: "depends-on", directed: false }];
+    const refused = fakeClient({ get: () => undirected });
+    await assert.rejects(() => provisionLinkTypes(refused, { migrate: false, log: () => {} }), /--migrate/);
+    assert.deepEqual(refused.calls.filter((c) => c[0] !== "GET"), [], "no writes without --migrate");
+
+    const migrated = fakeClient({ get: () => undirected });
+    await provisionLinkTypes(migrated, { migrate: true, log: () => {} });
+    assert.deepEqual(migrated.calls.filter((c) => c[0] === "DELETE"), [["DELETE", "/api/issueLinkTypes/162-9"]]);
+    const recreated = migrated.calls.find((c) => c[0] === "POST" && c[1] === "/api/issueLinkTypes?fields=id,name" && c[2].name === "depends-on");
+    assert.equal(recreated[2].directed, true);
+    assert.deepEqual([recreated[2].sourceToTarget, recreated[2].targetToSource], ["depends-on", "required-by"]);
+  });
+
+  it("requests direction labels in the listing — relabel decisions depend on them", async () => {
+    // Serve label fields only when the query asks for them: a GET that drops
+    // sourceToTarget/targetToSource reads every row as drifted and relabels
+    // the world on a clean set.
+    const clean = [
+      typeRow("satisfies", { sourceToTarget: "satisfies", targetToSource: "satisfied by" }),
+      typeRow("verifies", { sourceToTarget: "verifies", targetToSource: "verified by" }),
+      typeRow("covers", { sourceToTarget: "covers", targetToSource: "covered by" }),
+      typeRow("implements", { sourceToTarget: "implements", targetToSource: "implemented by" }),
+      typeRow("depends-on", { sourceToTarget: "depends-on", targetToSource: "required-by" }),
+      typeRow("constrains", { sourceToTarget: "constrains", targetToSource: "constrained by" }),
+      typeRow("contains", { sourceToTarget: "contains", targetToSource: "contained by" }),
+    ];
+    const client = fakeClient({
+      get: (apiPath) => {
+        const rows = apiPath.includes("sourceToTarget") && apiPath.includes("targetToSource")
+          ? clean
+          : clean.map((row) => ({ id: row.id, name: row.name, directed: row.directed }));
+        return rows;
+      },
+    });
+    await provisionLinkTypes(client, { log: () => {} });
+    const listCall = client.calls.find((c) => c[0] === "GET");
+    assert.ok(listCall[1].includes("sourceToTarget") && listCall[1].includes("targetToSource"), "listing must fetch direction labels");
+    assert.deepEqual(client.calls.filter((c) => c[0] !== "GET"), [], "a clean set under a complete listing needs no writes");
+  });
+
+  it("implemented-by is refused without --migrate and deleted with it", async () => {
+    const legacy = [{ id: "162-7", name: "implemented-by", directed: true, sourceToTarget: "implemented by", targetToSource: "implements" }];
+    const refused = fakeClient({ get: () => legacy });
+    await assert.rejects(() => provisionLinkTypes(refused, { migrate: false, log: () => {} }), /--migrate/);
+    assert.deepEqual(refused.calls.filter((c) => c[0] !== "GET"), [], "no writes without --migrate");
+
+    const migrated = fakeClient({ get: () => legacy });
+    const logs = [];
+    await provisionLinkTypes(migrated, { migrate: true, log: (m) => logs.push(m) });
+    assert.deepEqual(migrated.calls.filter((c) => c[0] === "DELETE"), [["DELETE", "/api/issueLinkTypes/162-7"]]);
+    assert.ok(logs.some((m) => m.includes("implemented-by")), "delete op logged");
+  });
+
+  it("leaves a clean directed type set untouched", async () => {
+    const clean = [
+      typeRow("satisfies", { sourceToTarget: "satisfies", targetToSource: "satisfied by" }),
+      typeRow("verifies", { sourceToTarget: "verifies", targetToSource: "verified by" }),
+      typeRow("covers", { sourceToTarget: "covers", targetToSource: "covered by" }),
+      typeRow("implements", { sourceToTarget: "implements", targetToSource: "implemented by" }),
+      typeRow("depends-on", { sourceToTarget: "depends-on", targetToSource: "required-by" }),
+      typeRow("constrains", { sourceToTarget: "constrains", targetToSource: "constrained by" }),
+      typeRow("contains", { sourceToTarget: "contains", targetToSource: "contained by" }),
+    ];
+    const client = fakeClient({ get: () => clean });
+    await provisionLinkTypes(client, { log: () => {} });
+    assert.deepEqual(client.calls.filter((c) => c[0] !== "GET"), []);
   });
 });

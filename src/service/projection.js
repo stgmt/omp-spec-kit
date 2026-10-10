@@ -151,6 +151,9 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
    */
   async function cheapCheck(pointer) {
     if (pointer.valid !== true) return false;
+    // A partial marker carries the same fingerprint/heads but certifies
+    // failed writes — never let it satisfy a skip.
+    if (pointer.complete !== true) return false;
     if (pointer.projectionVersion !== PROJECTION_VERSION) return false;
     if (pointer.mountsClean !== true || !pointer.mountHeads || typeof pointer.mountHeads !== "object") return false;
     const recorded = pointer.mountHeads;
@@ -201,6 +204,7 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
       const plan = buildProjectionPlan(board);
       const fresh =
         pointer.valid === true &&
+        pointer.complete === true &&
         pointer.fingerprint === plan.fingerprint &&
         pointer.snapshotHash === plan.snapshotHash &&
         pointer.projectionDigest === plan.projectionDigest &&
@@ -237,7 +241,9 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
         const result = await doSync();
         lastResult = {
           at: new Date().toISOString(),
-          ok: true,
+          // PARTIAL means tracker writes failed and the pointer was published
+          // complete:false — surface it as not-ok so ops notice the drift.
+          ok: result.outcome !== "PARTIAL",
           outcome: result.outcome,
           fingerprint: result.fingerprint ?? null,
           writeCalls: result.writeCalls ?? 0,

@@ -268,4 +268,127 @@ describe("YouTrack projection adapter", () => {
     assert.equal(desiredSummary(summary).length, 255);
   });
 
+  it("emits canonical link types with flipped endpoints — never inverse-named types", () => {
+    // Inverse-named types (satisfied-by, implemented-by) re-declared direction
+    // labels their canonical siblings own; the duplicate labels crashed every
+    // tracker workflow touching issue.links. Emission must stay canonical.
+    const plan = buildProjectionPlan(board([
+      { from: "demo:AC-1.1", to: "demo:FR-1", type: "REFS", occurrenceCount: 1 },
+      { from: "demo:FR-1", to: "demo:TASK-1", type: "REFS", occurrenceCount: 1 },
+    ]));
+    assert.deepEqual(plan.links, [
+      { type: "implements", source: "demo:TASK-1", target: "demo:FR-1" },
+      { type: "satisfies", source: "demo:FR-1", target: "demo:AC-1.1" },
+    ]);
+  });
+
+  it("does not skip on a pointer signed under an older projectionVersion", async () => {
+    // The literal 3 matters: PROJECTION_VERSION-1 would survive a revert of
+    // the bump, which is exactly the regression this guards.
+    const plan = buildProjectionPlan(board());
+    const pointer = {
+      valid: true,
+      complete: true,
+      fingerprint: plan.fingerprint,
+      snapshotHash: plan.snapshotHash,
+      projectionDigest: plan.projectionDigest,
+      projectionVersion: 3,
+      cardIds: {},
+      specProjects: { demo: "demo/stack" },
+    };
+    const service = new YouTrackProjectionService({
+      sourceReader: { readBoard: async () => board() },
+      tracker: {
+        readProjection: async () => ({ issues: plan.issues.map(card), links: [] }),
+        upsertCards: async () => ({ writeCalls: 0, cardIds: {} }),
+        reconcileLinks: async () => ({ writeCalls: 0 }),
+        removeStaleCards: async () => ({ writeCalls: 0 }),
+      },
+      syncState: {
+        readCommitted: async () => pointer,
+        publishCommitted: async () => ({ writeCalls: 1 }),
+      },
+    });
+    const result = await service.sync();
+    assert.equal(result.outcome, "SYNCED", "v3-signed pointer must republish, not skip");
+  });
+
+  it("does not skip on a partial marker even when fingerprint and parity match", async () => {
+    // A complete:false pointer certifies failed writes; skipping on it would
+    // freeze the drift the marker was published to heal.
+    const plan = buildProjectionPlan(board());
+    const pointer = {
+      valid: true,
+      complete: false,
+      fingerprint: plan.fingerprint,
+      snapshotHash: plan.snapshotHash,
+      projectionDigest: plan.projectionDigest,
+      projectionVersion: plan.projectionVersion,
+      cardIds: {},
+      specProjects: { demo: "demo/stack" },
+    };
+    const service = new YouTrackProjectionService({
+      sourceReader: { readBoard: async () => board() },
+      tracker: {
+        readProjection: async () => ({ issues: plan.issues.map(card), links: [] }),
+        upsertCards: async () => ({ writeCalls: 0, cardIds: {} }),
+        reconcileLinks: async () => ({ writeCalls: 0 }),
+        removeStaleCards: async () => ({ writeCalls: 0 }),
+      },
+      syncState: {
+        readCommitted: async () => pointer,
+        publishCommitted: async () => ({ writeCalls: 1 }),
+      },
+    });
+    const result = await service.sync();
+    assert.equal(result.outcome, "SYNCED", "partial marker must retake the full path, not skip");
+  });
+
+  it("publishes an incomplete pointer and reports PARTIAL when a card write fails", async () => {
+    // A complete:true marker over partial state lets cheapCheck/fresh skip the
+    // repair forever: the failed specId is absent from cardIds but the
+    // fingerprint still matches. complete:false keeps the pointer signed and
+    // owned — writeback still routes through it — but fails every skip gate,
+    // so the next trigger retries the full path.
+    const published = [];
+    const service = new YouTrackProjectionService({
+      sourceReader: { readBoard: async () => board() },
+      tracker: {
+        readProjection: async () => ({ issues: [], links: [] }),
+        upsertCards: async () => ({ writeCalls: 0, cardIds: {}, failures: [{ specId: "demo:TASK-1", error: "POST /api/commands => 500" }] }),
+        reconcileLinks: async () => ({ writeCalls: 0 }),
+        removeStaleCards: async () => ({ writeCalls: 0 }),
+      },
+      syncState: {
+        readCommitted: async () => ({ valid: false }),
+        publishCommitted: async (plan, options) => { published.push(options); return { writeCalls: 1 }; },
+      },
+    });
+    const result = await service.sync();
+    assert.equal(result.outcome, "PARTIAL");
+    assert.equal(result.failures.length, 1);
+    assert.equal(result.failures[0].specId, "demo:TASK-1");
+    assert.deepEqual(published, [{ cardIds: {}, complete: false }], "marker published but not certified complete");
+  });
+
+  it("still reports SYNCED when every card write succeeds", async () => {
+    const published = [];
+    const service = new YouTrackProjectionService({
+      sourceReader: { readBoard: async () => board() },
+      tracker: {
+        readProjection: async () => ({ issues: [], links: [] }),
+        upsertCards: async () => ({ writeCalls: 1, cardIds: {}, failures: [] }),
+        reconcileLinks: async () => ({ writeCalls: 0 }),
+        removeStaleCards: async () => ({ writeCalls: 0 }),
+      },
+      syncState: {
+        readCommitted: async () => ({ valid: false }),
+        publishCommitted: async (plan, options) => { published.push(options); return { writeCalls: 1 }; },
+      },
+    });
+    const result = await service.sync();
+    assert.equal(result.outcome, "SYNCED");
+    assert.deepEqual(published, [{ cardIds: {}, complete: true }]);
+  });
+
 });

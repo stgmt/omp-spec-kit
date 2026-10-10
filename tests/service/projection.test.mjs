@@ -83,7 +83,9 @@ function fakeYouTrack(state = {}) {
       if (issue && body?.summary !== undefined) issue.summary = body.summary;
       return json({ id: issue?.id });
     }
-    if (method === "POST" && u.pathname === "/api/commands") return json({});
+    if (method === "POST" && u.pathname === "/api/commands") {
+      return state.failCommands ? json({ error: "workflow runtime error" }, 500) : json({});
+    }
     if (method === "DELETE") return json({});
     return json({ error: "unhandled " + method + " " + u.pathname }, 404);
   };
@@ -249,6 +251,71 @@ describe("service projection", () => {
       await projection.syncOnce();
       const marker = yt.state.issues.find((i) => (i.description ?? "").startsWith("SPEC-SYNC-STATE"));
       assert.ok(marker, "projection survived the unbound project");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("a failed card write publishes an incomplete marker and reports PARTIAL", async () => {
+    // /api/commands is where field/state writes land — a 500 there is exactly
+    // the live contour failure that used to be certified complete:true. A TASK
+    // node forces a `State Fixed` command on every sync.
+    const task = { ...node("demo:TASK-1", "TASK", "Do work"), taskStatus: "done" };
+    const yt = fakeYouTrack({ failCommands: true });
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, init) => yt.handler(url, init);
+    try {
+      const projection = createProjection({
+        mounts: fakeMounts(board([task])),
+        baseUrl: "http://yt.test",
+        serviceToken: "tok",
+        projectShortName: "SPEC",
+        markerSecret: MARKER_SECRET,
+      });
+      await projection.syncOnce();
+      const last = projection.status().last;
+      assert.equal(last.ok, false, "PARTIAL must surface as not-ok for ops");
+      assert.equal(last.outcome, "PARTIAL");
+      const marker = yt.state.issues.find((i) => (i.description ?? "").startsWith("SPEC-SYNC-STATE"));
+      const parsed = JSON.parse(marker.description.split("\n")[1]);
+      assert.equal(parsed.complete, false, "failed writes must not be certified complete");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("an incomplete marker never satisfies the cheap path — the retry takes the full sync", async () => {
+    // Complete:false carries the same fingerprint/mountHeads; without the
+    // completeness gate the very next run would skip and freeze the drift.
+    const task = { ...node("demo:TASK-1", "TASK", "Do work"), taskStatus: "done" };
+    const yt = fakeYouTrack({ failCommands: true });
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, init) => yt.handler(url, init);
+    const boardReads = { count: 0 };
+    const mounts = {
+      projects: ["demo/stack"],
+      for: () => ({ git: fakeGit(), cwd: "/fake" }),
+      serviceFor: () => ({
+        runQuery: async (operation, args) => {
+          if (operation !== "graph" || args.view !== "board") return { ok: false };
+          boardReads.count += 1;
+          return { ok: true, data: board([task]) };
+        },
+      }),
+    };
+    try {
+      const projection = createProjection({
+        mounts,
+        baseUrl: "http://yt.test",
+        serviceToken: "tok",
+        projectShortName: "SPEC",
+        markerSecret: MARKER_SECRET,
+      });
+      await projection.syncOnce();
+      assert.equal(boardReads.count, 1);
+      await projection.syncOnce();
+      assert.equal(boardReads.count, 2, "partial marker must not cheap-skip — the board is rebuilt");
+      assert.equal(projection.status().last.outcome, "PARTIAL");
     } finally {
       globalThis.fetch = realFetch;
     }
