@@ -1,14 +1,63 @@
 {
-  "schema": "review-last-run@1",
-  "runId": "2026-10-05T19-52-30-397Z-a2ae15fcdb33",
+  "runId": "2026-10-09T16-16-24-133Z-695f0a50ee50",
   "repoRoot": "E:/repos/omp-spec-kit",
-  "runnerPid": 20336,
-  "updatedAt": "2026-10-05T20:02:07.554Z",
-  "state": "passed",
-  "verdict": "PASS",
-  "exitCode": 0,
-  "reportPath": "E:\\repos\\omp-spec-kit\\audit-reports\\commit-reviews\\2026-10-05T19-52-30-396Z-a2ae15fcdb33fe952cb0b60ea8723c832afd61f2bedd0a278ee719b9a82687fa.md",
-  "durationMs": 577157,
+  "runnerPid": 112364,
+  "tag": "f76f5fda-6ae3-4645-91e0-5c49a92691d9",
+  "state": "blocked",
+  "startedAt": "2026-10-09T16:16:24.133Z",
+  "progressAt": "2026-10-09T16:36:37.726Z",
+  "diffHash": "695f0a50ee503a24b2c520301db299b368e439240f7e75ae9ca9b2b9c01e82fd",
+  "excludedPaths": [],
+  "parentSha": "e7e900f0aab0d5591ceeee83feeb7d87a1bd5329",
+  "pid": 66828,
+  "elapsedMs": 1522366,
+  "stage": "synthesis",
+  "stagesCompleted": 3,
+  "stageHistory": [
+    {
+      "stage": "scouting",
+      "completed": 0,
+      "at": "2026-10-09T16:16:46.830Z",
+      "elapsedMs": 10036
+    },
+    {
+      "stage": "scout",
+      "completed": 0,
+      "at": "2026-10-09T16:17:56.874Z",
+      "elapsedMs": 80080
+    },
+    {
+      "stage": "scout",
+      "completed": 1,
+      "at": "2026-10-09T16:21:06.987Z",
+      "elapsedMs": 270193
+    },
+    {
+      "stage": "risk",
+      "completed": 2,
+      "at": "2026-10-09T16:27:17.274Z",
+      "elapsedMs": 640480
+    },
+    {
+      "stage": "verifier",
+      "completed": 2,
+      "at": "2026-10-09T16:31:07.448Z",
+      "elapsedMs": 870654
+    },
+    {
+      "stage": "synthesis",
+      "completed": 3,
+      "at": "2026-10-09T16:36:37.726Z",
+      "elapsedMs": 1200932
+    }
+  ],
+  "childLogAt": "2026-10-09T16:41:47.109Z",
+  "verdict": "BLOCK",
+  "exitCode": 1,
+  "reportPath": "E:\\repos\\omp-spec-kit\\audit-reports\\commit-reviews\\2026-10-09T16-16-24-132Z-695f0a50ee503a24b2c520301db299b368e439240f7e75ae9ca9b2b9c01e82fd.md",
+  "durationMs": 1536299,
   "modelsTried": [],
-  "finishedAt": "2026-10-05T20:02:07.554Z"
+  "finishedAt": "2026-10-09T16:42:00.432Z",
+  "schema": "review-last-run@1",
+  "updatedAt": "2026-10-09T16:42:00.432Z"
 }

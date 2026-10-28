@@ -30,6 +30,10 @@ tmp/
 .progress.json
 .omp/
 
+# Python bytecode from local tooling scripts
+__pycache__/
+*.pyc
+
 # Editor and operating-system state
 .vscode/
 .idea/

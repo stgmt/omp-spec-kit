@@ -1,0 +1,16 @@
+node_modules
+.git
+tests
+plugins
+docs
+config
+.specs
+audit-reports
+deploy
+*.md
+cucumber.mjs
+tools
+# only the sync/listener scripts ride in the image
+scripts/*
+!scripts/spec-graph-sync.mjs
+!scripts/spec-listener-ensure.mjs
