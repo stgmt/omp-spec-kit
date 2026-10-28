@@ -46,7 +46,7 @@ const dockerfileSingles = () => {
 
 const isProducerInput = (repoPath, singles) => {
   if (singles.has(repoPath)) return true;
-  if (!/^(?:\.omp-plugin|plugins|scripts|src|tests)\//u.test(repoPath)) return false;
+  if (!/^(?:\.claude-plugin|plugins|scripts|src|tests)\//u.test(repoPath)) return false;
   if (repoPath.startsWith("tests/fixtures/release-candidate/")) return false;
   if (repoPath.startsWith("plugins/omp-spec-kit/dist/")) return false;
   if (repoPath.startsWith("tests/fixtures/omp-discovery-runtime/")) {

@@ -8,6 +8,9 @@
 // Repository-root resolution (see plugins/omp-spec-kit/.mcp.json):
 //   1. OMP_SPEC_KIT_ROOT environment variable, when absolute,
 //   2. otherwise the server process working directory.
+// When OMP_SPEC_KIT_PACKAGE_ROOT equals the working directory the process
+// stays up (initialize, ping and tools/list answer) and every tools/call is
+// refused with PACKAGE_ROOT_REFUSED.
 
 import { createInterface } from "node:readline";
 import { statSync } from "node:fs";
@@ -19,7 +22,10 @@ import {
 } from "../adapters/query-service.js";
 import { annotationsFor, KERNEL_ENVELOPE_OUTPUT_SCHEMA, MCP_SERVER_INSTRUCTIONS, TOOL_CONTRACTS as activeContracts, jsonSchemaFor, validateContractArguments } from "../adapters/tool-contracts.js";
 
-const PROTOCOL_VERSION_FALLBACK = "2025-03-26";
+// Newest first. An initialize that requests one of these is echoed; anything
+// else (unknown, older, or absent) is answered with the newest supported
+// version and the client decides whether it can speak it.
+const SUPPORTED_PROTOCOL_VERSIONS = Object.freeze(["2025-11-25", "2025-06-18", "2025-03-26"]);
 const SERVER_NAME = "omp-spec-kit";
 
 function isPlainObject(value) {
@@ -130,12 +136,16 @@ function normalizeArguments(rawArguments) {
 
 const contractsByName = new Map(activeContracts.map((contract) => [contract.tool, contract]));
 const rootContext = resolveRepositoryContext();
+// PACKAGE_ROOT_REFUSED: the server was started inside its own package
+// directory. The process stays alive so the host sees a healthy handshake and
+// a readable refusal, but no service exists and no corpus is ever read.
+const refusal = rootContext.refused ?? null;
 // Multi-worktree routing: a call may name declaredWorktree and be served by
 // that worktree's corpus — one server covers every worktree of the session.
-const serviceFor = createRootedServices(rootContext.resolvedRoot, {
-  ...rootContext,
-});
-const service = serviceFor(null);
+const serviceFor = refusal === null
+  ? createRootedServices(rootContext.resolvedRoot, { ...rootContext })
+  : null;
+const service = serviceFor === null ? null : serviceFor(null);
 
 /**
  * A declared worktree must be an absolute path to an existing directory —
@@ -220,12 +230,9 @@ async function handleMessage(message) {
   const { id, method } = message;
 
   if (method === "initialize") {
-    const requested =
-      isPlainObject(message.params) && typeof message.params.protocolVersion === "string"
-        ? message.params.protocolVersion
-        : PROTOCOL_VERSION_FALLBACK;
+    const requested = isPlainObject(message.params) ? message.params.protocolVersion : undefined;
     respond(id, {
-      protocolVersion: requested,
+      protocolVersion: SUPPORTED_PROTOCOL_VERSIONS.includes(requested) ? requested : SUPPORTED_PROTOCOL_VERSIONS[0],
       capabilities: { tools: {} },
       serverInfo: { name: SERVER_NAME, version: KERNEL_SCHEMA_VERSION },
       instructions: MCP_SERVER_INSTRUCTIONS,
@@ -250,6 +257,14 @@ async function handleMessage(message) {
     return;
   }
   if (method === "tools/call") {
+    if (refusal !== null) {
+      respondError(
+        id,
+        -32000,
+        `${refusal}: the server was started inside its own package directory, so it refuses to serve a corpus from there. Start it with the project directory as the working directory.`,
+      );
+      return;
+    }
     const params = isPlainObject(message.params) ? message.params : {};
     const contract = typeof params.name === "string" ? contractsByName.get(params.name) : undefined;
     if (!contract) {

@@ -68,35 +68,41 @@ const allTreeDistDirectories = [
 ].sort();
 
 const expectedDirectories = Object.freeze([
-  ...new Set(["bin", "commands", "dist", "skills", "skills/engineering-anti-bike", "skills/release-operator", "skills/spec-elicitation", "skills/spec-inventory", "skills/tool-e2e", ...allTreeDistDirectories]),
+  ...new Set([".claude-plugin", "dist", "hooks", "skills", "skills/engineering-anti-bike", "skills/spec-elicitation", "skills/spec-inventory", ...allTreeDistDirectories]),
 ]);
 const expectedFiles = Object.freeze([
+  ".claude-plugin/plugin.json",
   ".mcp.json",
   "LICENSE",
   "README.md",
-  "bin/omp-spec-kit-mcp",
-  "bin/omp-spec-kit-mcp.cmd",
-  "commands/spec-inventory.md",
   "dist/extension.js",
   "dist/manifest.json",
+  "hooks/hooks.json",
+  "hooks/normalize.mjs",
+  "hooks/pretooluse.mjs",
   "package.json",
   "skills/engineering-anti-bike/SKILL.md",
-  "skills/release-operator/SKILL.md",
   "skills/spec-elicitation/SKILL.md",
   "skills/spec-inventory/SKILL.md",
-  "skills/tool-e2e/SKILL.md",
   ...treeSources.flatMap((tree) => tree.files.map((name) => `dist/${tree.output}/${name}`)),
 ]);
 const packageFiles = Object.freeze([
+  ".claude-plugin/",
   ".mcp.json",
-  "package.json",
   "README.md",
   "LICENSE",
-  "bin/",
+  "package.json",
   "dist/",
+  "hooks/",
   "skills/",
-  "commands/",
 ]);
+// Hosts substitute these placeholders: Claude Code natively, OMP for the
+// plugin root in mcpServers command/args/env. Exactly this launch shape is
+// allowed; no shell launcher ships.
+const PLUGIN_ROOT_PLACEHOLDER = "${CLAUDE_PLUGIN_ROOT}";
+const PROJECT_DIR_PLACEHOLDER = "${CLAUDE_PROJECT_DIR}";
+const HOOK_MATCHER =
+  "Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep|Bash|PowerShell|mcp__plugin_omp-spec-kit_omp-spec-kit__.*";
 
 function sameStrings(actual, expected) {
   return (
@@ -195,23 +201,85 @@ function assertRuntimeImports(relativePath, source) {
 async function verifyMcpJson() {
   const mcpJsonPath = path.join(pluginRoot, ".mcp.json");
   const mcpJson = await readStrictJson(mcpJsonPath, ".mcp.json", fail);
-  assertExactKeys(mcpJson, ["$schema", "mcpServers"], ".mcp.json", fail);
-  if (
-    mcpJson.$schema !==
-    "https://raw.githubusercontent.com/can1357/oh-my-pi/33cc6b9a043a74e00a157e72ca909272796d8461/packages/coding-agent/src/config/mcp-schema.json"
-  ) {
-    fail(".mcp.json $schema must reference the pinned OMP v18.0.11 mcp-schema.json");
-  }
+  assertExactKeys(mcpJson, ["mcpServers"], ".mcp.json", fail);
   assertExactKeys(mcpJson.mcpServers, ["omp-spec-kit"], ".mcp.json servers", fail);
   const server = mcpJson.mcpServers["omp-spec-kit"];
-  assertExactKeys(server, ["type", "command"], ".mcp.json omp-spec-kit entry", fail);
+  assertExactKeys(server, ["type", "command", "args", "env"], ".mcp.json omp-spec-kit entry", fail);
   if (server.type !== "stdio") fail(".mcp.json server must be stdio");
-  if (server.command !== "./bin/omp-spec-kit-mcp") {
-    fail('.mcp.json command must be "./bin/omp-spec-kit-mcp"');
+  if (server.command !== "node") fail('.mcp.json command must be "node"');
+  if (!sameStrings(server.args, [`${PLUGIN_ROOT_PLACEHOLDER}/dist/mcp/server.js`])) {
+    fail(`.mcp.json args must be exactly ["${PLUGIN_ROOT_PLACEHOLDER}/dist/mcp/server.js"]`);
   }
-  const serialized = JSON.stringify(mcpJson);
+  assertExactKeys(server.env, ["OMP_SPEC_KIT_ROOT"], ".mcp.json env", fail);
+  if (server.env.OMP_SPEC_KIT_ROOT !== PROJECT_DIR_PLACEHOLDER) {
+    fail(`.mcp.json env OMP_SPEC_KIT_ROOT must be exactly "${PROJECT_DIR_PLACEHOLDER}"`);
+  }
+  // The single allowed OMP_SPEC_KIT_ROOT placeholder is validated above; with
+  // that env entry removed, the forbidden strings must not appear anywhere.
+  const serialized = JSON.stringify({ ...mcpJson, mcpServers: { "omp-spec-kit": { ...server, env: {} } } });
   for (const forbidden of ["cwd", "OMP_SPEC_KIT_ROOT", "--inspect", "--experimental-inspect"]) {
     if (serialized.includes(forbidden)) fail(`.mcp.json must not contain ${forbidden}`);
+  }
+}
+
+// The plugin manifest carries identity only: an mcpServers or hooks key here
+// would override .mcp.json for OMP (or re-register hooks) on every host.
+async function verifyPluginJson() {
+  const pluginJson = await readStrictJson(path.join(pluginRoot, ".claude-plugin", "plugin.json"), ".claude-plugin/plugin.json", fail);
+  assertExactKeys(
+    pluginJson,
+    ["name", "version", "description", "author", "homepage", "repository", "license", "keywords"],
+    ".claude-plugin/plugin.json",
+    fail,
+  );
+  if (pluginJson.name !== "omp-spec-kit" || pluginJson.version !== PLUGIN_VERSION) {
+    fail(".claude-plugin/plugin.json identity/version mismatch");
+  }
+  if (typeof pluginJson.description !== "string" || pluginJson.description.trim() === "") {
+    fail(".claude-plugin/plugin.json description must be non-empty");
+  }
+  assertExactKeys(pluginJson.author, ["name"], ".claude-plugin/plugin.json author", fail);
+  if (pluginJson.author.name !== "stgmt") fail(".claude-plugin/plugin.json author must be stgmt");
+  if (pluginJson.homepage !== REPOSITORY_URL || pluginJson.repository !== REPOSITORY_URL) {
+    fail(".claude-plugin/plugin.json homepage/repository mismatch");
+  }
+  if (pluginJson.license !== "MIT") fail(".claude-plugin/plugin.json license must be MIT");
+  if (!sameStrings(pluginJson.keywords, ["specifications", "mcp", "spec-kit"])) {
+    fail(".claude-plugin/plugin.json keywords mismatch");
+  }
+}
+
+async function verifyHooks() {
+  const hooksJson = await readStrictJson(path.join(pluginRoot, "hooks", "hooks.json"), "hooks/hooks.json", fail);
+  assertExactKeys(hooksJson, ["hooks"], "hooks/hooks.json", fail);
+  assertExactKeys(hooksJson.hooks, ["PreToolUse"], "hooks/hooks.json hooks", fail);
+  const groups = hooksJson.hooks.PreToolUse;
+  if (!Array.isArray(groups) || groups.length !== 1) fail("hooks/hooks.json must declare one PreToolUse matcher group");
+  assertExactKeys(groups[0], ["matcher", "hooks"], "hooks/hooks.json matcher group", fail);
+  if (groups[0].matcher !== HOOK_MATCHER) fail(`hooks/hooks.json matcher must be exactly "${HOOK_MATCHER}"`);
+  if (!Array.isArray(groups[0].hooks) || groups[0].hooks.length !== 1) fail("hooks/hooks.json must declare one hook command");
+  const hook = groups[0].hooks[0];
+  assertExactKeys(hook, ["type", "command", "timeout"], "hooks/hooks.json hook", fail);
+  if (hook.type !== "command" || hook.timeout !== 10) fail("hooks/hooks.json hook must be a command with timeout 10");
+  if (hook.command !== `node "${PLUGIN_ROOT_PLACEHOLDER}/hooks/pretooluse.mjs"`) {
+    fail(`hooks/hooks.json command must be exactly: node "${PLUGIN_ROOT_PLACEHOLDER}/hooks/pretooluse.mjs"`);
+  }
+
+  // The hook scripts are dependency-free: node builtins, each other, and the
+  // shipped classifier loaded by a relative path inside the payload.
+  const entry = await readFile(path.join(pluginRoot, "hooks", "pretooluse.mjs"), "utf8");
+  const normalize = await readFile(path.join(pluginRoot, "hooks", "normalize.mjs"), "utf8");
+  for (const [name, source, allowed] of [
+    ["hooks/pretooluse.mjs", entry, new Set(["./normalize.mjs"])],
+    ["hooks/normalize.mjs", normalize, new Set()],
+  ]) {
+    if (/\brequire\s*\(/u.test(source)) fail(`${name} uses CommonJS require`);
+    for (const specifier of importedSpecifiers(source)) {
+      if (!specifier.startsWith("node:") && !allowed.has(specifier)) fail(`${name} has forbidden runtime import: ${specifier}`);
+    }
+  }
+  if (!entry.includes('"../dist/enforcement/classifier.js"')) {
+    fail("hooks/pretooluse.mjs must load ../dist/enforcement/classifier.js");
   }
 }
 
@@ -227,21 +295,12 @@ async function verifyPackage() {
   }
 
   await verifyMcpJson();
+  await verifyPluginJson();
+  await verifyHooks();
 
   const manifestPath = path.join(pluginRoot, "package.json");
   const manifest = await readStrictJson(manifestPath, "plugin package.json", fail);
 
-  const posixLauncher = await lstat(path.join(pluginRoot, "bin", "omp-spec-kit-mcp"));
-  if (!posixLauncher.isFile() || posixLauncher.isSymbolicLink()) {
-    fail("POSIX MCP launcher must be a regular file");
-  }
-  if (process.platform !== "win32" && (posixLauncher.mode & 0o111) !== 0o111) {
-    fail("POSIX MCP launcher must be executable on a POSIX package build");
-  }
-  const windowsLauncher = await lstat(path.join(pluginRoot, "bin", "omp-spec-kit-mcp.cmd"));
-  if (!windowsLauncher.isFile() || windowsLauncher.isSymbolicLink()) {
-    fail("Windows MCP launcher must be a regular file");
-  }
   assertExactKeys(
     manifest,
     ["name", "version", "description", "homepage", "repository", "license", "type", "files", "engines", "omp"],

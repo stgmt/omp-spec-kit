@@ -312,7 +312,7 @@ async function main() {
     switch (claim) {
       case "install": return `PluginManager.link installed ${version}; lockfile references plugin: ${details.lockfileReferencesPlugin === true}.`;
       case "reload": return `Reloaded capability/config in-session after link; managed query returned "${inventoryText}".`;
-      case "fresh-session-activation": return `Fresh OMP process connected and invoked spec_inventory; managed query returned "${inventoryText}".`;
+      case "fresh-session-activation": return `Fresh OMP process connected and invoked spec_catalog (view inventory); managed query returned "${inventoryText}".`;
       case "upgrade": return `Upgrade over prior release: fresh sessions observed ${details.fromVersion ?? "?"} then ${details.toVersion ?? version} after relink; "${inventoryText}".`;
       case "uninstall-preservation": return `Uninstalled via PluginManager.uninstall; fresh process saw no converted config; project hash preserved (${details.projectHashBefore?.slice(0, 12)}).`;
       case "reinstall": return `Reinstalled the same candidate; fresh session observed ${version} again; "${inventoryText}"; project hash preserved.`;

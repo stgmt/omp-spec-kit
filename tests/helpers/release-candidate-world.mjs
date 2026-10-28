@@ -121,10 +121,11 @@ async function writeReceipt(directory, name, value) { return writeBytes(director
 function identity(candidate, catalogDigest) { return { version: candidate.version, tag: candidate.tag, commit: candidate.commit, candidateDigest: candidate.candidateDigest, packageTreeDigest: candidate.packageTreeDigest, archiveSha256: candidate.archive.sha256, catalogDigest }; }
 function placeholderClaim(candidate, catalogDigest, requirement) { return { schema: "omp-spec-kit-distribution-evidence-receipt@1", status: "passed", ...identity(candidate, catalogDigest), requirement, claims: ["candidate-evidence"], ompRevision: "@oh-my-pi/pi-coding-agent@18.0.10#33cc6b9a043a74e00a157e72ca909272796d8461", platform: structuredClone(PLATFORM), fixtureDigest: "d".repeat(64), applicability: structuredClone(APPLICABILITY), lifecycle: lifecycleForClaim("candidate-evidence", APPLICABILITY) }; }
 
-export async function createCandidateWorld(repositoryRoot, tempRoot, verifiedMessageBytes) {
+export async function createCandidateWorld(repositoryRoot, tempRoot, verifiedMessageBytes, tag = "v0.3.2") {
   const candidateDirectory = path.join(tempRoot, "candidate");
-  const { candidate, manifestPath, archivePath } = await createReleaseCandidate({ tag: "v0.3.2", outputDirectory: candidateDirectory, repositoryRoot, resolveTagCommit, verifyTaggedCheckout() {} });
-  const catalogDigest = sha256(await readFile(path.join(repositoryRoot, ".omp-plugin", "marketplace.json")));
+  const resolveCandidateTag = (requested) => (requested === tag ? CANDIDATE_COMMIT : resolveTagCommit(requested));
+  const { candidate, manifestPath, archivePath } = await createReleaseCandidate({ tag, outputDirectory: candidateDirectory, repositoryRoot, resolveTagCommit: resolveCandidateTag, verifyTaggedCheckout() {} });
+  const catalogDigest = sha256(await readFile(path.join(repositoryRoot, ".claude-plugin", "marketplace.json")));
   const safety = await verifyPublicTree(manifestPath);
   const messageRelativePath = "messages/cucumber.ndjson"; const messageBytes = verifiedMessageBytes; const messagePath = path.join(candidateDirectory, messageRelativePath); await mkdir(path.dirname(messagePath), { recursive: true }); await writeFile(messagePath, messageBytes);
   const id = identity(candidate, catalogDigest);
@@ -140,7 +141,7 @@ export async function createCandidateWorld(repositoryRoot, tempRoot, verifiedMes
   const discoveryBytes = await readFile(path.join(repositoryRoot, "docs", "validation", "omp-discovery-v18.0.10.md"));
   const evidence = { schema: "omp-spec-kit-release-evidence@3", ...id, mri: { schema: "omp-spec-kit-mri-evidence@1", checks, frReceipts, discovery: await writeBytes(candidateDirectory, "omp-discovery.md", discoveryBytes) }, distribution: { schema: "omp-spec-kit-distribution-evidence-input@1", trust: "untrusted-self-attested", receipt: { status: "missing" } } };
   const evidencePath = path.join(candidateDirectory, "evidence.json"); await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
-  return { candidate, catalogDigest, manifestPath, archivePath, evidencePath, candidateDirectory, resolveTagCommit };
+  return { candidate, catalogDigest, manifestPath, archivePath, evidencePath, candidateDirectory, resolveTagCommit: resolveCandidateTag };
 }
 export async function writeSyntheticDistributionClaims(world) {
   const evidence = JSON.parse(await readFile(world.evidencePath, "utf8"));
@@ -234,6 +235,5 @@ export async function writeStructurallyCompleteAttestationTrustedDistributionEvi
   await writeFile(world.evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
 }
 export async function evaluateCandidate(world, repositoryRoot) { return evaluateRelease({ candidatePath: world.manifestPath, evidencePath: world.evidencePath, tag: world.candidate.tag, repositoryRoot, resolveTagCommit: world.resolveTagCommit }); }
-export async function extractCandidate(world, destination) { await mkdir(destination, { recursive: true }); const result = spawnSync("tar", ["-xf", world.archivePath, "-C", destination], { encoding: "utf8" }); if (result.error) throw result.error; if (result.status !== 0) throw new Error(`tar extraction failed: ${result.stderr}`); const launcher = path.join(destination, "bin", "omp-spec-kit-mcp"); const mode = (await (await import("node:fs/promises")).lstat(launcher)).mode & 0o777; return { root: destination, launcher, mode }; }
 export async function appendArchiveByte(world) { const original = await readFile(world.archivePath); await writeFile(world.archivePath, Buffer.concat([original, Buffer.from([0])])); }
 export async function replaceMessageWithMeta(world) { const evidence = JSON.parse(await readFile(world.evidencePath, "utf8")); const bddReceiptPath = path.join(world.candidateDirectory, evidence.mri.checks.dockerBdd.path); const bddReceipt = JSON.parse(await readFile(bddReceiptPath, "utf8")); const messagePath = path.join(world.candidateDirectory, bddReceipt.messagePath); const bytes = Buffer.from('{"meta":{"protocolVersion":"33.0.4"}}\n'); await writeFile(messagePath, bytes); bddReceipt.messageDigest = sha256(bytes); const receiptBytes = Buffer.from(`${JSON.stringify(bddReceipt, null, 2)}\n`); await writeFile(bddReceiptPath, receiptBytes); evidence.mri.checks.dockerBdd.digest = sha256(receiptBytes); await writeFile(world.evidencePath, `${JSON.stringify(evidence, null, 2)}\n`); }

@@ -10,9 +10,29 @@ import { pathToFileURL } from "node:url";
 function fail(message) {
 	throw new Error(`lifecycle: ${message}`);
 }
-function targetConfigName(configs, sources, targetName) {
+export function targetConfigName(configs, sources, targetName) {
 	const names = Object.keys(configs);
 	return names.find((name) => (name === targetName || name.endsWith(`:${targetName}`)) && Object.hasOwn(sources, name));
+}
+// Newer OMP hosts substitute the plugin-root placeholder in a plugin's MCP
+// command/args/env for every provider. The pinned 18.0.11 runtime does so only
+// for Claude-marketplace plugins and leaves linked plugins literal, so
+// loadAndConnect applies the same substitution, rooted at the directory of the
+// .mcp.json that declared the server.
+const PLUGIN_ROOT_PLACEHOLDER = "$" + "{CLAUDE_PLUGIN_ROOT}";
+export function substitutePluginRoot(value, rootPath) {
+	if (typeof value === "string") return value.replaceAll(PLUGIN_ROOT_PLACEHOLDER, () => rootPath);
+	if (Array.isArray(value)) return value.map((entry) => substitutePluginRoot(entry, rootPath));
+	if (value && typeof value === "object") {
+		return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, substitutePluginRoot(entry, rootPath)]));
+	}
+	return value;
+}
+function withPluginRoot(configs, sources) {
+	return Object.fromEntries(Object.entries(configs).map(([name, config]) => {
+		const declaredAt = sources[name]?.path;
+		return [name, typeof declaredAt === "string" ? substitutePluginRoot(config, path.dirname(declaredAt)) : config];
+	}));
 }
 export const DEFAULT_PHASE_TIMEOUT_MS = 30000;
 export const MAX_PHASE_TIMEOUT_MS = 120000;
@@ -136,14 +156,16 @@ export async function assertCapabilityAbsent(cwd, targetName, modules, timeoutMs
 }
 
 // Connects only the target server through a fresh MCPManager and returns its
-// spec_inventory tool handle. Caller owns disconnect().
+// inventory tool handle: spec_catalog (view "inventory") on the current surface;
+// spec_inventory only exists on the pinned prior release (v0.3.2) that the
+// upgrade and rollback producers still observe. Caller owns disconnect().
 export async function loadAndConnect(cwd, targetName, targetConfigs, targetSources, modules, timeoutMs = DEFAULT_PHASE_TIMEOUT_MS) {
 	const resolvedName = targetConfigName(targetConfigs, targetSources, targetName) ?? targetName;
 	let lastError = null;
 	for (let attempt = 1; attempt <= 3; attempt += 1) {
 		const manager = new modules.MCPManager(cwd);
 		const result = await phase("connect", timeoutMs, async () => {
-			const connectionResult = await manager.connectServers(targetConfigs, targetSources, () => {});
+			const connectionResult = await manager.connectServers(withPluginRoot(targetConfigs, targetSources), targetSources, () => {});
 			if (!(connectionResult.connectedServers ?? []).includes(resolvedName)) {
 				throw new Error(`server ${resolvedName} did not connect; connected: ${(connectionResult.connectedServers ?? []).join(", ") || "<none>"}`);
 			}
@@ -161,7 +183,8 @@ export async function loadAndConnect(cwd, targetName, targetConfigs, targetSourc
 	throw new Error(`connect failed after 3 attempts: ${lastError.message}`);
 }
 
-// Executes spec_inventory and parses the documented text result.
+// Executes the inventory query (spec_catalog with view "inventory"; the retired
+// spec_inventory shape is kept only for the prior release) and parses the result.
 export async function executeInventory(tool, requestId, timeoutMs = DEFAULT_PHASE_TIMEOUT_MS) {
 	const isCatalog = tool.mcpToolName === "spec_catalog";
 	const args = isCatalog

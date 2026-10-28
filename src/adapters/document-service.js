@@ -4,6 +4,7 @@ import { lstat, readdir, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { isValidSpecSlug } from "../kernel/identity.js";
 import { KERNEL_SCHEMA_VERSION } from "../kernel/types.js";
+import { PLUGIN_VERSION } from "./plugin-version.js";
 
 const MAX_DOCUMENT_BYTES = 2 * 1024 * 1024;
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
@@ -240,7 +241,7 @@ function mcpPreflight(root, args, context) {
     },
     lockMode: authoring ? "owner" : "read-only",
     writeMode: authoring ? "proposal-first" : "disabled",
-    versions: { mcp: KERNEL_SCHEMA_VERSION, plugin: "1.0.0", omp: "18.0.11" },
+    versions: { mcp: KERNEL_SCHEMA_VERSION, plugin: PLUGIN_VERSION, omp: "18.0.11" },
     dependencies: { graph: "ready", watcher: "disabled", lock: authoring ? "available" : "disabled", sqlite: "disabled" },
     mutationReady: authoring && corpusPresent,
   });

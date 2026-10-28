@@ -47,7 +47,7 @@ function parseArgs(argv) {
 	return output;
 }
 
-// Fresh child process: enroll --package-root, connect, run spec_inventory,
+// Fresh child process: enroll --package-root, connect, run the inventory query,
 // print one JSON observation line. A new process can never inherit stale
 // in-memory plugin metadata.
 async function observeMode(args, cwd, timeoutMs) {

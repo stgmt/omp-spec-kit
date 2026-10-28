@@ -253,7 +253,7 @@ export async function createReleaseEvidence({
   if (!["untrusted-self-attested", "github-artifact-attestation"].includes(distributionTrust)) fail(`unsupported --distribution-trust value: ${distributionTrust}`);
   const candidate = assertCandidateShape(await readStrictJson(candidatePath, "candidate manifest"), "candidate manifest");
   await mkdir(outputDirectory, { recursive: true });
-  const catalogDigest = sha256(await readFile(path.join(repositoryRoot, ".omp-plugin", "marketplace.json")));
+  const catalogDigest = sha256(await readFile(path.join(repositoryRoot, ".claude-plugin", "marketplace.json")));
   const requiredScenarios = requiredScenarioMultiplicity(await readFile(corpusPath(path.join("plugin-distribution", "plugin-distribution.feature"), { baseDir: repositoryRoot }), "utf8"));
   const sourceMessageBytes = await readFile(cucumberMessagesPath);
   const scenarioIds = cucumberMessages(sourceMessageBytes, requiredScenarios);

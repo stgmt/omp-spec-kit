@@ -2,7 +2,7 @@ import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const PLUGIN_VERSION = "2.8.1";
+export const PLUGIN_VERSION = "2.9.0";
 export const MARKETPLACE_SCHEMA = "https://anthropic.com/claude-code/marketplace.schema.json";
 export const REPOSITORY_URL = "https://github.com/stgmt/omp-spec-kit";
 export const REPOSITORY_GIT_URL = `${REPOSITORY_URL}.git`;
@@ -157,13 +157,17 @@ export async function verifyMarketplace() {
   const fail = (message) => {
     throw verifierError("verify-marketplace", message);
   };
-  const expectedCatalog = ".omp-plugin/marketplace.json";
+  const expectedCatalog = ".claude-plugin/marketplace.json";
+  const retiredCatalog = ".omp-plugin/marketplace.json";
   const catalogs = await findCatalogs(repositoryRoot);
+  if (catalogs.includes(retiredCatalog)) {
+    fail(`${retiredCatalog} is retired; ${expectedCatalog} is the only catalog (OMP falls back to it)`);
+  }
   if (catalogs.length !== 1 || catalogs[0] !== expectedCatalog) {
     fail(`catalog layout must be exactly ${expectedCatalog}; found ${catalogs.join(", ") || "none"}`);
   }
 
-  const catalogPath = path.join(repositoryRoot, ".omp-plugin", "marketplace.json");
+  const catalogPath = path.join(repositoryRoot, ".claude-plugin", "marketplace.json");
   const catalog = await readStrictJson(catalogPath, expectedCatalog, fail);
   assertExactKeys(catalog, ["$schema", "name", "owner", "metadata", "plugins"], "catalog", fail);
   if (catalog.$schema !== MARKETPLACE_SCHEMA) fail("unexpected marketplace schema URI");

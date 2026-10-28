@@ -1,0 +1,16 @@
+{
+  "name": "omp-spec-kit",
+  "version": "2.9.0",
+  "description": "Safe OMP specification inventory and reviewable authoring tooling for Claude Code and OMP.",
+  "author": {
+    "name": "stgmt"
+  },
+  "homepage": "https://github.com/stgmt/omp-spec-kit",
+  "repository": "https://github.com/stgmt/omp-spec-kit",
+  "license": "MIT",
+  "keywords": [
+    "specifications",
+    "mcp",
+    "spec-kit"
+  ]
+}

@@ -75,7 +75,7 @@ jobs:
           mkdir -p "$DISCOVERY_PROJECT/.specs" "$DISCOVERY_HOME" "$GITHUB_WORKSPACE/dist-evidence/mri-discovery"
           cp -r tests/fixtures/kernel/authoring-real-corpus/.specs/. "$DISCOVERY_PROJECT/.specs/"
           dist_manifest_sha="$(sha256sum plugins/omp-spec-kit/dist/manifest.json | cut -d ' ' -f1)"
-          launcher_sha="$(sha256sum plugins/omp-spec-kit/bin/omp-spec-kit-mcp | cut -d ' ' -f1)"
+          mcp_config_sha="$(sha256sum plugins/omp-spec-kit/.mcp.json | cut -d ' ' -f1)"
           cd "$DISCOVERY_PROJECT"
           HOME="$DISCOVERY_HOME" USERPROFILE="$DISCOVERY_HOME" PI_CONFIG_DIR=.omp-discovery-producer OMP_PROFILE=discovery-producer \
             bun "$GITHUB_WORKSPACE/scripts/probe-omp-discovery-v18.0.11.mjs" \
@@ -85,7 +85,7 @@ jobs:
             --phase-mode bounded \
             --phase-timeout-ms 30000 \
             --expected-dist-manifest-sha256 "$dist_manifest_sha" \
-            --expected-launcher-sha256 "$launcher_sha" \
+            --expected-mcp-config-sha256 "$mcp_config_sha" \
             > "$GITHUB_WORKSPACE/dist-evidence/mri-discovery/omp-discovery-v18.0.11.json"
           {
             echo '# OMP 18.0.11 discovery receipt'
@@ -203,7 +203,7 @@ jobs:
             --marketplace-marker "$GITHUB_WORKSPACE/.omp-spec-kit-marketplace-ok" \
             --package-marker "$GITHUB_WORKSPACE/.omp-spec-kit-package-ok" \
             --dist-manifest "$GITHUB_WORKSPACE/plugins/omp-spec-kit/dist/manifest.json" \
-            --catalog "$GITHUB_WORKSPACE/.omp-plugin/marketplace.json" \
+            --catalog "$GITHUB_WORKSPACE/.claude-plugin/marketplace.json" \
             --package-manifest "$GITHUB_WORKSPACE/plugins/omp-spec-kit/package.json" \
             --inventory-output dist-candidate/corpus-inventory.json \
             --mri-discovery-digest "$DISCOVERY_SHA" \

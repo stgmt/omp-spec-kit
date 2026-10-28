@@ -384,7 +384,7 @@ When("create-distribution-evidence runs with --lifecycle-receipts-dir", { timeou
 		"--marketplace-marker", path.join(workDir, "marketplace-ok"),
 		"--package-marker", path.join(workDir, "package-ok"),
 		"--dist-manifest", path.join(workDir, "manifest.json"),
-		"--catalog", path.join(REPOSITORY_ROOT, ".omp-plugin", "marketplace.json"),
+		"--catalog", path.join(REPOSITORY_ROOT, ".claude-plugin", "marketplace.json"),
 		"--package-manifest", path.join(candidateRoot, "package.json"),
 		"--inventory-output", path.join(workDir, "corpus-inventory.json"),
 		"--mri-discovery-digest", discoveryDigest,

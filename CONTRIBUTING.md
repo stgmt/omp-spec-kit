@@ -1,6 +1,6 @@
 # Contributing
 
-`omp-spec-kit` is currently a specification-only repository. There is no installable plugin yet.
+`omp-spec-kit` ships one plugin for OMP and Claude Code. It is installed through the single catalog `.claude-plugin/marketplace.json` and the payload `plugins/omp-spec-kit`. Payload changes require `npm run build`, which regenerates `plugins/omp-spec-kit/dist`.
 
 ## Before proposing a change
 
@@ -21,7 +21,7 @@ A contribution should explain:
 - security, persistence, and compatibility impact;
 - why the change belongs inside the single `omp-spec-kit` plugin boundary.
 
-Do not create a marketplace catalog or plugin payload before the v0.1.0 gate is intentionally started. Do not add a second plugin, extension control plane, or copied dev-pomogator runtime.
+The plugin ships through `.claude-plugin/marketplace.json` and `plugins/omp-spec-kit`; keep one catalog and one payload, and run `npm run build` after any payload change. Do not add a second plugin, extension control plane, or copied dev-pomogator runtime.
 
 ## Local verification
 

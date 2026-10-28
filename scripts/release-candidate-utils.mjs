@@ -58,8 +58,8 @@ export function relativeSafePath(value, label) {
 }
 
 export function candidateFileMode(relativePath) {
-  const normalized = relativeSafePath(relativePath, "candidate file path");
-  return normalized === "bin" || normalized.startsWith("bin/") ? 0o755 : 0o644;
+  relativeSafePath(relativePath, "candidate file path");
+  return 0o644;
 }
 
 function containedPath(root, target) {

@@ -13,7 +13,7 @@ The historical `docs/omp-v17.3.7-contract.md` remains a frozen receipt for the e
 
 ## Integration boundary
 
-The plugin has one extension entry and one stdio MCP server. The server is launched from the packaged `bin/omp-spec-kit-mcp` path; repository data comes from the active OMP project working directory unless an explicit absolute diagnostic override is supplied.
+The plugin has one extension entry and one stdio MCP server. The server is launched with `node` on `dist/mcp/server.js`, addressed through the plugin-root placeholder `${CLAUDE_PLUGIN_ROOT}`; repository data comes from the active OMP project working directory unless an explicit absolute diagnostic override is supplied.
 
 The v18.0.10 source contract exposes the following host-owned MCP metadata before an extension event is constructed:
 

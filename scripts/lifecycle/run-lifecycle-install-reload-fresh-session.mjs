@@ -103,7 +103,7 @@ async function main() {
 	}));
 
 	// Phase 2: reload in this process — capability + converted config present,
-	// managed spec_inventory answers.
+	// managed spec_catalog (view inventory) answers.
 	const first = await connectAndObserve({ cwd, modules, timeoutMs, requestId: "lifecycle-reload-inventory" });
 	await writeLifecycleRecord(receiptsOut, "reload.json", baseLifecycleRecord({
 		requirement: "plugin-distribution:FR-4",

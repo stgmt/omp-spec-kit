@@ -127,7 +127,7 @@ async function main() {
 
 	// 1. Candidate identity from the real assembled candidate manifest.
 	const candidate = assertCandidateShape(await readStrictJson(args["--candidate"], "candidate manifest"), "candidate manifest");
-	const catalogDigest = await sha256File(path.join(repositoryRoot, ".omp-plugin", "marketplace.json"));
+	const catalogDigest = await sha256File(path.join(repositoryRoot, ".claude-plugin", "marketplace.json"));
 	const priorCommit = args["--prior-commit"];
 	if (!isCommit(priorCommit)) fail(`--prior-commit must be a 40-hex commit, got ${priorCommit}`);
 	const identity = {

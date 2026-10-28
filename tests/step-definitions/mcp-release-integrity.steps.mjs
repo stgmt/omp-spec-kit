@@ -62,10 +62,9 @@ function toolArguments(tool) {
 
 async function startInstalledServer(state, env = {}) {
   if (state.server !== null) await state.server.close();
-  const windows = process.platform === "win32";
   state.server = spawnMcpServer({
-    command: windows ? process.execPath : state.launcher,
-    args: windows ? [path.join(state.packageRoot, "dist", "mcp", "server.js")] : undefined,
+    command: process.execPath,
+    args: [path.join(state.packageRoot, "dist", "mcp", "server.js")],
     cwd: state.projectA,
     env: { OMP_SPEC_KIT_PACKAGE_ROOT: state.packageRoot, ...env },
     root: env.OMP_SPEC_KIT_ROOT,
@@ -121,7 +120,6 @@ Given("an isolated v0.3.2 package and manifest-verified corpus exist", async fun
     projectB,
     packageRoot,
     packageAlias,
-    launcher: path.join(packageRoot, "bin", "omp-spec-kit-mcp"),
     directService: createSpecService(projectA),
     directServiceB: createSpecService(projectB, {
       activeProjectRoot: projectA,
@@ -214,16 +212,29 @@ Then("the MCP inventory contains only project-b specifications", function () {
 
 Then("launcher startup from package cwd is refused before serving", async function () {
   const server = spawnMcpServer({
-    command: process.platform === "win32" ? process.execPath : this.mri.launcher,
-    args: process.platform === "win32" ? [path.join(this.mri.packageRoot, "dist", "mcp", "server.js")] : undefined,
+    command: process.execPath,
+    args: [path.join(this.mri.packageRoot, "dist", "mcp", "server.js")],
     cwd: this.mri.packageRoot,
     env: { OMP_SPEC_KIT_PACKAGE_ROOT: this.mri.packageRoot },
   });
-  await assert.rejects(
-    server.request("initialize", INITIALIZE_PARAMS, 1000),
-    /PACKAGE_ROOT_REFUSED/u,
-  );
-  await server.close();
+  try {
+    // The process stays alive: the handshake answers, but every tool call is
+    // refused and nothing from the package-decoy corpus is served.
+    const initialized = await server.request("initialize", INITIALIZE_PARAMS, 5000);
+    assert.equal(initialized.result.serverInfo.name, "omp-spec-kit");
+    const refused = await server.request(
+      "tools/call",
+      {
+        name: "spec_catalog",
+        arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, view: "overview", specSlugs: ["package-decoy"] },
+      },
+      5000,
+    );
+    assert.equal(refused.result, undefined);
+    assert.match(refused.error?.message ?? "", /PACKAGE_ROOT_REFUSED/u);
+  } finally {
+    await server.close();
+  }
 });
 
 Given("an installed MCP server is running", async function () {
@@ -378,7 +389,7 @@ When("the bounded pinned OMP manager handoff runs from project-a", async functio
 });
 
 Then("the bounded receipt proves the isolated target-only manager query and copied build payload", function () {
-  const { exitCode, stderr, expectedDistManifestSha256, expectedLauncherSha256, receipt } = this.mri.managerProbe;
+  const { exitCode, stderr, expectedDistManifestSha256, expectedMcpConfigSha256, receipt } = this.mri.managerProbe;
   assert.equal(exitCode, 0, `${stderr}\n${JSON.stringify(receipt, null, 2)}`);
   assert.equal(stderr, "");
   assert.equal(receipt.schema, "omp-manager-handoff-probe@2");
@@ -404,8 +415,8 @@ Then("the bounded receipt proves the isolated target-only manager query and copi
   assert.equal(receipt.provenance.runtime.version, "18.0.10");
   assert.equal(receipt.provenance.package.verification.distManifest.sha256, expectedDistManifestSha256);
   assert.equal(receipt.provenance.package.verification.distManifest.expectedSha256, expectedDistManifestSha256);
-  assert.equal(receipt.provenance.package.verification.launcher.sha256, expectedLauncherSha256);
-  assert.equal(receipt.provenance.package.verification.launcher.expectedSha256, expectedLauncherSha256);
+  assert.equal(receipt.provenance.package.verification.mcpConfig.sha256, expectedMcpConfigSha256);
+  assert.equal(receipt.provenance.package.verification.mcpConfig.expectedSha256, expectedMcpConfigSha256);
   assert.equal(
     receipt.provenance.package.verification.distManifest.fileCount,
     receipt.provenance.package.verification.distManifest.files.length,
@@ -413,7 +424,7 @@ Then("the bounded receipt proves the isolated target-only manager query and copi
   assert.equal(receipt.provenance.package.verification.distManifest.fileCount > 0, true);
   assert.deepStrictEqual(
     receipt.provenance.package.payload.map(({ relative }) => relative).sort(),
-    ["bin/omp-spec-kit-mcp", "dist/extension.js", "dist/mcp/server.js"],
+    [".mcp.json", "dist/extension.js", "dist/mcp/server.js"],
   );
   assert.equal(receipt.enrollment.method, "new PluginManager(cwd).link(packageRoot)");
   assert.equal(receipt.enrollment.result.name, "omp-spec-kit");

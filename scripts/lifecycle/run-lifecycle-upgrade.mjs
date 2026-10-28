@@ -44,7 +44,7 @@ function parseArgs(argv) {
 	return output;
 }
 
-// One fresh process: enroll `packageRoot`, connect, run spec_inventory, print
+// One fresh process: enroll `packageRoot`, connect, run the inventory query, print
 // the observed inventory text. Exit code carries failure; stdout carries proof.
 function observeChildArgs(args, packageRoot, requestId) {
 	return [
