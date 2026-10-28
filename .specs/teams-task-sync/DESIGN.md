@@ -148,3 +148,13 @@ spec-registryd  ->  canonical corpus (.specs, writer = registry only)
 | Реестр недоступен | любая запись | fail-closed | SCEN-4 |
 
 Затронутые поверхности в teams: `team-task-detail`, `member-work-sync`, `stallMonitor`, `taskLogs`, `agent-graph`, уведомления о комментариях. В spec-kit: `src/kernel/*` (атрибуты задачи), `src/adapters/query-service.js`, `src/adapters/tool-contracts.js`, `src/authoring/proposals.js`, `src/mcp/server.js`.
+
+## Authoring constraints discovered while validating this spec
+
+| Правило | Причина | Проверка |
+|---|---|---|
+| Ссылки пишутся как `**Implements:** FR-1` без ведущего `- ` | сканер структурированных полей (`src/kernel/parsers/md-blocks.js:51`) не распознаёт bullet-форму и рёбра не создаются молча | SCEN-2, тест графа на `IMPLEMENTS`/`REFS`/`DEPENDS_ON` |
+| `Status` пишется только каноническим словом (`todo` а не `pending`) | неизвестное слово нормализуется в `unknown` без ошибки | `tests/authoring-task-status.test.mjs` |
+| В `Done When` нет `,` и `;` | значение режется на список по этим разделителям | проверка атрибутов задачи |
+| `@id:SCEN-n` ставится на `Scenario`, не на `Feature` | иначе диагностика `MISSING_SCENARIO_ID` | `spec_catalog validation` |
+
