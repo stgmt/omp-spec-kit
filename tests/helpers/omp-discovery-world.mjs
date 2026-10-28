@@ -11,12 +11,12 @@ const PROBE_FILE = "probe-omp-discovery-v18.0.11.mjs";
  * incomplete receipt is itself an asserted negative test result.
  */
 export async function runPinnedManagerProbe({ runtimeHost, cwd, packageRoot, verifiedPackageRoot, home, agentRoot }) {
-  const [distManifest, launcher] = await Promise.all([
+  const [distManifest, mcpConfig] = await Promise.all([
     readFile(path.join(verifiedPackageRoot, "dist", "manifest.json")),
-    readFile(path.join(verifiedPackageRoot, "bin", "omp-spec-kit-mcp")),
+    readFile(path.join(verifiedPackageRoot, ".mcp.json")),
   ]);
   const expectedDistManifestSha256 = createHash("sha256").update(distManifest).digest("hex");
-  const expectedLauncherSha256 = createHash("sha256").update(launcher).digest("hex");
+  const expectedMcpConfigSha256 = createHash("sha256").update(mcpConfig).digest("hex");
   const result = spawnSync(
     "bun",
     [
@@ -29,8 +29,8 @@ export async function runPinnedManagerProbe({ runtimeHost, cwd, packageRoot, ver
       packageRoot,
       "--expected-dist-manifest-sha256",
       expectedDistManifestSha256,
-      "--expected-launcher-sha256",
-      expectedLauncherSha256,
+      "--expected-mcp-config-sha256",
+      expectedMcpConfigSha256,
       "--phase-mode",
       "bounded",
       "--phase-timeout-ms",
@@ -66,7 +66,7 @@ export async function runPinnedManagerProbe({ runtimeHost, cwd, packageRoot, ver
     exitCode: result.status,
     stderr: result.stderr,
     expectedDistManifestSha256,
-    expectedLauncherSha256,
+    expectedMcpConfigSha256,
     receipt,
   };
 }

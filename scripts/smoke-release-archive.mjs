@@ -36,8 +36,8 @@ let outsideRoot = null;
   await symlink(outsideRoot, path.join(projectRoot, ".omp-spec-kit", "evidence", "outside-link"), "junction");
 }
 
-function createArchiveClient(command, cwd, env) {
-  const child = spawn(command, [], { cwd, env, stdio: ["pipe", "pipe", "pipe"], shell: process.platform === "win32", windowsHide: true });
+function createArchiveClient(command, args, cwd, env) {
+  const child = spawn(command, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
   const stderr = [];
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk) => stderr.push(chunk));
@@ -69,8 +69,11 @@ function createArchiveClient(command, cwd, env) {
 }
 
 let client;
-const launcher = path.join(packageRoot, "bin", "omp-spec-kit-mcp");
-const command = process.platform === "win32" ? path.join(packageRoot, "bin", "omp-spec-kit-mcp.cmd") : launcher;
+// The packaged .mcp.json declares `node ${CLAUDE_PLUGIN_ROOT}/dist/mcp/server.js`;
+// the smoke runs that exact entrypoint from the extracted archive, without a shell.
+const PLUGIN_ROOT_PLACEHOLDER = "$" + "{CLAUDE_PLUGIN_ROOT}";
+const SERVER_ENTRY = ["dist", "mcp", "server.js"];
+const serverEntryPath = path.join(packageRoot, ...SERVER_ENTRY);
 const env = { ...process.env };
 delete env.OMP_SPEC_KIT_STAGE;
 delete env.OMP_SPEC_KIT_PACKAGE_ROOT;
@@ -79,13 +82,17 @@ delete env.OMP_SPEC_KIT_ROOT;
 try {
   await execFile("tar", ["-xf", path.basename(archivePath), "-C", packageRoot], { cwd: path.dirname(archivePath) });
   const packageManifest = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
-  const start = () => createArchiveClient(command, projectRoot, env);
+  const mcpConfig = JSON.parse(await readFile(path.join(packageRoot, ".mcp.json"), "utf8"));
+  const declaredServer = mcpConfig?.mcpServers?.[packageManifest.name];
+  assert.equal(declaredServer?.command, "node", "the archived .mcp.json must launch the server with node");
+  assert.deepEqual(declaredServer?.args, [`${PLUGIN_ROOT_PLACEHOLDER}/${SERVER_ENTRY.join("/")}`], "the archived .mcp.json must point at dist/mcp/server.js through the plugin-root placeholder");
+  const start = () => createArchiveClient(process.execPath, [serverEntryPath], projectRoot, env);
   client = start();
   const initialize = await client.send("initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "release-archive-smoke", version: "1" } });
   assert.equal(initialize.error, undefined, JSON.stringify(initialize));
   const listed = await client.send("tools/list", {});
   const toolNames = listed.result.tools.map((tool) => tool.name).sort();
-  assert.deepEqual(toolNames, expectedTools, "the launcher must expose the single 38-tool surface");
+  assert.deepEqual(toolNames, expectedTools, "the archived server must expose the single 10-tool surface");
 
   {
     const listTools = async () => client.send("tools/list", {});
@@ -101,7 +108,7 @@ try {
       repositoryRoot,
     });
   }
-  assert.equal(client.unsolicited.length, 0, "the launcher must not emit unsolicited stdout frames");
+  assert.equal(client.unsolicited.length, 0, "the archived server must not emit unsolicited stdout frames");
   console.log(JSON.stringify({ result: "passed", packageVersion: packageManifest.version, toolCount: toolNames.length, toolNames }));
 } finally {
   if (client) await client.close().catch(() => {});

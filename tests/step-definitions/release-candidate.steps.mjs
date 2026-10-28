@@ -13,7 +13,6 @@ import {
   appendArchiveByte,
   createCandidateWorld,
   evaluateCandidate,
-  extractCandidate,
   MRI_RELEASE_SCENARIOS,
   readVerifiedCucumberFixture,
   replaceMessageWithMeta,
@@ -338,26 +337,6 @@ When("release notes are rendered", async function () {
 Then("release notes remain withheld pending live distribution provenance", async function () {
   const advisory = await readFile(this.advisoryPath, "utf8");
   assert.match(advisory, /v0\.3\.1/u);
-});
-
-When("the candidate archive is extracted into a clean project", async function () {
-  const extracted = await extractCandidate(this.release, path.join(this.releaseTempRoot, "extracted-package"));
-  const projectRoot = path.join(this.releaseTempRoot, "extracted-project");
-  const pinned = await loadPinnedCorpusGraph(repositoryRoot());
-  await writeCorpus(projectRoot, pinned.files);
-  this.extracted = { ...extracted, projectRoot };
-  this.releaseServer = spawnMcpServer({ command: extracted.launcher, cwd: projectRoot });
-  await this.releaseServer.request("initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "candidate-bdd", version: "1" } });
-  this.extractedOverview = await this.releaseServer.request("tools/call", {
-    name: "spec_overview",
-    arguments: { specSlugs: ["plugin-distribution"], requestId: "candidate-extract-overview", schemaVersion: KERNEL_SCHEMA_VERSION },
-  });
-});
-
-Then("the extracted launcher is executable and serves the active project", function () {
-  assert.equal(this.extracted.mode & 0o111, 0o111);
-  assert.equal(this.extractedOverview.result.isError, false);
-  assert.equal(this.extractedOverview.result.structuredContent.data.counts.acceptedDocuments > 0, true);
 });
 
 Given("a v0.3.2 candidate with complete MRI evidence but no distribution evidence", async function () {

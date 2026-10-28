@@ -29,6 +29,7 @@ function requiredSha256Flag(name) {
 	return value;
 }
 function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
+const PLUGIN_ROOT_PLACEHOLDER = "$" + "{CLAUDE_PLUGIN_ROOT}";
 function portablePath(value, roots) {
 	if (typeof value !== "string") return value;
 	for (const [absolute, replacement] of roots) {
@@ -71,17 +72,17 @@ async function payloadFile(packageRoot, relative) {
 	return { relative, bytes: bytes.length, sha256: sha256(bytes) };
 }
 
-async function verifyCopiedPayload(packageRoot, packageManifest, packageMcpText, expectedDistManifestSha256, expectedLauncherSha256) {
-	const [distManifestText, launcher] = await Promise.all([
+async function verifyCopiedPayload(packageRoot, packageManifest, packageMcpText, expectedDistManifestSha256, expectedMcpConfigSha256) {
+	const [distManifestText, mcpConfigFile] = await Promise.all([
 		readFile(path.join(packageRoot, "dist", "manifest.json"), "utf8"),
-		payloadFile(packageRoot, "bin/omp-spec-kit-mcp"),
+		payloadFile(packageRoot, ".mcp.json"),
 	]);
 	const distManifestSha256 = sha256(distManifestText);
 	if (distManifestSha256 !== expectedDistManifestSha256) {
 		throw new Error(`Copied dist manifest hash differs from verified build output: ${distManifestSha256}`);
 	}
-	if (launcher.sha256 !== expectedLauncherSha256) {
-		throw new Error(`Copied launcher hash differs from verified build output: ${launcher.sha256}`);
+	if (mcpConfigFile.sha256 !== expectedMcpConfigSha256) {
+		throw new Error(`Copied MCP config hash differs from verified build output: ${mcpConfigFile.sha256}`);
 	}
 	let distManifest;
 	let mcpConfig;
@@ -109,8 +110,14 @@ async function verifyCopiedPayload(packageRoot, packageManifest, packageMcpText,
 		return file;
 	}));
 	const server = mcpConfig?.mcpServers?.[packageManifest.name];
-	if (server?.type !== "stdio" || server.command !== "./bin/omp-spec-kit-mcp") {
-		throw new Error("Copied MCP declaration does not bind the verified launcher");
+	if (
+		server?.type !== "stdio" ||
+		server.command !== "node" ||
+		!Array.isArray(server.args) ||
+		server.args.length !== 1 ||
+		server.args[0] !== `${PLUGIN_ROOT_PLACEHOLDER}/dist/mcp/server.js`
+	) {
+		throw new Error("Copied MCP declaration does not bind the verified server entrypoint");
 	}
 	return {
 		distManifest: {
@@ -120,7 +127,7 @@ async function verifyCopiedPayload(packageRoot, packageManifest, packageMcpText,
 			fileCount: distFiles.length,
 			files: distFiles,
 		},
-		launcher: { ...launcher, expectedSha256: expectedLauncherSha256 },
+		mcpConfig: { ...mcpConfigFile, expectedSha256: expectedMcpConfigSha256 },
 	};
 }
 
@@ -130,7 +137,7 @@ const packageRoot = requiredFlag("--package-root");
 const phaseMode = optionalFlag("--phase-mode", "bounded");
 const phaseTimeoutMs = Number(optionalFlag("--phase-timeout-ms", "30000"));
 const expectedDistManifestSha256 = requiredSha256Flag("--expected-dist-manifest-sha256");
-const expectedLauncherSha256 = requiredSha256Flag("--expected-launcher-sha256");
+const expectedMcpConfigSha256 = requiredSha256Flag("--expected-mcp-config-sha256");
 if (phaseMode !== "bounded") throw new Error(`Unsupported --phase-mode ${phaseMode}; use bounded`);
 if (!Number.isSafeInteger(phaseTimeoutMs) || phaseTimeoutMs < 1 || phaseTimeoutMs > 120000) {
 	throw new Error("--phase-timeout-ms must be an integer from 1 through 120000");
@@ -241,7 +248,7 @@ const payloadResult = await phase("payload", async () => {
 		readFile(packageManifestPath, "utf8"),
 		readFile(packageMcpPath, "utf8"),
 		readFile(fileURLToPath(import.meta.url)),
-		Promise.all(["bin/omp-spec-kit-mcp", "dist/extension.js", "dist/mcp/server.js"].map(relative => payloadFile(packageRoot, relative))),
+		Promise.all([".mcp.json", "dist/extension.js", "dist/mcp/server.js"].map(relative => payloadFile(packageRoot, relative))),
 	]);
 	[runtimePackageText, packageManifestText, packageMcpText, harnessText, payload] = values;
 	runtimePackage = JSON.parse(runtimePackageText);
@@ -254,7 +261,7 @@ const payloadResult = await phase("payload", async () => {
 		packageManifest,
 		packageMcpText,
 		expectedDistManifestSha256,
-		expectedLauncherSha256,
+		expectedMcpConfigSha256,
 	);
 	return {
 		runtime: `${runtimePackage.name}@${runtimePackage.version}`,
@@ -314,7 +321,10 @@ if (!terminalPhase) {
 		if (!packageServer || typeof packageServer.command !== "string") {
 			throw new Error("Verified package MCP declaration missing " + packageManifest.name);
 		}
-		const targetConfigs = { [targetName]: { ...packageServer, command: path.resolve(packageRoot, packageServer.command), env: { ...(packageServer.env ?? {}) } } };
+		// verifyCopiedPayload already pinned the declaration to `node <placeholder>/dist/mcp/server.js`.
+		// The pinned 18.0.11 runtime leaves the placeholder literal for linked plugins (newer hosts
+		// substitute it), so the handoff config carries the substituted package root.
+		const targetConfigs = { [targetName]: { ...packageServer, args: packageServer.args.map(arg => arg.replaceAll(PLUGIN_ROOT_PLACEHOLDER, () => packageRoot)), env: { ...(packageServer.env ?? {}) } } };
 		const targetSources = { [targetName]: configLoad.sources[targetName] ?? { provider: "probe", providerName: "verified-package-copy", path: path.join(packageRoot, ".mcp.json"), level: "project" } };
 		configInspection = {
 			targetName,

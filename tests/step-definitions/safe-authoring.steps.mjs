@@ -73,7 +73,7 @@ async function runCandidateManagerE2E() {
       "--phase-mode", "bounded",
       "--phase-timeout-ms", "30000",
       "--expected-dist-manifest-sha256", await digest(path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit", "dist", "manifest.json")),
-      "--expected-launcher-sha256", await digest(path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit", "bin", "omp-spec-kit-mcp")),
+      "--expected-mcp-config-sha256", await digest(path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit", ".mcp.json")),
     ], { cwd: probeRoot, env, encoding: "utf8", windowsHide: true, timeout: 120000 });
     if (result.status !== 0) {
       let detail = String(result.stderr);
@@ -525,7 +525,7 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     assert.equal(res.data?.error?.retryable, false, JSON.stringify(res));
     assert.equal(res.data?.error?.skill, "skill://spec-elicitation", JSON.stringify(res));
     assert.equal(res.data?.receipt, undefined, JSON.stringify(res));
-    assert.match(res.data?.error?.message ?? "", /^Before creating a specification Markdown document, read skill:\/\/spec-elicitation/u);
+    assert.match(res.data?.error?.message ?? "", /^Before creating a specification Markdown document, load the spec-elicitation skill of the active plugin/u);
     assert.match(res.data?.error?.message ?? "", /first creation/iu);
     assert.match(res.data?.error?.message ?? "", /retry is allowed/iu);
     assert.ok(Array.isArray(res.data?.error?.documents) && res.data.error.documents.length > 0);

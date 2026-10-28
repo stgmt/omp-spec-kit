@@ -1,15 +1,18 @@
 {
   "schema": "omp-spec-kit-dist-manifest@1",
-  "pluginVersion": "2.8.1",
+  "pluginVersion": "2.9.0",
   "files": {
     "adapters/document-service.js": {
-      "sha256": "fe85562a378e0044d79b63ac751291da76af70a11be58114f3707e9b328bdb91"
+      "sha256": "39f8a8c6fa572bafd0dd9d5bbe1f508ee091234604726d1b736d0c0e08b2cbdf"
     },
     "adapters/marker-secret.js": {
       "sha256": "9fa0f9d8ce03fcf5b55aea18576227fd051aefda059e2d15b7843f9e785e41c8"
     },
+    "adapters/plugin-version.js": {
+      "sha256": "af70f8a641977dff65840ea571e73ca609ab605566f94afdeb092fe0a800c35b"
+    },
     "adapters/query-service.js": {
-      "sha256": "081fac814cb1ad1e23ebcd66e37f89f90d39c2a45b95641a37ac2ede83ec5e2b"
+      "sha256": "da7da6211a5a1e843cb0608ca2a897fe0ade23da86be32f27b4eda7ea9717add"
     },
     "adapters/tool-contracts.js": {
       "sha256": "1be7af59458a6e1f75066b854ae64e77c14eade7fa83d907b027a1256c37ec5f"
@@ -27,7 +30,7 @@
       "sha256": "ba88286f7885e217bb38f982822a8695ec6f5ce180aaab475eb435b7e804a40a"
     },
     "authoring/elicitation-guard.js": {
-      "sha256": "3d69503a6d7208b0a966b8ecd7d06aae1d5a011b4daf08578b7efaae3e34a293"
+      "sha256": "4c86660e730306356037b5afbbfc8a96fa7033a1d0f70ca0fc7e66de40b3061c"
     },
     "authoring/error-codes.js": {
       "sha256": "18ce9f975c4057fa215b9364cdbcf72df45d3d9f34d7c0a1bee620bb4a248dce"
@@ -57,7 +60,7 @@
       "sha256": "56e7e622ff072e292894d88811e668edf06de1a1613408b4e42dec9c6ef6cf60"
     },
     "extension.js": {
-      "sha256": "ae7bfe5b1cfdc4e0bdb8afde876fef94214cf5899ed27b29595d07d430f2d35a"
+      "sha256": "73e883a4d17123908d214efbf3dfd7b30f7a96debeffdce645f4fa6440044811"
     },
     "gate/automatic-adapter.js": {
       "sha256": "82c385544c2aa793679512b93ef150cfd382722f0cbcc1dd28b99b710e3d3ed8"
@@ -126,7 +129,7 @@
       "sha256": "30c291f7e8b9e164feaadace275c9a9bc6483ed50cc2e80fa305946efe69a99f"
     },
     "mcp/server.js": {
-      "sha256": "b669a54cfc08bffea5bd79c3e0b4ab62b7299488e1d2b553660025e3ca74625e"
+      "sha256": "1078797d66c6793a135f17b5ebfe97fde33b8d4b7a35ba96637cddc1b510515f"
     }
   }
 }

@@ -2,6 +2,26 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 2.9.0 — 2026-10-09
+
+### Added
+
+- Claude Code plugin support: the same `plugins/omp-spec-kit` payload installs in Claude Code 2.1.292 or newer, and a `PreToolUse` hook enforces the `.specs` boundary by blocking reads and writes of `.specs`. The hook is a barrier, not a sandbox; Bash-level checks are regex based.
+
+### Changed
+
+- Single marketplace catalog moved to `.claude-plugin/marketplace.json`; OMP reads it by fallback, and the separate `.omp-plugin/marketplace.json` is removed.
+- The MCP server is launched with `node` and the plugin-root placeholder pointing at `dist/mcp/server.js`; the `sh` launcher under `bin/` is removed from the payload.
+- Protocol version negotiation is limited to the supported versions.
+- The `spec-inventory` skill now uses `spec_catalog` with `view: "inventory"`, and the `/spec-inventory` command is removed.
+- Maintainer-only skills `release-operator` and `tool-e2e` moved out of the shipped payload to repository-level `.claude/skills/`.
+- The `spec-elicitation` skill no longer names OMP-only tools and works with any host question tool, or plain text when the host has none.
+
+### Fixed
+
+- The server no longer exits when `OMP_SPEC_KIT_PACKAGE_ROOT` equals the working directory.
+- The plugin version is reported correctly.
+
 ## 2.6.2 — 2026-09-22
 
 ### Documentation

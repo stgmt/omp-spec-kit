@@ -1,8 +1,12 @@
 # omp-spec-kit
 
-`omp-spec-kit` gives Oh My Pi (OMP) a bounded view of a repository's specifications: what exists, how requirements connect, and where the graph reports problems.
+`omp-spec-kit` gives Oh My Pi (OMP) and Claude Code a bounded view of a repository's specifications: what exists, how requirements connect, and where the graph reports problems.
 
 ## Install
+
+One plugin payload (`plugins/omp-spec-kit`) serves both hosts through a single catalog, `.claude-plugin/marketplace.json`. OMP reads it as a fallback; Claude Code reads it directly.
+
+### Oh My Pi (OMP)
 
 Use the project scope so the server reads the project where OMP starts:
 
@@ -20,9 +24,21 @@ Update an existing project install with:
 omp plugin upgrade omp-spec-kit@omp-spec-kit --scope project
 ```
 
+### Claude Code
+
+Requires Claude Code 2.1.292 or newer. In a Claude Code session:
+
+```text
+/plugin marketplace add stgmt/omp-spec-kit
+/plugin install omp-spec-kit@omp-spec-kit
+/reload-plugins
+```
+
+The plugin starts the MCP server with `node` against the project where Claude Code runs, and registers a `PreToolUse` hook that blocks direct reads and writes of `.specs`, so specification access goes through the MCP tools. The hook is a barrier, not a sandbox: the Bash-level checks are regex based and do not catch every way a shell command can reach a file.
+
 ## Two surfaces, one product
 
-The plugin install above gives your OMP session the **local kernel**: the 10 MCP tools read the `.specs/` corpus of the project you open OMP in — no services required.
+The plugin install above gives your OMP or Claude Code session the **local kernel**: the 10 MCP tools read the `.specs/` corpus of the project you open the host in — no services required.
 
 The **hosted path** is the spec-registry service (`spec-registryd`): canonical specifications live in a dedicated Git repository, writes go through the service's MCP endpoint with YouTrack-verified identity, roles, and project scopes. Consumers connect with a `.mcp.json` that carries `Authorization` + `X-Spec-Project` headers.
 
@@ -50,7 +66,7 @@ After install, open the app's **Spec Service** page (main menu) — it walks thr
 
 ## Available today
 
-The v2.6.1 release exposes exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool.
+The current surface in v2.9.0 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool.
 
 | Need | Tool | Variant |
 |---|---|---|
@@ -106,7 +122,7 @@ The v2.6.1 release is shipped and publicly attested. See docs/validation/release
 
 ## Safety and boundaries
 
-The MCP server reads the active OMP project. It does not use editor LSP as a substitute for the agent-facing MCP API.
+The MCP server reads the active OMP or Claude Code project. It does not use editor LSP as a substitute for the agent-facing MCP API.
 
 Direct untrusted writes to `.specs` are not an alternative API. Use `spec_patch` to preview and apply changes through hash-checked transactions.
 
@@ -118,6 +134,6 @@ The canonical corpus lives in the dedicated specs repository and is served by th
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution workflow
 - [`CHANGELOG.md`](CHANGELOG.md) — release history
 - [`ROADMAP.md`](ROADMAP.md) — user-visible delivery sequence
-- `docs/validation/release-status-v2.6.1.json` — current release status and verification record
+- `docs/validation/release-status-v2.8.1.json` — latest shipped release status and verification record
 
 License: MIT.

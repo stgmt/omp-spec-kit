@@ -68,6 +68,11 @@ export function createResponseProvenance({
   });
 }
 
+export const PACKAGE_ROOT_REFUSED = "PACKAGE_ROOT_REFUSED";
+
+// A cwd that equals OMP_SPEC_KIT_PACKAGE_ROOT is reported as `refused` with no
+// resolvedRoot, never thrown: the stdio server stays alive and refuses tool
+// calls itself, so the host sees a readable error instead of a crashed process.
 export function resolveRepositoryContext(env = process.env, cwd = process.cwd()) {
   const fallback = canonicalPhysicalPath(cwd);
   const packageRoot =
@@ -76,7 +81,12 @@ export function resolveRepositoryContext(env = process.env, cwd = process.cwd())
       ? canonicalPhysicalPath(env.OMP_SPEC_KIT_PACKAGE_ROOT)
       : null;
   if (packageRoot !== null && physicalPathKey(fallback) === physicalPathKey(packageRoot)) {
-    throw new Error("PACKAGE_ROOT_REFUSED");
+    return {
+      resolvedRoot: null,
+      activeProjectRoot: fallback,
+      rootMode: "refused",
+      refused: PACKAGE_ROOT_REFUSED,
+    };
   }
   const raw = env?.OMP_SPEC_KIT_ROOT;
   if (
@@ -111,7 +121,9 @@ export function resolveRepositoryContext(env = process.env, cwd = process.cwd())
 }
 
 export function resolveRepositoryRoot(env = process.env, cwd = process.cwd()) {
-  return resolveRepositoryContext(env, cwd).resolvedRoot;
+  const context = resolveRepositoryContext(env, cwd);
+  if (context.refused) throw new Error(context.refused);
+  return context.resolvedRoot;
 }
 
 function adapterDiagnosticSummaries(readerError) {

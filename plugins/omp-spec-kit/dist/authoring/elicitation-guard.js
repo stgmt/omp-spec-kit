@@ -3,7 +3,7 @@ import { isCanonicalDocument } from "./transactions.js";
 export const ELICITATION_REQUIRED = "ELICITATION_REQUIRED";
 export const ELICITATION_SKILL_URI = "skill://spec-elicitation";
 export const ELICITATION_HINT =
-  "Before creating a specification Markdown document, read skill://spec-elicitation, assess source gaps, ask the user when needed, then retry; later edits are allowed.";
+  "Before creating a specification Markdown document, load the spec-elicitation skill of the active plugin, assess source gaps, ask the user with the host question tool when needed, then retry; later edits are allowed.";
 
 export class FirstWriteElicitationGuard {
   constructor() {

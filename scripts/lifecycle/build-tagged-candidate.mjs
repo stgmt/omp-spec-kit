@@ -2,7 +2,8 @@
 // Extracts the committed prebuilt plugins/omp-spec-kit tree from a release
 // tag (v0.3.0 ships dist/) so lifecycle producers can exercise the REAL prior
 // release without rebuilding it. Asserts tag/version/manifest agreement and
-// verifies every extracted file against the tag's own dist manifest.
+// extracts every file the tag's own dist manifest lists. File hashes are not
+// re-checked here.
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
@@ -128,18 +129,23 @@ async function main() {
 		written.push({ relative: relativeInsidePackage, bytes: bytes.length });
 	}
 	// Validate the extracted MCP declaration against the tree it ships with.
-	// Older tags (v0.3.0) run `node dist/mcp/server.js` directly; newer tags
-	// bind ./bin/omp-spec-kit-mcp. Either way the declared entrypoint must be
-	// present inside the extracted package, taken verbatim from the tag.
+	// Current tags declare `node ${CLAUDE_PLUGIN_ROOT}/dist/mcp/server.js`. The
+	// pinned prior release (v0.3.2) still binds ./bin/omp-spec-kit-mcp and v0.3.0
+	// ran `node dist/mcp/server.js` directly, so those two historical shapes stay
+	// accepted. In every case the declared entrypoint must be present inside the
+	// extracted package, taken verbatim from the tag.
 	const mcpConfig = JSON.parse(readFileSync(path.join(outputRoot, ".mcp.json"), "utf8"));
 	const server = mcpConfig?.mcpServers?.[packageManifest.name];
 	if (!server || server.type !== "stdio") fail(`extracted .mcp.json does not declare a stdio server for ${packageManifest.name}`);
-	const declaredEntry = server.command === "./bin/omp-spec-kit-mcp"
-		? ["bin", "omp-spec-kit-mcp"]
-		: server.command === "node" && Array.isArray(server.args) && typeof server.args[0] === "string"
-			? server.args[0].split("/")
-			: null;
-	if (!declaredEntry) fail(`extracted .mcp.json declares an unsupported command shape: ${JSON.stringify(server.command)}`);
+	const pluginRootEntry = "$" + "{CLAUDE_PLUGIN_ROOT}/dist/mcp/server.js";
+	const declaredEntry = server.command === "node" && Array.isArray(server.args) && server.args.length === 1 && server.args[0] === pluginRootEntry
+		? ["dist", "mcp", "server.js"]
+		: server.command === "./bin/omp-spec-kit-mcp"
+			? ["bin", "omp-spec-kit-mcp"]
+			: server.command === "node" && Array.isArray(server.args) && typeof server.args[0] === "string" && !server.args[0].includes("$" + "{")
+				? server.args[0].split("/")
+				: null;
+	if (!declaredEntry) fail(`extracted .mcp.json declares an unsupported command shape: ${JSON.stringify(server.command)} ${JSON.stringify(server.args ?? null)}`);
 	let entryBytes;
 	try {
 		entryBytes = readFileSync(path.join(outputRoot, ...declaredEntry));
@@ -148,7 +154,7 @@ async function main() {
 	}
 	if (entryBytes.length === 0) {
 		// The declared entrypoint is not part of the committed payload (the
-		// bin/ launchers postdate v0.3.0): take its exact bytes from the tag.
+		// legacy bin/ launchers postdate v0.3.0): take its exact bytes from the tag.
 		const repoEntry = path.posix.join(packagePrefix, ...declaredEntry);
 		let tagged;
 		try {
@@ -159,7 +165,7 @@ async function main() {
 		mkdirSync(path.dirname(path.join(outputRoot, ...declaredEntry)), { recursive: true });
 			const entryPath = path.join(outputRoot, ...declaredEntry);
 			writeFileSync(entryPath, tagged);
-			chmodSync(entryPath, 0o755);
+			if (declaredEntry[0] === "bin") chmodSync(entryPath, 0o755);
 	}
 	if (server.command === "./bin/omp-spec-kit-mcp") {
 		const windowsEntry = ["bin", "omp-spec-kit-mcp.cmd"];

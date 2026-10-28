@@ -301,7 +301,7 @@ function validateCurrentStatus() {
   const version = rootPackage.version;
   const status = readJson("docs/validation/release-status-v" + version + ".json");
   const childPackage = readJson("plugins/omp-spec-kit/package.json");
-  const catalog = readJson(".omp-plugin/marketplace.json");
+  const catalog = readJson(".claude-plugin/marketplace.json");
   const catalogPlugin = catalog.plugins?.[0];
   const authorities = [
     ["root package", rootPackage.version],
