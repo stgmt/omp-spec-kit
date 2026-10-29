@@ -12,8 +12,8 @@ repurposed issues. Installing the app must create nothing in the tracker.
 
 ## Decision
 
-- **`spec-app` @ `MAIN_MENU_ITEM`** — a real YouTrack page in the main
-  navigation ("Spec Service") hosts the entire stepper: repository state and
+- **`spec-app` @ `ADMINISTRATION_MENU_ITEM`** — a real YouTrack page in the
+  administration menu ("Spec Service") hosts the entire stepper: repository state and
   binding for authorized users, migration verification, token minting with
   the paste-token fallback, and the generated `.mcp.json` with copy controls.
   `?step=agent` deep-links to the agent step; the page awaits
