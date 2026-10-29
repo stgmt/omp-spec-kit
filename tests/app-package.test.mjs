@@ -132,6 +132,21 @@ test("buildPackage writes a staged tree and a deterministic zip", async () => {
   for (const name of entries) assert.ok(!name.includes("\\"), `backslash path in zip: ${name}`);
 });
 
+test("the Spec Service page lives in the administration menu", () => {
+  const appDir = path.join(process.cwd(), "tools", "spec-graph-app");
+  const manifest = JSON.parse(readFileSync(path.join(appDir, "manifest.json"), "utf8"));
+  const widgets = manifest.widgets ?? [];
+
+  const page = widgets.find((widget) => widget.key === "spec-app");
+  assert.ok(page, "the spec-app widget must exist");
+  assert.equal(page.extensionPoint, "ADMINISTRATION_MENU_ITEM", "the management page belongs to the administration menu");
+
+  // The left navigation must stay free of the management page: no widget may
+  // fall back to the old MAIN_MENU_ITEM placement.
+  const legacy = widgets.filter((widget) => widget.extensionPoint === "MAIN_MENU_ITEM");
+  assert.deepEqual(legacy, [], "MAIN_MENU_ITEM is not allowed in this app");
+});
+
 test("the real app derives to exactly the JetBrains launch checklist", () => {
   const appDir = path.join(process.cwd(), "tools", "spec-graph-app");
   const manifest = JSON.parse(readFileSync(path.join(appDir, "manifest.json"), "utf8"));

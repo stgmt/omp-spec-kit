@@ -56,7 +56,11 @@ again (wizard, groups, token, specs, dashboard).
    service token and writes `runtime/projects.json`.
 4. Restarts `spec-registryd` and waits for `/mcp` on `127.0.0.1:8644`.
 5. Builds + uploads `spec-graph-app` via `POST /api/admin/apps/import`, applies
-   `serviceUrl`/`serviceBridgeToken`, attaches it to the `DEMO` project.
+   `serviceUrl`/`serviceBridgeToken`, attaches it to the `DEMO` project, and
+   verifies the package: `spec-app` must be declared at
+   `ADMINISTRATION_MENU_ITEM` and no widget may target `MAIN_MENU_ITEM`. A
+   package built before the move is rejected instead of being installed as a
+   fallback, so the left navigation never regains the entry.
    (`apps/import` is an internal YouTrack endpoint — it works on the bundled
    version but is not a stable public API; the manual equivalent is
    Administration → Apps → Add app → Upload ZIP.)

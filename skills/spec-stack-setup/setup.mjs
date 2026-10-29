@@ -325,6 +325,25 @@ async function verifyProjection(admin) {
   throw new Error(`SPEC projection did not converge: ${cards} card(s), pointer ${pointer ?? "missing"}`);
 }
 
+/** The management page belongs to the administration menu. A package built
+ *  before the move still declares MAIN_MENU_ITEM and would silently put the
+ *  entry back into the left navigation, so a stale package fails the install
+ *  instead of being accepted as a fallback. */
+async function verifyAppPlacement(admin) {
+  const app = await admin.appByName(APP_NAME);
+  const full = await admin.call("GET", `/api/admin/apps/${app.id}?fields=version,widgets(key,extensionPoint(id))`);
+  const widgets = full.widgets ?? [];
+  const legacy = widgets.filter((widget) => widget.extensionPoint?.id === "MAIN_MENU_ITEM");
+  if (legacy.length > 0) {
+    throw new Error(`app package is stale: ${legacy.map((widget) => widget.key).join(", ")} still target MAIN_MENU_ITEM`);
+  }
+  const page = widgets.find((widget) => widget.key === "spec-app");
+  if (page?.extensionPoint?.id !== "ADMINISTRATION_MENU_ITEM") {
+    throw new Error(`app package is stale: spec-app targets ${page?.extensionPoint?.id ?? "nothing"}, expected ADMINISTRATION_MENU_ITEM`);
+  }
+  return full.version;
+}
+
 async function provisionDashboard(admin) {
   const app = await admin.appByName(APP_NAME);
   const widgets = (await admin.call("GET", `/api/admin/apps/${app.id}?fields=id,widgets(id,key)`)).widgets;
@@ -390,6 +409,8 @@ async function main() {
   await admin.setAppSettings(app.id, { serviceUrl: SVC_NET, serviceBridgeToken: BRIDGE_TOKEN });
   const project = await admin.createProject({ name: "Spec Stack Demo", shortName: YT_PROJECT, leaderId: (await admin.meNative()).id });
   await admin.attachAppToProject(app.id, project.id).catch(() => {});
+  const appVersion = await verifyAppPlacement(admin);
+  log(`app ${appVersion} verified: Spec Service is an administration-menu page`);
 
   log("phase 5 — template spec via MCP");
   await admin.revokePermanentTokens({ userId: me.id, name: "spec-stack-seed" }).catch(() => {});
