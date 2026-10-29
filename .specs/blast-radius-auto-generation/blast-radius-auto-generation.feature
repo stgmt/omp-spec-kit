@@ -8,16 +8,16 @@ Feature: Blast Radius Auto-Generation
     Given omp-spec-kit MCP server is running
     And spec "blast-radius-auto-generation" exists
 
+  @id:SCEN-1
   Scenario: spec_patch recognizes generateBlastRadius intent
-    @id:SCEN-1
     When agent calls spec_patch with intent "generateBlastRadius"
     Then the intent is recognized
     And the response does not contain INVALID_REQUEST error
     And the intent schema includes optional baselineCommit field
     And the intent schema includes optional generateBlastRadius field
 
+  @id:SCEN-2
   Scenario: Generator produces BLAST_RADIUS.md with correct structure
-    @id:SCEN-2
     Given blast-radius-generator skill is available
     And repository has changes in src/authoring/
     When agent invokes blast-radius-generator with repository path
@@ -26,8 +26,8 @@ Feature: Blast Radius Auto-Generation
     And each section includes pattern, occurrences count, files count
     And the format matches presentation-reels BLAST_RADIUS.md template
 
+  @id:SCEN-3
   Scenario: Generator handles missing FILE_CHANGES.md
-    @id:SCEN-3
     Given blast-radius-generator skill is available
     And spec does not have FILE_CHANGES.md
     When agent invokes blast-radius-generator with repository path
@@ -35,8 +35,8 @@ Feature: Blast Radius Auto-Generation
     And no error is thrown
     And BLAST_RADIUS.md content is generated
 
+  @id:SCEN-4
   Scenario: Reviewer validates completeness of blast radius
-    @id:SCEN-4
     Given blast-radius-reviewer skill is available
     And BLAST_RADIUS.md draft is generated
     And git diff shows changes in src/kernel/
@@ -44,16 +44,16 @@ Feature: Blast Radius Auto-Generation
     Then reviewer returns NEEDS_REVISION verdict
     And comments include missing src/kernel/ with severity "blocking"
 
+  @id:SCEN-5
   Scenario: Reviewer validates accuracy of patterns
-    @id:SCEN-5
     Given blast-radius-generator produces BLAST_RADIUS.md with pattern "src"
     And pattern "src" matches 500 files across the repository
     When reviewer validates the draft
     Then reviewer returns NEEDS_REVISION verdict
     And comments suggest narrowing pattern with severity "warning"
 
+  @id:SCEN-6
   Scenario: Supervisor implements retry policy
-    @id:SCEN-6
     Given BlastRadiusWorkflow is running
     And reviewer returns NEEDS_REVISION
     And retryCount is 0
@@ -65,8 +65,8 @@ Feature: Blast Radius Auto-Generation
     Then workflow ends with failure
     And response includes reviewer comments
 
+  @id:SCEN-7
   Scenario: Automatic generation enabled by default
-    @id:SCEN-7
     Given agent calls spec_patch with intent "patch"
     And operations include document changes
     And generateBlastRadius parameter is not provided
@@ -74,16 +74,16 @@ Feature: Blast Radius Auto-Generation
     Then BlastRadiusWorkflow is invoked
     And BLAST_RADIUS.md is generated for the spec
 
+  @id:SCEN-8
   Scenario: User can disable automatic generation
-    @id:SCEN-8
     Given agent calls spec_patch with intent "patch"
     And generateBlastRadius is false
     When patch is applied successfully
     Then BlastRadiusWorkflow is not invoked
     And BLAST_RADIUS.md is not generated
 
+  @id:SCEN-9
   Scenario: Hardcoded patterns for omp-spec-kit
-    @id:SCEN-9
     Given blast-radius-generator skill is invoked
     And no pattern config is provided
     When generator runs analysis
@@ -94,8 +94,8 @@ Feature: Blast Radius Auto-Generation
     And patterns include service layer
     And patterns include test surface
 
+  @id:SCEN-10
   Scenario: BLAST_RADIUS.md tracked as separate document
-    @id:SCEN-10
     Given BlastRadiusWorkflow completes successfully
     And BLAST_RADIUS.md is saved via spec_patch
     When agent calls spec_documents with action "list"

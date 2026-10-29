@@ -2,59 +2,59 @@
 
 ## TASK-1 — Add generateBlastRadius intent to spec_patch
 
-- **Status:** pending
+- **Status:** todo
 
 **Implements:** FR-1
 
-**Refs:** NFR-5
+**Refs:** NFR-SEC-1
 
 - **Done When:** `src/adapters/tool-contracts.js` includes `generateBlastRadius` variant in spec_patch with proper schema and description.
 
 ## TASK-2 — Implement blast-radius-generator skill
 
-- **Status:** pending
+- **Status:** todo
 
 **Implements:** FR-2, FR-6
 
-**Refs:** NFR-1, NFR-3
+**Refs:** NFR-PERF-1, NFR-REL-1
 
 - **Done When:** `plugins/omp-spec-kit/skills/blast-radius-generator/SKILL.md` exists and generates BLAST_RADIUS.md draft with hardcoded omp-spec-kit patterns.
 
 ## TASK-3 — Implement blast-radius-reviewer skill
 
-- **Status:** pending
+- **Status:** todo
 
 **Implements:** FR-3
 
-**Refs:** NFR-2
+**Refs:** NFR-CORR-1
 
 - **Done When:** `plugins/omp-spec-kit/skills/blast-radius-reviewer/SKILL.md` exists and validates blast radius drafts with APPROVED/NEEDS_REVISION verdicts.
 
 ## TASK-4 — Implement BlastRadiusWorkflow (LangGraph)
 
-- **Status:** pending
+- **Status:** todo
 
 **Implements:** FR-4
 
-**Refs:** TASK-2, TASK-3, NFR-3
+**Refs:** TASK-2, TASK-3, NFR-REL-1
 
 - **Done When:** `src/workflows/blast-radius-workflow.js` implements supervisor-subagent pattern with generator, reviewer, and save nodes; retry policy of 2 attempts.
 
 ## TASK-5 — Integrate workflow into spec_patch service
 
-- **Status:** pending
+- **Status:** todo
 
 **Implements:** FR-5, FR-7
 
-**Refs:** TASK-4, NFR-1
+**Refs:** TASK-4, NFR-PERF-1
 
 - **Done When:** `src/authoring/service.js` invokes BlastRadiusWorkflow after successful patch when `generateBlastRadius` is true (default true); saves BLAST_RADIUS.md via spec_patch with insert_at_eof.
 
 ## TASK-6 — Add unit tests for pattern matching
 
-- **Status:** pending
+- **Status:** todo
 
-**Implements:** NFR-1, NFR-2
+**Implements:** NFR-PERF-1, NFR-CORR-1
 
 **Refs:** TASK-2
 
@@ -62,7 +62,7 @@
 
 ## TASK-7 — Add integration tests for generator skill
 
-- **Status:** pending
+- **Status:** todo
 
 **Implements:** FR-2
 
@@ -72,7 +72,7 @@
 
 ## TASK-8 — Add integration tests for reviewer skill
 
-- **Status:** pending
+- **Status:** todo
 
 **Implements:** FR-3
 
@@ -82,7 +82,7 @@
 
 ## TASK-9 — Add E2E test for full workflow
 
-- **Status:** pending
+- **Status:** todo
 
 **Implements:** FR-1, FR-4, FR-5
 
@@ -92,7 +92,7 @@
 
 ## TASK-10 — Update documentation
 
-- **Status:** pending
+- **Status:** todo
 
 **Implements:** FR-5
 
@@ -102,7 +102,7 @@
 
 ## TASK-11 — Dogfood on omp-spec-kit
 
-- **Status:** pending
+- **Status:** todo
 
 **Implements:** FR-6
 
