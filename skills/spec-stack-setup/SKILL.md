@@ -67,11 +67,16 @@ again (wizard, groups, token, specs, dashboard).
    `roadmap-*` slugs, so it ships as a second spec, which is also what makes
    the cross-spec edges on the board).
 7. Provisions the `SPEC` projection (project + custom fields + `spec-graph-sync`
-   run) so the board's `SPEC:SYNC-STATE` pointer exists. After that the
-   service keeps it fresh itself (`SPEC_REGISTRY_PROJECTION=1` in compose):
-   every confirmed write and every reconciled remote move re-projects cards +
-   the snapshot — `spec-graph-sync` stays only as the bootstrap/manual tool.
-   The marker carries `projectionVersion`, so a code upgrade self-reprojects.
+   run) so the board's `SPEC:SYNC-STATE` pointer exists. The service starts
+   with `SPEC_REGISTRY_PROJECTION=0` and is flipped to `1` only after the
+   project, the `SpecKind` and `Type` bundles and the link types exist; the
+   skill then waits for the pointer and at least one card before it reports
+   success. After that the service keeps the projection fresh itself: every
+   confirmed write and every reconciled remote move re-projects cards + the
+   snapshot — `spec-graph-sync` stays only as the bootstrap/manual tool. The
+   marker carries `projectionVersion`, so a code upgrade self-reprojects.
+   Projection is on by default for every install: there is no opt-in step and
+   no "create the SPEC project later" prerequisite.
 8. Creates the `Spec Stack` dashboard with the `spec-board` widget at
    `width: 12, height: 8` grid cells (the manifest's `defaultDimensions`
    `12fr × 8fr` covers widgets added by hand through the UI) and prints
