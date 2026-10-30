@@ -20,6 +20,15 @@ export function targetConfigName(configs, sources, targetName) {
 // loadAndConnect applies the same substitution, rooted at the directory of the
 // .mcp.json that declared the server.
 const PLUGIN_ROOT_PLACEHOLDER = "$" + "{CLAUDE_PLUGIN_ROOT}";
+// The installed declaration is the managed HTTP endpoint. The lifecycle
+// producer has no registry, so it exercises the same installed package through
+// its bundled server over stdio: install, reload and a fresh session are what
+// this producer proves; the HTTP declaration is pinned by verify-package, the
+// OMP probe and the archive smoke.
+export function stdioPackageConfig(packageRoot) {
+	return { type: "stdio", command: "node", args: [path.join(packageRoot, "dist", "mcp", "server.js")], env: {} };
+}
+
 export function substitutePluginRoot(value, rootPath) {
 	if (typeof value === "string") return value.replaceAll(PLUGIN_ROOT_PLACEHOLDER, () => rootPath);
 	if (Array.isArray(value)) return value.map((entry) => substitutePluginRoot(entry, rootPath));

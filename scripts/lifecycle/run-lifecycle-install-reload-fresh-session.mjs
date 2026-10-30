@@ -15,6 +15,7 @@ import {
 	enroll,
 	executeInventory,
 	loadAndConnect,
+	stdioPackageConfig,
 	loadRuntimeModules,
 	reloadCapability,
 	writeLifecycleRecord,
@@ -45,9 +46,12 @@ function parseArgs(argv) {
 	return output;
 }
 
-async function connectAndObserve({ cwd, modules, timeoutMs, requestId }) {
+async function connectAndObserve({ cwd, modules, timeoutMs, requestId, packageRoot }) {
 	const reloaded = await reloadCapability(cwd, PLUGIN_NAME, modules, timeoutMs);
-	const { manager, tool } = await loadAndConnect(cwd, PLUGIN_NAME, reloaded.targetConfigs, reloaded.targetSources, modules, timeoutMs);
+	// The installed declaration is HTTP without a registry in this producer;
+	// exercise the same package through its bundled server instead.
+	const targetConfigs = Object.fromEntries(Object.keys(reloaded.targetConfigs).map((name) => [name, stdioPackageConfig(packageRoot)]));
+	const { manager, tool } = await loadAndConnect(cwd, PLUGIN_NAME, targetConfigs, reloaded.targetSources, modules, timeoutMs);
 	try {
 		return { reloaded, inventory: await executeInventory(tool, requestId, timeoutMs) };
 	} finally {
@@ -60,7 +64,8 @@ async function connectAndObserve({ cwd, modules, timeoutMs, requestId }) {
 // at all proves the install persisted into a new session.
 async function observeChild(args, cwd, timeoutMs) {
 	const modules = await loadRuntimeModules(path.resolve(args["--runtime-root"]), cwd);
-	const { inventory } = await connectAndObserve({ cwd, modules, timeoutMs, requestId: "lifecycle-fresh-session-activation" });
+	const packageRoot = path.resolve(args["--candidate-package-root"]);
+	const { inventory } = await connectAndObserve({ cwd, modules, timeoutMs, requestId: "lifecycle-fresh-session-activation", packageRoot });
 	process.stdout.write(JSON.stringify({
 		inventoryText: inventory.text,
 		returnedSpecs: inventory.returned,
@@ -104,7 +109,7 @@ async function main() {
 
 	// Phase 2: reload in this process — capability + converted config present,
 	// managed spec_catalog (view inventory) answers.
-	const first = await connectAndObserve({ cwd, modules, timeoutMs, requestId: "lifecycle-reload-inventory" });
+	const first = await connectAndObserve({ cwd, modules, timeoutMs, requestId: "lifecycle-reload-inventory", packageRoot });
 	await writeLifecycleRecord(receiptsOut, "reload.json", baseLifecycleRecord({
 		requirement: "plugin-distribution:FR-4",
 		claim: "reload",
@@ -152,7 +157,7 @@ async function main() {
 	}));
 
 	// Phase 4: one more bounded managed inventory query in the parent.
-	const second = await connectAndObserve({ cwd, modules, timeoutMs, requestId: "lifecycle-inventory-final" });
+	const second = await connectAndObserve({ cwd, modules, timeoutMs, requestId: "lifecycle-inventory-final", packageRoot });
 	await writeLifecycleRecord(receiptsOut, "inventory.json", baseLifecycleRecord({
 		requirement: "plugin-distribution:FR-4",
 		claim: "inventory",

@@ -105,7 +105,11 @@ async function main() {
   const guard = createCodexGuard({ classifier: classifyToolCall });
   const decision = guard.decide(payload);
   if (decision.block) {
-    process.stderr.write(`${decision.reason}\n`);
+    try {
+      process.stderr.write(`${decision.reason}\n`);
+    } catch {
+      // fd 2 closed: the exit code still denies the call.
+    }
     process.exitCode = 2;
   }
 }
@@ -114,7 +118,11 @@ const invokedDirectly =
   process.argv[1] !== undefined && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 if (invokedDirectly) {
   main().catch((error) => {
-    process.stderr.write(`SPEC_HOOK_FAILED: ${error instanceof Error ? error.message : String(error)}\n`);
+    try {
+      process.stderr.write(`SPEC_HOOK_FAILED: ${error instanceof Error ? error.message : String(error)}\n`);
+    } catch {
+      // fd 2 closed: the exit code still denies the call.
+    }
     process.exitCode = 2;
   });
 }

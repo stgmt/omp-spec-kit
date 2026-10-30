@@ -10,8 +10,14 @@ const CLASSIFIER_URL = new URL("../dist/enforcement/classifier.js", import.meta.
 function writeStderr(text) {
   try {
     writeSync(2, text);
+    return;
   } catch {
+    // fd 2 may be closed by the host; fall through to the stream object.
+  }
+  try {
     process.stderr.write(text);
+  } catch {
+    // Both sinks are closed: the exit code is the only remaining signal.
   }
 }
 
