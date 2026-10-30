@@ -209,10 +209,35 @@ Env-секреты:
 | P10-4 | Установка на этот ПК из релиза | 4 хоста |
 | P10-5 | Финальная матрица проверок | отчёт |
 
+### P11. Выпил рудиментов (delete/refactor) — M
+
+Цель: после перехода не остаётся ни одного пути, которое ведёт в старую модель. Критерий приёмки — нулевой grep по инвентарю (кроме исторических ADR/CHANGELOG, которые фиксируют прошлое).
+
+| ID | Рудимент | Действие | Приёмка |
+|---|---|---|---|
+| P11-1 | `config.specsRepo`, `defaultMount`, shortcut в `byRepo` | удалить; проект без binding не работает | `rg specsRepo src` = 0, boot падает на unbound |
+| P11-2 | `forSource()` и `migratedFrom`/`migratedFromBranch` | оставить **только** на один релиз 3.0.0 как путь миграции, помечен `@deprecated`, удалить в 3.1.0 | в 3.0.0 миграция работает; в 3.1.0 `rg migratedFrom` = 0 |
+| P11-3 | `<owner>/<project>` layout (`resolveProjectRoot`, `projectId.split("/")`) | удалить; root = worktree ветки | `rg 'split\("/"\)' src/service` — только project-id валидация |
+| P11-4 | `SPECS_BRANCH`, `SPEC_REGISTRY_GIT_TOKEN`, `GIT_USER`, `GIT_AUTH_URL` | удалить; только per-repo токены | `rg SPECS_BRANCH|SPEC_REGISTRY_GIT_TOKEN` = 0 (кроме CHANGELOG) |
+| P11-5 | `specs-clone` как единственный клон | заменить на `clones/<repo>/` + worktrees | `rg specs-clone` = 0 |
+| P11-6 | `scripts/check-spec-corpus.mjs` (локальный корпус) | удалить, гейт не входит в `verify` и всегда падает без `.specs` | файла нет, `rg check:spec-corpus` = 0 |
+| P11-7 | Старый `stgmt/spec-database` | архив/read-only, убрать из конфигов и доков | нет ссылок как на источник истины |
+| P11-8 | `check-specs-repo-protection` под один репозиторий | переписать на N репозиториев или удалить | проверка по каждому binding |
+| P11-9 | Доки/схема со старой моделью | переписать; старую схему удалить | `rg 'one dedicated specs repository|never a branch'` = 0 |
+| P11-10 | Мёртвые тесты/фикстуры центрального репо | удалить/переписать | suite зелёный, нет skip-заглушек |
+| P11-11 | `spec-branch`-независимые `OMP_SPEC_KIT_ROOT`-пути в stdio-сервере | оставить только для тестов/образа, пометить; хост-путь = HTTP | в доках нет «локального режима» |
+
+**Refactor, не только удаление:**
+
+- `mounts.js` делится на `bindings` (project → repo) и `specBranches` (spec → branch/worktree); `for()` больше не знает про default.
+- `ops/registry.js` и `index.js`: `branch` перестаёт быть глобальным, становится полем каждой спеки.
+- `branch-policy.js` упрощается до одного правила `^spec-[a-z0-9-]+(/[a-z0-9-]+)?$` + защита `main`.
+
 ## 6. Definition of Done
 
 - [ ] Спека `spec-registry-service` переавторена через MCP, VALID, покрытие не упало.
 - [ ] Ни одного упоминания `specsRepo`, `specs-database`, `<owner>/<project>/.specs` в коде/доках/тестах.
+- [ ] P11-инвентарь закрыт: `specsRepo`, `defaultMount`, `SPECS_BRANCH`, `SPEC_REGISTRY_GIT_TOKEN`, `specs-clone`, `<owner>/<project>` — нулевой grep (кроме CHANGELOG/ADR).
 - [ ] Unbound проект → `REPO_BINDING_REQUIRED`; любой spec_* → `SETUP_REQUIRED`; фолбеков нет.
 - [ ] `spec_branch` create/merge/delete/list работает, merge прямой, аудит есть.
 - [ ] 9 спек живут в 9 orphan-ветках `spec-*` репозитория `stgmt/omp-spec-kit`.
@@ -245,3 +270,4 @@ Env-секреты:
 - [ ] P8: 9 спек мигрированы.
 - [ ] P9: README-схема.
 - [ ] P10: 3.0.0 в GitHub и на ПК.
+- [ ] P11: выпил рудиментов, нулевой grep по инвентарю.
