@@ -52,9 +52,14 @@ export function repoHostAllowed(repoUrl, allowedHosts) {
 
 export function parseProjectsConfig(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new ConfigError("projects config must be a JSON object");
-  const { specsRepo, branch = "main", projects, tenants, auth, repoPolicy, idpPolicy, publicUrl } = raw;
-  if (typeof specsRepo !== "string" || specsRepo.length === 0) throw new ConfigError("specsRepo is required");
-  if (typeof branch !== "string" || branch.length === 0) throw new ConfigError("branch must be a non-empty string");
+  const { specsRepo, branch, projects, tenants, auth, repoPolicy, idpPolicy, publicUrl } = raw;
+  if (specsRepo !== undefined || branch !== undefined) {
+    const error = new ConfigError(
+      "specsRepo/branch are retired in 3.0.0: specs live on spec-<slug> branches of each project repository; bind every project to its own repo (MIGRATION_REQUIRED)",
+    );
+    error.code = "MIGRATION_REQUIRED";
+    throw error;
+  }
   if (!Array.isArray(projects) || projects.length === 0) throw new ConfigError("projects must be a non-empty array");
   const ids = projects.map((entry) => {
     const id = entry && typeof entry === "object" ? entry.id : entry;
@@ -62,6 +67,7 @@ export function parseProjectsConfig(raw) {
     return id;
   });
   if (new Set(ids).size !== ids.length) throw new ConfigError("project ids must be unique");
+  const bindings = parseInitialBindings(raw.bindings, ids);
   const parsedTenants = parseTenants(tenants ?? []);
   for (const tenant of parsedTenants) {
     for (const project of tenant.projects) {
@@ -84,7 +90,8 @@ export function parseProjectsConfig(raw) {
     throw new ConfigError("publicUrl must be an http(s) URL when set");
   }
   return {
-    specsRepo, branch, projects: ids, tenants: parsedTenants, auth: parsedAuth,
+    projects: ids, tenants: parsedTenants, auth: parsedAuth,
+    bindings,
     repoPolicy: { allowedHosts: allowedHosts ?? [] },
     idpPolicy: { allowedHosts: idpAllowedHosts ?? [] },
     publicUrl: publicUrl ?? null,
@@ -107,13 +114,34 @@ export function validateProjectId(id) {
   return id;
 }
 
+function parseInitialBindings(bindings, ids) {
+  if (bindings === undefined) return [];
+  if (!Array.isArray(bindings)) throw new ConfigError("bindings must be an array when set");
+  const seen = new Set();
+  return bindings.map((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new ConfigError("each binding must be an object");
+    const project = entry.project;
+    if (typeof project !== "string" || !ids.includes(project)) throw new ConfigError(`binding references an unconfigured project: ${JSON.stringify(project)}`);
+    if (seen.has(project)) throw new ConfigError(`duplicate binding for project: ${project}`);
+    seen.add(project);
+    if (typeof entry.repoUrl !== "string" || entry.repoUrl.length === 0) throw new ConfigError(`binding for ${project} needs repoUrl`);
+    if (entry.tokenEnv !== undefined && entry.tokenEnv !== null && (typeof entry.tokenEnv !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(entry.tokenEnv))) {
+      throw new ConfigError(`binding for ${project} has an invalid tokenEnv`);
+    }
+    if (entry.username !== undefined && entry.username !== null && typeof entry.username !== "string") {
+      throw new ConfigError(`binding for ${project} has an invalid username`);
+    }
+    return { project, repoUrl: entry.repoUrl, tokenEnv: entry.tokenEnv ?? null, username: entry.username ?? null };
+  });
+}
+
 function mountKey(repoUrl, branch) {
   return createHash("sha256").update(`${repoUrl}|${branch ?? ""}`, "utf8").digest("hex").slice(0, 12);
 }
 
 /**
  * One git mount per (repoUrl, branch): the default mount is the configured
- * specsRepo at cloneDir; bound repos get their own clone under clones/<key>
+ * Specs repos are cloned under clones/<key>; no repository is implicit.
  * with their own credentialled GitClient. Everything that used to read
  * `mounts.cloneDir`/`git` now resolves per project through `for(project)`.
  */
@@ -131,7 +159,6 @@ export class MountManager {
     this.logger = logger;
     this.services = new Map();
     this.mounts = new Map();
-    this.defaultMount = this.registerMount({ key: "default", repoUrl: config.specsRepo, branch: config.branch, cwd: this.cloneDir, git: this.git });
   }
 
   /** Every project the service knows: operator-configured plus IdP-claimed. */
@@ -153,13 +180,17 @@ export class MountManager {
     return !this.config.projects.includes(projectId) && this.extraProjects().includes(projectId);
   }
 
+  bindingRequired(projectId) {
+    const error = new Error(`project ${projectId} has no specs repository — bind one via POST /repos/bind before reading or writing specs`);
+    error.code = "REPO_BINDING_REQUIRED";
+    return error;
+  }
+
+  /** Gate for callers that only need to know whether specs are reachable. */
   requireRepoReady(projectId) {
-    if (this.isExternalProject(projectId) && !this.bindingFor(projectId)) {
-      const error = new Error(`project ${projectId} belongs to an external tenant and has no specs repository — bind one via POST /repos/bind before reading or writing specs`);
-      error.code = "REPO_BINDING_REQUIRED";
-      throw error;
-    }
-    return projectId;
+    const row = this.store?.getBinding?.(projectId) ?? null;
+    if (row && (row.status === "active" || (row.status === "migrating" && row.migratedFrom))) return projectId;
+    throw this.bindingRequired(projectId);
   }
 
   registerMount(descriptor) {
@@ -167,7 +198,7 @@ export class MountManager {
     return descriptor;
   }
 
-  /** The active binding for a project, or null when it uses the default repo. */
+  /** The active binding for a project, or null when none is active. */
   bindingFor(projectId) {
     const row = this.store?.getBinding?.(projectId) ?? null;
     if (!row || row.status !== "active") return null;
@@ -197,16 +228,13 @@ export class MountManager {
    */
   for(projectId) {
     const row = this.store?.getBinding?.(projectId) ?? null;
-    if (!row) {
-      this.requireRepoReady(projectId);
-      return this.defaultMount;
-    }
+    if (!row) throw this.bindingRequired(projectId);
     if (row.status === "active") return this.byRepo(row.repoUrl, row.branch, projectId);
     if (row.status === "migrating") {
-      return row.migratedFrom ? this.byRepo(row.migratedFrom, row.migratedFromBranch ?? row.branch, projectId) : this.defaultMount;
+      if (!row.migratedFrom) throw this.bindingRequired(projectId);
+      return this.byRepo(row.migratedFrom, row.migratedFromBranch ?? row.branch, projectId);
     }
-    this.requireRepoReady(projectId);
-    return this.defaultMount;
+    throw this.bindingRequired(projectId);
   }
 
   /**
@@ -218,11 +246,9 @@ export class MountManager {
    */
   forSource(projectId) {
     const row = this.store?.getBinding?.(projectId) ?? null;
-    if (!row) return this.defaultMount;
+    if (!row) return null;
     if (row.status === "active") return this.byRepo(row.repoUrl, row.branch, projectId);
-    return row.migratedFrom
-      ? this.byRepo(row.migratedFrom, row.migratedFromBranch ?? row.branch, projectId)
-      : this.defaultMount;
+    return row.migratedFrom ? this.byRepo(row.migratedFrom, row.migratedFromBranch ?? row.branch, projectId) : null;
   }
 
   /**
@@ -231,9 +257,6 @@ export class MountManager {
    * `forProject` supplies the credential owner for auth.
    */
   byRepo(repoUrl, branch = "main", forProject = null) {
-    // The configured default repo is always the same mount — ledger rows that
-    // recorded the default repoUrl must not resolve to a second empty clone.
-    if (repoUrl === this.config.specsRepo && branch === this.config.branch) return this.defaultMount;
     const key = mountKey(repoUrl, branch);
     let mount = this.mounts.get(key);
     if (!mount) {
@@ -311,7 +334,6 @@ export class MountManager {
   }
 
   async boot() {
-    await this.ensureMount(this.defaultMount);
     // Boot reconciliation (FR-5/FR-16): a clone left ahead of the remote — a
     // skeleton push that lost a race, an out-of-band operator push — must be
     // replayed before any new skeleton push, or every write stays rejected.
@@ -327,13 +349,18 @@ export class MountManager {
     }
     const report = {};
     for (const projectId of this.config.projects) {
-      const root = this.resolveProjectRoot(projectId);
-      await this.ensureProjectSkeleton(projectId);
-      await recoverInterruptedTransactions(root, path.join(root, ".specs", LOCK_FILE), null);
-      const service = this.serviceFor(projectId);
-      const state = await service.ensure();
-      report[projectId] = { root, graphStatus: state.status };
-      this.logger(`mount ${projectId} -> ${state.status}`);
+      try {
+        const root = this.resolveProjectRoot(projectId);
+        await this.ensureProjectSkeleton(projectId);
+        await recoverInterruptedTransactions(root, path.join(root, ".specs", LOCK_FILE), null);
+        const service = this.serviceFor(projectId);
+        const state = await service.ensure();
+        report[projectId] = { root, graphStatus: state.status };
+        this.logger(`mount ${projectId} -> ${state.status}`);
+      } catch (error) {
+        report[projectId] = { error: error?.code ?? "REPO_BINDING_REQUIRED" };
+        this.logger(`mount ${projectId} unbound: ${String(error?.message ?? error).split("\n")[0]}`);
+      }
     }
     return report;
   }

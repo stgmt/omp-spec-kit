@@ -145,18 +145,18 @@ async function bind(api, token, args) {
 }
 
 describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
-  it("reports the default repo in /me until a binding exists", async () => {
+  it("reports the configured binding in /me", async () => {
     const { api, bare, tokens } = await setup();
     const me = await rest(api, tokens.alice, "GET", "/me");
     assert.equal(me.status, 200);
     assert.equal(me.body.login, "alice");
     assert.equal(me.body.role, "writer");
     const alpha = me.body.repos.find((r) => r.project === "stgmt/alpha");
-    assert.equal(alpha.bound, false);
-    assert.equal(alpha.status, "default");
+    assert.equal(alpha.bound, true);
+    assert.equal(alpha.status, "active");
     assert.equal(alpha.repoUrl, bare);
     const bindings = await rest(api, tokens.alice, "GET", "/repos/bindings");
-    assert.deepEqual(bindings.body.bindings, []);
+    assert.deepEqual(bindings.body.bindings.map((b) => b.project), ["stgmt/alpha"]);
   });
 
   it("refuses bind for readers, scope-outsiders, and non-private non-allowlisted hosts", async () => {
@@ -207,7 +207,7 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
     assert.match(subject, /migrate stgmt\/alpha/u);
   });
 
-  it("routes reads and writes to the bound repo, never the default one", async () => {
+  it("routes reads and writes to the bound repo, never the previous one", async () => {
     const { api, url, bare, byoBare, byoUrl, tokens } = await setup();
     await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
 
@@ -233,10 +233,10 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
   });
 
   it("records the bound repo in ledger rows and serves old versions from the old clone", async () => {
-    const { api, url, byoUrl, service, tokens } = await setup();
+    const { api, url, bare, byoUrl, service, tokens } = await setup();
     await flipActive(url, tokens.alice, "1.0.0");
     const v1 = service.store.getLedger(SPEC_KEY).find((r) => r.version === "1.0.0");
-    assert.equal(v1.repoUrl, service.mounts.config.specsRepo);
+    assert.equal(v1.repoUrl, bare);
 
     await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
 
@@ -286,7 +286,7 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
     assert.ok(!cred.tokenEnc.includes(BYO_TOKEN));
   });
 
-  it("unbind returns the project to the default repo; history stays readable", async () => {
+  it("unbind leaves the project unbound; published history stays readable", async () => {
     const { api, url, bare, byoUrl, service, tokens } = await setup();
     await flipActive(url, tokens.alice, "1.0.0");
     await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
@@ -296,13 +296,23 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
 
     const me = await rest(api, tokens.alice, "GET", "/me");
     assert.equal(me.body.repos.find((r) => r.project === "stgmt/alpha").bound, false);
-    // Reads/writes resolve the default clone again — the snapshot copy left
-    // the source intact, so the spec is still listed.
+    assert.equal(me.body.repos.find((r) => r.project === "stgmt/alpha").status, "required");
+    // No silent fallback to another repository: the project must be bound.
     const catalog = await callTool(url, tokens.alice, "spec_catalog", { view: "specs" });
-    assert.ok(catalog.structuredContent.data.specs.includes("spec-kernel"));
-    const frozen = await callTool(url, tokens.alice, "spec_documents", { action: "read", spec: "spec-kernel", doc: "README.md", version: "1.0.0" });
-    assert.equal(frozen.isError, false);
+    assert.equal(catalog.structuredContent.ok, false);
+    assert.match(catalog.structuredContent.error.message, /no specs repository/u);
+    // Published versions resolve through the recorded repo, not the binding.
+    // Unbound projects refuse reads entirely — no silent fallback...
+    const frozenUnbound = await callTool(url, tokens.alice, "spec_documents", { action: "read", spec: "spec-kernel", doc: "README.md", version: "1.0.0" });
+    assert.equal(frozenUnbound.isError, true);
     assert.equal(service.store.getCredential("stgmt/alpha"), null, "the credential is gone");
+    // ...but once the project is bound again, the ledger still serves v1 from
+    // the repo it was published into.
+    const rebound = await bind(api, tokens.alice, { repoUrl: pathToFileURL(bare).href });
+    assert.equal(rebound.status, 200, JSON.stringify(rebound.body));
+    const frozen = await callTool(url, tokens.alice, "spec_documents", { action: "read", spec: "spec-kernel", doc: "README.md", version: "1.0.0" });
+    assert.equal(frozen.isError, false, JSON.stringify(frozen.structuredContent?.error ?? {}));
+    assert.equal(frozen.structuredContent.data.published.commit, service.store.getLedger(SPEC_KEY).find((r) => r.version === "1.0.0").commitSha);
     const log = await gitDir(bare, ["log", "--format=%s", "main"]);
     assert.ok(log.length > 0);
   });

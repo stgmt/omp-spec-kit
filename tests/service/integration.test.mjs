@@ -10,8 +10,10 @@ import { readLiveConfig } from "../e2e/lib/live-fixture.mjs";
 
 const execFileAsync = promisify(execFile);
 const tempDirs = [];
+const stores = [];
 after(async () => {
-  await Promise.all(tempDirs.map((dir) => rm(dir, { recursive: true, force: true })));
+  for (const store of stores) store?.close?.();
+  await Promise.all(tempDirs.map((dir) => rm(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 })));
 });
 
 async function tempDir(prefix) {
@@ -34,11 +36,12 @@ describe("service boot on a local bare remote", () => {
     const cloneDir = path.join(base, "clone");
     const configPath = path.join(base, "projects.json");
     const auth = (await readLiveConfig()).auth;
-    await writeFile(configPath, JSON.stringify({ specsRepo: bare, branch: "main", projects: [{ id: "stgmt/alpha" }], tenants: [{ tenant: "alpha", projects: ["stgmt/alpha"], hubGroups: ["spec-alpha"], defaultProject: "stgmt/alpha" }], auth }));
+    await writeFile(configPath, JSON.stringify({ projects: [{ id: "stgmt/alpha" }], bindings: [{ project: "stgmt/alpha", repoUrl: bare }], tenants: [{ tenant: "alpha", projects: ["stgmt/alpha"], hubGroups: ["spec-alpha"], defaultProject: "stgmt/alpha" }], auth }));
 
-    const { report } = await bootService({ configPath, cloneDir, identity: IDENTITY, logger: () => {} });
+    const { report, mounts, store } = await bootService({ configPath, cloneDir, identity: IDENTITY, logger: () => {} });
+    stores.push(store);
     assert.equal(report["stgmt/alpha"].graphStatus, "ready");
-    assert.equal((await stat(path.join(cloneDir, "stgmt", "alpha", ".specs", ".gitkeep"))).isFile(), true);
+    assert.equal((await stat(path.join(mounts.resolveProjectRoot("stgmt/alpha"), ".specs", ".gitkeep"))).isFile(), true);
 
     const author = await git(bare, ["log", "--format=%an", "main"]);
     const subject = await git(bare, ["log", "--format=%s", "main"]);
@@ -53,11 +56,12 @@ describe("service boot on a local bare remote", () => {
     const cloneDir = path.join(base, "clone");
     const configPath = path.join(base, "projects.json");
     const auth = (await readLiveConfig()).auth;
-    await writeFile(configPath, JSON.stringify({ specsRepo: bare, branch: "main", projects: [{ id: "stgmt/alpha" }], tenants: [{ tenant: "alpha", projects: ["stgmt/alpha"], hubGroups: ["spec-alpha"], defaultProject: "stgmt/alpha" }], auth }));
-    await bootService({ configPath, cloneDir, identity: IDENTITY, logger: () => {} });
+    await writeFile(configPath, JSON.stringify({ projects: [{ id: "stgmt/alpha" }], bindings: [{ project: "stgmt/alpha", repoUrl: bare }], tenants: [{ tenant: "alpha", projects: ["stgmt/alpha"], hubGroups: ["spec-alpha"], defaultProject: "stgmt/alpha" }], auth }));
+    const { mounts, store } = await bootService({ configPath, cloneDir, identity: IDENTITY, logger: () => {} });
+    stores.push(store);
     const commitsAfterFirst = Number(await git(bare, ["rev-list", "--count", "main"]));
 
-    const root = path.join(cloneDir, "stgmt", "alpha");
+    const root = mounts.resolveProjectRoot("stgmt/alpha");
     const specsDir = path.join(root, ".specs");
     await mkdir(path.join(specsDir, ".omp-spec-kit-staging"), { recursive: true });
     await writeFile(path.join(specsDir, ".omp-spec-kit-write.lock"), JSON.stringify({ pid: 999999999, requestId: "stale" }));

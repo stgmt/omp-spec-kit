@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "1137bb57a7e604c8d13a141fa1cd66607bf79c4fd69b4eaf8dc7c46c68516fca",
+  "aggregateSha256": "3aaa239a23722034876bbd173e4a3d58e81ecb23e7af71818d7cc7c27812d413",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -620,8 +620,8 @@
     },
     {
       "path": "src/service/index.js",
-      "bytes": 12013,
-      "sha256": "53e695c9771a5b56ee573d57ccff85cceea59bca8da4cbe53d000924e1267632"
+      "bytes": 13648,
+      "sha256": "3ae4716e8535333da92ff88a7560255cd5e53598f9c31f1fb32327c998753333"
     },
     {
       "path": "src/service/ledger.js",
@@ -630,8 +630,8 @@
     },
     {
       "path": "src/service/mounts.js",
-      "bytes": 16551,
-      "sha256": "07bff1c907b0e4477bde91bcba0c25904ab29d22eabcf3edf5247caa67e37ea3"
+      "bytes": 17952,
+      "sha256": "ebc1f7d374b7336a66693874bc45a4fd020cf91718142607db117f458883a2a8"
     },
     {
       "path": "src/service/onboarding.js",
@@ -670,8 +670,8 @@
     },
     {
       "path": "src/service/repos.js",
-      "bytes": 14074,
-      "sha256": "7633be08155fc22671864dd0c22588f432a8d312277f89eec34e50d8786bcc38"
+      "bytes": 13516,
+      "sha256": "b8d9e139ce9df769a106086597d458d59c8b6227f5ffdae6820786724fee0ecc"
     },
     {
       "path": "src/service/secrets.js",
@@ -682,6 +682,11 @@
       "path": "src/service/spec-binding.js",
       "bytes": 4965,
       "sha256": "92f41ba77b28c5b5f215adcdf5b8f441745c5a355c354e1e236443a9e78de571"
+    },
+    {
+      "path": "src/service/spec-checkouts.js",
+      "bytes": 1872,
+      "sha256": "828cdda806ce84f065107ef57230fe916addec2b0c9da82e739343b6814c14c6"
     },
     {
       "path": "src/service/spec-discovery.js",
@@ -840,8 +845,8 @@
     },
     {
       "path": "tests/e2e/lib/bootstrap.mjs",
-      "bytes": 12748,
-      "sha256": "ec1a934c3b229f99c5201eddb207f02555d56ac6569437d58c20a9845e55ea73"
+      "bytes": 12849,
+      "sha256": "75b30661d2d86ff973b2060c52f006f11b53db49ccf4d506a04dc308fb65100f"
     },
     {
       "path": "tests/e2e/lib/browser.mjs",
@@ -860,8 +865,8 @@
     },
     {
       "path": "tests/e2e/lib/live-fixture.mjs",
-      "bytes": 5081,
-      "sha256": "947c536d7613e1fecb4d22f9f57e3568c59004913465aced56380fd5655b6e58"
+      "bytes": 5118,
+      "sha256": "376a6b747213049c97196617e34e3a41ca6af1435d134e2bd1ee03c1200d4265"
     },
     {
       "path": "tests/e2e/lib/wizard.mjs",
@@ -1690,8 +1695,8 @@
     },
     {
       "path": "tests/idps.test.mjs",
-      "bytes": 24630,
-      "sha256": "427bfe2a7c586ae3840c83ad10eb0cceaeb479d0f8f53a0c6b25b151824a5682"
+      "bytes": 25192,
+      "sha256": "123e61bc09cf380da8e47554d00045328086ca7c2d97e693d3811d6d1bd6adb3"
     },
     {
       "path": "tests/kernel-fields.test.mjs",
@@ -1725,8 +1730,8 @@
     },
     {
       "path": "tests/repos.test.mjs",
-      "bytes": 15937,
-      "sha256": "419bfb59af409293146d3788ddf93e93a659d7c36f9cb575951d26ae602512ab"
+      "bytes": 16857,
+      "sha256": "21e971bf77b80368b10eddc1155b763921430ef63ea06cbea124cf994a0bec3c"
     },
     {
       "path": "tests/roadmap-assemble.test.mjs",
@@ -1740,8 +1745,8 @@
     },
     {
       "path": "tests/service/integration.test.mjs",
-      "bytes": 3801,
-      "sha256": "4659f7326d15a70181944a33519acda2581d205ff92b3e25080546dcb39f2f2a"
+      "bytes": 4051,
+      "sha256": "2266ea5ac7c4d6bba11350385d2303eb293d1eb89a3dc3510138de1154295514"
     },
     {
       "path": "tests/service/onboarding.test.mjs",
@@ -1755,13 +1760,13 @@
     },
     {
       "path": "tests/service/publish.test.mjs",
-      "bytes": 23221,
-      "sha256": "2eaf277b2ccbdc4182fed138d38c6d945533de1c442a2b03bab2f366415116d3"
+      "bytes": 23234,
+      "sha256": "b11de9e6f16aa04c095181a82d8c9150df034dd224c808daa18133e53322cf82"
     },
     {
       "path": "tests/service/task6.test.mjs",
-      "bytes": 8533,
-      "sha256": "36027354ccf6c53bb0892d8b1ece9d8c81c3e130c0853a874597eb09c8eff467"
+      "bytes": 8547,
+      "sha256": "386ac6a59dbf5cde318be3916ed83a27d183f29cbef1aa97ee3f606ac99ae7a9"
     },
     {
       "path": "tests/service/worktree-routing.test.mjs",
@@ -1770,8 +1775,8 @@
     },
     {
       "path": "tests/service/writepath.test.mjs",
-      "bytes": 16905,
-      "sha256": "b46216eb527af86d31c90222071ce24ab001917a163a816cfc52aba2e2bd09fe"
+      "bytes": 16983,
+      "sha256": "d851f791c1ca2a0f46a3b6de03d4c70bca99ad73d944f545bf387c957b69179a"
     },
     {
       "path": "tests/spec-graph-sync/cli.test.js",
@@ -1900,8 +1905,8 @@
     },
     {
       "path": "tests/unit/service/mounts.test.mjs",
-      "bytes": 7407,
-      "sha256": "2861b5a5a0331f7ff8c5554234ac3dd3ddb57a5c35d6e4bb1e54612ca3ae6ecd"
+      "bytes": 6725,
+      "sha256": "bc04b4af5f2de0385f29bdabcd6698bea11c27f877f95575bfe376007b8833d7"
     },
     {
       "path": "tests/unit/service/onboarding.test.mjs",
@@ -1920,13 +1925,18 @@
     },
     {
       "path": "tests/unit/service/repos-projection.test.mjs",
-      "bytes": 4659,
-      "sha256": "9a2236964110fad5f834e1fb5e4fb35befec1afee5009f42cf5c9ed25ea38232"
+      "bytes": 4519,
+      "sha256": "60e247a2ac6bc228a9c12c3ca740e7506ddc182b6342c715d3f2a46587d0c36a"
     },
     {
       "path": "tests/unit/service/spec-binding.test.mjs",
       "bytes": 3981,
       "sha256": "1d90c38f7d15abfc68578b4488efa2e48ebc638a74fe388b710250cf863a6e47"
+    },
+    {
+      "path": "tests/unit/service/spec-checkouts.test.mjs",
+      "bytes": 3192,
+      "sha256": "8dbc677211e4b93e6d9a2bf119acc3ac31878e040f79346d617fffadacfdef28"
     },
     {
       "path": "tests/unit/service/spec-discovery.test.mjs",
@@ -1935,8 +1945,8 @@
     },
     {
       "path": "tests/unit/service/stack-projection.test.mjs",
-      "bytes": 9295,
-      "sha256": "b7553772e6fe64db346f3f6a8dda4027de660aad84e6f6bb76b0303d6b2a0f57"
+      "bytes": 9523,
+      "sha256": "523d770ca11ae51f90fbd80f35a2bfca6968c931447b2af4aebb6582707796c6"
     },
     {
       "path": "tests/unit/service/tenants-claims.test.mjs",

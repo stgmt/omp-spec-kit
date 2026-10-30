@@ -1,7 +1,7 @@
 import { cp, mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { GitClient, commitMessage } from "./git.js";
-import { configuredBranch, isValidBranchName } from "./branch-policy.js";
+import { isValidBranchName } from "./branch-policy.js";
 import { repoHostAllowed } from "./mounts.js";
 import { sealSecret } from "./secrets.js";
 
@@ -44,13 +44,12 @@ function publicBinding(row) {
 }
 
 /**
- * Repo bindings (TASK-17): a project may live in its own specs repository
- * instead of the shared default. Binding is server-side state — the client
- * (.mcp.json) never carries repo URLs or tokens. Migration copies the
- * project's .specs snapshot into the target repo as a service-bot commit;
- * git history is not transferred (pushing refs would leak every other
- * project's ancestors). Pre-migration published versions stay readable from
- * the previous clone, which is kept on disk.
+ * Repo bindings (TASK-17): every project lives in its own specs repository.
+ * Binding is server-side state — the client (.mcp.json) never carries repo
+ * URLs or tokens. Re-binding migrates the project's .specs snapshot into the
+ * target repo as a service-bot commit; git history is not transferred (pushing
+ * refs would leak every other project's ancestors). Pre-migration published
+ * versions stay readable from the previous clone, which is kept on disk.
  */
 export function createRepoManager({ mounts, store, config, identity, secretsKey, logger = () => {}, afterRepoChange = null }) {
   const audit = (entry) => { try { store?.logAccess?.(entry); } catch {} };
@@ -126,13 +125,8 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     if (typeof repoUrl !== "string" || repoUrl.length === 0) throw new RepoError(400, "REPO_URL_REQUIRED", "repoUrl is required");
     const host = repoHostAllowed(repoUrl, config.repoPolicy?.allowedHosts);
     if (!host.ok) throw new RepoError(400, "REPO_HOST_FORBIDDEN", host.reason);
-    const pinned = configuredBranch(config);
-    if (pinned === null) throw new RepoError(500, "BRANCH_INVALID", "the configured specs branch is not a valid git ref");
-    const resolvedBranch = typeof branch === "string" && branch.length > 0 ? branch : pinned;
+    const resolvedBranch = typeof branch === "string" && branch.length > 0 ? branch : "main";
     if (!isValidBranchName(resolvedBranch)) throw new RepoError(400, "BRANCH_INVALID", "branch is not a valid git ref");
-    if (resolvedBranch !== pinned) {
-      throw new RepoError(400, "BRANCH_FORBIDDEN", `this stack writes only to ${pinned}; a second branch would become a second canonical store`);
-    }
     if (typeof token !== "string" || token.length === 0) {
       throw new RepoError(400, "REPO_TOKEN_REQUIRED", "a git token for the repo is required (fine-grained PAT with contents read/write)");
     }
@@ -151,18 +145,18 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
       return { binding: publicBinding(current), head, unchanged: true };
     }
     const sourceMount = mounts.forSource(project);
-    const migratedFrom = current?.status === "active" ? current.repoUrl : sourceMount.repoUrl;
-    const migratedFromBranch = current?.status === "active" ? current.branch : sourceMount.branch;
+    const migratedFrom = current?.status === "active" ? current.repoUrl : sourceMount?.repoUrl ?? null;
+    const migratedFromBranch = current?.status === "active" ? current.branch : sourceMount?.branch ?? null;
 
     // Persist creds + mark migrating before touching remotes: a crash here
     // leaves a resumable row, not an invisible half-state. migratedFrom=null
-    // means "came from the default repo" so reads keep resolving to it.
+    // means the project had no previous repo (a first bind), not a default.
     await store?.putCredential?.(project, { repoUrl, tokenEnc: sealSecret(secretsKey, token), username: auth.username ?? null });
     const put = (status, lastError = null) => store?.putBinding?.({
       project, repoUrl, branch: resolvedBranch, status,
       boundBy, boundAt: new Date().toISOString(),
-      migratedFrom: migratedFrom === repoUrl || migratedFrom === config.specsRepo ? null : migratedFrom,
-      migratedFromBranch: migratedFrom === repoUrl || migratedFrom === config.specsRepo ? null : migratedFromBranch,
+      migratedFrom: migratedFrom === repoUrl ? null : migratedFrom,
+      migratedFromBranch: migratedFrom === repoUrl ? null : migratedFromBranch,
       lastError,
     });
     await put("migrating");
@@ -174,7 +168,7 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
       await mounts.ensureMount(mount);
       // migrate:false means "the target repo stands on its own" — a pre-seeded
       // .specs there wins and the source snapshot is never copied over it.
-      if (migrate !== false) migratedDocuments = await copySpecsSnapshot(sourceMount, mount, project);
+      if (migrate !== false && sourceMount !== null) migratedDocuments = await copySpecsSnapshot(sourceMount, mount, project);
       if (migratedDocuments > 0) {
         await mount.git.add([project], { cwd: mount.cwd });
         await mount.git.commit({
@@ -264,9 +258,8 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
         const row = bound.get(project);
         // An external-tenant project with no binding has no repo at all —
         // reporting "default" would pretend the operator's repo serves it.
-        const external = mounts.isExternalProject?.(project) === true;
-        const status = row?.status ?? (external ? "required" : "default");
-        const repoUrl = row?.status === "active" ? row.repoUrl : external ? null : config.specsRepo;
+        const status = row?.status ?? "required";
+        const repoUrl = row?.status === "active" ? row.repoUrl : null;
         return { project, repoUrl, bound: row?.status === "active", status };
       }),
     };

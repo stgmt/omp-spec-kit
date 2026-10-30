@@ -63,6 +63,17 @@ async function setup() {
   // real clone/push/ls-remote, opted in via repoPolicy like repos.test.mjs.
   const byoBare = path.join(base, "byo.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", byoBare]);
+  // 3.0.0: the customer repo is the source of truth from day one — no
+  // operator-side staging copy to migrate out of.
+  const byoSeed = path.join(base, "byo-seed");
+  await execFileAsync("git", ["clone", byoBare, byoSeed]);
+  await execFileAsync("git", ["-C", byoSeed, "config", "user.email", "seed@example.invalid"]);
+  await execFileAsync("git", ["-C", byoSeed, "config", "user.name", "seed"]);
+  await cp(FIXTURE_SPEC, path.join(byoSeed, "acme/gamma/.specs", "gamma-spec"), { recursive: true });
+  await execFileAsync("git", ["-C", byoSeed, "add", "."]);
+  await execFileAsync("git", ["-C", byoSeed, "commit", "-m", "seed"]);
+  await execFileAsync("git", ["-C", byoSeed, "push", "-q", "origin", "HEAD:refs/heads/main"]);
+  await rm(byoSeed, { recursive: true, force: true });
   const byoUrl = pathToFileURL(byoBare).href;
   const config = fixture.serviceConfigFor(bare);
   config.repoPolicy = { allowedHosts: ["file"] };
@@ -311,8 +322,6 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     const repoBound = await rest(api, tokens.mia, "POST", "/repos/bind", { project: "acme/gamma", repoUrl: byoUrl, token: "unused-for-file" });
     assert.equal(repoBound.status, 200, JSON.stringify(repoBound.body));
     assert.equal(repoBound.body.binding.status, "active");
-    assert.match(repoBound.body.migrated?.commit ?? "", /^[0-9a-f]{40}$/u, "bind must report the migration commit SHA");
-    assert.ok(repoBound.body.migrated.documents > 0, "bind must report the migrated document count");
 
     // mia patches a spec in her tenant project — the write lands under
     // acme/gamma in the CUSTOMER repo, never the operator's.

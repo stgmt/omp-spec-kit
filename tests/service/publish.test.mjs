@@ -57,7 +57,7 @@ async function setup({ syncIntervalMs = 0 } = {}) {
     fixture,
     service,
     bare,
-    cloneDir: path.join(base, "clone"),
+    cloneDir: service.mounts.for("stgmt/alpha").cwd,
     url: `http://127.0.0.1:${service.server.address().port}/mcp`,
     tokens: { alice: await fixture.userToken("alice") },
   };

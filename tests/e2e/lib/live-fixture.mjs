@@ -51,9 +51,8 @@ export async function loadLiveFixture() {
     /** Config for an in-process service bound to a test-local specs repo. */
     serviceConfigFor(specsRepo, { projects = ["stgmt/alpha"], tenant = "alpha", hubGroups = ["spec-alpha"] } = {}) {
       return {
-        specsRepo,
-        branch: "main",
         projects: projects.map((id) => ({ id })),
+        bindings: projects.map((project) => ({ project, repoUrl: specsRepo })),
         tenants: [{ tenant, projects, hubGroups, defaultProject: projects.length === 1 ? projects[0] : null }],
         // In-process services run on the host: YouTrack is reachable via the
         // published port, not the compose-internal name.

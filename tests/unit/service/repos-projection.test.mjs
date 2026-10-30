@@ -52,8 +52,6 @@ describe("repo bind/unbind repo-change trigger", () => {
     await execFileAsync("git", ["init", "--bare", "--initial-branch=main", specsBare]);
     await execFileAsync("git", ["init", "--bare", "--initial-branch=main", byoBare]);
     const config = parseProjectsConfig({
-      specsRepo: pathToFileURL(specsBare).href,
-      branch: "main",
       projects: [{ id: "stgmt/alpha" }],
       auth: AUTH_BLOCK,
     });
@@ -92,8 +90,6 @@ describe("repo bind/unbind repo-change trigger", () => {
     const specsBare = path.join(dir, "specs.git");
     await execFileAsync("git", ["init", "--bare", "--initial-branch=main", specsBare]);
     const config = parseProjectsConfig({
-      specsRepo: pathToFileURL(specsBare).href,
-      branch: "main",
       projects: [{ id: "stgmt/alpha" }],
       auth: AUTH_BLOCK,
     });

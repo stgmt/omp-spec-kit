@@ -172,7 +172,7 @@ describe("sync loop (TASK-6)", () => {
     let cloneNfr = "";
     for (let attempt = 0; attempt < 20; attempt += 1) {
       await service.sync.reconcile();
-      cloneNfr = await readFile(path.join(service.mounts.cloneDir, "stgmt", "alpha", ".specs", "spec-kernel", "NFR.md"), "utf8").catch(() => "");
+      cloneNfr = await readFile(path.join(service.mounts.for("stgmt/alpha").cwd, "stgmt", "alpha", ".specs", "spec-kernel", "NFR.md"), "utf8").catch(() => "");
       if (cloneNfr.includes("remote-only change")) break;
       await new Promise((resolve) => setTimeout(resolve, 50));
     }

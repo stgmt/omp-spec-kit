@@ -55,7 +55,8 @@ async function setup() {
   return {
     fixture,
     bare,
-    cloneDir: path.join(base, "clone"),
+    cloneDir: service.mounts.for("stgmt/alpha").cwd,
+    projectRoot: service.mounts.resolveProjectRoot("stgmt/alpha"),
     url: `http://127.0.0.1:${service.server.address().port}/mcp`,
     tokens: {
       alice: await fixture.userToken("alice"),
@@ -135,12 +136,12 @@ describe("write path over POST /mcp (live-verified identity)", () => {
   });
 
   it("keeps the local commit and stays up when a break-glass rewrite conflicts", async () => {
-    const { bare, cloneDir, url, tokens } = await setup();
+    const { bare, cloneDir, projectRoot, url, tokens } = await setup();
     await git(cloneDir, ["config", "user.email", "bot@example.invalid"]);
     await git(cloneDir, ["config", "user.name", "spec-bot"]);
     // A local commit rewriting a document the remote will rewrite too.
     await writeFile(
-      path.join(cloneDir, "stgmt", "alpha", ".specs", "spec-kernel", "TASKS.md"),
+      path.join(projectRoot, ".specs", "spec-kernel", "TASKS.md"),
       "# Tasks\n\nStatus: DRAFT\n\n## TASK-77 — local only\n- **Status:** todo\n",
     );
     await git(cloneDir, ["add", "."]);

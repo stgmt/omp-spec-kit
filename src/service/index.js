@@ -1,7 +1,7 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { GitClient, botIdentityFromEnv, gitAuthFromEnv } from "./git.js";
-import { loadProjectsConfig, MountManager } from "./mounts.js";
+import { loadProjectsConfig, MountManager, ConfigError } from "./mounts.js";
 import { createYouTrackAuth } from "./auth.js";
 import { createServiceApp } from "./http.js";
 import { createClaimStore } from "./claims.js";
@@ -19,14 +19,47 @@ import { createPublisher } from "./publish.js";
 import { createVersionedReads } from "./versioned.js";
 import { createRepoManager } from "./repos.js";
 import { createIdpManager } from "./idps.js";
-import { secretsKeyFromEnv } from "./secrets.js";
-
-export async function bootService({ configPath, cloneDir, git = new GitClient({ gitAuth: gitAuthFromEnv() }), identity, store = null, secretsKey = null, logger = () => {} }) {
+import { secretsKeyFromEnv, sealSecret } from "./secrets.js";
+export async function bootService({ configPath, cloneDir, git = new GitClient({ gitAuth: gitAuthFromEnv() }), identity, store: storeOption = null, secretsKey = null, logger = () => {} }) {
   const config = await loadProjectsConfig(configPath);
+  const store = storeOption ?? (await createStore({ file: path.join(path.dirname(configPath), "registry.db") }));
+  seedInitialBindings({ config, store, secretsKey, env: process.env });
   const resolvedCloneDir = path.resolve(cloneDir ?? path.join(path.dirname(configPath), "..", "data", "specs-clone"));
   const mounts = new MountManager({ config, cloneDir: resolvedCloneDir, git, identity, store, secretsKey, logger });
   const report = await mounts.boot();
-  return { config, mounts, report };
+  return { config, mounts, report, store };
+}
+
+/** Config-declared bootstrap bindings: no repository default, one explicit record per project. */
+function seedInitialBindings({ config, store, secretsKey, env }) {
+  for (const binding of config.bindings ?? []) {
+    const existing = store?.getBinding?.(binding.project) ?? null;
+    if (existing?.status === "active") {
+      if (existing.repoUrl !== binding.repoUrl) {
+        throw new ConfigError(`binding for ${binding.project} points at ${existing.repoUrl}, config says ${binding.repoUrl}`);
+      }
+      continue;
+    }
+    let tokenEnc = null;
+    if (binding.tokenEnv !== null) {
+      const token = env?.[binding.tokenEnv];
+      if (typeof token !== "string" || token.length === 0) throw new ConfigError(`binding for ${binding.project} needs ${binding.tokenEnv} in the environment`);
+      if (!secretsKey) throw new ConfigError(`binding for ${binding.project} needs SPEC_REGISTRY_SECRETS_KEY to store ${binding.tokenEnv}`);
+      tokenEnc = sealSecret(secretsKey, token);
+    }
+    store?.putBinding?.({
+      project: binding.project,
+      repoUrl: binding.repoUrl,
+      branch: "main",
+      status: "active",
+      boundBy: null,
+      boundAt: new Date().toISOString(),
+      migratedFrom: null,
+      migratedFromBranch: null,
+      lastError: null,
+    });
+    if (tokenEnc !== null) store?.putCredential?.(binding.project, { repoUrl: binding.repoUrl, tokenEnc, username: binding.username });
+  }
 }
 
 export function buildServiceStack({ mounts, config, identity = botIdentityFromEnv(), logger = () => {}, store, secretsKey = null, syncIntervalMs = 0, env = process.env }) {
@@ -87,9 +120,9 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     for (const entry of rejections) {
       events.push({ kind: "publish-rejected", spec: entry.spec, project: entry.project, detail: entry.result, detectedAt: entry.ts });
     }
-    return { events, branch: config.branch };
+    return { events, branch: null };
   };
-  const registryOps = createRegistryOps({ registryIndex, driftReport, branch: config.branch });
+  const registryOps = createRegistryOps({ registryIndex, driftReport, branch: null });
   const publisher = store ? createPublisher({ mounts, store, identity, logger }) : null;
   const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher, projection });
   const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger, idps: { list: () => idpManager.listActiveIdps() } });
