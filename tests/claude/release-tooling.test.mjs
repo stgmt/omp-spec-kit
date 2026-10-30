@@ -16,6 +16,7 @@ import { PACKAGE_ROOT_REFUSED, resolveRepositoryContext } from "../../src/adapte
 // payload, the MCP preflight versions, and the bounded connect retry.
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PLUGIN_ROOT = path.join(repositoryRoot, "plugins", "omp-spec-kit");
+const { version: PLUGIN_VERSION } = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, "package.json"), "utf8"));
 const SERVERS = {
   src: path.join(repositoryRoot, "src", "mcp", "server.js"),
   dist: path.join(PLUGIN_ROOT, "dist", "mcp", "server.js"),
@@ -72,9 +73,9 @@ function preflightVersions(serverPath) {
 
 describe("MCP preflight reports the packaged versions", () => {
   for (const [label, serverPath] of Object.entries(SERVERS)) {
-    it(`the ${label} server reports plugin 2.9.0 and OMP 18.0.11`, async () => {
+    it(`the ${label} server reports plugin ${PLUGIN_VERSION} and OMP 18.0.11`, async () => {
       const versions = await preflightVersions(serverPath);
-      assert.equal(versions.plugin, "2.9.0");
+      assert.equal(versions.plugin, PLUGIN_VERSION);
       assert.equal(versions.omp, "18.0.11");
     });
   }
@@ -176,21 +177,23 @@ describe("candidate file modes", () => {
 });
 
 describe("release manager tool count", () => {
-  it("pins 2.9.0 to the ten-tool surface and leaves an unlisted version on the fallback", () => {
+  it("pins the released surface to ten tools and leaves an unlisted version on the fallback", () => {
+    assert.equal(expectedManagerToolCount("2.9.1"), 10);
     assert.equal(expectedManagerToolCount("2.9.0"), 10);
-    assert.equal(expectedManagerToolCount("2.9.1"), 8);
+    assert.equal(expectedManagerToolCount("9.9.9"), 8);
   });
 });
 
 describe("version identity across the built payload", () => {
-  it("keeps the dist manifest, plugin manifest, plugin-version module, and build script at 2.9.0", () => {
+  it("keeps the dist manifest, plugin manifest, plugin-version module, and build script on one version", () => {
     const dist = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, "dist", "manifest.json"), "utf8"));
     const plugin = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, ".claude-plugin", "plugin.json"), "utf8"));
     const pluginVersionModule = readFileSync(path.join(repositoryRoot, "src", "adapters", "plugin-version.js"), "utf8");
     const buildScript = readFileSync(path.join(repositoryRoot, "scripts", "build-plugin.mjs"), "utf8");
-    assert.equal(dist.pluginVersion, "2.9.0");
-    assert.equal(plugin.version, "2.9.0");
-    assert.match(pluginVersionModule, /export const PLUGIN_VERSION = "2\.9\.0";/u);
-    assert.match(buildScript, /const PLUGIN_VERSION = "2\.9\.0";/u);
+    const escaped = PLUGIN_VERSION.replaceAll(".", "\\.");
+    assert.equal(dist.pluginVersion, PLUGIN_VERSION);
+    assert.equal(plugin.version, PLUGIN_VERSION);
+    assert.match(pluginVersionModule, new RegExp(`export const PLUGIN_VERSION = "${escaped}";`, "u"));
+    assert.match(buildScript, new RegExp(`const PLUGIN_VERSION = "${escaped}";`, "u"));
   });
 });
