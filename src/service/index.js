@@ -89,7 +89,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     }
     return { events, branch: config.branch };
   };
-  const registryOps = createRegistryOps({ registryIndex, driftReport });
+  const registryOps = createRegistryOps({ registryIndex, driftReport, branch: config.branch });
   const publisher = store ? createPublisher({ mounts, store, identity, logger }) : null;
   const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher, projection });
   const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger, idps: { list: () => idpManager.listActiveIdps() } });

@@ -1,6 +1,7 @@
 import { cp, mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { GitClient, commitMessage } from "./git.js";
+import { configuredBranch, isValidBranchName } from "./branch-policy.js";
 import { repoHostAllowed } from "./mounts.js";
 import { sealSecret } from "./secrets.js";
 
@@ -125,7 +126,13 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     if (typeof repoUrl !== "string" || repoUrl.length === 0) throw new RepoError(400, "REPO_URL_REQUIRED", "repoUrl is required");
     const host = repoHostAllowed(repoUrl, config.repoPolicy?.allowedHosts);
     if (!host.ok) throw new RepoError(400, "REPO_HOST_FORBIDDEN", host.reason);
-    const resolvedBranch = typeof branch === "string" && branch.length > 0 ? branch : "main";
+    const pinned = configuredBranch(config);
+    if (pinned === null) throw new RepoError(500, "BRANCH_INVALID", "the configured specs branch is not a valid git ref");
+    const resolvedBranch = typeof branch === "string" && branch.length > 0 ? branch : pinned;
+    if (!isValidBranchName(resolvedBranch)) throw new RepoError(400, "BRANCH_INVALID", "branch is not a valid git ref");
+    if (resolvedBranch !== pinned) {
+      throw new RepoError(400, "BRANCH_FORBIDDEN", `this stack writes only to ${pinned}; a second branch would become a second canonical store`);
+    }
     if (typeof token !== "string" || token.length === 0) {
       throw new RepoError(400, "REPO_TOKEN_REQUIRED", "a git token for the repo is required (fine-grained PAT with contents read/write)");
     }

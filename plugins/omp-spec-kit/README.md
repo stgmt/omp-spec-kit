@@ -33,32 +33,18 @@ The payload ships three skills: `spec-inventory` (lists specifications through `
 
 In Claude Code, a `PreToolUse` hook blocks direct reads and writes of `.specs`. It is a barrier, not a sandbox: Bash-level checks are regex based.
 
-## Managed (remote) mode
+## Remote mode
 
-The shipped `.mcp.json` declares the local server — the mode for **unmanaged** checkouts. In a
-managed project the canonical corpus lives in the specs repository and is served by the registry, so
-the client must reach the endpoint instead of spawning a local server. Add an OMP-native definition
-named `omp-spec-kit` — in the project's `.omp/mcp.json` (committed, so every checkout is managed) or
-in the active profile's user config — using `config/omp-managed.mcp.json.example` as the template:
+The shipped `.mcp.json` declares the registry endpoint, not a local server. Set the environment
+before the host starts:
 
-```json
-{
-  "mcpServers": {
-    "omp-spec-kit": {
-      "type": "http",
-      "url": "${OMP_SPEC_REGISTRY_URL}",
-      "headers": { "Authorization": "Bearer ${OMP_SPEC_REGISTRY_TOKEN}" }
-    }
-  }
-}
-```
+- `OMP_SPEC_REGISTRY_URL` — the registry `/mcp` endpoint (for example `http://127.0.0.1:8650/mcp`)
+- `OMP_SPEC_REGISTRY_TOKEN` — the caller's verified YouTrack token
+- `OMP_SPEC_PROJECT` — `owner/project` for scoped tokens
 
-OMP resolves that definition ahead of this package's declaration (native config precedes extension
-packages; the first definition wins and duplicate names are not merged), so the local server is
-retired for the project without changing the shipped payload. Both variables are read from the
-environment when the config is loaded; the token is the caller's verified YouTrack token — the
-service issues and stores none of its own. `scripts/probe-managed-remote.mjs` asserts this
-resolution and proves it behaviourally.
+There is no stdio fallback and no local corpus: a host that cannot expand these placeholders does
+not connect, which is deliberate. The bundled `dist/mcp/server.js` runs inside the registry image;
+it is not a host launch path. `scripts/probe-managed-remote.mjs` proves the managed resolution.
 
 On hosts with a global HTTP proxy, add the endpoint host to `NO_PROXY` (`127.0.0.1,localhost` for a
 local stack): the runtime routes HTTP through the proxy otherwise and the connection times out.

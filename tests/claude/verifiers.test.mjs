@@ -82,28 +82,36 @@ describe("payload verifier rejections", () => {
     assertRejected(verify(dir, "verify-package.mjs"), /payload (files|directories) must be exactly/u);
   });
 
-  it("rejects a .mcp.json command other than node", () => {
+  it("rejects a stdio server declaration", () => {
     const dir = copyRepository();
     editJson(dir, path.join("plugins", "omp-spec-kit", ".mcp.json"), (value) => {
-      value.mcpServers["omp-spec-kit"].command = "npx";
+      value.mcpServers["omp-spec-kit"] = { type: "stdio", command: "node", args: ["server.js"] };
     });
-    assertRejected(verify(dir, "verify-package.mjs"), /\.mcp\.json command must be "node"/u);
+    assertRejected(verify(dir, "verify-package.mjs"), /must be a streamable HTTP MCP server/u);
   });
 
-  it("rejects a literal project root in place of the CLAUDE_PROJECT_DIR placeholder", () => {
+  it("rejects a literal registry URL in place of the env placeholder", () => {
     const dir = copyRepository();
     editJson(dir, path.join("plugins", "omp-spec-kit", ".mcp.json"), (value) => {
-      value.mcpServers["omp-spec-kit"].env.OMP_SPEC_KIT_ROOT = "/abs/project";
+      value.mcpServers["omp-spec-kit"].url = "http://127.0.0.1:8650/mcp";
     });
-    assertRejected(verify(dir, "verify-package.mjs"), /env OMP_SPEC_KIT_ROOT must be exactly/u);
+    assertRejected(verify(dir, "verify-package.mjs"), /\.mcp\.json url must be exactly/u);
   });
 
-  it("rejects extra .mcp.json args beyond the dist server path", () => {
+  it("rejects a literal bearer token in place of the env placeholder", () => {
     const dir = copyRepository();
     editJson(dir, path.join("plugins", "omp-spec-kit", ".mcp.json"), (value) => {
-      value.mcpServers["omp-spec-kit"].args.push("--inspect");
+      value.mcpServers["omp-spec-kit"].headers.Authorization = "Bearer secret";
     });
-    assertRejected(verify(dir, "verify-package.mjs"), /\.mcp\.json args must be exactly/u);
+    assertRejected(verify(dir, "verify-package.mjs"), /Authorization must be exactly/u);
+  });
+
+  it("rejects an extra .mcp.json header", () => {
+    const dir = copyRepository();
+    editJson(dir, path.join("plugins", "omp-spec-kit", ".mcp.json"), (value) => {
+      value.mcpServers["omp-spec-kit"].headers["X-Extra"] = "1";
+    });
+    assertRejected(verify(dir, "verify-package.mjs"), /\.mcp\.json headers fields must be exactly/u);
   });
 
   it("rejects a .mcp.json server entry with an extra cwd key", () => {

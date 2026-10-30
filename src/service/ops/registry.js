@@ -18,14 +18,14 @@ export const REGISTRY_CONTRACTS = Object.freeze([
 ]);
 
 /** Listing ops: absent `project` means "all scopes in my allowed set". */
-export function createRegistryOps({ registryIndex, driftReport }) {
+export function createRegistryOps({ registryIndex, driftReport, branch }) {
   return {
     specRegistry: {
       listing: true,
       async run({ project, allScopes, requestId }) {
         const index = await registryIndex();
         const projects = allScopes ? index.projects : index.projects.filter((entry) => entry.id === project);
-        return { envelope: serviceSuccess("specRegistry", requestId, { projects }) };
+        return { envelope: serviceSuccess("specRegistry", requestId, { branch, projects }) };
       },
     },
     specDrift: {

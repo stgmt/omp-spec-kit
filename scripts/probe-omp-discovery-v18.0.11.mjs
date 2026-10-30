@@ -111,13 +111,12 @@ async function verifyCopiedPayload(packageRoot, packageManifest, packageMcpText,
 	}));
 	const server = mcpConfig?.mcpServers?.[packageManifest.name];
 	if (
-		server?.type !== "stdio" ||
-		server.command !== "node" ||
-		!Array.isArray(server.args) ||
-		server.args.length !== 1 ||
-		server.args[0] !== `${PLUGIN_ROOT_PLACEHOLDER}/dist/mcp/server.js`
+		server?.type !== "http" ||
+		server.url !== "${OMP_SPEC_REGISTRY_URL}" ||
+		server?.headers?.Authorization !== "Bearer ${OMP_SPEC_REGISTRY_TOKEN}" ||
+		server?.headers?.["X-Spec-Project"] !== "${OMP_SPEC_PROJECT}"
 	) {
-		throw new Error("Copied MCP declaration does not bind the verified server entrypoint");
+		throw new Error("Copied MCP declaration does not bind the registry endpoint");
 	}
 	return {
 		distManifest: {
@@ -318,13 +317,13 @@ if (!terminalPhase) {
 		const targetName = packageManifest.name + ":" + packageManifest.name;
 		const packageMcp = JSON.parse(packageMcpText);
 		const packageServer = packageMcp?.mcpServers?.[packageManifest.name];
-		if (!packageServer || typeof packageServer.command !== "string") {
-			throw new Error("Verified package MCP declaration missing " + packageManifest.name);
+		if (!packageServer || packageServer.type !== "http") {
+			throw new Error("Verified package MCP declaration is not the registry endpoint");
 		}
-		// verifyCopiedPayload already pinned the declaration to `node <placeholder>/dist/mcp/server.js`.
-		// The pinned 18.0.11 runtime leaves the placeholder literal for linked plugins (newer hosts
-		// substitute it), so the handoff config carries the substituted package root.
-		const targetConfigs = { [targetName]: { ...packageServer, args: packageServer.args.map(arg => arg.replaceAll(PLUGIN_ROOT_PLACEHOLDER, () => packageRoot)), env: { ...(packageServer.env ?? {}) } } };
+		// The shipped declaration is the managed HTTP endpoint; the pinned
+		// 18.0.11 runtime is exercised against the bundled server over stdio so
+		// the manager, tool surface and query path stay covered offline.
+		const targetConfigs = { [targetName]: { type: "stdio", command: "node", args: [path.join(packageRoot, "dist", "mcp", "server.js")], env: {} } };
 		const targetSources = { [targetName]: configLoad.sources[targetName] ?? { provider: "probe", providerName: "verified-package-copy", path: path.join(packageRoot, ".mcp.json"), level: "project" } };
 		configInspection = {
 			targetName,

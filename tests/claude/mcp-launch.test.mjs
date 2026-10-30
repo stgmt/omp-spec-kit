@@ -107,18 +107,27 @@ function runSession(server) {
 }
 
 describe(".mcp.json launch shape", () => {
-  it("is a node command over dist/mcp/server.js with the project root passed in env", () => {
+  it("declares a streamable HTTP registry endpoint with placeholders only", () => {
     const server = readServerConfig();
-    assert.equal(server.type, "stdio");
-    assert.equal(server.command, "node");
-    assert.deepEqual(server.args, [`${PLUGIN_ROOT_PLACEHOLDER}/dist/mcp/server.js`]);
-    assert.deepEqual(server.env, { OMP_SPEC_KIT_ROOT: PROJECT_DIR_PLACEHOLDER });
+    assert.equal(server.type, "http");
+    assert.equal(server.url, "${OMP_SPEC_REGISTRY_URL}");
+    assert.deepEqual(server.headers, {
+      Authorization: "Bearer ${OMP_SPEC_REGISTRY_TOKEN}",
+      "X-Spec-Project": "${OMP_SPEC_PROJECT}",
+    });
+    assert.equal(server.command, undefined);
+    assert.equal(server.env, undefined);
   });
 });
 
-describe("Claude Code MCP launch", () => {
-  it("starts from .mcp.json args, answers tools/list with ten tools and keeps stdout JSON-only", async () => {
-    const { code, stdout, stderr } = await runSession(readServerConfig());
+describe("bundled MCP server", () => {
+  it("answers tools/list with ten tools and keeps stdout JSON-only", async () => {
+    const server = {
+      command: process.execPath,
+      args: [path.join(pluginRoot, "dist", "mcp", "server.js")],
+      env: { OMP_SPEC_KIT_ROOT: projectDir },
+    };
+    const { code, stdout, stderr } = await runSession(server);
     assert.equal(stderr, "");
     assert.equal(code, 0);
 

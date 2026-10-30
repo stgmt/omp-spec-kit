@@ -93,6 +93,12 @@ again (wizard, groups, token, specs, dashboard).
    blocks every direct write/read of `.specs` and accepts `spec_patch` only
    from that server; a local stdio server is refused. A detected OpenCode
    install must succeed — the phase fails instead of skipping.
+10. Installs the Codex guard when `~/.codex/` exists: copies the adapter into
+    `~/.codex/spec-kit-guard/`, merges one `PreToolUse` group into
+    `~/.codex/hooks.json`, adds `[mcp_servers.spec_registry]` (streamable HTTP
+    + `bearer_token_env_var`) to `config.toml`, and exports the token for new
+    processes. Codex blocks on exit 2; a stdio registry entry is refused.
+    Run `/hooks` once in Codex to trust the new hook.
 
 ## Writeback (tracker → spec), optional
 
@@ -112,12 +118,12 @@ Required env (`.env` next to compose.yml):
 | `SPEC_AGENT_TOKEN` | onboarding-issued agent token scoped to the spec projects (`POST /onboarding/token`); identities land in `Spec-Author` trailers |
 | `SPEC_WRITEBACK_TOKEN` | shared secret the tracker rule sends as `LISTENER_TOKEN` |
 | `SPEC_SYNC_MARKER_KEY` | **must equal the service's value** — mismatched secrets make ownership checks fail every writeback |
+| `SPECS_BRANCH` | branch of the specs repository the service writes (default `main`); a repo binding that names another branch is rejected |
 
-Without `SPEC_REGISTRY_URL`/`SPEC_AGENT_TOKEN` the script falls back to a
-local `OMP_SPEC_KIT_ROOT` checkout whose edits never reach the registry —
-that mode predates the service-managed corpus and must not run against a
-`SPEC_REGISTRY_PROJECTION=1` deployment. Only one writer may project: do not
-scale `spec-registryd` replicas while projection is on.
+`SPEC_REGISTRY_URL` and `SPEC_AGENT_TOKEN` are required for `--serve`: without
+them the listener refuses to start. There is no local-checkout fallback — the
+canonical corpus is served only by the registry. Only one writer may project:
+do not scale `spec-registryd` replicas while projection is on.
 
 ## Output
 

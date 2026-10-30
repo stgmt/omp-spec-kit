@@ -101,6 +101,9 @@ const packageFiles = Object.freeze([
 // allowed; no shell launcher ships.
 const PLUGIN_ROOT_PLACEHOLDER = "${CLAUDE_PLUGIN_ROOT}";
 const PROJECT_DIR_PLACEHOLDER = "${CLAUDE_PROJECT_DIR}";
+const REGISTRY_URL_PLACEHOLDER = "${OMP_SPEC_REGISTRY_URL}";
+const REGISTRY_TOKEN_PLACEHOLDER = "Bearer ${OMP_SPEC_REGISTRY_TOKEN}";
+const REGISTRY_PROJECT_PLACEHOLDER = "${OMP_SPEC_PROJECT}";
 const HOOK_MATCHER =
   "Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep|Bash|PowerShell|mcp__plugin_omp-spec-kit_omp-spec-kit__.*";
 
@@ -204,20 +207,21 @@ async function verifyMcpJson() {
   assertExactKeys(mcpJson, ["mcpServers"], ".mcp.json", fail);
   assertExactKeys(mcpJson.mcpServers, ["omp-spec-kit"], ".mcp.json servers", fail);
   const server = mcpJson.mcpServers["omp-spec-kit"];
-  assertExactKeys(server, ["type", "command", "args", "env"], ".mcp.json omp-spec-kit entry", fail);
-  if (server.type !== "stdio") fail(".mcp.json server must be stdio");
-  if (server.command !== "node") fail('.mcp.json command must be "node"');
-  if (!sameStrings(server.args, [`${PLUGIN_ROOT_PLACEHOLDER}/dist/mcp/server.js`])) {
-    fail(`.mcp.json args must be exactly ["${PLUGIN_ROOT_PLACEHOLDER}/dist/mcp/server.js"]`);
+  if (server.type !== "http") fail(".mcp.json server must be a streamable HTTP MCP server");
+  assertExactKeys(server, ["type", "url", "headers"], ".mcp.json omp-spec-kit entry", fail);
+  if (server.url !== REGISTRY_URL_PLACEHOLDER) {
+    fail(`.mcp.json url must be exactly "${REGISTRY_URL_PLACEHOLDER}"`);
   }
-  assertExactKeys(server.env, ["OMP_SPEC_KIT_ROOT"], ".mcp.json env", fail);
-  if (server.env.OMP_SPEC_KIT_ROOT !== PROJECT_DIR_PLACEHOLDER) {
-    fail(`.mcp.json env OMP_SPEC_KIT_ROOT must be exactly "${PROJECT_DIR_PLACEHOLDER}"`);
+  assertExactKeys(server.headers, ["Authorization", "X-Spec-Project"], ".mcp.json headers", fail);
+  if (server.headers.Authorization !== REGISTRY_TOKEN_PLACEHOLDER) {
+    fail(`.mcp.json Authorization must be exactly "${REGISTRY_TOKEN_PLACEHOLDER}"`);
   }
-  // The single allowed OMP_SPEC_KIT_ROOT placeholder is validated above; with
-  // that env entry removed, the forbidden strings must not appear anywhere.
-  const serialized = JSON.stringify({ ...mcpJson, mcpServers: { "omp-spec-kit": { ...server, env: {} } } });
-  for (const forbidden of ["cwd", "OMP_SPEC_KIT_ROOT", "--inspect", "--experimental-inspect"]) {
+  if (server.headers["X-Spec-Project"] !== REGISTRY_PROJECT_PLACEHOLDER) {
+    fail(`.mcp.json X-Spec-Project must be exactly "${REGISTRY_PROJECT_PLACEHOLDER}"`);
+  }
+  // No local corpus path may survive in the shipped declaration.
+  const serialized = JSON.stringify(mcpJson);
+  for (const forbidden of ["command", "args", "cwd", "OMP_SPEC_KIT_ROOT", "stdio"]) {
     if (serialized.includes(forbidden)) fail(`.mcp.json must not contain ${forbidden}`);
   }
 }

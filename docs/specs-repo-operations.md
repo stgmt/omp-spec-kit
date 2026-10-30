@@ -4,6 +4,12 @@ The canonical specifications live in a dedicated private repository (default
 `stgmt/spec-database`). `spec-registryd` is the only writer; consumers reach
 the corpus exclusively through the service (MCP tools, `/registry`, `/drift`).
 
+The stack writes exactly one branch, configured by `SPECS_BRANCH` (default
+`main`) and reported by `spec_registry`. A per-project repository binding may
+name another repository but not another branch: `repos.bind` answers
+`BRANCH_FORBIDDEN` for any other ref, so a second branch cannot become a second
+canonical store that drift, projection and the ledger do not track.
+
 ## Threat model
 
 | Actor | Can write canonical? | How it is bounded |

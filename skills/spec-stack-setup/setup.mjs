@@ -21,6 +21,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { randomBytes } from "node:crypto";
 import { findAvailablePort, tcpProbe } from "../../src/tools/endpoint-alloc.js";
+import { isValidBranchName } from "../../src/service/branch-policy.js";
 import { writeRuntimeManifest } from "../../src/tools/runtime-manifest.js";
 import { waitFor } from "../../tests/e2e/lib/compose.mjs";
 import { completeWizard, youtrackNeedsWizard } from "../../tests/e2e/lib/wizard.mjs";
@@ -56,6 +57,8 @@ const SVC_NET = "http://spec-registryd:8642"; // in-network: the app bridge call
 const TENANT = "demo";
 const SCOPE = "demo/stack";
 const YT_PROJECT = "DEMO";
+const SPECS_BRANCH = process.env.SPECS_BRANCH ?? "main";
+if (!isValidBranchName(SPECS_BRANCH)) throw new Error(`SPECS_BRANCH is not a valid git ref: ${SPECS_BRANCH}`);
 const GROUPS = {
   hub: "spec-demo-users",
   owner: "spec-demo-owners",
@@ -137,7 +140,7 @@ function writeConfig(serviceToken, { fingerprint }) {
       hostUrl: SVC_HOST(),
       internalUrl: SVC_NET,
       specsRepo: GIT_NET,
-      branch: "main",
+      branch: SPECS_BRANCH,
       publicUrl: "http://spec-registryd:8642",
       projects: [{ id: SCOPE }],
       tenants: [{ tenant: TENANT, projects: [SCOPE], hubGroups: [GROUPS.hub], defaultProject: SCOPE }],
@@ -430,6 +433,24 @@ function installOpenCodeGuard(token) {
   return configDir;
 }
 
+/** Install the Codex guard for the operator's global config. Codex is
+ *  optional on a server host, so the phase is skipped only when ~/.codex is
+ *  absent; a detected install must succeed. */
+function installCodexGuard(token) {
+  const codexHome = path.join(os.homedir(), ".codex");
+  if (!existsSync(codexHome)) return null;
+  const script = path.join(REPO_ROOT, "scripts", "install-codex-guard.mjs");
+  const result = spawnSync(process.execPath, [script, "--url", `${SVC_HOST()}/mcp`], {
+    env: { ...process.env, OMP_SPEC_REGISTRY_TOKEN: token },
+    encoding: "utf8",
+    timeout: 120_000,
+  });
+  if (result.status !== 0) {
+    throw new Error(`Codex guard install failed: ${(result.stderr ?? "").trim().slice(0, 400)}`);
+  }
+  return codexHome;
+}
+
 async function provisionDashboard(admin) {
   const app = await admin.appByName(APP_NAME);
   const widgets = (await admin.call("GET", `/api/admin/apps/${app.id}?fields=id,widgets(id,key)`)).widgets;
@@ -525,6 +546,11 @@ async function main() {
   const guardDir = installOpenCodeGuard(seedToken);
   if (guardDir === null) log("phase 9 — no OpenCode config on this host; guard not installed");
   else log(`phase 9 — guard installed in ${guardDir}`);
+
+  log("phase 10 — Codex guard");
+  const codexHome = installCodexGuard(seedToken);
+  if (codexHome === null) log("phase 10 — no Codex home on this host; guard not installed");
+  else log(`phase 10 — guard installed in ${codexHome}; run /hooks once to trust it`);
 
   console.log("\n━━━ spec-stack ready ━━━");
   console.log(`YouTrack:    ${YT_HOST()}`);

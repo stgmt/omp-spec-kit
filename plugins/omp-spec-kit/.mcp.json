@@ -1,13 +1,11 @@
 {
   "mcpServers": {
     "omp-spec-kit": {
-      "type": "stdio",
-      "command": "node",
-      "args": [
-        "${CLAUDE_PLUGIN_ROOT}/dist/mcp/server.js"
-      ],
-      "env": {
-        "OMP_SPEC_KIT_ROOT": "${CLAUDE_PROJECT_DIR}"
+      "type": "http",
+      "url": "${OMP_SPEC_REGISTRY_URL}",
+      "headers": {
+        "Authorization": "Bearer ${OMP_SPEC_REGISTRY_TOKEN}",
+        "X-Spec-Project": "${OMP_SPEC_PROJECT}"
       }
     }
   }

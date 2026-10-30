@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "5013ceffefc8869cbdb55a584b1abce6bb8ed419b1a94dc81f6c893257fe8f52",
+  "aggregateSha256": "08fc47cfb28cdcde2c4d218cbfebef8145cad440e68572dc3e02535bfd518dae",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -35,8 +35,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 5373,
-      "sha256": "a86c2a9a5948626c3fe05d79ee2fc337a8cc647fcef5b2f14674c49256f9233a"
+      "bytes": 5441,
+      "sha256": "92ea089256a63769cd74c2c4ba18d961352c39115d0ec0619934613c3d4f2cf3"
     },
     {
       "path": "plugins/omp-spec-kit/.claude-plugin/plugin.json",
@@ -46,7 +46,7 @@
     {
       "path": "plugins/omp-spec-kit/.mcp.json",
       "bytes": 254,
-      "sha256": "51a856eca6704184a986582b7ccc28a2b5f8fbcdfa49d6f17f2ed021eba8189f"
+      "sha256": "c35d1280dba70dcb6ceb2bc80aacc06ac25d643b1907783e465af1c1010d582f"
     },
     {
       "path": "plugins/omp-spec-kit/LICENSE",
@@ -55,8 +55,8 @@
     },
     {
       "path": "plugins/omp-spec-kit/README.md",
-      "bytes": 3804,
-      "sha256": "83896214bcb4d07be4aa8291dcc2ac1582e96be5dbdabf4c077820fb884d578b"
+      "bytes": 3213,
+      "sha256": "cd1aa006f78e9b675675b9f73da95df7d87ea20f3f568bedae3dc674d516c6a0"
     },
     {
       "path": "plugins/omp-spec-kit/hooks/hooks.json",
@@ -199,6 +199,11 @@
       "sha256": "8d7423b602861eea20e8f6918a37d6dba71325866073a2d48002f2602ad7e484"
     },
     {
+      "path": "scripts/install-opencode-guard.mjs",
+      "bytes": 4742,
+      "sha256": "d8caa5a2ecef411ea422d7401392efd97d4f320a72ea51b504463be1cb6c66ef"
+    },
+    {
       "path": "scripts/lifecycle/build-tagged-candidate.mjs",
       "bytes": 9540,
       "sha256": "8dbca350f2ca5dac9d04ba5678a3492b65ba1379e0ef0c57a552e77b2ecb263e"
@@ -250,8 +255,8 @@
     },
     {
       "path": "scripts/probe-omp-discovery-v18.0.11.mjs",
-      "bytes": 30219,
-      "sha256": "b514e6a8cb1f2159b95e583a99a93b9cccf52cd8c11cf6d4d2d033cfbf032786"
+      "bytes": 30102,
+      "sha256": "ad2f66b471847aa0b35285997e20ed8232cd836402e0f5c73d588938a933800c"
     },
     {
       "path": "scripts/refresh-authoring-real-corpus-manifest.mjs",
@@ -320,8 +325,8 @@
     },
     {
       "path": "scripts/verify-package.mjs",
-      "bytes": 18019,
-      "sha256": "706cafcfef4ca5e047e567bf8e168d209ae2b72b018154f7181b74377e53be93"
+      "bytes": 18116,
+      "sha256": "01736fae3450d698ab2de0c35ba5c15da88c0a2266bc2ffe6f44fd1e533b46d4"
     },
     {
       "path": "scripts/verify-public-tree.mjs",
@@ -437,6 +442,11 @@
       "path": "src/gate/validator.js",
       "bytes": 2032,
       "sha256": "4541d470c5266c7ed22f24c69b2916a0f0f2c9918b013e7bd475c70cf2ee39cd"
+    },
+    {
+      "path": "src/hosts/opencode/plugin.mjs",
+      "bytes": 5758,
+      "sha256": "2c5bbb9ab688fa110c5e0fe772d5207bececcc0e6c740d7ff5d6acf42ff45651"
     },
     {
       "path": "src/kernel/adapters/fs.js",
@@ -585,8 +595,8 @@
     },
     {
       "path": "src/service/index.js",
-      "bytes": 11990,
-      "sha256": "4a744d481a0770e2a0f521e0b68099412fed3bef70204a5903362fa87eb4fb72"
+      "bytes": 12013,
+      "sha256": "53e695c9771a5b56ee573d57ccff85cceea59bca8da4cbe53d000924e1267632"
     },
     {
       "path": "src/service/ledger.js",
@@ -610,8 +620,8 @@
     },
     {
       "path": "src/service/ops/registry.js",
-      "bytes": 1359,
-      "sha256": "c052c0196239f6ce0a3fa54f36cd56b26b714c9ff22f8b01401117fd46677eed"
+      "bytes": 1375,
+      "sha256": "61fdbe61cf7cf85236a7439cd96393de4cd291f82841a87b3b0b398af9c5b864"
     },
     {
       "path": "src/service/projection.js",
@@ -630,8 +640,8 @@
     },
     {
       "path": "src/service/repos.js",
-      "bytes": 13522,
-      "sha256": "96305daed2d3b884917ad6104df552f388d9ef96c865ff4d4f94dc55b2138210"
+      "bytes": 14074,
+      "sha256": "7633be08155fc22671864dd0c22588f432a8d312277f89eec34e50d8786bcc38"
     },
     {
       "path": "src/service/secrets.js",
@@ -730,8 +740,8 @@
     },
     {
       "path": "tests/claude/mcp-launch.test.mjs",
-      "bytes": 6611,
-      "sha256": "1e1d2f132ae1c98d8f8e458932e6f0534334702ab773d4566ed64e4fb747747f"
+      "bytes": 6814,
+      "sha256": "3e6baf3efb940a322136b3e37442cc3b0af763f5e40348aa6e5a839a2e9fac83"
     },
     {
       "path": "tests/claude/release-evidence.test.mjs",
@@ -750,8 +760,8 @@
     },
     {
       "path": "tests/claude/verifiers.test.mjs",
-      "bytes": 9258,
-      "sha256": "c177f3b64b226a288a3dc2ef80797df879468e70e70272b042273b4f39e0bcae"
+      "bytes": 9635,
+      "sha256": "afd66e624075576972538056314dfdc14dddf8eca5f90051f7416a65977c97fe"
     },
     {
       "path": "tests/deploy-dockerignore.test.mjs",
@@ -1652,6 +1662,11 @@
       "path": "tests/mcp-protocol.test.mjs",
       "bytes": 8500,
       "sha256": "6be50e191ed9df9ce05b5720a5edc7bccf52d70163c54581af98af84db2f5018"
+    },
+    {
+      "path": "tests/opencode/hook.test.mjs",
+      "bytes": 5167,
+      "sha256": "ffaceb50098ac02d060c3739a910908c2a31e88ce70a2efc079e7c37176db834"
     },
     {
       "path": "tests/release-status-candidate.test.mjs",
