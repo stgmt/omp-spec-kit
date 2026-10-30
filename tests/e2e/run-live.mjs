@@ -170,8 +170,8 @@ async function main() {
       await browserLogin(page, "dave", USERS.dave.password);
       await page.goto(`${YT_URL}/issue/${fixture.issue.idReadable}`, { waitUntil: "domcontentloaded" });
       const frame = await appFrame(page);
-      const text = await frame.locator('[data-testid="service-error"]').innerText();
-      assert.match(text, /no scopes matched/, "service must refuse the scopeless user");
+      const text = await frame.locator('[data-testid="no-access"]').innerText();
+      assert.match(text, /no spec scopes/i, "service must refuse the scopeless user");
       return text.slice(0, 80);
     } finally {
       await browser.close();

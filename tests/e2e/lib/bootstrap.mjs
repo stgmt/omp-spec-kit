@@ -29,7 +29,8 @@ export const APP_NAME = "spec-graph-app";
 
 const SEED_FILES = Object.freeze({
   "README.md": "# Alpha Spec\n\nStatus: DRAFT\n\nSeeded corpus for the live auth E2E.\n",
-  "TASKS.md": "# Tasks\n\nStatus: DRAFT\n\n## TASK-1 — seed task\n- **Status:** todo\n- **Done When:** seeded corpus is readable.\n- **Requirements:** FR-1\n",
+  "CHANGELOG.md": "# Changelog\n\nStatus: DRAFT\n\n- seeded corpus for the live auth E2E.\n",
+  "TASKS.md": "# Tasks\n\nStatus: DRAFT\n\n## TASK-1 - seed task\n- **Status:** todo\n- **Done When:** seeded corpus is readable.\n- **Requirements:** FR-1\n",
   "FR.md": "# Functional requirements\n\nStatus: DRAFT\n\n## FR-1 — seeded requirement\n\nThe system SHALL expose the seeded spec to authorized callers only.\n",
   "ACCEPTANCE_CRITERIA.md": "# Acceptance criteria\n\nStatus: DRAFT\n\n## AC-1 — seeded criterion\n\n**Given** the seeded corpus, **when** an authorized caller reads it, **then** it is visible.\n",
 });
@@ -37,7 +38,8 @@ const SEED_FILES = Object.freeze({
 // Second project for the AC-4 isolation scenarios: its own scope, its own spec.
 const BETA_SEED_FILES = Object.freeze({
   "README.md": "# Beta Spec\n\nStatus: DRAFT\n\nSecond seeded corpus for the live auth E2E.\n",
-  "TASKS.md": "# Tasks\n\nStatus: DRAFT\n\n## TASK-1 — beta seed task\n- **Status:** todo\n- **Done When:** the beta corpus is readable inside its own scope.\n- **Requirements:** FR-1\n",
+  "CHANGELOG.md": "# Changelog\n\nStatus: DRAFT\n\n- second seeded corpus for the live auth E2E.\n",
+  "TASKS.md": "# Tasks\n\nStatus: DRAFT\n\n## TASK-1 - beta seed task\n- **Status:** todo\n- **Done When:** the beta corpus is readable inside its own scope.\n- **Requirements:** FR-1\n",
   "FR.md": "# Functional requirements\n\nStatus: DRAFT\n\n## FR-1 — beta seeded requirement\n\nThe system SHALL keep beta readable only through the beta scope.\n",
   "ACCEPTANCE_CRITERIA.md": "# Acceptance criteria\n\nStatus: DRAFT\n\n## AC-1 — beta seeded criterion\n\n**Given** the beta corpus, **when** an authorized beta caller reads it, **then** it is visible.\n",
 });
