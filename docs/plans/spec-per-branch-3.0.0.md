@@ -1,39 +1,53 @@
 # План: спека = ветка (3.0.0)
 
-Статус: **черновик на согласование**. Код не меняется до утверждения плана.
-Владелец: stgmt. Курировать по чек-листу в конце; каждый пункт закрывается только с доказательством (тест/прогон/дифф).
+Статус: **на согласовании**. Код не меняется до утверждения.
+Курировать по Definition of Done; каждый пункт закрывается доказательством (тест, прогон, дифф), а не отметкой.
 
 ## 1. Целевая модель
 
-```
-stgmt/omp-spec-kit                         ← один репозиторий, много проектов
-  ├─ main                                  ← код (без .specs)
-  ├─ spec-teams-task-sync                  ← orphan-ветка = одна спека
-  │    .spec-kit.json                      ← project → spec → branch
-  │    .specs/teams-task-sync/…            ← корпус
-  ├─ spec-teams-task-sync/retry-policy     ← сабветка (рабочая)
-  ├─ spec-blast-radius-auto-generation     ← orphan-ветка = другая спека
-  │    .spec-kit.json
-  │    .specs/blast-radius-auto-generation/…
-  └─ …
+```mermaid
+flowchart TB
+  subgraph REPO["stgmt/omp-spec-kit — один репозиторий, много проектов"]
+    MAIN["main — код, без .specs"]
+    S1["spec-teams-task-sync<br/>.spec-kit.json + .specs/teams-task-sync"]
+    S1A["spec-teams-task-sync/retry-policy<br/>несмерженные изменения"]
+    S2["spec-blast-radius-auto-generation<br/>.spec-kit.json + .specs/..."]
+    S1A -.->|"merge через spec_branch"| S1
+  end
+  HOSTS["Claude · OMP · Codex · OpenCode"] -->|"HTTP MCP: spec_patch"| REG["spec-registryd"]
+  REG -->|"clone + worktree"| S1
+  REG -->|"clone + worktree"| S2
+  REG -->|"проекция только с spec-ветки"| YT["YouTrack SPEC"]
 ```
 
 Правила:
 
-1. Ветка спеки **всегда** начинается с `spec-`: `spec-<slug>`.
-2. Ветка спеки — **orphan** (без родителя, без кода в истории).
-3. Сабветка: `spec-<slug>/<topic>` (обычная ветка от ветки спеки), канон — только `spec-<slug>`.
-4. `spec/<slug>` + `spec/<slug>/<topic>` **невозможны вместе**: git не разрешает ref-файл и ref-каталог с одним именем. Поэтому дефис: `spec-<slug>`.
-5. Один репозиторий может содержать много проектов; проект определяется `.spec-kit.json`, а не именем ветки.
-6. Любая ветка, не начинающаяся с `spec-`, для реестра не существует: писать в неё сервис отказывается.
-7. Нет общего `stgmt/spec-database`, нет `specs-database`, нет дефолтного репозитория.
-8. Токен на репозиторий даёт юзер; на каждый репозиторий свой.
-9. Спеки только в git. SQLite — операционная (claims/credentials/ledger/audit), контента спек там нет.
-10. Merge сабветок — **прямой**, сервисом, под write-lock (PR не рассматриваем: ревьюеров нет). PR-режим не добавляем.
+1. Ветка спеки: `spec-<slug>`, **orphan** (без родителя, без кода в истории).
+2. Сабветка: `spec-<slug>/<topic>` — обычная ветка от ветки спеки.
+3. `spec/<slug>` + `spec/<slug>/<topic>` несовместимы в git (ref-файл vs ref-каталог), поэтому дефис.
+4. Канон — только `spec-<slug>`; ветки глубины 2 (`spec-<slug>/<topic>`) — рабочие.
+5. Один репозиторий может содержать много проектов; проект определяется `.spec-kit.json`.
+6. Slug спеки уникален **в пределах репозитория**: имя ветки не должно сталкиваться у двух проектов.
+7. На ветке спеки разрешены только `.spec-kit.json` и `.specs/**`; код запрещён.
+8. Любая ветка не `spec-*` для реестра не существует; писать в неё сервис отказывается.
+9. Нет `stgmt/spec-database`, нет `specs-database`, нет дефолтного репозитория.
+10. Токен на репозиторий даёт юзер; на каждый репозиторий свой.
+11. Спеки только в git; SQLite — операционная (claims/credentials/ledger/audit).
+12. Merge сабветок — прямой, сервисом, под write-lock; PR не используем (ревьюеров нет).
 
-## 2. Метадата `.spec-kit.json`
+## 2. Зачем сабветки
 
-В корне каждой ветки спеки:
+Сабветка хранит **несмерженные изменения в основную ветку спеки**:
+
+- создаётся от `spec-<slug>` и живёт, пока изменения не влиты;
+- не индексируется, не проецируется в YouTrack, не публикуется тегом;
+- вливается явным `spec_branch merge`; после merge удаляется (SHA остаётся в аудите);
+- конфликт → `MERGE_CONFLICT`, авторазрешения нет;
+- содержит только `.spec-kit.json` и `.specs/**`; код в неё попасть не может (проверка пути при merge).
+
+## 3. Метадата `.spec-kit.json`
+
+В корне ветки спеки:
 
 ```json
 {
@@ -47,227 +61,223 @@ stgmt/omp-spec-kit                         ← один репозиторий, 
 }
 ```
 
-Правила:
+- `project` — единственный источник привязки спеки к проекту.
+- `spec` = slug каталога `.specs/<slug>/` = суффикс ветки.
+- `branch` = фактическое имя ветки.
+- Реестр читает метадату через `git show <branch>:.spec-kit.json`, без checkout.
+- Нет метадаты, расхождение полей, дубль slug в репозитории → `SPEC_BINDING_INVALID`; авторемонта нет.
 
-- `project` — единственный источник привязки спеки к проекту; один репозиторий может содержать несколько проектов.
-- `spec` обязан совпадать со slug каталога `.specs/<slug>/` и с суффиксом ветки.
-- `branch` обязан совпадать с фактическим именем ветки.
-- Реестр читает метадату через `git show <branch>:.spec-kit.json` без checkout.
-- Спека без метадаты или с расхождением — `SPEC_BINDING_INVALID`, не индексируется.
+## 4. Store и секреты
 
-## 3. Операционный store (SQLite)
-
-| Таблица | Содержимое | Почему нужна |
-|---|---|---|
-| `repo_bindings` | project, repoUrl, status, boundBy, boundAt | привязка проект → репозиторий |
-| `credentials` | project, repoUrl, tokenEnc (AES-GCM), username | clone/push по приватным репозиториям |
-| `claims` | specKey (`project/spec`), holder, expiresAt | lease 30 мин, защита от параллельной записи |
-| `ledger` | specKey, version, digest, commitSha, repoUrl, repoBranch | опубликованные версии и теги |
-| `access_log` | login, role, project, op, spec, result | аудит |
-
-Env-секреты:
-
-| Переменная | Назначение |
+| Таблица | Содержимое |
 |---|---|
-| `SPEC_REGISTRY_SECRETS_KEY` | ключ шифрования токенов репозиториев |
-| токен репозитория (per repo) | fine-grained PAT, вводит юзер, хранится зашифрованным |
+| `repo_bindings` | project, repoUrl, status, boundBy, boundAt |
+| `credentials` | project, repoUrl, tokenEnc (AES-GCM), username |
+| `claims` | specKey (`project/spec`), holder, expiresAt |
+| `ledger` | specKey, version, digest, commitSha, repoUrl, repoBranch |
+| `access_log` | login, role, project, op, spec, result; retention 90 дней |
+
+| Env | Назначение |
+|---|---|
+| `SPEC_REGISTRY_SECRETS_KEY` | шифрование токенов репозиториев |
+| токен репозитория (per repo) | fine-grained PAT, вводит юзер |
 | `YOUTRACK_TOKEN` | проверка пользователей/карточек |
 | `SPEC_SYNC_MARKER_KEY` | HMAC маркера проекции |
-| `SPEC_AGENT_TOKEN` | токен агента для writeback-listener |
+| `SPEC_AGENT_TOKEN` | токен writeback-агента |
 | `SPEC_WRITEBACK_TOKEN` | секрет правила YouTrack → listener |
-| `SPEC_REGISTRY_CONFIG` / `CLONE` / `STORE` | конфиг, клон, SQLite |
+| `SPEC_REGISTRY_CONFIG` / `CLONE` / `STORE` | конфиг, клоны, SQLite |
 | `SPEC_REGISTRY_BOT_NAME` / `EMAIL` | identity бота |
 | `SPEC_REGISTRY_PROJECTION` | включение проекции |
 
-Глобальный `SPEC_REGISTRY_GIT_TOKEN` удаляется из модели.
+`SPEC_REGISTRY_GIT_TOKEN` и другие глобальные git-креды удаляются.
 
-## 4. MCP-поверхность
+## 5. MCP-поверхность
 
-- Добавляется **11-й инструмент** `spec_branch`:
-  - `action: list` — ветки спек проекта (read-only);
-  - `action: create` — создать `spec-<slug>` (orphan) или `spec-<slug>/<topic>`;
-  - `action: merge` — влить сабветку в ветку спеки (fast-forward или `--no-ff`, под lock, коммит ботом);
-  - `action: delete` — удалить сабветку (ветку спеки — только `archiveSpec`).
-- `spec_catalog` получает view `branches` (без нового инструмента на чтение).
-- `spec_patch` остаётся единственным инструментом записи документов; `branch` в нём не появляется.
-- Контракт инструментов меняется → полный `@tool-e2e` матрикс на 11 инструментов.
+- 11-й инструмент `spec_branch`: `action: create | merge | delete`. Списка веток в нём нет — чтение через `spec_catalog` view `branches` (DRY).
+- `spec_patch` остаётся единственным инструментом записи документов.
+- Читателям `spec_branch` не виден (фильтр `tools/list`).
+- Контракт меняется → полный `@tool-e2e` на 11 инструментов.
 
-## 5. Фазы
+## 6. Фазы
 
-### P0. Переавторинг канона (MCP) — L
+### P0. Переавторинг канона через MCP — L
 
-| ID | Задача | Файлы/артефакты | Приёмка |
-|---|---|---|---|
-| P0-1 | Переписать `spec-registry-service` README/FR-1: per-spec orphan branch, metadata, multi-project repo | `.specs/spec-registry-service/*` через `spec_patch` | validation VALID, coverage не падает |
-| P0-2 | Новые FR: branch discovery, `.spec-kit.json`, `spec_branch`, merge, no-fallback | FR/NFR/AC | каждый AC покрыт сценарием |
-| P0-3 | Обновить `spec-mcp-access-gate`: граница `.specs` на ветке спеки, setup-required | `.specs/spec-mcp-access-gate/*` | сценарии на блокировку |
-| P0-4 | Обновить `youtrack-visualization`: проекция только с `spec-<slug>` | `.specs/youtrack-visualization/*` | сценарий «сабветка не проецируется» |
-| P0-5 | Обновить `spec-mcp-operations`: 11 инструментов, `spec_branch` | `.specs/spec-mcp-operations/*` | tool-contract тесты |
-| P0-6 | ADR: «спека = orphan-ветка, метадата в корне» | `docs/decisions/` | ссылка из README |
+| ID | Задача | Приёмка |
+|---|---|---|
+| P0-1 | `spec-registry-service`: per-spec orphan branch, metadata, multi-project repo | VALID, покрытие не упало |
+| P0-2 | Новые FR/AC/SCEN: discovery веток, metadata, `spec_branch`, merge, no-fallback | каждый AC покрыт |
+| P0-3 | `spec-mcp-access-gate`: граница `.specs` на ветке, setup-required | сценарии блокировки |
+| P0-4 | `youtrack-visualization`: проекция только с `spec-<slug>` | сабветка не проецируется |
+| P0-5 | `spec-mcp-operations`: 11 инструментов, `spec_branch` | tool-contract тесты |
+| P0-6 | ADR: «спека = orphan-ветка» | ссылка из README |
 
-### P1. Модель хранения в сервисе — L
+### P1. Модель хранения — L
 
-| ID | Задача | Файлы | Приёмка |
-|---|---|---|---|
-| P1-1 | Убрать `specsRepo`/`defaultMount`; конфиг: проекты + обязательные binding | `src/service/mounts.js` | boot падает на unbound |
-| P1-2 | Layout `project-repo`: root = checkout ветки, `.specs` в корне | `mounts.js`, `registry.js` | путь не содержит `<owner>/<project>` |
-| P1-3 | Branch policy: `spec-<slug>` и `spec-<slug>/<topic>`, запрет `main` и чужих | `branch-policy.js` | unit-тесты на валид/невалид |
-| P1-4 | `for(project)` без binding → `REPO_BINDING_REQUIRED` для всех, не только external | `mounts.js` | тест |
-| P1-5 | Ledger/bindings: `repoBranch` = ветка спеки | `ledger.js`, `repos.js` | миграция схемы |
+| ID | Задача | Приёмка |
+|---|---|---|
+| P1-1 | Убрать `specsRepo`/`defaultMount`; binding обязателен | boot падает на unbound |
+| P1-2 | Layout: root = worktree ветки, `.specs` в корне | нет `<owner>/<project>` |
+| P1-3 | Branch policy: `^spec-[a-z0-9-]+(/[a-z0-9-]+)?$`, защита `main` | unit-тесты |
+| P1-4 | Unbound → `REPO_BINDING_REQUIRED` для всех проектов | тест |
+| P1-5 | Старый конфиг → `MIGRATION_REQUIRED` с командой, без тихого старта | тест |
+| P1-6 | Ledger: `repoBranch` = ветка спеки; retention `access_log` | миграция схемы |
 
 ### P2. Discovery и worktrees — L
 
-| ID | Задача | Файлы | Приёмка |
-|---|---|---|---|
-| P2-1 | Клон репозитория + `git for-each-ref refs/heads/spec-*` | `src/service/branches.js` (new) | список веток |
-| P2-2 | Чтение `.spec-kit.json` через `git show`, валидация | `branches.js` | невалидная → `SPEC_BINDING_INVALID` |
-| P2-3 | Worktree на ветку спеки (bare clone + worktree) | `mounts.js`/`worktrees.js` | параллельное чтение двух спек |
-| P2-4 | Индекс `project → spec → branch` вместо `<owner>/<project>/.specs` | `registry.js` | `/registry` без ошибок |
-| P2-5 | Boot/sync: fetch всех веток, не только `main` | `sync.js` | новые ветки видны без рестарта |
+| ID | Задача | Приёмка |
+|---|---|---|
+| P2-1 | Список `refs/heads/spec-*`, только глубина 1 | сабветки не в индексе |
+| P2-2 | Чтение и валидация `.spec-kit.json` через `git show` | `SPEC_BINDING_INVALID` |
+| P2-3 | Lazy worktree на ветку спеки + cleanup | параллельное чтение двух спек |
+| P2-4 | Индекс `project → spec → branch` | `/registry` без ошибок |
+| P2-5 | Fetch всех веток, не только `main` | новая ветка видна без рестарта |
 
 ### P3. `spec_branch` — M
 
-| ID | Задача | Файлы | Приёмка |
-|---|---|---|---|
-| P3-1 | Контракт инструмента + схема | `src/adapters/tool-contracts.js` | 11 инструментов |
-| P3-2 | `create` orphan `spec-<slug>` + `.spec-kit.json` | `src/authoring/branches.js` | ветка без родителя |
-| P3-3 | `create` сабветку `spec-<slug>/<topic>` от ветки спеки | там же | родитель = спека |
-| P3-4 | `merge` прямой, под lock, бот-коммит, аудит | там же | сабветка влита, история линейна/`--no-ff` |
-| P3-5 | `delete` сабветки; запрет удаления ветки спеки | там же | `BRANCH_PROTECTED` |
+| ID | Задача | Приёмка |
+|---|---|---|
+| P3-1 | Контракт и схема инструмента | 11 инструментов, читатель не видит |
+| P3-2 | `create` orphan `spec-<slug>` + metadata + skeleton | ветка без родителя |
+| P3-3 | `create` сабветку от ветки спеки | родитель = спека |
+| P3-4 | `merge` под lock, бот-коммит, проверка путей (только `.specs/**` и metadata) | код не проходит |
+| P3-5 | `delete` сабветки; ветка спеки защищена | `BRANCH_PROTECTED` |
+| P3-6 | `createSpec` создаёт ветку+metadata; `archiveSpec` тегирует и удаляет ветку | нет orphan-мусора |
 
 ### P4. Write path / publish / drift — M
 
-| ID | Задача | Файлы | Приёмка |
-|---|---|---|---|
-| P4-1 | `spec_patch` пишет в ветку спеки | `writepath.js` | коммит в `spec-<slug>` |
-| P4-2 | Публикация тега на ветке спеки | `publish.js` | тег + ledger |
-| P4-3 | Drift по каждой ветке `spec-*` | `drift.js` | non-bot commit виден |
-| P4-4 | Версионные чтения из ветки | `versioned.js` | чтение по тегу |
-| P4-5 | Проекция только с ветки спеки | `projection.js` | сабветка не создаёт карточек |
+| ID | Задача | Приёмка |
+|---|---|---|
+| P4-1 | `spec_patch` пишет в ветку спеки | коммит в `spec-<slug>` |
+| P4-2 | Публикация тега на ветке спеки | тег + ledger |
+| P4-3 | Drift по каждой ветке `spec-*` | non-bot commit виден |
+| P4-4 | Версионное чтение по тегу | чтение по версии |
+| P4-5 | Проекция только с ветки спеки | сабветка не создаёт карточек |
 
 ### P5. Setup-required — M
 
-| ID | Задача | Файлы | Приёмка |
-|---|---|---|---|
-| P5-1 | `GET /status` + `mcp_preflight.setup` | `src/service/http.js`, `ops/*` | `{required, code, command}` |
-| P5-2 | Типизированная ошибка `SETUP_REQUIRED` | `error-codes.js` | любой spec_* при unbound |
-| P5-3 | Claude: SessionStart + PreToolUse | `plugins/omp-spec-kit/hooks/*` | сообщение агенту |
-| P5-4 | Codex: SessionStart + PreToolUse | `src/hosts/codex/*` | сообщение агенту |
-| P5-5 | OpenCode: `session.created` + `tool.execute.before` | `src/hosts/opencode/*` | сообщение агенту |
-| P5-6 | OMP: `tool_call` (и session_start, если поддерживается) | `src/enforcement/*` | сообщение агенту |
+| ID | Задача | Приёмка |
+|---|---|---|
+| P5-1 | `GET /status` + `mcp_preflight.setup` (per project) | `{required, code, command}` |
+| P5-2 | `SETUP_REQUIRED` для spec_* только незатронутого проекта | другие проекты работают |
+| P5-3 | Claude: SessionStart + PreToolUse, один раз за сессию | сообщение агенту |
+| P5-4 | Codex: SessionStart + PreToolUse | сообщение агенту |
+| P5-5 | OpenCode: `session.created` + `tool.execute.before` | сообщение агенту |
+| P5-6 | OMP: `tool_call` (+ session_start, если есть) | сообщение агенту |
 
-Сообщение: «spec-kit требует настройки: привяжи репозиторий и токен, команда …». Хук не настраивает сам.
+Хук не настраивает сам: показывает команду и просит юзера выполнить.
 
-### P6. Установщик и конфиг — M
-
-| ID | Задача | Файлы | Приёмка |
-|---|---|---|---|
-| P6-1 | `projects.json`: проекты + repo bindings, без `specsRepo` | `skills/spec-stack-setup/template/*` | схема валидируется |
-| P6-2 | Ввод токена на каждый репозиторий | `setup.mjs` | без токена — отказ |
-| P6-3 | Создание/привязка репозитория проекта | `setup.mjs` | binding active |
-| P6-4 | Проверка веток `spec-*` и метадаты | `setup.mjs` | setup падает на невалидной |
-| P6-5 | `SPECS_BRANCH` удалить из модели | `setup.mjs`, compose | нет упоминаний |
-
-### P7. Тесты и фикстуры — L
+### P6. Установщик — M
 
 | ID | Задача | Приёмка |
 |---|---|---|
-| P7-1 | Unit: branch policy, metadata, discovery | зелёные |
-| P7-2 | Service: per-repo mount, worktree, no-fallback | зелёные |
+| P6-1 | `projects.json`: проекты + bindings, без `specsRepo` | схема валидируется |
+| P6-2 | Ввод токена на репозиторий | без токена — отказ |
+| P6-3 | Привязка репозитория проекта | binding active |
+| P6-4 | Проверка веток `spec-*` и metadata | setup падает на невалидной |
+| P6-5 | Удалить `SPECS_BRANCH` и глобальные git-креды | нулевой grep |
+
+### P7. Тесты — L
+
+| ID | Задача | Приёмка |
+|---|---|---|
+| P7-1 | Unit: policy, metadata, discovery, duplicate slug | зелёные |
+| P7-2 | Service: per-repo mount, worktree, no-fallback, migration error | зелёные |
 | P7-3 | E2E: 9 спек → 9 веток, проекция | 15/15 |
 | P7-4 | BDD: create/merge/delete, setup-required | зелёные |
 | P7-5 | `@tool-e2e` 11 инструментов, архив | полный матрикс |
-| P7-6 | Фикстуры/кандидат/BDD обновить | identity зелёный |
+| P7-6 | Фикстуры/кандидат/BDD | identity зелёный |
 
-### P8. Миграция данных — L
+### P8. Миграция — L
 
 | ID | Задача | Приёмка |
 |---|---|---|
-| P8-1 | В `stgmt/omp-spec-kit` создать 9 orphan-веток `spec-<slug>` | ветки без родителя |
-| P8-2 | В каждую положить `.spec-kit.json` + `.specs/<slug>/` | метадата валидна |
-| P8-3 | Привязать проект к репозиторию (токен юзера) | binding active |
-| P8-4 | Пересобрать образ, перезапустить, проверить digest'ы | `/registry` зелёный |
-| P8-5 | Перепроецировать YouTrack | 13/8/36/21/29 |
+| P8-1 | 9 orphan-веток `spec-<slug>` в `stgmt/omp-spec-kit` | без родителя |
+| P8-2 | `.spec-kit.json` + `.specs/<slug>/` в каждой | metadata валидна |
+| P8-3 | Binding на репозиторий с токеном юзера | active |
+| P8-4 | Ruleset `spec-*`: пуш только бот | проверено |
+| P8-5 | Пересборка, рестарт, digest'ы, YouTrack | `/registry` зелёный, 13/8/36/21/29 |
 | P8-6 | `stgmt/spec-database` → архив/read-only | не источник истины |
 
-### P9. Документация и схема — S
+### P9. README-схема — S
 
 | ID | Задача | Приёмка |
 |---|---|---|
-| P9-1 | Обновить анимированную схему: repo → ветки-спеки, metadata, merge | визуально проверено |
-| P9-2 | Статичный SVG в README + ссылка на HTML | README рендерится |
-| P9-3 | `docs/specs-repo-operations.md`, plugin README, SKILL.md | нет старой модели |
+| P9-1 | Mermaid в README (GitHub рендерит), без SVG и без ссылки на анимацию | рендерится на GitHub |
+| P9-2 | Удалить старый `docs/diagrams/spec-write-path.html` | файла нет |
+| P9-3 | Runbook, plugin README, SKILL.md | нет старой модели |
 | P9-4 | ADR + changelog | ссылки |
 
 ### P10. Релиз 3.0.0 — M
 
 | ID | Задача | Приёмка |
 |---|---|---|
-| P10-1 | Версии 3.0.0 во всех сайтах | verify-package |
-| P10-2 | Release candidate + evidence + attestation | preflight passed |
+| P10-1 | Версии 3.0.0 | verify-package |
+| P10-2 | Candidate + evidence + attestation | preflight passed |
 | P10-3 | GitHub Release + Latest | assets |
-| P10-4 | Установка на этот ПК из релиза | 4 хоста |
-| P10-5 | Финальная матрица проверок | отчёт |
+| P10-4 | Установка на этот ПК | 4 хоста |
+| P10-5 | Финальная матрица | отчёт |
 
-### P11. Выпил рудиментов (delete/refactor) — M
-
-Цель: после перехода не остаётся ни одного пути, которое ведёт в старую модель. Критерий приёмки — нулевой grep по инвентарю (кроме исторических ADR/CHANGELOG, которые фиксируют прошлое).
+### P11. Выпил рудиментов — M
 
 | ID | Рудимент | Действие | Приёмка |
 |---|---|---|---|
-| P11-1 | `config.specsRepo`, `defaultMount`, shortcut в `byRepo` | удалить; проект без binding не работает | `rg specsRepo src` = 0, boot падает на unbound |
-| P11-2 | `forSource()` и `migratedFrom`/`migratedFromBranch` | оставить **только** на один релиз 3.0.0 как путь миграции, помечен `@deprecated`, удалить в 3.1.0 | в 3.0.0 миграция работает; в 3.1.0 `rg migratedFrom` = 0 |
-| P11-3 | `<owner>/<project>` layout (`resolveProjectRoot`, `projectId.split("/")`) | удалить; root = worktree ветки | `rg 'split\("/"\)' src/service` — только project-id валидация |
-| P11-4 | `SPECS_BRANCH`, `SPEC_REGISTRY_GIT_TOKEN`, `GIT_USER`, `GIT_AUTH_URL` | удалить; только per-repo токены | `rg SPECS_BRANCH|SPEC_REGISTRY_GIT_TOKEN` = 0 (кроме CHANGELOG) |
-| P11-5 | `specs-clone` как единственный клон | заменить на `clones/<repo>/` + worktrees | `rg specs-clone` = 0 |
-| P11-6 | `scripts/check-spec-corpus.mjs` (локальный корпус) | удалить, гейт не входит в `verify` и всегда падает без `.specs` | файла нет, `rg check:spec-corpus` = 0 |
-| P11-7 | Старый `stgmt/spec-database` | архив/read-only, убрать из конфигов и доков | нет ссылок как на источник истины |
-| P11-8 | `check-specs-repo-protection` под один репозиторий | переписать на N репозиториев или удалить | проверка по каждому binding |
-| P11-9 | Доки/схема со старой моделью | переписать; старую схему удалить | `rg 'one dedicated specs repository|never a branch'` = 0 |
-| P11-10 | Мёртвые тесты/фикстуры центрального репо | удалить/переписать | suite зелёный, нет skip-заглушек |
-| P11-11 | `spec-branch`-независимые `OMP_SPEC_KIT_ROOT`-пути в stdio-сервере | оставить только для тестов/образа, пометить; хост-путь = HTTP | в доках нет «локального режима» |
+| P11-1 | `specsRepo`, `defaultMount`, shortcut `byRepo` | удалить | `rg specsRepo src` = 0 |
+| P11-2 | `forSource`, `migratedFrom` | только 3.0.0, `@deprecated`, удалить в 3.1.0 | 3.0.0 миграция работает; 3.1.0 grep = 0 |
+| P11-3 | `<owner>/<project>` layout, `projectId.split("/")` | удалить | grep = 0 (кроме валидации id) |
+| P11-4 | `SPECS_BRANCH`, `SPEC_REGISTRY_GIT_TOKEN`, `GIT_USER`, `GIT_AUTH_URL` | удалить | grep = 0 |
+| P11-5 | `specs-clone` | `clones/<repo>/` + worktrees | grep = 0 |
+| P11-6 | `check-spec-corpus.mjs` | удалить | файла нет |
+| P11-7 | `stgmt/spec-database` | архив | нет ссылок как на истину |
+| P11-8 | `check-specs-repo-protection` под один репо | переписать/удалить | по каждому binding |
+| P11-9 | Доки/схема старой модели | переписать | grep = 0 |
+| P11-10 | Мёртвые тесты/фикстуры | удалить/переписать | suite зелёный |
+| P11-11 | stdio-сервер и `OMP_SPEC_KIT_ROOT` | только тесты/образ | нет «локального режима» в доках |
 
-**Refactor, не только удаление:**
+Refactor:
 
-- `mounts.js` делится на `bindings` (project → repo) и `specBranches` (spec → branch/worktree); `for()` больше не знает про default.
-- `ops/registry.js` и `index.js`: `branch` перестаёт быть глобальным, становится полем каждой спеки.
-- `branch-policy.js` упрощается до одного правила `^spec-[a-z0-9-]+(/[a-z0-9-]+)?$` + защита `main`.
+- `mounts.js` → `bindings` (project → repo) + `specBranches` (spec → branch/worktree), без default.
+- `ops/registry.js`, `index.js`: `branch` — поле спеки, не глобальное.
+- `branch-policy.js` — одно правило + защита `main`.
 
-## 6. Definition of Done
+## 7. Адверсариальная проверка (что было не так и что исправлено)
 
-- [ ] Спека `spec-registry-service` переавторена через MCP, VALID, покрытие не упало.
-- [ ] Ни одного упоминания `specsRepo`, `specs-database`, `<owner>/<project>/.specs` в коде/доках/тестах.
-- [ ] P11-инвентарь закрыт: `specsRepo`, `defaultMount`, `SPECS_BRANCH`, `SPEC_REGISTRY_GIT_TOKEN`, `specs-clone`, `<owner>/<project>` — нулевой grep (кроме CHANGELOG/ADR).
-- [ ] Unbound проект → `REPO_BINDING_REQUIRED`; любой spec_* → `SETUP_REQUIRED`; фолбеков нет.
-- [ ] `spec_branch` create/merge/delete/list работает, merge прямой, аудит есть.
-- [ ] 9 спек живут в 9 orphan-ветках `spec-*` репозитория `stgmt/omp-spec-kit`.
+| # | Находка | Исправление в плане |
+|---|---|---|
+| 1 | Два проекта в одном репо с одинаковым slug → коллизия ветки | правило 6: slug уникален в репозитории, `SPEC_SLUG_DUPLICATE` |
+| 2 | `spec_branch list` дублировал бы `spec_catalog view branches` | у `spec_branch` только create/merge/delete |
+| 3 | `createSpec`/`archiveSpec` не знали про ветки | P3-6: create = ветка+metadata, archive = тег+удаление |
+| 4 | В ветку спеки мог попасть код через merge | P3-4: allowlist путей при merge |
+| 5 | Worktree на каждую спеку мог разрастись | P2-3: lazy + cleanup + лимит |
+| 6 | Старый конфиг мог стартовать «молча» | P1-5: `MIGRATION_REQUIRED` |
+| 7 | `SETUP_REQUIRED` мог блокировать настроенные проекты | P5-2: статус per project |
+| 8 | SessionStart-хук мог спамить каждую сессию | P5-3: один раз за сессию |
+| 9 | 9 отдельных branch protection rules | P8-4: ruleset `spec-*` |
+| 10 | `spec_drift` предполагал одну ветку | P4-3: события по каждой |
+| 11 | `access_log` рос без границ | P1-6: retention 90 дней |
+| 12 | `migratedFrom` мог остаться навсегда | P11-2: удалить в 3.1.0 |
+| 13 | README-анимация не рендерится на GitHub | P9-1: Mermaid, без SVG/HTML |
+| 14 | Переименование ветки руками ломало бы индекс | правило 3-го раздела: `SPEC_BINDING_INVALID`, без ремонта |
+
+## 8. Definition of Done
+
+- [ ] `spec-registry-service` переавторена через MCP, VALID, покрытие не упало.
+- [ ] Нет `specsRepo`, `defaultMount`, `SPECS_BRANCH`, `SPEC_REGISTRY_GIT_TOKEN`, `specs-clone`, `<owner>/<project>` (кроме CHANGELOG/ADR).
+- [ ] Unbound → `REPO_BINDING_REQUIRED`; spec_* → `SETUP_REQUIRED` для этого проекта; фолбеков нет.
+- [ ] `spec_branch` create/merge/delete работает; merge прямой, аудит, allowlist путей.
+- [ ] 9 спек в 9 orphan-ветках `spec-*`; metadata валидна; slug уникален.
 - [ ] Проекция только с веток спек; сабветки не проецируются.
-- [ ] Все 4 хоста показывают setup-required, когда не настроено, и блокируют `.specs`.
-- [ ] Unit + service + e2e + BDD + tool-e2e + preflight — зелёные.
-- [ ] Релиз 3.0.0 опубликован с attestation, установлен на ПК.
-- [ ] README содержит обновлённую схему (SVG) и ссылку на анимацию.
+- [ ] 4 хоста: setup-required, блокировка `.specs`, MCP only.
+- [ ] Unit + service + e2e + BDD + tool-e2e + preflight зелёные.
+- [ ] Релиз 3.0.0 с attestation, установлен на ПК.
+- [ ] README содержит Mermaid-схему; старый HTML удалён.
 
-## 7. Риски
+## 9. Риски
 
 | Риск | Митигация |
 |---|---|
-| Git не даёт `spec/<slug>` + `spec/<slug>/<topic>` | принят `spec-<slug>` + `spec-<slug>/<topic>`; зафиксировать в ADR |
-| Много worktree на репозиторий | один bare clone + worktree per branch, лимит и cleanup |
-| Токены на N репозиториев | шифрование `SPEC_REGISTRY_SECRETS_KEY`, аудит bind |
-| Ветка спеки = orphan, но репозиторий общий с кодом | branch protection: пуш только бот; drift ловит людей |
-| Миграция меняет digest'ы | перепроекция + новый ledger, старый репозиторий архив |
-| 11-й инструмент ломает 10-tool контракт | 3.0.0 + tool-e2e матрикс |
-
-## 8. Чек-лист куратора
-
-- [ ] P0 закрыт и опубликован в реестр.
-- [ ] P1-P2: сервис читает ветки и метадату, worktree.
-- [ ] P3: `spec_branch` создаёт/мержит/удаляет.
-- [ ] P4: запись/публикация/дрифт по веткам.
-- [ ] P5: setup-required на 4 хостах.
-- [ ] P6: установщик без `specsRepo`.
-- [ ] P7: все тесты.
-- [ ] P8: 9 спек мигрированы.
-- [ ] P9: README-схема.
-- [ ] P10: 3.0.0 в GitHub и на ПК.
-- [ ] P11: выпил рудиментов, нулевой grep по инвентарю.
+| Git не даёт `spec/<slug>` + `spec/<slug>/<topic>` | `spec-<slug>` + `spec-<slug>/<topic>`, ADR |
+| Много worktree | lazy, cleanup, лимит |
+| Токены на N репозиториев | AES-GCM, аудит bind, без глобального токена |
+| Спека и код в одном репо | ruleset `spec-*`, allowlist путей, drift |
+| Миграция меняет digest'ы | новый ledger, перепроекция, архив старого репо |
+| 11-й инструмент ломает 10-tool контракт | 3.0.0, tool-e2e матрикс |
