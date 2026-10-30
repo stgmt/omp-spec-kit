@@ -6,12 +6,12 @@
 
 | Field | Value |
 |---|---|
-| Fixture SHA-256 | `5e482732a410b8854aedc27071d44e294be9d6d7e928eebe5cd5fe49da15b27c` |
-| Repository base commit | `8f6fe350cea252b3787c37071a41b50189fb528b` |
+| Fixture SHA-256 | `075815c362523f4d07d54747cf0ba164b5f2b85a6f1b1d2d505ae0cc9223a6eb` |
+| Repository base commit | `d2c9aac9811fd1899090a191f881459f996398ef` |
 | Source state | `working-tree-content-addressed` |
-| Parent fixture SHA-256 | `7b88313d63ed53e94536e6af981b8f6aedf271af9e2986d389703a4b38a669ac` |
-| Source inputs | 383 files; aggregate `5922f9c7d42306f35849fd0ef95c95a9cd0ebefbad1803160335a451e9eaf703` |
-| Source manifest SHA-256 | `6b337b3ccd11d4e130696c0962f9ba53ec0aea98d6a0d1669f9eacdbf6ddc9c1` |
+| Parent fixture SHA-256 | `5e482732a410b8854aedc27071d44e294be9d6d7e928eebe5cd5fe49da15b27c` |
+| Source inputs | 385 files; aggregate `d5e4b68ed1c34e88c925eb1c1db626f2ea5d190df96804843abe9020a9d23000` |
+| Source manifest SHA-256 | `7be442237b2b33099324d892b8a04b03a55202f211665bc37e23ca0b8806309b` |
 | Docker image digest | `sha256:e39ee59c06c93c0089e8997c30c435d2f344eac5fe6659233416189b6f0ac17d` |
 | Cucumber version | `@cucumber/cucumber` `13.2.1` |
 | Capture command | `bash scripts/docker-bdd.sh` |

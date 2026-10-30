@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "5922f9c7d42306f35849fd0ef95c95a9cd0ebefbad1803160335a451e9eaf703",
+  "aggregateSha256": "d5e4b68ed1c34e88c925eb1c1db626f2ea5d190df96804843abe9020a9d23000",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -35,8 +35,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 5510,
-      "sha256": "e94cc9087d69f52ff653d8733f3a644842315d0a1d4b68a6f028dc541ea2eb0d"
+      "bytes": 5592,
+      "sha256": "d96e7cb223bbb6c6caad1cf3cc2253abad6e53096cd21107be95fbddea57b57d"
     },
     {
       "path": "plugins/omp-spec-kit/.claude-plugin/plugin.json",
@@ -585,8 +585,8 @@
     },
     {
       "path": "src/service/claims.js",
-      "bytes": 3014,
-      "sha256": "afa4bb3baf520a4b5bede145921f0f3d3ed676f0d984422a0043bbc4997252b5"
+      "bytes": 3021,
+      "sha256": "1fb135be69e85af70967afe86e20164ededbd07aba30d93e6f7ad6235283fe41"
     },
     {
       "path": "src/service/dispatch.js",
@@ -630,8 +630,8 @@
     },
     {
       "path": "src/service/mounts.js",
-      "bytes": 17029,
-      "sha256": "45246e617c380e1e24ac8c2a835857ddb51bcb62fd49b181def799bd1ec8824e"
+      "bytes": 16551,
+      "sha256": "07bff1c907b0e4477bde91bcba0c25904ab29d22eabcf3edf5247caa67e37ea3"
     },
     {
       "path": "src/service/onboarding.js",
@@ -672,6 +672,11 @@
       "path": "src/service/secrets.js",
       "bytes": 1490,
       "sha256": "63e5dd5b25cc4225aab55047ff080b7789f23053316ea7ca3b0f35cde4252562"
+    },
+    {
+      "path": "src/service/spec-binding.js",
+      "bytes": 4965,
+      "sha256": "92f41ba77b28c5b5f215adcdf5b8f441745c5a355c354e1e236443a9e78de571"
     },
     {
       "path": "src/service/sync.js",
@@ -1902,6 +1907,11 @@
       "path": "tests/unit/service/repos-projection.test.mjs",
       "bytes": 4659,
       "sha256": "9a2236964110fad5f834e1fb5e4fb35befec1afee5009f42cf5c9ed25ea38232"
+    },
+    {
+      "path": "tests/unit/service/spec-binding.test.mjs",
+      "bytes": 3981,
+      "sha256": "1d90c38f7d15abfc68578b4488efa2e48ebc638a74fe388b710250cf863a6e47"
     },
     {
       "path": "tests/unit/service/stack-projection.test.mjs",

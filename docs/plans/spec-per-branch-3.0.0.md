@@ -12,7 +12,7 @@ flowchart TB
   subgraph REPO["stgmt/omp-spec-kit — один репозиторий, много проектов"]
     MAIN["main — код, без .specs"]
     S1["spec-teams-task-sync<br/>.spec-kit.json + .specs/teams-task-sync"]
-    S1A["spec-teams-task-sync/retry-policy<br/>несмерженные изменения"]
+    S1A["spec-teams-task-sync--retry-policy<br/>несмерженные изменения"]
     S2["spec-blast-radius-auto-generation<br/>.spec-kit.json + .specs/..."]
     S1A -.->|"merge через spec_branch"| S1
   end
@@ -25,9 +25,9 @@ flowchart TB
 Правила:
 
 1. Ветка спеки: `spec-<slug>`, **orphan** (без родителя, без кода в истории).
-2. Сабветка: `spec-<slug>/<topic>` — обычная ветка от ветки спеки.
-3. `spec/<slug>` + `spec/<slug>/<topic>` несовместимы в git (ref-файл vs ref-каталог), поэтому дефис.
-4. Канон — только `spec-<slug>`; ветки глубины 2 (`spec-<slug>/<topic>`) — рабочие.
+2. Сабветка: `spec-<slug>--<topic>` — обычная ветка от ветки спеки.
+3. Разделитель `/` невозможен: git не разрешает ref-файл `spec-<slug>` и ref-каталог `spec-<slug>/<topic>` одновременно. Это касается любой ветки, имя которой является префиксом-путём другой. Поэтому `--`, а slug не может содержать `--` (грамматика `[a-z0-9]+(-[a-z0-9]+)*`).
+4. Канон — только `spec-<slug>` без `--`; ветки с `--` — рабочие.
 5. Один репозиторий может содержать много проектов; проект определяется `.spec-kit.json`.
 6. Slug спеки уникален **в пределах репозитория**: имя ветки не должно сталкиваться у двух проектов.
 7. На ветке спеки разрешены только `.spec-kit.json` и `.specs/**`; код запрещён.
@@ -128,7 +128,7 @@ flowchart TB
 
 | ID | Задача | Приёмка |
 |---|---|---|
-| P2-1 | Список `refs/heads/spec-*`, только глубина 1 | сабветки не в индексе |
+| P2-1 | Список `refs/heads/spec-*` без `--` | сабветки не в индексе |
 | P2-2 | Чтение и валидация `.spec-kit.json` через `git show` | `SPEC_BINDING_INVALID` |
 | P2-3 | Lazy worktree на ветку спеки + cleanup | параллельное чтение двух спек |
 | P2-4 | Индекс `project → spec → branch` | `/registry` без ошибок |
@@ -278,6 +278,7 @@ Refactor:
 | 12 | `migratedFrom` мог остаться навсегда | P11-2: удалить в 3.1.0 |
 | 13 | README-анимация не рендерится на GitHub | P9-1: Mermaid, без SVG/HTML |
 | 14 | Переименование ветки руками ломало бы индекс | правило 3-го раздела: `SPEC_BINDING_INVALID`, без ремонта |
+| 15 | `spec-<slug>` и `spec-<slug>/<topic>` конфликтуют в git (ref-файл vs ref-путь); это поймал тест discovery | разделитель `--` (`spec-<slug>--<topic>`), slug не может содержать `--` |
 
 ## 8. Definition of Done
 
@@ -297,7 +298,7 @@ Refactor:
 
 | Пункт | Статус | Доказательство |
 |---|---|---|
-| P1-3: модель `spec-<slug>` / `spec-<slug>/<topic>` | **done** | `src/service/spec-binding.js`, 8 тестов |
+| P1-3: модель `spec-<slug>` / `spec-<slug>--<topic>` | **done** | `src/service/spec-binding.js`, 16 тестов |
 | P2-2: валидация `.spec-kit.json` | **done** | `validateSpecBinding`, тесты на schema/project/spec/branch/repo |
 | P1-1: убрать `specsRepo`/`defaultMount` | next | — |
 | P1-2: layout `project-repo` | next | — |
@@ -309,7 +310,7 @@ Refactor:
 
 | Риск | Митигация |
 |---|---|
-| Git не даёт `spec/<slug>` + `spec/<slug>/<topic>` | `spec-<slug>` + `spec-<slug>/<topic>`, ADR |
+| Git не даёт ветку-префикс (`spec-<slug>` + `spec-<slug>/<topic>`) | разделитель `--`, ADR |
 | Много worktree | lazy, cleanup, лимит |
 | Токены на N репозиториев | AES-GCM, аудит bind, без глобального токена |
 | Спека и код в одном репо | ruleset `spec-*`, allowlist путей, drift |

@@ -8,8 +8,8 @@ import { parseAuthConfig } from "./auth.js";
 import { parseTenants } from "./tenants.js";
 import { reconcileClone } from "./sync.js";
 import { openSecret } from "./secrets.js";
+import { projectIdError } from "./project-id.js";
 
-const PROJECT_ID_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/;
 const LOCK_FILE = ".omp-spec-kit-write.lock";
 
 export class ConfigError extends Error {}
@@ -102,15 +102,8 @@ export async function loadProjectsConfig(configPath) {
 }
 
 export function validateProjectId(id) {
-  if (typeof id !== "string") throw new ConfigError("project id must be a string");
-  const slash = id.indexOf("/");
-  if (slash <= 0 || slash === id.length - 1) throw new ConfigError(`project id must be owner/project, got ${JSON.stringify(id)}`);
-  const [owner, project] = [id.slice(0, slash), id.slice(slash + 1)];
-  for (const segment of [owner, project]) {
-    if (!PROJECT_ID_PATTERN.test(segment) || segment === "." || segment === "..") {
-      throw new ConfigError(`project id segment is invalid: ${JSON.stringify(id)}`);
-    }
-  }
+  const error = projectIdError(id);
+  if (error !== null) throw new ConfigError(error);
   return id;
 }
 
