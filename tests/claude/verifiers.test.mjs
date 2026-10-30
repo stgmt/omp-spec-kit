@@ -158,14 +158,14 @@ describe("payload extension and hook import rejections", () => {
   it("rejects a dist extension that is stale against src/v0.1", () => {
     const dir = copyRepository();
     const dist = path.join(dir, "plugins", "omp-spec-kit", "dist", "extension.js");
-    writeFileSync(dist, readFileSync(dist, "utf8").replace('export const PLUGIN_VERSION = "2.9.0";', 'export const PLUGIN_VERSION = "2.8.1";'));
+    writeFileSync(dist, readFileSync(dist, "utf8").replace(/export const PLUGIN_VERSION = "[^"]+";/u, 'export const PLUGIN_VERSION = "0.0.1";'));
     assertRejected(verify(dir, "verify-package.mjs"), /dist\/extension\.js is stale against src\/v0\.1\/extension\.js/u);
   });
 
   it("rejects a source-only PLUGIN_VERSION change to src/v0.1/extension.js", () => {
     const dir = copyRepository();
     const source = path.join(dir, "src", "v0.1", "extension.js");
-    writeFileSync(source, readFileSync(source, "utf8").replace('export const PLUGIN_VERSION = "2.9.0";', 'export const PLUGIN_VERSION = "2.8.1";'));
+    writeFileSync(source, readFileSync(source, "utf8").replace(/export const PLUGIN_VERSION = "[^"]+";/u, 'export const PLUGIN_VERSION = "0.0.1";'));
     assertRejected(verify(dir, "verify-package.mjs"), /dist\/extension\.js is stale against src\/v0\.1\/extension\.js/u);
   });
 
