@@ -89,9 +89,9 @@ const EDGE_LINK_RULES = Object.freeze([
   Object.freeze({ edge: "COVERS", from: "SCENARIO", to: "FR", link: "covers", flip: false }),
   Object.freeze({ edge: "COVERS", from: "AC", to: "FR", link: "covers", flip: false }),
   Object.freeze({ edge: "REFS", from: "FR", to: "AC", link: "satisfies", flip: false }),
-  Object.freeze({ edge: "REFS", from: "AC", to: "FR", link: "satisfied-by", flip: false }),
+  Object.freeze({ edge: "REFS", from: "AC", to: "FR", link: "satisfies", flip: true }),
   Object.freeze({ edge: "REFS", from: "TASK", to: "FR", link: "implements", flip: false }),
-  Object.freeze({ edge: "REFS", from: "FR", to: "TASK", link: "implemented-by", flip: false }),
+  Object.freeze({ edge: "REFS", from: "FR", to: "TASK", link: "implements", flip: true }),
   Object.freeze({ edge: "REFS", from: "TASK", to: "NFR", link: "constrains", flip: true }),
   Object.freeze({ edge: "IMPLEMENTS", from: "TASK", to: "FR", link: "implements", flip: false }),
   Object.freeze({ edge: "IMPLEMENTS", from: "TASK", to: "NFR", link: "constrains", flip: true }),
@@ -143,8 +143,15 @@ export const SYNC_STATE_SPEC_ID = "SPEC:SYNC-STATE";
  * v3: the marker carries mountHeads/mountsClean/specProjects so the service
  * can cheap-skip on git HEADs and the writeback listener can resolve a
  * specSlug to its serving project without guessing.
+ *
+ * v4: REFS edges now emit canonical link types with flipped endpoints
+ * (satisfies/implements) instead of inverse-named types — the mirrored
+ * types declared duplicate direction labels and crashed every tracker
+ * workflow that touched issue.links. complete=false pointers publish when
+ * card writes fail so the next trigger retries instead of trusting a
+ * marker signed over partial state.
  */
-export const PROJECTION_VERSION = 3;
+export const PROJECTION_VERSION = 4;
 
 const BOARD_KINDS = new Set(Object.keys(KIND_LABELS));
 
@@ -531,7 +538,7 @@ export class YouTrackProjectionService {
     }
     const actual = await this.#tracker.readProjection();
     const parity = compareProjection(actual, plan);
-    const canSkip = pointer?.valid === true && pointer.fingerprint === plan.fingerprint &&
+    const canSkip = pointer?.valid === true && pointer.complete === true && pointer.fingerprint === plan.fingerprint &&
       pointer.snapshotHash === plan.snapshotHash && pointer.projectionDigest === plan.projectionDigest &&
       pointer.projectionVersion === plan.projectionVersion && parity.equal;
     if (canSkip) {
@@ -548,10 +555,22 @@ export class YouTrackProjectionService {
     const staleResult = typeof this.#tracker.removeStaleCards === "function"
       ? await this.#tracker.removeStaleCards(plan.issues, { log, knownSpecIds })
       : null;
-    const stateResult = await this.#syncState.publishCommitted(plan, { cardIds: cardResult?.cardIds ?? {} });
+    const failures = cardResult?.failures ?? [];
+    // Failed card writes must NOT be certified: a complete:true marker over
+    // partial state lets cheapCheck/fresh/canSkip refuse the repair forever
+    // (the failed specId is absent from cardIds but fingerprint/digest still
+    // match). complete:false keeps the pointer signed and owned — writeback
+    // still routes through its cardIds — while every skip gate requires
+    // complete === true, so the next trigger retries the full path.
+    const stateResult = await this.#syncState.publishCommitted(plan, {
+      cardIds: cardResult?.cardIds ?? {},
+      complete: failures.length === 0,
+    });
     const writeCalls = (cardResult?.writeCalls ?? 0) + (linkResult?.writeCalls ?? 0) +
       (staleResult?.writeCalls ?? 0) + (stateResult?.writeCalls ?? 0);
-    const failures = cardResult?.failures ?? [];
+    if (failures.length > 0) {
+      return { outcome: "PARTIAL", fingerprint: plan.fingerprint, writeCalls, failures, plan, parity };
+    }
     return { outcome: "SYNCED", fingerprint: plan.fingerprint, writeCalls, failures, plan, parity };
   }
 }

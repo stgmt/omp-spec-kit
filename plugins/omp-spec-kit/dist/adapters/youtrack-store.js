@@ -479,9 +479,12 @@ export class YouTrackSyncStateStore {
     this.#pointer = null;
     for (const candidate of candidates) {
       const marker = parseMarker(candidate.description);
-      if (!marker || marker.complete !== true || typeof marker.fingerprint !== "string" || typeof marker.snapshotHash !== "string") continue;
+      if (!marker || typeof marker.fingerprint !== "string" || typeof marker.snapshotHash !== "string") continue;
       if (!this.#verify(marker)) continue;
       this.#pointer = candidate;
+      // A complete:false (partial) marker is still authentic and owned — its
+      // cardIds/specProjects route writeback for the cards that did land.
+      // Completeness gates the skip paths, not the read.
       return { valid: true, ...marker };
     }
     // No marker passes signature verification: spec wins. The lowest-id
@@ -505,11 +508,11 @@ export class YouTrackSyncStateStore {
       : { name: "SpecId", $type: "SimpleIssueCustomField", value: SYNC_STATE_SPEC_ID };
   }
 
-  async publishCommitted(plan, { cardIds = {} } = {}) {
+  async publishCommitted(plan, { cardIds = {}, complete = true } = {}) {
     const marker = {
       schemaVersion: "BoardSnapshotV1",
       projectionVersion: plan.projectionVersion ?? null,
-      complete: true,
+      complete,
       fingerprint: plan.fingerprint,
       snapshotHash: plan.snapshotHash,
       projectionDigest: plan.projectionDigest,

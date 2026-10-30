@@ -45,7 +45,14 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
   });
 
   app.get("/health", (_req, res) => {
-    res.json({ ok: true, service: "spec-registryd" });
+    res.json({
+      ok: true,
+      service: "spec-registryd",
+      // Instance fingerprint distinguishes this registry from a sibling stack
+      // answering on a neighbouring port; unauthenticated so endpoint probes
+      // and the registry doctor can verify identity before trusting a URL.
+      fingerprint: mounts?.config?.fingerprint ?? process.env.SPEC_REGISTRY_INSTANCE ?? null,
+    });
   });
 
   app.get("/registry", authGate, async (req, res) => {
@@ -114,7 +121,11 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
     try {
       const requested = req.body?.serviceUrl;
       const serviceUrl = typeof requested === "string" && requested.length > 0 ? requested : `${req.protocol}://${req.get("host")}`;
-      res.json(await endpoints.onboarding({ ctx: req.ctx, serviceUrl, project: req.body?.project, repo: req.body?.repo, token: req.body?.token }));
+      // Snippets generated here feed host-side client configs, so the URL is
+      // host-validated by default; in-network callers (the app bridge) opt out
+      // explicitly with audience "internal".
+      const audience = req.body?.audience === "internal" ? "internal" : "host";
+      res.json(await endpoints.onboarding({ ctx: req.ctx, serviceUrl, project: req.body?.project, repo: req.body?.repo, token: req.body?.token, audience }));
     } catch (error) {
       const status = Number.isSafeInteger(error?.status) ? error.status : 500;
       res.status(status).json({

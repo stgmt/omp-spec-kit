@@ -16,6 +16,8 @@
  * credentials. Only the fact of issuance is audited; the value never reaches
  * the store, the access log or the service log.
  */
+import { assertHostReachableUrl } from "./endpoint-url.js";
+
 export const ONBOARDING_TOKEN_NAME = "omp-spec-kit agent";
 const UPSTREAM_TIMEOUT_MS = 15_000;
 
@@ -29,7 +31,8 @@ export class OnboardingError extends Error {
   }
 }
 
-export function buildManagedSnippet(serviceUrl, token, project = null, idp = null) {
+export function buildManagedSnippet(serviceUrl, token, project = null, idp = null, { audience = null } = {}) {
+  if (audience === "host") assertHostReachableUrl(serviceUrl);
   const headers = { Authorization: `Bearer ${token}` };
   // X-Spec-Project pins the client's default scope; it is a routing hint,
   // never authorization — the service still validates it against the token's
@@ -115,7 +118,11 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
      * Mint (or re-mint) the caller's agent credential.
      * @param {{ ctx: { identity: { login: string }, role: string, tenant: string|string[]|null }, serviceUrl: string }} input
      */
-    async issueToken({ ctx, serviceUrl, project = null, token = null }) {
+    async issueToken({ ctx, serviceUrl, project = null, token = null, audience = null }) {
+      // Host-facing snippets must never embed a compose-network service name:
+      // the URL would resolve only inside the container network and the written
+      // client config would be dead on arrival. Fail before any minting work.
+      if (audience === "host") assertHostReachableUrl(serviceUrl);
       const login = ctx?.identity?.login;
       if (typeof login !== "string" || login.length === 0) {
         throw new OnboardingError("caller identity is missing", { status: 401, code: "UNAUTHENTICATED" });
@@ -228,7 +235,7 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
           result: token ? "ok:token-provided" : `ok:token-issued:revoked-${revoked}`,
         });
       } catch {}
-      return { token: issuedToken, url, login, project: pinned, mcpJson: buildManagedSnippet(serviceUrl, issuedToken, pinned, ctx?.idp ?? null) };
+      return { token: issuedToken, url, login, project: pinned, mcpJson: buildManagedSnippet(serviceUrl, issuedToken, pinned, ctx?.idp ?? null, { audience }) };
     },
   };
 }

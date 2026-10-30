@@ -134,7 +134,7 @@ Everything is idempotent: re-running converges (find-or-create groups/project,
 
 ## Ports
 
-| Service        | Host                 | In-network            |
+| Service        | Host (preferred)     | In-network            |
 | -------------- | -------------------- | --------------------- |
 | youtrack       | `127.0.0.1:8089`     | `youtrack:8080`       |
 | spec-git       | `127.0.0.1:9419`     | `spec-git:9418`       |
@@ -142,3 +142,30 @@ Everything is idempotent: re-running converges (find-or-create groups/project,
 
 These are clear of the e2e stack (`8081/8082/9418/8643`) so both can run
 side by side.
+
+The host ports are **preferred, not guaranteed**. Before `compose up`,
+setup probes each candidate: a port held by a foreign process or answering
+as a foreign service is skipped, and the stack lands on the next free port
+via a generated `compose.override.yml`. On re-run the stack keeps its own
+published bindings; a registry already answering with this stack's instance
+fingerprint is reattached, not remapped. The published endpoints are then
+written into `runtime/projects.json` as `hostUrl` (host-facing) and
+`internalUrl` (container network) — treat that manifest, not this table, as
+the source of truth.
+
+### Repairing stale consumer configs
+
+Client MCP configs freeze on whatever URL/token existed at onboarding time.
+If the stack moved ports or was re-provisioned, run the doctor:
+
+```bash
+node scripts/spec-registry-doctor.mjs            # report only
+node scripts/spec-registry-doctor.mjs --repair   # repoint + re-issue tokens
+```
+
+It audits `~/AppData/Roaming/devin/mcp_config.json`,
+`~/.codeium/windsurf/mcp_config.json` and `./.mcp.json`, reports each entry
+as `ok` / `unreachable` / `unauthorized` / `wrong-instance`, and repairs the
+broken ones against the manifest's `hostUrl` — re-issuing tokens through
+`/onboarding/token` (host audience). `${file:...}` token references are
+rewritten inside the referenced file, never inlined.

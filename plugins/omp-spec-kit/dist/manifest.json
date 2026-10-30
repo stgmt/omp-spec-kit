@@ -18,13 +18,13 @@
       "sha256": "1be7af59458a6e1f75066b854ae64e77c14eade7fa83d907b027a1256c37ec5f"
     },
     "adapters/youtrack-projection.js": {
-      "sha256": "4b9f78f04a38e8a2d67114fe5da208a0a4e546c2380314763a184359d014f375"
+      "sha256": "a78599b7ed1397db5afcad0325afe2739d19a8bf144de02c5287516ed94182f3"
     },
     "adapters/youtrack-status-sweep.js": {
       "sha256": "afb3b405aa258b31ed121e1bb67bea01ba8c57b405f1b7284d3326aa0151c01d"
     },
     "adapters/youtrack-store.js": {
-      "sha256": "e070a7c0bb8460f4fe5b07ee4929161f70dd2ca290e8e9aec6451906b2605ec3"
+      "sha256": "9db4f3d1e6c99a23b6aac5676851693fee8a47c8f5d4518eb71cc9df191529b3"
     },
     "authoring/design-review.js": {
       "sha256": "ba88286f7885e217bb38f982822a8695ec6f5ce180aaab475eb435b7e804a40a"
