@@ -14,6 +14,7 @@ import {
 	enroll,
 	executeInventory,
 	loadAndConnect,
+	stdioPackageConfig,
 	loadRuntimeModules,
 	reloadCapability,
 	writeLifecycleRecord,
@@ -54,7 +55,8 @@ async function observeMode(args, cwd, timeoutMs) {
 	const modules = await loadRuntimeModules(path.resolve(args["--runtime-root"]), cwd);
 	const enrollment = await enroll(cwd, path.resolve(args["--package-root"]), modules, timeoutMs);
 	const reloaded = await reloadCapability(cwd, PLUGIN_NAME, modules, timeoutMs);
-	const { manager, tool } = await loadAndConnect(cwd, PLUGIN_NAME, reloaded.targetConfigs, reloaded.targetSources, modules, timeoutMs);
+	const targetConfigs = Object.fromEntries(Object.keys(reloaded.targetConfigs).map((name) => [name, stdioPackageConfig(path.resolve(args["--package-root"]))]));
+	const { manager, tool } = await loadAndConnect(cwd, PLUGIN_NAME, targetConfigs, reloaded.targetSources, modules, timeoutMs);
 	try {
 		const inventory = await executeInventory(tool, args["--request-id"], timeoutMs);
 		process.stdout.write(JSON.stringify({ version: enrollment.installed.version, name: enrollment.installed.name, inventoryText: inventory.text }));

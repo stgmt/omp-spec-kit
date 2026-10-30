@@ -9,6 +9,7 @@
 export function assertCandidateSurface(version, releaseStatus) {
   const status = releaseStatus?.status;
   if (
+    version === "2.9.2" ||
     version === "2.9.1" ||
     version === "2.9.0" ||
     version === "2.8.1" ||

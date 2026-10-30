@@ -178,8 +178,8 @@ describe("candidate file modes", () => {
 
 describe("release manager tool count", () => {
   it("pins the released surface to ten tools and leaves an unlisted version on the fallback", () => {
+    assert.equal(expectedManagerToolCount(PLUGIN_VERSION), 10);
     assert.equal(expectedManagerToolCount("2.9.1"), 10);
-    assert.equal(expectedManagerToolCount("2.9.0"), 10);
     assert.equal(expectedManagerToolCount("9.9.9"), 8);
   });
 });
