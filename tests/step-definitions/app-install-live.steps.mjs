@@ -226,8 +226,21 @@ Given("the spec-graph-app is installed with the service settings", async functio
 
 Given("a second specs repo exists in the stack", async function () {
   // The compose git daemon exports anything under /srv/git with receive-pack
-  // enabled — a second bare repo is a second tenant's repository.
-  const script = `if [ ! -d "${BYO_REPO_PATH}" ]; then git init --bare --initial-branch=main "${BYO_REPO_PATH}"; fi && ls "${BYO_REPO_PATH}/HEAD"`;
+  // enabled — a second bare repo is a second tenant's repository. Seed the
+  // alpha-spec branch with its metadata re-pointed at this repo.
+  const script = [
+    `if [ ! -d "${BYO_REPO_PATH}" ]; then git init --bare --initial-branch=main "${BYO_REPO_PATH}"; fi`,
+    `if ! git ls-remote --exit-code --heads "${BYO_REPO_URL}" refs/heads/spec-alpha-spec >/dev/null 2>&1; then`,
+    `  rm -rf /tmp/byo-seed && git clone -q git://127.0.0.1/specs.git /tmp/byo-seed`,
+    `  cd /tmp/byo-seed`,
+    `  git checkout -q spec-alpha-spec`,
+    `  sed -i 's#git://spec-git/specs.git#${BYO_REPO_URL}#' .spec-kit.json`,
+    `  git -c user.email=seed@example.invalid -c user.name=seed commit -qam "seed: byo metadata"`,
+    `  git push -q "${BYO_REPO_URL}" HEAD:refs/heads/spec-alpha-spec`,
+    `  rm -rf /tmp/byo-seed`,
+    `fi`,
+    `ls "${BYO_REPO_PATH}/HEAD"`,
+  ].join("\n");
   const { stdout } = await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-git-1", "sh", "-c", script]);
   assert.match(stdout, /HEAD/u, `byo repo was not created: ${stdout}`);
 });
@@ -281,7 +294,7 @@ Then("the page shows the bound repository state", async function () {
 
 Then("the project specs landed in her repository", async function () {
   const { stdout } = await execFileAsync("docker", [
-    "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${BYO_REPO_PATH}`, "show", "main:stgmt/alpha/.specs/alpha-spec/README.md",
+    "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${BYO_REPO_PATH}`, "show", "spec-alpha-spec:.specs/alpha-spec/README.md",
   ]);
   assert.match(stdout, /Alpha Spec/u, `migrated README missing in byo repo: ${stdout.slice(0, 200)}`);
 });
@@ -303,7 +316,7 @@ When("alice unbinds the project on the page", async function () {
 Then("the project uses the default repository again", async function () {
   // The default clone still holds the migrated-away snapshot; reads resolve there.
   const { stdout } = await execFileAsync("docker", [
-    "exec", "spec-auth-e2e-spec-git-1", "git", "--git-dir=/srv/git/specs.git", "show", "main:stgmt/alpha/.specs/alpha-spec/README.md",
+    "exec", "spec-auth-e2e-spec-git-1", "git", "--git-dir=/srv/git/specs.git", "show", "spec-alpha-spec:.specs/alpha-spec/README.md",
   ]);
   assert.match(stdout, /Alpha Spec/u, "default repo must still carry alpha-spec");
 });
@@ -382,9 +395,18 @@ Given("the tenant has its own specs repo in the stack", async function () {
   if (live.ext?.users?.mia?.token) {
     await serviceRest(live.ext.users.mia.token, "POST", "/repos/unbind", { project: "acme/gamma" }).catch(() => {});
   }
-  const mountKey = createHash("sha256").update(`${EXT_REPO_URL}|main`, "utf8").digest("hex").slice(0, 12);
-  await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-git-1", "sh", "-c",
-    `rm -rf "${EXT_REPO_PATH}" && git init --bare --initial-branch=main "${EXT_REPO_PATH}"`]);
+  const mountKey = createHash("sha256").update(`${EXT_REPO_URL}|`, "utf8").digest("hex").slice(0, 12);
+  const script = [
+    `rm -rf "${EXT_REPO_PATH}" && git init --bare --initial-branch=main "${EXT_REPO_PATH}"`,
+    `rm -rf /tmp/ext-seed && git clone -q git://127.0.0.1/specs.git /tmp/ext-seed`,
+    `cd /tmp/ext-seed`,
+    `git checkout -q spec-gamma-spec`,
+    `sed -i 's#git://spec-git/specs.git#${EXT_REPO_URL}#' .spec-kit.json`,
+    `git -c user.email=seed@example.invalid -c user.name=seed commit -qam "seed: ext metadata"`,
+    `git push -q "${EXT_REPO_URL}" HEAD:refs/heads/spec-gamma-spec`,
+    `rm -rf /tmp/ext-seed`,
+  ].join("\n");
+  await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-git-1", "sh", "-c", script]);
   await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-registryd-1", "rm", "-rf", `/data/clones/${mountKey}`]).catch(() => {});
 });
 
@@ -438,7 +460,7 @@ Then("the tenant specs landed in the tenant repository", async function () {
   const deadline = Date.now() + 60_000;
   for (;;) {
     const { stdout, failed } = await execFileAsync("docker", [
-      "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${EXT_REPO_PATH}`, "show", "main:acme/gamma/.specs/gamma-spec/README.md",
+      "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${EXT_REPO_PATH}`, "show", "spec-gamma-spec:.specs/gamma-spec/README.md",
     ]).then((r) => ({ stdout: r.stdout, failed: false })).catch(() => ({ stdout: "", failed: true }));
     if (!failed && /gamma-spec|Gamma Spec/iu.test(stdout)) return;
     if (Date.now() > deadline) throw new Error(`tenant repo never received the migrated specs: ${stdout.slice(0, 200)}`);
@@ -705,9 +727,9 @@ Then("the tenant specs are served from the tenant repository", async function ()
   // Migration copies the seeded corpus into the tenant's repo; after binding,
   // reads and writes resolve there — proven above by mia's scoped catalog.
   const tenant = await execFileAsync("docker", [
-    "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${EXT_REPO_PATH}`, "ls-tree", "-r", "--name-only", "main",
+    "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${EXT_REPO_PATH}`, "ls-tree", "-r", "--name-only", "spec-gamma-spec",
   ]);
-  assert.match(tenant.stdout, /acme\/gamma\/\.specs\//u, `tenant repo missing acme/gamma specs: ${tenant.stdout.slice(0, 300)}`);
+  assert.match(tenant.stdout, /\.specs\/gamma-spec\//u, `tenant repo missing gamma-spec docs: ${tenant.stdout.slice(0, 300)}`);
 });
 
 // -- Oda: no scope groups ----------------------------------------------------

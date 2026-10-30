@@ -67,12 +67,12 @@ after(() => {
 
 describe("spec branch discovery", () => {
   it("lists only canonical spec branches", async () => {
-    const branches = await listSpecBranches({ git, cwd: dir });
+    const branches = await listSpecBranches({ git, cwd: dir, refPrefix: "refs/heads" });
     assert.deepEqual(branches.map((entry) => entry.branch).sort(), ["spec-blast-radius", "spec-broken", "spec-teams-task-sync"]);
   });
 
   it("reads and validates bindings, keeping invalid branches visible", async () => {
-    const result = await discoverSpecBindings({ git, cwd: dir, repoUrl });
+    const result = await discoverSpecBindings({ git, cwd: dir, repoUrl, refPrefix: "refs/heads" });
     assert.deepEqual(result.bindings.map((entry) => entry.spec).sort(), ["blast-radius", "teams-task-sync"]);
     assert.equal(result.invalid.length, 1);
     assert.equal(result.invalid[0].branch, "spec-broken");

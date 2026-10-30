@@ -7,11 +7,13 @@ import { promisify } from "node:util";
 import { after, describe, it } from "node:test";
 import { startService } from "../../src/service/index.js";
 import { loadLiveFixture } from "../e2e/lib/live-fixture.mjs";
+import { seedSpecBranch } from "./lib/spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
 const FIXTURE_SPEC = path.resolve("tests/fixtures/kernel/real-corpus/.specs/spec-kernel");
 const SPEC_KEY = "stgmt/alpha/spec-kernel";
+const SPEC_BRANCH = "spec-spec-kernel";
 const servers = [];
 const services = [];
 const tempDirs = [];
@@ -34,30 +36,28 @@ async function git(cwd, args) {
   return (await execFileAsync("git", args, { cwd })).stdout.trim();
 }
 
+async function cloneSpec(bare, dir) {
+  await execFileAsync("git", ["clone", bare, dir]);
+  await git(dir, ["checkout", "-B", SPEC_BRANCH, `origin/${SPEC_BRANCH}`]);
+}
+
 async function setup({ syncIntervalMs = 0 } = {}) {
   const fixture = await loadLiveFixture();
   const base = await tempDir("spec-publish-");
   const bare = path.join(base, "specs.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
-  const seed = path.join(base, "seed");
-  await execFileAsync("git", ["clone", bare, seed]);
-  await git(seed, ["config", "user.email", "seed@example.invalid"]);
-  await git(seed, ["config", "user.name", "seed"]);
-  await cp(FIXTURE_SPEC, path.join(seed, "stgmt", "alpha", ".specs", "spec-kernel"), { recursive: true });
-  await execFileAsync("git", ["-C", seed, "add", "."]);
-  await execFileAsync("git", ["-C", seed, "commit", "-m", "seed"]);
-  await execFileAsync("git", ["-C", seed, "push", "-q", "origin", "HEAD:refs/heads/main"]);
-  await rm(seed, { recursive: true, force: true });
+  await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", sourceDir: FIXTURE_SPEC });
 
   const configPath = await fixture.writeServiceConfig(bare);
   const service = await startService({ configPath, cloneDir: path.join(base, "clone"), port: 0, identity: IDENTITY, logger: () => {}, syncIntervalMs });
   servers.push(service.server);
   services.push(service);
+  const worktree = await service.mounts.worktreeFor("stgmt/alpha", "spec-kernel");
   return {
     fixture,
     service,
     bare,
-    cloneDir: service.mounts.for("stgmt/alpha").cwd,
+    cloneDir: worktree.cwd,
     url: `http://127.0.0.1:${service.server.address().port}/mcp`,
     tokens: { alice: await fixture.userToken("alice") },
   };
@@ -102,7 +102,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     const { bare, service, url, tokens } = await setup();
     await flipActive(url, tokens.alice, "1.0.0");
 
-    const head = await git(bare, ["rev-parse", "main"]);
+    const head = await git(bare, ["rev-parse", `refs/heads/${SPEC_BRANCH}`]);
     const tags = await git(bare, ["tag", "-l"]);
     assert.match(tags, new RegExp(`^${TAG.replaceAll("/", "\\/")}\\/1\\.0\\.0$`, "m"), `remote tags: ${tags}`);
     // The tag peels to the exact commit the spec went ACTIVE on.
@@ -117,7 +117,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     assert.equal(rows[0].version, "1.0.0");
     assert.equal(rows[0].commitSha, head);
     // The digest is the tree hash of the spec dir at that commit.
-    const tree = await git(bare, ["rev-parse", `${head}:stgmt/alpha/.specs/spec-kernel`]);
+    const tree = await git(bare, ["rev-parse", `${head}:.specs/spec-kernel`]);
     assert.equal(rows[0].digest, tree);
 
     const again = await service.publisher.publishSpec("stgmt/alpha", "spec-kernel");
@@ -143,7 +143,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     const { bare, service, url, tokens } = await setup();
     await flipActive(url, tokens.alice, "1.0.0");
     // Bump the version in place: replace the README wholesale.
-    const readme = await git(bare, ["show", "main:stgmt/alpha/.specs/spec-kernel/README.md"]);
+    const readme = await git(bare, ["show", `${SPEC_BRANCH}:.specs/spec-kernel/README.md`]);
     const bumped = readme.replace("Version: 1.0.0", "Version: 1.1.0");
     const result = await callTool(url, tokens.alice, "spec_patch", patchArgs({
       operations: [{ kind: "replace_document", document: "README.md", content: bumped }],
@@ -167,7 +167,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     const publishedTag = await git(bare, ["rev-parse", `refs/tags/${TAG}/1.0.0^{}`]);
 
     // Same version, changed content — version squatting must be refused.
-    const readme = await git(bare, ["show", "main:stgmt/alpha/.specs/spec-kernel/README.md"]);
+    const readme = await git(bare, ["show", `${SPEC_BRANCH}:.specs/spec-kernel/README.md`]);
     const tampered = readme + "\n\nSilent rewrite under the same version.\n";
     const result = await callTool(url, tokens.alice, "spec_patch", patchArgs({
       operations: [{ kind: "replace_document", document: "README.md", content: tampered }],
@@ -214,16 +214,16 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     // callers race the same publish path (post-push and post-reconcile style).
     const operator = await tempDir("spec-pub-race-");
     const work = path.join(operator, "work");
-    await execFileAsync("git", ["clone", bare, work]);
+    await cloneSpec(bare, work);
     await git(work, ["config", "user.email", "operator@example.invalid"]);
     await git(work, ["config", "user.name", "operator"]);
-    await cp(FIXTURE_SPEC, path.join(work, "stgmt", "alpha", ".specs", "spec-kernel"), { recursive: true });
-    await writeFile(path.join(work, "stgmt", "alpha", ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 1.0.0\n");
+    await cp(FIXTURE_SPEC, path.join(work, ".specs", "spec-kernel"), { recursive: true });
+    await writeFile(path.join(work, ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 1.0.0\n");
     await execFileAsync("git", ["-C", work, "add", "."]);
     await execFileAsync("git", ["-C", work, "commit", "-m", "break-glass: activate spec-kernel"]);
-    await execFileAsync("git", ["-C", work, "push", "-q", "origin", "HEAD:refs/heads/main"]);
+    await execFileAsync("git", ["-C", work, "push", "-q", "origin", `HEAD:refs/heads/${SPEC_BRANCH}`]);
     await execFileAsync("git", ["-C", cloneDir, "fetch", "origin"]);
-    await execFileAsync("git", ["-C", cloneDir, "merge", "--ff-only", "origin/main"]);
+    await execFileAsync("git", ["-C", cloneDir, "merge", "--ff-only", `origin/${SPEC_BRANCH}`]);
 
     const [a, b] = await Promise.all([
       service.publisher.publishSpec("stgmt/alpha", "spec-kernel"),
@@ -254,19 +254,19 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     // Plant a subdirectory and a binary blob inside the spec, then flip ACTIVE.
     const operator = await tempDir("spec-pub-types-");
     const work = path.join(operator, "work");
-    await execFileAsync("git", ["clone", bare, work]);
+    await cloneSpec(bare, work);
     await git(work, ["config", "user.email", "operator@example.invalid"]);
     await git(work, ["config", "user.name", "operator"]);
-    const specDir = path.join(work, "stgmt", "alpha", ".specs", "spec-kernel");
-    await execFileAsync("git", ["-C", work, "checkout", "-q", "main"]);
+    const specDir = path.join(work, ".specs", "spec-kernel");
+    await execFileAsync("git", ["-C", work, "checkout", "-q", SPEC_BRANCH]);
     await mkdir(path.join(specDir, "docs"), { recursive: true });
     await writeFile(path.join(specDir, "docs", "nested.md"), "# nested\n");
     await writeFile(path.join(specDir, "blob.bin"), Buffer.from([0x89, 0x50, 0x00, 0x0d]));
     await execFileAsync("git", ["-C", work, "add", "."]);
     await execFileAsync("git", ["-C", work, "commit", "-m", "add dir and binary"]);
-    await execFileAsync("git", ["-C", work, "push", "-q", "origin", "HEAD:refs/heads/main"]);
+    await execFileAsync("git", ["-C", work, "push", "-q", "origin", `HEAD:refs/heads/${SPEC_BRANCH}`]);
     await execFileAsync("git", ["-C", cloneDir, "fetch", "origin"]);
-    await execFileAsync("git", ["-C", cloneDir, "merge", "--ff-only", "origin/main"]);
+    await execFileAsync("git", ["-C", cloneDir, "merge", "--ff-only", `origin/${SPEC_BRANCH}`]);
     await flipActive(url, tokens.alice, "1.0.0");
 
     for (const doc of ["docs", "docs/nested.md/../../spec-kernel.feature", "blob.bin"]) {
@@ -299,27 +299,27 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
   it("adopts a remote tag pointing at the same commit and records the peeled sha", async () => {
     const { bare, cloneDir, service } = await setup();
     // Operator creates the tag out-of-band at current HEAD — no ledger row.
-    const head = await git(bare, ["rev-parse", "main"]);
+    const head = await git(bare, ["rev-parse", `refs/heads/${SPEC_BRANCH}`]);
     await execFileAsync("git", ["-C", cloneDir, "config", "user.email", IDENTITY.email]);
     await execFileAsync("git", ["-C", cloneDir, "config", "user.name", IDENTITY.name]);
     const work = await tempDir("spec-pub-tagger-");
     const wc = path.join(work, "wc");
-    await execFileAsync("git", ["clone", bare, wc]);
+    await cloneSpec(bare, wc);
     await git(wc, ["config", "user.email", "operator@example.invalid"]);
     await git(wc, ["config", "user.name", "operator"]);
-    await cp(FIXTURE_SPEC, path.join(wc, "stgmt", "alpha", ".specs", "spec-kernel"), { recursive: true });
-    await writeFile(path.join(wc, "stgmt", "alpha", ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 1.0.0\n");
+    await cp(FIXTURE_SPEC, path.join(wc, ".specs", "spec-kernel"), { recursive: true });
+    await writeFile(path.join(wc, ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 1.0.0\n");
     await execFileAsync("git", ["-C", wc, "add", "."]);
     await execFileAsync("git", ["-C", wc, "commit", "-m", "activate"]);
     await execFileAsync("git", ["-C", wc, "tag", "-a", "-m", "published", `${TAG}/1.0.0`]);
-    await execFileAsync("git", ["-C", wc, "push", "-q", "origin", "HEAD:refs/heads/main", `refs/tags/${TAG}/1.0.0`]);
+    await execFileAsync("git", ["-C", wc, "push", "-q", "origin", `HEAD:refs/heads/${SPEC_BRANCH}`, `refs/tags/${TAG}/1.0.0`]);
     await execFileAsync("git", ["-C", cloneDir, "fetch", "origin"]);
-    await execFileAsync("git", ["-C", cloneDir, "merge", "--ff-only", "origin/main"]);
+    await execFileAsync("git", ["-C", cloneDir, "merge", "--ff-only", `origin/${SPEC_BRANCH}`]);
 
     const result = await service.publisher.publishSpec("stgmt/alpha", "spec-kernel");
     assert.equal(result.outcome, "adopted", JSON.stringify(result));
     const row = service.store.getLedger(SPEC_KEY)[0];
-    const newHead = await git(bare, ["rev-parse", "main"]);
+    const newHead = await git(bare, ["rev-parse", `refs/heads/${SPEC_BRANCH}`]);
     assert.equal(row.commitSha, newHead, "the ledger records the commit sha, not the tag object sha");
     assert.equal(row.commitSha.length, 40);
   });
@@ -329,22 +329,22 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     // Reproduce a crashed publish: ACTIVE spec + local tag, remote never got it.
     const operator = await tempDir("spec-pub-wedge-");
     const work = path.join(operator, "work");
-    await execFileAsync("git", ["clone", bare, work]);
+    await cloneSpec(bare, work);
     await git(work, ["config", "user.email", "operator@example.invalid"]);
     await git(work, ["config", "user.name", "operator"]);
-    await cp(FIXTURE_SPEC, path.join(work, "stgmt", "alpha", ".specs", "spec-kernel"), { recursive: true });
-    await writeFile(path.join(work, "stgmt", "alpha", ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 1.0.0\n");
+    await cp(FIXTURE_SPEC, path.join(work, ".specs", "spec-kernel"), { recursive: true });
+    await writeFile(path.join(work, ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 1.0.0\n");
     await execFileAsync("git", ["-C", work, "add", "."]);
     await execFileAsync("git", ["-C", work, "commit", "-m", "activate"]);
-    await execFileAsync("git", ["-C", work, "push", "-q", "origin", "HEAD:refs/heads/main"]);
+    await execFileAsync("git", ["-C", work, "push", "-q", "origin", `HEAD:refs/heads/${SPEC_BRANCH}`]);
     await execFileAsync("git", ["-C", cloneDir, "fetch", "origin"]);
-    await execFileAsync("git", ["-C", cloneDir, "merge", "--ff-only", "origin/main"]);
+    await execFileAsync("git", ["-C", cloneDir, "merge", "--ff-only", `origin/${SPEC_BRANCH}`]);
     await execFileAsync("git", ["-C", cloneDir, "tag", "-a", "-m", "leftover", `${TAG}/1.0.0`]);
 
     const result = await service.publisher.publishSpec("stgmt/alpha", "spec-kernel");
     assert.equal(result.outcome, "published", `the leftover local tag must be pushed, not wedged: ${JSON.stringify(result)}`);
     const remoteSha = (await execFileAsync("git", ["ls-remote", bare, `refs/tags/${TAG}/1.0.0^{}`])).stdout.trim().split("\t")[0];
-    assert.equal(remoteSha, await git(bare, ["rev-parse", "main"]));
+    assert.equal(remoteSha, await git(bare, ["rev-parse", `refs/heads/${SPEC_BRANCH}`]));
     assert.equal(service.store.getLedger(SPEC_KEY).length, 1);
   });
 
@@ -354,7 +354,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     // Break-glass operator deletes the published tag and re-creates it elsewhere.
     const operator = await tempDir("spec-pub-diverge-");
     const work = path.join(operator, "work");
-    await execFileAsync("git", ["clone", bare, work]);
+    await cloneSpec(bare, work);
     await git(work, ["config", "user.email", "operator@example.invalid"]);
     await git(work, ["config", "user.name", "operator"]);
     await execFileAsync("git", ["-C", work, "commit", "--allow-empty", "-m", "operator commit"]);
@@ -377,22 +377,22 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     // Operator pushes an ACTIVE spec straight to the remote (break-glass).
     const operator = await tempDir("spec-pub-operator-");
     const work = path.join(operator, "work");
-    await execFileAsync("git", ["clone", bare, work]);
+    await cloneSpec(bare, work);
     await git(work, ["config", "user.email", "operator@example.invalid"]);
     await git(work, ["config", "user.name", "operator"]);
-    await cp(FIXTURE_SPEC, path.join(work, "stgmt", "alpha", ".specs", "spec-kernel"), { recursive: true });
-    await writeFile(path.join(work, "stgmt", "alpha", ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 2.0.0\n");
+    await cp(FIXTURE_SPEC, path.join(work, ".specs", "spec-kernel"), { recursive: true });
+    await writeFile(path.join(work, ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 2.0.0\n");
     await execFileAsync("git", ["-C", work, "add", "."]);
     await execFileAsync("git", ["-C", work, "commit", "-m", "break-glass: activate spec-kernel 2.0.0"]);
-    await execFileAsync("git", ["-C", work, "push", "-q", "origin", "HEAD:refs/heads/main"]);
+    await execFileAsync("git", ["-C", work, "push", "-q", "origin", `HEAD:refs/heads/${SPEC_BRANCH}`]);
 
     // Reconcile the clone, then run the publish pass the sync loop would run.
     await execFileAsync("git", ["-C", cloneDir, "fetch", "origin"]);
-    await execFileAsync("git", ["-C", cloneDir, "merge", "--ff-only", "origin/main"]);
+    await execFileAsync("git", ["-C", cloneDir, "merge", "--ff-only", `origin/${SPEC_BRANCH}`]);
     const results = await service.publisher.publishAll();
     assert.ok(results.some((r) => r.outcome === "published" && r.version === "2.0.0"), JSON.stringify(results));
     const tagCommit = await git(bare, ["rev-parse", `refs/tags/${TAG}/2.0.0^{}`]);
-    assert.equal(tagCommit, await git(bare, ["rev-parse", "main"]));
+    assert.equal(tagCommit, await git(bare, ["rev-parse", `refs/heads/${SPEC_BRANCH}`]));
     assert.equal(service.store.getLedger(SPEC_KEY).length, 1);
     void tokens; void url;
   });

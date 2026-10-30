@@ -2,9 +2,8 @@
  * Drift report (FR-10): divergence between the clone and the remote —
  * clone-ahead-of-remote states and non-bot commits on the branch.
  */
-export async function computeDrift({ git, branch, identity, cwd, detectedAt = new Date().toISOString() }) {
-  const remoteRef = `origin/${branch}`;
-  const ahead = await git.logDetailed({ range: `${remoteRef}..HEAD`, cwd }).catch(() => []);
+export async function computeDrift({ git, branch, identity, cwd, headRef = "HEAD", remoteRef = `origin/${branch}`, detectedAt = new Date().toISOString() }) {
+  const ahead = await git.logDetailed({ range: `${remoteRef}..${headRef}`, cwd }).catch(() => []);
   const recent = await git.logDetailed({ range: remoteRef, maxCount: 50, cwd }).catch(() => []);
   const events = [];
   for (const commit of ahead) {

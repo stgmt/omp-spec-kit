@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "3aaa239a23722034876bbd173e4a3d58e81ecb23e7af71818d7cc7c27812d413",
+  "aggregateSha256": "e1320ba04063507fb6fa7c286b281b2291fec5263d080e130f4dd362a7eabd4c",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -595,8 +595,8 @@
     },
     {
       "path": "src/service/drift.js",
-      "bytes": 1012,
-      "sha256": "6293e4e28903ce9b0b8c9bfe885c2596725100b4ba0e7d02bc50acbf739eb5f7"
+      "bytes": 1028,
+      "sha256": "d23fcb6dae16e2364bf03cb103f30aaf4b2277ee332cce926fa93e22ca095e45"
     },
     {
       "path": "src/service/endpoint-url.js",
@@ -605,8 +605,8 @@
     },
     {
       "path": "src/service/git.js",
-      "bytes": 11248,
-      "sha256": "34d57e0231ef3a26e51be85c297bbf7e877102214442ffb4d95b8073e612c7b3"
+      "bytes": 11258,
+      "sha256": "80f62a5d3c7bd2859d7de36131c084057e4ed154c97cd4d61736c22e4a333d70"
     },
     {
       "path": "src/service/http.js",
@@ -620,8 +620,8 @@
     },
     {
       "path": "src/service/index.js",
-      "bytes": 13648,
-      "sha256": "3ae4716e8535333da92ff88a7560255cd5e53598f9c31f1fb32327c998753333"
+      "bytes": 14412,
+      "sha256": "572e66a692278f6ea1b62f4c3149350827758f986b63f9b1c8d0a3611cce6b00"
     },
     {
       "path": "src/service/ledger.js",
@@ -630,8 +630,8 @@
     },
     {
       "path": "src/service/mounts.js",
-      "bytes": 17952,
-      "sha256": "ebc1f7d374b7336a66693874bc45a4fd020cf91718142607db117f458883a2a8"
+      "bytes": 23785,
+      "sha256": "15441d18b074122b677a6a7604d15518f093048491cf971c30fb541eaaa0ecd6"
     },
     {
       "path": "src/service/onboarding.js",
@@ -655,23 +655,23 @@
     },
     {
       "path": "src/service/projection.js",
-      "bytes": 11610,
-      "sha256": "e00c2bfe354aa0c272b5d417509cf3fa552dc8d5f7eaeabd6140fd583346f297"
+      "bytes": 11947,
+      "sha256": "3c64cbba5ec490edbcd99c30976df85f50d3ff248400216d34e55e17f6b48c2e"
     },
     {
       "path": "src/service/publish.js",
-      "bytes": 11169,
-      "sha256": "5a4a5ded4f7aff3c58f8e6b175e5cf3822b2d142130e9f308fdd37c3a0924e07"
+      "bytes": 11462,
+      "sha256": "3808c01de5fab2d39a13489665d53db9d5715c149735bc175dd76e3767dc3f97"
     },
     {
       "path": "src/service/registry.js",
-      "bytes": 3352,
-      "sha256": "a0e6ead85c4309985b7f19ab801e06383df08cea2e55463b475d4b06f37a8d48"
+      "bytes": 3443,
+      "sha256": "99b7b1022002f41288b9b35765ae602395f12dee448c7986519319505e55c36f"
     },
     {
       "path": "src/service/repos.js",
-      "bytes": 13516,
-      "sha256": "b8d9e139ce9df769a106086597d458d59c8b6227f5ffdae6820786724fee0ecc"
+      "bytes": 10338,
+      "sha256": "255c3774e9d49e3d61dca2bc92c9a76a6b6551f16c20f70d8aaedf6a15e030b0"
     },
     {
       "path": "src/service/secrets.js",
@@ -680,23 +680,23 @@
     },
     {
       "path": "src/service/spec-binding.js",
-      "bytes": 4965,
-      "sha256": "92f41ba77b28c5b5f215adcdf5b8f441745c5a355c354e1e236443a9e78de571"
+      "bytes": 4966,
+      "sha256": "12e0c2aa815ca53be57b342f85c83090ceaaf4d827e1d11027cfbd3c18c12992"
     },
     {
       "path": "src/service/spec-checkouts.js",
-      "bytes": 1872,
-      "sha256": "828cdda806ce84f065107ef57230fe916addec2b0c9da82e739343b6814c14c6"
+      "bytes": 3000,
+      "sha256": "99ad938cb5bdedd1b52273a9169267809584d82f620dc77f5e1ec23ec2b269e6"
     },
     {
       "path": "src/service/spec-discovery.js",
-      "bytes": 2403,
-      "sha256": "50c702a9dfc64050d7725629e8c7dd2a7c30766e915d1f105957e43ba437fbbd"
+      "bytes": 2704,
+      "sha256": "9f143b5cc13f1ca8f7b4b63bf0b3619434f5669203cb2057bb5d732fc1e6582e"
     },
     {
       "path": "src/service/sync.js",
-      "bytes": 4384,
-      "sha256": "97baf4186cadf137075743d2c1827ecc29a0bc8c0d42ab3cc03dba3b4b2b5975"
+      "bytes": 5305,
+      "sha256": "a6114c4ccbdf8514fa316804080c388e4b95efece8d3e44fb7afe19bd7333dfa"
     },
     {
       "path": "src/service/tenants.js",
@@ -705,13 +705,13 @@
     },
     {
       "path": "src/service/versioned.js",
-      "bytes": 5348,
-      "sha256": "adf3955724d677688256f54d19b8a0ae2e173303e09776765032b67fab161590"
+      "bytes": 5378,
+      "sha256": "8c896fc194ee0d2fea2d7cd50abfe80247430102968500083d2afbab04548c1f"
     },
     {
       "path": "src/service/writepath.js",
-      "bytes": 8409,
-      "sha256": "67d8a8a60e62d53de93ab0e15e43f0966a6eaa7a837dce529f3970f2f8984231"
+      "bytes": 9731,
+      "sha256": "29c2b581ba2bdb03037cbaf0f9fc621df1e91eb7a63e225bc783e69667d63017"
     },
     {
       "path": "src/tools/endpoint-alloc.js",
@@ -836,7 +836,7 @@
     {
       "path": "tests/e2e/dogfood-video.mjs",
       "bytes": 89040,
-      "sha256": "c56e6964f92d7557c04aa77cf75780777e5b2203029787c8fe2b1a2522a86f9b"
+      "sha256": "459fb291711c25fc412ec3aa223cedaa1b503c940b2524e56665d02cfaf7a773"
     },
     {
       "path": "tests/e2e/lib/app-admin-ui.mjs",
@@ -845,8 +845,8 @@
     },
     {
       "path": "tests/e2e/lib/bootstrap.mjs",
-      "bytes": 12849,
-      "sha256": "75b30661d2d86ff973b2060c52f006f11b53db49ccf4d506a04dc308fb65100f"
+      "bytes": 13374,
+      "sha256": "3dccd389870b88a646fa10dfd648fee89bb52f194d60409d9b650a0c15e7c9cb"
     },
     {
       "path": "tests/e2e/lib/browser.mjs",
@@ -1695,8 +1695,8 @@
     },
     {
       "path": "tests/idps.test.mjs",
-      "bytes": 25192,
-      "sha256": "123e61bc09cf380da8e47554d00045328086ca7c2d97e693d3811d6d1bd6adb3"
+      "bytes": 24013,
+      "sha256": "c9eefce8a42a99ea163386210e2290af0566bb91205e8cbcdbb8c69be85d9013"
     },
     {
       "path": "tests/kernel-fields.test.mjs",
@@ -1730,8 +1730,8 @@
     },
     {
       "path": "tests/repos.test.mjs",
-      "bytes": 16857,
-      "sha256": "21e971bf77b80368b10eddc1155b763921430ef63ea06cbea124cf994a0bec3c"
+      "bytes": 16821,
+      "sha256": "66edbfd6ea388da17698879119111de5bea7e59da1967b5ad1998e72f3bf2043"
     },
     {
       "path": "tests/roadmap-assemble.test.mjs",
@@ -1740,18 +1740,18 @@
     },
     {
       "path": "tests/service/http.test.mjs",
-      "bytes": 7495,
-      "sha256": "58888912f26b9e0b78f2a0a272613ea5e83458168af33850c014a0041efdc0a5"
+      "bytes": 7003,
+      "sha256": "4084080d8e803069509359598ff2baa92aeef791dbd123d86a5e957c80cfa54e"
     },
     {
       "path": "tests/service/integration.test.mjs",
-      "bytes": 4051,
-      "sha256": "2266ea5ac7c4d6bba11350385d2303eb293d1eb89a3dc3510138de1154295514"
+      "bytes": 4380,
+      "sha256": "9af95136976f9588c08405ae0487867fb04275a6e9f38f9a551db7e2da53a7ab"
     },
     {
       "path": "tests/service/onboarding.test.mjs",
-      "bytes": 8490,
-      "sha256": "b3327a01444aad8e29a724a943b23653509d634c85ea235b2308561bde625700"
+      "bytes": 8068,
+      "sha256": "f67fdb12176b0e4e3f11027b22f96cf1f50a2c887703d4b884583c8ba01614a9"
     },
     {
       "path": "tests/service/projection.test.mjs",
@@ -1760,13 +1760,13 @@
     },
     {
       "path": "tests/service/publish.test.mjs",
-      "bytes": 23234,
-      "sha256": "b11de9e6f16aa04c095181a82d8c9150df034dd224c808daa18133e53322cf82"
+      "bytes": 22970,
+      "sha256": "07e73e0a416b84bafab6331270d4db52e9cef6ea476ace1f8be238bca3d4259b"
     },
     {
       "path": "tests/service/task6.test.mjs",
-      "bytes": 8547,
-      "sha256": "386ac6a59dbf5cde318be3916ed83a27d183f29cbef1aa97ee3f606ac99ae7a9"
+      "bytes": 8219,
+      "sha256": "07510fa21fac569c5a2e28cb17f2f11e7a337e46fe3d65c9fa00c064edc9b5ba"
     },
     {
       "path": "tests/service/worktree-routing.test.mjs",
@@ -1775,8 +1775,8 @@
     },
     {
       "path": "tests/service/writepath.test.mjs",
-      "bytes": 16983,
-      "sha256": "d851f791c1ca2a0f46a3b6de03d4c70bca99ad73d944f545bf387c957b69179a"
+      "bytes": 17024,
+      "sha256": "9576a1f53deac35d2e997cc6c355f9cfc3b37bbb7b9ec3994f5541ef28e9bd7c"
     },
     {
       "path": "tests/spec-graph-sync/cli.test.js",
@@ -1820,8 +1820,8 @@
     },
     {
       "path": "tests/step-definitions/app-install-live.steps.mjs",
-      "bytes": 44181,
-      "sha256": "711c937952b64aa7f34a521561925c5d3a11ffd39014592986b3cca839310b82"
+      "bytes": 45297,
+      "sha256": "b759b2efcadd78824514d9b6dcb376836aa574431ffa2efb0bbe7317efa59b71"
     },
     {
       "path": "tests/step-definitions/app-install.steps.mjs",
@@ -1905,8 +1905,8 @@
     },
     {
       "path": "tests/unit/service/mounts.test.mjs",
-      "bytes": 6725,
-      "sha256": "bc04b4af5f2de0385f29bdabcd6698bea11c27f877f95575bfe376007b8833d7"
+      "bytes": 7096,
+      "sha256": "e2f821c068955fc18d4abfba2c28b2aeb6c782552a0cd717c279c59972426470"
     },
     {
       "path": "tests/unit/service/onboarding.test.mjs",
@@ -1940,8 +1940,8 @@
     },
     {
       "path": "tests/unit/service/spec-discovery.test.mjs",
-      "bytes": 3493,
-      "sha256": "8dbb1ccb95c48b249cb69ebc4a9c702cd3fe7cea8d6def99938b0fcfabfe8481"
+      "bytes": 3543,
+      "sha256": "9dc185f84c7922969b51c65d5bf8a0bad7b96e014ab48ae5a3242a7fa5433b72"
     },
     {
       "path": "tests/unit/service/stack-projection.test.mjs",

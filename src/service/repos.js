@@ -1,6 +1,6 @@
-import { cp, mkdir, readdir, stat } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { GitClient, commitMessage } from "./git.js";
+import { GitClient } from "./git.js";
 import { isValidBranchName } from "./branch-policy.js";
 import { repoHostAllowed } from "./mounts.js";
 import { sealSecret } from "./secrets.js";
@@ -66,36 +66,6 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     return probeGit.probeRemote(repoUrl, { cwd: mounts.clonesRoot });
   }
 
-  async function copySpecsSnapshot(sourceMount, targetMount, projectId) {
-    const sourceRoot = path.join(sourceMount.cwd, projectId);
-    const targetRoot = path.join(targetMount.cwd, projectId);
-    let specsRoot;
-    try {
-      specsRoot = path.join(sourceRoot, ".specs");
-      if (!(await stat(specsRoot)).isDirectory()) return 0;
-    } catch {
-      return 0;
-    }
-    await mkdir(path.dirname(targetRoot), { recursive: true });
-    // Never carry a write-lock across: a held lock in the snapshot would
-    // wedge writes in the new repo until it expired.
-    await cp(sourceRoot, targetRoot, {
-      recursive: true,
-      filter: (source) => !source.endsWith(".omp-spec-kit-write.lock"),
-    });
-    // The migrated-document count is the onboarding verify step's proof —
-    // count the landed files, not the source listing.
-    let documents = 0;
-    const walk = async (dir) => {
-      for (const entry of await readdir(path.join(targetRoot, ".specs", dir), { withFileTypes: true })) {
-        if (entry.isDirectory()) await walk(path.join(dir, entry.name));
-        else documents += 1;
-      }
-    };
-    await walk(".");
-    return documents;
-  }
-
   /** Reachability + credential check without persisting anything. */
   async function probeAccess({ ctx, project, repoUrl, token, username }) {
     requireStore();
@@ -144,9 +114,8 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     if (current?.status === "active" && current.repoUrl === repoUrl && current.branch === resolvedBranch) {
       return { binding: publicBinding(current), head, unchanged: true };
     }
-    const sourceMount = mounts.forSource(project);
-    const migratedFrom = current?.status === "active" ? current.repoUrl : sourceMount?.repoUrl ?? null;
-    const migratedFromBranch = current?.status === "active" ? current.branch : sourceMount?.branch ?? null;
+    const migratedFrom = current?.status === "active" ? current.repoUrl : null;
+    const migratedFromBranch = current?.status === "active" ? current.branch : null;
 
     // Persist creds + mark migrating before touching remotes: a crash here
     // leaves a resumable row, not an invisible half-state. migratedFrom=null
@@ -162,52 +131,25 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     await put("migrating");
 
     const mount = mounts.byRepo(repoUrl, resolvedBranch, project);
-    let migratedDocuments = 0;
-    let migratedCommit = null;
     try {
       await mounts.ensureMount(mount);
-      // migrate:false means "the target repo stands on its own" — a pre-seeded
-      // .specs there wins and the source snapshot is never copied over it.
-      if (migrate !== false && sourceMount !== null) migratedDocuments = await copySpecsSnapshot(sourceMount, mount, project);
-      if (migratedDocuments > 0) {
-        await mount.git.add([project], { cwd: mount.cwd });
-        await mount.git.commit({
-          message: commitMessage({
-            subject: `chore: migrate ${project} specs snapshot`,
-            trailers: { "Spec-Author": boundBy ?? "service", "Spec-Migrated-From": migratedFrom },
-          }),
-          authorName: identity.name,
-          authorEmail: identity.email,
-          cwd: mount.cwd,
-        });
-        await mount.git.push({ refspec: `HEAD:refs/heads/${resolvedBranch}` }, { cwd: mount.cwd });
-        migratedCommit = await mount.git.revParse("HEAD", { cwd: mount.cwd });
-        // Verify the landed tree matches the source snapshot byte-for-byte.
-        const sourceTree = await sourceMount.git.objectId("HEAD", `${project}/.specs`, { cwd: sourceMount.cwd }).catch(() => null);
-        const targetTree = await mount.git.objectId("HEAD", `${project}/.specs`, { cwd: mount.cwd }).catch(() => null);
-        if (sourceTree && targetTree && sourceTree !== targetTree) {
-          throw new RepoError(502, "MIGRATION_TREE_MISMATCH", `copied tree ${targetTree.slice(0, 12)} differs from source ${sourceTree.slice(0, 12)}`);
-        }
-      }
-      // Empty source, migrate:false, or a bare target: the project directory
-      // must exist in the bound repo either way.
-      await mounts.ensureSkeletonInMount(mount, project);
       await put("active");
-      // The migration/skeleton pushes above bypass the write pipeline — the
-      // tracker projection must be told explicitly or bound specs wait for
-      // the next unrelated trigger before their cards exist.
+      await mounts.projectRoot(project);
+      // The binding change bypasses the write pipeline — the tracker
+      // projection must be told explicitly or bound specs wait for the next
+      // unrelated trigger before their cards exist.
       afterRepoChange?.();
     } catch (error) {
       await put("error", String(error?.message ?? error).slice(0, 500));
       if (error instanceof RepoError) throw error;
       throw new RepoError(502, "REPO_BIND_FAILED", `binding failed: ${String(error?.message ?? error).split("\n")[0]}`);
     }
-    audit({ login: boundBy, role, project, op: "repo-bind", spec: null, result: `ok:${migratedDocuments > 0 ? "migrated" : "bound"}:${repoUrl}` });
-    logger(`repo-bind ${project} -> ${repoUrl} (${migratedDocuments > 0 ? "migrated" : "bound"})`);
+    audit({ login: boundBy, role, project, op: "repo-bind", spec: null, result: `ok:bound:${repoUrl}` });
+    logger(`repo-bind ${project} -> ${repoUrl} (bound)`);
     return {
       binding: publicBinding(store.getBinding(project)),
       head,
-      migrated: migratedCommit !== null ? { commit: migratedCommit, documents: migratedDocuments } : null,
+      migrated: null,
     };
   }
 

@@ -107,12 +107,32 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   const registryIndex = () => buildRegistryIndex({ mounts, claims, ledger: store ?? { getLedger: () => [] } });
   const driftReport = async () => {
     // A drift report is only honest against freshly fetched remotes — every
-    // mounted repo (default + bound) is fetched and checked.
+    // bound mirror is fetched and every canonical spec branch checked.
     const events = [];
-    for (const mount of mounts.activeMounts()) {
-      await mount.git.fetch({ cwd: mount.cwd }).catch(() => {});
-      const report = await computeDrift({ git: mount.git, branch: mount.branch, identity, cwd: mount.cwd }).catch((error) => ({ events: [{ kind: "repo-unreachable", detail: String(error?.message ?? error).split("\n")[0] }] }));
-      for (const event of report.events) events.push({ ...event, repo: mount.repoUrl });
+    for (const projectId of mounts.projects) {
+      let discovered;
+      try {
+        discovered = await mounts.discoverProject(projectId);
+      } catch (error) {
+        if (error?.code === "REPO_BINDING_REQUIRED") continue;
+        events.push({ kind: "repo-unreachable", project: projectId, detail: String(error?.message ?? error).split("\n")[0] });
+        continue;
+      }
+      const { mount, bindings, invalid } = discovered;
+      for (const entry of invalid.filter((item) => item.project === projectId)) {
+        events.push({ kind: "binding-invalid", project: projectId, branch: entry.branch, detail: entry.errors.join("; ") });
+      }
+      for (const binding of bindings) {
+        const report = await computeDrift({
+          git: mount.git,
+          branch: binding.branch,
+          identity,
+          cwd: mount.mirrorDir,
+          headRef: binding.ref,
+          remoteRef: binding.ref,
+        }).catch((error) => ({ events: [{ kind: "repo-unreachable", detail: String(error?.message ?? error).split("\n")[0] }] }));
+        for (const event of report.events) events.push({ ...event, repo: mount.repoUrl, project: projectId, spec: binding.spec });
+      }
     }
     // Publish rejections are drift too: a version squatted by different
     // content must surface next to non-bot commits, not only in access_log.

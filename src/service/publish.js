@@ -1,6 +1,7 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { authoredField } from "./registry.js";
+import { specBranchName } from "./spec-binding.js";
 
 export function publishTagName(projectId, slug, version) {
   return `spec/${projectId}/${slug}/${version}`;
@@ -42,7 +43,7 @@ export function createPublisher({ mounts, store, identity, logger = () => {} }) 
   const inFlight = new Map();
 
   async function snapshot(mount, headSha, projectId, slug) {
-    const specPath = `${projectId}/.specs/${slug}`;
+    const specPath = `.specs/${slug}`;
     let readme;
     try {
       readme = await mount.git.show(headSha, `${specPath}/README.md`, { cwd: mount.cwd });
@@ -79,10 +80,13 @@ export function createPublisher({ mounts, store, identity, logger = () => {} }) 
 
   async function publishSpecNow(projectId, slug) {
     const specKey = `${projectId}/${slug}`;
-    const mount = mounts.for(projectId);
+    const mirror = await mounts.ensureRepo(projectId);
+    const branch = specBranchName(slug);
+    const mount = { ...mirror, branch, ref: `refs/remotes/origin/${branch}`, cwd: mirror.mirrorDir };
     const git = mount.git;
     const cwd = () => mount.cwd;
-    const headSha = await git.revParse("HEAD", { cwd: cwd() });
+    const headSha = await git.revParse(mount.ref, { cwd: cwd() }).catch(() => null);
+    if (!headSha) return { spec: specKey, outcome: "skipped", reason: "branch-missing" };
     const snap = await snapshot(mount, headSha, projectId, slug);
     if (!snap) return { spec: specKey, outcome: "skipped", reason: "unreadable" };
     if (snap.status !== "ACTIVE") return { spec: specKey, outcome: "skipped", reason: `status:${snap.status ?? "none"}` };
@@ -172,7 +176,7 @@ export function createPublisher({ mounts, store, identity, logger = () => {} }) 
     // record, or an out-of-band publish): adopt only verifiable equality.
     let remoteTree = null;
     try {
-      remoteTree = await git.objectId(remoteSha, `${projectId}/.specs/${slug}`, { cwd: cwd() });
+      remoteTree = await git.objectId(remoteSha, `.specs/${slug}`, { cwd: cwd() });
     } catch {
       remoteTree = null;
     }
@@ -199,7 +203,7 @@ export function createPublisher({ mounts, store, identity, logger = () => {} }) 
   }
 
   async function publishProject(projectId) {
-    const specsDir = path.join(mounts.resolveProjectRoot(projectId), ".specs");
+    const specsDir = path.join(await mounts.projectRoot(projectId), ".specs");
     const entries = await readdir(specsDir, { withFileTypes: true }).catch(() => []);
     const results = [];
     for (const entry of entries) {

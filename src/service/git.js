@@ -113,7 +113,7 @@ export class GitClient {
         .then(({ stdout, stderr }) => ({ stdout, stderr }))
         .catch((error) => {
           throw new GitError(
-            this.redact(`git ${args[0]} failed: ${(error.stderr || error.message || "").trim().slice(0, 500)}`),
+            this.redact(`git ${args[0]} failed in ${cwd}: ${(error.stderr || error.message || "").trim().slice(0, 500)}`),
             {
               args: args.map((arg) => this.redact(arg)),
               stdout: this.redact(error.stdout),

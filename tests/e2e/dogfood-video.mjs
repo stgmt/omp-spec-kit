@@ -1097,7 +1097,7 @@ async function main() {
 
       const { stdout: landed } = await execFileAsync("docker", [
         "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${EXT_REPO_PATH}`,
-        "show", "main:acme/gamma/.specs/gamma-spec/README.md",
+        "show", "spec-gamma-spec:.specs/gamma-spec/README.md",
       ]);
       assert.match(landed, /Gamma Spec/i);
 

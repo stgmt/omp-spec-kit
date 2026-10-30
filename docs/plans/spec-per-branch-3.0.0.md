@@ -301,11 +301,15 @@ Refactor:
 | P1-3: модель `spec-<slug>` / `spec-<slug>--<topic>` | **done** | `src/service/spec-binding.js`, 16 тестов |
 | P2-2: валидация `.spec-kit.json` | **done** | `validateSpecBinding`, тесты на schema/project/spec/branch/repo |
 | P2-3: bare mirror + worktree на ветку спеки | **done** | `src/service/spec-checkouts.js`, 4 теста с реальным git + push |
-| P1-1: убрать `specsRepo`/`defaultMount` | next | — |
-| P1-2: layout `project-repo` | next | — |
-| P2-1/P2-3: discovery + worktree | todo | — |
+| P1-1: убрать `specsRepo`/`defaultMount` | **done** | `966ed48`; конфиг без дефолта, binding обязателен |
+| P1-2: layout `project-repo` | **done** | mirror `clones/<key>/mirror.git`, worktree `worktrees/<branch>`, материализованный корпус `projects/<owner>__<project>` |
+| P2-1/P2-3: discovery + worktree | **done** | `refs/remotes/origin/spec-*`, lazy worktree, сабветки не индексируются |
+| P2-4: индекс `project → spec → branch` | **done** | `buildRegistryIndex` отдаёт `branch` для каждой спеки |
+| P2-5: fetch всех веток | **done** | `ensureMirror` fetch `+refs/heads/*:refs/remotes/origin/*`, sync-цикл обновляет кэш |
+| P4-1/P4-2: запись и публикация на ветке спеки | **done** | `spec_patch` коммитит в worktree `spec-<slug>`, тег/ledger на `repoBranch=spec-<slug>` |
+| P3: `spec_branch` create/merge/delete | next | — |
 
-Следующий шаг: P1-1 — конфиг без `specsRepo`, обязательный binding, `MIGRATION_REQUIRED` для старого конфига; затем P1-2/P2.
+Следующий шаг: P3 — контракт `spec_branch`, orphan create с metadata, прямой merge под write-lock, delete сабветки.
 
 ## 11. Риски
 

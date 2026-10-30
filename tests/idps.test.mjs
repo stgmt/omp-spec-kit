@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -10,6 +10,7 @@ import { startService } from "../src/service/index.js";
 import { createYouTrackAuth } from "../src/service/auth.js";
 import { loadLiveFixture } from "./e2e/lib/live-fixture.mjs";
 import { ensureExtYoutrack, extBindBody, EXT_TENANT, EXT_YT_HOST_URL, EXT_USERS } from "./e2e/lib/idp-fixture.mjs";
+import { seedSpecBranch } from "./service/lib/spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
@@ -49,32 +50,14 @@ async function setup() {
   const base = await tempDir("spec-idps-");
   const bare = path.join(base, "specs.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
-  // Seed the external tenant's project so catalog/patch have content.
-  const seed = path.join(base, "seed");
-  await execFileAsync("git", ["clone", bare, seed]);
-  await execFileAsync("git", ["-C", seed, "config", "user.email", "seed@example.invalid"]);
-  await execFileAsync("git", ["-C", seed, "config", "user.name", "seed"]);
-  await cp(FIXTURE_SPEC, path.join(seed, "acme/gamma/.specs", "gamma-spec"), { recursive: true });
-  await execFileAsync("git", ["-C", seed, "add", "."]);
-  await execFileAsync("git", ["-C", seed, "commit", "-m", "seed"]);
-  await execFileAsync("git", ["-C", seed, "push", "-q", "origin", "HEAD:refs/heads/main"]);
-  await rm(seed, { recursive: true, force: true });
   // The tenant's own specs repo: a second bare reached through file:// —
   // real clone/push/ls-remote, opted in via repoPolicy like repos.test.mjs.
   const byoBare = path.join(base, "byo.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", byoBare]);
+  const byoUrl = pathToFileURL(byoBare).href;
   // 3.0.0: the customer repo is the source of truth from day one — no
   // operator-side staging copy to migrate out of.
-  const byoSeed = path.join(base, "byo-seed");
-  await execFileAsync("git", ["clone", byoBare, byoSeed]);
-  await execFileAsync("git", ["-C", byoSeed, "config", "user.email", "seed@example.invalid"]);
-  await execFileAsync("git", ["-C", byoSeed, "config", "user.name", "seed"]);
-  await cp(FIXTURE_SPEC, path.join(byoSeed, "acme/gamma/.specs", "gamma-spec"), { recursive: true });
-  await execFileAsync("git", ["-C", byoSeed, "add", "."]);
-  await execFileAsync("git", ["-C", byoSeed, "commit", "-m", "seed"]);
-  await execFileAsync("git", ["-C", byoSeed, "push", "-q", "origin", "HEAD:refs/heads/main"]);
-  await rm(byoSeed, { recursive: true, force: true });
-  const byoUrl = pathToFileURL(byoBare).href;
+  await seedSpecBranch(byoBare, { project: "acme/gamma", spec: "gamma-spec", sourceDir: FIXTURE_SPEC, repoUrl: byoUrl });
   const config = fixture.serviceConfigFor(bare);
   config.repoPolicy = { allowedHosts: ["file"] };
   const configPath = path.join(base, "projects.json");
@@ -336,7 +319,7 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     assert.equal(patch.ok, true, JSON.stringify(patch.error ?? {}));
     assert.equal(patch.data.outcome, "APPLIED");
 
-    const { stdout } = await execFileAsync("git", ["--git-dir", byoBare, "show", "main:acme/gamma/.specs/gamma-spec/README.md"]);
+    const { stdout } = await execFileAsync("git", ["--git-dir", byoBare, "show", "spec-gamma-spec:.specs/gamma-spec/README.md"]);
     assert.match(stdout, /External write/u, `ext write did not land in the customer repo: ${stdout.slice(0, 200)}`);
 
     const catalog = await callTool(url, tokens.mia, "spec_catalog", { view: "specs" }).then((r) => r.structuredContent);
@@ -420,7 +403,7 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     assert.equal(bound.body.repos["acme/gamma"].binding.status, "active");
 
     // The migrated tree landed in the customer repo, and reads serve it.
-    const { stdout } = await execFileAsync("git", ["--git-dir", byoBare, "show", "main:acme/gamma/.specs/gamma-spec/TASKS.md"]);
+    const { stdout } = await execFileAsync("git", ["--git-dir", byoBare, "show", "spec-gamma-spec:.specs/gamma-spec/TASKS.md"]);
     assert.match(stdout, /TASK-1/u, `migrated TASKS missing in the customer repo: ${stdout.slice(0, 160)}`);
 
     const catalog = await callTool(url, tokens.mia, "spec_catalog", { view: "specs" }).then((r) => r.structuredContent);

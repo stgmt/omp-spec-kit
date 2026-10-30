@@ -1,3 +1,5 @@
+import { cp, rm } from "node:fs/promises";
+import path from "node:path";
 import { commitMessage } from "./git.js";
 import { reconcileClone } from "./sync.js";
 
@@ -45,6 +47,18 @@ function shortHash(hash) {
 }
 
 /**
+ * The kernel applies a patch to the project's materialised read root; the
+ * authoritative copy is the spec branch's worktree. Replace that one spec
+ * directory after a successful apply, never the whole worktree.
+ */
+async function syncSpecTree({ fromRoot, worktree, spec }) {
+  const source = path.join(fromRoot, ".specs", spec);
+  const target = path.join(worktree.cwd, ".specs", spec);
+  await rm(target, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+  await cp(source, target, { recursive: true });
+}
+
+/**
  * The service is the only writer to the specs repository, so everything it
  * pushes must be bot-authored. A foreign author in the range means the clone's
  * context is not what we think it is (a hijacked git environment, an operator
@@ -52,7 +66,9 @@ function shortHash(hash) {
  * never authored, which is exactly how test commits once reached `main`.
  */
 async function foreignAuthors({ git, cwd, branch, identity }) {
-  const range = `origin/${branch}..HEAD`;
+  let base = `origin/${branch}`;
+  if (await git.revParse(base, { cwd }).catch(() => null) === null) base = `refs/remotes/origin/${branch}`;
+  const range = `${base}..HEAD`;
   let emails;
   try {
     emails = await git.commitAuthors(range, { cwd });
@@ -90,7 +106,10 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
         }
       }
 
-      if (args.dryRun !== true && typeof mounts.migrating === "function" && mounts.migrating(project)) {
+      const release = args.dryRun === true ? () => {} : await mounts.acquireWriteLock(project);
+      let envelope;
+      try {
+        if (args.dryRun !== true && typeof mounts.migrating === "function" && mounts.migrating(project)) {
         return {
           envelope: errorEnvelope("specPatch", requestId, "SPEC_MIGRATING", `project ${project} is migrating to another specs repo; retry when the move lands`, {
             specSlug: spec,
@@ -100,10 +119,12 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
         };
       }
 
-      const mount = mounts.for(project);
-      const { git, cwd, branch } = mount;
-      const envelope = await mounts.serviceFor(project).runQuery("specPatch", args, { requestId, schemaVersion });
+      const worktree = spec === null ? null : await mounts.worktreeFor(project, spec);
+      const root = spec === null ? null : await mounts.projectRoot(project);
+      envelope = await mounts.serviceFor(project).runQuery("specPatch", args, { requestId, schemaVersion });
       if (!(envelope.ok && envelope.data?.outcome === "APPLIED")) return { envelope };
+      if (worktree === null) return { envelope };
+      const { git, cwd, branch } = worktree;
 
       const receipt = envelope.data.receipt ?? {};
       const pushBotCommits = async () => {
@@ -116,9 +137,8 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
         await git.push({ refspec: `HEAD:refs/heads/${branch}` }, { cwd });
       };
       try {
-        const changed = (receipt.changedDocuments ?? [])
-          .map((change) => `${project}/${change.path}`.split("\\").join("/"))
-          .filter((p) => !p.includes(".."));
+        await syncSpecTree({ fromRoot: root, worktree, spec });
+        const changed = [`.specs/${spec}`];
         await git.add(changed, { cwd });
         await git.commit({
           message: commitMessage({
@@ -134,12 +154,14 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
         });
         await pushBotCommits();
         logger(`pushed ${project} ${short(receipt.proposalHash)}`);
+        await mounts.refreshProject?.(project);
         // Publish is post-confirmation work (FR-11): the write already
         // succeeded, so a publish failure is logged, never reported as a
         // failed write.
         await publish?.publishSpec(project, spec).then((result) => {
           if (result?.outcome === "published" || result?.outcome === "adopted") logger(`published ${result.spec}@${result.version}`);
           if (result?.outcome === "rejected") logger(`publish rejected ${result.spec}: ${result.code}`);
+          if (result?.outcome === "skipped") logger(`publish skipped ${result.spec}: ${result.reason}`);
         }).catch((publishError) => logger(`publish after write failed for ${project}/${spec}: ${publishError.message}`));
         // Tracker projection is post-confirmation work too: the pushed commit
         // re-projects cards + the committed snapshot; failures are logged by
@@ -172,9 +194,11 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
           });
         if (recovered === true) {
           logger(`pushed ${project} ${short(receipt.proposalHash)} after reconcile`);
+          await mounts.refreshProject?.(project);
           await publish?.publishSpec(project, spec).then((result) => {
             if (result?.outcome === "published" || result?.outcome === "adopted") logger(`published ${result.spec}@${result.version}`);
             if (result?.outcome === "rejected") logger(`publish rejected ${result.spec}: ${result.code}`);
+            if (result?.outcome === "skipped") logger(`publish skipped ${result.spec}: ${result.reason}`);
           }).catch((publishError) => logger(`publish after write failed for ${project}/${spec}: ${publishError.message}`));
           projection?.syncNow();
           return { envelope };
@@ -190,6 +214,9 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
             specSlug: spec,
           }),
         };
+      }
+      } finally {
+        release();
       }
       return { envelope };
     },

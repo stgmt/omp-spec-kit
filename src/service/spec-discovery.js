@@ -3,7 +3,7 @@
  *
  * The branch list is the index: every `spec-<slug>` branch is a candidate,
  * `.spec-kit.json` at its root is the binding record. Work branches
- * (`spec-<slug>/<topic>`) are deliberately ignored: they are unmerged work,
+ * (`spec-<slug>--<topic>`) are deliberately ignored: they are unmerged work,
  * not canonical specs.
  */
 import { parseSpecBranch, validateSpecBinding } from "./spec-binding.js";
@@ -17,15 +17,16 @@ export class SpecDiscoveryError extends Error {
   }
 }
 
-export async function listSpecBranches({ git, cwd }) {
-  const { stdout } = await git.run(["for-each-ref", "--format=%(refname:short)", "refs/heads"], { cwd });
+export async function listSpecBranches({ git, cwd, refPrefix = "refs/remotes/origin" }) {
+  const { stdout } = await git.run(["for-each-ref", "--format=%(refname)", refPrefix], { cwd });
   return stdout
     .split(/\r?\n/u)
     .map((line) => line.trim())
     .filter((line) => line !== "")
-    .map((branch) => ({ branch, parsed: parseSpecBranch(branch) }))
+    .map((ref) => ({ ref, branch: ref.startsWith(`${refPrefix}/`) ? ref.slice(refPrefix.length + 1) : ref }))
+    .map(({ ref, branch }) => ({ ref, branch, parsed: parseSpecBranch(branch) }))
     .filter(({ parsed }) => parsed?.kind === "spec")
-    .map(({ branch, parsed }) => ({ branch, slug: parsed.slug }));
+    .map(({ ref, branch, parsed }) => ({ ref, branch, slug: parsed.slug }));
 }
 
 export async function readSpecBinding({ git, cwd, branch }) {
@@ -47,24 +48,24 @@ export async function readSpecBinding({ git, cwd, branch }) {
  * returned in `invalid` with their reasons; callers must surface them instead
  * of silently dropping a spec.
  */
-export async function discoverSpecBindings({ git, cwd, repoUrl }) {
-  const branches = await listSpecBranches({ git, cwd });
+export async function discoverSpecBindings({ git, cwd, repoUrl, refPrefix = "refs/remotes/origin" }) {
+  const branches = await listSpecBranches({ git, cwd, refPrefix });
   const bindings = [];
   const invalid = [];
-  for (const { branch } of branches) {
+  for (const { ref, branch } of branches) {
     let raw;
     try {
-      raw = await readSpecBinding({ git, cwd, branch });
+      raw = await readSpecBinding({ git, cwd, branch: ref });
     } catch (error) {
-      invalid.push({ branch, errors: [error.message] });
+      invalid.push({ branch, project: null, errors: [error.message] });
       continue;
     }
     const result = validateSpecBinding(raw, { branch, repoUrl });
     if (!result.ok) {
-      invalid.push({ branch, errors: result.errors });
+      invalid.push({ branch, project: typeof raw?.project === "string" ? raw.project : null, errors: result.errors });
       continue;
     }
-    bindings.push({ project: raw.project, spec: raw.spec, branch, repo: raw.repo });
+    bindings.push({ project: raw.project, spec: raw.spec, branch, ref, repo: raw.repo });
   }
   return { bindings, invalid };
 }

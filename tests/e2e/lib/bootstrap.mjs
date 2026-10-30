@@ -70,22 +70,44 @@ async function git(cwd, args) {
  * reliable one and still exercises the real daemon + receive-pack.
  */
 export async function seedSpecsRepo({ logger = () => {} } = {}) {
-  const heredocs = SEED_TREES.flatMap((tree) =>
-    Object.entries(tree.files).map(
-      ([name, content]) =>
-        `if [ ! -f "${tree.project}/.specs/${tree.spec}/${name}" ]; then cat > "${tree.project}/.specs/${tree.spec}/${name}" <<'SEED_EOF'\n${content}SEED_EOF\nfi`,
-    ),
-  ).join("\n");
+  const branches = SEED_TREES.map((tree) => {
+    const branch = `spec-${tree.spec}`;
+    const metadata = JSON.stringify({
+      schema: "omp-spec-kit/spec-binding@1",
+      project: tree.project,
+      spec: tree.spec,
+      repo: "git://spec-git/specs.git",
+      branch,
+      createdAt: "2026-10-30T00:00:00.000Z",
+      owner: tree.project.split("/")[0],
+    }, null, 2);
+    const heredocs = Object.entries(tree.files).map(
+      ([name, content]) => `  cat > ".specs/${tree.spec}/${name}" <<'SEED_EOF'\n${content}\nSEED_EOF`,
+    );
+    return [
+      `if ! git ls-remote --exit-code --heads origin refs/heads/${branch} >/dev/null 2>&1; then`,
+      `  git checkout -q --orphan ${branch}`,
+      "  git rm -rq --ignore-unmatch . || true",
+      `  mkdir -p ".specs/${tree.spec}"`,
+      "  cat > .spec-kit.json <<'META_EOF'",
+      metadata,
+      "META_EOF",
+      ...heredocs,
+      "  git add -A",
+      `  git commit -qm "seed: ${branch}"`,
+      `  git push -q origin HEAD:refs/heads/${branch}`,
+      "  echo SEEDED",
+      "fi",
+    ].join("\n");
+  }).join("\n");
   const script = [
     "set -e",
     "rm -rf /tmp/seed && git clone -q git://127.0.0.1/specs.git /tmp/seed",
     "cd /tmp/seed",
     "git config user.email seed@example.invalid",
     "git config user.name seed",
-    ...SEED_TREES.map((tree) => `mkdir -p ${tree.project}/.specs/${tree.spec}`),
-    heredocs,
-    "git add .",
-    'if git status --porcelain | grep -q .; then git commit -qm "seed: alpha-spec + beta-spec" && git push -q origin HEAD:refs/heads/main && echo SEEDED; else echo UP_TO_DATE; fi',
+    branches,
+    "echo UP_TO_DATE",
     "rm -rf /tmp/seed",
   ].join("\n");
   const { stdout } = await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-git-1", "sh", "-c", script]);

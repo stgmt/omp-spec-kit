@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cp, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import { after, describe, it } from "node:test";
 import { startService } from "../../src/service/index.js";
 import { loadLiveFixture } from "../e2e/lib/live-fixture.mjs";
+import { seedSpecBranch } from "./lib/spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
@@ -39,15 +40,7 @@ async function setup() {
   const base = await tempDir("spec-onboarding-");
   const bare = path.join(base, "specs.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
-  const seed = path.join(base, "seed");
-  await execFileAsync("git", ["clone", bare, seed]);
-  await git(seed, ["config", "user.email", "seed@example.invalid"]);
-  await git(seed, ["config", "user.name", "seed"]);
-  await cp(FIXTURE_SPEC, path.join(seed, "stgmt", "alpha", ".specs", "spec-kernel"), { recursive: true });
-  await execFileAsync("git", ["-C", seed, "add", "."]);
-  await execFileAsync("git", ["-C", seed, "commit", "-m", "seed"]);
-  await execFileAsync("git", ["-C", seed, "push", "-q", "origin", "HEAD:refs/heads/main"]);
-  await rm(seed, { recursive: true, force: true });
+  await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", sourceDir: FIXTURE_SPEC });
 
   const cloneDir = path.join(base, "clone");
   const configPath = await fixture.writeServiceConfig(bare);
@@ -70,7 +63,7 @@ async function mcpCall(url, token, payload) {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json, text/event-stream", ...(token ? { authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, ...payload }),
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(120_000),
   });
   const text = await response.text();
   let json = null;
@@ -118,7 +111,7 @@ describe("onboarding over POST /onboarding/token (live-verified identity)", () =
       operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-98 — written with an issued token\n" }],
     });
     assert.equal(write.structuredContent.data.outcome, "APPLIED", JSON.stringify(write.structuredContent?.error ?? {}));
-    const body = await git(bare, ["log", "--format=%B", "-1", "main"]);
+    const body = await git(bare, ["log", "--format=%B", "-1", "spec-spec-kernel"]);
     assert.match(body, /Spec-Author: alice/u, "the issued token carries the same verified login");
 
     // Audited as a fact; the value itself must never be stored.

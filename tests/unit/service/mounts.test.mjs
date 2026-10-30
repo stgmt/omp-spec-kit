@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it, after } from "node:test";
@@ -44,19 +44,6 @@ function storeWith(project, overrides = {}) {
   };
 }
 
-function fakeGit() {
-  const calls = [];
-  return {
-    calls,
-    async clone() { calls.push(["clone"]); },
-    async fetch() { calls.push(["fetch"]); },
-    async revParse(ref) { calls.push(["revParse", ref]); return null; },
-    async add(paths) { calls.push(["add", ...paths]); },
-    async commit({ message }) { calls.push(["commit", message]); },
-    async push({ refspec }) { calls.push(["push", refspec]); },
-  };
-}
-
 describe("projects config parsing", () => {
   it("accepts a config without a default repository", () => {
     const parsed = config(["stgmt/omp-spec-kit", "acme/billing"]);
@@ -90,15 +77,14 @@ describe("projects config parsing", () => {
 });
 
 describe("mount manager", () => {
-  it("resolves a bound project root inside its mount", async () => {
+  it("derives the materialized project root inside the repo workspace", async () => {
     const dir = await tempDir();
     const project = "stgmt/omp-spec-kit";
     const store = storeWith(project);
     const mounts = new MountManager({ config: config(), cloneDir: dir, store });
-    const root = mounts.resolveProjectRoot(project);
-    assert.equal(root, path.join(mounts.for(project).cwd, "stgmt", "omp-spec-kit"));
-    assert.equal(root.startsWith(mounts.for(project).cwd), true);
-    assert.throws(() => mounts.resolveProjectRoot("../outside"), ConfigError);
+    const mount = mounts.for(project);
+    assert.equal(mounts.cacheRootFor(project, mount), path.join(mount.cwd, "projects", "stgmt__omp-spec-kit"));
+    await assert.rejects(() => mounts.resolveProjectRoot("../outside"), ConfigError);
   });
 
   it("refuses an unbound project with REPO_BINDING_REQUIRED", async () => {
@@ -137,26 +123,43 @@ describe("mount manager", () => {
     assert.equal(mounts.for(project).repoUrl, "git://git/acme.git");
   });
 
-  it("boot creates a .specs skeleton in the bound mount and commits it as the bot", async () => {
+  it("boot reports an unbound project without failing the other projects", async () => {
     const dir = await tempDir();
     const project = "stgmt/omp-spec-kit";
-    const git = fakeGit();
     const mounts = new MountManager({
-      config: config(),
+      config: config([project, "acme/billing"]),
       cloneDir: path.join(dir, "clone"),
-      git,
-      gitFactory: () => git,
-      store: storeWith(project),
+      store: { getBinding: (id) => (id === project ? storeWith(project).row : null), getCredential: () => null },
       identity: { name: "spec-bot", email: "bot@example.invalid" },
     });
     mounts.serviceFor = () => ({ ensure: async () => ({ status: "ready" }) });
+    mounts.projectRoot = async (id) => {
+      if (id === project) return path.join(dir, "root");
+      const error = new Error("unbound");
+      error.code = "REPO_BINDING_REQUIRED";
+      throw error;
+    };
     const report = await mounts.boot();
     assert.equal(report[project].graphStatus, "ready");
-    const specsDir = path.join(mounts.resolveProjectRoot(project), ".specs");
-    assert.equal((await stat(specsDir)).isDirectory(), true);
-    const commitCall = git.calls.find(([kind]) => kind === "commit");
-    assert.match(commitCall[1], /chore: init scope stgmt\/omp-spec-kit/u);
-    const pushCall = git.calls.find(([kind]) => kind === "push");
-    assert.equal(pushCall[1], "HEAD:refs/heads/main");
+    assert.deepEqual(report["acme/billing"], { error: "REPO_BINDING_REQUIRED" });
+  });
+
+  it("accepts per-project bindings and rejects duplicates", () => {
+    const parsed = parseProjectsConfig({
+      projects: [{ id: "stgmt/omp-spec-kit" }],
+      bindings: [{ project: "stgmt/omp-spec-kit", repoUrl: "file:///tmp/specs.git", tokenEnv: "SPEC_TOKEN" }],
+      auth: AUTH,
+    });
+    assert.deepEqual(parsed.bindings, [{ project: "stgmt/omp-spec-kit", repoUrl: "file:///tmp/specs.git", tokenEnv: "SPEC_TOKEN", username: null }]);
+    assert.throws(() => parseProjectsConfig({
+      projects: [{ id: "stgmt/omp-spec-kit" }],
+      bindings: [{ project: "stgmt/omp-spec-kit", repoUrl: "a" }, { project: "stgmt/omp-spec-kit", repoUrl: "b" }],
+      auth: AUTH,
+    }), /duplicate binding/u);
+    assert.throws(() => parseProjectsConfig({
+      projects: [{ id: "stgmt/omp-spec-kit" }],
+      bindings: [{ project: "acme/other", repoUrl: "a" }],
+      auth: AUTH,
+    }), /unconfigured project/u);
   });
 });

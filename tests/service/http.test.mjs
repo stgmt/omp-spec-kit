@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { after, describe, it } from "node:test";
 import { startService } from "../../src/service/index.js";
 import { loadLiveFixture } from "../e2e/lib/live-fixture.mjs";
+import { seedSpecBranch } from "./lib/spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
@@ -35,15 +36,7 @@ async function setup({ projects = ["stgmt/alpha"] } = {}) {
   const base = await tempDir("spec-http-");
   const bare = path.join(base, "specs.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
-  const seed = path.join(base, "seed");
-  await execFileAsync("git", ["clone", bare, seed]);
-  await execFileAsync("git", ["-C", seed, "config", "user.email", "seed@example.invalid"]);
-  await execFileAsync("git", ["-C", seed, "config", "user.name", "seed"]);
-  await cp(FIXTURE_SPEC, path.join(seed, "stgmt", "alpha", ".specs", "spec-kernel"), { recursive: true });
-  await execFileAsync("git", ["-C", seed, "add", "."]);
-  await execFileAsync("git", ["-C", seed, "commit", "-m", "seed"]);
-  await execFileAsync("git", ["-C", seed, "push", "-q", "origin", "HEAD:refs/heads/main"]);
-  await rm(seed, { recursive: true, force: true });
+  await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", sourceDir: FIXTURE_SPEC });
 
   const configPath = await fixture.writeServiceConfig(bare, { projects });
   const service = await startService({ configPath, cloneDir: path.join(base, "clone"), port: 0, identity: IDENTITY, logger: () => {} });

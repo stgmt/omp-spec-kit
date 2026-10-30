@@ -2,7 +2,7 @@
  * Spec-per-branch binding model (3.0.0).
  *
  * A spec lives on an orphan branch named `spec-<slug>`; work-in-progress
- * branches are `spec-<slug>/<topic>`. A repository can host several projects,
+ * branches are `spec-<slug>--<topic>`. A repository can host several projects,
  * so the branch alone cannot identify the project: `.spec-kit.json` at the
  * branch root is the single binding record.
  */

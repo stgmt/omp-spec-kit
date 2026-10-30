@@ -10,6 +10,17 @@ import {
   YouTrackSyncStateStore,
 } from "../adapters/youtrack-store.js";
 
+async function projectHead(mounts, projectId) {
+  if (typeof mounts.projectHead === "function") return mounts.projectHead(projectId);
+  // Test fakes predate the multi-branch model: keep their single-mount HEAD
+  // contract, including a dirty tree marker.
+  const mount = mounts.for(projectId);
+  const head = await mount.git.revParse("HEAD", { cwd: mount.cwd });
+  let dirty = "";
+  try { dirty = await mount.git.statusPorcelain?.({ cwd: mount.cwd }) ?? ""; } catch {}
+  return dirty.trim() === "" ? head : `${head}:dirty`;
+}
+
 /**
  * Service-side YouTrack projection: the committed spec corpus is mirrored into
  * the tracker without any manual sync run. Triggers:
@@ -83,8 +94,8 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
         }
         throw error;
       }
-      const mount = mounts.for(projectId);
-      const headBefore = await mount.git.revParse("HEAD", { cwd: mount.cwd });
+      const headBefore = await projectHead(mounts, projectId);
+      if (headBefore.endsWith(":dirty")) mountsClean = false;
       const envelope = await service.runQuery("graph", { view: "board", specSlugs: [] });
       if (!envelope?.ok) {
         throw new Error(`board read failed for ${projectId}: ${envelope?.error?.message ?? "no envelope"}`);
@@ -117,12 +128,11 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
       // reconcile landing between them would otherwise record a HEAD newer
       // than the board that was actually read — and cheapCheck would certify
       // the unseen content on every later sync.
-      const headAfter = await mount.git.revParse("HEAD", { cwd: mount.cwd });
+      const headAfter = await projectHead(mounts, projectId);
       if (headAfter !== headBefore) {
         throw new Error(`mount ${projectId} moved mid-read (${headBefore} -> ${headAfter})`);
       }
       mountHeads[projectId] = headBefore;
-      if ((await mount.git.statusPorcelain({ cwd: mount.cwd })).trim() !== "") mountsClean = false;
     }
     fingerprints.sort();
     specSlugs.sort();
@@ -162,17 +172,17 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
     const skippedNow = [];
     try {
       for (const projectId of mounts.projects) {
-        let mount;
+        let head;
         try {
-          mount = mounts.for(projectId);
+          head = await projectHead(mounts, projectId);
         } catch (error) {
           if (error?.code !== "REPO_BINDING_REQUIRED") throw error;
           skippedNow.push(projectId);
           continue;
         }
         servedNow.push(projectId);
-        if (recorded[projectId] !== await mount.git.revParse("HEAD", { cwd: mount.cwd })) return false;
-        if ((await mount.git.statusPorcelain({ cwd: mount.cwd })).trim() !== "") return false;
+        if (head.endsWith(":dirty")) return false;
+        if (recorded[projectId] !== head) return false;
       }
     } catch {
       return false;

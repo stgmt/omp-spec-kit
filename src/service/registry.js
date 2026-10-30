@@ -42,13 +42,12 @@ function catalogSlugs(catalogEnvelope) {
 export async function buildRegistryIndex({ mounts, claims, ledger }) {
   const projects = [];
   for (const projectId of mounts.projects) {
-    let mount, root, service;
+    let root, service;
     try {
-      mount = mounts.for(projectId);
-      root = mounts.resolveProjectRoot(projectId);
+      root = await mounts.projectRoot(projectId);
       service = mounts.serviceFor(projectId);
     } catch (error) {
-      // Unbound external-tenant project: it exists but has no repo yet.
+      // Unbound project or invalid binding: it exists but has no readable corpus.
       projects.push({ id: projectId, error: error?.code ?? "MOUNT_UNAVAILABLE" });
       continue;
     }
@@ -60,14 +59,16 @@ export async function buildRegistryIndex({ mounts, claims, ledger }) {
     const catalog = await service.runQuery("catalog", { view: "specs" }, { requestId: null });
     const specs = [];
     for (const slug of catalogSlugs(catalog)) {
-      const specPath = `${projectId}/.specs/${slug}`;
-      const authored = await readAuthoredFields(path.join(root, ".specs", slug, "README.md"));
-      const digestResult = await specificationDirectoryDigest(root, slug);
+      const worktree = await mounts.worktreeFor(projectId, slug, { fetch: false });
+      const specPath = `.specs/${slug}`;
+      const authored = await readAuthoredFields(path.join(worktree.cwd, ".specs", slug, "README.md"));
+      const digestResult = await specificationDirectoryDigest(worktree.cwd, slug);
       const claim = claims.get(projectId, slug);
       const published = ledger.getLedger(`${projectId}/${slug}`)[0] ?? null;
-      const lastChange = await gitLastChange(mount.git, mount.cwd, specPath);
+      const lastChange = await gitLastChange(worktree.git, worktree.cwd, specPath);
       specs.push({
         slug,
+        branch: worktree.branch,
         status: authored.status,
         version: authored.version,
         digest: digestResult.ok ? digestResult.digest : null,
