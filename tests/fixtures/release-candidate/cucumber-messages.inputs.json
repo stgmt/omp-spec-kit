@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "2472095f148807a6fb0a5c1dde95ba78d3715862fccfb01f74a4d691031e6ed2",
+  "aggregateSha256": "40d1268ae9ebd5c4276e2a713a795f7f8e661a7755110ef1185739023d328495",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -464,6 +464,11 @@
       "sha256": "2c5bbb9ab688fa110c5e0fe772d5207bececcc0e6c740d7ff5d6acf42ff45651"
     },
     {
+      "path": "src/hosts/skills.mjs",
+      "bytes": 972,
+      "sha256": "3506b0df68e9db9614021742100dc31e9d5b6c486fc57f75cc32a6feebd95178"
+    },
+    {
       "path": "src/kernel/adapters/fs.js",
       "bytes": 8379,
       "sha256": "0266de4ab315a693ade57897faad3a821ded3eba18c9aa9fbaf6bc568f87ecdf"
@@ -820,8 +825,8 @@
     },
     {
       "path": "tests/e2e/lib/bootstrap.mjs",
-      "bytes": 12557,
-      "sha256": "f503cbe29c48943f35fff9f04ea7ed3f5dad6c08e8606376dc69e6653aa24259"
+      "bytes": 12748,
+      "sha256": "ec1a934c3b229f99c5201eddb207f02555d56ac6569437d58c20a9845e55ea73"
     },
     {
       "path": "tests/e2e/lib/browser.mjs",
@@ -855,8 +860,8 @@
     },
     {
       "path": "tests/e2e/run-live.mjs",
-      "bytes": 21276,
-      "sha256": "fc38f69bce8f89891812e22438b4dda7d89789d921b4e57b48642c013fd094d4"
+      "bytes": 21270,
+      "sha256": "002af1fdffd70de8258402d74982fa26344e77081a6acb88f778d6366b3aef8c"
     },
     {
       "path": "tests/e2e/spec-board-lineage.mjs",
@@ -1662,6 +1667,11 @@
       "path": "tests/helpers/tool-e2e.mjs",
       "bytes": 26582,
       "sha256": "132741adedf11248eb506babfe0583f4b4c3ec7d40fc2dbbcfa6182afe0c82d6"
+    },
+    {
+      "path": "tests/hosts/skills.test.mjs",
+      "bytes": 2178,
+      "sha256": "915e61bcfa375f73d011557aa7caab23f0159cacb77f174889cbfdab4981e823"
     },
     {
       "path": "tests/idps.test.mjs",
