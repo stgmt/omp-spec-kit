@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "08fc47cfb28cdcde2c4d218cbfebef8145cad440e68572dc3e02535bfd518dae",
+  "aggregateSha256": "2472095f148807a6fb0a5c1dde95ba78d3715862fccfb01f74a4d691031e6ed2",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -35,8 +35,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 5441,
-      "sha256": "92ea089256a63769cd74c2c4ba18d961352c39115d0ec0619934613c3d4f2cf3"
+      "bytes": 5469,
+      "sha256": "66839fbd3152e901756a7af2bafaa62717254ab3786172174d0a4a45a909c1c2"
     },
     {
       "path": "plugins/omp-spec-kit/.claude-plugin/plugin.json",
@@ -199,9 +199,14 @@
       "sha256": "8d7423b602861eea20e8f6918a37d6dba71325866073a2d48002f2602ad7e484"
     },
     {
+      "path": "scripts/install-codex-guard.mjs",
+      "bytes": 6560,
+      "sha256": "730c3c4e1d6d5761d6b2e94f1ce42b77dfd4bf0d7e94eb3669e6b9e7584a23f9"
+    },
+    {
       "path": "scripts/install-opencode-guard.mjs",
-      "bytes": 4742,
-      "sha256": "d8caa5a2ecef411ea422d7401392efd97d4f320a72ea51b504463be1cb6c66ef"
+      "bytes": 5041,
+      "sha256": "0ab2105128c06c8e8c28c16bd24cec500aae021bf26b3c4fb9b7507716ef05c4"
     },
     {
       "path": "scripts/lifecycle/build-tagged-candidate.mjs",
@@ -444,6 +449,16 @@
       "sha256": "4541d470c5266c7ed22f24c69b2916a0f0f2c9918b013e7bd475c70cf2ee39cd"
     },
     {
+      "path": "src/hosts/codex/hook.mjs",
+      "bytes": 4792,
+      "sha256": "fb6350314691a0006280f7cea70137dba2c932e311a551171cf70662958398d1"
+    },
+    {
+      "path": "src/hosts/codex/normalize.mjs",
+      "bytes": 2155,
+      "sha256": "8055fa28bbdb453cc5986e6ec108b9594c28639eff3590e571877697e1be0c95"
+    },
+    {
       "path": "src/hosts/opencode/plugin.mjs",
       "bytes": 5758,
       "sha256": "2c5bbb9ab688fa110c5e0fe772d5207bececcc0e6c740d7ff5d6acf42ff45651"
@@ -557,6 +572,11 @@
       "path": "src/service/auth.js",
       "bytes": 14669,
       "sha256": "cfdcf172caa845e468670c242c5f702eb177f2c3ac7ad582e76c6a9cff329a63"
+    },
+    {
+      "path": "src/service/branch-policy.js",
+      "bytes": 1156,
+      "sha256": "c566f4e0a609ae37bc57166c3e0d4a6df3fdaea7c11b9bae678065da4ce62307"
     },
     {
       "path": "src/service/claims.js",
@@ -762,6 +782,11 @@
       "path": "tests/claude/verifiers.test.mjs",
       "bytes": 9635,
       "sha256": "afd66e624075576972538056314dfdc14dddf8eca5f90051f7416a65977c97fe"
+    },
+    {
+      "path": "tests/codex/hook.test.mjs",
+      "bytes": 5416,
+      "sha256": "d674cd02b692a3fbce9fddcdc5bace3209c006e46dcf51fa31bdd227fa61477c"
     },
     {
       "path": "tests/deploy-dockerignore.test.mjs",
@@ -1832,6 +1857,11 @@
       "path": "tests/test-harness.test.mjs",
       "bytes": 1168,
       "sha256": "7b40a922c6cfbf773b5678e3bc3748527085a72e660b91592c772b65c99bcde3"
+    },
+    {
+      "path": "tests/unit/service/branch-policy.test.mjs",
+      "bytes": 976,
+      "sha256": "17d957be9ebf8634da5de3a8851fe25a78eeb136638381be1a8eb6917c8fc280"
     },
     {
       "path": "tests/unit/service/git-auth.test.mjs",

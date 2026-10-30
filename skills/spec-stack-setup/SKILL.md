@@ -92,13 +92,16 @@ again (wizard, groups, token, specs, dashboard).
    **remote** MCP server (`spec-registry`) in `opencode.json`. The guard
    blocks every direct write/read of `.specs` and accepts `spec_patch` only
    from that server; a local stdio server is refused. A detected OpenCode
-   install must succeed — the phase fails instead of skipping.
+   install must succeed — the phase fails instead of skipping. The three
+   authoring skills (`spec-elicitation`, `spec-inventory`,
+   `engineering-anti-bike`) are copied to `~/.config/opencode/skills/`.
 10. Installs the Codex guard when `~/.codex/` exists: copies the adapter into
     `~/.codex/spec-kit-guard/`, merges one `PreToolUse` group into
     `~/.codex/hooks.json`, adds `[mcp_servers.spec_registry]` (streamable HTTP
     + `bearer_token_env_var`) to `config.toml`, and exports the token for new
     processes. Codex blocks on exit 2; a stdio registry entry is refused.
-    Run `/hooks` once in Codex to trust the new hook.
+    Run `/hooks` once in Codex to trust the new hook. The three authoring
+    skills are copied to `~/.codex/skills/`.
 
 ## Writeback (tracker → spec), optional
 

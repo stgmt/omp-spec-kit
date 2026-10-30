@@ -16,6 +16,7 @@ import { spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { installSkills } from "../src/hosts/skills.mjs";
 import { readCodexServer } from "../src/hosts/codex/hook.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -62,6 +63,10 @@ mkdirSync(path.join(installRoot, "hosts", "codex"), { recursive: true });
 cpSync(distSource, path.join(installRoot, "dist"), { recursive: true });
 for (const name of ["hook.mjs", "normalize.mjs"]) copyFileSync(path.join(hostsSource, name), path.join(installRoot, "hosts", "codex", name));
 writeFileSync(path.join(installRoot, "package.json"), JSON.stringify({ type: "module" }, null, 2) + "\n");
+const skills = installSkills({
+  sourceRoot: path.join(repositoryRoot, "plugins", "omp-spec-kit", "skills"),
+  targetSkillsDir: path.join(codexHome, "skills"),
+});
 
 const hookPath = path.join(installRoot, "hosts", "codex", "hook.mjs");
 const guardPath = path.join(codexHome, "spec-kit-guard.json");
@@ -127,6 +132,7 @@ if (process.platform === "win32") {
 }
 
 console.log(`guard installed: ${installRoot}`);
+console.log(`skills installed: ${skills.join(", ")}`);
 console.log(`hooks.json: ${hooksPath}`);
 console.log(`config.toml: [mcp_servers.${serverName}] -> ${url}`);
 console.log(`environment: ${envName} set for new processes`);

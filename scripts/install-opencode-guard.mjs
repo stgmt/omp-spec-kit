@@ -16,6 +16,7 @@ import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, r
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { installSkills } from "../src/hosts/skills.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -67,6 +68,10 @@ copyFileSync(hostSource, path.join(pluginRoot, "hosts", "opencode", "plugin.mjs"
 const loaderPath = path.join(pluginsDir, "omp-spec-kit-guard.mjs");
 writeFileSync(loaderPath, 'export { OmpSpecKitGuard } from "./omp-spec-kit/hosts/opencode/plugin.mjs";\n');
 writeFileSync(path.join(pluginRoot, "package.json"), JSON.stringify({ type: "module" }, null, 2) + "\n");
+const skills = installSkills({
+  sourceRoot: path.join(repositoryRoot, "plugins", "omp-spec-kit", "skills"),
+  targetSkillsDir: path.join(homedir(), ".config", "opencode", "skills"),
+});
 
 writeFileSync(
   guardConfigPath,
@@ -99,6 +104,7 @@ if (existsSync(configPath)) {
 writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
 
 console.log(`guard installed: ${pluginsDir}`);
+console.log(`skills installed: ${skills.join(", ")}`);
 console.log(`registry: ${serverName} -> ${url}`);
 console.log(`host config: ${configPath}`);
 console.log("restart OpenCode so the plugin and MCP server load");
