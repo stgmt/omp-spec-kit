@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "d5e4b68ed1c34e88c925eb1c1db626f2ea5d190df96804843abe9020a9d23000",
+  "aggregateSha256": "1137bb57a7e604c8d13a141fa1cd66607bf79c4fd69b4eaf8dc7c46c68516fca",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -35,8 +35,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 5592,
-      "sha256": "d96e7cb223bbb6c6caad1cf3cc2253abad6e53096cd21107be95fbddea57b57d"
+      "bytes": 5635,
+      "sha256": "91f768812b34e6299b6e3c61f409e97922a290e24258f03349cb31512147599e"
     },
     {
       "path": "plugins/omp-spec-kit/.claude-plugin/plugin.json",
@@ -649,6 +649,11 @@
       "sha256": "61fdbe61cf7cf85236a7439cd96393de4cd291f82841a87b3b0b398af9c5b864"
     },
     {
+      "path": "src/service/project-id.js",
+      "bytes": 971,
+      "sha256": "9102317f6fa10936ee969647dc6f38dee2de71f0ea60521b3a9733942d0423c2"
+    },
+    {
       "path": "src/service/projection.js",
       "bytes": 11610,
       "sha256": "e00c2bfe354aa0c272b5d417509cf3fa552dc8d5f7eaeabd6140fd583346f297"
@@ -677,6 +682,11 @@
       "path": "src/service/spec-binding.js",
       "bytes": 4965,
       "sha256": "92f41ba77b28c5b5f215adcdf5b8f441745c5a355c354e1e236443a9e78de571"
+    },
+    {
+      "path": "src/service/spec-discovery.js",
+      "bytes": 2403,
+      "sha256": "50c702a9dfc64050d7725629e8c7dd2a7c30766e915d1f105957e43ba437fbbd"
     },
     {
       "path": "src/service/sync.js",
@@ -1899,6 +1909,11 @@
       "sha256": "cf19ad0b1cf0a5e441b5044b72e79786db8f197d83d1de6d3ba0032990b0fd74"
     },
     {
+      "path": "tests/unit/service/project-id.test.mjs",
+      "bytes": 931,
+      "sha256": "1cea5c24755154f4bc002bc48d61824d1a660bb4776f2ab6845f9c019ac60891"
+    },
+    {
       "path": "tests/unit/service/repo-policy.test.mjs",
       "bytes": 2977,
       "sha256": "ee076eeeb990102412cc07795757d6543853ac2f16d3a52ec55bd2ce8b98b3e4"
@@ -1912,6 +1927,11 @@
       "path": "tests/unit/service/spec-binding.test.mjs",
       "bytes": 3981,
       "sha256": "1d90c38f7d15abfc68578b4488efa2e48ebc638a74fe388b710250cf863a6e47"
+    },
+    {
+      "path": "tests/unit/service/spec-discovery.test.mjs",
+      "bytes": 3493,
+      "sha256": "8dbb1ccb95c48b249cb69ebc4a9c702cd3fe7cea8d6def99938b0fcfabfe8481"
     },
     {
       "path": "tests/unit/service/stack-projection.test.mjs",

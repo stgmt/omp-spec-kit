@@ -300,6 +300,7 @@ Refactor:
 |---|---|---|
 | P1-3: модель `spec-<slug>` / `spec-<slug>--<topic>` | **done** | `src/service/spec-binding.js`, 16 тестов |
 | P2-2: валидация `.spec-kit.json` | **done** | `validateSpecBinding`, тесты на schema/project/spec/branch/repo |
+| P2-3: bare mirror + worktree на ветку спеки | **done** | `src/service/spec-checkouts.js`, 4 теста с реальным git + push |
 | P1-1: убрать `specsRepo`/`defaultMount` | next | — |
 | P1-2: layout `project-repo` | next | — |
 | P2-1/P2-3: discovery + worktree | todo | — |
