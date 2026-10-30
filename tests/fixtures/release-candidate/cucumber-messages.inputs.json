@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "2b35464011cee3cee83424d3f97f20f6e86fd973aececaa962e2a26c8385b352",
+  "aggregateSha256": "05b810440e5b46dd02ffc3ccfae6c4cac1d5ffa0462bfc3bedf04deaff4fab3c",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -120,8 +120,8 @@
     },
     {
       "path": "scripts/check-corpus-via-mcp.mjs",
-      "bytes": 4341,
-      "sha256": "a9b7c760819bf50516eb1e63bbb1d4a2d61d3adc25f6a032d9b65c12226c0f49"
+      "bytes": 4396,
+      "sha256": "af9112889aa77ac1ebe4c5b5698987afe6d2ae628d3f578361852e00928812db"
     },
     {
       "path": "scripts/check-no-root-specs.mjs",
@@ -130,8 +130,8 @@
     },
     {
       "path": "scripts/check-spec-corpus.mjs",
-      "bytes": 15403,
-      "sha256": "297c4950f641047ee0d14c3314759c7108ff9938160f7d965f31f85928255e9c"
+      "bytes": 15458,
+      "sha256": "80f35a6cef0fbd720f517610b482ee7d1de8e969d8eb630e2821caac24ad39d4"
     },
     {
       "path": "scripts/check-spec-port.mjs",

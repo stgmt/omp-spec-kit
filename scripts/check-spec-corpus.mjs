@@ -28,11 +28,13 @@ if (!fs.existsSync(SPECS_ROOT)) {
 }
 const EXPECTED_SPECS = Object.freeze([
   "agent-ux-elicitation-guard",
+  "blast-radius-auto-generation",
   "plugin-distribution",
   "roadmap-roadmaps",
   "spec-mcp-access-gate",
   "spec-mcp-operations",
   "spec-registry-service",
+  "teams-task-sync",
   "youtrack-visualization",
 ]);
 const FIXED_DOCS = Object.freeze([

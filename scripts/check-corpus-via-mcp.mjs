@@ -18,14 +18,16 @@ import { readFile } from "node:fs/promises";
 
 const EXPECTED_SPECS = Object.freeze([
   "agent-ux-elicitation-guard",
+  "blast-radius-auto-generation",
   "plugin-distribution",
   "roadmap-roadmaps",
   "spec-mcp-access-gate",
   "spec-mcp-operations",
   "spec-registry-service",
+  "teams-task-sync",
   "youtrack-visualization",
 ]);
-const EXPECTED_DOCUMENT_COUNT = 106;
+const EXPECTED_DOCUMENT_COUNT = 129;
 
 const url = process.env.OMP_SPEC_REGISTRY_URL ?? "http://127.0.0.1:8642/mcp";
 
