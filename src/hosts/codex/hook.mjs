@@ -17,6 +17,10 @@ import { toClassifierEvent } from "./normalize.mjs";
 
 const MAX_STDIN_BYTES = 1024 * 1024;
 
+// A closed fd 2 emits an asynchronous stream error; without a listener the
+// process exits 1 instead of denying with 2.
+process.stderr.on("error", () => {});
+
 function readJsonSafe(file) {
   try {
     return JSON.parse(readFileSync(file, "utf8"));

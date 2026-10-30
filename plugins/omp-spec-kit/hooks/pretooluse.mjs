@@ -7,6 +7,10 @@ import { toClassifierEvent } from "./normalize.mjs";
 const MAX_STDIN_BYTES = 1024 * 1024;
 const CLASSIFIER_URL = new URL("../dist/enforcement/classifier.js", import.meta.url).href;
 
+// A closed fd 2 makes the stream emit an asynchronous error event; without a
+// listener Node kills the process with exit 1 instead of the deny exit code.
+process.stderr.on("error", () => {});
+
 function writeStderr(text) {
   try {
     writeSync(2, text);
