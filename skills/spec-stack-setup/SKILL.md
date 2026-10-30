@@ -85,6 +85,14 @@ again (wizard, groups, token, specs, dashboard).
    `width: 12, height: 8` grid cells (the manifest's `defaultDimensions`
    `12fr × 8fr` covers widgets added by hand through the UI) and prints
    the link.
+9. Installs the OpenCode guard when `~/.config/opencode/` exists: copies the
+   built enforcement tree and the OpenCode host adapter into
+   `~/.config/opencode/plugins/omp-spec-kit/`, writes
+   `~/.config/opencode/spec-kit-guard.json`, and registers the registry as a
+   **remote** MCP server (`spec-registry`) in `opencode.json`. The guard
+   blocks every direct write/read of `.specs` and accepts `spec_patch` only
+   from that server; a local stdio server is refused. A detected OpenCode
+   install must succeed — the phase fails instead of skipping.
 
 ## Writeback (tracker → spec), optional
 

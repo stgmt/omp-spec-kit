@@ -14,6 +14,7 @@
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -411,6 +412,24 @@ async function verifyAppPlacement(admin) {
   return full.version;
 }
 
+/** Install the OpenCode guard for the operator's global config. OpenCode is
+ *  optional on a server host, so the phase is skipped only when the agent
+ *  config directory is absent; a detected install must succeed. */
+function installOpenCodeGuard(token) {
+  const configDir = path.join(os.homedir(), ".config", "opencode");
+  if (!existsSync(configDir)) return null;
+  const script = path.join(REPO_ROOT, "scripts", "install-opencode-guard.mjs");
+  const result = spawnSync(process.execPath, [script, "--url", `${SVC_HOST()}/mcp`], {
+    env: { ...process.env, OMP_SPEC_REGISTRY_TOKEN: token },
+    encoding: "utf8",
+    timeout: 120_000,
+  });
+  if (result.status !== 0) {
+    throw new Error(`OpenCode guard install failed: ${(result.stderr ?? "").trim().slice(0, 400)}`);
+  }
+  return configDir;
+}
+
 async function provisionDashboard(admin) {
   const app = await admin.appByName(APP_NAME);
   const widgets = (await admin.call("GET", `/api/admin/apps/${app.id}?fields=id,widgets(id,key)`)).widgets;
@@ -501,6 +520,11 @@ async function main() {
 
   log("phase 8 — Spec Board dashboard");
   const dashboardUrl = await provisionDashboard(admin);
+
+  log("phase 9 — OpenCode guard");
+  const guardDir = installOpenCodeGuard(seedToken);
+  if (guardDir === null) log("phase 9 — no OpenCode config on this host; guard not installed");
+  else log(`phase 9 — guard installed in ${guardDir}`);
 
   console.log("\n━━━ spec-stack ready ━━━");
   console.log(`YouTrack:    ${YT_HOST()}`);
