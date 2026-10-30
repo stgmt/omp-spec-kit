@@ -84,8 +84,11 @@ try {
   const packageManifest = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
   const mcpConfig = JSON.parse(await readFile(path.join(packageRoot, ".mcp.json"), "utf8"));
   const declaredServer = mcpConfig?.mcpServers?.[packageManifest.name];
-  assert.equal(declaredServer?.command, "node", "the archived .mcp.json must launch the server with node");
-  assert.deepEqual(declaredServer?.args, [`${PLUGIN_ROOT_PLACEHOLDER}/${SERVER_ENTRY.join("/")}`], "the archived .mcp.json must point at dist/mcp/server.js through the plugin-root placeholder");
+  assert.equal(declaredServer?.type, "http", "the archived .mcp.json must declare the registry endpoint");
+  assert.equal(declaredServer?.url, "${OMP_SPEC_REGISTRY_URL}", "the archived .mcp.json must take the endpoint from the environment");
+  assert.equal(declaredServer?.headers?.Authorization, "Bearer ${OMP_SPEC_REGISTRY_TOKEN}", "the archived .mcp.json must take the token from the environment");
+  assert.equal(declaredServer?.headers?.["X-Spec-Project"], "${OMP_SPEC_PROJECT}", "the archived .mcp.json must take the project from the environment");
+  assert.equal(declaredServer?.command, undefined, "the archive must not ship a stdio launch");
   const start = () => createArchiveClient(process.execPath, [serverEntryPath], projectRoot, env);
   client = start();
   const initialize = await client.send("initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "release-archive-smoke", version: "1" } });
