@@ -61,3 +61,8 @@ Done when: complete board response, empty scope, size failure, drift, partial fa
 
 Status: done
 Done when: real MCP JSON-RPC board read, sync dry run, tracker snapshot parity, and all three board views are verified from a fresh process.
+
+## TASK-13: Project-scoped pointers and selector
+
+Status: todo
+Done when: projection builds per-project and unassigned boards; the store publishes and reconciles the root index and per-project pointers; the widget selector persists `?project=`/localStorage and maps unknown selections to Unassigned; projection v7 and fresh/upgrade tests pass.

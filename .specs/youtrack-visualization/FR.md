@@ -53,3 +53,9 @@ V1 Flow SHALL show TASK, FR, AC, SCENARIO, NFR, and ROADMAP lanes with lineage a
 ## FR-13: The committed marker is authenticated and unique
 
 Every published marker SHALL carry an HMAC-SHA256 signature over its canonical form, keyed by a secret stored outside the tracker (SPEC_SYNC_MARKER_KEY or ~/.omp/spec-sync-marker-key). Readers that drive writes — the sweep and the writeback listener — SHALL honor cardIds and the snapshot baseline only from a marker whose signature verifies. Duplicate SPEC:SYNC-STATE pointer issues SHALL be reconciled deterministically: the lowest-id candidate is canonical and the rest are deleted on publish. Overlapping sync runs on one host SHALL be serialized by a pid-stamped lock file.
+
+## FR-14: Project-scoped boards and per-project pointers
+
+The service SHALL build one board per project from that project's mount and expose `spec_graph board { project }`; the kernel SHALL continue to receive resolved `specSlugs`, not project identifiers. The committed state SHALL publish one signed `SPEC:SYNC-STATE:<project>` pointer per project, a root `SPEC:SYNC-STATE` index mapping project to pointer id and counts, and an `Unassigned` bucket for specs absent from `specProjects`. Each pointer SHALL stay under the tracker description limit. The board SHALL offer All projects, each project, and Unassigned; an unknown or absent project selection SHALL resolve to Unassigned, never to All. A legacy marker without the index SHALL render the aggregate with no selector.
+
+**Acceptance:** [AC-14.1](ACCEPTANCE_CRITERIA.md#ac-141-project-pointers-and-index), [AC-14.2](ACCEPTANCE_CRITERIA.md#ac-142-selector-and-unassigned-fallback)

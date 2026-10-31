@@ -79,3 +79,15 @@ Scenario: SCEN-board-views
 Given a SPEC:SYNC-STATE pointer issue whose marker was edited or planted without the local signing key, when the sweep or the writeback listener reads committed state, then the marker is not honored and the spec corpus wins. Given duplicate pointer issues, when the sync publishes, then the lowest-id candidate becomes canonical and the rest are deleted.
 
 Scenario: SCEN-marker-integrity
+
+## AC-14.1: Project pointers and index
+
+Given a corpus with two projects and one unassigned spec, when projection publishes, then the root index lists both projects and the unassigned bucket with pointer ids and counts, each project pointer contains only its own nodes and fits the description limit, and a partial project write leaves the previous pointer intact and marks the root incomplete.
+
+Scenario: SCEN-project-pointers
+
+## AC-14.2: Selector and unassigned fallback
+
+Given the board, when the user selects a project, then V1, V2, and V3 show only that project and the spec pills and counts match; `All projects` restores the aggregate; an unknown `?project=` value opens Unassigned, and an empty unassigned bucket shows an honest empty state; a legacy marker hides the selector.
+
+Scenario: SCEN-board-project-selector
