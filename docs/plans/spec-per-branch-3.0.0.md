@@ -308,9 +308,15 @@ Refactor:
 | P2-5: fetch всех веток | **done** | `ensureMirror` fetch `+refs/heads/*:refs/remotes/origin/*`, sync-цикл обновляет кэш |
 | P4-1/P4-2: запись и публикация на ветке спеки | **done** | `spec_patch` коммитит в worktree `spec-<slug>`, тег/ledger на `repoBranch=spec-<slug>` |
 | P3: `spec_branch` create/merge/delete | **done** | orphan create + metadata, work subbranch, прямой merge под write-lock с allowlist путей, delete только work |
-| P5: setup-required для 4 хостов | next | — |
+| P0-1/P0-2: канон `spec-registry-service` | **done** | README/FR/AC/DESIGN/feature переавторены через MCP; `check:corpus:remote` = passed, 9 спек / 129 документов |
+| P8: миграция | **done** | 9 orphan-веток в `stgmt/omp-spec-kit`, metadata валидна, binding active, ruleset `spec-*`, `stgmt/spec-database` archived |
+| P9-1/P9-2: README Mermaid | **done** | Mermaid-схема веток; старого HTML/SVG нет |
+| P11: рудименты | **done (кроме ADR/CHANGELOG-полировки)** | удалены `SPEC_REGISTRY_GIT_TOKEN`/`SPECS_BRANCH`/`specs-clone`, старые проверки; docs переписаны |
+| P5: setup-required | **частично** | `/status` + `mcp_preflight.setup` + `SETUP_REQUIRED`; хуки 4 хостов ещё нет |
+| P6: установщик | **частично** | demo setup создаёт binding + ветки; отдельного CLI установщика нет |
+| P12: аудит | **частично** | канон VALID, 9/9 веток, metadata, ruleset, архив старого репо, grep запретов; tool-e2e и матрица 4 хостов не закрыты |
 
-Следующий шаг: P5 — `GET /status` + `mcp_preflight.setup`, `SETUP_REQUIRED` только для незатронутого проекта, хуки Claude/Codex/OpenCode/OMP показывают команду и не настраивают сами.
+Следующий шаг: P5-хуки и P6-установщик, затем полный `@tool-e2e`/матрица 4 хостов и релиз 3.0.0.
 
 ## 11. Риски
 
