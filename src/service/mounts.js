@@ -234,10 +234,10 @@ export class MountManager {
   for(projectId) {
     const row = this.store?.getBinding?.(projectId) ?? null;
     if (!row) throw this.bindingRequired(projectId);
-    if (row.status === "active") return this.byRepo(row.repoUrl, row.branch, projectId);
+    if (row.status === "active") return this.repoDescriptor(row.repoUrl, row.branch, projectId);
     if (row.status === "migrating") {
       if (!row.migratedFrom) throw this.bindingRequired(projectId);
-      return this.byRepo(row.migratedFrom, row.migratedFromBranch ?? row.branch, projectId);
+      return this.repoDescriptor(row.migratedFrom, row.migratedFromBranch ?? row.branch, projectId);
     }
     throw this.bindingRequired(projectId);
   }
@@ -252,17 +252,8 @@ export class MountManager {
   forSource(projectId) {
     const row = this.store?.getBinding?.(projectId) ?? null;
     if (!row) return null;
-    if (row.status === "active") return this.byRepo(row.repoUrl, row.branch, projectId);
-    return row.migratedFrom ? this.byRepo(row.migratedFrom, row.migratedFromBranch ?? row.branch, projectId) : null;
-  }
-
-  /**
-   * Mount for an explicit (repoUrl, branch) — registers the descriptor lazily;
-   * ensureMount must run before git operations need the clone on disk.
-   * `forProject` supplies the credential owner for auth.
-   */
-  byRepo(repoUrl, branch = "main", forProject = null) {
-    return this.repoDescriptor(repoUrl, branch, forProject);
+    if (row.status === "active") return this.repoDescriptor(row.repoUrl, row.branch, projectId);
+    return row.migratedFrom ? this.repoDescriptor(row.migratedFrom, row.migratedFromBranch ?? row.branch, projectId) : null;
   }
 
   /** One bare mirror per repository; every spec branch shares its objects. */

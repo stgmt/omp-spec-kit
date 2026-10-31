@@ -96,7 +96,7 @@ export function createVersionedReads({ mounts, store }) {
     const specPath = `.specs/${args.spec}`;
     // The commit lives in the repo the version was published into — after a
     // migration that is the previous clone, not the project's current mount.
-    const mount = row.repoUrl ? mounts.byRepo(row.repoUrl, row.repoBranch ?? "main", project) : mounts.for(project);
+    const mount = row.repoUrl ? mounts.repoDescriptor(row.repoUrl, row.repoBranch ?? "main", project) : mounts.for(project);
     if (row.repoUrl) await mounts.ensureMount(mount).catch(() => {});
     const git = mount.git;
     const cwd = mount.mirrorDir ?? mount.cwd;

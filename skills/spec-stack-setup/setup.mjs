@@ -21,7 +21,6 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { randomBytes } from "node:crypto";
 import { findAvailablePort, tcpProbe } from "../../src/tools/endpoint-alloc.js";
-import { isValidBranchName } from "../../src/service/branch-policy.js";
 import { writeRuntimeManifest } from "../../src/tools/runtime-manifest.js";
 import { waitFor } from "../../tests/e2e/lib/compose.mjs";
 import { completeWizard, youtrackNeedsWizard } from "../../tests/e2e/lib/wizard.mjs";
@@ -57,8 +56,6 @@ const SVC_NET = "http://spec-registryd:8642"; // in-network: the app bridge call
 const TENANT = "demo";
 const SCOPE = "demo/stack";
 const YT_PROJECT = "DEMO";
-const SPECS_BRANCH = process.env.SPECS_BRANCH ?? "main";
-if (!isValidBranchName(SPECS_BRANCH)) throw new Error(`SPECS_BRANCH is not a valid git ref: ${SPECS_BRANCH}`);
 const GROUPS = {
   hub: "spec-demo-users",
   owner: "spec-demo-owners",
@@ -139,8 +136,7 @@ function writeConfig(serviceToken, { fingerprint }) {
       fingerprint,
       hostUrl: SVC_HOST(),
       internalUrl: SVC_NET,
-      specsRepo: GIT_NET,
-      branch: SPECS_BRANCH,
+      bindings: [{ project: SCOPE, repoUrl: GIT_NET }],
       publicUrl: "http://spec-registryd:8642",
       projects: [{ id: SCOPE }],
       tenants: [{ tenant: TENANT, projects: [SCOPE], hubGroups: [GROUPS.hub], defaultProject: SCOPE }],
@@ -234,6 +230,11 @@ async function loadTemplateSpec(token) {
       };
       await mcp.callTool({ name: "spec_claim", arguments: { spec: meta.slug } });
       if (!have.has(meta.slug)) {
+        const created = await mcp.callTool({ name: "spec_branch", arguments: { action: "create", spec: meta.slug } });
+        const branch = JSON.parse(created.content?.[0]?.text ?? "{}");
+        if (branch.ok === false && branch.error?.code !== "SPEC_EXISTS") {
+          throw new Error(`create branch ${meta.slug}: ${branch.error?.code ?? "unknown"}`);
+        }
         try {
           await patch("createSpec", { title: meta.title });
         } catch (e) {
@@ -356,22 +357,6 @@ async function provisionSpecProjection(admin) {
   return spec;
 }
 
-/** Clones the specs repo and projects the graph into YouTrack issues — the
- *  same cron-shaped step the customer runs, done once by the skill. */
-async function runProjectionSync(admin, adminUserId, serviceIds) {
-  const cloneDir = path.join(RUNTIME, "specs-clone");
-  const env = { ...process.env, HTTP_PROXY: "", HTTPS_PROXY: "", http_proxy: "", https_proxy: "" };
-  rmSync(cloneDir, { recursive: true, force: true }); // fresh clone every run — the pointer is rewritten anyway
-  execFileSync("git", ["clone", "-q", "--depth", "1", "git://127.0.0.1:9419/specs.git", cloneDir], { env });
-  const syncToken = (await admin.createPermanentToken({ userId: adminUserId, name: "spec-stack-sync", serviceIds })).token;
-  execFileSync(process.execPath, [path.join(REPO_ROOT, "scripts", "spec-graph-sync.mjs"), "--host", YT_HOST(), "--project", "SPEC", "--provision"], {
-    cwd: REPO_ROOT,
-    env: { ...env, OMP_SPEC_KIT_ROOT: path.join(cloneDir, SCOPE), YOUTRACK_TOKEN: syncToken },
-    timeout: 180_000,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-}
-
 /** The projection is only correct once the SPEC project, its bundles and the
  *  link types exist; until then every write fails with a tracker error. The
  *  setup starts the service with projection disabled and flips it on here. */
@@ -469,6 +454,11 @@ async function provisionDashboard(admin) {
   await admin.call("POST", `/api/dashboards/${dash.id}/widgets`, {
     body: { key: "spec-board", widget: { id: board.id }, x: 0, y: 0, width: 12, height: 8 },
   });
+  // A dashboard created through the admin API is private to the admin. The
+  // requirement is that every tenant user sees the board in their dashboard
+  // list, so share it with the tenant group and with All Users explicitly.
+  const shared = await admin.shareDashboard(dash.id, ["All Users", GROUPS.hub]);
+  log(`dashboard ${dash.id} shared with ${shared.map((group) => group.name).join(", ")}`);
   return `${YT_HOST()}/dashboard?id=${dash.id}`;
 }
 
@@ -529,9 +519,8 @@ async function main() {
   const seedToken = (await admin.createPermanentToken({ userId: me.id, name: "spec-stack-seed", serviceIds })).token;
   const seeded = await loadTemplateSpec(seedToken);
 
-  log("phase 6 — SPEC projection (issues + sync pointer)");
+  log("phase 6 — SPEC projection target (issues + sync pointer)");
   await provisionSpecProjection(admin);
-  await runProjectionSync(admin, me.id, serviceIds);
 
   log("phase 7 — enabling service-side projection by default");
   process.env.SPEC_REGISTRY_PROJECTION = "1";

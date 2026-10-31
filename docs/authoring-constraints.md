@@ -15,4 +15,4 @@ These constraints are workarounds. The underlying parser gaps (bullet-form struc
 
 ## Where this file lives
 
-The canonical corpus lives in the dedicated specs repository, served by `spec-registryd` over MCP. It contains only files under `.specs/<slug>/`, so corpus-level guidance cannot be stored there; this product document is the single place for these rules. `DESIGN.md` of a specification keeps only the constraints that spec itself discovered, with a pointer here for the rest.
+The canonical corpus lives on orphan `spec-<slug>` branches of each project repository, served by `spec-registryd` over MCP. A canonical branch contains only `.spec-kit.json` and files under `.specs/<slug>/`, so corpus-level guidance cannot be stored there; this product document is the single place for these rules. `DESIGN.md` of a specification keeps only the constraints that spec itself discovered, with a pointer here for the rest.

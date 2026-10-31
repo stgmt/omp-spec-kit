@@ -58,16 +58,6 @@ export function gitAuthEnv(auth) {
   };
 }
 
-export function gitAuthFromEnv(env = process.env) {
-  const token = env.SPEC_REGISTRY_GIT_TOKEN;
-  if (typeof token !== "string" || token.trim().length === 0) return undefined;
-  return {
-    token: token.trim(),
-    username: env.SPEC_REGISTRY_GIT_USER,
-    url: env.SPEC_REGISTRY_GIT_AUTH_URL,
-  };
-}
-
 /**
  * Thin serialized git CLI wrapper. One queue per repository root: git index and
  * refs are process-global state inside a worktree, so concurrent git calls on

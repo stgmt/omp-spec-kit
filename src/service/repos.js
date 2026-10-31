@@ -130,7 +130,7 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     });
     await put("migrating");
 
-    const mount = mounts.byRepo(repoUrl, resolvedBranch, project);
+    const mount = mounts.repoDescriptor(repoUrl, resolvedBranch, project);
     try {
       await mounts.ensureMount(mount);
       await put("active");

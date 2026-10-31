@@ -40,11 +40,34 @@ The plugin starts the MCP server with `node` against the project where Claude Co
 
 The plugin install above gives your OMP or Claude Code session the **local kernel**: the 10 MCP tools read the `.specs/` corpus of the project you open the host in — no services required.
 
-The **hosted path** is the spec-registry service (`spec-registryd`): canonical specifications live in a dedicated Git repository, writes go through the service's MCP endpoint with YouTrack-verified identity, roles, and project scopes. Consumers connect with a `.mcp.json` that carries `Authorization` + `X-Spec-Project` headers.
+The **hosted path** is the spec-registry service (`spec-registryd`): every specification is an orphan `spec-<slug>` branch in its project's own Git repository, with `.spec-kit.json` at the branch root and the corpus under `.specs/<slug>/`. Writes go through the service's MCP endpoint with YouTrack-verified identity, roles, and project scopes. Consumers connect with a `.mcp.json` that carries `Authorization` + `X-Spec-Project` headers.
+
+```mermaid
+flowchart LR
+  subgraph Project repository
+    M[main: product code]
+    S1[spec-teams-task-sync]
+    S2[spec-blast-radius]
+    W["spec-slug--topic<br/>unmerged work"]
+    W -.->|spec_branch merge| S1
+  end
+  subgraph spec-registryd
+    R[bare mirror] --> T[worktree per spec]
+    T --> C[materialised corpus]
+    C --> K[kernel graph]
+  end
+  S1 --> R
+  S2 --> R
+  K --> MCP[MCP tools]
+  P[spec_patch] --> T
+  T -->|bot commit + push| S1
+```
+
+A canonical spec branch contains only `.spec-kit.json` and `.specs/<slug>/**`; work branches (`spec-<slug>--<topic>`) are never indexed or projected and are merged directly by `spec_branch merge`. There is no shared default repository: an unbound project refuses spec operations with `REPO_BINDING_REQUIRED`.
 
 ## Self-hosted demo stack
 
-A complete working contour — YouTrack (identity + app host), `spec-git` (canonical specs repo), and `spec-registryd` — ships in [`skills/spec-stack-setup/`](skills/spec-stack-setup/SKILL.md) and comes up with one command:
+A complete working contour — YouTrack (identity + app host), `spec-git` (per-project spec branches served as a local fixture), and `spec-registryd` — ships in [`skills/spec-stack-setup/`](skills/spec-stack-setup/SKILL.md) and comes up with one command:
 
 ```sh
 node skills/spec-stack-setup/setup.mjs
@@ -126,7 +149,7 @@ The MCP server reads the active OMP or Claude Code project. It does not use edit
 
 Direct untrusted writes to `.specs` are not an alternative API. Use `spec_patch` to preview and apply changes through hash-checked transactions.
 
-The canonical corpus lives in the dedicated specs repository and is served by the spec registry over MCP; this repository carries no `.specs/` (see `scripts/check-no-root-specs.mjs`). Code gates run against the frozen fixture under `tests/fixtures/kernel/authoring-real-corpus`; the live corpus is checked through the service with `npm run check:corpus:remote`.
+The canonical corpus lives on orphan `spec-<slug>` branches of the project repository and is served by the spec registry over MCP; this repository's `main` carries no `.specs/` (see `scripts/check-no-root-specs.mjs`). Code gates run against the frozen fixture under `tests/fixtures/kernel/authoring-real-corpus`; the live corpus is checked through the service with `npm run check:corpus:remote`.
 
 ## Project documentation
 

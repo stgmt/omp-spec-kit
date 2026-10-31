@@ -121,7 +121,6 @@ Required env (`.env` next to compose.yml):
 | `SPEC_AGENT_TOKEN` | onboarding-issued agent token scoped to the spec projects (`POST /onboarding/token`); identities land in `Spec-Author` trailers |
 | `SPEC_WRITEBACK_TOKEN` | shared secret the tracker rule sends as `LISTENER_TOKEN` |
 | `SPEC_SYNC_MARKER_KEY` | **must equal the service's value** — mismatched secrets make ownership checks fail every writeback |
-| `SPECS_BRANCH` | branch of the specs repository the service writes (default `main`); a repo binding that names another branch is rejected |
 
 `SPEC_REGISTRY_URL` and `SPEC_AGENT_TOKEN` are required for `--serve`: without
 them the listener refuses to start. There is no local-checkout fallback — the

@@ -1,6 +1,6 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { GitClient, botIdentityFromEnv, gitAuthFromEnv } from "./git.js";
+import { GitClient, botIdentityFromEnv } from "./git.js";
 import { loadProjectsConfig, MountManager, ConfigError } from "./mounts.js";
 import { createYouTrackAuth } from "./auth.js";
 import { createServiceApp } from "./http.js";
@@ -23,7 +23,7 @@ import { createSpecBranchManager } from "./spec-branches.js";
 import { BRANCH_CONTRACTS, createBranchOps } from "./ops/branch.js";
 import { serviceErrorEnvelope, serviceSuccess } from "./dispatch.js";
 import { secretsKeyFromEnv, sealSecret } from "./secrets.js";
-export async function bootService({ configPath, cloneDir, git = new GitClient({ gitAuth: gitAuthFromEnv() }), identity, store: storeOption = null, secretsKey = null, logger = () => {} }) {
+export async function bootService({ configPath, cloneDir, git = new GitClient(), identity, store: storeOption = null, secretsKey = null, logger = () => {} }) {
   const config = await loadProjectsConfig(configPath);
   const store = storeOption ?? (await createStore({ file: path.join(path.dirname(configPath), "registry.db") }));
   seedInitialBindings({ config, store, secretsKey, env: process.env });
@@ -242,7 +242,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
 }
 
 export async function startService({ configPath, cloneDir, storeFile, syncIntervalMs = Number(process.env.SPEC_REGISTRY_SYNC_MS ?? 0), port = Number(process.env.SPEC_REGISTRY_PORT ?? 8642), host = process.env.SPEC_REGISTRY_HOST ?? "127.0.0.1", identity = botIdentityFromEnv(), logger = console.error, env = process.env }) {
-  const git = new GitClient({ gitAuth: gitAuthFromEnv(env) });
+  const git = new GitClient({ env });
   const secretsKey = secretsKeyFromEnv(env);
   // The store must exist before mounts: bound projects resolve their clone
   // through repo_bindings during boot reconciliation.
