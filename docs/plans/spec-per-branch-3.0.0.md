@@ -314,12 +314,13 @@ Refactor:
 | P11: рудименты | **done** | удалены `SPEC_REGISTRY_GIT_TOKEN`/`SPECS_BRANCH`/`specs-clone`, старые проверки; docs переписаны |
 | P5: setup-required | **done** | `/status` + `mcp_preflight.setup` + `SETUP_REQUIRED`; Claude SessionStart, Codex SessionStart, OpenCode `session.created`/`chat.message`, OMP `session_start` |
 | P6: установщик | **done** | `scripts/install-host.mjs` (claude/codex/opencode/omp); demo setup создаёт binding + ветки |
-| P12: аудит | **частично** | канон VALID, 10/10 веток, metadata, ruleset, архив старого репо, `tool:e2e` = 15 tools; матрица 4 хостов — adapter-level (`docs/validation/host-matrix-v3.0.2.md`), живые сессии Codex/OpenCode/OMP не записаны |
+| P12: аудит | **частично** | канон VALID, 10/10 веток, metadata, ruleset, архив старого репо, `tool:e2e` = 15 tools; матрица 4 хостов — adapter-level (`docs/validation/host-matrix-v3.0.3.md`), живые сессии Codex/OpenCode/OMP не записаны |
 | Релиз 3.0.0 | **done** | tag `v3.0.0` → `52d2324`, preflight passed, GitHub Release `https://github.com/stgmt/omp-spec-kit/releases/tag/v3.0.0` |
 | Релиз 3.0.1 | **done** | tag `v3.0.1` → `6952cbc`, preflight passed, GitHub Release `https://github.com/stgmt/omp-spec-kit/releases/tag/v3.0.1` |
 | Релиз 3.0.2 | **done** | tag `v3.0.2` → `cfc1edc`, preflight passed, GitHub Release `https://github.com/stgmt/omp-spec-kit/releases/tag/v3.0.2` |
+| Релиз 3.0.3 | **done** | tag `v3.0.3` → `f49cf7b`, preflight passed, GitHub Release `https://github.com/stgmt/omp-spec-kit/releases/tag/v3.0.3` |
 
-Следующий шаг: 3.0.2 опубликован; P12-9 остаётся adapter-level до записи живых сессий Codex/OpenCode/OMP.
+Следующий шаг: 3.0.3 опубликован; P12-9 остаётся adapter-level до записи живых сессий Codex/OpenCode/OMP.
 
 ## 11. Риски
 
