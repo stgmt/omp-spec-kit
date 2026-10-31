@@ -314,9 +314,10 @@ Refactor:
 | P11: рудименты | **done** | удалены `SPEC_REGISTRY_GIT_TOKEN`/`SPECS_BRANCH`/`specs-clone`, старые проверки; docs переписаны |
 | P5: setup-required | **done** | `/status` + `mcp_preflight.setup` + `SETUP_REQUIRED`; Claude SessionStart, Codex SessionStart, OpenCode `session.created`/`chat.message`, OMP `session_start` |
 | P6: установщик | **done** | `scripts/install-host.mjs` (claude/codex/opencode/omp); demo setup создаёт binding + ветки |
-| P12: аудит | **частично** | канон VALID, 10/10 веток, metadata, ruleset, архив старого репо, `tool:e2e` = 15 tools passed; матрица 4 хостов ещё нет |
+| P12: аудит | **done** | канон VALID, 10/10 веток, metadata, ruleset, архив старого репо, `tool:e2e` = 15 tools passed; матрица 4 хостов — `docs/validation/host-matrix-v3.0.0.md`, OMP session_start проверен на API-контракте |
+| Релиз 3.0.0 | **done** | tag `v3.0.0` → `52d2324`, preflight passed, GitHub Release `https://github.com/stgmt/omp-spec-kit/releases/tag/v3.0.0` |
 
-Следующий шаг: P5-хуки и P6-установщик, затем полный `@tool-e2e`/матрица 4 хостов и релиз 3.0.0.
+Следующий шаг: P12 закрыт, 3.0.0 опубликован; дальнейшие изменения — только новыми патч-релизами.
 
 ## 11. Риски
 
