@@ -4,17 +4,17 @@ Status: DRAFT
 
 ## Repo and storage
 
-### FR-1 — Specs repo provisioning
+### FR-1 — Spec branches
 
-The canonical store is one dedicated specs repository with layout `<owner>/<project>/.specs/<slug>/`. When the service first mounts a configured project whose `<owner>/<project>/.specs/` does not yet exist, it creates the skeleton and pushes it as the bot.
+A spec is an orphan branch `spec-<slug>` in its project repository. `.spec-kit.json` at the branch root binds it to `project`, `spec`, `repo`, and `branch`; the corpus lives under `.specs/<slug>/`. Detection is by metadata, not branch name alone: one repository may host specs of several projects. A work branch `spec-<slug>--<topic>` is unmerged work — it is not indexed, published, or projected. There is no shared default repository: an unbound project refuses spec operations with `REPO_BINDING_REQUIRED`, and a branch/metadata mismatch fails with `SPEC_BINDING_INVALID`.
 
 ### FR-2 — Write-path exclusivity
 
-Only the service bot can push to the specs repository — in v1 this is enforced by the repo being private, collaborator-free, and written only via the operator-issued service token (actor rulesets are plan-dependent hardening, TASK-2). Separately, a managed product repo rejects any push/PR carrying **repo-root** `.specs/**` on its code branches — the rule anchors at the repository root and must not match nested fixture paths such as `tests/fixtures/**/.specs/`; this guard is applied per-repo when that project migrates. Break-glass pushes by repo admins are detected on the next service sync and recorded as drift events.
+Only the service bot can push to canonical spec branches — enforced by repository rulesets on `spec-*` refs and per-repository credentials (actor rulesets are plan-dependent hardening, TASK-2). Separately, a managed product repo rejects any push/PR carrying **repo-root** `.specs/**` on its code branches — the rule anchors at the repository root and must not match nested fixture paths such as `tests/fixtures/**/.specs/`; this guard is applied per-repo when that project migrates. Break-glass pushes by repo admins are detected on the next service sync and recorded as drift events.
 
-### FR-3 — Per-project roots
+### FR-3 — Per-spec roots
 
-The service maintains one clone of the specs repo; kernel operations execute against `root = <clone>/<owner>/<project>` (the dir containing `.specs/`). No operation may address a path outside the resolved project root (existing `inspectAuthoringTarget` rules apply unchanged).
+The service keeps one bare mirror per bound repository and one lazy worktree per canonical spec branch. The kernel reads a materialised project corpus assembled from the `.specs/<slug>/` trees of that project's canonical branches; writes are applied to that corpus and copied back into the target spec worktree. No operation may address a path outside the resolved spec root (existing `inspectAuthoringTarget` rules apply unchanged).
 
 ## Write path
 
@@ -46,7 +46,7 @@ All nine existing read operations are served over the remote transport with the 
 
 ### FR-10 — Drift report and sync cadence
 
-The service fetches the specs repo on a configured interval (default: every poll cycle; optionally triggered sooner by a repo webhook) and reconciles clone ↔ remote ↔ projection per project. `GET /drift` lists divergence: non-bot commits, unexpected mutations, projection rebuild failures, clone-ahead-of-remote states.
+The service fetches every bound mirror on a configured interval (default: every poll cycle; optionally triggered sooner by a repo webhook) and reconciles each canonical spec branch against the remote and the projection. Work branches are not reconciled as canonical. `GET /drift` lists divergence per branch: non-bot commits, unexpected mutations, and projection rebuild failures.
 
 ## Publish
 
