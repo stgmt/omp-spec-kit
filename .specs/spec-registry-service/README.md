@@ -14,7 +14,7 @@ It does not own: kernel document semantics (inherited), the plugin's OMP host-si
 - **DONE (TASK-7):** managed projects resolve `omp-spec-kit` to the stack endpoint (`type: "http"`) through an OMP-native definition that wins over the plugin's local declaration; the shipped payload keeps stdio for unmanaged checkouts (`config/omp-managed.mcp.json.example`, `scripts/probe-managed-remote.mjs`).
 - **NEXT:** YouTrack app surface completion + agent onboarding (TASK-8), **app packaging and one-link installation (TASK-16)**, publish pipeline (TASK-9).
 - **DONE (3.0.0):** `spec_branch` creates orphan canonical/work branches and merges unmerged work under the project lock; `GET /status` and `mcp_preflight.setup` report setup-required per project.
-- **DONE (3.0.0 migration):** omp-spec-kit's 9 specs live on orphan `spec-<slug>` branches of `stgmt/omp-spec-kit`; `main` carries no `.specs/` — code gates run against the frozen fixture and the live corpus is checked through the registry (`npm run check:corpus:remote`).
+- **DONE (3.0.0 migration):** omp-spec-kit's 10 specs live on orphan `spec-<slug>` branches of `stgmt/omp-spec-kit`; `main` carries no `.specs/` — code gates run against the frozen fixture and the live corpus is checked through the registry (`npm run check:corpus:remote`).
 - **LATER:** external-YouTrack binding (TASK-13), consumer pins (TASK-15), external-consumer spec packs (registry Option B/OCI).
 
 ## Documents
