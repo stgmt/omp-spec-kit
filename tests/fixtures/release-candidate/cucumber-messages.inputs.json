@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "561a67eb078d02bd924672f060dc53c33cde164d79010c4b8abb807ab3e8b26f",
+  "aggregateSha256": "c54a96f81340b09e0489c217b00c26cda9f31279dd6108497da68a2a2f1c9b4f",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -115,8 +115,8 @@
     },
     {
       "path": "scripts/candidate-status.mjs",
-      "bytes": 2664,
-      "sha256": "2e28f03b3b99f391994053068d9226a8f3e509ae2951664429677db0a1c134e6"
+      "bytes": 2663,
+      "sha256": "7f0898e5174df1018151589c8d9b195354c2d6505925e6c5bea8ead5c128bc67"
     },
     {
       "path": "scripts/check-app-placement.mjs",
