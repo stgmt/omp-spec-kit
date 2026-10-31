@@ -25,6 +25,7 @@ All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 - **Spec Board is readable again**: the committed `SPEC:SYNC-STATE` marker now carries a compact board snapshot (id/slug/kind/title/excerpt/taskStatus and edges) instead of every node body. The real corpus exceeded YouTrack's 512 000-character issue-description limit, so the marker was truncated and both widgets refused it as invalid JSON. `publishCommitted` now fails with `MARKER_TOO_LARGE` before writing an over-limit marker, leaving the previous snapshot intact.
 - **Issue panels recognize Text-shaped `SpecId`**: `Spec Panel` and the Spec Service panel requested `value(name,presentation)` and ignored `value.text`, so every linked issue rendered as "not linked to a spec". Both now request and read the Text value; the Spec Service panel also resolves the issue from `YTApp.entity`/the URL when the host entity is not exposed.
 - **Spec Board dashboard is shared with tenant users**: `spec-stack-setup` shares the provisioned dashboard with `All Users` and the tenant group instead of leaving it private to the admin account.
+- **Placement regression closed at the release boundary**: the README still pinned `spec-graph-app-1.0.25.zip`, whose manifest declared `MAIN_MENU_ITEM` and put `Spec Service` back into the main left navigation. The install docs now use the latest release asset without a pinned version, the stale tracked `release-candidate/spec-graph-app` staging tree is removed and ignored, and `scripts/check-app-placement.mjs` gates both `npm run verify` and release preflight against the source manifest and the assembled candidate.
 
 ## 2.9.0 — 2026-10-09
 
@@ -98,7 +99,7 @@ Merges the 1.3.x line (released as v1.4.0) into the 2.x product: scenario-author
 
 ### Changed — onboarding moved off issues onto the app's own page
 
-- **`spec-app` @ `MAIN_MENU_ITEM`**: a "Spec Service" page in the YouTrack main menu now hosts the full onboarding stepper (repo state/bind, verify, `.mcp.json` mint + paste-token fallback). `?step=agent` deep-links to the agent step. Installing the ZIP no longer surfaces setup inside issues — it creates nothing in the tracker.
+- **`spec-app` @ `MAIN_MENU_ITEM`**: a "Spec Service" page in the YouTrack main menu now hosts the full onboarding stepper (repo state/bind, verify, `.mcp.json` mint + paste-token fallback). `?step=agent` deep-links to the agent step. Installing the ZIP no longer surfaces setup inside issues — it creates nothing in the tracker. **Superseded in 3.0.0:** `spec-app` moved to `ADMINISTRATION_MENU_ITEM` (Administration → Integrations); no main-menu widget is allowed and `MAIN_MENU_ITEM` packages are rejected.
 - **`spec-service-panel` reduced to a context card**: linked spec (when `SpecId` is set), repo status chips, and an `Open Spec Service` link — no wizard, bind forms, or MCP config inside an issue.
 - **Discovery via the native System-wide banner** (admin-configured in Global Settings); the apps API exposes no user-notification channel, so none is fabricated.
 - App version 1.0.24. Decision doc: `docs/decisions/app-page-onboarding.md`.
