@@ -48,8 +48,8 @@ The release SHALL record a clean-host install, a second-user dashboard check, a 
 
 **Acceptance:** [AC-8.1](ACCEPTANCE_CRITERIA.md#ac-81-release-evidence)
 
-## FR-9: Setup entry points stay off the main navigation
+## FR-9: Setup entry points live only under Administration → Integrations
 
-The app SHALL NOT declare `MAIN_MENU_ITEM` or add any item to the main left navigation. The Spec Service setup page SHALL be exposed only through the YouTrack Administration → Integrations submenu (`ADMINISTRATION_MENU_ITEM`), issue panels, and dashboard widgets. A package that declares a main-menu item SHALL be rejected by the installer and by the package contract test.
+The app SHALL NOT declare `MAIN_MENU_ITEM`, add any item to the main left navigation, or expose the Spec Service page from an issue widget. The setup page SHALL be reachable only through the YouTrack Administration → Integrations submenu (`ADMINISTRATION_MENU_ITEM`); the dashboard board SHALL stay a read-only visualization with no setup link. The issue view SHALL keep only the read-only traceability panel. A package that declares a main-menu item or a `spec-service-panel` SHALL be rejected by the installer and by the package contract test.
 
-**Acceptance:** [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-integrations-only)
+**Acceptance:** [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-integrations-only), [AC-9.3](ACCEPTANCE_CRITERIA.md#ac-93-no-issue-view-setup-door)

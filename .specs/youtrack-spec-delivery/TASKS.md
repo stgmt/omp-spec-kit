@@ -59,3 +59,9 @@
 - **Status:** done
 - **Implements:** FR-9, AC-9.1, AC-9.2
 - **Done When:** `scripts/check-app-placement.mjs` passes for the source app and the staged candidate; `npm run check:app-placement` is part of `npm run verify`; release preflight runs the gate before publishing; install docs do not pin an old app ZIP; the stale extracted `release-candidate/spec-graph-app` tree is untracked and gitignored.
+
+## TASK-11: Remove the issue-view Spec Service door
+
+- **Status:** done
+- **Implements:** FR-9, AC-9.3
+- **Done When:** `spec-service-panel` is removed from the manifest and package; the issue page renders only the read-only `spec-panel` with no `Open Spec Service` link; the installer and placement gate reject a package that reintroduces it; the live E2E asserts its absence.

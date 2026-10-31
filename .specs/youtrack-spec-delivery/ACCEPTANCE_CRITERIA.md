@@ -34,8 +34,12 @@ Given the release candidate, when the evidence is assembled, then it contains th
 
 ## AC-9.1: Integrations only
 
-Given an installed Spec Graph package, when an administrator opens Administration → Integrations, then the Spec Service page is listed there; no Spec Graph widget declares `MAIN_MENU_ITEM`, and the main left navigation contains no Spec Graph item.
+Given an installed Spec Graph package, when an administrator opens Administration → Integrations, then the Spec Service page is listed there; no Spec Graph widget declares `MAIN_MENU_ITEM`, the main left navigation contains no Spec Graph item, and the issue view contains no Spec Service card or `Open Spec Service` link.
 
 ## AC-9.2: Current package, docs, and release candidate are clean
 
 Given the current `tools/spec-graph-app/manifest.json`, the install documentation, and a freshly assembled release candidate, when each is inspected, then the manifest and the staged candidate declare `spec-app` at `ADMINISTRATION_MENU_ITEM` and no widget at `MAIN_MENU_ITEM`; any app ZIP version pinned in current install docs equals the current app version; the tracked extracted release-candidate tree is absent.
+
+## AC-9.3: No issue-view setup door
+
+Given the app package and a rendered issue page, when the package is inspected and the issue page is loaded, then no widget key `spec-service-panel` exists, no frame contains a `Spec Service` setup link, and the only setup URL is reachable from Administration → Integrations while the read-only `spec-panel` still renders.
