@@ -7,7 +7,7 @@
 | Field | Value |
 |---|---|
 | Fixture SHA-256 | `f5c054bd07056f06efaaa886f1e25d9295507ed35745d444b63ad2878c898fe9` |
-| Repository base commit | `7b05143b174d61b2f3db25e0258ea9e67c02db99` |
+| Repository base commit | `e8987143c5fa6cfb998f2212424f148342771bc2` |
 | Source state | `working-tree-content-addressed` |
 | Parent fixture SHA-256 | `f5c054bd07056f06efaaa886f1e25d9295507ed35745d444b63ad2878c898fe9` |
 | Source inputs | 413 files; aggregate `23d353c5fdeb5c8a061ba606287603f81daf442c1d17191d4363b6677bceaabb` |
