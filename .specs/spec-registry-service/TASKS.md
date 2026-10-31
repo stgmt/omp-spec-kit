@@ -4,7 +4,7 @@ Status: DRAFT
 
 ## Phase 0 — Specs repo provisioning
 
-## TASK-1 — Create the dedicated specs repo + seed the layout
+## TASK-1 — (superseded by TASK-20) Create the dedicated specs repo + seed the layout
 - **Status:** done
 - **Done When:** the operator-owned specs repo exists with a root `.gitignore` (`**/.omp-spec-kit-*`); service bot push protection is configured (or staged for TASK-2); repo accepts `<owner>/<project>/.specs/<slug>/` layout.
 - **Requirements:** R-1, FR-1
@@ -129,3 +129,9 @@ Status: DRAFT
 - **Done When:** a member never needs curl: the widget reaches `POST /onboarding/token` through the app bridge and renders a ready `.mcp.json`; migration evidence (commit SHA + landed document count) is shown at bind; a caller-supplied permanent token is accepted when the service token cannot mint (`MINT_NOT_PERMITTED` → paste-token fallback, verified against the bound YouTrack as the same caller, never persisted or logged); `/idp/probe|bind` report `capabilities.mintTokens`; `NO_SCOPES` users see an honest no-access state without onboarding controls; readers see no bind controls; all prior BDD testids preserved.
 - **Requirements:** R-6, R-7, FR-13
 - **Evidence:** `tools/spec-graph-app/spec-handler.js` (onboarding/token route), `src/service/onboarding.js` (token passthrough, TOKEN_INVALID/TOKEN_MISMATCH, login+project in response), `src/service/idps.js` (mint-capability probe + `capabilities` in binding), `src/service/repos.js` (`migrated{commit,documents}`), `src/service/http.js` (forwards `token`), widget wizard + no-access state + copy fallback + Dismiss; e2e fixture `publicUrl`. Gates: unit 135/135, service 47/47, idps 9/9, safe-authoring 26/26, staged 66/66, mutations 168/168; `test:app-install-live` **7 scenarios / 93 steps** — alice's widget-generated token calls the real `/mcp`, mia completes required→probe→bind→evidence→`.mcp.json` (X-Spec-Idp, scoped acme/gamma), oda sees no-access, noa gets a working read-only `.mcp.json`. Released as v2.3.0, archive sha256 `14af7303…`, attested.
+
+## TASK-20 — Migrate the corpus to orphan spec branches — done
+
+- **Status:** done — 9 specs live on `spec-<slug>` branches of `stgmt/omp-spec-kit`; `.spec-kit.json` is valid on every branch and the old `stgmt/spec-database` repository is archived.
+- **Evidence:** `GET /registry` reports 9 specs / 129 documents; `GET /drift` is empty; the service reads through bare mirrors and per-spec worktrees; `spec_branch` create/merge/delete is covered by `tests/unit/service/spec-branches.test.mjs`.
+- **Boundary:** canonical branches contain only `.spec-kit.json` and `.specs/<slug>/**`; merge rejects every other path with `PATH_FORBIDDEN`.
