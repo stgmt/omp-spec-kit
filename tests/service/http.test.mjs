@@ -112,6 +112,16 @@ describe("POST /mcp — official SDK, stateless, YouTrack-verified callers", () 
     assert.deepEqual(statusBody.projects.map((entry) => [entry.project, entry.binding, entry.specs, entry.setup.required]), [["stgmt/alpha", "active", 1, false]]);
   });
 
+  it("deletes a demo-marked spec through the hosted spec_branch surface", async () => {
+    const { fixture, url } = await setup();
+    const token = await fixture.userToken("alice");
+    const created = await callTool(url, token, "spec_branch", { action: "create", spec: "demo-http", demo: true, requestId: "demo-create" });
+    assert.equal(created.isError, false, JSON.stringify(created.structuredContent?.error ?? {}));
+    const deleted = await callTool(url, token, "spec_branch", { action: "deleteSpec", spec: "demo-http", requestId: "demo-delete" });
+    assert.equal(deleted.isError, false, JSON.stringify(deleted.structuredContent?.error ?? {}));
+    assert.equal(deleted.structuredContent.data.action, "deleteSpec");
+  });
+
   it("reports SETUP_REQUIRED only for an unbound project and keeps the bound one working", async () => {
     const { fixture, url } = await setup({ projects: ["stgmt/alpha", "stgmt/beta"], unbound: ["stgmt/beta"] });
     const token = await fixture.userToken("alice");
