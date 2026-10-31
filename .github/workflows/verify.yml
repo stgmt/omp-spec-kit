@@ -45,6 +45,10 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run build
+      # Several publish tests create real annotated tags; the runner has no
+      # ambient identity.
+      - run: git config --global user.name "spec-registryd CI"
+      - run: git config --global user.email "bot@spec-registryd.invalid"
       # The service suite authenticates against a real YouTrack. Bootstrap the
       # live contour (service + YouTrack + git daemon) without the app so the
       # bootstrap never depends on the browser upload path.
