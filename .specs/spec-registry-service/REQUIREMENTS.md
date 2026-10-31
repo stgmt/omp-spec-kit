@@ -16,7 +16,7 @@ Concurrent write requests are serialized per project through the existing transa
 
 ## R-4 — Multi-tenant, multi-project support
 
-One service instance serves many users, each with many projects, each project with many specs — all inside the single specs repo. The `owner` segment is the tenant boundary: a caller's token resolves to an allowed `owner`/`project` scope set, and every request's `project` field (`owner/project`) is checked against it. Spec slugs are unique per `(owner, project)`, not globally. The service keeps one clone of the specs repo; per-project kernel root = `<clone>/<owner>/<project>`.
+One service instance serves many users, each with many projects, each project with many specs — each project bound to its own repository, whose canonical specs are orphan `spec-<slug>` branches. The `owner` segment is the tenant boundary: a caller's token resolves to an allowed `owner`/`project` scope set, and every request's `project` field (`owner/project`) is checked against it. Spec slugs are unique per repository; `.spec-kit.json` carries the project identity. The service keeps one bare mirror per repository credential and one lazy worktree per canonical branch; the kernel reads a materialised project corpus.
 
 ## R-5 — Remote agent surface (MCP)
 
