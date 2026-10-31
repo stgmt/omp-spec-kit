@@ -1,0 +1,9 @@
+{
+  "schema": "omp-spec-kit/spec-binding@1",
+  "project": "stgmt/omp-spec-kit",
+  "spec": "youtrack-visualization",
+  "repo": "https://github.com/stgmt/omp-spec-kit.git",
+  "branch": "spec-youtrack-visualization",
+  "createdAt": "2026-10-31T00:31:54.626Z",
+  "owner": "stgmt"
+}
