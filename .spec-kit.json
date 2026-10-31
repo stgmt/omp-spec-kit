@@ -1,0 +1,9 @@
+{
+  "schema": "omp-spec-kit/spec-binding@1",
+  "project": "stgmt/omp-spec-kit",
+  "spec": "spec-mcp-access-gate",
+  "repo": "https://github.com/stgmt/omp-spec-kit.git",
+  "branch": "spec-spec-mcp-access-gate",
+  "createdAt": "2026-10-31T00:31:29.893Z",
+  "owner": "stgmt"
+}
