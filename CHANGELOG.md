@@ -2,6 +2,13 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.0.5 — 2026-11-01
+
+### Fixed
+
+- **Release evidence fixture matches the shipped sources**: the 3.0.4 tag failed the unit gate because the checked-in Cucumber source-input manifest still pinned the pre-3.0.4 `CHANGELOG.md` bytes. The fixture was refreshed from the captured Docker BDD stream and `@release-candidate-regression` passes again.
+- 3.0.4 never produced a GitHub release; 3.0.5 supersedes it with the same app (1.0.39) and release content.
+
 ## 3.0.4 — 2026-10-31
 
 ### Added
