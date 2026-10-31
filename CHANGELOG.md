@@ -4,12 +4,18 @@ All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
 ## 3.0.4 — 2026-10-31
 
+### Added
+
+- **Spec Service health/doctor and dashboard provisioning (app 1.0.39)**: the page renders a Health panel (settings, service, repository, dashboard, snapshot, specs) before `serviceUrl`/`serviceBridgeToken` exist, names the one next action, and can create or update the single `Spec Stack` dashboard with `spec-board`, shared with `All Users`.
+- **`youtrack-spec-delivery` scenarios**: six design-reviewed scenarios cover placement, setup health, the shared dashboard for a second user, upgrade preservation, demo delete, and the agent warning.
+
 ### Fixed
 
 - **Dependents verification uses the strict-fetched corpus**: the `archivalProof` callback no longer performs a second tolerant fetch that could hide a newly added inbound reference.
 - **Release tool E2E is complete**: the live auth corpus seeds an `@id:` scenario, and `npm run tool:e2e:live` fails unless `spec_evidence` succeeds (`complete: true`).
 - **Owner demo deletion overrides a soft claim**; the audit result records `force` and the dependent count.
 - **`deleteSpec` guard tests** cover owner-claim bypass and the full writer/legacy/dependents/projection matrix.
+- **Dashboard re-provision is idempotent on YouTrack 2025.3**: a repeated `spec-board` key returns `400 "'key' should be unique within a dashboard"`; `ensureWidget` now treats that as the duplicate refusal and replaces the board instead of failing, covered by a unit test.
 
 ## 3.0.3 — 2026-10-31
 

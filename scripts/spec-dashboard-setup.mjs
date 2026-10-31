@@ -87,9 +87,11 @@ export async function ensureWidget(client, dashboardId, widget, options) {
     await client.post(`/api/dashboards/${dashboardId}/widgets`, body);
   } catch (error) {
     // Only a duplicate-key refusal warrants the destructive retry. A network
-    // or validation failure must leave the existing board intact.
+    // or validation failure must leave the existing board intact. YouTrack
+    // 2025.3 answers a repeated key with 400 "'key' should be unique within a
+    // dashboard", not 409, so the text check is part of the contract.
     const detail = `${error?.message ?? error}`;
-    const duplicate = error?.status === 409 || /duplicate|already (?:exists|present)/iu.test(detail);
+    const duplicate = error?.status === 409 || /duplicate|already (?:exists|present)|should be unique|unique within/iu.test(detail);
     if (!duplicate) throw error;
     for (const entry of previous) {
       await client.delete(`/api/dashboards/${dashboardId}/widgets/${entry.id}`);

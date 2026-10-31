@@ -56,6 +56,10 @@ function fakeYouTrack(overrides = {}) {
           error.status = 409;
           throw error;
         }
+        if (state.widgetFailure === "unique") {
+          state.widgetFailure = null;
+          throw new Error("POST /api/dashboards/d1/widgets => 400 {\"error\":\"Bad Request\",\"error_description\":\"'key' should be unique within a dashboard\"}");
+        }
         if (state.widgetFailure === "network") {
           state.widgetFailure = null;
           throw new Error("socket hang up");
@@ -106,6 +110,13 @@ describe("spec-dashboard-setup", () => {
 
   it("falls back to delete-then-create only on a duplicate-key refusal", async () => {
     const { client, state } = fakeYouTrack({ widgetFailure: "duplicate" });
+    const result = await provisionDashboard({ client });
+    assert.equal(result.widgets.atomic, false);
+    assert.deepEqual(state.widgets.map((widget) => widget.id), ["new-board"]);
+  });
+
+  it("treats YouTrack's unique-key 400 as a duplicate refusal", async () => {
+    const { client, state } = fakeYouTrack({ widgetFailure: "unique" });
     const result = await provisionDashboard({ client });
     assert.equal(result.widgets.atomic, false);
     assert.deepEqual(state.widgets.map((widget) => widget.id), ["new-board"]);
