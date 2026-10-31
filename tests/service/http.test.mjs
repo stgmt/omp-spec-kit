@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -31,7 +31,7 @@ async function tempDir(prefix) {
 }
 
 /** Bare specs repo with one seeded project + a live-auth service in front of it. */
-async function setup({ projects = ["stgmt/alpha"] } = {}) {
+async function setup({ projects = ["stgmt/alpha"], unbound = [] } = {}) {
   const fixture = await loadLiveFixture();
   const base = await tempDir("spec-http-");
   const bare = path.join(base, "specs.git");
@@ -39,6 +39,11 @@ async function setup({ projects = ["stgmt/alpha"] } = {}) {
   await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", sourceDir: FIXTURE_SPEC });
 
   const configPath = await fixture.writeServiceConfig(bare, { projects });
+  if (unbound.length > 0) {
+    const config = JSON.parse(await readFile(configPath, "utf8"));
+    config.bindings = config.bindings.filter((binding) => !unbound.includes(binding.project));
+    await writeFile(configPath, JSON.stringify(config, null, 2));
+  }
   const service = await startService({ configPath, cloneDir: path.join(base, "clone"), port: 0, identity: IDENTITY, logger: () => {} });
   servers.push(service.server);
   services.push(service);
@@ -100,6 +105,32 @@ describe("POST /mcp — official SDK, stateless, YouTrack-verified callers", () 
     assert.equal(branchData.kind, "branches");
     assert.deepEqual(branchData.branches.map((entry) => entry.branch), ["spec-spec-kernel"]);
     assert.equal(branchData.branches[0].kind, "spec");
+
+    const status = await fetch(`${url.replace(/\/mcp$/u, "")}/status`, { headers: { authorization: `Bearer ${token}` } });
+    assert.equal(status.status, 200);
+    const statusBody = await status.json();
+    assert.deepEqual(statusBody.projects.map((entry) => [entry.project, entry.binding, entry.specs, entry.setup.required]), [["stgmt/alpha", "active", 1, false]]);
+  });
+
+  it("reports SETUP_REQUIRED only for an unbound project and keeps the bound one working", async () => {
+    const { fixture, url } = await setup({ projects: ["stgmt/alpha", "stgmt/beta"], unbound: ["stgmt/beta"] });
+    const token = await fixture.userToken("alice");
+    const unbound = await callTool(url, token, "spec_catalog", { project: "stgmt/beta", view: "specs" });
+    assert.equal(unbound.isError, true);
+    assert.equal(unbound.structuredContent.error.code, "SETUP_REQUIRED");
+    assert.equal(unbound.structuredContent.error.causeCode, "REPO_BINDING_REQUIRED");
+    assert.match(unbound.structuredContent.error.message, /POST \/repos\/bind/u);
+
+    const bound = await callTool(url, token, "spec_catalog", { project: "stgmt/alpha", view: "specs" });
+    assert.equal(bound.isError, false, JSON.stringify(bound.structuredContent?.error ?? {}));
+    assert.deepEqual(bound.structuredContent.data.specs, ["spec-kernel"]);
+
+    const status = await fetch(`${url.replace(/\/mcp$/u, "")}/status`, { headers: { authorization: `Bearer ${token}` } });
+    const projects = (await status.json()).projects;
+    assert.deepEqual(projects.map((entry) => [entry.project, entry.binding, entry.setup.required]), [
+      ["stgmt/alpha", "active", false],
+      ["stgmt/beta", "required", true],
+    ]);
   });
 
   it("rejects GET and DELETE with 405 and anonymous calls with 401", async () => {

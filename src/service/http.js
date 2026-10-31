@@ -55,6 +55,38 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
     });
   });
 
+  app.get("/status", authGate, async (req, res) => {
+    const scopes = Array.isArray(req.ctx?.scopes) ? req.ctx.scopes : [];
+    const projects = [];
+    for (const project of mounts.projects.filter((id) => scopes.includes(id))) {
+      const row = mounts.store?.getBinding?.(project) ?? null;
+      const active = row?.status === "active";
+      let specs = null;
+      let error = null;
+      try {
+        const { branches } = await mounts.listBranches(project);
+        specs = branches.filter((branch) => branch.kind === "spec").length;
+      } catch (cause) {
+        error = cause?.code ?? "ADAPTER_READ_ERROR";
+      }
+      projects.push({
+        project,
+        binding: row?.status ?? "required",
+        repoUrl: active ? row.repoUrl : null,
+        specs,
+        error,
+        setup: active
+          ? { required: false, code: null, command: null }
+          : {
+              required: true,
+              code: "REPO_BINDING_REQUIRED",
+              command: `POST /repos/bind {"project":"${project}","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}`,
+            },
+      });
+    }
+    res.json({ ok: true, projects });
+  });
+
   app.get("/registry", authGate, async (req, res) => {
     if (typeof endpoints.registry !== "function") {
       res.status(501).json({ error: "registry endpoint is not wired" });

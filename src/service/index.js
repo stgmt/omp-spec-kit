@@ -167,6 +167,20 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
       };
     }
   };
+  const preflightSetup = async ({ args, project, requestId, schemaVersion }) => {
+    const row = store?.getBinding?.(project) ?? null;
+    if (row?.status !== "active") {
+      const command = `POST /repos/bind {"project":"${project}","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}`;
+      return {
+        envelope: serviceSuccess("mcpPreflight", requestId, {
+          project,
+          setup: { required: true, code: "REPO_BINDING_REQUIRED", command },
+        }),
+      };
+    }
+    const base = await mounts.serviceFor(project).runQuery("mcpPreflight", args, { requestId, schemaVersion });
+    return { envelope: { ...base, data: { ...(base.data ?? {}), project, setup: { required: false, code: null, command: null } } } };
+  };
   const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher, projection });
   const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger, idps: { list: () => idpManager.listActiveIdps() } });
   const versionedReads = createVersionedReads({ mounts, store });
@@ -203,7 +217,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
       specBranch: branchOps.specBranch,
     },
     serviceContracts: [...CLAIM_CONTRACTS, ...REGISTRY_CONTRACTS, ...BRANCH_CONTRACTS],
-    wrappers: { specPatch: writePath.specPatch, documents: versionedReads, catalog: catalogBranches },
+    wrappers: { specPatch: writePath.specPatch, documents: versionedReads, catalog: catalogBranches, mcpPreflight: preflightSetup },
     endpoints: {
       registry: () => registryIndex(),
       drift: () => driftReport(),

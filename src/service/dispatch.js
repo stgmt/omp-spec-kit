@@ -56,7 +56,14 @@ function invalidRequest(operation, requestId, message, extra = {}) {
 
 /** Roles gate operations (FR-8): readers read, writers write, owners force. */
 const WRITE_OPERATIONS = new Set(["specPatch", "specClaim", "specRelease", "specBranch"]);
+// Preflight must answer for an unbound project: it is how a client learns that
+// setup is required. Every data operation still refuses.
+const SETUP_EXEMPT_OPERATIONS = new Set(["mcpPreflight"]);
 const ROLE_RANK = Object.freeze({ reader: 0, writer: 1, owner: 2 });
+
+function setupCommand(project) {
+  return `POST /repos/bind {"project":"${project}","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}`;
+}
 
 function roleAllows(ctx, operation, force) {
   const rank = ROLE_RANK[ctx.role] ?? -1;
@@ -171,6 +178,15 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
         // its specs must live in the customer's repo, never the operator's.
         mounts.requireRepoReady?.(resolved.project);
       } catch (error) {
+        if (error?.code === "REPO_BINDING_REQUIRED" && !SETUP_EXEMPT_OPERATIONS.has(contract.operation)) {
+          return {
+            envelope: errorEnvelope(operation, requestId, "SETUP_REQUIRED", `${error.message}. Setup: ${setupCommand(resolved.project)}`, {
+              parameter: "project",
+              receivedSummary: resolved.project,
+              causeCode: "REPO_BINDING_REQUIRED",
+            }),
+          };
+        }
         return { envelope: invalidRequest(operation, requestId, error.message, { parameter: "project", receivedSummary: resolved.project }) };
       }
     }
