@@ -212,7 +212,8 @@ export function createYouTrackAdmin({ login, password, baseUrl = YT_URL, logger 
       const groups = (await call("GET", "/api/groups?fields=id,name,ringId&$top=500")) ?? [];
       const wanted = [];
       for (const name of groupNames) {
-        const group = groups.find((entry) => entry.name === name);
+        const group = groups.find((entry) => entry.name === name) ||
+          (name === "All Users" ? groups.find((entry) => entry.$type === "AllUsersGroup") : null);
         if (!group) throw new Error(`dashboard share group not found: ${name}`);
         wanted.push(group);
       }
