@@ -90,3 +90,20 @@ Feature: Centralized spec registry service
     When the service next syncs the clone
     Then the commit appears in the drift report for that branch
     And the index is reprojected
+
+  @id:SCEN-branch-discovery
+  Scenario: Invalid branch metadata fails closed
+    Given a project repository with several `spec-*` branches
+    When one branch lacks readable `.spec-kit.json` or names another repository
+    Then discovery reports SPEC_BINDING_INVALID for that branch
+    And the spec is not listed in the catalog
+    And valid spec branches stay readable
+
+  @id:SCEN-work-branch-merge
+  Scenario: Work branch merge is path-limited
+    Given a canonical spec branch and its work branch
+    When the work branch changes a file outside `.specs/<slug>/`
+    Then spec_branch merge returns PATH_FORBIDDEN
+    And the canonical branch is unchanged
+    When the work branch changes only `.specs/<slug>/README.md`
+    Then the merge lands on the canonical branch and the work branch is deleted
