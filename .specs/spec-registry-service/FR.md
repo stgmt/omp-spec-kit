@@ -85,3 +85,13 @@ The YouTrack app is a distributable package built reproducibly from `tools/spec-
 - **ZIP upload** (private/self-hosted path, and the only path until the app is listed): Add app… → Upload ZIP file with the release artifact; requires the global **Update Project** permission or Low-level Admin Write.
 
 The operator-facing documentation presents installation as a short, link-first flow (the app page plus the site URL), not as a build exercise. Publishing to the Marketplace is an operator/vendor action outside the service; until it is done the ZIP artifact is the supported path. Installation is verified, not assumed: the app appears on the Apps page with its settings applied, and a read call from its widget answers — the same check the live E2E performs after deploy.
+
+## Branch model
+
+## FR-18 — Spec branch discovery and metadata
+
+The branch list is the index: every `spec-<slug>` branch is a candidate, and `.spec-kit.json` at its root is the binding record. Discovery validates `schema`, `project`, `spec`, `repo`, and `branch` against the ref and repository, rejects duplicate slugs in one repository, and surfaces every invalid branch as `SPEC_BINDING_INVALID` — a spec is never silently dropped. Work branches (`spec-<slug>--<topic>`) are not canonical and never appear in the catalog.
+
+## FR-19 — Work branch lifecycle
+
+`spec_branch create` makes an orphan canonical branch with metadata and a minimal spec skeleton, or forks `spec-<slug>--<topic>` from an existing canonical branch. `merge` accepts only changes to `.spec-kit.json` and `.specs/<slug>/**`, serializes on the project write lock, pushes the canonical branch, and deletes the work branch; conflicts return `MERGE_CONFLICT` without auto-resolution. `delete` refuses canonical branches with `BRANCH_PROTECTED`. Both actions are audited with the verified caller login.
