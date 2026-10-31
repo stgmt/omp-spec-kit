@@ -89,7 +89,7 @@ After install, open the app's **Spec Service** page (main menu) — it walks thr
 
 ## Available today
 
-The current surface in v2.9.0 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool.
+The local kernel in v2.9.0 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool. The hosted registry adds service-owned operations on top — `spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, and `spec_branch` — exposed over the same MCP endpoint.
 
 | Need | Tool | Variant |
 |---|---|---|
@@ -103,6 +103,7 @@ The current surface in v2.9.0 is exactly 10 task-oriented MCP tools: 9 bounded r
 | Markdown References | `spec_markdown` | headings & links inventory |
 | Preflight | `mcp_preflight` | root provenance & admissions |
 | Safe Authoring | `spec_patch` | `dryRun` preview or atomic apply with 13 typed intents |
+| Branch lifecycle (hosted) | `spec_branch` | `action: "create" | "merge" | "delete"` |
 
 The read and evidence tools share one bounded graph and return structured results with current-project provenance. Evidence is content-addressed and stale when its captured graph or scenario binding no longer matches. `spec_patch` defaults to an in-memory preview; only `dryRun: false` can change a specification through hash-checked atomic transactions.
 
