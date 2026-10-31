@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "13f3ade8f46bff071615b0ab6a8fa597cd26358a5cb46fb52309724ee6138c42",
+  "aggregateSha256": "353343a1ed78b2a61228b0d45e478e4acef53b9066207211e47ded3aed953ee1",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -72,6 +72,11 @@
       "path": "plugins/omp-spec-kit/hooks/pretooluse.mjs",
       "bytes": 2171,
       "sha256": "4639c0a25bbf1a118180e10a81c5471fdb60acd2604d1c954896fa4f5eb0fad3"
+    },
+    {
+      "path": "plugins/omp-spec-kit/hooks/sessionstart.mjs",
+      "bytes": 2482,
+      "sha256": "a7ccda14cad7ac37d7940e1fef5a0288bfd57b66236c847031903200da0ab460"
     },
     {
       "path": "plugins/omp-spec-kit/package.json",
@@ -302,6 +307,11 @@
       "path": "scripts/smoke-release-archive.mjs",
       "bytes": 6310,
       "sha256": "14c618f32cb7f440a652eaa4d56dee8c51c81656ec02ff28b6bbd8e0c01a4c29"
+    },
+    {
+      "path": "scripts/spec-dashboard-setup.mjs",
+      "bytes": 6399,
+      "sha256": "c6ef45239a390718261d7d9db9bb41187cfe1b2f1025ca91100239a2604a40f0"
     },
     {
       "path": "scripts/spec-graph-sync.mjs",
@@ -1934,6 +1944,11 @@
       "sha256": "1cea5c24755154f4bc002bc48d61824d1a660bb4776f2ab6845f9c019ac60891"
     },
     {
+      "path": "tests/unit/service/project-root-attachment.test.mjs",
+      "bytes": 2084,
+      "sha256": "abd9e8f91da46eb5f8530ee941482a6be13fdfea6d76002e45f781fb742a04bb"
+    },
+    {
       "path": "tests/unit/service/repo-policy.test.mjs",
       "bytes": 3232,
       "sha256": "95b3a553311cd59521a76bb7446d14c76ebc0b3b7025294cca470c12a974b8bf"
@@ -1955,8 +1970,8 @@
     },
     {
       "path": "tests/unit/service/spec-checkouts.test.mjs",
-      "bytes": 3192,
-      "sha256": "8dbc677211e4b93e6d9a2bf119acc3ac31878e040f79346d617fffadacfdef28"
+      "bytes": 3309,
+      "sha256": "2edb21159a16f203d682f3a3d7f7fa06c6e9f602796c0e83ddaab97facfe60e4"
     },
     {
       "path": "tests/unit/service/spec-discovery.test.mjs",
@@ -1972,6 +1987,11 @@
       "path": "tests/unit/service/stack-projection.test.mjs",
       "bytes": 9523,
       "sha256": "523d770ca11ae51f90fbd80f35a2bfca6968c931447b2af4aebb6582707796c6"
+    },
+    {
+      "path": "tests/unit/service/sync-cadence.test.mjs",
+      "bytes": 1171,
+      "sha256": "c52c1ac28181872b997d95c20bc670336c53fabc5ccdc6bd3ad4eb5491bd4875"
     },
     {
       "path": "tests/unit/service/tenants-claims.test.mjs",

@@ -57,6 +57,8 @@ describe("per-spec mirror and worktree", () => {
 
   it("commits in the worktree and pushes back to the source", async () => {
     writeFileSync(path.join(worktree, "README.md"), "# spec change\n");
+    run(worktree, "config", "user.email", "test@example.invalid");
+    run(worktree, "config", "user.name", "test");
     run(worktree, "add", "README.md");
     run(worktree, "commit", "-q", "-m", "spec change");
     run(worktree, "push", "-q", "origin", "HEAD:spec-teams-task-sync");
