@@ -28,6 +28,13 @@
   .step > h4 { margin: 0 0 6px; }
   .hint { font-size: 12px; color: #57606a; margin: 4px 0; }
   .ok { color: #1f883d; }
+  .health { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
+  .health-row { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; flex: none; background: #d0d7de; }
+  .dot.ok { background: #1f883d; }
+  .dot.warn { background: #9a6700; }
+  .dot.error { background: #b42318; }
+  .dot.info { background: #57606a; }
 </style>
 </head>
 <body class="plugin">
@@ -59,6 +66,11 @@
     // Deep link: /app/<app>/spec-app?step=agent scrolls straight to the
     // agent step — the issue card and the announcement point here.
     var focusStep = null;
+    // Health/doctor state. `appHealth` is the handler's settings probe, the
+    // other two are YouTrack-side checks; null means "not checked yet".
+    var appHealth = null;
+    var healthDashboard = null;
+    var healthSnapshot = null;
 
     function escapeHtml(text) {
       return String(text == null ? '' : text).replace(/[&<>"']/g, function (ch) {
@@ -209,6 +221,228 @@
       }
       html += '</div>';
       return html;
+    }
+
+    function errorText(error) {
+      return String(error && error.message ? error.message : error).slice(0, 300);
+    }
+
+    function specIdFromIssue(issue) {
+      var fields = (issue && issue.customFields) || [];
+      for (var i = 0; i < fields.length; i += 1) {
+        if (fields[i].name !== 'SpecId') continue;
+        var value = fields[i].value;
+        if (typeof value === 'string') return value;
+        return (value && (value.text || value.name)) || '';
+      }
+      return '';
+    }
+
+    function checkDashboard() {
+      return host.fetchYouTrack('dashboards?fields=id,name,widgets(id,key)&$top=200').then(function (rows) {
+        var list = Array.isArray(rows) ? rows : [];
+        var dashboard = null;
+        for (var i = 0; i < list.length; i += 1) if (list[i].name === 'Spec Stack') dashboard = list[i];
+        if (!dashboard) return { status: 'warn', detail: 'Spec Stack is not provisioned', action: 'provision' };
+        var hasBoard = false;
+        var widgets = dashboard.widgets || [];
+        for (var w = 0; w < widgets.length; w += 1) if (widgets[w].key === 'spec-board') hasBoard = true;
+        if (!hasBoard) return { status: 'warn', detail: 'Spec Stack exists without spec-board', dashboardId: dashboard.id, action: 'provision' };
+        return { status: 'ok', detail: 'Spec Stack has the spec-board widget', dashboardId: dashboard.id, url: '/dashboard?id=' + encodeURIComponent(dashboard.id) };
+      }).catch(function (error) {
+        return { status: 'info', detail: 'dashboard check unavailable: ' + errorText(error) };
+      });
+    }
+
+    function checkSnapshot() {
+      var query = 'project: SPEC and summary: {SPEC:SYNC-STATE}';
+      return host.fetchYouTrack('issues?query=' + encodeURIComponent(query) + '&fields=id,description,customFields(name,value(name,text))&$top=50').then(function (rows) {
+        var list = Array.isArray(rows) ? rows : [];
+        var pointer = null;
+        for (var i = 0; i < list.length; i += 1) {
+          if (specIdFromIssue(list[i]) !== 'SPEC:SYNC-STATE') continue;
+          if (!pointer || String(list[i].id).localeCompare(String(pointer.id), undefined, { numeric: true }) < 0) pointer = list[i];
+        }
+        if (!pointer) return { status: 'warn', detail: 'no committed snapshot yet' };
+        var prefix = 'SPEC-SYNC-STATE\n';
+        var description = pointer.description || '';
+        if (description.indexOf(prefix) !== 0) return { status: 'error', detail: 'snapshot marker is invalid' };
+        var marker;
+        try { marker = JSON.parse(description.slice(prefix.length)); }
+        catch (e) { return { status: 'error', detail: 'snapshot marker is not valid JSON' }; }
+        var snapshot = marker && marker.snapshot;
+        if (marker.schemaVersion !== 'BoardSnapshotV1' || marker.complete !== true || !snapshot ||
+            snapshot.schemaVersion !== 'BoardSnapshotV1' || snapshot.complete !== true ||
+            snapshot.page !== null || !Array.isArray(snapshot.nodes) || !Array.isArray(snapshot.edges)) {
+          return { status: 'error', detail: 'snapshot is incomplete' };
+        }
+        return { status: 'ok', detail: snapshot.nodes.length + ' nodes, ' + snapshot.edges.length + ' edges' };
+      }).catch(function (error) {
+        return { status: 'info', detail: 'snapshot check unavailable: ' + errorText(error) };
+      });
+    }
+
+    function healthRow(id, label, check) {
+      var status = (check && check.status) || 'info';
+      var detail = (check && check.detail) || 'not checked';
+      return '<div class="health-row" data-testid="health-' + id + '"><span class="dot ' + status + '"></span><span><b>' + escapeHtml(label) + '</b>: ' + escapeHtml(detail) + '</span></div>';
+    }
+
+    function healthSectionHtml() {
+      if (!appHealth) return '';
+      var settings = appHealth.ok
+        ? { status: 'ok', detail: 'serviceUrl and serviceBridgeToken are configured' }
+        : { status: 'error', detail: 'missing ' + (appHealth.missing || []).join(', ') };
+      var service = meInfo
+        ? { status: 'ok', detail: (meInfo.login || 'authenticated') + (meInfo.role ? ' · ' + meInfo.role : '') }
+        : { status: appHealth.ok ? 'error' : 'info', detail: appHealth.ok ? 'service is unreachable' : 'not checked until settings exist' };
+      var repos = (meInfo && meInfo.repos) || [];
+      var bound = 0;
+      for (var i = 0; i < repos.length; i += 1) if (repos[i].bound) bound += 1;
+      var repo = { status: bound > 0 ? 'ok' : 'warn', detail: repos.length ? bound + ' of ' + repos.length + ' project(s) bound' : 'no projects visible' };
+      var specs = { status: specsList.length > 0 ? 'ok' : 'warn', detail: specsList.length + ' spec(s) visible' };
+      var dashboard = healthDashboard || { status: 'info', detail: 'not checked yet' };
+      var snapshot = healthSnapshot || { status: 'info', detail: 'not checked yet' };
+      var checks = [
+        ['settings', 'App settings', settings],
+        ['service', 'Service', service],
+        ['repo', 'Repository', repo],
+        ['dashboard', 'Dashboard', dashboard],
+        ['snapshot', 'Snapshot', snapshot],
+        ['specs', 'Specs', specs]
+      ];
+      var next = null;
+      for (var c = 0; c < checks.length; c += 1) {
+        if (checks[c][2].status === 'error' || checks[c][2].status === 'warn') { next = checks[c]; break; }
+      }
+      var nextText = 'All checks pass.';
+      if (next) {
+        if (next[0] === 'settings') nextText = 'Next: set serviceUrl and serviceBridgeToken in Administration → Apps → Spec Graph → Settings.';
+        else if (next[0] === 'service') nextText = 'Next: check the service URL and bridge token, then re-run the checks.';
+        else if (next[0] === 'repo') nextText = 'Next: bind the project repository in step 1.';
+        else if (next[0] === 'dashboard') nextText = 'Next: provision the Spec Stack dashboard.';
+        else if (next[0] === 'snapshot') nextText = 'Next: run the projection (spec-registryd) and re-check.';
+        else if (next[0] === 'specs') nextText = 'Next: create specs in the bound repository.';
+      }
+      var html = '<div class="step" data-testid="health"><h4>Health</h4><div class="health">';
+      for (var r = 0; r < checks.length; r += 1) html += healthRow(checks[r][0], checks[r][1], checks[r][2]);
+      html += '</div><p class="hint" data-testid="health-next">' + escapeHtml(nextText) + '</p>';
+      html += '<div class="btns"><button class="secondary" data-testid="health-refresh" type="button">Re-run checks</button>';
+      html += '<button data-testid="dashboard-provision" type="button">Provision dashboard</button>';
+      if (healthDashboard && healthDashboard.url) {
+        html += '<a data-testid="dashboard-link" href="' + escapeHtml(healthDashboard.url) + '" target="_top">Open Spec Stack</a>';
+      }
+      html += '</div><p class="state" data-testid="health-result"></p></div>';
+      return html;
+    }
+
+    function mergeGroups(existing, extra) {
+      var byId = {};
+      var list = existing || [];
+      for (var i = 0; i < list.length; i += 1) byId[list[i].id] = list[i];
+      for (var e = 0; e < extra.length; e += 1) byId[extra[e].id] = extra[e];
+      var out = [];
+      for (var key in byId) if (Object.prototype.hasOwnProperty.call(byId, key)) {
+        out.push({ id: byId[key].id, name: byId[key].name, ringId: byId[key].ringId, icon: byId[key].icon || null });
+      }
+      return out;
+    }
+
+    function shareDashboard(dashboardId) {
+      var fields = 'id,name,pinned,isDefault,canEdit,canTransfer,canShare,owner(id),widgets(id,key,x,y,width,height,widget(id),settings),readSharingSettings(permittedGroups(id,name,ringId),permittedUsers(id)),updateSharingSettings(permittedGroups(id,name,ringId),permittedUsers(id))';
+      console.log('[provision] share:get');
+      return Promise.all([
+        host.fetchYouTrack('dashboards/' + encodeURIComponent(dashboardId) + '?fields=' + fields),
+        host.fetchYouTrack('groups?fields=id,name,ringId,$type&$top=500')
+      ]).then(function (results) {
+        console.log('[provision] share:got');
+        var dash = results[0];
+        var groups = results[1] || [];
+        var all = null;
+        for (var i = 0; i < groups.length; i += 1) {
+          if (groups[i].name === 'All Users' || groups[i].$type === 'AllUsersGroup') { all = groups[i]; break; }
+        }
+        if (!all) return null;
+        var readGroups = mergeGroups(dash.readSharingSettings && dash.readSharingSettings.permittedGroups, [all]);
+        var already = false;
+        var existingGroups = (dash.readSharingSettings && dash.readSharingSettings.permittedGroups) || [];
+        for (var g = 0; g < existingGroups.length; g += 1) if (existingGroups[g].id === all.id) already = true;
+        if (already) return null;
+        var body = {
+          id: dash.id, name: dash.name, pinned: dash.pinned, isDefault: dash.isDefault,
+          canEdit: dash.canEdit, canTransfer: dash.canTransfer, canShare: dash.canShare,
+          owner: { id: dash.owner && dash.owner.id },
+          widgets: (dash.widgets || []).map(function (widget) {
+            return { id: widget.id, key: widget.key, x: widget.x, y: widget.y, width: widget.width, height: widget.height, widget: widget.widget, settings: widget.settings };
+          }),
+          readSharingSettings: {
+            permittedGroups: readGroups,
+            permittedUsers: ((dash.readSharingSettings && dash.readSharingSettings.permittedUsers) || []).map(function (user) { return { id: user.id }; })
+          },
+          updateSharingSettings: {
+            permittedGroups: ((dash.updateSharingSettings && dash.updateSharingSettings.permittedGroups) || []).map(function (group) {
+              return { id: group.id, name: group.name, ringId: group.ringId, icon: group.icon || null };
+            }),
+            permittedUsers: ((dash.updateSharingSettings && dash.updateSharingSettings.permittedUsers) || []).map(function (user) { return { id: user.id }; })
+          }
+        };
+        console.log('[provision] share:post');
+        return host.fetchYouTrack('dashboards/' + encodeURIComponent(dashboardId), { method: 'POST', body: body });
+      });
+    }
+
+    function provisionDashboard() {
+      var message = root.querySelector('[data-testid="health-result"]');
+      if (message) message.textContent = 'Provisioning Spec Stack…';
+      var button = root.querySelector('[data-testid="dashboard-provision"]');
+      if (button) button.disabled = true;
+      var widgetId = null;
+      console.log('[provision] start');
+      return host.fetchYouTrack('admin/apps?fields=id,name,widgets(id,key)&$top=500').then(function (apps) {
+        console.log('[provision] apps');
+        var list = Array.isArray(apps) ? apps : [];
+        for (var i = 0; i < list.length; i += 1) {
+          if (list[i].name !== 'spec-graph-app') continue;
+          var widgets = list[i].widgets || [];
+          for (var w = 0; w < widgets.length; w += 1) if (widgets[w].key === 'spec-board') widgetId = widgets[w].id;
+        }
+        if (!widgetId) throw new Error('spec-board is not registered on spec-graph-app');
+        return host.fetchYouTrack('dashboards?fields=id,name&$top=200');
+      }).then(function (rows) {
+        console.log('[provision] dashboards');
+        var list = Array.isArray(rows) ? rows : [];
+        for (var i = 0; i < list.length; i += 1) if (list[i].name === 'Spec Stack') return list[i];
+        return host.fetchYouTrack('dashboards?fields=id,name', { method: 'POST', body: { name: 'Spec Stack' } });
+      }).then(function (dashboard) {
+        return host.fetchYouTrack('dashboards/' + encodeURIComponent(dashboard.id) + '/widgets?fields=id,key').then(function (rows) {
+          console.log('[provision] widgets');
+          var list = Array.isArray(rows) ? rows : [];
+          for (var i = 0; i < list.length; i += 1) if (list[i].key === 'spec-board') return dashboard;
+          return host.fetchYouTrack('dashboards/' + encodeURIComponent(dashboard.id) + '/widgets', {
+            method: 'POST',
+            body: { key: 'spec-board', widget: { id: widgetId }, x: 0, y: 0, width: 12, height: 8 }
+          }).then(function () { return dashboard; });
+        });
+      }).then(function (dashboard) {
+        return shareDashboard(dashboard.id).then(function () { return dashboard; });
+      }).then(function (dashboard) {
+        console.log('[provision] share');
+        healthDashboard = { status: 'ok', detail: 'Spec Stack has the spec-board widget', dashboardId: dashboard.id, url: '/dashboard?id=' + encodeURIComponent(dashboard.id) };
+        render();
+        var result = root.querySelector('[data-testid="health-result"]');
+        if (result) result.textContent = 'Dashboard ready: ' + healthDashboard.url;
+      }).catch(function (error) {
+        console.log('[provision] error ' + errorText(error));
+        if (button) button.disabled = false;
+        if (message) message.textContent = 'Provision failed: ' + errorText(error);
+      });
+    }
+
+    function bindHealthHandlers() {
+      var refresh = root.querySelector('[data-testid="health-refresh"]');
+      if (refresh) refresh.addEventListener('click', function () { refresh.disabled = true; loadAll(); });
+      var provision = root.querySelector('[data-testid="dashboard-provision"]');
+      if (provision) provision.addEventListener('click', provisionDashboard);
     }
 
     function wizardHtml() {
@@ -613,10 +847,12 @@
       if (catalogError) {
         html += '<p class="err" data-testid="spec-error-note">' + escapeHtml(catalogError) + '</p>';
       }
+      html += healthSectionHtml();
       html += demoSectionHtml();
       html += wizardHtml();
       html += idpSectionHtml();
       root.innerHTML = html;
+      bindHealthHandlers();
       bindRepoHandlers();
       bindVerifyHandlers();
       bindAgentHandlers();
@@ -634,42 +870,62 @@
     }
 
     function loadAll() {
-      return Promise.all([
-        callService({ id: 'widget-list', method: 'tools/call', params: { name: 'spec_catalog', arguments: { view: 'specs' } } }),
-        callService({ id: 'widget-me', method: 'service/me', params: {} }),
-        callService({ id: 'widget-idps', method: 'idp/bindings', params: {} }).catch(function () { return { bindings: [] }; })
-      ]).then(function (results) {
-        // A scope-less caller is refused at the auth gate (NO_SCOPES) — every
-        // call fails the same way, so detect it from any of them.
-        for (var n = 0; n < results.length; n++) {
-          if (errorDetail(results[n]).code === 'NO_SCOPES') {
-            noAccess = true;
-            specsList = [];
-            catalogError = null;
-            meInfo = null;
-            idpList = [];
-            render();
-            return;
-          }
-        }
-        noAccess = false;
-        var structured = results[0] && results[0].result ? results[0].result.structuredContent : results[0];
-        if (structured && structured.ok === false) {
-          // A business refusal (repository not bound yet, empty scope) is not
-          // a broken widget — the onboarding wizard still renders; the note
-          // explains why the list is empty.
+      return callService({ id: 'widget-health', method: 'health/app', params: {} }).then(function (health) {
+        appHealth = health && typeof health.ok === 'boolean' ? health : { ok: true, missing: [] };
+        if (!appHealth.ok) {
+          // The setup page must render before settings exist: show the health
+          // checklist and the exact missing keys instead of a dead error page.
           specsList = [];
-          catalogError = (structured.error && (structured.error.message || structured.error.code)) || 'specs unavailable';
-        } else if (!structured || structured.ok !== true) {
-          renderError(structured || results[0]);
-          return;
-        } else {
-          specsList = (structured.data && structured.data.specs) || [];
+          meInfo = null;
+          idpList = [];
+          noAccess = false;
           catalogError = null;
+          healthDashboard = { status: 'info', detail: 'not checked until settings exist' };
+          healthSnapshot = { status: 'info', detail: 'not checked until settings exist' };
+          render();
+          return;
         }
-        meInfo = results[1] && results[1].login ? results[1] : null;
-        idpList = (results[2] && results[2].bindings) || [];
-        render();
+        return Promise.all([
+          callService({ id: 'widget-list', method: 'tools/call', params: { name: 'spec_catalog', arguments: { view: 'specs' } } }),
+          callService({ id: 'widget-me', method: 'service/me', params: {} }),
+          callService({ id: 'widget-idps', method: 'idp/bindings', params: {} }).catch(function () { return { bindings: [] }; })
+        ]).then(function (results) {
+          // A scope-less caller is refused at the auth gate (NO_SCOPES) — every
+          // call fails the same way, so detect it from any of them.
+          for (var n = 0; n < results.length; n++) {
+            if (errorDetail(results[n]).code === 'NO_SCOPES') {
+              noAccess = true;
+              specsList = [];
+              catalogError = null;
+              meInfo = null;
+              idpList = [];
+              render();
+              return;
+            }
+          }
+          noAccess = false;
+          var structured = results[0] && results[0].result ? results[0].result.structuredContent : results[0];
+          if (structured && structured.ok === false) {
+            // A business refusal (repository not bound yet, empty scope) is not
+            // a broken widget — the onboarding wizard still renders; the note
+            // explains why the list is empty.
+            specsList = [];
+            catalogError = (structured.error && (structured.error.message || structured.error.code)) || 'specs unavailable';
+          } else if (!structured || structured.ok !== true) {
+            renderError(structured || results[0]);
+            return;
+          } else {
+            specsList = (structured.data && structured.data.specs) || [];
+            catalogError = null;
+          }
+          meInfo = results[1] && results[1].login ? results[1] : null;
+          idpList = (results[2] && results[2].bindings) || [];
+          return Promise.all([checkDashboard(), checkSnapshot()]).then(function (checks) {
+            healthDashboard = checks[0];
+            healthSnapshot = checks[1];
+            render();
+          });
+        });
       });
     }
 
