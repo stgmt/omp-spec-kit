@@ -156,7 +156,8 @@ export const SYNC_STATE_SPEC_ID = "SPEC:SYNC-STATE";
  * description limit. The version bump forces one full re-projection on
  * upgrade; without it the cheap path would keep a valid pre-v5 marker.
  */
-export const PROJECTION_VERSION = 5;
+// 6: compact committed snapshot (marker must fit YouTrack's description cap).
+export const PROJECTION_VERSION = 6;
 
 const BOARD_KINDS = new Set(Object.keys(KIND_LABELS));
 
