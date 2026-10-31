@@ -78,6 +78,7 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
     // members on the ownership/routing checks below.
     const mountHeads = Object.create(null);
     const specProjects = Object.create(null);
+    const projectBoards = Object.create(null);
     const skippedProjects = [];
     const nodeProjects = new Map();
     let mountsClean = true;
@@ -101,6 +102,10 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
         throw new Error(`board read failed for ${projectId}: ${envelope?.error?.message ?? "no envelope"}`);
       }
       const board = envelope.data;
+      // Keep each project's board for the per-project committed pointers. The
+      // aggregate below stays the All-projects view; these boards are the
+      // projection units that map to SPEC:SYNC-STATE:<project>.
+      projectBoards[projectId] = board;
       for (const node of board.nodes) {
         // The same canonicalId from two mounts would wedge the sync on
         // "duplicate node identity" later — name the colliding projects here
@@ -137,6 +142,10 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
     fingerprints.sort();
     specSlugs.sort();
     skippedProjects.sort();
+    // A v7 marker is complete: every served slug has a project. The list is a
+    // guard for an inconsistent mount set and feeds the Unassigned bucket in
+    // the committed index (normally empty).
+    const unassignedSlugs = specSlugs.filter((slug) => !Object.hasOwn(specProjects, slug));
     return {
       fingerprint: digest({ boards: fingerprints }),
       scope: { mode: "corpus", specSlugs },
@@ -148,6 +157,8 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
       mountHeads,
       mountsClean,
       specProjects,
+      projectBoards,
+      unassignedSlugs,
       skippedProjects,
     };
   }
@@ -235,7 +246,13 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
       });
       const result = await service.sync({ log: logger });
       logger(`projection: ${result.outcome} fingerprint=${result.fingerprint?.slice(0, 12)} writeCalls=${result.writeCalls}`);
-      return result;
+      return {
+        ...result,
+        // Diagnostics for the per-project pointer publication: the projection
+        // units this run built from the mounts.
+        projects: Object.keys(board.projectBoards).sort(),
+        unassigned: board.unassignedSlugs,
+      };
     } catch (error) {
       // A deleted/recreated tracker project invalidates the cached id —
       // clear it so the next trigger re-resolves instead of wedging on 404s.
@@ -257,6 +274,8 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
           outcome: result.outcome,
           fingerprint: result.fingerprint ?? null,
           writeCalls: result.writeCalls ?? 0,
+          projects: result.projects ?? null,
+          unassigned: result.unassigned ?? null,
         };
       } catch (error) {
         lastResult = { at: new Date().toISOString(), ok: false, error: String(error?.message ?? error).split("\n")[0] };

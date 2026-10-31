@@ -627,6 +627,9 @@ describe("projection cheap path", () => {
       assert.deepEqual(Object.keys(second.mountHeads).sort(), ["acme/unbound", "demo/stack"]);
       assert.deepEqual(second.skippedProjects, []);
       assert.equal(second.specProjects["acme-spec"], "acme/unbound");
+      const status = projection.status();
+      assert.deepEqual(status.last.projects, ["acme/unbound", "demo/stack"], "both mounts are projection units");
+      assert.deepEqual(status.last.unassigned, [], "every served slug has a project");
     } finally {
       globalThis.fetch = realFetch;
     }
