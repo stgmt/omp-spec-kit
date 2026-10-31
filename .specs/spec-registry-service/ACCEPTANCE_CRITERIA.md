@@ -2,9 +2,9 @@
 
 Status: DRAFT
 
-### AC-1 — Specs live only in the specs repo
+### AC-1 — Specs live only on spec branches
 
-**Given** a migrated product repository, **when** a developer pushes `.specs/**` on `main` or any code branch, **then** the push/PR fails the required check; and pushes to the specs repo from any identity other than the service bot are rejected.
+**Given** a project repository, **when** a developer pushes `.specs/**` to `main` or any non-`spec-*` branch, **then** the push/PR fails the required check; canonical `.specs/<slug>/**` may exist only on a `spec-<slug>` branch whose `.spec-kit.json` matches the ref and repository, and only the service bot may push canonical branches.
 
 ### AC-2 — Write through service only
 
@@ -16,7 +16,7 @@ Status: DRAFT
 
 ### AC-4 — Multi-project isolation
 
-**Given** scopes `stgmt/a` and `acme/b` mounted, **when** a request omits `project`, **then** it resolves against the caller's tenant default; **when** it names `project: "acme/b"`, **then** no path or slug outside `acme/b` is reachable from that call — and if the caller's tenant lacks `acme/b`, the call is refused outright.
+**Given** scopes `stgmt/a` and `acme/b`, each backed by its own repository and `spec-*` branches, **when** a request omits `project`, **then** it resolves against the caller's tenant default; **when** it names `project: "acme/b"`, **then** no branch, path, or slug outside `acme/b`'s binding is reachable from that call — and if the caller's tenant lacks `acme/b`, the call is refused outright.
 
 ### AC-5 — Remote MCP parity
 
@@ -40,4 +40,4 @@ Status: DRAFT
 
 ### AC-10 — No silent drift
 
-**Given** an admin break-glass pushes to the specs repo directly, **when** the service next syncs, **then** the commit appears in `/drift` output and the index is reprojected rather than silently accepted.
+**Given** an admin break-glass pushes to a `spec-*` branch directly, **when** the service next syncs, **then** the commit appears in `/drift` output and the index is reprojected rather than silently accepted.
