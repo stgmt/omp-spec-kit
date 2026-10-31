@@ -47,3 +47,9 @@
 - **Status:** todo
 - **Implements:** FR-1..FR-8
 - **Done When:** executable scenarios for the acceptance criteria are authored with a valid design review and pass against the real stack.
+
+## TASK-9: Placement regression
+
+- **Status:** todo
+- **Implements:** FR-9
+- **Done When:** the package declares no `MAIN_MENU_ITEM`; `spec-app` is `ADMINISTRATION_MENU_ITEM`; the installed page is listed under Administration → Integrations; the live E2E asserts both.

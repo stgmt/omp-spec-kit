@@ -47,3 +47,9 @@ The plugin SHALL emit a bounded, non-blocking setup warning through the host hoo
 The release SHALL record a clean-host install, a second-user dashboard check, a fresh/upgrade/delete matrix, package validation, and warning redaction.
 
 **Acceptance:** [AC-8.1](ACCEPTANCE_CRITERIA.md#ac-81-release-evidence)
+
+## FR-9: Setup entry points stay off the main navigation
+
+The app SHALL NOT declare `MAIN_MENU_ITEM` or add any item to the main left navigation. The Spec Service setup page SHALL be exposed only through the YouTrack Administration → Integrations submenu (`ADMINISTRATION_MENU_ITEM`), issue panels, and dashboard widgets. A package that declares a main-menu item SHALL be rejected by the installer and by the package contract test.
+
+**Acceptance:** [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-integrations-only)

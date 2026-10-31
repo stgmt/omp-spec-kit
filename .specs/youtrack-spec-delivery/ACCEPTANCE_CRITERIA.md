@@ -31,3 +31,7 @@ Given the plugin installed without a corpus or MCP/registry configuration, when 
 ## AC-8.1: Release evidence
 
 Given the release candidate, when the evidence is assembled, then it contains the clean-host install, second-user dashboard, fresh/upgrade/delete matrix, package validation, and warning redaction results.
+
+## AC-9.1: Integrations only
+
+Given an installed Spec Graph package, when an administrator opens Administration → Integrations, then the Spec Service page is listed there; no Spec Graph widget declares `MAIN_MENU_ITEM`, and the main left navigation contains no Spec Graph item.

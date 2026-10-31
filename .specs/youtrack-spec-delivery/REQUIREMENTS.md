@@ -48,3 +48,7 @@ Clean-host install, second-user dashboard visibility, fresh/upgrade/delete matri
 | REQ-6 | FR-6 | AC-6.1 |
 | REQ-7 | FR-7 | AC-7.1 |
 | REQ-8 | FR-8 | AC-8.1 |
+
+## REQ-9: Integrations-only placement
+
+The setup page lives under Administration → Integrations; the app adds nothing to the main left navigation.
