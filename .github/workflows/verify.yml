@@ -48,7 +48,13 @@ jobs:
       # The service suite authenticates against a real YouTrack. Bootstrap the
       # live contour (service + YouTrack + git daemon) without the app so the
       # bootstrap never depends on the browser upload path.
-      - run: node tests/e2e/run-live.mjs --bootstrap-only --skip-app
+      - name: Bootstrap the live contour
+        run: |
+          node tests/e2e/run-live.mjs --bootstrap-only --skip-app || {
+            echo "first bootstrap failed; retrying after YouTrack warm-up"
+            sleep 60
+            node tests/e2e/run-live.mjs --bootstrap-only --skip-app
+          }
       - run: npm run test:service
       - name: Tear down the live contour
         if: always()
