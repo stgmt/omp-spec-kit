@@ -2,9 +2,9 @@
 
 Status: DRAFT
 
-Centralized, multi-tenant specification registry hosted by the operator: all canonical `.specs/` content lives in **one dedicated specs repository** (a separate GitHub repo the stack owns — never a branch of a product repo), laid out as `<owner>/<project>/.specs/<slug>/` — many users, many projects per user, many specs per project. Consumers get **no repository access at all** — not even read clones. All access is centralized through two remote surfaces: HTTPS MCP for AI agents, and the YouTrack app for humans and non-developer agents (either the operator's YouTrack, or a consumer's own YouTrack running the extension bound to this backend). Writes go only through the service, which wraps the existing kernel. Deployment is a docker-compose stack.
+Centralized, multi-tenant specification registry hosted by the operator: a canonical specification is an **orphan `spec-<slug>` branch of its project repository**, with `.spec-kit.json` at the branch root and the corpus under `.specs/<slug>/` — many users, many projects per repository, many specs per project. Consumers get **no repository access at all** — not even read clones. All access is centralized through two remote surfaces: HTTPS MCP for AI agents, and the YouTrack app for humans and non-developer agents (either the operator's YouTrack, or a consumer's own YouTrack running the extension bound to this backend). Writes go only through the service, which wraps the existing kernel. Deployment is a docker-compose stack.
 
-This specification owns: the dedicated-specs-branch model, the centralized write path and its exclusivity rules, multi-project mounting, the remote agent surface, the YouTrack entry point, claim/ownership semantics, and the compose deployment shape.
+This specification owns: the per-spec orphan-branch model, the centralized write path and its exclusivity rules, multi-project mounting, the remote agent surface, the YouTrack entry point, claim/ownership semantics, and the compose deployment shape.
 
 It does not own: kernel document semantics (inherited), the plugin's OMP host-side access gate (owned by `spec-mcp-access-gate`), or YouTrack projection internals (`spec-mcp-operations` / youtrack adapters own the sync mechanics; this spec owns only the service's use of them).
 
@@ -13,7 +13,7 @@ It does not own: kernel document semantics (inherited), the plugin's OMP host-si
 - **DONE (phase 1 + TASK-11 + TASK-12):** service core (mount manager, `POST /mcp` on the official MCP SDK, write path with bot-pushed commits, `node:sqlite` store, `/registry` + `/drift`, coalescing sync), compose stack (self-contained git/YouTrack/proxy profiles), YouTrack-backed verified identity with owner/writer/reader roles (live E2E: `tests/e2e/`, compose project `spec-auth-e2e`).
 - **DONE (TASK-7):** managed projects resolve `omp-spec-kit` to the stack endpoint (`type: "http"`) through an OMP-native definition that wins over the plugin's local declaration; the shipped payload keeps stdio for unmanaged checkouts (`config/omp-managed.mcp.json.example`, `scripts/probe-managed-remote.mjs`).
 - **NEXT:** YouTrack app surface completion + agent onboarding (TASK-8), **app packaging and one-link installation (TASK-16)**, publish pipeline (TASK-9).
-- **DONE (TASK-14):** omp-spec-kit's corpus (7 specs, 106 documents) migrated into the specs repository **through the service write path**; the product repo carries no `.specs/` — code gates run against the frozen fixture and the live corpus is checked through the registry (`npm run check:corpus:remote`).
+- **DONE (3.0.0 migration):** omp-spec-kit's 9 specs live on orphan `spec-<slug>` branches of `stgmt/omp-spec-kit`; `main` carries no `.specs/` — code gates run against the frozen fixture and the live corpus is checked through the registry (`npm run check:corpus:remote`).
 - **LATER:** external-YouTrack binding (TASK-13), consumer pins (TASK-15), external-consumer spec packs (registry Option B/OCI).
 
 ## Documents
