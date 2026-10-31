@@ -41,3 +41,11 @@ Status: DRAFT
 ### AC-10 — No silent drift
 
 **Given** an admin break-glass pushes to a `spec-*` branch directly, **when** the service next syncs, **then** the commit appears in `/drift` output and the index is reprojected rather than silently accepted.
+
+## AC-11.1 — Invalid branch metadata is visible
+
+**Given** a repository with several `spec-*` branches, **when** one branch lacks readable `.spec-kit.json` or its metadata disagrees with the ref/repository, **then** discovery reports `SPEC_BINDING_INVALID` for that branch and does not list the spec, while valid branches stay readable.
+
+## AC-12.1 — Work-branch merge is path-limited and audited
+
+**Given** a canonical spec branch and its `spec-<slug>--<topic>` work branch, **when** the work branch changes a path outside `.specs/<slug>/**` or `.spec-kit.json`, **then** `spec_branch merge` returns `PATH_FORBIDDEN` and the canonical branch is unchanged; **when** it changes only allowed paths, **then** the merge lands on the canonical branch, the work branch is deleted, and the audit log carries the caller login.
