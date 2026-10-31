@@ -1,6 +1,6 @@
-# Host setup matrix — 3.0.1
+# Host setup matrix — 3.0.2
 
-Release `v3.0.1` (peeled `6952cbc1d7b8ee6ad524251a27e8393da2c6c324`).
+Release `v3.0.2` (peeled `cfc1edc2b34db49dde607f7927de67d4df38f189`).
 This matrix records the host checks that actually ran; it does not claim a live
 session for a host whose session hook was exercised through its API contract.
 

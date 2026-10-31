@@ -1,8 +1,8 @@
 {
   "schema": "omp-spec-kit-cucumber-fixture-provenance@2",
   "fixture": "cucumber-messages.ndjson",
-  "sha256": "8d7491786f1b1eaee915faec35ec4917d3e94e5517d678f020c84b5e9ba0c059",
-  "repositoryCommit": "bd4e4ff6b29d7a84cec8eb1bafcfe27b479dccdb",
+  "sha256": "d2bd0a2c6c287972e40a8e336d5a3ed75e6786a719ec12c28a38b1f1be69ea89",
+  "repositoryCommit": "cfc1edc2b34db49dde607f7927de67d4df38f189",
   "sourceState": "working-tree-content-addressed",
   "parentFixtureSha256": "8d7491786f1b1eaee915faec35ec4917d3e94e5517d678f020c84b5e9ba0c059",
   "sourceManifest": "cucumber-messages.inputs.json",
