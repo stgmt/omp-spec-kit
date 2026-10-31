@@ -18,7 +18,10 @@ Use a **server-side project scope + per-project committed pointers** hybrid:
 - The root `SPEC:SYNC-STATE` issue becomes the **index** (project → pointer id,
   counts, unassigned) and keeps the aggregate snapshot for `All projects`.
 - **Unassigned** is a first-class bucket: specs not present in `specProjects`
-  (legacy/partial marker) are published to `SPEC:SYNC-STATE:__unassigned__`.
+  are published to `SPEC:SYNC-STATE:__unassigned__`.
+- **No legacy fallbacks**: a marker without a valid v7 index fails closed with a
+  named error; the board never silently renders the aggregate. Old v6 markers
+  are reprojected to v7 before the board is readable.
 - **Unknown project selection resolves to Unassigned**, never to All. An
   unknown `?project=` value is treated as the unassigned bucket; if that bucket
   is empty, the board shows an honest empty state.
@@ -28,7 +31,7 @@ Use a **server-side project scope + per-project committed pointers** hybrid:
 ```
 SPEC:SYNC-STATE                     root issue
   marker: BoardSnapshotV1
-    scope: { mode: "corpus", specSlugs: [...] }   # aggregate, backward compatible
+    scope: { mode: "corpus", specSlugs: [...] }   # aggregate = All projects
     projects: [
       { id: "stgmt/omp-spec-kit", pointer: "SPEC-101", nodeCount: 709 },
       { id: "acme/gamma",         pointer: "SPEC-102", nodeCount: 42 }
@@ -53,14 +56,18 @@ marker carries the real `project` value, so the key is not parsed back.
 ### Phase 0 — contract (0.5 day)
 
 - `youtrack-visualization`: add FR/AC for the project index, per-project
-  pointers, unassigned bucket, unknown-selection fallback, and legacy marker
-  behavior.
+  pointers, unassigned bucket, unknown-selection fallback, and fail-closed
+  behavior for a missing v7 index.
 - `docs/specs-repo-operations.md` and `tools/spec-graph-app/README.md`: describe
   the pointer model and the selector.
 - Design review for the new scenarios.
 
 ### Phase 1 — server-side boards (1 day)
 
+- `src/service/dispatch.js` already resolves the request `project` and routes
+  the kernel call through that project's mount, so `spec_graph board` with a
+  `project` argument is scoped today; verify the contract and add explicit
+  coverage for it.
 - `src/service/projection.js`: while iterating mounts, keep
   `projectBoards[projectId]` in addition to the aggregate; compute
   `unassignedSlugs = allSlugs - union(specProjects)`.
@@ -100,15 +107,16 @@ marker carries the real `project` value, so the key is not parsed back.
   - persist `?project=` + `localStorage`;
   - one `visibleNodes` for V1/V2/V3 (project + spec + kind + search);
   - spec pills filtered to the project; invalid spec resets to `ALL`;
-  - legacy root marker without index → hide selector, render aggregate.
+  - unreadable/missing v7 index → named fail-closed error, never the aggregate.
 - `tools/spec-graph-app/manifest.json`: app 1.0.40.
 - E2E: `tests/e2e/spec-board-lineage.mjs` or a new focused script:
-  switch project, counts, unassigned fallback, persistence, legacy fallback.
+  switch project, counts, unassigned fallback, persistence, fail-closed on a
+  missing v7 index.
 
 ### Phase 4 — migration, evidence, release (1 day)
 
 - `PROJECTION_VERSION` 7; first sync publishes project pointers and the index;
-  old widget 1.0.39 keeps reading the root aggregate.
+  the widget requires the v7 index and fails closed on a v6 marker.
 - Fresh/upgrade: root index + project pointers created once; a reinstall keeps
   the same ids; removing a project deletes its pointer.
 - Release app 1.0.40 / package 3.0.6 with the full release gate.
@@ -125,7 +133,8 @@ marker carries the real `project` value, so the key is not parsed back.
 3. The widget selector lists `All projects`, every project, and `Unassigned`;
    unknown `?project=` resolves to Unassigned, not All.
 4. V1/V2/V3 respect the same project/spec/kind/search filter; counts match.
-5. Legacy root marker without `projects` renders the aggregate with no selector.
+5. A marker without a valid v7 index fails closed with a named error and never
+   renders the aggregate; a v6 marker must be reprojected first.
 6. A partial pointer failure leaves the previous pointer intact and marks the
    root `complete: false`; a retry converges; stale project pointers are removed.
 7. Reinstall/upgrade preserves root/project pointer ids and does not duplicate
@@ -139,7 +148,7 @@ marker carries the real `project` value, so the key is not parsed back.
 | 512k per project still exceeded | per-project size guard with `MARKER_TOO_LARGE` naming the project; split further only if needed |
 | Pointer duplication | deterministic SpecId/summary keyed by project; root index is the lookup; publish reconciles lowest verified id like today |
 | Unknown project silently shows All | explicit `UNKNOWN_PROJECT` server result; widget renders Unassigned/empty |
-| Legacy widget breaks on v7 | root aggregate remains `BoardSnapshotV1`; old widgets ignore the new index |
+| v6 marker before reprojection | projection publishes v7 on boot/first sync; the widget reports `PROJECTION_INDEX_REQUIRED` instead of rendering stale aggregate |
 | Project names leak to All Users | names are already in the signed marker; optionally add a display-label map later |
 | Stale project pointer after rename | root index diff deletes pointers absent from the new project set |
 
