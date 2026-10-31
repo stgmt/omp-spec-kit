@@ -1,20 +1,21 @@
 Feature: Centralized spec registry service
 
-  Specs live only in the dedicated specs repository
-  (owner/project/.specs layout). The hosted service is the single
-  write path; agents use remote MCP, humans use the YouTrack app.
+  Every spec is an orphan spec-<slug> branch of its project repository,
+  bound by .spec-kit.json and stored under .specs/<slug>/. The hosted
+  service is the single write path; agents use remote MCP, humans use the
+  YouTrack app.
 
   @id:SCEN-specs-branch-isolation
   Scenario: Spec content is rejected on code branches
-    Given a migrated product repository
+    Given a project repository
     When a pull request on `main` adds a file under `.specs/`
     Then the required check fails
-    And the specs repo remains the only carrier of `.specs/`
+    And only `spec-*` branches carry `.specs/`
 
   @id:SCEN-service-only-writes
-  Scenario: Direct push to specs repo is rejected
-    Given the specs repository
-    When a non-bot identity pushes a commit touching `.specs/`
+  Scenario: Direct push to a canonical branch is rejected
+    Given a project repository with a canonical spec branch
+    When a non-bot identity pushes a commit to the `spec-<slug>` branch
     Then the push is rejected by repository rules
 
   @id:SCEN-optimistic-concurrency
@@ -23,7 +24,7 @@ Feature: Centralized spec registry service
     And writer A submits spec_patch with expectedSha S
     And writer B submits spec_patch with expectedSha S
     When both requests complete
-    Then exactly one commit lands in the specs repo
+    Then exactly one commit lands on the spec branch
     And the losing response is CONFLICT with retryable true
 
   @id:SCEN-claim-lease
@@ -85,7 +86,7 @@ Feature: Centralized spec registry service
 
   @id:SCEN-drift-report
   Scenario: Break-glass push is visible
-    Given an admin pushed directly to the specs repo
+    Given an admin pushed directly to a spec branch
     When the service next syncs the clone
-    Then the commit appears in the drift report
+    Then the commit appears in the drift report for that branch
     And the index is reprojected
