@@ -9,7 +9,7 @@ import { parseTenants } from "./tenants.js";
 import { openSecret } from "./secrets.js";
 import { projectIdError } from "./project-id.js";
 import { ensureMirror, ensureWorktree } from "./spec-checkouts.js";
-import { discoverSpecBindings, readSpecBinding } from "./spec-discovery.js";
+import { discoverSpecBindings, readSpecBinding, listSpecRefs } from "./spec-discovery.js";
 import { validateSpecBinding, specBranchName } from "./spec-binding.js";
 
 const LOCK_FILE = ".omp-spec-kit-write.lock";
@@ -430,6 +430,25 @@ export class MountManager {
 
   async ensureMount(mount) {
     return ensureMirror({ git: mount.git, repoUrl: mount.repoUrl, mirrorDir: mount.mirrorDir, cwd: mount.cwd });
+  }
+
+  /** Canonical and work branches of one project, with their current tips. */
+  async listBranches(projectId) {
+    const { mount, bindings, invalid } = await this.discoverProject(projectId);
+    const refs = await listSpecRefs({ git: mount.git, cwd: mount.mirrorDir });
+    const bySlug = new Map(bindings.map((binding) => [binding.spec, binding]));
+    const branches = [];
+    for (const binding of bindings) {
+      const head = await mount.git.revParse(binding.ref, { cwd: mount.mirrorDir }).catch(() => null);
+      branches.push({ kind: "spec", branch: binding.branch, ref: binding.ref, spec: binding.spec, topic: null, project: projectId, head });
+    }
+    for (const { ref, branch, parsed } of refs) {
+      if (parsed.kind !== "work" || !bySlug.has(parsed.slug)) continue;
+      const head = await mount.git.revParse(ref, { cwd: mount.mirrorDir }).catch(() => null);
+      branches.push({ kind: "work", branch, ref, spec: parsed.slug, topic: parsed.topic, project: projectId, head });
+    }
+    branches.sort((left, right) => left.branch.localeCompare(right.branch));
+    return { mount, branches, invalid: invalid.filter((entry) => entry.project === projectId) };
   }
 
   /** Stable identity of a project's corpus: every canonical spec branch tip. */

@@ -74,7 +74,7 @@ export const TOOL_CONTRACTS = Object.freeze([
     tool: "spec_catalog",
     label: "Spec Catalog",
     operation: "catalog",
-    description: "Query spec catalog: types dictionary, slugs, inventory, overview, or status.",
+    description: "Query the spec catalog.",
     discriminator: "view",
     variants: Object.freeze({
       types: Object.freeze({
@@ -95,7 +95,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         ]),
       }),
       overview: Object.freeze({
-        description: "Read corpus-level counts, limits, and diagnostic/kind/edge histograms.",
+        description: "Read corpus counts and histograms.",
         fields: Object.freeze([optionalField("specSlugs", "stringArray")]),
       }),
       status: Object.freeze({
@@ -104,6 +104,10 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("spec", "string"),
           optionalField("statusView", "enum", READINESS_VIEW_VALUES),
         ]),
+      }),
+      branches: Object.freeze({
+        description: "List spec branches.",
+        fields: Object.freeze([]),
       }),
     }),
   },

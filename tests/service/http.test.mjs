@@ -82,8 +82,9 @@ describe("POST /mcp — official SDK, stateless, YouTrack-verified callers", () 
     assert.equal(listed.status, 200);
     assert.equal(listed.sessionId, null);
     const names = listed.json.result.tools.map((tool) => tool.name);
-    assert.equal(names.length, 14, "10 kernel tools + 4 service ops for a writer");
+    assert.equal(names.length, 15, "10 kernel tools + 5 service ops for a writer");
     assert.ok(names.includes("spec_patch"));
+    assert.ok(names.includes("spec_branch"));
 
     const result = await callTool(url, token, "spec_catalog", { view: "specs", requestId: "http-1" });
     assert.equal(result.isError, false, JSON.stringify(result.structuredContent?.error ?? {}));
@@ -92,6 +93,13 @@ describe("POST /mcp — official SDK, stateless, YouTrack-verified callers", () 
     assert.equal(envelope.operation, "catalog");
     assert.equal(envelope.schemaVersion, "spec-kernel@2");
     assert.deepEqual(envelope.data.specs, ["spec-kernel"]);
+
+    const branchResult = await callTool(url, token, "spec_catalog", { view: "branches", requestId: "http-branches" });
+    assert.equal(branchResult.isError, false, JSON.stringify(branchResult.structuredContent?.error ?? {}));
+    const branchData = branchResult.structuredContent.data;
+    assert.equal(branchData.kind, "branches");
+    assert.deepEqual(branchData.branches.map((entry) => entry.branch), ["spec-spec-kernel"]);
+    assert.equal(branchData.branches[0].kind, "spec");
   });
 
   it("rejects GET and DELETE with 405 and anonymous calls with 401", async () => {

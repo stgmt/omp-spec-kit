@@ -17,7 +17,7 @@ export class SpecDiscoveryError extends Error {
   }
 }
 
-export async function listSpecBranches({ git, cwd, refPrefix = "refs/remotes/origin" }) {
+export async function listSpecRefs({ git, cwd, refPrefix = "refs/remotes/origin" }) {
   const { stdout } = await git.run(["for-each-ref", "--format=%(refname)", refPrefix], { cwd });
   return stdout
     .split(/\r?\n/u)
@@ -25,7 +25,13 @@ export async function listSpecBranches({ git, cwd, refPrefix = "refs/remotes/ori
     .filter((line) => line !== "")
     .map((ref) => ({ ref, branch: ref.startsWith(`${refPrefix}/`) ? ref.slice(refPrefix.length + 1) : ref }))
     .map(({ ref, branch }) => ({ ref, branch, parsed: parseSpecBranch(branch) }))
-    .filter(({ parsed }) => parsed?.kind === "spec")
+    .filter(({ parsed }) => parsed !== null);
+}
+
+export async function listSpecBranches({ git, cwd, refPrefix = "refs/remotes/origin" }) {
+  const refs = await listSpecRefs({ git, cwd, refPrefix });
+  return refs
+    .filter(({ parsed }) => parsed.kind === "spec")
     .map(({ ref, branch, parsed }) => ({ ref, branch, slug: parsed.slug }));
 }
 

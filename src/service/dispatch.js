@@ -55,7 +55,7 @@ function invalidRequest(operation, requestId, message, extra = {}) {
 }
 
 /** Roles gate operations (FR-8): readers read, writers write, owners force. */
-const WRITE_OPERATIONS = new Set(["specPatch", "specClaim", "specRelease"]);
+const WRITE_OPERATIONS = new Set(["specPatch", "specClaim", "specRelease", "specBranch"]);
 const ROLE_RANK = Object.freeze({ reader: 0, writer: 1, owner: 2 });
 
 function roleAllows(ctx, operation, force) {
@@ -193,7 +193,8 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
 
     const wrapper = wrappers[contract.operation];
     if (wrapper) {
-      return wrapper({ args: argsForKernel, ctx, project: resolved.project, force, requestId, schemaVersion: raw.schemaVersion, contract });
+      const wrapped = await wrapper({ args: argsForKernel, ctx, project: resolved.project, force, requestId, schemaVersion: raw.schemaVersion, contract });
+      if (wrapped !== undefined && wrapped !== null) return wrapped;
     }
 
     const envelope = await mounts.serviceFor(resolved.project).runQuery(contract.operation, argsForKernel, { requestId, schemaVersion: raw.schemaVersion });

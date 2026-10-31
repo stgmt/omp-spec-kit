@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "e1320ba04063507fb6fa7c286b281b2291fec5263d080e130f4dd362a7eabd4c",
+  "aggregateSha256": "82cb1b2fb2b9b00792712f70ef59b1e5238964a883af30a0638b991783966101",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -35,8 +35,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 5635,
-      "sha256": "91f768812b34e6299b6e3c61f409e97922a290e24258f03349cb31512147599e"
+      "bytes": 5677,
+      "sha256": "94928d336d76362b8b759c1de44b11a49049216aab14e301db90f8a68d69c260"
     },
     {
       "path": "plugins/omp-spec-kit/.claude-plugin/plugin.json",
@@ -365,8 +365,8 @@
     },
     {
       "path": "src/adapters/tool-contracts.js",
-      "bytes": 35251,
-      "sha256": "1be7af59458a6e1f75066b854ae64e77c14eade7fa83d907b027a1256c37ec5f"
+      "bytes": 35283,
+      "sha256": "71159a1cea3096eafb5de2b4227f090581fb414df1d20dafd2440a1ef6a6ea4c"
     },
     {
       "path": "src/adapters/youtrack-projection.js",
@@ -590,8 +590,8 @@
     },
     {
       "path": "src/service/dispatch.js",
-      "bytes": 9291,
-      "sha256": "6bed92e982ff962a5a8d46592231abb99901e4ac8f814b09e32445aa14fe9771"
+      "bytes": 9389,
+      "sha256": "a6201bcdf9d21cc3f19aeeedc0432f1705e9032c10e2f26e2ac2ef14d172cfb3"
     },
     {
       "path": "src/service/drift.js",
@@ -620,8 +620,8 @@
     },
     {
       "path": "src/service/index.js",
-      "bytes": 14412,
-      "sha256": "572e66a692278f6ea1b62f4c3149350827758f986b63f9b1c8d0a3611cce6b00"
+      "bytes": 15488,
+      "sha256": "95794a08fff136e0488b7f401c3e3355edde6aee71f98fad6fc9336bfe8e7819"
     },
     {
       "path": "src/service/ledger.js",
@@ -630,8 +630,8 @@
     },
     {
       "path": "src/service/mounts.js",
-      "bytes": 23785,
-      "sha256": "15441d18b074122b677a6a7604d15518f093048491cf971c30fb541eaaa0ecd6"
+      "bytes": 24980,
+      "sha256": "b413234eaad29dd8c3068a415d68e76612d8210f04b8a0d3e37322411ce2b6a1"
     },
     {
       "path": "src/service/onboarding.js",
@@ -690,8 +690,8 @@
     },
     {
       "path": "src/service/spec-discovery.js",
-      "bytes": 2704,
-      "sha256": "9f143b5cc13f1ca8f7b4b63bf0b3619434f5669203cb2057bb5d732fc1e6582e"
+      "bytes": 2912,
+      "sha256": "b03758d4fb59aed69a487e85051546560c3feab2ba52494c65f26f8693c36ea2"
     },
     {
       "path": "src/service/sync.js",
@@ -1740,13 +1740,18 @@
     },
     {
       "path": "tests/service/http.test.mjs",
-      "bytes": 7003,
-      "sha256": "4084080d8e803069509359598ff2baa92aeef791dbd123d86a5e957c80cfa54e"
+      "bytes": 7533,
+      "sha256": "886a2484719ce2091f3d8045ddd34e966560b1db9316bdf6e74f14a939220ead"
     },
     {
       "path": "tests/service/integration.test.mjs",
       "bytes": 4380,
       "sha256": "9af95136976f9588c08405ae0487867fb04275a6e9f38f9a551db7e2da53a7ab"
+    },
+    {
+      "path": "tests/service/lib/spec-repo.mjs",
+      "bytes": 3289,
+      "sha256": "114fe5c7907e256e120969dc0ef4d38422815c9c3cf14dd8907e1706b37b6c40"
     },
     {
       "path": "tests/service/onboarding.test.mjs",

@@ -307,9 +307,10 @@ Refactor:
 | P2-4: индекс `project → spec → branch` | **done** | `buildRegistryIndex` отдаёт `branch` для каждой спеки |
 | P2-5: fetch всех веток | **done** | `ensureMirror` fetch `+refs/heads/*:refs/remotes/origin/*`, sync-цикл обновляет кэш |
 | P4-1/P4-2: запись и публикация на ветке спеки | **done** | `spec_patch` коммитит в worktree `spec-<slug>`, тег/ledger на `repoBranch=spec-<slug>` |
-| P3: `spec_branch` create/merge/delete | next | — |
+| P3: `spec_branch` create/merge/delete | **done** | orphan create + metadata, work subbranch, прямой merge под write-lock с allowlist путей, delete только work |
+| P5: setup-required для 4 хостов | next | — |
 
-Следующий шаг: P3 — контракт `spec_branch`, orphan create с metadata, прямой merge под write-lock, delete сабветки.
+Следующий шаг: P5 — `GET /status` + `mcp_preflight.setup`, `SETUP_REQUIRED` только для незатронутого проекта, хуки Claude/Codex/OpenCode/OMP показывают команду и не настраивают сами.
 
 ## 11. Риски
 

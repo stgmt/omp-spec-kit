@@ -19,6 +19,9 @@ import { createPublisher } from "./publish.js";
 import { createVersionedReads } from "./versioned.js";
 import { createRepoManager } from "./repos.js";
 import { createIdpManager } from "./idps.js";
+import { createSpecBranchManager } from "./spec-branches.js";
+import { BRANCH_CONTRACTS, createBranchOps } from "./ops/branch.js";
+import { serviceErrorEnvelope, serviceSuccess } from "./dispatch.js";
 import { secretsKeyFromEnv, sealSecret } from "./secrets.js";
 export async function bootService({ configPath, cloneDir, git = new GitClient({ gitAuth: gitAuthFromEnv() }), identity, store: storeOption = null, secretsKey = null, logger = () => {} }) {
   const config = await loadProjectsConfig(configPath);
@@ -144,6 +147,26 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   };
   const registryOps = createRegistryOps({ registryIndex, driftReport, branch: null });
   const publisher = store ? createPublisher({ mounts, store, identity, logger }) : null;
+  const branchManager = createSpecBranchManager({
+    mounts,
+    identity,
+    logger,
+    audit: (entry) => store?.logAccess?.(entry),
+    publish: publisher,
+    projection,
+  });
+  const branchOps = createBranchOps({ branches: branchManager });
+  const catalogBranches = async ({ args, project, requestId }) => {
+    if ((args.view ?? "specs") !== "branches") return undefined;
+    try {
+      const { branches, invalid } = await mounts.listBranches(project);
+      return { envelope: serviceSuccess("catalog", requestId, { kind: "branches", branches, invalid }) };
+    } catch (error) {
+      return {
+        envelope: serviceErrorEnvelope("catalog", requestId, error?.code ?? "ADAPTER_READ_ERROR", String(error?.message ?? error)),
+      };
+    }
+  };
   const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher, projection });
   const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger, idps: { list: () => idpManager.listActiveIdps() } });
   const versionedReads = createVersionedReads({ mounts, store });
@@ -172,9 +195,15 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     publisher,
     projection,
     authenticate: (req) => auth.authenticate(req),
-    serviceOps: { specClaim: claimOps.specClaim, specRelease: claimOps.specRelease, specRegistry: registryOps.specRegistry, specDrift: registryOps.specDrift },
-    serviceContracts: [...CLAIM_CONTRACTS, ...REGISTRY_CONTRACTS],
-    wrappers: { specPatch: writePath.specPatch, documents: versionedReads },
+    serviceOps: {
+      specClaim: claimOps.specClaim,
+      specRelease: claimOps.specRelease,
+      specRegistry: registryOps.specRegistry,
+      specDrift: registryOps.specDrift,
+      specBranch: branchOps.specBranch,
+    },
+    serviceContracts: [...CLAIM_CONTRACTS, ...REGISTRY_CONTRACTS, ...BRANCH_CONTRACTS],
+    wrappers: { specPatch: writePath.specPatch, documents: versionedReads, catalog: catalogBranches },
     endpoints: {
       registry: () => registryIndex(),
       drift: () => driftReport(),
