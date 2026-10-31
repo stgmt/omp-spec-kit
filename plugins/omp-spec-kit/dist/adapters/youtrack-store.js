@@ -21,6 +21,15 @@ import {
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 
+/**
+ * YouTrack stores issue descriptions up to 512 000 characters and silently
+ * truncates longer writes. The committed marker is the only copy of the board
+ * snapshot the widgets can read, so an over-limit description is corruption,
+ * not a warning: fail before the POST and leave the previous marker intact.
+ * The 12 000-character margin keeps the guard honest for code-unit counting.
+ */
+export const MARKER_DESCRIPTION_LIMIT = 500_000;
+
 export class YouTrackClient {
   #host;
   #token;
@@ -529,6 +538,16 @@ export class YouTrackSyncStateStore {
     };
     marker.signature = this.#sign(marker);
     const description = "SPEC-SYNC-STATE\n" + JSON.stringify(marker);
+    if (description.length > MARKER_DESCRIPTION_LIMIT) {
+      const error = new Error(
+        `committed marker is ${description.length} characters; ` +
+        `${MARKER_DESCRIPTION_LIMIT} is the safe limit (YouTrack truncates descriptions at 512000)`,
+      );
+      error.code = "MARKER_TOO_LARGE";
+      error.descriptionLength = description.length;
+      error.descriptionLimit = MARKER_DESCRIPTION_LIMIT;
+      throw error;
+    }
     let writeCalls = 0;
     let pointer = this.#pointer;
     if (!pointer) {

@@ -245,6 +245,40 @@ function assertBoardProjection(board) {
   }
 }
 
+function excerptValue(node) {
+  if (typeof node.excerpt === "string" && node.excerpt.length > 0) return node.excerpt;
+  const body = typeof node.body === "string" ? node.body.replace(/\s+/g, " ").trim() : "";
+  if (body.length <= 200) return body || null;
+  return body.slice(0, 200).replace(/\s+\S*$/, "");
+}
+
+/**
+ * Store only what the in-tracker widgets consume. `body`, source spans,
+ * content hashes, and evidence stay on the projected cards; carrying them in
+ * every committed marker is what pushed the real corpus over YouTrack's
+ * 512 000-character description limit.
+ */
+export function compactSnapshot(board) {
+  return {
+    schemaVersion: "BoardSnapshotV1",
+    fingerprint: board.fingerprint,
+    scope: board.scope ?? { mode: "corpus", specSlugs: [] },
+    complete: true,
+    page: null,
+    nodes: board.nodes.map((node) => ({
+      canonicalId: node.canonicalId,
+      specSlug: node.specSlug,
+      localId: node.localId,
+      kind: node.kind,
+      title: node.title,
+      excerpt: excerptValue(node),
+      taskStatus: node.kind === "TASK" && typeof node.taskStatus === "string" ? node.taskStatus : null,
+    })),
+    edges: board.edges.map((edge) => ({ from: edge.from, to: edge.to, type: edge.type })),
+    counts: board.counts ?? { nodes: board.nodes.length, edges: board.edges.length },
+  };
+}
+
 function addSortedLink(links, seen, type, source, target) {
   if (!LINK_TYPES.includes(type) || source === target) return false;
   const canonical = canonicalLink(type, source, target);
@@ -321,16 +355,13 @@ export function buildProjectionPlan(board) {
   }
 
   const issues = [...wanted.values()].sort((a, b) => sortNatural(a.specId, b.specId));
-  const snapshot = {
-    schemaVersion: "BoardSnapshotV1",
-    fingerprint: board.fingerprint,
-    scope: board.scope ?? { mode: "corpus", specSlugs: [] },
-    complete: true,
-    page: null,
-    nodes: board.nodes,
-    edges: board.edges,
-    counts: board.counts ?? { nodes: board.nodes.length, edges: board.edges.length },
-  };
+  // The committed snapshot is stored in one YouTrack issue description, which
+  // YouTrack truncates at 512 000 characters. Cards still need the full body,
+  // but neither widget reads it: the board uses `excerpt`, the panel uses the
+  // node title/kind/status and the edges. Keep the marker compact so the
+  // committed JSON survives the description limit; `snapshotHash` is computed
+  // over exactly the bytes that are stored, not over the larger board DTO.
+  const snapshot = compactSnapshot(board);
   const projectionDigest = digest({ issues, links });
   return {
     fingerprint: board.fingerprint,

@@ -49,8 +49,19 @@
     }
 
     async function resolveIssueId() {
-      const direct = (host && (host.entity?.id || host.context?.entityId || host.entityId));
+      const ytApp = (typeof YTApp !== 'undefined') ? YTApp : null;
+      const direct = (ytApp && ytApp.entity && ytApp.entity.id) ||
+        (host && (host.entity?.id || host.context?.entityId || host.entityId));
       if (direct) return direct;
+      // The issue panel can render before the host entity is exposed — the
+      // URL is the same source the Spec Panel uses as its fallback.
+      const params = new URLSearchParams(location.search);
+      for (const key of ['issueId', 'issue', 'id']) {
+        const value = params.get(key);
+        if (value) return value;
+      }
+      const hash = (location.hash || '').match(/([A-Z]+-\d+|\d+-\d+)/);
+      if (hash) return hash[1];
       throw new Error('cannot resolve the current issue id');
     }
 
@@ -58,7 +69,9 @@
       const field = (issue.customFields || []).find(function (entry) { return entry.name === name; });
       const value = field && field.value;
       if (value === null || value === undefined) return '';
-      return typeof value === 'string' ? value : (value.name || value.presentation || '');
+      // SpecId is a TextIssueCustomField: its value carries `.text`, not
+      // `.name`/`.presentation`. Without this the issue looks unlinked.
+      return typeof value === 'string' ? value : (value.name || value.presentation || value.text || '');
     }
 
     function repoBadge(status) {
@@ -122,7 +135,7 @@
         var issueId = await resolveIssueId();
         var issue = await host.fetchYouTrack(
           'issues/' + encodeURIComponent(issueId) +
-          '?fields=idReadable,customFields(name,value(name,presentation))');
+          '?fields=idReadable,customFields(name,value(name,presentation,text))');
         var specId = fieldText(issue, 'SpecId');
         linkedSpec = specId ? specId.split(':')[0] : '';
       } catch (e) {}

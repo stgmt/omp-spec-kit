@@ -162,3 +162,19 @@ test("the real app derives to exactly the JetBrains launch checklist", () => {
   }
   assert.ok(!files.some((f) => f.endsWith(".zip") || f.startsWith("prototypes")), "dev files must not ship");
 });
+
+test("issue panels read the Text-shaped SpecId field", () => {
+  for (const widget of ["spec-panel", "spec-service-panel"]) {
+    const html = readFileSync(path.join("tools", "spec-graph-app", "widgets", widget, "index.html"), "utf8");
+    assert.match(
+      html,
+      /value\(name,presentation,text\)/,
+      `${widget} must request the TextIssueCustomField value`,
+    );
+    assert.match(
+      html,
+      /value\.text/,
+      `${widget} must read .text; name/presentation are empty for Text fields`,
+    );
+  }
+});

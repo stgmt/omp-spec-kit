@@ -195,6 +195,76 @@ export function createYouTrackAdmin({ login, password, baseUrl = YT_URL, logger 
       logger("attached app to project");
     },
     /**
+     * Share a dashboard with the named groups. The YouTrack UI saves the
+     * whole dashboard document through POST /api/dashboards/{id}; the sharing
+     * fields are `readSharingSettings` (who can view) and
+     * `updateSharingSettings` (who can edit). Capture-verified on 2025.3.
+     */
+    async shareDashboard(dashboardId, groupNames = []) {
+      const dash = await call(
+        "GET",
+        `/api/dashboards/${dashboardId}?fields=id,name,pinned,isDefault,canEdit,canTransfer,canShare,` +
+        "owner(id),widgets(id,key,x,y,width,height,widget(id),settings)," +
+        "readSharingSettings(permittedGroups(id,name,ringId),permittedUsers(id))," +
+        "updateSharingSettings(permittedGroups(id,name,ringId),permittedUsers(id))",
+      );
+      if (!dash) throw new Error(`dashboard ${dashboardId} not found`);
+      const groups = (await call("GET", "/api/groups?fields=id,name,ringId&$top=500")) ?? [];
+      const wanted = [];
+      for (const name of groupNames) {
+        const group = groups.find((entry) => entry.name === name);
+        if (!group) throw new Error(`dashboard share group not found: ${name}`);
+        wanted.push(group);
+      }
+      const mergeGroups = (existing = [], extra = []) => {
+        const byId = new Map((existing ?? []).map((entry) => [entry.id, entry]));
+        for (const entry of extra) byId.set(entry.id, entry);
+        return [...byId.values()].map((entry) => ({
+          id: entry.id,
+          name: entry.name,
+          ringId: entry.ringId,
+          icon: entry.icon ?? null,
+        }));
+      };
+      const readGroups = mergeGroups(dash.readSharingSettings?.permittedGroups, wanted);
+      const body = {
+        id: dash.id,
+        name: dash.name,
+        pinned: dash.pinned,
+        isDefault: dash.isDefault,
+        canEdit: dash.canEdit,
+        canTransfer: dash.canTransfer,
+        canShare: dash.canShare,
+        owner: { id: dash.owner?.id },
+        widgets: (dash.widgets ?? []).map((widget) => ({
+          id: widget.id,
+          key: widget.key,
+          x: widget.x,
+          y: widget.y,
+          width: widget.width,
+          height: widget.height,
+          widget: widget.widget,
+          settings: widget.settings,
+        })),
+        readSharingSettings: {
+          permittedGroups: readGroups,
+          permittedUsers: (dash.readSharingSettings?.permittedUsers ?? []).map((user) => ({ id: user.id })),
+        },
+        updateSharingSettings: {
+          permittedGroups: (dash.updateSharingSettings?.permittedGroups ?? []).map((group) => ({
+            id: group.id,
+            name: group.name,
+            ringId: group.ringId,
+            icon: group.icon ?? null,
+          })),
+          permittedUsers: (dash.updateSharingSettings?.permittedUsers ?? []).map((user) => ({ id: user.id })),
+        },
+      };
+      await call("POST", `/api/dashboards/${dashboardId}`, { body, expect: [200, 201] });
+      logger(`shared dashboard ${dashboardId} with ${readGroups.map((group) => group.name).join(", ")}`);
+      return readGroups;
+    },
+    /**
      * Removes an installed app — the UI-BDD precondition "the app is not
      * installed" is set via the API so the scenario itself can test the
      * browser upload. 404 tolerated: the precondition is satisfied either way.

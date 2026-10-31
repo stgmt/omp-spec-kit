@@ -2,6 +2,14 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## Unreleased
+
+### Fixed
+
+- **Spec Board is readable again**: the committed `SPEC:SYNC-STATE` marker now carries a compact board snapshot (id/slug/kind/title/excerpt/taskStatus and edges) instead of every node body. The real corpus exceeded YouTrack's 512 000-character issue-description limit, so the marker was truncated and both widgets refused it as invalid JSON. `publishCommitted` now fails with `MARKER_TOO_LARGE` before writing an over-limit marker, leaving the previous snapshot intact.
+- **Issue panels recognize Text-shaped `SpecId`**: `Spec Panel` and the Spec Service panel requested `value(name,presentation)` and ignored `value.text`, so every linked issue rendered as "not linked to a spec". Both now request and read the Text value; the Spec Service panel also resolves the issue from `YTApp.entity`/the URL when the host entity is not exposed.
+- **Spec Board dashboard is shared with tenant users**: `spec-stack-setup` shares the provisioned dashboard with `All Users` and the tenant group instead of leaving it private to the admin account.
+
 ## 2.9.0 — 2026-10-09
 
 ### Added

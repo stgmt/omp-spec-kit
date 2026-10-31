@@ -93,6 +93,22 @@ describe("YouTrack projection adapter", () => {
     assert.ok(plan.projectionDigest.length === 64);
   });
 
+  it("commits a compact marker that survives YouTrack's 512k description limit", () => {
+    const source = board();
+    source.nodes = Array.from({ length: 700 }, (_, index) =>
+      node(`demo:FR-${index + 1}`, "FUNCTIONAL_REQUIREMENT", `Requirement ${index + 1}`, {
+        body: "B".repeat(400),
+      }),
+    );
+    const plan = buildProjectionPlan(source);
+    const description = "SPEC-SYNC-STATE\n" + JSON.stringify({ ...plan.snapshot, cardIds: {} });
+    assert.ok(description.length < 500_000, `committed marker is ${description.length} characters`);
+    assert.equal(plan.snapshot.nodes.length, 700);
+    assert.equal(plan.snapshot.nodes[0].body, undefined, "card bodies must not ride in the marker");
+    assert.ok(plan.snapshot.nodes[0].excerpt, "the board still needs a bounded excerpt");
+    assert.equal(plan.snapshotHash.length, 64);
+  });
+
   it("skips edges outside the declared mapping table instead of guessing", () => {
     const plan = buildProjectionPlan(board([
       { from: "demo:FR-1", to: "demo:NFR-CORE-1", type: "REFS", occurrenceCount: 1 },

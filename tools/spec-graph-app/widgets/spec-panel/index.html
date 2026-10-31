@@ -55,7 +55,10 @@
     const field = (issue.customFields || []).find((entry) => entry.name === name);
     if (!field || field.value === null || field.value === undefined) return '';
     if (typeof field.value === 'string') return field.value;
-    return field.value.name || field.value.presentation || '';
+    // SpecId and ContentHash are TextIssueCustomField values: they expose
+    // `.text`, not `.name`/`.presentation`. Reading only the enum shape made
+    // every linked issue look unlinked.
+    return field.value.name || field.value.presentation || field.value.text || '';
   }
 
   function issueUrl(idReadable) {
@@ -170,7 +173,7 @@
     try {
       issue = await host.fetchYouTrack(
         'issues/' + encodeURIComponent(issueId) +
-        '?fields=id,idReadable,summary,resolved,customFields(name,value(name,presentation))'
+        '?fields=id,idReadable,summary,resolved,customFields(name,value(name,presentation,text))'
       );
     } catch (error) {
       showError('Spec Panel: cannot load current issue: ' + error.message);

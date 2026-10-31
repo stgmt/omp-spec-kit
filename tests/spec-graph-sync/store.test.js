@@ -208,6 +208,24 @@ describe("YouTrackSyncStateStore marker integrity", () => {
     assert.deepEqual(client.calls.filter((call) => call[0] === "DELETE").map((call) => call[1]), ["/api/issues/3-9"]);
   });
 
+  it("refuses a marker YouTrack would truncate", async () => {
+    const client = fakeClient({ issues: [] });
+    const oversized = plan();
+    oversized.snapshot = {
+      nodes: [{ canonicalId: "demo:TASK-1", kind: "TASK", title: "x".repeat(600_000) }],
+      edges: [],
+    };
+    await assert.rejects(
+      () => store(client).publishCommitted(oversized, { cardIds: {} }),
+      (error) => error.code === "MARKER_TOO_LARGE" && /512000|500000/.test(error.message),
+    );
+    assert.equal(
+      client.calls.filter((call) => call[0] === "POST").length,
+      0,
+      "a rejected marker must not reach the pointer issue",
+    );
+  });
+
   it("publishCommitted defaults to a complete marker when options are omitted", async () => {
     const client = fakeClient({ issues: [] });
     await store(client).publishCommitted(plan());
