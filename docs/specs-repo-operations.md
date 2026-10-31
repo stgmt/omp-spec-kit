@@ -9,7 +9,9 @@ corpus exclusively through the service (MCP tools, `/registry`, `/drift`).
 There is no shared default repository and no single configured branch. A spec
 branch contains only `.spec-kit.json` and `.specs/<slug>/**`; work branches
 (`spec-<slug>--<topic>`) hold unmerged changes and are merged by
-`spec_branch merge`, never indexed or projected.
+`spec_branch merge`, never indexed or projected. Contributors with repository
+access push to a work branch with normal git credentials; hosted MCP agents have
+no git access, and `spec_patch` always writes the canonical branch.
 
 ## Threat model
 

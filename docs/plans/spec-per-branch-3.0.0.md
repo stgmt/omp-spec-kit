@@ -249,7 +249,7 @@ Refactor:
 |---|---|---|
 | P12-1 | Канон соответствует коду: `spec-registry-service` переавторена, VALID | `spec_inspect validation` = VALID |
 | P12-2 | Нет центрального репозитория: `stgmt/spec-database` только архив | нет ссылок как на источник истины |
-| P12-3 | 9 спек = 9 orphan-веток `spec-*` с валидной metadata | `/registry` показывает 9/9 |
+| P12-3 | 9 спек = 9 orphan-веток `spec-*` с валидной metadata | `/registry` показывает 10/10 |
 | P12-4 | Slug уникален в репозитории; дубль отклоняется | `SPEC_SLUG_DUPLICATE` |
 | P12-5 | На ветках `spec-*` нет кода: только `.spec-kit.json` + `.specs/**` | allowlist-тест + merge-тест |
 | P12-6 | Нет `specsRepo`, `SPECS_BRANCH`, `SPEC_REGISTRY_GIT_TOKEN`, `specs-clone`, `<owner>/<project>` | нулевой grep |
@@ -314,7 +314,7 @@ Refactor:
 | P11: рудименты | **done (кроме ADR/CHANGELOG-полировки)** | удалены `SPEC_REGISTRY_GIT_TOKEN`/`SPECS_BRANCH`/`specs-clone`, старые проверки; docs переписаны |
 | P5: setup-required | **частично** | `/status` + `mcp_preflight.setup` + `SETUP_REQUIRED`; хуки 4 хостов ещё нет |
 | P6: установщик | **частично** | demo setup создаёт binding + ветки; отдельного CLI установщика нет |
-| P12: аудит | **частично** | канон VALID, 9/9 веток, metadata, ruleset, архив старого репо, grep запретов; tool-e2e и матрица 4 хостов не закрыты |
+| P12: аудит | **частично** | канон VALID, 10/10 веток, metadata, ruleset, архив старого репо, grep запретов; tool-e2e и матрица 4 хостов не закрыты |
 
 Следующий шаг: P5-хуки и P6-установщик, затем полный `@tool-e2e`/матрица 4 хостов и релиз 3.0.0.
 
