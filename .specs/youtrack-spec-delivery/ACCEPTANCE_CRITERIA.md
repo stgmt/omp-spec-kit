@@ -22,7 +22,7 @@ Given an explicit demo action, when it completes, then one demo spec contains 1â
 
 ## AC-6.1: Delete demo
 
-Given a demo spec or entity and an owner/writer, when deletion is confirmed, then the source, cards, links, and snapshot nodes are removed; a reader is refused; unresolved dependents are refused without force; an audit record exists.
+Given a demo spec marked `demo: true` in `.spec-kit.json` (or a legacy README-only demo for an owner) or an entity and an owner/writer, when deletion is confirmed, then the source, cards, links, and snapshot nodes are removed; a reader is refused; unresolved dependents are refused without force; an audit record exists.
 
 ## AC-7.1: Agent warning
 
