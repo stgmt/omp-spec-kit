@@ -159,7 +159,10 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     projection,
     store,
     dependents: async ({ project: projectId, spec }) => {
-      await mounts.projectRoot(projectId);
+      // deleteCanonical already performed a strict fetch; do not fetch again
+      // with the tolerant read path, or a transient second failure could make
+      // archivalProof inspect a stale corpus.
+      await mounts.projectRoot(projectId, { fetch: false });
       const proof = await mounts.serviceFor(projectId).runQuery(
         "inspect",
         { check: "archivalProof", spec },

@@ -15,4 +15,7 @@ const user = process.env.OMP_SPEC_E2E_USER ?? "alice";
 const project = process.env.OMP_SPEC_E2E_PROJECT ?? "stgmt/alpha";
 const token = await fixture.userToken(user);
 const result = await runToolE2e({ url: `${SERVICE_URL.replace(/\/+$/u, "")}/mcp`, token, project });
+if (!result.complete) {
+  throw new Error("tool-e2e did not exercise a successful spec_evidence scenario");
+}
 console.log(JSON.stringify(result, null, 2));

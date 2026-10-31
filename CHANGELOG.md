@@ -2,6 +2,15 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.0.4 — 2026-10-31
+
+### Fixed
+
+- **Dependents verification uses the strict-fetched corpus**: the `archivalProof` callback no longer performs a second tolerant fetch that could hide a newly added inbound reference.
+- **Release tool E2E is complete**: the live auth corpus seeds an `@id:` scenario, and `npm run tool:e2e:live` fails unless `spec_evidence` succeeds (`complete: true`).
+- **Owner demo deletion overrides a soft claim**; the audit result records `force` and the dependent count.
+- **`deleteSpec` guard tests** cover owner-claim bypass and the full writer/legacy/dependents/projection matrix.
+
 ## 3.0.3 — 2026-10-31
 
 ### Fixed

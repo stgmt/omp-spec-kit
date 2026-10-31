@@ -391,7 +391,7 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
     await mount.git.run(["--git-dir", mount.mirrorDir, "branch", "-D", `work/${branch}`], { cwd: mount.cwd }).catch(() => {});
     await mounts.ensureRepo(project);
     await mounts.refreshProject(project);
-    audit({ login, role, project, op: "spec-branch-delete-spec", spec, result: `ok:${branch}:${tip.slice(0, 12)}` });
+    audit({ login, role, project, op: "spec-branch-delete-spec", spec, result: `ok:${branch}:${tip.slice(0, 12)}${force ? ":force" : ""}`, force, dependents: inbound.length });
     try {
       if (typeof projection?.syncOnce === "function") await projection.syncOnce();
       else projection?.syncNow();
@@ -415,7 +415,9 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
       try {
         // A merge/delete is a spec write: honor the same lease as spec_patch.
         // Creating a brand-new canonical spec has no prior claim to honor.
-        if (!(action === "create" && topic === null) && claims) {
+        // An owner deleting a demo spec may override another user's soft claim.
+        const ownerDelete = action === "deleteSpec" && role === "owner";
+        if (!ownerDelete && !(action === "create" && topic === null) && claims) {
           const held = claims.get(project, spec);
           if (held && held.holder !== login) {
             return failure(requestId, "CLAIM_HELD", `spec is claimed by ${held.holder} until ${held.expiresAt}`, {

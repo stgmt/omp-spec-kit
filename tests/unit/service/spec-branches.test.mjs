@@ -200,6 +200,21 @@ describe("spec_branch", () => {
     assert.equal(tagBlocked.error.code, "SPEC_HAS_PUBLISHED_VERSIONS");
   });
 
+  it("lets an owner delete a demo despite another user's claim", async () => {
+    const { bare, mounts, manager } = await setup();
+    await markDemo(bare, manager);
+    const claimed = createSpecBranchManager({
+      mounts,
+      claims: { get: () => ({ holder: "bob", expiresAt: "2099-01-01T00:00:00.000Z" }) },
+      identity: IDENTITY,
+      logger: () => {},
+      store: { getLedger: () => [] },
+      dependents: async () => [],
+    });
+    const deleted = await claimed.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "c1", login: "alice", role: "owner" });
+    assert.equal(deleted.ok, true, JSON.stringify(deleted.error ?? {}));
+  });
+
   it("refuses unresolved dependents unless an owner forces", async () => {
     const { bare, mounts, manager } = await setup();
     await markDemo(bare, manager);
