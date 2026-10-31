@@ -32,7 +32,7 @@ An explicit demo action SHALL create one demo spec containing 1–2 instances of
 
 ## FR-6: Delete spec and entity
 
-An owner or writer SHALL be able to delete a demo spec and an individual entity with confirmation. Deletion SHALL remove the source definition, projected cards, links, and snapshot nodes; it SHALL refuse unresolved dependents unless an explicit force is supplied, and SHALL audit the action.
+An owner or writer SHALL be able to delete a demo spec marked with `demo: true` in `.spec-kit.json` (legacy README-only demo markers are owner-only) and an individual entity with confirmation. Deletion SHALL remove the source definition, projected cards, links, and snapshot nodes; it SHALL refuse unresolved dependents unless an explicit force is supplied, and SHALL audit the action.
 
 **Acceptance:** [AC-6.1](ACCEPTANCE_CRITERIA.md#ac-61-delete-demo)
 
