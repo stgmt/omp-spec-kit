@@ -12,6 +12,16 @@ the read-only **Spec Panel** (neighbors and tracker transitions) — no setup
 link, no onboarding inside tasks. Optional discovery aid: the native
 system-wide banner an admin configures in Global Settings.
 
+## Project selection
+
+The board reads the v7 root index and offers a **Project** selector
+(`All projects`, each project, `Unassigned`). Each project is a signed
+`SPEC:SYNC-STATE:<project>` pointer; an unknown selection resolves to
+`Unassigned`, and a marker without the v7 index fails closed with
+`PROJECTION_INDEX_REQUIRED`. The selection persists through the host
+storage/cache (`localStorage` and the parent URL are blocked in YouTrack's
+sandboxed dashboard iframe).
+
 ## Install into your YouTrack
 
 Pick one of two routes. Both need a YouTrack account with **Update Project**

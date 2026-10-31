@@ -108,6 +108,29 @@
     color: var(--text-primary);
   }
 
+  /* Project selector */
+  .project-picker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 10px;
+  }
+
+  .project-picker label {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .project-picker select {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+    max-width: 240px;
+  }
+
   /* Segmented Control Switcher */
   .variant-switcher {
     display: flex;
@@ -800,6 +823,102 @@
     return { marker, snapshot };
   }
 
+  function assertSnapshot(marker, expectedProject) {
+    const snapshot = marker && marker.snapshot;
+    if (
+      !marker ||
+      marker.schemaVersion !== 'BoardSnapshotV1' ||
+      marker.complete !== true ||
+      !snapshot ||
+      snapshot.schemaVersion !== 'BoardSnapshotV1' ||
+      snapshot.complete !== true ||
+      snapshot.page !== null ||
+      !Array.isArray(snapshot.nodes) ||
+      !Array.isArray(snapshot.edges)
+    ) throw new Error('committed SPEC snapshot is incomplete');
+    if (expectedProject && (marker.scope?.mode !== 'project' || marker.scope.project !== expectedProject)) {
+      throw new Error('project pointer has the wrong scope: ' + expectedProject);
+    }
+  }
+
+  async function readPointerSnapshot(host, pointerId, expectedProject) {
+    const issue = await host.fetchYouTrack(
+      'issues/' + encodeURIComponent(pointerId) + '?fields=id,idReadable,summary,description'
+    );
+    if (!issue || typeof issue.description !== 'string') throw new Error('project pointer is missing: ' + pointerId);
+    if (!issue.description.startsWith(SNAPSHOT_PREFIX)) throw new Error('project pointer marker is invalid: ' + pointerId);
+    let marker;
+    try { marker = JSON.parse(issue.description.slice(SNAPSHOT_PREFIX.length)); }
+    catch { throw new Error('project pointer marker is not valid JSON: ' + pointerId); }
+    assertSnapshot(marker, expectedProject);
+    return { marker, snapshot: marker.snapshot };
+  }
+
+  async function readProjectPreference(host) {
+    if (host && host.storage && typeof host.storage.getItem === "function") {
+      try { return await host.storage.getItem("spec-board-project"); } catch {}
+    }
+    if (host && typeof host.readCache === "function") {
+      try {
+        const cache = await host.readCache();
+        return cache && typeof cache.specBoardProject === "string" ? cache.specBoardProject : null;
+      } catch {}
+    }
+    try { return window.localStorage.getItem("spec-board-project"); } catch {}
+    return null;
+  }
+
+  async function writeProjectPreference(host, value) {
+    if (host && host.storage && typeof host.storage.setItem === "function") {
+      try { await host.storage.setItem("spec-board-project", value); return; } catch {}
+    }
+    if (host && typeof host.storeCache === "function") {
+      try { await host.storeCache({ specBoardProject: value }); return; } catch {}
+    }
+    try { window.localStorage.setItem("spec-board-project", value); } catch {}
+  }
+
+  function selectionForValue(rootMarker, value) {
+    const projects = Array.isArray(rootMarker.projects) ? rootMarker.projects : [];
+    if (value === "ALL") return { mode: "ALL", value: "ALL", projects };
+    if (projects.some(project => project && project.id === value)) {
+      return { mode: "project", value, projects };
+    }
+    return { mode: "unassigned", value: "__unassigned__", projects };
+  }
+
+  async function projectSelection(rootMarker, host) {
+    const projects = Array.isArray(rootMarker.projects) ? rootMarker.projects : null;
+    if (!projects) throw new Error("projection index is missing (PROJECTION_INDEX_REQUIRED); re-run projection");
+    // `?project=` is honored when the widget location exposes it. In a
+    // dashboard the widget runs in a sandboxed srcdoc iframe, so the host
+    // cache is the persistent store (localStorage is blocked there).
+    let requested = null;
+    try { requested = new URL(window.location.href).searchParams.get("project"); } catch {}
+    if (!requested) requested = await readProjectPreference(host);
+    return selectionForValue(rootMarker, requested || "ALL");
+  }
+
+  async function loadSelectedSnapshot(host, root, selection) {
+    if (selection.mode === 'ALL') return root;
+    const expected = selection.mode === 'unassigned' ? '__unassigned__' : selection.value;
+    const entry = selection.mode === 'unassigned'
+      ? root.marker.unassigned
+      : selection.projects.find(project => project && project.id === selection.value);
+    if (!entry || !entry.pointer) return { empty: true, marker: root.marker, snapshot: null };
+    return readPointerSnapshot(host, entry.pointer, expected);
+  }
+
+  function bindProjectSelector() {
+    const select = document.getElementById('project-select');
+    if (!select) return;
+    select.addEventListener('change', async function () {
+      const value = select.value;
+      await writeProjectPreference(host, value);
+      await renderSelection(selectionForValue(rootCommitted.marker, value));
+    });
+  }
+
   function snapshotNodes(snapshot, marker) {
     const cardIds = marker.cardIds || {};
     const nodes = snapshot.nodes.map(source => {
@@ -832,29 +951,38 @@
     return nodes;
   }
 
+  let host = null;
+  let rootCommitted = null;
+
   async function main() {
-    let host;
     try {
       host = await YTApp.register();
     } catch (error) {
       root.innerHTML = '<p class="err">Spec Board: widget host unavailable.</p>';
       return;
     }
+    try {
+      rootCommitted = await loadCommittedSnapshot(host);
+      const selection = await projectSelection(rootCommitted.marker, host);
+      await renderSelection(selection);
+    } catch (error) {
+      root.innerHTML = '<p class="err">Spec Board: cannot load committed snapshot: ' + escapeHtml(error.message || String(error)) + '</p>';
+    }
+  }
 
+  async function renderSelection(selection) {
     let committed;
     try {
-      committed = await loadCommittedSnapshot(host);
+      committed = await loadSelectedSnapshot(host, rootCommitted, selection);
     } catch (error) {
       root.innerHTML = '<p class="err">Spec Board: cannot load committed snapshot: ' + escapeHtml(error.message || String(error)) + '</p>';
       return;
     }
+    renderBoard(committed, selection);
+  }
 
-    const RAW_NODES = snapshotNodes(committed.snapshot, committed.marker);
-
-    if (RAW_NODES.length === 0) {
-      root.innerHTML = '<p class="state">Нет синхронизированных карточек SPEC в проекте.</p>';
-      return;
-    }
+  function renderBoard(committed, selection) {
+    const RAW_NODES = committed.snapshot ? snapshotNodes(committed.snapshot, committed.marker) : [];
 
     const NODE_MAP = new Map(RAW_NODES.map(n => [n.id, n]));
 
@@ -867,6 +995,16 @@
     const SNAPSHOT_LABEL = COMMITTED_AT
       ? COMMITTED_AT.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       : 'unknown';
+
+    const projectOptionsHtml = [
+      '<option value="ALL"' + (selection.mode === 'ALL' ? ' selected' : '') + '>All projects</option>',
+      ...selection.projects.map(project =>
+        '<option value="' + escapeHtml(project.id) + '"' +
+        (selection.mode === 'project' && selection.value === project.id ? ' selected' : '') + '>' +
+        escapeHtml(project.id) + ' (' + project.nodeCount + ')</option>'
+      ),
+      '<option value="__unassigned__"' + (selection.mode === 'unassigned' ? ' selected' : '') + '>Unassigned</option>'
+    ].join('');
 
     // Reverse adjacency built once — the transitive lineage traversal would
     // otherwise rescan every node's link list per BFS step on each hover.
@@ -913,6 +1051,11 @@
         <div class="brand-area">
           <span class="brand-badge">YouTrack Spec</span>
           <span class="brand-title">Spec Graph Board</span>
+        </div>
+
+        <div class="project-picker">
+          <label for="project-select">Project</label>
+          <select id="project-select" title="Filter the board by project">${projectOptionsHtml}</select>
         </div>
 
         <div class="variant-switcher">
@@ -1085,6 +1228,19 @@
         </div>
       </main>
     `;
+
+    bindProjectSelector();
+    if (RAW_NODES.length === 0) {
+      const viewport = root.querySelector('main.viewport');
+      if (viewport) {
+        viewport.innerHTML = '<p class="state" style="padding:24px">' +
+          (selection.mode === 'unassigned'
+            ? 'Нет unassigned specs.'
+            : 'Нет синхронизированных карточек SPEC в проекте.') +
+          '</p>';
+      }
+      return;
+    }
 
     // Switcher Logic
     const tabButtons = root.querySelectorAll('.variant-btn');
@@ -1652,6 +1808,7 @@
       let offsetX = 40;
 
       for (const specSlug of availableSpecs) {
+        if (selectedSpec !== 'ALL' && specSlug !== selectedSpec) continue;
         let specNodes = RAW_NODES.filter(n => n.specSlug === specSlug);
         if (v2ActiveKind) {
           specNodes = specNodes.filter(n => n.kind === v2ActiveKind);
@@ -1802,7 +1959,7 @@
       if (!listEl) return;
       listEl.innerHTML = '';
 
-      let items = RAW_NODES;
+      let items = selectedSpec === 'ALL' ? RAW_NODES : RAW_NODES.filter(n => n.specSlug === selectedSpec);
       if (v3SearchQuery) {
         const q = v3SearchQuery.toLowerCase();
         items = items.filter(n => n.localId.toLowerCase().includes(q) || n.specId.toLowerCase().includes(q) || n.title.toLowerCase().includes(q));

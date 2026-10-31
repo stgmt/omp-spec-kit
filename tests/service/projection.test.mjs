@@ -5,6 +5,7 @@ import {
   PROJECTION_VERSION,
   YouTrackProjectionService,
   buildProjectionPlan,
+  projectPointerSpecId,
 } from "../../src/adapters/youtrack-projection.js";
 
 const MARKER_SECRET = "test-projection-marker-key-0123456789";
@@ -36,6 +37,13 @@ function board(nodes = [node("demo:FR-1", "FUNCTIONAL_REQUIREMENT", "Human requi
     edges: [],
     counts: { nodes: nodes.length, edges: 0 },
   };
+}
+
+/** v7 publishes per-project pointers too; the root is the one with SpecId SPEC:SYNC-STATE. */
+function rootPointer(yt) {
+  return yt.state.issues.find((issue) =>
+    (issue.customFields ?? []).some((field) =>
+      field.name === "SpecId" && ((field.value && field.value.text) ?? field.value) === "SPEC:SYNC-STATE"));
 }
 
 /** Minimal fake YouTrack: issues live in `state.issues`, marker issue is identified by SpecId. */
@@ -130,7 +138,7 @@ describe("service projection", () => {
         markerSecret: MARKER_SECRET,
       });
       await projection.syncOnce();
-      const marker = yt.state.issues.find((i) => (i.description ?? "").startsWith("SPEC-SYNC-STATE"));
+      const marker = rootPointer(yt);
       assert.ok(marker, "marker issue was created");
       const parsed = JSON.parse(marker.description.split("\n")[1]);
       assert.equal(parsed.projectionVersion, PROJECTION_VERSION);
@@ -139,6 +147,15 @@ describe("service projection", () => {
       assert.equal(parsed.mountsClean, true);
       assert.equal(parsed.specProjects["demo-spec"], "demo/stack", "marker maps each spec slug to its serving project");
       assert.deepEqual(parsed.skippedProjects, []);
+      const projectSpecId = projectPointerSpecId("demo/stack");
+      const projectIssue = yt.state.issues.find((issue) =>
+        (issue.customFields ?? []).some((field) =>
+          field.name === "SpecId" && ((field.value && field.value.text) ?? field.value) === projectSpecId));
+      assert.ok(projectIssue, "per-project pointer was created");
+      const projectMarker = JSON.parse(projectIssue.description.slice("SPEC-SYNC-STATE\n".length));
+      assert.deepEqual(projectMarker.scope, { mode: "project", project: "demo/stack", specSlugs: ["demo-spec"] });
+      assert.equal(projectMarker.nodeCount, 1);
+      assert.deepEqual(parsed.projects, [{ id: "demo/stack", pointer: projectIssue.idReadable, nodeCount: 1, edgeCount: 0 }]);
     } finally {
       globalThis.fetch = realFetch;
     }
@@ -180,7 +197,7 @@ describe("service projection", () => {
       await projection.syncOnce();
       // Downgrade the stored marker's projectionVersion and re-sign it like
       // an older projector would have.
-      const marker = yt.state.issues.find((i) => (i.description ?? "").startsWith("SPEC-SYNC-STATE"));
+      const marker = rootPointer(yt);
       const parsed = JSON.parse(marker.description.split("\n")[1]);
       delete parsed.signature;
       parsed.projectionVersion = PROJECTION_VERSION - 1;
@@ -249,7 +266,7 @@ describe("service projection", () => {
         markerSecret: MARKER_SECRET,
       });
       await projection.syncOnce();
-      const marker = yt.state.issues.find((i) => (i.description ?? "").startsWith("SPEC-SYNC-STATE"));
+      const marker = rootPointer(yt);
       assert.ok(marker, "projection survived the unbound project");
     } finally {
       globalThis.fetch = realFetch;
@@ -276,7 +293,7 @@ describe("service projection", () => {
       const last = projection.status().last;
       assert.equal(last.ok, false, "PARTIAL must surface as not-ok for ops");
       assert.equal(last.outcome, "PARTIAL");
-      const marker = yt.state.issues.find((i) => (i.description ?? "").startsWith("SPEC-SYNC-STATE"));
+      const marker = rootPointer(yt);
       const parsed = JSON.parse(marker.description.split("\n")[1]);
       assert.equal(parsed.complete, false, "failed writes must not be certified complete");
     } finally {
@@ -414,7 +431,7 @@ describe("projection cheap path", () => {
       await projection.syncOnce();
       await projection.syncOnce();
       assert.equal(boardReads.count, 2, "dirty mount forces the board build");
-      const marker = yt.state.issues.find((i) => (i.description ?? "").startsWith("SPEC-SYNC-STATE"));
+      const marker = rootPointer(yt);
       const parsed = JSON.parse(marker.description.split("\n")[1]);
       assert.equal(parsed.mountsClean, false, "marker records the dirty state honestly");
     } finally {
@@ -614,7 +631,7 @@ describe("projection cheap path", () => {
         markerSecret: MARKER_SECRET,
       });
       await projection.syncOnce();
-      const marker = yt.state.issues.find((i) => (i.description ?? "").startsWith("SPEC-SYNC-STATE"));
+      const marker = rootPointer(yt);
       const first = JSON.parse(marker.description.split("\n")[1]);
       assert.deepEqual(first.skippedProjects, ["acme/unbound"]);
       // The tenant binds its repo between syncs — the served/skipped set

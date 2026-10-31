@@ -216,6 +216,14 @@ test("the Spec Service page ships health checks and dashboard provisioning", () 
   );
 });
 
+test("the board exposes project selection over the v7 index", () => {
+  const html = readFileSync(path.join("tools", "spec-graph-app", "widgets", "spec-board", "index.html"), "utf8");
+  assert.match(html, /id="project-select"/, "the board must render a project selector");
+  assert.match(html, /PROJECTION_INDEX_REQUIRED/, "a v6 marker must fail closed, not render the aggregate");
+  assert.match(html, /storeCache|host\.storage/, "the selection must persist through the host cache/storage");
+  assert.match(html, /__unassigned__/, "an unknown selection must resolve to the unassigned bucket");
+});
+
 test("the real app derives to exactly the JetBrains launch checklist", () => {
   const appDir = path.join(process.cwd(), "tools", "spec-graph-app");
   const manifest = JSON.parse(readFileSync(path.join(appDir, "manifest.json"), "utf8"));

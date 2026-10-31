@@ -6,7 +6,7 @@ import {
   YouTrackSyncStateStore,
   provisionLinkTypes,
 } from "../../scripts/spec-graph-sync.mjs";
-import { stableJson, SYNC_STATE_SPEC_ID } from "../../src/adapters/youtrack-projection.js";
+import { stableJson, SYNC_STATE_SPEC_ID, projectPointerSpecId } from "../../src/adapters/youtrack-projection.js";
 
 const MARKER_SECRET = "store-test-marker-secret-0123456789abcdef";
 
@@ -275,6 +275,67 @@ describe("YouTrackSyncStateStore marker integrity", () => {
     const create = client.calls.find((call) => call[0] === "POST" && call[1] === "/api/issues?fields=id,idReadable");
     assert.equal(create[2].customFields[0].$type, "TextIssueCustomField");
     assert.equal(create[2].customFields[0].value.text, SYNC_STATE_SPEC_ID);
+  });
+
+  it("publishes one signed pointer per project and returns the root index", async () => {
+    const client = fakeClient({ issues: [] });
+    const sync = store(client);
+    const projectPlan = (slug, project) => ({
+      ...plan(),
+      scope: { mode: "project", project, specSlugs: [slug] },
+      issues: [{ specId: `${slug}:TASK-1` }],
+      snapshot: { nodes: [{ canonicalId: `${slug}:TASK-1` }], edges: [] },
+    });
+    const state = await sync.publishProjectPointers({
+      "demo/stack": projectPlan("demo-spec", "demo/stack"),
+      "acme/gamma": projectPlan("acme-spec", "acme/gamma"),
+    }, {
+      cardIds: { "demo-spec:TASK-1": "SPEC-1", "acme-spec:TASK-1": "SPEC-2" },
+    });
+    assert.equal(state.projects.length, 2);
+    assert.deepEqual(state.projects.map((entry) => entry.id).sort(), ["acme/gamma", "demo/stack"]);
+    const creates = client.calls.filter((call) => call[0] === "POST" && call[1] === "/api/issues?fields=id,idReadable");
+    assert.equal(creates.length, 2);
+    assert.deepEqual(
+      creates.map((call) => call[2].customFields[0].value).sort(),
+      [projectPointerSpecId("acme/gamma"), projectPointerSpecId("demo/stack")].sort(),
+    );
+    for (const call of creates) {
+      const marker = JSON.parse(call[2].description.slice("SPEC-SYNC-STATE\n".length));
+      assert.equal(marker.scope.mode, "project");
+      assert.equal(typeof marker.signature, "string");
+      assert.equal(Object.keys(marker.cardIds).length, 1, "each project marker carries only its cards");
+    }
+  });
+
+  it("commits the root index before deleting stale project pointers", async () => {
+    const stale = issueRow("3-9", projectPointerSpecId("old/project"));
+    const client = fakeClient({ issues: [stale] });
+    const sync = store(client);
+    const state = await sync.publishProjectPointers({
+      "demo/stack": {
+        ...plan(),
+        scope: { mode: "project", project: "demo/stack", specSlugs: ["demo-spec"] },
+        issues: [{ specId: "demo-spec:TASK-1" }],
+        snapshot: { nodes: [{ canonicalId: "demo-spec:TASK-1" }], edges: [] },
+      },
+    }, { cardIds: {} });
+    assert.deepEqual(state.stale.map((issue) => issue.id), ["3-9"]);
+    assert.equal(client.calls.some((call) => call[0] === "DELETE"), false, "stale pointers wait for the root");
+    await sync.publishCommitted(plan(), {
+      cardIds: {},
+      projects: state.projects,
+      unassigned: state.unassigned,
+      staleProjectPointers: state.stale,
+    });
+    const order = client.calls
+      .filter((call) => (call[0] === "POST" && call[2]?.summary === SYNC_STATE_SPEC_ID) || call[0] === "DELETE")
+      .map((call) => call[0]);
+    assert.deepEqual(order, ["POST", "DELETE"], "root is written before the stale project pointer is deleted");
+    const rootCreate = client.calls.find((call) => call[0] === "POST" && call[2]?.summary === SYNC_STATE_SPEC_ID);
+    const rootMarker = JSON.parse(rootCreate[2].description.slice("SPEC-SYNC-STATE\n".length));
+    assert.deepEqual(rootMarker.projects.map((entry) => entry.id), ["demo/stack"]);
+    assert.equal(rootMarker.unassigned, null);
   });
 });
 

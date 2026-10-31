@@ -104,7 +104,10 @@ marker carries the real `project` value, so the key is not parsed back.
   - on project selection, load that pointer by issue id and validate
     `scope.project`;
   - unknown `?project=` → Unassigned (empty state if absent);
-  - persist `?project=` + `localStorage`;
+  - persist through `host.storage` when available, else `host.storeCache`
+    (`localStorage` and the parent URL are blocked in YouTrack's sandboxed
+    dashboard iframe); `?project=` is honored when the widget location exposes
+    it;
   - one `visibleNodes` for V1/V2/V3 (project + spec + kind + search);
   - spec pills filtered to the project; invalid spec resets to `ALL`;
   - unreadable/missing v7 index → named fail-closed error, never the aggregate.
@@ -151,6 +154,7 @@ marker carries the real `project` value, so the key is not parsed back.
 | v6 marker before reprojection | projection publishes v7 on boot/first sync; the widget reports `PROJECTION_INDEX_REQUIRED` instead of rendering stale aggregate |
 | Project names leak to All Users | names are already in the signed marker; optionally add a display-label map later |
 | Stale project pointer after rename | root index diff deletes pointers absent from the new project set |
+| Dashboard iframe is sandboxed | localStorage/parent URL blocked; use `host.storage`/`host.storeCache`; `?project=` only when the host location exposes it |
 
 ## 6. Execution order
 
