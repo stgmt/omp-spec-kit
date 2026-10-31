@@ -65,3 +65,9 @@
 - **Status:** done
 - **Implements:** FR-9, AC-9.3
 - **Done When:** `spec-service-panel` is removed from the manifest and package; the issue page renders only the read-only `spec-panel` with no `Open Spec Service` link; the installer and placement gate reject a package that reintroduces it; the live E2E asserts its absence.
+
+## TASK-12: Health/doctor and dashboard provisioning in the page
+
+- **Status:** done
+- **Implements:** FR-4, AC-4.1, AC-4.2
+- **Done When:** the page shows settings/service/repository/dashboard/snapshot/specs checks with the next action; it renders before settings exist; Provision dashboard creates or updates the one Spec Stack dashboard with `spec-board` and shares it with `All Users`; the app-package test guards the controls and the health/app probe.

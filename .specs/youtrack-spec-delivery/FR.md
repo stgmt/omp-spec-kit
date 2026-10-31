@@ -18,11 +18,11 @@ The delivery SHALL provision one `Spec Stack` dashboard with one full-width `spe
 
 **Acceptance:** [AC-3.1](ACCEPTANCE_CRITERIA.md#ac-31-canonical-dashboard)
 
-## FR-4: Setup wizard and health
+## FR-4: Setup wizard, health, and dashboard provisioning
 
-The app SHALL show the next setup action for package, settings, project attachment, dashboard, and committed snapshot. It SHALL provide a connection test and a health/doctor view that names every missing prerequisite.
+The app SHALL show the next setup action for package, settings, project attachment, dashboard, and committed snapshot. It SHALL provide a connection test and a health/doctor view that names every missing prerequisite. The page SHALL provision the canonical `Spec Stack` dashboard (create or update, `spec-board`, share with `All Users`) without leaving the browser, and SHALL render the health view even when the service settings are empty.
 
-**Acceptance:** [AC-4.1](ACCEPTANCE_CRITERIA.md#ac-41-setup-health)
+**Acceptance:** [AC-4.1](ACCEPTANCE_CRITERIA.md#ac-41-setup-health), [AC-4.2](ACCEPTANCE_CRITERIA.md#ac-42-health-and-dashboard-in-the-page)
 
 ## FR-5: Opt-in full-set demo
 

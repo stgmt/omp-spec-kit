@@ -43,3 +43,7 @@ Given the current `tools/spec-graph-app/manifest.json`, the install documentatio
 ## AC-9.3: No issue-view setup door
 
 Given the app package and a rendered issue page, when the package is inspected and the issue page is loaded, then no widget key `spec-service-panel` exists, no frame contains a `Spec Service` setup link, and the only setup URL is reachable from Administration → Integrations while the read-only `spec-panel` still renders.
+
+## AC-4.2: Health and dashboard in the page
+
+Given the Spec Service page with any combination of missing settings, unbound repository, absent dashboard, or absent snapshot, when it renders, then it shows each check with ok/warn/error, names the one next action, and offers Provision dashboard; provisioning creates or updates the single Spec Stack dashboard with `spec-board` and `All Users`, never creates a duplicate, and still renders the health view before service settings exist.
