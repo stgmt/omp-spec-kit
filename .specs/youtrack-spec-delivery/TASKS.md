@@ -53,3 +53,9 @@
 - **Status:** todo
 - **Implements:** FR-9
 - **Done When:** the package declares no `MAIN_MENU_ITEM`; `spec-app` is `ADMINISTRATION_MENU_ITEM`; the installed page is listed under Administration → Integrations; the live E2E asserts both.
+
+## TASK-10: Placement gate for package, docs, and release candidate
+
+- **Status:** done
+- **Implements:** FR-9, AC-9.1, AC-9.2
+- **Done When:** `scripts/check-app-placement.mjs` passes for the source app and the staged candidate; `npm run check:app-placement` is part of `npm run verify`; release preflight runs the gate before publishing; install docs do not pin an old app ZIP; the stale extracted `release-candidate/spec-graph-app` tree is untracked and gitignored.
