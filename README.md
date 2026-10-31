@@ -89,13 +89,13 @@ curl -X POST -H "Authorization: Bearer <admin-token>" \
   https://<youtrack>/api/admin/apps/import
 ```
 
-After install, open **Administration → Integrations → Spec Service** (the app adds no item to the main left navigation) - it walks through repository binding and produces the `.mcp.json` snippet (minted YouTrack token included) to paste into your agent's MCP config. The Spec Board dashboard widget renders the committed specification graph projected into YouTrack issues.
+After install, open **Administration → Integrations → Spec Service** (the app adds no item to the main left navigation and no setup link inside issues) - it walks through repository binding and produces the `.mcp.json` snippet (minted YouTrack token included) to paste into your agent's MCP config. The Spec Board dashboard widget renders the committed specification graph projected into YouTrack issues; the issue view keeps only the read-only Spec Panel.
 
 > **Upgrading from a pre-1.0.27 ZIP:** those packages declared `MAIN_MENU_ITEM`, so `Spec Service` appeared in the main left navigation. A current package declares no main-menu item. If the left navigation still shows it, reinstall the latest ZIP and confirm the app version on **Administration → Apps**; an old package is never silently accepted by `spec-stack-setup` (it fails with `app package is stale`).
 
 ## Available today
 
-The local kernel in v3.0.2 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool. The hosted registry adds service-owned operations on top — `spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, and `spec_branch` — exposed over the same MCP endpoint.
+The local kernel in v3.0.3 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool. The hosted registry adds service-owned operations on top — `spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, and `spec_branch` — exposed over the same MCP endpoint.
 
 | Need | Tool | Variant |
 |---|---|---|

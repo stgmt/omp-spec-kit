@@ -268,7 +268,7 @@ async function loadTemplateSpec(token) {
       };
       await mcp.callTool({ name: "spec_claim", arguments: { spec: meta.slug } });
       if (!have.has(meta.slug)) {
-        const created = await mcp.callTool({ name: "spec_branch", arguments: { action: "create", spec: meta.slug } });
+        const created = await mcp.callTool({ name: "spec_branch", arguments: { action: "create", spec: meta.slug, demo: meta.demo === true } });
         const branch = JSON.parse(created.content?.[0]?.text ?? "{}");
         if (branch.ok === false && branch.error?.code !== "SPEC_EXISTS") {
           throw new Error(`create branch ${meta.slug}: ${branch.error?.code ?? "unknown"}`);
@@ -442,6 +442,11 @@ async function verifyAppPlacement(admin) {
   const page = widgets.find((widget) => widget.key === "spec-app");
   if (page?.extensionPoint?.id !== "ADMINISTRATION_MENU_ITEM") {
     throw new Error(`app package is stale: spec-app targets ${page?.extensionPoint?.id ?? "nothing"}, expected ADMINISTRATION_MENU_ITEM`);
+  }
+  // One setup surface only. The removed issue card linked back into the page
+  // from every task and was a second "Open Spec Service" gate.
+  if (widgets.some((widget) => widget.key === "spec-service-panel")) {
+    throw new Error("app package is stale: spec-service-panel must not exist; setup lives only in Administration → Integrations");
   }
   return full.version;
 }

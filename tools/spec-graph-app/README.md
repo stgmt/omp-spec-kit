@@ -8,9 +8,9 @@ Service** page under **Administration → Integrations**
 (`ADMINISTRATION_MENU_ITEM`) — never to the main left navigation — the
 whole member journey lives there: repository binding and verification, the
 `.mcp.json` mint, and the IdP console for operators. Issue pages carry only
-a thin context card (linked spec, repo status, a link to the page) — no
-onboarding inside tasks. Optional discovery aid: the native system-wide
-banner an admin configures in Global Settings.
+the read-only **Spec Panel** (neighbors and tracker transitions) — no setup
+link, no onboarding inside tasks. Optional discovery aid: the native
+system-wide banner an admin configures in Global Settings.
 
 ## Install into your YouTrack
 

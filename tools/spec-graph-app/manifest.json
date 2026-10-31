@@ -7,7 +7,7 @@
   "vendor": {
     "name": "omp-spec-kit"
   },
-  "version": "1.0.34",
+  "version": "1.0.35",
   "widgets": [
     {
       "description": "Committed snapshot neighbors for the current issue with Approve/Verify/Reopen buttons.",
@@ -17,17 +17,10 @@
       "name": "Spec Panel"
     },
     {
-      "description": "Spec Service page: repository binding, verification, and agent .mcp.json setup.",
+      "description": "Spec Service page: repository binding, verification, and agent .mcp.json setup. The only setup entry point; it lives under Administration → Integrations.",
       "extensionPoint": "ADMINISTRATION_MENU_ITEM",
       "indexPath": "spec-app/index.html",
       "key": "spec-app",
-      "name": "Spec Service"
-    },
-    {
-      "description": "Issue context for spec-registryd: linked spec, repository state, and the link to the Spec Service page.",
-      "extensionPoint": "ISSUE_BELOW_SUMMARY",
-      "indexPath": "spec-service-panel/index.html",
-      "key": "spec-service-panel",
       "name": "Spec Service"
     },
     {

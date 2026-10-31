@@ -106,12 +106,10 @@ Feature: Operator installs the spec-graph-app through the YouTrack UI
     When noa requests her agent configuration on the page
     Then the page shows a ready .mcp.json pinned to the acme tenant
 
-  Scenario: An issue carries only spec context and the door to the app page
-    Installing the app must not turn tasks into configuration surfaces: the
-    issue widget shows the linked spec and repo state, links to the Spec
-    Service page, and renders no onboarding controls at all.
+  Scenario: An issue carries read-only spec context and no Spec Service door
+    Installing the app must not turn tasks into configuration surfaces and must
+    not expose a second door to Spec Service: the issue widget shows the linked
+    spec, renders no onboarding controls, and contains no Open Spec Service link.
     Given the spec-graph-app is installed with the service settings
     And alice opens the SPEC anchor issue
-    Then the issue shows the spec context card and no onboarding controls
-    When alice follows the Spec Service link from the issue
-    Then the Spec Service page renders its onboarding stepper
+    Then the issue shows the read-only spec context and no Spec Service link

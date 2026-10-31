@@ -49,7 +49,7 @@ async function cleanup(dir) {
  * service under the project write lock. Deleting a canonical branch is never
  * allowed — archive is a separate, audited operation.
  */
-export function createSpecBranchManager({ mounts, claims = null, identity, logger = () => {}, audit = () => {}, publish = null, projection = null, store = null }) {
+export function createSpecBranchManager({ mounts, claims = null, identity, logger = () => {}, audit = () => {}, publish = null, projection = null, store = null, dependents = null }) {
   async function branchExists(mount, branch) {
     return (await mount.git.revParse(`refs/remotes/origin/${branch}`, { cwd: mount.mirrorDir }).catch(() => null)) !== null;
   }
@@ -73,7 +73,7 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
     }
   }
 
-  async function createCanonical({ project, spec, requestId, login, skeleton = true, role = null }) {
+  async function createCanonical({ project, spec, requestId, login, skeleton = true, role = null, demo = false }) {
     const mount = await mounts.ensureRepo(project);
     const branch = specBranchName(spec);
     // A branch with this name means the slug is taken repository-wide, even
@@ -97,6 +97,7 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
         branch,
         createdAt: new Date().toISOString(),
         owner: project.split("/")[0],
+        ...(demo === true ? { demo: true } : {}),
       };
       await writeFile(path.join(dir, SPEC_BINDING_FILE), `${JSON.stringify(metadata, null, 2)}\n`);
       if (skeleton) {
@@ -260,9 +261,15 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
    * authorize a delete. Unmerged work and published versions block the delete:
    * they are separate evidence and must be archived/removed first.
    */
-  async function deleteCanonical({ project, spec, requestId, login, role }) {
-    if (role !== "owner") {
-      return failure(requestId, "FORBIDDEN_ROLE", "deleting a demo spec requires the owner role");
+  async function deleteCanonical({ project, spec, requestId, login, role, force = false }) {
+    if (role !== "owner" && role !== "writer") {
+      return failure(requestId, "FORBIDDEN_ROLE", "deleting a demo spec requires the owner or writer role");
+    }
+    if (typeof store?.getLedger !== "function") {
+      return failure(requestId, "LEDGER_UNAVAILABLE", "ledger is required to verify published versions before deletion", { retryable: false });
+    }
+    if (typeof dependents !== "function") {
+      return failure(requestId, "DEPENDENTS_UNVERIFIED", "dependent-reference check is not configured", { retryable: false });
     }
     const branch = specBranchName(spec);
     let mount;
@@ -314,10 +321,37 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
       );
     }
 
-    const readme = await mount.git.show(canonicalRef, `.specs/${spec}/README.md`, { cwd: mount.mirrorDir }).catch(() => "");
-    if (!/^\s*>?\s*\*\*?Demo:?\*?\*?\s*true\b/imu.test(readme)) {
-      return failure(requestId, "DELETE_FORBIDDEN", `spec ${spec} is not marked Demo: true; archive it instead`);
+    if (owned.binding.demo !== true) {
+      // Legacy demo branches predate the immutable metadata flag. Only an
+      // owner may delete them, and only when the canonical README carries the
+      // visible marker; a writer cannot obtain demo deletion by editing prose.
+      if (role !== "owner") {
+        return failure(requestId, "DELETE_FORBIDDEN", `spec ${spec} is not marked demo in .spec-kit.json; archive it instead`, { parameter: "spec" });
+      }
+      const readme = await mount.git.show(canonicalRef, `.specs/${spec}/README.md`, { cwd: mount.mirrorDir }).catch(() => "");
+      if (!/^\s*>?\s*\*\*?Demo:?\*?\*?\s*true\b/imu.test(readme)) {
+        return failure(requestId, "DELETE_FORBIDDEN", `spec ${spec} is not marked Demo: true; archive it instead`);
+      }
     }
+
+    let inbound;
+    try {
+      inbound = await dependents({ project, spec });
+    } catch (error) {
+      return failure(requestId, "DEPENDENTS_UNVERIFIED", `cannot verify dependent references for ${spec}: ${String(error?.message ?? error).split("\n")[0]}`, { retryable: true });
+    }
+    if (!Array.isArray(inbound)) {
+      return failure(requestId, "DEPENDENTS_UNVERIFIED", `dependent-reference check returned an invalid result for ${spec}`, { retryable: false });
+    }
+    if (inbound.length > 0) {
+      if (!force) {
+        return failure(requestId, "SPEC_HAS_DEPENDENTS", `spec ${spec} has ${inbound.length} live inbound reference(s); pass force: true as an owner to delete anyway`, { references: inbound, parameter: "force" });
+      }
+      if (role !== "owner") {
+        return failure(requestId, "FORBIDDEN_ROLE", "force deletion with dependents requires the owner role", { parameter: "force" });
+      }
+    }
+
     const tip = await mount.git.revParse(canonicalRef, { cwd: mount.mirrorDir });
     if (tip === null) return failure(requestId, "SPEC_NOT_FOUND", `spec ${spec} has no ${branch} branch`);
 
@@ -357,16 +391,21 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
     await mount.git.run(["--git-dir", mount.mirrorDir, "branch", "-D", `work/${branch}`], { cwd: mount.cwd }).catch(() => {});
     await mounts.ensureRepo(project);
     await mounts.refreshProject(project);
-    projection?.syncNow();
     audit({ login, role, project, op: "spec-branch-delete-spec", spec, result: `ok:${branch}:${tip.slice(0, 12)}` });
+    try {
+      if (typeof projection?.syncOnce === "function") await projection.syncOnce();
+      else projection?.syncNow();
+    } catch (error) {
+      return failure(requestId, "PROJECTION_SYNC_FAILED", `spec ${spec} source was deleted but projection sync failed: ${String(error?.message ?? error).split("\n")[0]}`, { retryable: true, commit: tip });
+    }
     logger(`deleted demo spec branch ${branch} at ${tip.slice(0, 12)}`);
     return serviceSuccess("specBranch", requestId, { action: "deleteSpec", kind: "spec", branch, spec, topic: null, commit: tip });
   }
 
   return {
     /** Used by the spec_patch write path when createSpec targets a new slug. */
-    async ensureCanonical({ project, spec, requestId, login }) {
-      return createCanonical({ project, spec, requestId, login, skeleton: false });
+    async ensureCanonical({ project, spec, requestId, login, demo = false }) {
+      return createCanonical({ project, spec, requestId, login, skeleton: false, demo });
     },
     async run({ args, project, requestId, login, force = false, role = null }) {
       const parsed = parseArgs(args);
@@ -386,14 +425,14 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
           }
         }
         if (action === "deleteSpec") {
-          return await deleteCanonical({ project, spec, requestId, login, role });
+          return await deleteCanonical({ project, spec, requestId, login, role, force });
         }
         if (action === "delete" && topic === null) {
           return failure(requestId, "BRANCH_PROTECTED", `spec ${spec} is canonical; delete a work branch or delete a Demo: true spec`, { parameter: "topic" });
         }
         if (action === "create") {
           return topic === null
-            ? await createCanonical({ project, spec, requestId, login, role })
+            ? await createCanonical({ project, spec, requestId, login, role, demo: args.demo === true })
             : await createWork({ project, spec, topic, requestId, login, role });
         }
         if (action === "merge") {

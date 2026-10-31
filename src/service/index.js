@@ -158,6 +158,18 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     publish: publisher,
     projection,
     store,
+    dependents: async ({ project: projectId, spec }) => {
+      await mounts.projectRoot(projectId);
+      const proof = await mounts.serviceFor(projectId).runQuery(
+        "inspect",
+        { check: "archivalProof", spec },
+        { requestId: `dependents-${projectId}-${spec}` },
+      );
+      if (!proof?.ok || proof.data?.kind !== "archival-proof") {
+        throw new Error(proof?.error?.message ?? "archival proof failed");
+      }
+      return proof.data.liveInboundReferences ?? [];
+    },
   });
   const branchOps = createBranchOps({ branches: branchManager });
   const catalogBranches = async ({ args, project, requestId }) => {

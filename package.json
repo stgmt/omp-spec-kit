@@ -1,6 +1,6 @@
 {
   "name": "omp-spec-kit-repository",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "private": true,
   "type": "module",
   "engines": {
@@ -15,6 +15,7 @@
     "check:no-root-specs": "node scripts/check-no-root-specs.mjs",
     "check:corpus:remote": "node scripts/check-corpus-via-mcp.mjs",
     "tool:e2e": "node scripts/tool-e2e.mjs",
+    "tool:e2e:live": "node scripts/tool-e2e-live.mjs",
     "install:host": "node scripts/install-host.mjs",
     "check:spec-port": "node scripts/check-spec-port.mjs",
     "dogfood:mcp": "node scripts/dogfood-mcp.mjs",

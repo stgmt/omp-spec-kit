@@ -9,6 +9,7 @@ export const BRANCH_CONTRACTS = Object.freeze([
       { name: "spec", kind: "string", optional: false },
       { name: "topic", kind: "string", optional: true },
       { name: "force", kind: "boolean", optional: true },
+      { name: "demo", kind: "boolean", optional: true },
     ],
   },
 ]);

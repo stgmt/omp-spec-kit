@@ -804,14 +804,14 @@ When("noa requests her agent configuration on the page", async function () {
 });
 
 
-// -- Issue context card: no onboarding controls live in tasks ----------------
+// -- Issue context card: read-only, no onboarding, no Spec Service door -----
 
-/** Frame holding the thin issue context card. */
+/** Frame holding the read-only issue context card. */
 async function issueCardFrame(page) {
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
     for (const frame of page.frames()) {
-      const marker = await frame.locator('[data-testid="spec-context"]').count().catch(() => 0);
+      const marker = await frame.locator('[data-testid="spec-panel"]').count().catch(() => 0);
       if (marker > 0) return frame;
     }
     await page.waitForTimeout(1_000);
@@ -819,23 +819,22 @@ async function issueCardFrame(page) {
   throw new Error("issue spec context card did not render");
 }
 
-Then("the issue shows the spec context card and no onboarding controls", async function () {
+Then("the issue shows the read-only spec context and no Spec Service link", async function () {
   const frame = await issueCardFrame(this.alicePage);
-  await frame.locator('[data-testid="spec-app-link"]').waitFor({ state: "attached", timeout: 15_000 });
+  await frame.locator('[data-testid="spec-panel"]').waitFor({ state: "attached", timeout: 15_000 });
   const forbidden = [];
   for (const f of this.alicePage.frames()) {
+    assert.equal(
+      await f.locator('[data-testid="spec-app-link"]').count().catch(() => 0),
+      0,
+      "the issue view must not carry an Open Spec Service link",
+    );
     for (const tid of ["wizard", "agent-panel", "agent-mint", "agent-mcp", "repo-form", "idp-form", "verify-form", "spec-list"]) {
       if (await f.locator(`[data-testid="${tid}"]`).count().catch(() => 0)) forbidden.push(tid);
     }
   }
   assert.deepEqual(forbidden, [], `onboarding controls must not render on issues: ${forbidden.join(", ")}`);
   await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-issue-context.png"), fullPage: true }).catch(() => {});
-});
-
-When("alice follows the Spec Service link from the issue", async function () {
-  const frame = await issueCardFrame(this.alicePage);
-  await frame.locator('[data-testid="spec-app-link"]').click();
-  await this.alicePage.waitForURL(/\/app\/spec-graph-app\/spec-app/, { timeout: 30_000 });
 });
 
 Then("the Spec Service page renders its onboarding stepper", async function () {

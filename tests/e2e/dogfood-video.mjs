@@ -1123,21 +1123,18 @@ async function main() {
       // card — repo state plus a link to the page. Anti-slop assert: no
       // onboarding controls may exist on an issue page anymore.
       await questLog(page, miaQuest.goal, miaQuest.steps, 4);
-      await openIssue(page, seededIssues[0], "А в самой задаче — тонкая карточка: привязанный репозиторий и ссылка на страницу. Онбординга в ишью больше нет", { ...miaQuest, current: 4 });
-      const issueFrame = await frameWith(page, '[data-testid="spec-context"], [data-testid="no-access"]', 30_000);
-      await issueFrame.locator('[data-testid="repo-status-active"]').waitFor({ state: "attached", timeout: 30_000 });
-      const chip = await issueFrame.locator('[data-testid="repo-chip"]').first().innerText();
-      assert.match(chip, /acme\/gamma/);
-      const appLink = issueFrame.locator('[data-testid="spec-app-link"]');
-      assert.match(await appLink.getAttribute("href") ?? "", /\/app\/spec-graph-app\/spec-app\?step=agent/);
+      await openIssue(page, seededIssues[0], "А в самой задаче — только traceability-панель; онбординг живёт в Administration → Integrations", { ...miaQuest, current: 4 });
+      const issueFrame = await frameWith(page, '[data-testid="spec-panel"]', 30_000);
+      await issueFrame.locator('[data-testid="spec-panel"]').waitFor({ state: "attached", timeout: 30_000 });
       for (const f of page.frames()) {
+        assert.equal(await f.locator('[data-testid="spec-app-link"]').count(), 0, "issue page must not carry an Open Spec Service gate");
         for (const banned of ["wizard", "agent-panel", "agent-mint", "agent-mcp", "repo-form", "idp-form"]) {
           assert.equal(await f.locator(`[data-testid="${banned}"]`).count(), 0, `issue page must not contain ${banned}`);
         }
       }
       await caption(page, [
-        "Карточка показывает acme/gamma [active] и «Open Spec Service» → страницу с шага агента",
-        "Никаких форм привязки и .mcp.json в задаче — онбординг живёт только на странице",
+        "В задаче нет карточки Spec Service и ссылки «Open Spec Service»",
+        "Единственный вход в настройку — Administration → Integrations → Spec Service",
       ]);
       await page.waitForTimeout(2_400);
 

@@ -57,6 +57,18 @@ if (setup.extensionPoint !== SETUP_EXTENSION_POINT) {
   fail(`${SETUP_WIDGET_KEY} must be ${SETUP_EXTENSION_POINT}, got ${setup.extensionPoint ?? "<none>"}`);
 }
 
+const straySetup = widgets.filter(
+  (widget) => widget.key !== SETUP_WIDGET_KEY && widget.key === "spec-service-panel",
+);
+if (straySetup.length > 0) {
+  fail(
+    `${straySetup.map((widget) => widget.key).join(", ")} must not exist; the issue-view Spec Service card is a second setup entry point`,
+  );
+}
+if (widgets.filter((widget) => widget.extensionPoint === SETUP_EXTENSION_POINT).length !== 1) {
+  fail(`exactly one widget must use ${SETUP_EXTENSION_POINT}`);
+}
+
 const legacy = widgets.filter((widget) => widget.extensionPoint === FORBIDDEN_EXTENSION_POINT);
 if (legacy.length > 0) {
   fail(

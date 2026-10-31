@@ -13,7 +13,7 @@ import { isValidProjectId } from "./project-id.js";
 export const SPEC_BRANCH_PREFIX = "spec-";
 export const SPEC_WORK_SEPARATOR = "--";
 export const SPEC_BINDING_SCHEMA = "omp-spec-kit/spec-binding@1";
-export const SPEC_BINDING_KEYS = Object.freeze(["schema", "project", "spec", "repo", "branch", "createdAt", "owner"]);
+export const SPEC_BINDING_KEYS = Object.freeze(["schema", "project", "spec", "repo", "branch", "createdAt", "owner", "demo"]);
 
 // git limits a ref component to 255 bytes and the whole ref below 1024; keep a
 // safe margin so a slug that passes validation cannot fail later at git.
@@ -92,6 +92,7 @@ export function validateSpecBinding(binding, { branch, repoUrl } = {}) {
   if (typeof binding.repo !== "string" || binding.repo.trim() === "") errors.push("repo is required");
   if (binding.createdAt !== undefined && typeof binding.createdAt !== "string") errors.push("createdAt must be a string");
   if (binding.owner !== undefined && typeof binding.owner !== "string") errors.push("owner must be a string");
+  if (binding.demo !== undefined && typeof binding.demo !== "boolean") errors.push("demo must be a boolean");
   const parsed = parseSpecBranch(binding.branch);
   if (parsed === null || parsed.kind !== "spec") errors.push("branch must be spec-<slug>");
   if (parsed !== null && binding.spec !== parsed.slug) errors.push("spec and branch disagree");

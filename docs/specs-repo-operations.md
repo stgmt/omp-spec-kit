@@ -188,11 +188,10 @@ apps API exposes no way to post user notifications, and none is fabricated.
    previous same-purpose token — the page says so, and a Dismiss button
    clears the secret from the DOM.
 
-The issue widget (`spec-service-panel`) is deliberately thin: an issue-aware
-context card with the linked spec when `SpecId` is set, repo status chips, and
-an **Open Spec Service** link to `/app/spec-graph-app/spec-app?step=agent`.
-No onboarding forms, no `.mcp.json`, no bind controls live inside an issue —
-a task is not a configuration surface.
+The setup page is the **only** Spec Service entry point: no issue widget links
+to it. The issue view keeps only the read-only `spec-panel` traceability card
+(neighbors, Approve/Verify/Reopen); a task is not a configuration surface, and
+**Administration → Integrations → Spec Service** is the one way in.
 
 Edge cases:
 

@@ -2,6 +2,17 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.0.3 — 2026-10-31
+
+### Fixed
+
+- **FR-6/AC-6.1 alignment**: a writer can delete a demo spec when `.spec-kit.json` carries the immutable `demo: true` binding flag. Legacy README-only demo markers remain owner-only, so writers cannot self-attest a normal spec into deletable state.
+- **Dependent references**: `deleteSpec` now verifies live inbound references via `archivalProof`; it refuses with `SPEC_HAS_DEPENDENTS` unless an owner passes `force: true`.
+- **Projection confirmation**: deletion awaits `projection.syncOnce()` and writes the audit record before the response, so cards/links are reconciled as part of the confirmed operation.
+- **Ledger guard is mandatory**: the branch manager refuses `deleteSpec` when no ledger store is configured.
+- **Release tool E2E**: `npm run tool:e2e:live` runs the 15-tool matrix against the authenticated live contour in the release workflow.
+- The demo template now marks its branch with `demo: true` in `.spec-kit.json`.
+
 ## 3.0.2 — 2026-10-31
 
 ### Fixed
@@ -50,9 +61,10 @@ All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 - `spec_branch` now declares its service-contract fields with the schema vocabulary the dispatcher uses (`kind`/`values`/`optional`), so `create`, `merge`, and `delete` no longer fail with an internal `includes` error.
 - A caller context without `scopes` no longer crashes project resolution; it returns a normal authorization error.
 - **Spec Board is readable again**: the committed `SPEC:SYNC-STATE` marker now carries a compact board snapshot (id/slug/kind/title/excerpt/taskStatus and edges) instead of every node body. The real corpus exceeded YouTrack's 512 000-character issue-description limit, so the marker was truncated and both widgets refused it as invalid JSON. `publishCommitted` now fails with `MARKER_TOO_LARGE` before writing an over-limit marker, leaving the previous snapshot intact.
-- **Issue panels recognize Text-shaped `SpecId`**: `Spec Panel` and the Spec Service panel requested `value(name,presentation)` and ignored `value.text`, so every linked issue rendered as "not linked to a spec". Both now request and read the Text value; the Spec Service panel also resolves the issue from `YTApp.entity`/the URL when the host entity is not exposed.
+- **Issue panel recognizes Text-shaped `SpecId`**: `Spec Panel` requested `value(name,presentation)` and ignored `value.text`, so every linked issue rendered as "not linked to a spec". It now requests and reads the Text value. The separate Spec Service issue card was removed in 1.0.35 — setup lives only in Administration → Integrations.
 - **Spec Board dashboard is shared with tenant users**: `spec-stack-setup` shares the provisioned dashboard with `All Users` and the tenant group instead of leaving it private to the admin account.
 - **Placement regression closed at the release boundary**: the README still pinned `spec-graph-app-1.0.25.zip`, whose manifest declared `MAIN_MENU_ITEM` and put `Spec Service` back into the main left navigation. The install docs now use the latest release asset without a pinned version, the stale tracked `release-candidate/spec-graph-app` staging tree is removed and ignored, and `scripts/check-app-placement.mjs` gates both `npm run verify` and release preflight against the source manifest and the assembled candidate.
+- **Issue-view setup door removed (app 1.0.35)**: `spec-service-panel` (the "Open Spec Service" card inside every issue) is deleted from the manifest and package. The only setup entry point is Administration → Integrations; the issue view keeps only the read-only `Spec Panel`, and the installer/placement gate reject a package that reintroduces the card.
 
 ## 2.9.0 — 2026-10-09
 

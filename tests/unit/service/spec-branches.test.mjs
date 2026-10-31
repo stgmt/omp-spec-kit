@@ -46,7 +46,7 @@ async function setup() {
     getCredential: () => null,
   };
   const mounts = new MountManager({ config, cloneDir: path.join(base, "clone"), store, identity: IDENTITY, logger: () => {} });
-  const manager = createSpecBranchManager({ mounts, identity: IDENTITY, logger: () => {} });
+  const manager = createSpecBranchManager({ mounts, identity: IDENTITY, logger: () => {}, store: { getLedger: () => [] }, dependents: async () => [] });
   return { base, bare, mounts, manager };
 }
 
@@ -62,7 +62,7 @@ async function setupShared() {
     getCredential: () => null,
   };
   const mounts = new MountManager({ config, cloneDir: path.join(base, "clone"), store, identity: IDENTITY, logger: () => {} });
-  const manager = createSpecBranchManager({ mounts, identity: IDENTITY, logger: () => {} });
+  const manager = createSpecBranchManager({ mounts, identity: IDENTITY, logger: () => {}, store: { getLedger: () => [] }, dependents: async () => [] });
   return { base, bare, mounts, manager };
 }
 
@@ -83,7 +83,7 @@ async function pushToWork(bare, { spec, topic, files, message = "work edit" }) {
 }
 
 async function markDemo(bare, manager, { project = PROJECT, spec = "demo-spec", topic = "demo" } = {}) {
-  const created = await manager.run({ args: { action: "create", spec }, project, requestId: `mk-${topic}`, login: "alice" });
+  const created = await manager.run({ args: { action: "create", spec, demo: true }, project, requestId: `mk-${topic}`, login: "alice" });
   if (!created.ok && created.error?.code !== "SPEC_EXISTS") assert.fail(JSON.stringify(created.error ?? {}));
   await manager.run({ args: { action: "create", spec, topic }, project, requestId: `mk-${topic}-w`, login: "alice" });
   await pushToWork(bare, {
@@ -176,13 +176,17 @@ describe("spec_branch", () => {
     assert.equal(deletedSpec.error.code, "SPEC_BINDING_INVALID");
   });
 
-  it("blocks demo deletion for a writer, unmerged work, and published versions", async () => {
+  it("allows a writer to delete a metadata-marked demo spec", async () => {
     const { bare, manager } = await setup();
     await markDemo(bare, manager);
+    const deleted = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "w1", login: "alice", role: "writer" });
+    assert.equal(deleted.ok, true, JSON.stringify(deleted.error ?? {}));
+    assert.equal(await git(bare, ["ls-remote", "--heads", bare, "refs/heads/spec-demo-spec"]), "");
+  });
 
-    const writer = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "d1", login: "alice", role: "writer" });
-    assert.equal(writer.ok, false);
-    assert.equal(writer.error.code, "FORBIDDEN_ROLE");
+  it("blocks demo deletion for unmerged work and published versions", async () => {
+    const { bare, manager } = await setup();
+    await markDemo(bare, manager);
 
     await manager.run({ args: { action: "create", spec: "demo-spec", topic: "pending" }, project: PROJECT, requestId: "d2", login: "alice" });
     const workBlocked = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "d3", login: "alice", role: "owner" });
@@ -194,6 +198,58 @@ describe("spec_branch", () => {
     const tagBlocked = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "d5", login: "alice", role: "owner" });
     assert.equal(tagBlocked.ok, false);
     assert.equal(tagBlocked.error.code, "SPEC_HAS_PUBLISHED_VERSIONS");
+  });
+
+  it("refuses unresolved dependents unless an owner forces", async () => {
+    const { bare, mounts, manager } = await setup();
+    await markDemo(bare, manager);
+    const dependentManager = createSpecBranchManager({
+      mounts,
+      identity: IDENTITY,
+      logger: () => {},
+      store: { getLedger: () => [] },
+      dependents: async () => ["other-spec:FR-1"],
+    });
+    const blocked = await dependentManager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "p1", login: "alice", role: "writer" });
+    assert.equal(blocked.ok, false);
+    assert.equal(blocked.error.code, "SPEC_HAS_DEPENDENTS");
+    assert.deepEqual(blocked.error.references, ["other-spec:FR-1"]);
+    const forced = await dependentManager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "p2", login: "alice", role: "owner", force: true });
+    assert.equal(forced.ok, true, JSON.stringify(forced.error ?? {}));
+  });
+
+  it("awaits the projection sync before reporting deletion success", async () => {
+    const { bare, mounts, manager } = await setup();
+    await markDemo(bare, manager);
+    let calls = 0;
+    const projecting = createSpecBranchManager({
+      mounts,
+      identity: IDENTITY,
+      logger: () => {},
+      store: { getLedger: () => [] },
+      dependents: async () => [],
+      projection: { async syncOnce() { calls += 1; } },
+    });
+    const deleted = await projecting.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "s1", login: "alice", role: "writer" });
+    assert.equal(deleted.ok, true, JSON.stringify(deleted.error ?? {}));
+    assert.equal(calls, 1);
+  });
+
+  it("does not let a writer delete a legacy README-only demo", async () => {
+    const { bare, manager } = await setup();
+    await manager.run({ args: { action: "create", spec: "demo-spec" }, project: PROJECT, requestId: "lw1", login: "alice" });
+    await manager.run({ args: { action: "create", spec: "demo-spec", topic: "legacy" }, project: PROJECT, requestId: "lw2", login: "alice" });
+    await pushToWork(bare, {
+      spec: "demo-spec",
+      topic: "legacy",
+      files: { ".specs/demo-spec/README.md": "# demo-spec\n\n**Demo:** true\n" },
+    });
+    await manager.run({ args: { action: "merge", spec: "demo-spec", topic: "legacy" }, project: PROJECT, requestId: "lw3", login: "alice" });
+    const denied = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "lw4", login: "alice", role: "writer" });
+    assert.equal(denied.ok, false);
+    assert.equal(denied.error.code, "DELETE_FORBIDDEN");
+    const owner = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "lw5", login: "alice", role: "owner" });
+    assert.equal(owner.ok, true, JSON.stringify(owner.error ?? {}));
   });
 
   it("refuses to delete while local worktree commits are unpushed", async () => {
@@ -241,6 +297,7 @@ describe("spec_branch", () => {
       identity: IDENTITY,
       logger: () => {},
       store: { getLedger: (key) => (key === `${PROJECT}/demo-spec` ? [{ version: "1.0.0" }] : []) },
+      dependents: async () => [],
     });
     await markDemo(bare, ledgerManager);
     const denied = await ledgerManager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "g1", login: "alice", role: "owner" });

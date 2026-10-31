@@ -1,6 +1,6 @@
 # Decision: onboarding lives on the app's page, never inside an issue
 
-Status: accepted (2026-09-18)
+Status: accepted (2026-09-18); amended 2026-10-31 — the issue card was removed
 
 ## Problem
 
@@ -38,6 +38,14 @@ repurposed issues. Installing the app must create nothing in the tracker.
 - BDD anti-regression: a scenario asserts an issue page contains zero
   onboarding testids (`wizard`, `agent-panel`, `agent-mint`, `agent-mcp`,
   `repo-form`, `idp-form`).
+
+## Amendment (2026-10-31)
+
+The thin `spec-service-panel` card was removed in app 1.0.35. Even a
+read-only card with an **Open Spec Service** link is still a Spec Service
+entry point outside the administration area, and the requirement is explicit:
+the only way into setup is **Administration → Integrations → Spec Service**.
+The issue view keeps the read-only `spec-panel` traceability card only.
 
 ## Related defect fixed along the way
 

@@ -145,6 +145,20 @@ test("the Spec Service page lives in the administration menu", () => {
   // fall back to the old MAIN_MENU_ITEM placement.
   const legacy = widgets.filter((widget) => widget.extensionPoint === "MAIN_MENU_ITEM");
   assert.deepEqual(legacy, [], "MAIN_MENU_ITEM is not allowed in this app");
+
+  // The issue-view Spec Service card was removed: the only setup entry point
+  // is the administration page. A second widget named "Spec Service" would
+  // surface an "Open Spec Service" gate inside every issue.
+  assert.equal(
+    widgets.filter((widget) => widget.key === "spec-service-panel").length,
+    0,
+    "spec-service-panel must not return; setup is reachable only from Administration → Integrations",
+  );
+  assert.equal(
+    widgets.filter((widget) => widget.extensionPoint === "ADMINISTRATION_MENU_ITEM").length,
+    1,
+    "exactly one administration page may exist",
+  );
 });
 
 test("install docs only point at the current app package", () => {
@@ -200,7 +214,7 @@ test("the real app derives to exactly the JetBrains launch checklist", () => {
 });
 
 test("issue panels read the Text-shaped SpecId field", () => {
-  for (const widget of ["spec-panel", "spec-service-panel"]) {
+  for (const widget of ["spec-panel"]) {
     const html = readFileSync(path.join("tools", "spec-graph-app", "widgets", widget, "index.html"), "utf8");
     assert.match(
       html,
