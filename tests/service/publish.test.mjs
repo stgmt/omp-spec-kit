@@ -339,7 +339,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     await execFileAsync("git", ["-C", work, "push", "-q", "origin", `HEAD:refs/heads/${SPEC_BRANCH}`]);
     await execFileAsync("git", ["-C", cloneDir, "fetch", "origin"]);
     await execFileAsync("git", ["-C", cloneDir, "merge", "--ff-only", `origin/${SPEC_BRANCH}`]);
-    await execFileAsync("git", ["-C", cloneDir, "tag", "-a", "-m", "leftover", `${TAG}/1.0.0`]);
+    await execFileAsync("git", ["-C", cloneDir, "-c", "user.name=operator", "-c", "user.email=operator@example.invalid", "tag", "-a", "-m", "leftover", `${TAG}/1.0.0`]);
 
     const result = await service.publisher.publishSpec("stgmt/alpha", "spec-kernel");
     assert.equal(result.outcome, "published", `the leftover local tag must be pushed, not wedged: ${JSON.stringify(result)}`);
