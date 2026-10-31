@@ -1,0 +1,9 @@
+{
+  "schema": "omp-spec-kit/spec-binding@1",
+  "project": "stgmt/omp-spec-kit",
+  "spec": "teams-task-sync",
+  "repo": "https://github.com/stgmt/omp-spec-kit.git",
+  "branch": "spec-teams-task-sync",
+  "createdAt": "2026-10-31T00:31:46.915Z",
+  "owner": "stgmt"
+}
