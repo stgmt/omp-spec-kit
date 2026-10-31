@@ -10,7 +10,7 @@ import { createRegistryOps, REGISTRY_CONTRACTS } from "./ops/registry.js";
 import { createWritePipeline } from "./writepath.js";
 import { createStore } from "./ledger.js";
 import { buildRegistryIndex } from "./registry.js";
-import { computeDrift } from "./drift.js";
+import { computeDrift, worktreeDrift } from "./drift.js";
 import { startSync } from "./sync.js";
 import { createOnboarding } from "./onboarding.js";
 import { resolveMarkerSecret } from "../adapters/marker-secret.js";
@@ -135,6 +135,8 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
           remoteRef: binding.ref,
         }).catch((error) => ({ events: [{ kind: "repo-unreachable", detail: String(error?.message ?? error).split("\n")[0] }] }));
         for (const event of report.events) events.push({ ...event, repo: mount.repoUrl, project: projectId, spec: binding.spec });
+        const local = await worktreeDrift({ git: mount.git, cwd: mount.mirrorDir, project: projectId, spec: binding.spec, branch: binding.branch, remoteRef: binding.ref }).catch(() => []);
+        for (const event of local) events.push({ ...event, repo: mount.repoUrl });
       }
     }
     // Publish rejections are drift too: a version squatted by different
@@ -149,6 +151,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   const publisher = store ? createPublisher({ mounts, store, identity, logger }) : null;
   const branchManager = createSpecBranchManager({
     mounts,
+    claims,
     identity,
     logger,
     audit: (entry) => store?.logAccess?.(entry),
@@ -181,7 +184,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     const base = await mounts.serviceFor(project).runQuery("mcpPreflight", args, { requestId, schemaVersion });
     return { envelope: { ...base, data: { ...(base.data ?? {}), project, setup: { required: false, code: null, command: null } } } };
   };
-  const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher, projection });
+  const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher, projection, branchManager });
   const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger, idps: { list: () => idpManager.listActiveIdps() } });
   const versionedReads = createVersionedReads({ mounts, store });
   let sync = null;

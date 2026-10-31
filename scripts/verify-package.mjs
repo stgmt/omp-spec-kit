@@ -80,6 +80,7 @@ const expectedFiles = Object.freeze([
   "hooks/hooks.json",
   "hooks/normalize.mjs",
   "hooks/pretooluse.mjs",
+  "hooks/sessionstart.mjs",
   "package.json",
   "skills/engineering-anti-bike/SKILL.md",
   "skills/spec-elicitation/SKILL.md",
@@ -256,7 +257,7 @@ async function verifyPluginJson() {
 async function verifyHooks() {
   const hooksJson = await readStrictJson(path.join(pluginRoot, "hooks", "hooks.json"), "hooks/hooks.json", fail);
   assertExactKeys(hooksJson, ["hooks"], "hooks/hooks.json", fail);
-  assertExactKeys(hooksJson.hooks, ["PreToolUse"], "hooks/hooks.json hooks", fail);
+  assertExactKeys(hooksJson.hooks, ["PreToolUse", "SessionStart"], "hooks/hooks.json hooks", fail);
   const groups = hooksJson.hooks.PreToolUse;
   if (!Array.isArray(groups) || groups.length !== 1) fail("hooks/hooks.json must declare one PreToolUse matcher group");
   assertExactKeys(groups[0], ["matcher", "hooks"], "hooks/hooks.json matcher group", fail);
@@ -267,6 +268,24 @@ async function verifyHooks() {
   if (hook.type !== "command" || hook.timeout !== 10) fail("hooks/hooks.json hook must be a command with timeout 10");
   if (hook.command !== `node "${PLUGIN_ROOT_PLACEHOLDER}/hooks/pretooluse.mjs"`) {
     fail(`hooks/hooks.json command must be exactly: node "${PLUGIN_ROOT_PLACEHOLDER}/hooks/pretooluse.mjs"`);
+  }
+  const sessionGroups = hooksJson.hooks.SessionStart;
+  if (!Array.isArray(sessionGroups) || sessionGroups.length !== 1) fail("hooks/hooks.json must declare one SessionStart group");
+  assertExactKeys(sessionGroups[0], ["hooks"], "hooks/hooks.json SessionStart group", fail);
+  if (!Array.isArray(sessionGroups[0].hooks) || sessionGroups[0].hooks.length !== 1) fail("hooks/hooks.json must declare one SessionStart command");
+  const sessionHook = sessionGroups[0].hooks[0];
+  assertExactKeys(sessionHook, ["type", "command", "timeout"], "hooks/hooks.json SessionStart hook", fail);
+  if (sessionHook.type !== "command" || sessionHook.timeout !== 10) fail("hooks/hooks.json SessionStart hook must be a command with timeout 10");
+  if (sessionHook.command !== `node "${PLUGIN_ROOT_PLACEHOLDER}/hooks/sessionstart.mjs"`) {
+    fail(`hooks/hooks.json SessionStart command must be exactly: node "${PLUGIN_ROOT_PLACEHOLDER}/hooks/sessionstart.mjs"`);
+  }
+
+  const sessionEntry = await readFile(path.join(pluginRoot, "hooks", "sessionstart.mjs"), "utf8");
+  for (const [name, source] of [["hooks/sessionstart.mjs", sessionEntry]]) {
+    if (/\brequire\s*\(/u.test(source)) fail(`${name} uses CommonJS require`);
+    for (const specifier of importedSpecifiers(source)) {
+      if (!specifier.startsWith("node:")) fail(`${name} has forbidden runtime import: ${specifier}`);
+    }
   }
 
   // The hook scripts are dependency-free: node builtins, each other, and the

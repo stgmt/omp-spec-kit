@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
+import { repoUrlHasCredentials, sanitizeRepoUrl } from "./mounts.js";
+
 const execFileAsync = promisify(execFile);
 const SPEC_BINDING_FILE = ".spec-kit.json";
 
@@ -36,6 +38,8 @@ export async function migrateSpecsToBranches({
   if (typeof sourceRoot !== "string" || sourceRoot.length === 0) throw new Error("sourceRoot is required");
   if (typeof project !== "string" || !/^[^/]+\/[^/]+$/u.test(project)) throw new Error("project must be owner/project");
   if (typeof repoUrl !== "string" || repoUrl.length === 0) throw new Error("repoUrl is required");
+  if (repoUrlHasCredentials(repoUrl)) throw new Error("repoUrl must not embed credentials; use ambient git auth or a credential helper");
+  const cleanRepoUrl = sanitizeRepoUrl(repoUrl);
   const specsRoot = path.join(sourceRoot, project, ".specs");
   const entries = await readdir(specsRoot, { withFileTypes: true }).catch(() => null);
   if (entries === null) throw new Error(`no old-layout corpus at ${specsRoot}`);
@@ -45,7 +49,7 @@ export async function migrateSpecsToBranches({
   const results = [];
   for (const spec of specs) {
     const branch = `spec-${spec}`;
-    if (await branchExists(repoUrl, branch)) {
+    if (await branchExists(cleanRepoUrl, branch)) {
       results.push({ spec, branch, outcome: "skipped", reason: "branch-exists" });
       logger(`skip ${branch}: already exists`);
       continue;
@@ -65,7 +69,7 @@ export async function migrateSpecsToBranches({
         schema: "omp-spec-kit/spec-binding@1",
         project,
         spec,
-        repo: repoUrl,
+        repo: cleanRepoUrl,
         branch,
         createdAt: new Date().toISOString(),
         owner: project.split("/")[0],
@@ -87,5 +91,5 @@ export async function migrateSpecsToBranches({
       await rm(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
     }
   }
-  return { project, repoUrl, specs: results };
+  return { project, repoUrl: cleanRepoUrl, specs: results };
 }

@@ -288,6 +288,35 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     }
   });
 
+  it("creates a canonical branch when createSpec targets a new slug", async () => {
+    const { bare, url, tokens } = await setup();
+    const result = await callTool(url, tokens.alice, "spec_patch", {
+      intent: "createSpec",
+      spec: "created-spec",
+      title: "Created Spec",
+      reason: "branch bootstrap",
+      dryRun: false,
+      requestId: "create-spec-1",
+    });
+    const retried = result.isError
+      ? await callTool(url, tokens.alice, "spec_patch", {
+          intent: "createSpec",
+          spec: "created-spec",
+          title: "Created Spec",
+          reason: "branch bootstrap",
+          dryRun: false,
+          requestId: "create-spec-2",
+        })
+      : result;
+    if (retried.isError) assert.fail(JSON.stringify(retried.structuredContent ?? {}).slice(0, 1500));
+    assert.equal(retried.isError, false, JSON.stringify(retried.structuredContent ?? {}).slice(0, 1500));
+    assert.equal(retried.structuredContent.data.outcome, "APPLIED");
+    assert.equal(await git(bare, ["rev-parse", "--verify", "refs/heads/spec-created-spec"]).then(() => true), true);
+    const metadata = JSON.parse(await git(bare, ["show", "spec-created-spec:.spec-kit.json"]));
+    assert.equal(metadata.project, "stgmt/alpha");
+    assert.equal(metadata.spec, "created-spec");
+  });
+
   it("reports a push failure as retryable and keeps the commit on the clone", async () => {
     const { bare, cloneDir, url, tokens } = await setup();
     await rm(bare, { recursive: true, force: true });

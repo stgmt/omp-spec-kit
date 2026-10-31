@@ -2,7 +2,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { GitClient } from "./git.js";
 import { isValidBranchName } from "./branch-policy.js";
-import { repoHostAllowed } from "./mounts.js";
+import { repoHostAllowed, sanitizeRepoUrl } from "./mounts.js";
 import { sealSecret } from "./secrets.js";
 
 export class RepoError extends Error {
@@ -33,12 +33,12 @@ function assertBindAllowed(ctx, project, config, mounts) {
 function publicBinding(row) {
   return {
     project: row.project,
-    repoUrl: row.repoUrl,
+    repoUrl: sanitizeRepoUrl(row.repoUrl),
     branch: row.branch,
     status: row.status,
     boundBy: row.boundBy,
     boundAt: row.boundAt,
-    migratedFrom: row.migratedFrom,
+    migratedFrom: row.migratedFrom === null ? null : sanitizeRepoUrl(row.migratedFrom),
     lastError: row.lastError,
   };
 }
@@ -93,7 +93,8 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
   async function bindInternal({ project, repoUrl, branch, token, username, migrate = true, boundBy = null, role = null }) {
     requireStore();
     if (typeof repoUrl !== "string" || repoUrl.length === 0) throw new RepoError(400, "REPO_URL_REQUIRED", "repoUrl is required");
-    const host = repoHostAllowed(repoUrl, config.repoPolicy?.allowedHosts);
+    const cleanRepoUrl = sanitizeRepoUrl(repoUrl);
+    const host = repoHostAllowed(cleanRepoUrl, config.repoPolicy?.allowedHosts);
     if (!host.ok) throw new RepoError(400, "REPO_HOST_FORBIDDEN", host.reason);
     const resolvedBranch = typeof branch === "string" && branch.length > 0 ? branch : "main";
     if (!isValidBranchName(resolvedBranch)) throw new RepoError(400, "BRANCH_INVALID", "branch is not a valid git ref");
@@ -102,8 +103,8 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     }
     if (!secretsKey) throw new RepoError(503, "SECRETS_UNAVAILABLE", "SPEC_REGISTRY_SECRETS_KEY is not set — credential bindings are disabled", { retryable: true });
 
-    const auth = { token, username: typeof username === "string" && username ? username : undefined, url: repoUrl };
-    const head = await probe(repoUrl, auth).catch((error) => {
+    const auth = { token, username: typeof username === "string" && username ? username : undefined, url: cleanRepoUrl };
+    const head = await probe(cleanRepoUrl, auth).catch((error) => {
       throw new RepoError(400, "REPO_PROBE_FAILED", `cannot read the repo with the supplied credential: ${String(error?.message ?? error).split("\n")[0]}`);
     });
 
@@ -111,26 +112,26 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     // Re-binding the same (repoUrl, branch) is a no-op: without this the copy
     // would write the SOURCE snapshot over the bound repo and silently revert
     // every post-migration write.
-    if (current?.status === "active" && current.repoUrl === repoUrl && current.branch === resolvedBranch) {
+    if (current?.status === "active" && sanitizeRepoUrl(current.repoUrl) === cleanRepoUrl && current.branch === resolvedBranch) {
       return { binding: publicBinding(current), head, unchanged: true };
     }
-    const migratedFrom = current?.status === "active" ? current.repoUrl : null;
+    const migratedFrom = current?.status === "active" ? sanitizeRepoUrl(current.repoUrl) : null;
     const migratedFromBranch = current?.status === "active" ? current.branch : null;
 
     // Persist creds + mark migrating before touching remotes: a crash here
     // leaves a resumable row, not an invisible half-state. migratedFrom=null
     // means the project had no previous repo (a first bind), not a default.
-    await store?.putCredential?.(project, { repoUrl, tokenEnc: sealSecret(secretsKey, token), username: auth.username ?? null });
+    await store?.putCredential?.(project, { repoUrl: cleanRepoUrl, tokenEnc: sealSecret(secretsKey, token), username: auth.username ?? null });
     const put = (status, lastError = null) => store?.putBinding?.({
-      project, repoUrl, branch: resolvedBranch, status,
+      project, repoUrl: cleanRepoUrl, branch: resolvedBranch, status,
       boundBy, boundAt: new Date().toISOString(),
-      migratedFrom: migratedFrom === repoUrl ? null : migratedFrom,
-      migratedFromBranch: migratedFrom === repoUrl ? null : migratedFromBranch,
+      migratedFrom: migratedFrom === cleanRepoUrl ? null : migratedFrom,
+      migratedFromBranch: migratedFrom === cleanRepoUrl ? null : migratedFromBranch,
       lastError,
     });
     await put("migrating");
 
-    const mount = mounts.repoDescriptor(repoUrl, resolvedBranch, project);
+    const mount = mounts.repoDescriptor(cleanRepoUrl, resolvedBranch, project);
     try {
       await mounts.ensureMount(mount);
       await put("active");
@@ -144,8 +145,8 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
       if (error instanceof RepoError) throw error;
       throw new RepoError(502, "REPO_BIND_FAILED", `binding failed: ${String(error?.message ?? error).split("\n")[0]}`);
     }
-    audit({ login: boundBy, role, project, op: "repo-bind", spec: null, result: `ok:bound:${repoUrl}` });
-    logger(`repo-bind ${project} -> ${repoUrl} (bound)`);
+    audit({ login: boundBy, role, project, op: "repo-bind", spec: null, result: `ok:bound:${cleanRepoUrl}` });
+    logger(`repo-bind ${project} -> ${cleanRepoUrl} (bound)`);
     return {
       binding: publicBinding(store.getBinding(project)),
       head,

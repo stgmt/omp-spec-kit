@@ -3,6 +3,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, InitializeRequestSchema, ListToolsRequestSchema, PingRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createDispatcher, serverInfo } from "./dispatch.js";
+import { sanitizeRepoUrl } from "./mounts.js";
 
 /**
  * Shared tool dispatch for the HTTP transport: same contracts, same argument
@@ -72,7 +73,7 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
       projects.push({
         project,
         binding: row?.status ?? "required",
-        repoUrl: active ? row.repoUrl : null,
+        repoUrl: active ? sanitizeRepoUrl(row.repoUrl) : null,
         specs,
         error,
         setup: active

@@ -5,6 +5,7 @@ import { serviceErrorEnvelope, serviceSuccess } from "./dispatch.js";
 import { commitMessage } from "./git.js";
 import { listSpecRefs, readSpecBinding } from "./spec-discovery.js";
 import { specBranchName, specWorkBranchName, validateSpecBinding } from "./spec-binding.js";
+import { isValidSpecSlug } from "../kernel/identity.js";
 
 const SPEC_BINDING_FILE = ".spec-kit.json";
 
@@ -20,8 +21,14 @@ function parseArgs(args) {
   if (typeof args.spec !== "string" || args.spec.length === 0) {
     return { error: ["spec is required", { parameter: "spec" }] };
   }
+  if (!isValidSpecSlug(args.spec)) {
+    return { error: ["spec must be a valid slug", { parameter: "spec" }] };
+  }
   if (args.topic !== undefined && (typeof args.topic !== "string" || args.topic.length === 0)) {
     return { error: ["topic must be a non-empty string", { parameter: "topic" }] };
+  }
+  if (args.topic !== undefined && !isValidSpecSlug(args.topic)) {
+    return { error: ["topic must be a valid slug", { parameter: "topic" }] };
   }
   return { action, spec: args.spec, topic: args.topic ?? null };
 }
@@ -40,12 +47,12 @@ async function cleanup(dir) {
  * service under the project write lock. Deleting a canonical branch is never
  * allowed — archive is a separate, audited operation.
  */
-export function createSpecBranchManager({ mounts, identity, logger = () => {}, audit = () => {}, publish = null, projection = null }) {
+export function createSpecBranchManager({ mounts, claims = null, identity, logger = () => {}, audit = () => {}, publish = null, projection = null }) {
   async function branchExists(mount, branch) {
     return (await mount.git.revParse(`refs/remotes/origin/${branch}`, { cwd: mount.mirrorDir }).catch(() => null)) !== null;
   }
 
-  async function createCanonical({ project, spec, requestId, login }) {
+  async function createCanonical({ project, spec, requestId, login, skeleton = true }) {
     const mount = await mounts.ensureRepo(project);
     const branch = specBranchName(spec);
     const { branches } = await mounts.listBranches(project);
@@ -65,9 +72,11 @@ export function createSpecBranchManager({ mounts, identity, logger = () => {}, a
         owner: project.split("/")[0],
       };
       await writeFile(path.join(dir, SPEC_BINDING_FILE), `${JSON.stringify(metadata, null, 2)}\n`);
-      const specDir = path.join(dir, ".specs", spec);
-      await mkdir(specDir, { recursive: true });
-      await writeFile(path.join(specDir, "README.md"), `# ${spec}\n\nStatus: DRAFT\n`);
+      if (skeleton) {
+        const specDir = path.join(dir, ".specs", spec);
+        await mkdir(specDir, { recursive: true });
+        await writeFile(path.join(specDir, "README.md"), `# ${spec}\n\nStatus: DRAFT\n`);
+      }
       await mount.git.run(["-C", dir, "add", "-A"], { cwd: mount.cwd });
       await mount.git.run([
         "-C", dir,
@@ -83,6 +92,9 @@ export function createSpecBranchManager({ mounts, identity, logger = () => {}, a
       projection?.syncNow();
       logger(`created ${branch} for ${project}`);
       return serviceSuccess("specBranch", requestId, { action: "create", kind: "spec", branch, spec, topic: null, commit });
+    } catch (error) {
+      console.error("spec_branch canonical create failed:", error?.stack ?? error);
+      throw error;
     } finally {
       await cleanup(dir);
     }
@@ -170,11 +182,25 @@ export function createSpecBranchManager({ mounts, identity, logger = () => {}, a
     }
   }
 
-  async function deleteWork({ project, spec, topic, requestId, login }) {
+  async function deleteWork({ project, spec, topic, requestId, login, force = false, role = null }) {
     const branch = specWorkBranchName(spec, topic);
+    const canonical = specBranchName(spec);
     const mount = await mounts.ensureRepo(project);
     if (!(await branchExists(mount, branch))) {
       return failure(requestId, "BRANCH_NOT_FOUND", `branch ${branch} does not exist`);
+    }
+    const workRef = `refs/remotes/origin/${branch}`;
+    const canonicalRef = `refs/remotes/origin/${canonical}`;
+    const merged = await mount.git.run(["--git-dir", mount.mirrorDir, "merge-base", "--is-ancestor", workRef, canonicalRef], { cwd: mount.cwd })
+      .then(() => true)
+      .catch(() => false);
+    if (!merged) {
+      if (!force) {
+        return failure(requestId, "BRANCH_NOT_MERGED", `branch ${branch} has commits not merged into ${canonical}; merge first or pass force: true as an owner`, { parameter: "force" });
+      }
+      if (role !== "owner") {
+        return failure(requestId, "FORBIDDEN_ROLE", "force delete requires the owner role", { parameter: "force" });
+      }
     }
     await mount.git.run(["--git-dir", mount.mirrorDir, "push", "-q", mount.repoUrl, `:refs/heads/${branch}`], { cwd: mount.cwd });
     const worktreeDir = path.join(mount.cwd, "worktrees", branch);
@@ -187,12 +213,27 @@ export function createSpecBranchManager({ mounts, identity, logger = () => {}, a
   }
 
   return {
-    async run({ args, project, requestId, login }) {
+    /** Used by the spec_patch write path when createSpec targets a new slug. */
+    async ensureCanonical({ project, spec, requestId, login }) {
+      return createCanonical({ project, spec, requestId, login, skeleton: false });
+    },
+    async run({ args, project, requestId, login, force = false, role = null }) {
       const parsed = parseArgs(args);
       if (parsed.error) return failure(requestId, "INVALID_REQUEST", parsed.error[0], parsed.error[1]);
       const { action, spec, topic } = parsed;
       const release = await mounts.acquireWriteLock(project);
       try {
+        // A merge/delete is a spec write: honor the same lease as spec_patch.
+        // Creating a brand-new canonical spec has no prior claim to honor.
+        if (!(action === "create" && topic === null) && claims) {
+          const held = claims.get(project, spec);
+          if (held && held.holder !== login) {
+            return failure(requestId, "CLAIM_HELD", `spec is claimed by ${held.holder} until ${held.expiresAt}`, {
+              holder: held.holder,
+              expiresAt: held.expiresAt,
+            });
+          }
+        }
         if (action === "delete" && topic === null) {
           return failure(requestId, "BRANCH_PROTECTED", `spec ${spec} is canonical; delete a work branch or archive the spec`, { parameter: "topic" });
         }
@@ -205,7 +246,10 @@ export function createSpecBranchManager({ mounts, identity, logger = () => {}, a
           if (topic === null) return failure(requestId, "INVALID_REQUEST", "merge needs a topic (the work branch suffix)", { parameter: "topic" });
           return await mergeWork({ project, spec, topic, requestId, login });
         }
-        return await deleteWork({ project, spec, topic, requestId, login });
+        return await deleteWork({ project, spec, topic, requestId, login, force, role });
+      } catch (error) {
+        const code = error?.code === "SPEC_BINDING_INVALID" ? "SPEC_BINDING_INVALID" : "INTERNAL_ERROR";
+        return failure(requestId, code, String(error?.message ?? error).split("\n")[0], { causeCode: error?.code ?? null });
       } finally {
         release();
       }

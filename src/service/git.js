@@ -219,6 +219,32 @@ export class GitClient {
   }
 
   /**
+   * Binary-safe blob read. `git show` is for text; attachments (PNG, PDF) must
+   * never round-trip through UTF-8 before landing in the materialised corpus.
+   */
+  async showBytes(revision, filePath, { cwd } = {}) {
+    if (typeof cwd !== "string" || cwd.length === 0) {
+      throw new GitError(`git show refused: no cwd`, { args: ["show"] });
+    }
+    return enqueue(cwd, () =>
+      execFileAsync("git", ["show", `${revision}:${filePath}`], {
+        cwd,
+        windowsHide: true,
+        maxBuffer: 32 * 1024 * 1024,
+        env: this.childEnv(),
+        encoding: "buffer",
+      })
+        .then(({ stdout }) => stdout)
+        .catch((error) => {
+          throw new GitError(
+            this.redact(`git show failed in ${cwd}: ${String(error.stderr ?? error.message ?? "").trim().slice(0, 500)}`),
+            { args: ["show"], stderr: String(error.stderr ?? ""), exitCode: error.code },
+          );
+        }),
+    );
+  }
+
+  /**
    * Tree/blob object id of a path at a revision (`git rev-parse <rev>:<path>`).
    * For a directory this is the tree hash — a content-addressed digest of the
    * whole spec snapshot, atomic with the commit it was resolved at.

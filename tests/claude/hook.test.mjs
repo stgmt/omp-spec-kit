@@ -394,6 +394,66 @@ describe("PreToolUse hook stdin and stderr", () => {
   });
 });
 
+describe("SessionStart setup warning", () => {
+  const sessionHookPath = path.join(repositoryRoot, "plugins", "omp-spec-kit", "hooks", "sessionstart.mjs");
+
+  function runSessionStart(cwd, env = {}) {
+    const result = spawnSync(process.execPath, [sessionHookPath], {
+      input: JSON.stringify({ hook_event_name: "SessionStart", cwd }),
+      cwd,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: cwd,
+        OMP_SPEC_REGISTRY_URL: "",
+        OMP_SPEC_REGISTRY_TOKEN: "",
+        ...env,
+      },
+      timeout: 30_000,
+      windowsHide: true,
+    });
+    return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+  }
+
+  it("warns once about a missing corpus without blocking", () => {
+    const empty = realpathSync.native(mkdtempSync(path.join(tmpdir(), "omp-spec-kit-empty-")));
+    try {
+      const result = runSessionStart(empty);
+      assert.equal(result.status, 0);
+      assert.match(result.stdout, /SPEC_SETUP_REQUIRED/u);
+      assert.match(result.stdout, /no \.specs corpus/u);
+      assert.doesNotMatch(result.stdout, /Bearer|not-a-real-token|super-secret/u);
+    } finally {
+      rmSync(empty, { recursive: true, force: true });
+    }
+  });
+
+  it("names the missing MCP configuration for an existing corpus", () => {
+    const result = runSessionStart(projectDir);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /OMP_SPEC_REGISTRY_URL is not set/u);
+    assert.match(result.stdout, /OMP_SPEC_REGISTRY_TOKEN is not set/u);
+  });
+
+  it("stays silent when the corpus and MCP environment are configured", () => {
+    const result = runSessionStart(projectDir, {
+      OMP_SPEC_REGISTRY_URL: "http://127.0.0.1:8650/mcp",
+      OMP_SPEC_REGISTRY_TOKEN: "not-a-real-token",
+    });
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, "");
+  });
+
+  it("never echoes a token value", () => {
+    const result = runSessionStart(projectDir, {
+      OMP_SPEC_REGISTRY_TOKEN: "super-secret-token-value",
+    });
+    assert.equal(result.status, 0);
+    assert.doesNotMatch(result.stdout, /super-secret-token-value/u);
+    assert.match(result.stdout, /OMP_SPEC_REGISTRY_URL is not set/u);
+  });
+});
+
 describe("PreToolUse registration and path edge cases", () => {
   it("matches every tool the hook must see and nothing else", () => {
     const hooks = JSON.parse(readFileSync(path.join(repositoryRoot, "plugins", "omp-spec-kit", "hooks", "hooks.json"), "utf8"));

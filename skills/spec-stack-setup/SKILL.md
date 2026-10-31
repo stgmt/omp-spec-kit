@@ -13,6 +13,8 @@ operator == customer), **spec-git** (bare specs repo + git daemon), and
 
 ```sh
 node skills/spec-stack-setup/setup.mjs
+# fresh/install mode: dashboard exists, but no demo specs are seeded
+node skills/spec-stack-setup/setup.mjs --no-demo
 ```
 
 `docker compose up -d` from this directory works too (`name:` in compose.yml

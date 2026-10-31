@@ -17,6 +17,33 @@ const LOCK_FILE = ".omp-spec-kit-write.lock";
 export class ConfigError extends Error {}
 
 /**
+ * A repository URL must carry no credentials: tokens are stored sealed in the
+ * service and passed to git out-of-band. Embedded userinfo would otherwise be
+ * persisted, echoed by `/me`/`/status`, and written into committed metadata.
+ */
+export function repoUrlHasCredentials(repoUrl) {
+  try {
+    const parsed = new URL(repoUrl);
+    return parsed.username !== "" || parsed.password !== "";
+  } catch {
+    return false;
+  }
+}
+
+export function sanitizeRepoUrl(repoUrl) {
+  if (typeof repoUrl !== "string") return repoUrl;
+  try {
+    const parsed = new URL(repoUrl);
+    if (parsed.username === "" && parsed.password === "") return repoUrl;
+    parsed.username = "";
+    parsed.password = "";
+    return parsed.toString();
+  } catch {
+    return repoUrl;
+  }
+}
+
+/**
  * Which repo hosts a binding may point at (TASK-17): arbitrary clone URLs are
  * an SSRF surface, so https is required for public hosts, plain http/git is
  * tolerated only for private hosts (the compose spec-git fixture, on-prem
@@ -29,6 +56,9 @@ export function repoHostAllowed(repoUrl, allowedHosts) {
     parsed = new URL(repoUrl);
   } catch {
     return { ok: false, reason: `repo url is not a valid URL: ${repoUrl}` };
+  }
+  if (parsed.username !== "" || parsed.password !== "") {
+    return { ok: false, reason: "repo url must not contain credentials; pass the token separately" };
   }
   const host = parsed.hostname;
   const scheme = parsed.protocol.replace(/:$/, "");
@@ -127,6 +157,7 @@ function parseInitialBindings(bindings, ids) {
     if (seen.has(project)) throw new ConfigError(`duplicate binding for project: ${project}`);
     seen.add(project);
     if (typeof entry.repoUrl !== "string" || entry.repoUrl.length === 0) throw new ConfigError(`binding for ${project} needs repoUrl`);
+    if (repoUrlHasCredentials(entry.repoUrl)) throw new ConfigError(`binding for ${project} must not embed credentials in repoUrl`);
     if (entry.tokenEnv !== undefined && entry.tokenEnv !== null && (typeof entry.tokenEnv !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(entry.tokenEnv))) {
       throw new ConfigError(`binding for ${project} has an invalid tokenEnv`);
     }
@@ -219,7 +250,7 @@ export class MountManager {
   authFor(projectId, repoUrl) {
     const row = this.store?.getCredential?.(projectId);
     if (!row?.tokenEnc) return undefined;
-    if (row.repoUrl !== repoUrl) return undefined;
+    if (sanitizeRepoUrl(row.repoUrl) !== sanitizeRepoUrl(repoUrl)) return undefined;
     if (!this.secretsKey) throw new ConfigError(`credentials for ${projectId} exist but SPEC_REGISTRY_SECRETS_KEY is not set`);
     const token = openSecret(this.secretsKey, row.tokenEnc);
     return { token, username: row.username ?? undefined, url: repoUrl };
@@ -256,33 +287,52 @@ export class MountManager {
     return row.migratedFrom ? this.repoDescriptor(row.migratedFrom, row.migratedFromBranch ?? row.branch, projectId) : null;
   }
 
-  /** One bare mirror per repository; every spec branch shares its objects. */
+  /** One bare mirror per repository credential; every spec branch shares its objects. */
   repoDescriptor(repoUrl, branch = "main", forProject = null) {
-    const key = mountKey(repoUrl, "");
+    const cleanRepoUrl = sanitizeRepoUrl(repoUrl);
+    const auth = forProject ? this.authFor(forProject, cleanRepoUrl) : undefined;
+    const authKey = auth
+      ? createHash("sha256").update(`${auth.username ?? ""}\0${auth.token}`, "utf8").digest("hex").slice(0, 12)
+      : "anon";
+    const key = mountKey(cleanRepoUrl, authKey);
     let mount = this.mounts.get(key);
     if (!mount) {
       const dir = path.join(this.clonesRoot, key);
       mount = this.registerMount({
         key,
-        repoUrl,
+        repoUrl: cleanRepoUrl,
         branch,
         cwd: dir,
         mirrorDir: path.join(dir, "mirror.git"),
-        git: this.gitFactory({ gitAuth: forProject ? this.authFor(forProject, repoUrl) : undefined }),
+        git: this.gitFactory({ gitAuth: auth }),
       });
     }
     return mount;
   }
 
-  /** The mirror behind a project's active binding. */
+  /** The mirror behind a project's active binding (writes require active). */
   async repoFor(projectId) {
     const row = this.store?.getBinding?.(projectId) ?? null;
     if (!row || row.status !== "active") throw this.bindingRequired(projectId);
     return this.repoDescriptor(row.repoUrl, row.branch ?? "main", projectId);
   }
 
-  async ensureRepo(projectId, { fetch = true } = {}) {
-    const mount = await this.repoFor(projectId);
+  /**
+   * The mirror a READ should use. During a rebind the previous repository stays
+   * readable until the new binding is active; writes still go through
+   * `repoFor`, which requires active.
+   */
+  readableRepo(projectId) {
+    const row = this.store?.getBinding?.(projectId) ?? null;
+    if (!row) throw this.bindingRequired(projectId);
+    if (row.status === "active") return this.repoDescriptor(row.repoUrl, row.branch ?? "main", projectId);
+    if (row.status === "migrating" && row.migratedFrom) {
+      return this.repoDescriptor(row.migratedFrom, row.migratedFromBranch ?? row.branch ?? "main", projectId);
+    }
+    throw this.bindingRequired(projectId);
+  }
+
+  async ensureDescriptor(mount, { fetch = true } = {}) {
     let present = false;
     try { present = (await stat(path.join(mount.mirrorDir, "HEAD"))).isFile(); } catch {}
     if (fetch || !present) {
@@ -298,12 +348,20 @@ export class MountManager {
     return mount;
   }
 
+  async ensureRepo(projectId, { fetch = true } = {}) {
+    return this.ensureDescriptor(await this.repoFor(projectId), { fetch });
+  }
+
+  async ensureReadableRepo(projectId, { fetch = true } = {}) {
+    return this.ensureDescriptor(this.readableRepo(projectId), { fetch });
+  }
+
   /**
    * Canonical spec branches of a project, read from `.spec-kit.json`. Invalid
    * branches are returned, never silently dropped.
    */
   async discoverProject(projectId, { fetch = true } = {}) {
-    const mount = await this.ensureRepo(projectId, { fetch });
+    const mount = await this.ensureReadableRepo(projectId, { fetch });
     const { bindings, invalid } = await discoverSpecBindings({ git: mount.git, cwd: mount.mirrorDir, repoUrl: mount.repoUrl });
     return { mount, bindings: bindings.filter((binding) => binding.project === projectId), invalid };
   }
@@ -339,6 +397,11 @@ export class MountManager {
    */
   cacheRootFor(projectId, mount) {
     return path.join(mount.cwd, "projects", projectId.split("/").join("__"));
+  }
+
+  /** Signature of the last materialised corpus, or null when never built. */
+  projectSignature(projectId) {
+    return this.projectRoots.get(projectId)?.signature ?? null;
   }
 
   async projectRoot(projectId, { fetch = true } = {}) {
@@ -385,7 +448,7 @@ export class MountManager {
           if (parts.some((part) => part === "" || part === "." || part === "..")) continue;
           const destination = path.resolve(root, ...parts);
           if (!destination.startsWith(`${path.resolve(root)}${path.sep}`)) continue;
-          const content = await mount.git.show(ref, filePath, { cwd: mount.mirrorDir });
+          const content = await mount.git.showBytes(ref, filePath, { cwd: mount.mirrorDir });
           await mkdir(path.dirname(destination), { recursive: true });
           await writeFile(destination, content);
         }
@@ -521,9 +584,7 @@ export class MountManager {
 
   serviceFor(projectId) {
     this.requireConfigured(projectId);
-    const row = this.store?.getBinding?.(projectId) ?? null;
-    if (!row || row.status !== "active") throw this.bindingRequired(projectId);
-    const mount = this.repoDescriptor(row.repoUrl, row.branch ?? "main", projectId);
+    const mount = this.readableRepo(projectId);
     // The cache is one root per repo+project: a migrated/bound project must
     // get a service rooted at the new repo, not the stale pre-binding one.
     const key = `${mount.repoUrl}:${projectId}`;

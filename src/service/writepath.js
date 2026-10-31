@@ -85,7 +85,7 @@ async function foreignAuthors({ git, cwd, branch, identity }) {
  * the caller only after the push is confirmed (FR-5); a failed push leaves
  * the clone ahead of remote for retry/boot reconciliation.
  */
-export function createWritePipeline({ mounts, claims, identity, logger = () => {}, publish = null, projection = null }) {
+export function createWritePipeline({ mounts, claims, identity, logger = () => {}, publish = null, projection = null, branchManager = null }) {
   return {
     async specPatch({ args, ctx, project, force, requestId, schemaVersion }) {
       const spec = typeof args.spec === "string" ? args.spec : null;
@@ -119,7 +119,26 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
         };
       }
 
-      const worktree = spec === null ? null : await mounts.worktreeFor(project, spec);
+      let worktree = null;
+      if (spec !== null) {
+        try {
+          worktree = await mounts.worktreeFor(project, spec);
+        } catch (error) {
+          if (error?.code === "SPEC_BRANCH_MISSING" && args.intent === "createSpec" && branchManager) {
+            const created = await branchManager.ensureCanonical({ project, spec, requestId, login: holder });
+            if (!created.ok && created.error?.code !== "SPEC_EXISTS") return { envelope: created };
+            worktree = await mounts.worktreeFor(project, spec);
+          } else {
+            return {
+              envelope: errorEnvelope("specPatch", requestId, error?.code ?? "INTERNAL_ERROR", String(error?.message ?? error), {
+                specSlug: spec,
+                causeCode: error?.code ?? null,
+                retryable: false,
+              }),
+            };
+          }
+        }
+      }
       const root = spec === null ? null : await mounts.projectRoot(project);
       envelope = await mounts.serviceFor(project).runQuery("specPatch", args, { requestId, schemaVersion });
       if (!(envelope.ok && envelope.data?.outcome === "APPLIED")) return { envelope };

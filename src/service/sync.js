@@ -1,4 +1,4 @@
-import { computeDrift } from "./drift.js";
+import { computeDrift, worktreeDrift } from "./drift.js";
 
 /**
  * Reconcile the clone with the remote (FR-5/FR-10/FR-16): fetch, fast-forward
@@ -46,7 +46,7 @@ export async function reconcileClone({ git, cwd, branch, identity, logger = () =
 export function startSync({ mounts, identity, intervalMs = 30_000, logger = () => {}, afterReconcile = null }) {
   async function reconcileOnce() {
     const events = [];
-    const fetched = new Set();
+    let moved = false;
     for (const projectId of mounts.projects) {
       let mount, bindings, invalid;
       try {
@@ -73,11 +73,16 @@ export function startSync({ mounts, identity, intervalMs = 30_000, logger = () =
             remoteRef: binding.ref,
           });
           for (const event of drift.events) events.push({ ...event, repo: mount.repoUrl, project: projectId, spec: binding.spec });
+          // A worktree can be ahead of its canonical ref after a failed push;
+          // the mirror alone cannot see that, so report local work explicitly.
+          for (const event of await worktreeDrift({ git: mount.git, cwd: mount.mirrorDir, project: projectId, spec: binding.spec, branch: binding.branch, remoteRef: binding.ref })) {
+            events.push({ ...event, repo: mount.repoUrl });
+          }
         } catch (error) {
           events.push({ kind: "repo-unreachable", repo: mount.repoUrl, project: projectId, detail: String(error?.message ?? error).split("\n")[0], detectedAt: new Date().toISOString() });
         }
       }
-      fetched.add(projectId);
+      const before = mounts.projectSignature?.(projectId) ?? null;
       // Rebuild only when a branch tip moved; the signature check keeps a
       // quiet interval from re-materialising every project.
       try {
@@ -85,8 +90,10 @@ export function startSync({ mounts, identity, intervalMs = 30_000, logger = () =
       } catch (error) {
         events.push({ kind: "binding-invalid", project: projectId, detail: error?.code ?? "ADAPTER_READ_ERROR", detectedAt: new Date().toISOString() });
       }
+      const after = mounts.projectSignature?.(projectId) ?? null;
+      if (before !== after) moved = true;
     }
-    if (fetched.size > 0) {
+    if (moved) {
       // Accepted remote commits may carry ACTIVE transitions — publish them.
       await afterReconcile?.().catch((error) => logger(`publish after reconcile failed: ${error.message}`));
     }

@@ -101,6 +101,27 @@ describe("spec_branch", () => {
     assert.deepEqual(listed.branches.map((entry) => entry.branch), ["spec-demo-spec"], "merged work branch is gone");
   });
 
+  it("honors an active claim before merging another user's spec", async () => {
+    const { mounts, manager } = await setup();
+    await manager.run({ args: { action: "create", spec: "demo-spec" }, project: PROJECT, requestId: "b1", login: "alice" });
+    const claimed = createSpecBranchManager({
+      mounts,
+      claims: { get: (project, spec) => (project === PROJECT && spec === "demo-spec" ? { holder: "bob", expiresAt: "2099-01-01T00:00:00.000Z" } : null) },
+      identity: IDENTITY,
+    });
+    const result = await claimed.run({ args: { action: "merge", spec: "demo-spec", topic: "topic" }, project: PROJECT, requestId: "b2", login: "alice" });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, "CLAIM_HELD");
+    assert.equal(result.error.holder, "bob");
+  });
+
+  it("refuses an invalid spec slug with a typed error", async () => {
+    const { manager } = await setup();
+    const result = await manager.run({ args: { action: "create", spec: "Not A Slug" }, project: PROJECT, requestId: "b1", login: "alice" });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, "INVALID_REQUEST");
+  });
+
   it("refuses a merge that carries code and protects the canonical branch", async () => {
     const { bare, manager } = await setup();
     await manager.run({ args: { action: "create", spec: "demo-spec" }, project: PROJECT, requestId: "b1", login: "alice" });
@@ -115,7 +136,11 @@ describe("spec_branch", () => {
     assert.equal(deleted.ok, false);
     assert.equal(deleted.error.code, "BRANCH_PROTECTED");
 
-    const removedWork = await manager.run({ args: { action: "delete", spec: "demo-spec", topic: "code" }, project: PROJECT, requestId: "b5", login: "alice" });
+    const unmerged = await manager.run({ args: { action: "delete", spec: "demo-spec", topic: "code" }, project: PROJECT, requestId: "b5", login: "alice" });
+    assert.equal(unmerged.ok, false);
+    assert.equal(unmerged.error.code, "BRANCH_NOT_MERGED");
+
+    const removedWork = await manager.run({ args: { action: "delete", spec: "demo-spec", topic: "code" }, project: PROJECT, requestId: "b6", login: "alice", force: true, role: "owner" });
     assert.equal(removedWork.ok, true, JSON.stringify(removedWork.error ?? {}));
     assert.equal(await git(bare, ["ls-remote", "--heads", bare, "refs/heads/spec-demo-spec--code"]), "");
   });

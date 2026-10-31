@@ -94,6 +94,33 @@ describe("mount manager", () => {
     assert.equal(mounts.forSource("stgmt/omp-spec-kit"), null);
   });
 
+  it("resolves a migrating project read through its previous repository", async () => {
+    const dir = await tempDir();
+    const project = "stgmt/omp-spec-kit";
+    const store = storeWith(project, { status: "migrating", migratedFrom: "file:///old.git", migratedFromBranch: "main" });
+    const mounts = new MountManager({ config: config(), cloneDir: dir, store });
+    assert.equal(mounts.readableRepo(project).repoUrl, "file:///old.git");
+    await assert.rejects(() => mounts.repoFor(project), (error) => error.code === "REPO_BINDING_REQUIRED");
+  });
+
+  it("keys a mirror by repository and credential, not by URL alone", async () => {
+    const dir = await tempDir();
+    const project = "stgmt/omp-spec-kit";
+    const other = "acme/other";
+    const mounts = new MountManager({
+      config: config([project, other]),
+      cloneDir: dir,
+      store: { getBinding: () => null, getCredential: () => null },
+      gitFactory: ({ gitAuth }) => ({ gitAuth }),
+    });
+    mounts.authFor = (id) => ({ token: id === project ? "token-a" : "token-b" });
+    const first = mounts.repoDescriptor("https://github.com/stgmt/repo.git", "main", project);
+    const second = mounts.repoDescriptor("https://github.com/stgmt/repo.git", "main", other);
+    assert.notEqual(first.key, second.key);
+    assert.equal(first.git.gitAuth.token, "token-a");
+    assert.equal(second.git.gitAuth.token, "token-b");
+  });
+
   it("requireConfigured refuses unknown projects with PROJECT_NOT_CONFIGURED", async () => {
     const dir = await tempDir();
     const mounts = new MountManager({ config: config(), cloneDir: dir });

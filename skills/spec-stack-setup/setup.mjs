@@ -37,6 +37,9 @@ const ADMIN_LOGIN = "admin";
 const ADMIN_PASSWORD = "SpecDemo!2026";
 const BRIDGE_TOKEN = "spec-demo-bridge-token-0123456789";
 const APP_NAME = "spec-graph-app";
+// Demo seeding is explicit. The release/fresh-install path runs with
+// --no-demo: the dashboard exists but the board has zero valid specs.
+const WITH_DEMO = !process.argv.includes("--no-demo");
 
 // Preferred host ports; a busy or foreign-held candidate is remapped through
 // a generated compose.override.yml rather than silently diverging configs.
@@ -375,7 +378,9 @@ async function verifyProjection(admin) {
       const specId = (row.customFields ?? []).find((f) => f.name === "SpecId")?.value?.text;
       if (specId === "SPEC:SYNC-STATE") pointer = row.idReadable;
     }
-    if (pointer && cards > 1) return { cards, pointer };
+    // A fresh --no-demo install has only the pointer card; that is a valid
+    // empty projection, not a failed one.
+    if (pointer && cards >= 1) return { cards, pointer };
     await new Promise((resolve) => setTimeout(resolve, 5_000));
   }
   throw new Error(`SPEC projection did not converge: ${cards} card(s), pointer ${pointer ?? "missing"}`);
@@ -514,10 +519,16 @@ async function main() {
   const appVersion = await verifyAppPlacement(admin);
   log(`app ${appVersion} verified: Spec Service is an administration-menu page`);
 
-  log("phase 5 — template spec via MCP");
+  log("phase 5 - template spec via MCP");
   await admin.revokePermanentTokens({ userId: me.id, name: "spec-stack-seed" }).catch(() => {});
   const seedToken = (await admin.createPermanentToken({ userId: me.id, name: "spec-stack-seed", serviceIds })).token;
-  const seeded = await loadTemplateSpec(seedToken);
+  let seeded;
+  if (WITH_DEMO) {
+    seeded = await loadTemplateSpec(seedToken);
+  } else {
+    seeded = "no demo specs (fresh install)";
+    log("phase 5 - --no-demo: skipping template seeding; the board starts empty");
+  }
 
   log("phase 6 — SPEC projection target (issues + sync pointer)");
   await provisionSpecProjection(admin);

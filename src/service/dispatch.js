@@ -110,7 +110,8 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
         }),
       };
     }
-    if (!ctx.scopes.includes(rawProject)) {
+    const scopes = Array.isArray(ctx.scopes) ? ctx.scopes : [];
+    if (!scopes.includes(rawProject)) {
       return {
         error: invalidRequest(operation, requestId, `project is outside the caller's allowed set: ${rawProject}`, {
           parameter: "project",

@@ -4,8 +4,17 @@ All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
 ## Unreleased
 
+### Added
+
+- **`spec-dashboard-setup`**: idempotent ZIP/CLI-era dashboard provisioner that finds/creates `Spec Stack`, installs the full-width `Spec Board` widget, and merges `All Users` into `readSharingSettings`.
+- **Fresh-install mode**: `spec-stack-setup --no-demo` provisions the dashboard and pointer without seeding template specs, so a fresh project honestly shows zero valid specs.
+- **Coding-agent setup warning**: a Claude Code `SessionStart` hook emits one bounded, redacted warning when the plugin is installed without a corpus or MCP/registry configuration; configured projects stay silent.
+- **`youtrack-spec-delivery` specification**: created in the specs repository with the delivery, fresh/upgrade, dashboard, demo, delete, and warning contracts.
+
 ### Fixed
 
+- `spec_branch` now declares its service-contract fields with the schema vocabulary the dispatcher uses (`kind`/`values`/`optional`), so `create`, `merge`, and `delete` no longer fail with an internal `includes` error.
+- A caller context without `scopes` no longer crashes project resolution; it returns a normal authorization error.
 - **Spec Board is readable again**: the committed `SPEC:SYNC-STATE` marker now carries a compact board snapshot (id/slug/kind/title/excerpt/taskStatus and edges) instead of every node body. The real corpus exceeded YouTrack's 512 000-character issue-description limit, so the marker was truncated and both widgets refused it as invalid JSON. `publishCommitted` now fails with `MARKER_TOO_LARGE` before writing an over-limit marker, leaving the previous snapshot intact.
 - **Issue panels recognize Text-shaped `SpecId`**: `Spec Panel` and the Spec Service panel requested `value(name,presentation)` and ignored `value.text`, so every linked issue rendered as "not linked to a spec". Both now request and read the Text value; the Spec Service panel also resolves the issue from `YTApp.entity`/the URL when the host entity is not exposed.
 - **Spec Board dashboard is shared with tenant users**: `spec-stack-setup` shares the provisioned dashboard with `All Users` and the tenant group instead of leaving it private to the admin account.

@@ -5,9 +5,10 @@ export const BRANCH_CONTRACTS = Object.freeze([
     operation: "specBranch",
     description: "Create, merge, or delete spec branches.",
     fields: [
-      { name: "action", type: "string", required: true, enum: ["create", "merge", "delete"] },
-      { name: "spec", type: "string", required: true },
-      { name: "topic", type: "string", required: false },
+      { name: "action", kind: "enum", values: ["create", "merge", "delete"], optional: false },
+      { name: "spec", kind: "string", optional: false },
+      { name: "topic", kind: "string", optional: true },
+      { name: "force", kind: "boolean", optional: true },
     ],
   },
 ]);
@@ -32,7 +33,14 @@ export function createBranchOps({ branches }) {
             },
           };
         }
-        const envelope = await branches.run({ args, project, requestId, login: ctx?.identity?.login ?? null });
+        const envelope = await branches.run({
+          args,
+          project,
+          requestId,
+          login: ctx?.identity?.login ?? null,
+          force: args?.force === true,
+          role: ctx?.role ?? null,
+        });
         return { envelope };
       },
     },
