@@ -95,7 +95,7 @@ After install, open **Administration → Integrations → Spec Service** (the ap
 
 ## Available today
 
-The local kernel in v3.0.1 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool. The hosted registry adds service-owned operations on top — `spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, and `spec_branch` — exposed over the same MCP endpoint.
+The local kernel in v3.0.2 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool. The hosted registry adds service-owned operations on top — `spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, and `spec_branch` — exposed over the same MCP endpoint.
 
 | Need | Tool | Variant |
 |---|---|---|

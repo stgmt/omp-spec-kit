@@ -2,7 +2,7 @@
 /**
  * One installer entry point for the agent hosts.
  *
- *   node scripts/install-host.mjs --host claude  --url <http://host/mcp> --token <token> [--project owner/project]
+ *   node scripts/install-host.mjs --host claude  --url <http://host/mcp> [--project owner/project]
  *   node scripts/install-host.mjs --host codex   --url ... --token ...   (delegates)
  *   node scripts/install-host.mjs --host opencode --url ... --token ...  (delegates)
  *   node scripts/install-host.mjs --host omp     (prints the PluginManager.link step)
@@ -38,6 +38,9 @@ export function parseHostArgs(argv, env = process.env) {
   const config = valueAfter(argv, "config");
   if (host !== "omp" && (typeof url !== "string" || !/^https?:\/\/[^/]+\/mcp$/u.test(url))) {
     throw new Error("--url must be an http(s) endpoint ending in /mcp");
+  }
+  if (host === "claude" && valueAfter(argv, "token") !== null) {
+    throw new Error("--token is not written to Claude config; set OMP_SPEC_REGISTRY_TOKEN in the environment instead");
   }
   return { host, url, token: typeof token === "string" ? token.trim() : token, project, config };
 }

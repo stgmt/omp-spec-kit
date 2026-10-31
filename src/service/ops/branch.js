@@ -3,7 +3,7 @@ export const BRANCH_CONTRACTS = Object.freeze([
     tool: "spec_branch",
     label: "Spec Branch",
     operation: "specBranch",
-    description: "Create, merge, or delete spec branches.",
+    description: "Create, merge, delete, or delete a demo spec branch.",
     fields: [
       { name: "action", kind: "enum", values: ["create", "merge", "delete", "deleteSpec"], optional: false },
       { name: "spec", kind: "string", optional: false },

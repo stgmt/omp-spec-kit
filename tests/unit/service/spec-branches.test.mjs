@@ -196,16 +196,56 @@ describe("spec_branch", () => {
     assert.equal(tagBlocked.error.code, "SPEC_HAS_PUBLISHED_VERSIONS");
   });
 
-  it("reads the demo marker from the canonical remote ref, not a local worktree commit", async () => {
-    const { mounts, manager } = await setup();
-    await manager.run({ args: { action: "create", spec: "demo-spec" }, project: PROJECT, requestId: "l1", login: "alice" });
+  it("refuses to delete while local worktree commits are unpushed", async () => {
+    const { bare, mounts, manager } = await setup();
+    await markDemo(bare, manager);
     const worktree = await mounts.worktreeFor(PROJECT, "demo-spec");
-    await writeFile(path.join(worktree.cwd, ".specs", "demo-spec", "README.md"), "# demo-spec\n\n**Demo:** true\n");
+    await writeFile(path.join(worktree.cwd, ".specs", "demo-spec", "NOTES.md"), "# local note\n");
     await git(worktree.cwd, ["add", "-A"]);
-    await git(worktree.cwd, ["-c", "user.name=alice", "-c", "user.email=alice@example.invalid", "commit", "-m", "local demo marker"]);
+    await git(worktree.cwd, ["-c", "user.name=alice", "-c", "user.email=alice@example.invalid", "commit", "-m", "local unpushed note"]);
     const denied = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "l2", login: "alice", role: "owner" });
     assert.equal(denied.ok, false);
+    assert.equal(denied.error.code, "SPEC_WORKTREE_AHEAD");
+  });
+
+  it("refuses to delete a canonical spec that is not marked Demo on the remote", async () => {
+    const { manager } = await setup();
+    await manager.run({ args: { action: "create", spec: "demo-spec" }, project: PROJECT, requestId: "m1", login: "alice" });
+    const denied = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "m2", login: "alice", role: "owner" });
+    assert.equal(denied.ok, false);
     assert.equal(denied.error.code, "DELETE_FORBIDDEN");
+  });
+
+  it("fails closed when the published-version lookup fails", async () => {
+    const { bare, mounts, manager } = await setup();
+    await markDemo(bare, manager);
+    const original = mounts.ensureRepo.bind(mounts);
+    mounts.ensureRepo = async (project, options) => {
+      const mount = await original(project, options);
+      const git = Object.assign(Object.create(Object.getPrototypeOf(mount.git)), mount.git);
+      git.lsRemote = async () => { throw new Error("simulated ls-remote outage"); };
+      mount.git = git;
+      return mount;
+    };
+    const denied = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "t1", login: "alice", role: "owner" });
+    assert.equal(denied.ok, false);
+    assert.equal(denied.error.code, "REPO_UNREACHABLE");
+    assert.equal(denied.error.retryable, true);
+    assert.equal(await git(bare, ["ls-remote", "--heads", bare, "refs/heads/spec-demo-spec"]).then((out) => out.length > 0), true);
+  });
+
+  it("refuses demo deletion when only a ledger version remains", async () => {
+    const { bare, mounts } = await setup();
+    const ledgerManager = createSpecBranchManager({
+      mounts,
+      identity: IDENTITY,
+      logger: () => {},
+      store: { getLedger: (key) => (key === `${PROJECT}/demo-spec` ? [{ version: "1.0.0" }] : []) },
+    });
+    await markDemo(bare, ledgerManager);
+    const denied = await ledgerManager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "g1", login: "alice", role: "owner" });
+    assert.equal(denied.ok, false);
+    assert.equal(denied.error.code, "SPEC_HAS_PUBLISHED_VERSIONS");
   });
 
   it("honors an active claim before merging another user's spec", async () => {

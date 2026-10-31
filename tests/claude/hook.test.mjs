@@ -476,6 +476,21 @@ describe("SessionStart setup warning", () => {
     }
   });
 
+  it("does not treat an unrelated MCP server as the spec registry", () => {
+    const project = realpathSync.native(mkdtempSync(path.join(tmpdir(), "omp-spec-kit-unrelated-")));
+    try {
+      writeFileSync(
+        path.join(project, ".mcp.json"),
+        JSON.stringify({ mcpServers: { github: { type: "http", url: "https://api.github.com/mcp" } } }),
+      );
+      const result = runSessionStart(project);
+      assert.equal(result.status, 0);
+      assert.match(result.stdout, /SPEC_SETUP_REQUIRED/u);
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+    }
+  });
+
   it("never echoes a token value", () => {
     const result = runSessionStart(projectDir, {
       OMP_SPEC_REGISTRY_TOKEN: "super-secret-token-value",

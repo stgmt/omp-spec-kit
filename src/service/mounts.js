@@ -337,7 +337,7 @@ export class MountManager {
     throw this.bindingRequired(projectId);
   }
 
-  async ensureDescriptor(mount, { fetch = true } = {}) {
+  async ensureDescriptor(mount, { fetch = true, strict = false } = {}) {
     let present = false;
     try { present = (await stat(path.join(mount.mirrorDir, "HEAD"))).isFile(); } catch {}
     if (fetch || !present) {
@@ -345,16 +345,16 @@ export class MountManager {
         await ensureMirror({ git: mount.git, repoUrl: mount.repoUrl, mirrorDir: mount.mirrorDir, cwd: mount.cwd });
       } catch (error) {
         // A temporarily unreachable remote must not block reads from the last
-        // fetched state; writes fail later at push and report retryable.
-        if (!present) throw error;
+        // fetched state; destructive callers pass `strict` and fail closed.
+        if (!present || strict) throw error;
         this.logger(`fetch skipped for ${mount.repoUrl}: ${String(error?.message ?? error).split("\n")[0]}`);
       }
     }
     return mount;
   }
 
-  async ensureRepo(projectId, { fetch = true } = {}) {
-    return this.ensureDescriptor(await this.repoFor(projectId), { fetch });
+  async ensureRepo(projectId, { fetch = true, strict = false } = {}) {
+    return this.ensureDescriptor(await this.repoFor(projectId), { fetch, strict });
   }
 
   async ensureReadableRepo(projectId, { fetch = true } = {}) {

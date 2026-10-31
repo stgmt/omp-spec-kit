@@ -2,6 +2,18 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.0.2 — 2026-10-31
+
+### Fixed
+
+- **`deleteSpec` fails closed** when the remote tag lookup or fetch fails, instead of treating an unreachable remote as “no published versions”.
+- **Ledger guard**: a published ledger row blocks demo deletion even when its remote tag was deleted out of band.
+- **Unpushed work is protected**: `deleteSpec` refuses when the local worktree has uncommitted changes or commits ahead of the canonical ref.
+- **`SessionStart` matches the registry server name**; an unrelated MCP server no longer suppresses the setup warning.
+- **Release workflow** now runs `test:staged` and `dogfood:mcp:candidate` in addition to unit/service.
+- **`install-host --token`** is rejected for Claude instead of being silently ignored.
+- The `spec_branch` description names the `deleteSpec` action.
+
 ## 3.0.1 — 2026-10-31
 
 ### Fixed

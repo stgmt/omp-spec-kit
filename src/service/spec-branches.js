@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -48,7 +49,7 @@ async function cleanup(dir) {
  * service under the project write lock. Deleting a canonical branch is never
  * allowed — archive is a separate, audited operation.
  */
-export function createSpecBranchManager({ mounts, claims = null, identity, logger = () => {}, audit = () => {}, publish = null, projection = null }) {
+export function createSpecBranchManager({ mounts, claims = null, identity, logger = () => {}, audit = () => {}, publish = null, projection = null, store = null }) {
   async function branchExists(mount, branch) {
     return (await mount.git.revParse(`refs/remotes/origin/${branch}`, { cwd: mount.mirrorDir }).catch(() => null)) !== null;
   }
@@ -214,7 +215,12 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
   async function deleteWork({ project, spec, topic, requestId, login, force = false, role = null }) {
     const branch = specWorkBranchName(spec, topic);
     const canonical = specBranchName(spec);
-    const mount = await mounts.ensureRepo(project);
+    let mount;
+    try {
+      mount = await mounts.ensureRepo(project, { strict: true });
+    } catch (error) {
+      return failure(requestId, "REPO_UNREACHABLE", `cannot refresh the repository before delete: ${String(error?.message ?? error).split("\n")[0]}`, { retryable: true, causeCode: error?.code ?? null });
+    }
     if (!(await branchExists(mount, branch))) {
       return failure(requestId, "BRANCH_NOT_FOUND", `branch ${branch} does not exist`);
     }
@@ -259,7 +265,12 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
       return failure(requestId, "FORBIDDEN_ROLE", "deleting a demo spec requires the owner role");
     }
     const branch = specBranchName(spec);
-    const mount = await mounts.ensureRepo(project);
+    let mount;
+    try {
+      mount = await mounts.ensureRepo(project, { strict: true });
+    } catch (error) {
+      return failure(requestId, "REPO_UNREACHABLE", `cannot refresh the repository before delete: ${String(error?.message ?? error).split("\n")[0]}`, { retryable: true, causeCode: error?.code ?? null });
+    }
     const canonicalRef = `refs/remotes/origin/${branch}`;
     if (!(await branchExists(mount, branch))) {
       return failure(requestId, "SPEC_NOT_FOUND", `spec ${spec} has no ${branch} branch`);
@@ -279,13 +290,27 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
         { branches: workBranches },
       );
     }
-    const tags = await mount.git.lsRemote(`refs/tags/${publishTagName(project, spec, "*")}`, { cwd: mount.mirrorDir }).catch(() => new Map());
+    let tags;
+    try {
+      tags = await mount.git.lsRemote(`refs/tags/${publishTagName(project, spec, "*")}`, { cwd: mount.mirrorDir });
+    } catch (error) {
+      return failure(requestId, "REPO_UNREACHABLE", `cannot verify published versions for ${spec}: ${String(error?.message ?? error).split("\n")[0]}`, { retryable: true, causeCode: error?.code ?? null });
+    }
     if (tags.size > 0) {
       return failure(
         requestId,
         "SPEC_HAS_PUBLISHED_VERSIONS",
         `spec ${spec} has published versions: ${[...tags.keys()].join(", ")}; archive it instead`,
         { tags: [...tags.keys()] },
+      );
+    }
+    const ledger = store?.getLedger?.(`${project}/${spec}`) ?? [];
+    if (ledger.length > 0) {
+      return failure(
+        requestId,
+        "SPEC_HAS_PUBLISHED_VERSIONS",
+        `spec ${spec} has ledger versions even without a remote tag: ${ledger.map((row) => row.version).join(", ")}; archive it instead`,
+        { versions: ledger.map((row) => row.version) },
       );
     }
 
@@ -295,11 +320,35 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
     }
     const tip = await mount.git.revParse(canonicalRef, { cwd: mount.mirrorDir });
     if (tip === null) return failure(requestId, "SPEC_NOT_FOUND", `spec ${spec} has no ${branch} branch`);
+
+    // A failed publish leaves the local worktree ahead of the remote. Deleting
+    // the spec would discard those commits, so refuse until they are pushed or
+    // explicitly discarded.
+    const localRef = `refs/heads/work/${branch}`;
+    const localTip = await mount.git.revParse(localRef, { cwd: mount.mirrorDir }).catch(() => null);
+    if (localTip !== null) {
+      const ahead = await mount.git.revCount(`${canonicalRef}..${localRef}`, { cwd: mount.mirrorDir }).catch(() => null);
+      if (ahead === null) {
+        return failure(requestId, "SPEC_WORKTREE_STATE_UNKNOWN", `cannot inspect local work commits for ${spec}; retry when the repository is readable`, { retryable: true });
+      }
+      if (ahead > 0) {
+        return failure(requestId, "SPEC_WORKTREE_AHEAD", `local worktree for ${spec} has ${ahead} unpushed commit(s); push or discard them first`, { commit: localTip, ahead });
+      }
+    }
+    const worktreeDir = path.join(mount.cwd, "worktrees", branch);
+    if (existsSync(worktreeDir)) {
+      const dirty = await mount.git.run(["-C", worktreeDir, "status", "--porcelain"], { cwd: mount.cwd }).then((result) => result.stdout.trim()).catch(() => null);
+      if (dirty === null) {
+        return failure(requestId, "SPEC_WORKTREE_STATE_UNKNOWN", `cannot inspect the worktree for ${spec}; retry when it is readable`, { retryable: true });
+      }
+      if (dirty !== "") {
+        return failure(requestId, "SPEC_WORKTREE_DIRTY", `worktree for ${spec} has uncommitted changes; commit or discard them first`, { paths: dirty.split(/\r?\n/u).slice(0, 20) });
+      }
+    }
     await mount.git.run(
       ["--git-dir", mount.mirrorDir, "push", "-q", `--force-with-lease=refs/heads/${branch}:${tip}`, mount.repoUrl, `:refs/heads/${branch}`],
       { cwd: mount.cwd },
     );
-    const worktreeDir = path.join(mount.cwd, "worktrees", branch);
     await rm(worktreeDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }).catch(() => {});
     await mount.git.run(["--git-dir", mount.mirrorDir, "worktree", "prune"], { cwd: mount.cwd }).catch(() => {});
     // The write path keeps a local `work/<branch>` ref. Leaving it behind

@@ -47,13 +47,15 @@ function hasCorpus(root) {
  * Claude config (`~/.claude.json` / `CLAUDE_CONFIG_DIR`), or a fully populated
  * environment is the configuration signal.
  */
+const REGISTRY_SERVER_NAME = /(?:^|[-_.])(?:omp[-_]?spec[-_]?kit|spec[-_]?registry)(?:$|[-_.])/iu;
+
 function hasServers(file) {
   if (!existsSync(file)) return false;
   try {
     const servers = JSON.parse(readFileSync(file, "utf8"))?.mcpServers;
     if (!servers || typeof servers !== "object" || Array.isArray(servers)) return false;
-    return Object.values(servers).some(
-      (server) => typeof server?.url === "string" && server.url.length > 0,
+    return Object.entries(servers).some(
+      ([name, server]) => REGISTRY_SERVER_NAME.test(name) && typeof server?.url === "string" && server.url.length > 0,
     );
   } catch {
     return false;

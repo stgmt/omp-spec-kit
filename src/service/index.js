@@ -157,6 +157,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     audit: (entry) => store?.logAccess?.(entry),
     publish: publisher,
     projection,
+    store,
   });
   const branchOps = createBranchOps({ branches: branchManager });
   const catalogBranches = async ({ args, project, requestId }) => {

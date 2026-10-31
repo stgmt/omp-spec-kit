@@ -42,6 +42,8 @@ jobs:
       - run: npm run build
       - run: npm run verify
       - run: npm run test:unit
+      - run: npm run test:staged
+      - run: npm run dogfood:mcp:candidate
       # The service suite authenticates against a real YouTrack. Bootstrap the
       # same live contour the branch CI uses before running it.
       - name: Bootstrap the live contour

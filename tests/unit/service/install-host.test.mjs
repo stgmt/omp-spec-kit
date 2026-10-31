@@ -18,11 +18,12 @@ function tempDir() {
 
 describe("install-host CLI", () => {
   it("parses the Claude host and validates the endpoint", () => {
-    const parsed = parseHostArgs(["--host", "claude", "--url", "http://127.0.0.1:8650/mcp", "--token", "t"], {});
+    const parsed = parseHostArgs(["--host", "claude", "--url", "http://127.0.0.1:8650/mcp"], {});
     assert.equal(parsed.host, "claude");
     assert.equal(parsed.url, "http://127.0.0.1:8650/mcp");
-    assert.equal(parsed.token, "t");
+    assert.equal(parsed.token, null);
     assert.throws(() => parseHostArgs(["--host", "claude", "--url", "http://x"], {}), /ending in \/mcp/u);
+    assert.throws(() => parseHostArgs(["--host", "claude", "--url", "http://127.0.0.1:8650/mcp", "--token", "t"], {}), /not written to Claude config/u);
     assert.throws(() => parseHostArgs(["--host", "nope"], {}), /--host must be/u);
   });
 

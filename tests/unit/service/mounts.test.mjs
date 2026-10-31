@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it, after } from "node:test";
@@ -121,8 +121,19 @@ describe("mount manager", () => {
     assert.equal(second.git.gitAuth.token, "token-b");
   });
 
-  it("requireConfigured refuses unknown projects with PROJECT_NOT_CONFIGURED", async () => {
+  it("fails closed when a strict fetch cannot reach the remote", async () => {
     const dir = await tempDir();
+    const project = "stgmt/omp-spec-kit";
+    const store = storeWith(project, { repoUrl: "file:///definitely-missing/specs.git" });
+    const mounts = new MountManager({ config: config(), cloneDir: path.join(dir, "clone"), store, logger: () => {} });
+    const mount = await mounts.repoFor(project);
+    await mkdir(mount.mirrorDir, { recursive: true });
+    await writeFile(path.join(mount.mirrorDir, "HEAD"), "ref: refs/heads/main\n");
+    await mounts.ensureRepo(project, { fetch: true });
+    await assert.rejects(() => mounts.ensureRepo(project, { fetch: true, strict: true }));
+  });
+
+  it("requireConfigured refuses unknown projects with PROJECT_NOT_CONFIGURED", async () => {    const dir = await tempDir();
     const mounts = new MountManager({ config: config(), cloneDir: dir });
     assert.throws(() => mounts.requireConfigured("acme/billing"), /PROJECT_NOT_CONFIGURED|not configured/u);
   });

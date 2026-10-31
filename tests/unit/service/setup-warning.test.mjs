@@ -33,6 +33,15 @@ describe("setup warning", () => {
     assert.equal(setupWarning({ root, env: {} }), "");
   });
 
+  it("does not treat an unrelated MCP server as configuration", () => {
+    const root = tempDir("spec-setup-unrelated-");
+    writeFileSync(
+      path.join(root, ".mcp.json"),
+      JSON.stringify({ mcpServers: { github: { type: "http", url: "https://api.github.com/mcp" } } }),
+    );
+    assert.match(setupWarning({ root, env: {} }), /SPEC_SETUP_REQUIRED/u);
+  });
+
   it("stays silent when the endpoint/token environment pair is set", () => {
     const root = tempDir("spec-setup-env-");
     const warning = setupWarning({
