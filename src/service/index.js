@@ -27,7 +27,7 @@ export async function bootService({ configPath, cloneDir, git = new GitClient(),
   const config = await loadProjectsConfig(configPath);
   const store = storeOption ?? (await createStore({ file: path.join(path.dirname(configPath), "registry.db") }));
   seedInitialBindings({ config, store, secretsKey, env: process.env });
-  const resolvedCloneDir = path.resolve(cloneDir ?? path.join(path.dirname(configPath), "..", "data", "specs-clone"));
+  const resolvedCloneDir = path.resolve(cloneDir ?? path.join(path.dirname(configPath), "..", "data", "clones"));
   const mounts = new MountManager({ config, cloneDir: resolvedCloneDir, git, identity, store, secretsKey, logger });
   const report = await mounts.boot();
   return { config, mounts, report, store };
@@ -260,7 +260,7 @@ export async function startService({ configPath, cloneDir, storeFile, syncInterv
   const secretsKey = secretsKeyFromEnv(env);
   // The store must exist before mounts: bound projects resolve their clone
   // through repo_bindings during boot reconciliation.
-  const resolvedCloneDir = path.resolve(cloneDir ?? path.join(path.dirname(configPath), "..", "data", "specs-clone"));
+  const resolvedCloneDir = path.resolve(cloneDir ?? path.join(path.dirname(configPath), "..", "data", "clones"));
   const store = await createStore({ file: storeFile ?? env.SPEC_REGISTRY_STORE ?? path.join(path.dirname(resolvedCloneDir), "registry.db") });
   const { config, mounts } = await bootService({ configPath, cloneDir: resolvedCloneDir, git, identity, store, secretsKey, logger });
   const stack = buildServiceStack({ mounts, config, identity, logger, store, secretsKey, syncIntervalMs, env });

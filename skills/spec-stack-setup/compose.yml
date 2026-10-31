@@ -47,7 +47,7 @@ services:
     restart: unless-stopped
     environment:
       SPEC_REGISTRY_CONFIG: /data/config/projects.json
-      SPEC_REGISTRY_CLONE: /data/specs-clone
+      SPEC_REGISTRY_CLONE: /data/clones
       SPEC_REGISTRY_STORE: /data/registry.db
       SPEC_REGISTRY_SYNC_MS: "5000"
       SPEC_REGISTRY_AUTH_CACHE_MS: "1000"
