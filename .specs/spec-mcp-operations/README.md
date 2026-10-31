@@ -34,3 +34,5 @@ One canonical root, one containment model, bounded deterministic envelopes, reda
 ## Board projection contract
 
 spec_graph view board is the single complete read for the YouTrack adapter. It returns BoardProjectionV1 for the full corpus or specSlugs scope, includes bounded card-source fields and aggregated raw kernel edges, rejects limit and cursor, and returns RESPONSE_TOO_LARGE instead of truncation. The downstream adapter owns YouTrack link names and snapshot commit.
+
+The hosted registry adds service-only operations (`spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, `spec_branch`) on top of this local kernel surface. They are owned by `spec-registry-service`; the local ten-tool contract above stays unchanged.
