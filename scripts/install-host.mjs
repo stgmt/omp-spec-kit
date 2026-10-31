@@ -39,13 +39,10 @@ export function parseHostArgs(argv, env = process.env) {
   if (host !== "omp" && (typeof url !== "string" || !/^https?:\/\/[^/]+\/mcp$/u.test(url))) {
     throw new Error("--url must be an http(s) endpoint ending in /mcp");
   }
-  if (host === "claude" && (typeof token !== "string" || token.trim() === "")) {
-    throw new Error("--token is required for the Claude project config");
-  }
   return { host, url, token: typeof token === "string" ? token.trim() : token, project, config };
 }
 
-export function mergeClaudeMcpConfig({ configPath, url, token, project }) {
+export function mergeClaudeMcpConfig({ configPath, url, project }) {
   const target = path.resolve(configPath);
   const existing = existsSync(target) ? JSON.parse(readFileSync(target, "utf8")) : {};
   const config = existing && typeof existing === "object" && !Array.isArray(existing) ? existing : {};
@@ -53,14 +50,22 @@ export function mergeClaudeMcpConfig({ configPath, url, token, project }) {
   config.mcpServers["omp-spec-kit"] = {
     type: "http",
     url,
+    // Never persist the bearer token in a file that teams routinely commit.
+    // The packaged plugin uses the same environment expansion.
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: "Bearer ${OMP_SPEC_REGISTRY_TOKEN}",
       "X-Spec-Project": project,
     },
   };
   mkdirSync(path.dirname(target), { recursive: true });
   if (existsSync(target)) {
-    writeFileSync(`${target}.bak`, readFileSync(target));
+    const backup = `${target}.bak`;
+    writeFileSync(backup, readFileSync(target), { mode: 0o600 });
+    try {
+      chmodSync(backup, 0o600);
+    } catch {
+      // Windows has no POSIX mode bits.
+    }
   }
   writeFileSync(target, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
   try {
@@ -93,8 +98,9 @@ async function main() {
   const parsed = parseHostArgs(argv);
   if (parsed.host === "claude") {
     const target = parsed.config ?? path.join(process.cwd(), ".mcp.json");
-    mergeClaudeMcpConfig({ configPath: target, url: parsed.url, token: parsed.token, project: parsed.project });
+    mergeClaudeMcpConfig({ configPath: target, url: parsed.url, project: parsed.project });
     console.log(`Claude MCP config written: ${path.resolve(target)}`);
+    console.log("Set OMP_SPEC_REGISTRY_TOKEN in the environment; the config references it and contains no secret.");
     console.log("Restart Claude Code so the project-scoped server loads.");
     return;
   }

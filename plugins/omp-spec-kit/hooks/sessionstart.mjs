@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { homedir } from "node:os";
 import path from "node:path";
 
 // Claude Code SessionStart hook: a bounded setup warning, never a block.
@@ -42,22 +43,32 @@ function hasCorpus(root) {
 
 /**
  * Hosted projects carry no local `.specs` by design — their corpus lives on
- * orphan branches behind the registry. A project-level `.mcp.json` (or a fully
- * populated environment) is the configuration signal; without it the plugin
- * really is installed but unusable, and the warning is legitimate.
+ * orphan branches behind the registry. A project `.mcp.json`, a user-scope
+ * Claude config (`~/.claude.json` / `CLAUDE_CONFIG_DIR`), or a fully populated
+ * environment is the configuration signal.
  */
-function hasMcpConfig(root) {
-  const file = path.join(root, ".mcp.json");
+function hasServers(file) {
   if (!existsSync(file)) return false;
   try {
     const servers = JSON.parse(readFileSync(file, "utf8"))?.mcpServers;
-    if (!servers || typeof servers !== "object") return false;
+    if (!servers || typeof servers !== "object" || Array.isArray(servers)) return false;
     return Object.values(servers).some(
       (server) => typeof server?.url === "string" && server.url.length > 0,
     );
   } catch {
     return false;
   }
+}
+
+function hasMcpConfig(root) {
+  if (hasServers(path.join(root, ".mcp.json"))) return true;
+  const configDir = process.env.CLAUDE_CONFIG_DIR;
+  const candidates = [
+    configDir === undefined ? null : path.join(configDir, ".claude.json"),
+    configDir === undefined ? null : path.join(configDir, "claude.json"),
+    path.join(homedir(), ".claude.json"),
+  ].filter((file) => typeof file === "string" && file.length > 0);
+  return candidates.some((file) => hasServers(file));
 }
 
 function warningFor(root) {

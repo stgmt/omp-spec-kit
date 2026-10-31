@@ -2,6 +2,21 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.0.1 — 2026-10-31
+
+### Fixed
+
+- **Cross-project branch safety**: `create`, `delete`, and `deleteSpec` now require `.spec-kit.json` to name the requested `project` and `spec`. A repository may host several projects; a writer of one project can no longer mutate another project's branch through the shared mirror.
+- **`deleteSpec` is owner-only** and reads `Demo: true` from the canonical remote ref, never from a mutable worktree. It refuses while unmerged work branches or published versions exist, and deletes with `--force-with-lease` against the tip it inspected.
+- **`install-host` writes no secret**: the Claude `.mcp.json` references `${OMP_SPEC_REGISTRY_TOKEN}`; the backup is `0600` and the root config is gitignored.
+- **`tool:e2e` reads `data.nodes`**, so `spec_evidence` runs its real scenario path; the report distinguishes a complete 15-tool run from a typed-evidence-only run.
+- **Claude `SessionStart` honors user-scope config** (`~/.claude.json` / `CLAUDE_CONFIG_DIR`) instead of warning on a configured project.
+- **Release workflow runs `test:unit` and `test:service`**, bootstrapping the same live YouTrack contour as branch CI.
+
+### Changed
+
+- The host matrix is explicitly adapter-level for Codex/OpenCode/OMP; P12-9 no longer claims recorded interactive sessions.
+
 ## 3.0.0 — 2026-10-31
 
 ### Changed

@@ -4,6 +4,9 @@
 !.env.example
 *.pem
 *.key
+# `install-host` writes a project-scoped Claude config; never commit it.
+/.mcp.json
+/.mcp.json.bak
 
 # Dependencies and generated output
 node_modules/

@@ -95,10 +95,10 @@ flowchart TB
 
 ## 5. MCP-поверхность
 
-- 11-й инструмент `spec_branch`: `action: create | merge | delete`. Списка веток в нём нет — чтение через `spec_catalog` view `branches` (DRY).
+- Hosted-инструмент `spec_branch`: `action: create | merge | delete | deleteSpec`. Списка веток в нём нет — чтение через `spec_catalog` view `branches` (DRY).
 - `spec_patch` остаётся единственным инструментом записи документов.
 - Читателям `spec_branch` не виден (фильтр `tools/list`).
-- Контракт меняется → полный `@tool-e2e` на 11 инструментов.
+- Контракт меняется → полный `@tool-e2e` на 15 инструментов (10 kernel + 5 service).
 
 ## 6. Фазы
 
@@ -110,7 +110,7 @@ flowchart TB
 | P0-2 | Новые FR/AC/SCEN: discovery веток, metadata, `spec_branch`, merge, no-fallback | каждый AC покрыт |
 | P0-3 | `spec-mcp-access-gate`: граница `.specs` на ветке, setup-required | сценарии блокировки |
 | P0-4 | `youtrack-visualization`: проекция только с `spec-<slug>` | сабветка не проецируется |
-| P0-5 | `spec-mcp-operations`: 11 инструментов, `spec_branch` | tool-contract тесты |
+| P0-5 | `spec-mcp-operations`: 10 kernel + 5 service, `spec_branch` | tool-contract тесты |
 | P0-6 | ADR: «спека = orphan-ветка» | ссылка из README |
 
 ### P1. Модель хранения — L
@@ -138,7 +138,7 @@ flowchart TB
 
 | ID | Задача | Приёмка |
 |---|---|---|
-| P3-1 | Контракт и схема инструмента | 11 инструментов, читатель не видит |
+| P3-1 | Контракт и схема инструмента | 15 инструментов (10 kernel + 5 service), читатель не видит write-инструменты |
 | P3-2 | `create` orphan `spec-<slug>` + metadata + skeleton | ветка без родителя |
 | P3-3 | `create` сабветку от ветки спеки | родитель = спека |
 | P3-4 | `merge` под lock, бот-коммит, проверка путей (только `.specs/**` и metadata) | код не проходит |
@@ -186,7 +186,7 @@ flowchart TB
 | P7-2 | Service: per-repo mount, worktree, no-fallback, migration error | зелёные |
 | P7-3 | E2E: 9 спек → 9 веток, проекция | 15/15 |
 | P7-4 | BDD: create/merge/delete, setup-required | зелёные |
-| P7-5 | `@tool-e2e` 11 инструментов, архив | полный матрикс |
+| P7-5 | `@tool-e2e` 15 инструментов, архив | полный матрикс |
 | P7-6 | Фикстуры/кандидат/BDD | identity зелёный |
 
 ### P8. Миграция — L
@@ -255,7 +255,7 @@ Refactor:
 | P12-6 | Нет `specsRepo`, `SPECS_BRANCH`, `SPEC_REGISTRY_GIT_TOKEN`, `specs-clone`, `<owner>/<project>` | нулевой grep, кроме `MIGRATION_REQUIRED` |
 | P12-7 | Unbound → `REPO_BINDING_REQUIRED`; spec_* → `SETUP_REQUIRED` по проекту | живые вызовы |
 | P12-8 | Ruleset `spec-*`: пуш только бот | GitHub API/аудит |
-| P12-9 | 4 хоста: setup-required, блок `.specs`, MCP only | матрица проверок |
+| P12-9 | 4 хоста: setup-required, блок `.specs`, MCP only | adapter-level matrix; live-сессии Codex/OpenCode/OMP не записаны |
 | P12-10 | 15 инструментов (10 kernel + 5 service), полный tool-e2e | `npm run tool:e2e` зелёный |
 | P12-11 | Digest'ы, ledger, YouTrack после миграции | 13/8/36/21/29 |
 | P12-12 | Релиз 3.0.0 разрешён только после P12-1…P12-11 | preflight |
@@ -314,7 +314,7 @@ Refactor:
 | P11: рудименты | **done** | удалены `SPEC_REGISTRY_GIT_TOKEN`/`SPECS_BRANCH`/`specs-clone`, старые проверки; docs переписаны |
 | P5: setup-required | **done** | `/status` + `mcp_preflight.setup` + `SETUP_REQUIRED`; Claude SessionStart, Codex SessionStart, OpenCode `session.created`/`chat.message`, OMP `session_start` |
 | P6: установщик | **done** | `scripts/install-host.mjs` (claude/codex/opencode/omp); demo setup создаёт binding + ветки |
-| P12: аудит | **done** | канон VALID, 10/10 веток, metadata, ruleset, архив старого репо, `tool:e2e` = 15 tools passed; матрица 4 хостов — `docs/validation/host-matrix-v3.0.0.md`, OMP session_start проверен на API-контракте |
+| P12: аудит | **частично** | канон VALID, 10/10 веток, metadata, ruleset, архив старого репо, `tool:e2e` = 15 tools; матрица 4 хостов — adapter-level, живые сессии Codex/OpenCode/OMP не записаны |
 | Релиз 3.0.0 | **done** | tag `v3.0.0` → `52d2324`, preflight passed, GitHub Release `https://github.com/stgmt/omp-spec-kit/releases/tag/v3.0.0` |
 
 Следующий шаг: P12 закрыт, 3.0.0 опубликован; дальнейшие изменения — только новыми патч-релизами.
@@ -328,4 +328,4 @@ Refactor:
 | Токены на N репозиториев | AES-GCM, аудит bind, без глобального токена |
 | Спека и код в одном репо | ruleset `spec-*`, allowlist путей, drift |
 | Миграция меняет digest'ы | новый ledger, перепроекция, архив старого репо |
-| 11-й инструмент ломает 10-tool контракт | 3.0.0, tool-e2e матрикс |
+| Новый hosted-инструмент ломает 10-tool kernel контракт | 3.0.0, tool-e2e матрикс |

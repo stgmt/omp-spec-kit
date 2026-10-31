@@ -9,10 +9,12 @@ import { MountManager, parseProjectsConfig } from "../../../src/service/mounts.j
 import { createDispatcher } from "../../../src/service/dispatch.js";
 import { BRANCH_CONTRACTS, createBranchOps } from "../../../src/service/ops/branch.js";
 import { createSpecBranchManager } from "../../../src/service/spec-branches.js";
+import { publishTagName } from "../../../src/service/publish.js";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
 const PROJECT = "stgmt/demo";
+const OTHER = "stgmt/other";
 const AUTH = {
   youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
   appBridge: { token: "bridge-token-1234567890" },
@@ -48,6 +50,22 @@ async function setup() {
   return { base, bare, mounts, manager };
 }
 
+/** Two projects bound to the SAME repository: the branch namespace is shared. */
+async function setupShared() {
+  const base = await tempDir("spec-branches-shared-");
+  const bare = path.join(base, "specs.git");
+  await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
+  const config = parseProjectsConfig({ projects: [{ id: PROJECT }, { id: OTHER }], auth: AUTH });
+  const row = { repoUrl: bare, branch: "main", status: "active" };
+  const store = {
+    getBinding: (project) => (project === PROJECT || project === OTHER ? { project, ...row } : null),
+    getCredential: () => null,
+  };
+  const mounts = new MountManager({ config, cloneDir: path.join(base, "clone"), store, identity: IDENTITY, logger: () => {} });
+  const manager = createSpecBranchManager({ mounts, identity: IDENTITY, logger: () => {} });
+  return { base, bare, mounts, manager };
+}
+
 async function pushToWork(bare, { spec, topic, files, message = "work edit" }) {
   const dir = await tempDir("spec-work-");
   const work = path.join(dir, "work");
@@ -62,6 +80,19 @@ async function pushToWork(bare, { spec, topic, files, message = "work edit" }) {
   await git(work, ["add", "-A"]);
   await git(work, ["commit", "-m", message]);
   await git(work, ["push", "-q", "origin", `HEAD:refs/heads/${branch}`]);
+}
+
+async function markDemo(bare, manager, { project = PROJECT, spec = "demo-spec", topic = "demo" } = {}) {
+  const created = await manager.run({ args: { action: "create", spec }, project, requestId: `mk-${topic}`, login: "alice" });
+  if (!created.ok && created.error?.code !== "SPEC_EXISTS") assert.fail(JSON.stringify(created.error ?? {}));
+  await manager.run({ args: { action: "create", spec, topic }, project, requestId: `mk-${topic}-w`, login: "alice" });
+  await pushToWork(bare, {
+    spec,
+    topic,
+    files: { [`.specs/${spec}/README.md`]: `# ${spec}\n\n**Demo:** true\n` },
+  });
+  const merged = await manager.run({ args: { action: "merge", spec, topic }, project, requestId: `mk-${topic}-m`, login: "alice" });
+  assert.equal(merged.ok, true, JSON.stringify(merged.error ?? {}));
 }
 
 describe("spec_branch", () => {
@@ -123,6 +154,58 @@ describe("spec_branch", () => {
     const removed = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "b6", login: "alice", role: "owner" });
     assert.equal(removed.ok, true, JSON.stringify(removed.error ?? {}));
     assert.equal(await git(bare, ["ls-remote", "--heads", bare, "refs/heads/spec-demo-spec"]), "");
+  });
+
+  it("refuses to mutate another project's branch in a shared repository", async () => {
+    const { bare, manager } = await setupShared();
+    await manager.run({ args: { action: "create", spec: "shared-a" }, project: PROJECT, requestId: "x1", login: "alice" });
+    await manager.run({ args: { action: "create", spec: "shared-b" }, project: OTHER, requestId: "x2", login: "alice" });
+
+    const created = await manager.run({ args: { action: "create", spec: "shared-b", topic: "x" }, project: PROJECT, requestId: "x3", login: "alice" });
+    assert.equal(created.ok, false);
+    assert.equal(created.error.code, "SPEC_BINDING_INVALID");
+
+    await manager.run({ args: { action: "create", spec: "shared-b", topic: "keep" }, project: OTHER, requestId: "x4", login: "alice" });
+    const deletedWork = await manager.run({ args: { action: "delete", spec: "shared-b", topic: "keep" }, project: PROJECT, requestId: "x5", login: "alice", force: true, role: "owner" });
+    assert.equal(deletedWork.ok, false);
+    assert.equal(deletedWork.error.code, "SPEC_BINDING_INVALID");
+
+    await markDemo(bare, manager, { project: OTHER, spec: "shared-b", topic: "demo" });
+    const deletedSpec = await manager.run({ args: { action: "deleteSpec", spec: "shared-b" }, project: PROJECT, requestId: "x6", login: "alice", role: "owner" });
+    assert.equal(deletedSpec.ok, false);
+    assert.equal(deletedSpec.error.code, "SPEC_BINDING_INVALID");
+  });
+
+  it("blocks demo deletion for a writer, unmerged work, and published versions", async () => {
+    const { bare, manager } = await setup();
+    await markDemo(bare, manager);
+
+    const writer = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "d1", login: "alice", role: "writer" });
+    assert.equal(writer.ok, false);
+    assert.equal(writer.error.code, "FORBIDDEN_ROLE");
+
+    await manager.run({ args: { action: "create", spec: "demo-spec", topic: "pending" }, project: PROJECT, requestId: "d2", login: "alice" });
+    const workBlocked = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "d3", login: "alice", role: "owner" });
+    assert.equal(workBlocked.ok, false);
+    assert.equal(workBlocked.error.code, "SPEC_HAS_WORK_BRANCHES");
+
+    await manager.run({ args: { action: "delete", spec: "demo-spec", topic: "pending" }, project: PROJECT, requestId: "d4", login: "alice", force: true, role: "owner" });
+    await execFileAsync("git", ["--git-dir", bare, "tag", publishTagName(PROJECT, "demo-spec", "1.0.0"), "spec-demo-spec"]);
+    const tagBlocked = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "d5", login: "alice", role: "owner" });
+    assert.equal(tagBlocked.ok, false);
+    assert.equal(tagBlocked.error.code, "SPEC_HAS_PUBLISHED_VERSIONS");
+  });
+
+  it("reads the demo marker from the canonical remote ref, not a local worktree commit", async () => {
+    const { mounts, manager } = await setup();
+    await manager.run({ args: { action: "create", spec: "demo-spec" }, project: PROJECT, requestId: "l1", login: "alice" });
+    const worktree = await mounts.worktreeFor(PROJECT, "demo-spec");
+    await writeFile(path.join(worktree.cwd, ".specs", "demo-spec", "README.md"), "# demo-spec\n\n**Demo:** true\n");
+    await git(worktree.cwd, ["add", "-A"]);
+    await git(worktree.cwd, ["-c", "user.name=alice", "-c", "user.email=alice@example.invalid", "commit", "-m", "local demo marker"]);
+    const denied = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "l2", login: "alice", role: "owner" });
+    assert.equal(denied.ok, false);
+    assert.equal(denied.error.code, "DELETE_FORBIDDEN");
   });
 
   it("honors an active claim before merging another user's spec", async () => {

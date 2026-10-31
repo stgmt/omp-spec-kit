@@ -102,7 +102,7 @@ checks.push(["spec_drift", await call("spec_drift", {})]);
 
 const scenarios = await call("spec_entities", { mode: "find", specSlugs: [slug], kinds: ["SCENARIO"], limit: 1 });
 expectOk("spec_entities (scenario)", scenarios);
-const scenarioId = scenarios.data?.entities?.[0]?.canonicalId ?? scenarios.data?.items?.[0]?.canonicalId ?? null;
+const scenarioId = scenarios.data?.nodes?.[0]?.canonicalId ?? scenarios.data?.entities?.[0]?.canonicalId ?? scenarios.data?.items?.[0]?.canonicalId ?? null;
 let evidenceMode = "scenario";
 if (scenarioId !== null) {
   checks.push(["spec_evidence", await call("spec_evidence", { view: "trace", scenarioId, spec: slug })]);
@@ -145,7 +145,8 @@ console.log(JSON.stringify({
   endpoint: url,
   tools: tools.length,
   checked: [...checks.map(([name]) => name), "spec_patch", "spec_branch"],
+  complete: scenarioId !== null,
   evidence: evidenceMode,
   specs: catalog.data.specs.length,
-  status: "passed",
+  status: scenarioId === null ? "passed-with-typed-evidence" : "passed",
 }, null, 2));

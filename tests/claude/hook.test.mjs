@@ -459,6 +459,23 @@ describe("SessionStart setup warning", () => {
     }
   });
 
+  it("stays silent for a user-scope Claude MCP config", () => {
+    const home = realpathSync.native(mkdtempSync(path.join(tmpdir(), "omp-spec-kit-home-")));
+    const project = realpathSync.native(mkdtempSync(path.join(tmpdir(), "omp-spec-kit-user-scope-")));
+    try {
+      writeFileSync(
+        path.join(home, ".claude.json"),
+        JSON.stringify({ mcpServers: { "omp-spec-kit": { type: "http", url: "http://127.0.0.1:8650/mcp" } } }),
+      );
+      const result = runSessionStart(project, { USERPROFILE: home, HOME: home });
+      assert.equal(result.status, 0);
+      assert.equal(result.stdout, "", "a user-scope Claude config is a valid setup signal");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+      rmSync(project, { recursive: true, force: true });
+    }
+  });
+
   it("never echoes a token value", () => {
     const result = runSessionStart(projectDir, {
       OMP_SPEC_REGISTRY_TOKEN: "super-secret-token-value",

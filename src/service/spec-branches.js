@@ -1,10 +1,11 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { serviceErrorEnvelope, serviceSuccess } from "./dispatch.js";
 import { commitMessage } from "./git.js";
 import { listSpecRefs, readSpecBinding } from "./spec-discovery.js";
 import { specBranchName, specWorkBranchName, validateSpecBinding } from "./spec-binding.js";
+import { publishTagName } from "./publish.js";
 import { isValidSpecSlug } from "../kernel/identity.js";
 
 const SPEC_BINDING_FILE = ".spec-kit.json";
@@ -52,9 +53,34 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
     return (await mount.git.revParse(`refs/remotes/origin/${branch}`, { cwd: mount.mirrorDir }).catch(() => null)) !== null;
   }
 
-  async function createCanonical({ project, spec, requestId, login, skeleton = true }) {
+  /**
+   * A branch is only addressable through the project named in its own
+   * `.spec-kit.json`. One repository may host several projects, so the
+   * `<owner>/<project>` request scope alone is not enough: a writer of project
+   * A must not delete project B's branch in the same mirror.
+   */
+  async function ownedBinding({ mount, project, spec, ref }) {
+    try {
+      const raw = await readSpecBinding({ git: mount.git, cwd: mount.mirrorDir, branch: ref });
+      const valid = validateSpecBinding(raw, { branch: specBranchName(spec), repoUrl: mount.repoUrl });
+      if (!valid.ok || raw.project !== project || raw.spec !== spec) {
+        return { error: `branch ${ref} does not belong to ${project}/${spec}: ${valid.errors.join("; ") || "metadata disagrees"}` };
+      }
+      return { binding: raw };
+    } catch (error) {
+      return { error: String(error?.message ?? error).split("\n")[0] };
+    }
+  }
+
+  async function createCanonical({ project, spec, requestId, login, skeleton = true, role = null }) {
     const mount = await mounts.ensureRepo(project);
     const branch = specBranchName(spec);
+    // A branch with this name means the slug is taken repository-wide, even
+    // when its metadata belongs to another project or is invalid. Never try
+    // to overwrite it with a non-fast-forward push.
+    if (await branchExists(mount, branch)) {
+      return failure(requestId, "SPEC_EXISTS", `spec ${spec} already exists in ${project}`);
+    }
     const { branches } = await mounts.listBranches(project);
     if (branches.some((entry) => entry.spec === spec)) {
       return failure(requestId, "SPEC_EXISTS", `spec ${spec} already exists in ${project}`);
@@ -88,7 +114,7 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
       const commit = await mount.git.run(["-C", dir, "rev-parse", "HEAD"], { cwd: mount.cwd }).then((result) => result.stdout.trim());
       await mounts.ensureRepo(project);
       await mounts.refreshProject(project);
-      audit({ login, role: null, project, op: "spec-branch-create", spec, result: `ok:${branch}` });
+      audit({ login, role, project, op: "spec-branch-create", spec, result: `ok:${branch}` });
       projection?.syncNow();
       logger(`created ${branch} for ${project}`);
       return serviceSuccess("specBranch", requestId, { action: "create", kind: "spec", branch, spec, topic: null, commit });
@@ -100,27 +126,30 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
     }
   }
 
-  async function createWork({ project, spec, topic, requestId, login }) {
+  async function createWork({ project, spec, topic, requestId, login, role = null }) {
     const mount = await mounts.ensureRepo(project);
     const canonical = specBranchName(spec);
+    const canonicalRef = `refs/remotes/origin/${canonical}`;
     if (!(await branchExists(mount, canonical))) {
       return failure(requestId, "SPEC_NOT_FOUND", `spec ${spec} has no ${canonical} branch`);
     }
+    const owned = await ownedBinding({ mount, project, spec, ref: canonicalRef });
+    if (owned.error) return failure(requestId, "SPEC_BINDING_INVALID", owned.error);
     const branch = specWorkBranchName(spec, topic);
     if (await branchExists(mount, branch)) {
       return failure(requestId, "BRANCH_EXISTS", `branch ${branch} already exists`);
     }
     await mount.git.run(
-      ["--git-dir", mount.mirrorDir, "push", "-q", mount.repoUrl, `refs/remotes/origin/${canonical}:refs/heads/${branch}`],
+      ["--git-dir", mount.mirrorDir, "push", "-q", mount.repoUrl, `${canonicalRef}:refs/heads/${branch}`],
       { cwd: mount.cwd },
     );
     await mounts.ensureRepo(project);
-    audit({ login, role: null, project, op: "spec-branch-create", spec, result: `ok:${branch}` });
+    audit({ login, role, project, op: "spec-branch-create", spec, result: `ok:${branch}` });
     logger(`created work branch ${branch}`);
     return serviceSuccess("specBranch", requestId, { action: "create", kind: "work", branch, spec, topic, commit: null });
   }
 
-  async function mergeWork({ project, spec, topic, requestId, login }) {
+  async function mergeWork({ project, spec, topic, requestId, login, role = null }) {
     const mount = await mounts.ensureRepo(project);
     const canonical = specBranchName(spec);
     const branch = specWorkBranchName(spec, topic);
@@ -168,7 +197,7 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
       });
       await mounts.ensureRepo(project);
       await mounts.refreshProject(project);
-      audit({ login, role: null, project, op: "spec-branch-merge", spec, result: `ok:${branch}:${commit.slice(0, 12)}` });
+      audit({ login, role, project, op: "spec-branch-merge", spec, result: `ok:${branch}:${commit.slice(0, 12)}` });
       await publish?.publishSpec(project, spec).catch((error) => logger(`publish after merge failed: ${error.message}`));
       projection?.syncNow();
       logger(`merged ${branch} into ${canonical} at ${commit.slice(0, 12)}`);
@@ -191,6 +220,8 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
     }
     const workRef = `refs/remotes/origin/${branch}`;
     const canonicalRef = `refs/remotes/origin/${canonical}`;
+    const owned = await ownedBinding({ mount, project, spec, ref: workRef });
+    if (owned.error) return failure(requestId, "SPEC_BINDING_INVALID", owned.error);
     const merged = await mount.git.run(["--git-dir", mount.mirrorDir, "merge-base", "--is-ancestor", workRef, canonicalRef], { cwd: mount.cwd })
       .then(() => true)
       .catch(() => false);
@@ -202,38 +233,72 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
         return failure(requestId, "FORBIDDEN_ROLE", "force delete requires the owner role", { parameter: "force" });
       }
     }
-    await mount.git.run(["--git-dir", mount.mirrorDir, "push", "-q", mount.repoUrl, `:refs/heads/${branch}`], { cwd: mount.cwd });
-    const worktreeDir = path.join(mount.cwd, "worktrees", branch);
-    await rm(worktreeDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }).catch(() => {});
+    const tip = await mount.git.revParse(workRef, { cwd: mount.mirrorDir });
+    if (tip === null) return failure(requestId, "BRANCH_NOT_FOUND", `branch ${branch} does not exist`);
+    await mount.git.run(
+      ["--git-dir", mount.mirrorDir, "push", "-q", `--force-with-lease=refs/heads/${branch}:${tip}`, mount.repoUrl, `:refs/heads/${branch}`],
+      { cwd: mount.cwd },
+    );
     await mount.git.run(["--git-dir", mount.mirrorDir, "worktree", "prune"], { cwd: mount.cwd }).catch(() => {});
     await mounts.ensureRepo(project);
-    audit({ login, role: null, project, op: "spec-branch-delete", spec, result: `ok:${branch}` });
+    audit({ login, role, project, op: "spec-branch-delete", spec, result: `ok:${branch}:${tip.slice(0, 12)}` });
     logger(`deleted work branch ${branch}`);
     return serviceSuccess("specBranch", requestId, { action: "delete", kind: "work", branch, spec, topic });
   }
 
   /**
    * Explicit demo-spec deletion. Ordinary `delete` keeps the canonical-branch
-   * guard; only a spec whose README carries `Demo: true` may take this path,
-   * and the caller must already hold the writer or owner role.
+   * guard; only a spec whose canonical README carries `Demo: true` may take
+   * this path, and only an owner may request it. The marker is read from the
+   * remote ref, never from the mutable worktree, so a local-only commit cannot
+   * authorize a delete. Unmerged work and published versions block the delete:
+   * they are separate evidence and must be archived/removed first.
    */
   async function deleteCanonical({ project, spec, requestId, login, role }) {
-    if (role !== "owner" && role !== "writer") {
-      return failure(requestId, "FORBIDDEN_ROLE", "deleting a demo spec requires the writer or owner role");
+    if (role !== "owner") {
+      return failure(requestId, "FORBIDDEN_ROLE", "deleting a demo spec requires the owner role");
     }
     const branch = specBranchName(spec);
     const mount = await mounts.ensureRepo(project);
+    const canonicalRef = `refs/remotes/origin/${branch}`;
     if (!(await branchExists(mount, branch))) {
       return failure(requestId, "SPEC_NOT_FOUND", `spec ${spec} has no ${branch} branch`);
     }
-    const worktree = await mounts.worktreeFor(project, spec).catch(() => null);
-    const readme = worktree
-      ? await readFile(path.join(worktree.cwd, ".specs", spec, "README.md"), "utf8").catch(() => "")
-      : await mount.git.show(`refs/remotes/origin/${branch}`, `.specs/${spec}/README.md`, { cwd: mount.mirrorDir }).catch(() => "");
+    const owned = await ownedBinding({ mount, project, spec, ref: canonicalRef });
+    if (owned.error) return failure(requestId, "SPEC_BINDING_INVALID", owned.error);
+
+    const refs = await listSpecRefs({ git: mount.git, cwd: mount.mirrorDir });
+    const workBranches = refs
+      .filter(({ parsed }) => parsed?.kind === "work" && parsed.slug === spec)
+      .map(({ branch: workBranch }) => workBranch);
+    if (workBranches.length > 0) {
+      return failure(
+        requestId,
+        "SPEC_HAS_WORK_BRANCHES",
+        `spec ${spec} still has work branches: ${workBranches.join(", ")}; merge or delete them first`,
+        { branches: workBranches },
+      );
+    }
+    const tags = await mount.git.lsRemote(`refs/tags/${publishTagName(project, spec, "*")}`, { cwd: mount.mirrorDir }).catch(() => new Map());
+    if (tags.size > 0) {
+      return failure(
+        requestId,
+        "SPEC_HAS_PUBLISHED_VERSIONS",
+        `spec ${spec} has published versions: ${[...tags.keys()].join(", ")}; archive it instead`,
+        { tags: [...tags.keys()] },
+      );
+    }
+
+    const readme = await mount.git.show(canonicalRef, `.specs/${spec}/README.md`, { cwd: mount.mirrorDir }).catch(() => "");
     if (!/^\s*>?\s*\*\*?Demo:?\*?\*?\s*true\b/imu.test(readme)) {
       return failure(requestId, "DELETE_FORBIDDEN", `spec ${spec} is not marked Demo: true; archive it instead`);
     }
-    await mount.git.run(["--git-dir", mount.mirrorDir, "push", "-q", mount.repoUrl, `:refs/heads/${branch}`], { cwd: mount.cwd });
+    const tip = await mount.git.revParse(canonicalRef, { cwd: mount.mirrorDir });
+    if (tip === null) return failure(requestId, "SPEC_NOT_FOUND", `spec ${spec} has no ${branch} branch`);
+    await mount.git.run(
+      ["--git-dir", mount.mirrorDir, "push", "-q", `--force-with-lease=refs/heads/${branch}:${tip}`, mount.repoUrl, `:refs/heads/${branch}`],
+      { cwd: mount.cwd },
+    );
     const worktreeDir = path.join(mount.cwd, "worktrees", branch);
     await rm(worktreeDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }).catch(() => {});
     await mount.git.run(["--git-dir", mount.mirrorDir, "worktree", "prune"], { cwd: mount.cwd }).catch(() => {});
@@ -244,9 +309,9 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
     await mounts.ensureRepo(project);
     await mounts.refreshProject(project);
     projection?.syncNow();
-    audit({ login, role, project, op: "spec-branch-delete-spec", spec, result: `ok:${branch}` });
-    logger(`deleted demo spec branch ${branch}`);
-    return serviceSuccess("specBranch", requestId, { action: "deleteSpec", kind: "spec", branch, spec, topic: null });
+    audit({ login, role, project, op: "spec-branch-delete-spec", spec, result: `ok:${branch}:${tip.slice(0, 12)}` });
+    logger(`deleted demo spec branch ${branch} at ${tip.slice(0, 12)}`);
+    return serviceSuccess("specBranch", requestId, { action: "deleteSpec", kind: "spec", branch, spec, topic: null, commit: tip });
   }
 
   return {
@@ -279,12 +344,12 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
         }
         if (action === "create") {
           return topic === null
-            ? await createCanonical({ project, spec, requestId, login })
-            : await createWork({ project, spec, topic, requestId, login });
+            ? await createCanonical({ project, spec, requestId, login, role })
+            : await createWork({ project, spec, topic, requestId, login, role });
         }
         if (action === "merge") {
           if (topic === null) return failure(requestId, "INVALID_REQUEST", "merge needs a topic (the work branch suffix)", { parameter: "topic" });
-          return await mergeWork({ project, spec, topic, requestId, login });
+          return await mergeWork({ project, spec, topic, requestId, login, role });
         }
         return await deleteWork({ project, spec, topic, requestId, login, force, role });
       } catch (error) {

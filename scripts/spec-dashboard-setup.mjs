@@ -114,7 +114,7 @@ function mergeGroups(existing = [], extra = []) {
   }));
 }
 
-export async function shareDashboard(client, dashboardId, dashboard, options) {
+export async function shareDashboard(client, dashboardId, options) {
   const values = optionValues(options);
   const groupNames = splitGroups(values.groups);
   if (values.noShare || groupNames.length === 0) return [];
@@ -186,7 +186,7 @@ export async function provisionDashboard({ client, options = {} }) {
     return { action: "update", dashboardId: dashboard.id, name: values.name, widget: widget.key, groups: splitGroups(values.groups) };
   }
   const widgets = await ensureWidget(client, dashboard.id, widget, values);
-  const shared = await shareDashboard(client, dashboard.id, dashboard, values);
+  const shared = await shareDashboard(client, dashboard.id, values);
   return {
     ok: true,
     created,
