@@ -1,0 +1,9 @@
+{
+  "schema": "omp-spec-kit/spec-binding@1",
+  "project": "stgmt/omp-spec-kit",
+  "spec": "agent-ux-elicitation-guard",
+  "repo": "https://github.com/stgmt/omp-spec-kit.git",
+  "branch": "spec-agent-ux-elicitation-guard",
+  "createdAt": "2026-10-31T00:31:09.551Z",
+  "owner": "stgmt"
+}
