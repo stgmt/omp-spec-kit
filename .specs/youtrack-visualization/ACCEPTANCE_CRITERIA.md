@@ -88,6 +88,6 @@ Scenario: SCEN-project-pointers
 
 ## AC-14.2: Selector and unassigned fallback
 
-Given the board, when the user selects a project, then V1, V2, and V3 show only that project and the spec pills and counts match; `All projects` restores the aggregate; an unknown `?project=` value opens Unassigned, and an empty unassigned bucket shows an honest empty state; a marker without a valid v7 index shows a named fail-closed error instead of the aggregate.
+Given the board, when the user selects a project, then V1, V2, and V3 show only that project and the spec pills and counts match; `All projects` restores the aggregate; an unknown `?project=` value opens Unassigned, and an empty unassigned bucket shows an honest empty state; the selection survives a reload through the host cache; a marker without a valid v7 index shows a named fail-closed error instead of the aggregate.
 
 Scenario: SCEN-board-project-selector
