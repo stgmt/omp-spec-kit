@@ -25,7 +25,7 @@ Status: DRAFT
 
 - A canonical specification is an **orphan `spec-<slug>` branch of its project
   repository**. `.spec-kit.json` at the branch root is the binding record:
-  `{schema, project, spec, repo, branch, createdAt, owner}`. The corpus lives
+  `{schema, project, spec, repo, branch, createdAt, owner, demo?}` — `demo: true` is the immutable marker for a demo specification. The corpus lives
   under `.specs/<slug>/` at the branch root; no `<owner>/<project>` prefix.
 - A repository may host specs of several projects. The branch name is not
   enough to identify the project: discovery reads `.spec-kit.json` from every
