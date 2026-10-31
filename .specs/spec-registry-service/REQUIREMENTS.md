@@ -2,9 +2,9 @@
 
 Status: DRAFT
 
-## R-1 — Dedicated specs repository
+## R-1 — Orphan spec branches
 
-All managed specs live in **one dedicated git repository** (a separate operator-owned GitHub repo) on a single canonical branch, laid out as `<owner>/<project>/.specs/<slug>/` — preserving the kernel's `<root>/.specs` convention with `<root> = <repo>/<owner>/<project>`. The repo is the canonical content store — the service never replaces it, only serializes and audits access to it. Product repositories carry no `.specs/` at all once their project has migrated.
+Every canonical specification is an **orphan `spec-<slug>` branch of its project repository**. `.spec-kit.json` at the branch root binds `project`, `spec`, `repo`, and `branch`; the corpus is `.specs/<slug>/`. One repository may host specs of several projects; discovery is metadata-driven, not layout-driven. A work branch `spec-<slug>--<topic>` holds unmerged changes and is never indexed or projected. There is no shared default repository: an unbound project refuses spec operations until a binding exists.
 
 ## R-2 — Service-only writes
 
