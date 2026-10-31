@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "2281c18e1edeeadaad2c328620471be637def7227eae77a677abc37280872c01",
+  "aggregateSha256": "d627f88f949b0fdeaec61a4afe143e7b0e4af5d6fa0d731890fcd4c18dfe5e42",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -365,8 +365,8 @@
     },
     {
       "path": "src/adapters/youtrack-projection.js",
-      "bytes": 25296,
-      "sha256": "f89e1fd510de5e69793ef8e2d6ef71556fa6eb57326bf8b1d044ae5431e6864d"
+      "bytes": 25672,
+      "sha256": "4dec39d41c779de07a1223f9f330e3c8488c1105d1c1c283660ac2db126a2dde"
     },
     {
       "path": "src/adapters/youtrack-status-sweep.js",
@@ -615,8 +615,8 @@
     },
     {
       "path": "src/service/index.js",
-      "bytes": 16206,
-      "sha256": "b387b17868a17726b5ad4b410797e3822707f6525b3b54d4d3f070ec66d18a00"
+      "bytes": 16196,
+      "sha256": "7b83c535b5b3c9fcc927a012f8fc95271d0972f6d6b42352f715a31aecd25809"
     },
     {
       "path": "src/service/ledger.js",
@@ -885,8 +885,8 @@
     },
     {
       "path": "tests/e2e/lib/youtrack.mjs",
-      "bytes": 13327,
-      "sha256": "2a76902f57f40513220376f162703c70e35d2a4cc59ea0daa8ec65fe4c81cc82"
+      "bytes": 13428,
+      "sha256": "28dcc63e703894498168c60186bef0ef27ff6e895d84a1a42d960f756a4bca54"
     },
     {
       "path": "tests/e2e/run-live.mjs",
