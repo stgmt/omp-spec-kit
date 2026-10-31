@@ -36,7 +36,7 @@ jobs:
 
   service:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -45,10 +45,14 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run build
-      # The service suite creates real commits in temporary repositories.
-      - run: git config --global user.name "spec-registryd CI"
-      - run: git config --global user.email "bot@spec-registryd.invalid"
+      # The service suite authenticates against a real YouTrack. Bootstrap the
+      # live contour (service + YouTrack + git daemon) without the app so the
+      # bootstrap never depends on the browser upload path.
+      - run: node tests/e2e/run-live.mjs --bootstrap-only --skip-app
       - run: npm run test:service
+      - name: Tear down the live contour
+        if: always()
+        run: docker compose -p spec-auth-e2e -f tests/e2e/compose.yml down -v
 
   bdd:
     runs-on: ubuntu-latest
