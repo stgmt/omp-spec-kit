@@ -198,15 +198,22 @@ test("no current manifest declares MAIN_MENU_ITEM", () => {
 });
 
 test("the Spec Service page ships health checks and dashboard provisioning", () => {
-  const html = readFileSync(path.join("tools", "spec-graph-app", "widgets", "spec-app", "index.html"), "utf8");
-  const handler = readFileSync(path.join("tools", "spec-graph-app", "spec-handler.js"), "utf8");
+  const appDir = path.join("tools", "spec-graph-app");
+  const html = readFileSync(path.join(appDir, "widgets", "spec-app", "index.html"), "utf8");
+  const handler = readFileSync(path.join(appDir, "spec-handler.js"), "utf8");
   assert.match(html, /data-testid="health"/, "health panel must render");
   assert.match(html, /data-testid="health-next"/, "health panel must name the next action");
   assert.match(html, /data-testid="dashboard-provision"/, "dashboard provisioning must be available in the page");
   assert.match(html, /method: 'health\/app'/, "the page must probe settings before the service");
+  assert.match(html, /src="dashboard\.js"/, "the page must load the testable dashboard module");
   assert.match(handler, /body\.method === 'health\/app'/, "the handler must answer health/app before rejecting missing settings");
   assert.match(handler, /serviceUrlConfigured/, "health/app reports presence, not secret values");
+  assert.match(handler, /markerProject/, "health/app must report the configured marker project");
   assert.ok(!/serviceBridgeToken\s*:/.test(handler), "health/app must not echo the bridge token");
+  assert.ok(
+    derivePackageFiles(appDir).includes("widgets/spec-app/dashboard.js"),
+    "the dashboard module must ship inside the app package",
+  );
 });
 
 test("the real app derives to exactly the JetBrains launch checklist", () => {

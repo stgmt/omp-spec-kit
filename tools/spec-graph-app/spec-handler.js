@@ -33,10 +33,15 @@ exports.httpHandler = {
         // reports configuration presence without touching the service and
         // without echoing either secret.
         if (body && body.method === 'health/app') {
+          // The marker project is a short name, never user input; keep the
+          // response shape strict so the widget can build the issue query.
+          const configuredMarker = typeof settings.markerProject === 'string' ? settings.markerProject.trim() : '';
+          const markerProject = /^[A-Za-z][A-Za-z0-9_]*$/u.test(configuredMarker) ? configuredMarker : 'SPEC';
           ctx.response.json({
             ok: Boolean(serviceUrl && bridgeToken),
             serviceUrlConfigured: Boolean(serviceUrl),
             bridgeTokenConfigured: Boolean(bridgeToken),
+            markerProject,
             missing: [
               serviceUrl ? null : 'serviceUrl',
               bridgeToken ? null : 'serviceBridgeToken'

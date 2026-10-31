@@ -43,6 +43,7 @@
   <p class="state" data-testid="state">Loading specs from spec-registryd…</p>
 </div>
 </div>
+<script src="dashboard.js"></script>
 <script>
   (function () {
     var root = document.getElementById('root');
@@ -227,59 +228,13 @@
       return String(error && error.message ? error.message : error).slice(0, 300);
     }
 
-    function specIdFromIssue(issue) {
-      var fields = (issue && issue.customFields) || [];
-      for (var i = 0; i < fields.length; i += 1) {
-        if (fields[i].name !== 'SpecId') continue;
-        var value = fields[i].value;
-        if (typeof value === 'string') return value;
-        return (value && (value.text || value.name)) || '';
-      }
-      return '';
-    }
-
     function checkDashboard() {
-      return host.fetchYouTrack('dashboards?fields=id,name,widgets(id,key)&$top=200').then(function (rows) {
-        var list = Array.isArray(rows) ? rows : [];
-        var dashboard = null;
-        for (var i = 0; i < list.length; i += 1) if (list[i].name === 'Spec Stack') dashboard = list[i];
-        if (!dashboard) return { status: 'warn', detail: 'Spec Stack is not provisioned', action: 'provision' };
-        var hasBoard = false;
-        var widgets = dashboard.widgets || [];
-        for (var w = 0; w < widgets.length; w += 1) if (widgets[w].key === 'spec-board') hasBoard = true;
-        if (!hasBoard) return { status: 'warn', detail: 'Spec Stack exists without spec-board', dashboardId: dashboard.id, action: 'provision' };
-        return { status: 'ok', detail: 'Spec Stack has the spec-board widget', dashboardId: dashboard.id, url: '/dashboard?id=' + encodeURIComponent(dashboard.id) };
-      }).catch(function (error) {
-        return { status: 'info', detail: 'dashboard check unavailable: ' + errorText(error) };
-      });
+      return SpecAppDashboard.checkDashboard(host);
     }
 
     function checkSnapshot() {
-      var query = 'project: SPEC and summary: {SPEC:SYNC-STATE}';
-      return host.fetchYouTrack('issues?query=' + encodeURIComponent(query) + '&fields=id,description,customFields(name,value(name,text))&$top=50').then(function (rows) {
-        var list = Array.isArray(rows) ? rows : [];
-        var pointer = null;
-        for (var i = 0; i < list.length; i += 1) {
-          if (specIdFromIssue(list[i]) !== 'SPEC:SYNC-STATE') continue;
-          if (!pointer || String(list[i].id).localeCompare(String(pointer.id), undefined, { numeric: true }) < 0) pointer = list[i];
-        }
-        if (!pointer) return { status: 'warn', detail: 'no committed snapshot yet' };
-        var prefix = 'SPEC-SYNC-STATE\n';
-        var description = pointer.description || '';
-        if (description.indexOf(prefix) !== 0) return { status: 'error', detail: 'snapshot marker is invalid' };
-        var marker;
-        try { marker = JSON.parse(description.slice(prefix.length)); }
-        catch (e) { return { status: 'error', detail: 'snapshot marker is not valid JSON' }; }
-        var snapshot = marker && marker.snapshot;
-        if (marker.schemaVersion !== 'BoardSnapshotV1' || marker.complete !== true || !snapshot ||
-            snapshot.schemaVersion !== 'BoardSnapshotV1' || snapshot.complete !== true ||
-            snapshot.page !== null || !Array.isArray(snapshot.nodes) || !Array.isArray(snapshot.edges)) {
-          return { status: 'error', detail: 'snapshot is incomplete' };
-        }
-        return { status: 'ok', detail: snapshot.nodes.length + ' nodes, ' + snapshot.edges.length + ' edges' };
-      }).catch(function (error) {
-        return { status: 'info', detail: 'snapshot check unavailable: ' + errorText(error) };
-      });
+      var project = (appHealth && appHealth.markerProject) || SpecAppDashboard.DEFAULT_MARKER_PROJECT;
+      return SpecAppDashboard.checkSnapshot(host, { project: project });
     }
 
     function healthRow(id, label, check) {
@@ -336,59 +291,8 @@
       return html;
     }
 
-    function mergeGroups(existing, extra) {
-      var byId = {};
-      var list = existing || [];
-      for (var i = 0; i < list.length; i += 1) byId[list[i].id] = list[i];
-      for (var e = 0; e < extra.length; e += 1) byId[extra[e].id] = extra[e];
-      var out = [];
-      for (var key in byId) if (Object.prototype.hasOwnProperty.call(byId, key)) {
-        out.push({ id: byId[key].id, name: byId[key].name, ringId: byId[key].ringId, icon: byId[key].icon || null });
-      }
-      return out;
-    }
-
     function shareDashboard(dashboardId) {
-      var fields = 'id,name,pinned,isDefault,canEdit,canTransfer,canShare,owner(id),widgets(id,key,x,y,width,height,widget(id),settings),readSharingSettings(permittedGroups(id,name,ringId),permittedUsers(id)),updateSharingSettings(permittedGroups(id,name,ringId),permittedUsers(id))';
-      console.log('[provision] share:get');
-      return Promise.all([
-        host.fetchYouTrack('dashboards/' + encodeURIComponent(dashboardId) + '?fields=' + fields),
-        host.fetchYouTrack('groups?fields=id,name,ringId,$type&$top=500')
-      ]).then(function (results) {
-        console.log('[provision] share:got');
-        var dash = results[0];
-        var groups = results[1] || [];
-        var all = null;
-        for (var i = 0; i < groups.length; i += 1) {
-          if (groups[i].name === 'All Users' || groups[i].$type === 'AllUsersGroup') { all = groups[i]; break; }
-        }
-        if (!all) return null;
-        var readGroups = mergeGroups(dash.readSharingSettings && dash.readSharingSettings.permittedGroups, [all]);
-        var already = false;
-        var existingGroups = (dash.readSharingSettings && dash.readSharingSettings.permittedGroups) || [];
-        for (var g = 0; g < existingGroups.length; g += 1) if (existingGroups[g].id === all.id) already = true;
-        if (already) return null;
-        var body = {
-          id: dash.id, name: dash.name, pinned: dash.pinned, isDefault: dash.isDefault,
-          canEdit: dash.canEdit, canTransfer: dash.canTransfer, canShare: dash.canShare,
-          owner: { id: dash.owner && dash.owner.id },
-          widgets: (dash.widgets || []).map(function (widget) {
-            return { id: widget.id, key: widget.key, x: widget.x, y: widget.y, width: widget.width, height: widget.height, widget: widget.widget, settings: widget.settings };
-          }),
-          readSharingSettings: {
-            permittedGroups: readGroups,
-            permittedUsers: ((dash.readSharingSettings && dash.readSharingSettings.permittedUsers) || []).map(function (user) { return { id: user.id }; })
-          },
-          updateSharingSettings: {
-            permittedGroups: ((dash.updateSharingSettings && dash.updateSharingSettings.permittedGroups) || []).map(function (group) {
-              return { id: group.id, name: group.name, ringId: group.ringId, icon: group.icon || null };
-            }),
-            permittedUsers: ((dash.updateSharingSettings && dash.updateSharingSettings.permittedUsers) || []).map(function (user) { return { id: user.id }; })
-          }
-        };
-        console.log('[provision] share:post');
-        return host.fetchYouTrack('dashboards/' + encodeURIComponent(dashboardId), { method: 'POST', body: body });
-      });
+      return SpecAppDashboard.shareDashboard(host, dashboardId);
     }
 
     function provisionDashboard() {
@@ -396,41 +300,16 @@
       if (message) message.textContent = 'Provisioning Spec Stack…';
       var button = root.querySelector('[data-testid="dashboard-provision"]');
       if (button) button.disabled = true;
-      var widgetId = null;
-      console.log('[provision] start');
-      return host.fetchYouTrack('admin/apps?fields=id,name,widgets(id,key)&$top=500').then(function (apps) {
-        console.log('[provision] apps');
-        var list = Array.isArray(apps) ? apps : [];
-        for (var i = 0; i < list.length; i += 1) {
-          if (list[i].name !== 'spec-graph-app') continue;
-          var widgets = list[i].widgets || [];
-          for (var w = 0; w < widgets.length; w += 1) if (widgets[w].key === 'spec-board') widgetId = widgets[w].id;
-        }
-        if (!widgetId) throw new Error('spec-board is not registered on spec-graph-app');
-        return host.fetchYouTrack('dashboards?fields=id,name&$top=200');
-      }).then(function (rows) {
-        console.log('[provision] dashboards');
-        var list = Array.isArray(rows) ? rows : [];
-        for (var i = 0; i < list.length; i += 1) if (list[i].name === 'Spec Stack') return list[i];
-        return host.fetchYouTrack('dashboards?fields=id,name', { method: 'POST', body: { name: 'Spec Stack' } });
-      }).then(function (dashboard) {
-        return host.fetchYouTrack('dashboards/' + encodeURIComponent(dashboard.id) + '/widgets?fields=id,key').then(function (rows) {
-          console.log('[provision] widgets');
-          var list = Array.isArray(rows) ? rows : [];
-          for (var i = 0; i < list.length; i += 1) if (list[i].key === 'spec-board') return dashboard;
-          return host.fetchYouTrack('dashboards/' + encodeURIComponent(dashboard.id) + '/widgets', {
-            method: 'POST',
-            body: { key: 'spec-board', widget: { id: widgetId }, x: 0, y: 0, width: 12, height: 8 }
-          }).then(function () { return dashboard; });
-        });
-      }).then(function (dashboard) {
-        return shareDashboard(dashboard.id).then(function () { return dashboard; });
-      }).then(function (dashboard) {
-        console.log('[provision] share');
-        healthDashboard = { status: 'ok', detail: 'Spec Stack has the spec-board widget', dashboardId: dashboard.id, url: '/dashboard?id=' + encodeURIComponent(dashboard.id) };
+      return SpecAppDashboard.provisionDashboard(host, {
+        log: function (step) { console.log('[provision] ' + step); }
+      }).then(function (result) {
+        healthDashboard = result.health;
         render();
-        var result = root.querySelector('[data-testid="health-result"]');
-        if (result) result.textContent = 'Dashboard ready: ' + healthDashboard.url;
+        var resultNode = root.querySelector('[data-testid="health-result"]');
+        if (resultNode) {
+          resultNode.textContent = 'Dashboard ready: ' + result.url +
+            (result.share && result.share.added ? ' (shared with All Users)' : '');
+        }
       }).catch(function (error) {
         console.log('[provision] error ' + errorText(error));
         if (button) button.disabled = false;

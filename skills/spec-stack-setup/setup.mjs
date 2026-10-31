@@ -14,7 +14,6 @@
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -26,6 +25,7 @@ import { waitFor } from "../../tests/e2e/lib/compose.mjs";
 import { completeWizard, youtrackNeedsWizard } from "../../tests/e2e/lib/wizard.mjs";
 import { createYouTrackAdmin } from "../../tests/e2e/lib/youtrack.mjs";
 import { ensureWidget, findDashboard } from "../../scripts/spec-dashboard-setup.mjs";
+import { installCodexGuard, installOpenCodeGuard } from "./guards.mjs";
 
 const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..");
@@ -94,6 +94,9 @@ const SVC_NET = "http://spec-registryd:8642"; // in-network: the app bridge call
 const TENANT = "demo";
 const SCOPE = "demo/stack";
 const YT_PROJECT = "DEMO";
+// The projection writes its committed pointer into this project; the app's
+// snapshot health reads the same short name.
+const MARKER_PROJECT = "SPEC";
 const GROUPS = {
   hub: "spec-demo-users",
   owner: "spec-demo-owners",
@@ -451,42 +454,6 @@ async function verifyAppPlacement(admin) {
   return full.version;
 }
 
-/** Install the OpenCode guard for the operator's global config. OpenCode is
- *  optional on a server host, so the phase is skipped only when the agent
- *  config directory is absent; a detected install must succeed. */
-function installOpenCodeGuard(token) {
-  const configDir = path.join(os.homedir(), ".config", "opencode");
-  if (!existsSync(configDir)) return null;
-  const script = path.join(REPO_ROOT, "scripts", "install-opencode-guard.mjs");
-  const result = spawnSync(process.execPath, [script, "--url", `${SVC_HOST()}/mcp`], {
-    env: { ...process.env, OMP_SPEC_REGISTRY_TOKEN: token },
-    encoding: "utf8",
-    timeout: 120_000,
-  });
-  if (result.status !== 0) {
-    throw new Error(`OpenCode guard install failed: ${(result.stderr ?? "").trim().slice(0, 400)}`);
-  }
-  return configDir;
-}
-
-/** Install the Codex guard for the operator's global config. Codex is
- *  optional on a server host, so the phase is skipped only when ~/.codex is
- *  absent; a detected install must succeed. */
-function installCodexGuard(token) {
-  const codexHome = path.join(os.homedir(), ".codex");
-  if (!existsSync(codexHome)) return null;
-  const script = path.join(REPO_ROOT, "scripts", "install-codex-guard.mjs");
-  const result = spawnSync(process.execPath, [script, "--url", `${SVC_HOST()}/mcp`], {
-    env: { ...process.env, OMP_SPEC_REGISTRY_TOKEN: token },
-    encoding: "utf8",
-    timeout: 120_000,
-  });
-  if (result.status !== 0) {
-    throw new Error(`Codex guard install failed: ${(result.stderr ?? "").trim().slice(0, 400)}`);
-  }
-  return codexHome;
-}
-
 async function provisionDashboard(admin) {
   const app = await admin.appByName(APP_NAME);
   const widgets = (await admin.call("GET", `/api/admin/apps/${app.id}?fields=id,widgets(id,key)`)).widgets;
@@ -557,7 +524,11 @@ async function main() {
     throw e;
   });
   const app = await admin.appByName(APP_NAME);
-  await admin.setAppSettings(app.id, { serviceUrl: SVC_NET, serviceBridgeToken: BRIDGE_TOKEN });
+  await admin.setAppSettings(app.id, {
+    serviceUrl: SVC_NET,
+    serviceBridgeToken: BRIDGE_TOKEN,
+    markerProject: MARKER_PROJECT,
+  });
   const project = await admin.createProject({ name: "Spec Stack Demo", shortName: YT_PROJECT, leaderId: (await admin.meNative()).id });
   await admin.attachAppToProject(app.id, project.id).catch(() => {});
   const appVersion = await verifyAppPlacement(admin);
@@ -587,14 +558,32 @@ async function main() {
   const dashboardUrl = await provisionDashboard(admin);
 
   log("phase 9 — OpenCode guard");
-  const guardDir = installOpenCodeGuard(seedToken);
-  if (guardDir === null) log("phase 9 — no OpenCode config on this host; guard not installed");
-  else log(`phase 9 — guard installed in ${guardDir}`);
+  const opencodeGuard = installOpenCodeGuard({
+    token: seedToken,
+    url: `${SVC_HOST()}/mcp`,
+    repoRoot: REPO_ROOT,
+  });
+  if (opencodeGuard.status === "absent") {
+    log("phase 9 — no OpenCode config on this host; guard not installed");
+  } else if (opencodeGuard.status === "skipped") {
+    log(`phase 9 — guard skipped (the host keeps its existing agent config): ${opencodeGuard.detail}`);
+  } else {
+    log(`phase 9 — guard installed in ${opencodeGuard.path}`);
+  }
 
   log("phase 10 — Codex guard");
-  const codexHome = installCodexGuard(seedToken);
-  if (codexHome === null) log("phase 10 — no Codex home on this host; guard not installed");
-  else log(`phase 10 — guard installed in ${codexHome}; run /hooks once to trust it`);
+  const codexGuard = installCodexGuard({
+    token: seedToken,
+    url: `${SVC_HOST()}/mcp`,
+    repoRoot: REPO_ROOT,
+  });
+  if (codexGuard.status === "absent") {
+    log("phase 10 — no Codex home on this host; guard not installed");
+  } else if (codexGuard.status === "skipped") {
+    log(`phase 10 — guard skipped (the host keeps its existing agent config): ${codexGuard.detail}`);
+  } else {
+    log(`phase 10 — guard installed in ${codexGuard.path}; run /hooks once to trust it`);
+  }
 
   console.log("\n━━━ spec-stack ready ━━━");
   console.log(`YouTrack:    ${YT_HOST()}`);
