@@ -1,0 +1,9 @@
+{
+  "schema": "omp-spec-kit/spec-binding@1",
+  "project": "stgmt/omp-spec-kit",
+  "spec": "plugin-distribution",
+  "repo": "https://github.com/stgmt/omp-spec-kit.git",
+  "branch": "spec-plugin-distribution",
+  "createdAt": "2026-10-31T00:31:19.431Z",
+  "owner": "stgmt"
+}
