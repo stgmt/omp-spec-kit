@@ -4,7 +4,8 @@ In-UI spec-graph viewer backed by `spec-registryd`. The installable package is
 built in CI from this directory — never commit a hand-made archive.
 
 Installing the ZIP creates nothing in the tracker. The app adds a **Spec
-Service** page to the Administration menu (`ADMINISTRATION_MENU_ITEM`) — the
+Service** page under **Administration → Integrations**
+(`ADMINISTRATION_MENU_ITEM`) — never to the main left navigation — the
 whole member journey lives there: repository binding and verification, the
 `.mcp.json` mint, and the IdP console for operators. Issue pages carry only
 a thin context card (linked spec, repo status, a link to the page) — no

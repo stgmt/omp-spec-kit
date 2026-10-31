@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { serviceErrorEnvelope, serviceSuccess } from "./dispatch.js";
@@ -15,8 +15,8 @@ function failure(requestId, code, message, extra = {}) {
 
 function parseArgs(args) {
   const action = args?.action;
-  if (action !== "create" && action !== "merge" && action !== "delete") {
-    return { error: ["action must be create, merge, or delete", { parameter: "action" }] };
+  if (action !== "create" && action !== "merge" && action !== "delete" && action !== "deleteSpec") {
+    return { error: ["action must be create, merge, delete, or deleteSpec", { parameter: "action" }] };
   }
   if (typeof args.spec !== "string" || args.spec.length === 0) {
     return { error: ["spec is required", { parameter: "spec" }] };
@@ -212,6 +212,43 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
     return serviceSuccess("specBranch", requestId, { action: "delete", kind: "work", branch, spec, topic });
   }
 
+  /**
+   * Explicit demo-spec deletion. Ordinary `delete` keeps the canonical-branch
+   * guard; only a spec whose README carries `Demo: true` may take this path,
+   * and the caller must already hold the writer or owner role.
+   */
+  async function deleteCanonical({ project, spec, requestId, login, role }) {
+    if (role !== "owner" && role !== "writer") {
+      return failure(requestId, "FORBIDDEN_ROLE", "deleting a demo spec requires the writer or owner role");
+    }
+    const branch = specBranchName(spec);
+    const mount = await mounts.ensureRepo(project);
+    if (!(await branchExists(mount, branch))) {
+      return failure(requestId, "SPEC_NOT_FOUND", `spec ${spec} has no ${branch} branch`);
+    }
+    const worktree = await mounts.worktreeFor(project, spec).catch(() => null);
+    const readme = worktree
+      ? await readFile(path.join(worktree.cwd, ".specs", spec, "README.md"), "utf8").catch(() => "")
+      : await mount.git.show(`refs/remotes/origin/${branch}`, `.specs/${spec}/README.md`, { cwd: mount.mirrorDir }).catch(() => "");
+    if (!/^\s*>?\s*\*\*?Demo:?\*?\*?\s*true\b/imu.test(readme)) {
+      return failure(requestId, "DELETE_FORBIDDEN", `spec ${spec} is not marked Demo: true; archive it instead`);
+    }
+    await mount.git.run(["--git-dir", mount.mirrorDir, "push", "-q", mount.repoUrl, `:refs/heads/${branch}`], { cwd: mount.cwd });
+    const worktreeDir = path.join(mount.cwd, "worktrees", branch);
+    await rm(worktreeDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }).catch(() => {});
+    await mount.git.run(["--git-dir", mount.mirrorDir, "worktree", "prune"], { cwd: mount.cwd }).catch(() => {});
+    // The write path keeps a local `work/<branch>` ref. Leaving it behind
+    // makes a later re-create check out the deleted tip, and the first push
+    // is rejected as non-fast-forward.
+    await mount.git.run(["--git-dir", mount.mirrorDir, "branch", "-D", `work/${branch}`], { cwd: mount.cwd }).catch(() => {});
+    await mounts.ensureRepo(project);
+    await mounts.refreshProject(project);
+    projection?.syncNow();
+    audit({ login, role, project, op: "spec-branch-delete-spec", spec, result: `ok:${branch}` });
+    logger(`deleted demo spec branch ${branch}`);
+    return serviceSuccess("specBranch", requestId, { action: "deleteSpec", kind: "spec", branch, spec, topic: null });
+  }
+
   return {
     /** Used by the spec_patch write path when createSpec targets a new slug. */
     async ensureCanonical({ project, spec, requestId, login }) {
@@ -234,8 +271,11 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
             });
           }
         }
+        if (action === "deleteSpec") {
+          return await deleteCanonical({ project, spec, requestId, login, role });
+        }
         if (action === "delete" && topic === null) {
-          return failure(requestId, "BRANCH_PROTECTED", `spec ${spec} is canonical; delete a work branch or archive the spec`, { parameter: "topic" });
+          return failure(requestId, "BRANCH_PROTECTED", `spec ${spec} is canonical; delete a work branch or delete a Demo: true spec`, { parameter: "topic" });
         }
         if (action === "create") {
           return topic === null

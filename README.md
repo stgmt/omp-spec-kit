@@ -77,19 +77,25 @@ It brings the Docker Compose stack up, completes the YouTrack wizard, wires the 
 
 ### YouTrack app
 
-The YouTrack app (`spec-graph-app`) ships as a ZIP asset on each GitHub release. Install into your YouTrack via **Administration → Apps → Add app → Upload ZIP**, or headlessly:
+The YouTrack app (`spec-graph-app`) ships as a ZIP asset on each GitHub release. Always take the ZIP from the latest release; never install an older `spec-graph-app-*.zip` that is still lying around locally.
+
+Install into your YouTrack via **Administration → Apps → Add app → Upload ZIP**, or headlessly:
 
 ```sh
+# Latest app asset from the current release, then upload that exact file.
+gh release download --pattern 'spec-graph-app-*.zip'
 curl -X POST -H "Authorization: Bearer <admin-token>" \
-  -F "file=@spec-graph-app-1.0.25.zip" \
+  -F "file=@spec-graph-app-<app-version>.zip" \
   https://<youtrack>/api/admin/apps/import
 ```
 
-After install, open the app's **Spec Service** page (main menu) — it walks through repository binding and produces the `.mcp.json` snippet (minted YouTrack token included) to paste into your agent's MCP config. The Spec Board dashboard widget renders the committed specification graph projected into YouTrack issues.
+After install, open **Administration → Integrations → Spec Service** (the app adds no item to the main left navigation) - it walks through repository binding and produces the `.mcp.json` snippet (minted YouTrack token included) to paste into your agent's MCP config. The Spec Board dashboard widget renders the committed specification graph projected into YouTrack issues.
+
+> **Upgrading from a pre-1.0.27 ZIP:** those packages declared `MAIN_MENU_ITEM`, so `Spec Service` appeared in the main left navigation. A current package declares no main-menu item. If the left navigation still shows it, reinstall the latest ZIP and confirm the app version on **Administration → Apps**; an old package is never silently accepted by `spec-stack-setup` (it fails with `app package is stale`).
 
 ## Available today
 
-The local kernel in v2.9.0 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool. The hosted registry adds service-owned operations on top — `spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, and `spec_branch` — exposed over the same MCP endpoint.
+The local kernel in v3.0.0 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool. The hosted registry adds service-owned operations on top — `spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, and `spec_branch` — exposed over the same MCP endpoint.
 
 | Need | Tool | Variant |
 |---|---|---|

@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 // Claude Code SessionStart hook: a bounded setup warning, never a block.
@@ -40,10 +40,33 @@ function hasCorpus(root) {
   }
 }
 
+/**
+ * Hosted projects carry no local `.specs` by design — their corpus lives on
+ * orphan branches behind the registry. A project-level `.mcp.json` (or a fully
+ * populated environment) is the configuration signal; without it the plugin
+ * really is installed but unusable, and the warning is legitimate.
+ */
+function hasMcpConfig(root) {
+  const file = path.join(root, ".mcp.json");
+  if (!existsSync(file)) return false;
+  try {
+    const servers = JSON.parse(readFileSync(file, "utf8"))?.mcpServers;
+    if (!servers || typeof servers !== "object") return false;
+    return Object.values(servers).some(
+      (server) => typeof server?.url === "string" && server.url.length > 0,
+    );
+  } catch {
+    return false;
+  }
+}
+
 function warningFor(root) {
   const corpus = hasCorpus(root);
   const url = process.env.OMP_SPEC_REGISTRY_URL;
   const token = process.env.OMP_SPEC_REGISTRY_TOKEN;
+  const envConfigured = typeof url === "string" && url.length > 0 && typeof token === "string" && token.length > 0;
+  // Configured hosted project: no local corpus is expected, stay silent.
+  if (hasMcpConfig(root) || envConfigured) return "";
   const missing = [];
   if (!corpus) missing.push("no .specs corpus in this project");
   if (typeof url !== "string" || url.length === 0) missing.push("OMP_SPEC_REGISTRY_URL is not set");

@@ -5,7 +5,7 @@ export const BRANCH_CONTRACTS = Object.freeze([
     operation: "specBranch",
     description: "Create, merge, or delete spec branches.",
     fields: [
-      { name: "action", kind: "enum", values: ["create", "merge", "delete"], optional: false },
+      { name: "action", kind: "enum", values: ["create", "merge", "delete", "deleteSpec"], optional: false },
       { name: "spec", kind: "string", optional: false },
       { name: "topic", kind: "string", optional: true },
       { name: "force", kind: "boolean", optional: true },
@@ -16,7 +16,7 @@ export const BRANCH_CONTRACTS = Object.freeze([
 export function createBranchOps({ branches }) {
   return {
     specBranch: {
-      async run({ args, project, requestId, ctx }) {
+      async run({ args, project, requestId, ctx, force = false }) {
         if (!project) {
           return {
             envelope: {
@@ -38,7 +38,10 @@ export function createBranchOps({ branches }) {
           project,
           requestId,
           login: ctx?.identity?.login ?? null,
-          force: args?.force === true,
+          // `force` is a transport field: the dispatcher strips it from `args`
+          // and passes it beside them. Reading `args.force` here silently
+          // disabled owner force-delete.
+          force: force === true,
           role: ctx?.role ?? null,
         });
         return { envelope };

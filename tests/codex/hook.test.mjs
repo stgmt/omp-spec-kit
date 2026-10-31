@@ -7,8 +7,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const hookUrl = pathToFileURL(path.join(repositoryRoot, "src", "hosts", "codex", "hook.mjs")).href;
+const sessionstartUrl = pathToFileURL(path.join(repositoryRoot, "src", "hosts", "codex", "sessionstart.mjs")).href;
 const classifierUrl = pathToFileURL(path.join(repositoryRoot, "src", "enforcement", "classifier.js")).href;
 const { createCodexGuard, readCodexServer } = await import(hookUrl);
+const { codexConfigured, warningForPayload } = await import(sessionstartUrl);
 const { classifyToolCall } = await import(classifierUrl);
 
 let projectDir;
@@ -125,5 +127,19 @@ describe("Codex spec guard", () => {
   it("parses one mcp_servers table", () => {
     const table = readCodexServer('[mcp_servers.spec_registry]\nurl = "http://x/mcp"\n\n[other]\na = 1\n', "spec_registry");
     assert.deepEqual(table, { url: '"http://x/mcp"' });
+  });
+
+  it("reports the setup warning only when the Codex registry is not configured", () => {
+    assert.equal(codexConfigured({ home: codexHome }), true);
+    assert.equal(warningForPayload({ cwd: projectDir }, { home: codexHome, env: {} }), "");
+    const emptyHome = mkdtempSync(path.join(tmpdir(), "omp-spec-kit-codex-empty-"));
+    try {
+      assert.equal(codexConfigured({ home: emptyHome }), false);
+      const warning = warningForPayload({ cwd: projectDir }, { home: emptyHome, env: {} });
+      assert.match(warning, /SPEC_SETUP_REQUIRED/u);
+      assert.match(warning, /not configured for this host/u);
+    } finally {
+      rmSync(emptyHome, { recursive: true, force: true });
+    }
   });
 });

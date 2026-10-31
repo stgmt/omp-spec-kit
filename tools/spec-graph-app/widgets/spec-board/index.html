@@ -673,20 +673,40 @@
 
   const SNAPSHOT_PREFIX = 'SPEC-SYNC-STATE\n';
   const KIND_LABELS = {
+    DOCUMENT: 'DOCUMENT',
+    ROADMAP: 'ROADMAP',
+    USER_STORY: 'USER_STORY',
+    USE_CASE: 'USE_CASE',
+    RESEARCH_FINDING: 'RESEARCH_FINDING',
+    RISK: 'RISK',
     FUNCTIONAL_REQUIREMENT: 'FR',
     NON_FUNCTIONAL_REQUIREMENT: 'NFR',
     ACCEPTANCE_CRITERION: 'AC',
+    DECISION: 'DECISION',
     TASK: 'TASK',
+    FILE_CHANGE: 'FILE_CHANGE',
+    FILE: 'FILE',
     SCENARIO: 'SCENARIO',
-    ROADMAP: 'ROADMAP'
+    FIXTURE: 'FIXTURE',
+    SCHEMA_ENTITY: 'SCHEMA_ENTITY'
   };
   const TYPE_LABELS = {
+    DOCUMENT: 'Spec Node',
+    ROADMAP: 'Roadmap',
+    USER_STORY: 'Spec Node',
+    USE_CASE: 'Spec Node',
+    RESEARCH_FINDING: 'Spec Node',
+    RISK: 'Spec Node',
     FUNCTIONAL_REQUIREMENT: 'Feature',
     NON_FUNCTIONAL_REQUIREMENT: 'Constraint',
     ACCEPTANCE_CRITERION: 'Criterion',
+    DECISION: 'Spec Node',
     TASK: 'Task',
+    FILE_CHANGE: 'Spec Node',
+    FILE: 'Spec Node',
     SCENARIO: 'Scenario',
-    ROADMAP: 'Roadmap'
+    FIXTURE: 'Spec Node',
+    SCHEMA_ENTITY: 'Spec Node'
   };
   const TASK_STATES = { planned: 'Submitted', todo: 'Open', done: 'Fixed' };
 
@@ -715,6 +735,24 @@
     { edge: 'CONTAINS', from: 'ROADMAP', to: 'AC', link: 'contains' },
     { edge: 'CONTAINS', from: 'ROADMAP', to: 'TASK', link: 'contains' },
     { edge: 'CONTAINS', from: 'ROADMAP', to: 'SCENARIO', link: 'contains' },
+    { edge: 'DECLARES', from: 'DOCUMENT', to: 'DECISION', link: 'contains' },
+    { edge: 'DECLARES', from: 'DOCUMENT', to: 'USER_STORY', link: 'contains' },
+    { edge: 'DECLARES', from: 'DOCUMENT', to: 'USE_CASE', link: 'contains' },
+    { edge: 'DOCUMENTS', from: 'DECISION', to: 'FUNCTIONAL_REQUIREMENT', link: 'contains' },
+    { edge: 'DOCUMENTS', from: 'RESEARCH_FINDING', to: 'FUNCTIONAL_REQUIREMENT', link: 'contains' },
+    { edge: 'DOCUMENTS', from: 'RISK', to: 'FUNCTIONAL_REQUIREMENT', link: 'contains' },
+    { edge: 'REFS', from: 'DECISION', to: 'FUNCTIONAL_REQUIREMENT', link: 'contains' },
+    { edge: 'REFS', from: 'RESEARCH_FINDING', to: 'FUNCTIONAL_REQUIREMENT', link: 'contains' },
+    { edge: 'REFS', from: 'RISK', to: 'FUNCTIONAL_REQUIREMENT', link: 'contains' },
+    { edge: 'REFS', from: 'FILE_CHANGE', to: 'FUNCTIONAL_REQUIREMENT', link: 'implements' },
+    { edge: 'REFS', from: 'FILE', to: 'FUNCTIONAL_REQUIREMENT', link: 'implements' },
+    { edge: 'COVERS', from: 'USER_STORY', to: 'FUNCTIONAL_REQUIREMENT', link: 'covers' },
+    { edge: 'COVERS', from: 'USER_STORY', to: 'NON_FUNCTIONAL_REQUIREMENT', link: 'covers' },
+    { edge: 'COVERS', from: 'USE_CASE', to: 'FUNCTIONAL_REQUIREMENT', link: 'covers' },
+    { edge: 'COVERS', from: 'USE_CASE', to: 'NON_FUNCTIONAL_REQUIREMENT', link: 'covers' },
+    { edge: 'IMPLEMENTS', from: 'FILE_CHANGE', to: 'FUNCTIONAL_REQUIREMENT', link: 'implements' },
+    { edge: 'IMPLEMENTS', from: 'FILE_CHANGE', to: 'ACCEPTANCE_CRITERION', link: 'implements' },
+    { edge: 'IMPLEMENTS', from: 'FILE', to: 'FUNCTIONAL_REQUIREMENT', link: 'implements' },
   ];
 
   function edgeLinkName(edgeType, fromKind, toKind) {
@@ -907,6 +945,10 @@
               <button class="pill-btn" data-kind="SCENARIO">SCENARIO</button>
               <button class="pill-btn" data-kind="NFR">NFR</button>
               <button class="pill-btn" data-kind="ROADMAP">ROADMAP</button>
+              <button class="pill-btn" data-kind="DOCUMENT">DOC</button>
+              <button class="pill-btn" data-kind="DECISION">DEC</button>
+              <button class="pill-btn" data-kind="USER_STORY">US</button>
+              <button class="pill-btn" data-kind="USE_CASE">UC</button>
             </div>
 
             <div class="pill-group">
@@ -968,6 +1010,9 @@
                   <a id="v1-d-open-link" href="#" target="_blank" class="detail-link-item" style="justify-content:center; background:var(--border-accent); color:#fff; font-weight:600;">
                     Открыть задачу в YouTrack ↗
                   </a>
+                  <button id="v1-d-delete" type="button" class="detail-link-item" style="display:none; width:100%; margin-top:6px; justify-content:center; border:1px solid #b42318; color:#b42318; background:transparent; cursor:pointer;">
+                    Delete demo entity
+                  </button>
                 </div>
               </div>
             </aside>
@@ -1125,12 +1170,13 @@
     /* VARIANT 1: Traceability Flow Matrix                          */
     /* ============================================================ */
     const LANES_CONFIG = [
-      { key: 'ROADMAP', title: '0. Роадмапы (ROADMAP)', kind: 'ROADMAP' },
-      { key: 'TASK', title: '1. Задачи реализации (TASK)', kind: 'TASK' },
-      { key: 'FR', title: '2. Функциональные требования (FR)', kind: 'FR' },
-      { key: 'AC', title: '3. Критерии приемки (AC)', kind: 'AC' },
-      { key: 'SCENARIO', title: '4. Сценарии проверки (SCENARIO)', kind: 'SCENARIO' },
-      { key: 'NFR', title: '5. Ограничения (NFR)', kind: 'NFR' }
+      { key: 'ROADMAP', title: '0. Roadmap (ROADMAP)', kinds: ['ROADMAP'] },
+      { key: 'REQUIREMENTS', title: '1. Requirements (FR/NFR)', kinds: ['FR', 'NFR'] },
+      { key: 'DESIGN', title: '2. Design & research', kinds: ['DOCUMENT', 'DECISION', 'RESEARCH_FINDING', 'RISK'] },
+      { key: 'STORIES', title: '3. Stories & use cases', kinds: ['USER_STORY', 'USE_CASE'] },
+      { key: 'ACCEPTANCE', title: '4. Acceptance (AC/SCENARIO)', kinds: ['AC', 'SCENARIO'] },
+      { key: 'TASKS', title: '5. Tasks (TASK)', kinds: ['TASK'] },
+      { key: 'FILES', title: '6. Files & schemas', kinds: ['FILE_CHANGE', 'FILE', 'FIXTURE', 'SCHEMA_ENTITY'] }
     ];
 
     function renderVariant1() {
@@ -1152,21 +1198,22 @@
         );
       }
 
-      // Group by kind
+      // Group by exact kind; a lane may own several kinds.
       const byKind = new Map();
-      for (const lane of LANES_CONFIG) byKind.set(lane.kind, []);
+      for (const lane of LANES_CONFIG) for (const kind of lane.kinds) byKind.set(kind, []);
       for (const node of nodes) {
-        const list = byKind.get(node.kind) || byKind.get('NFR');
-        list.push(node);
+        const list = byKind.get(node.kind);
+        if (list) list.push(node);
       }
 
       // Filter visible lanes by active kind filter (isolate semantics)
       const lanesToRender = v1ActiveKind
-        ? LANES_CONFIG.filter(l => l.kind === v1ActiveKind)
+        ? LANES_CONFIG.filter(l => l.kinds.includes(v1ActiveKind))
         : LANES_CONFIG;
 
       for (const lane of lanesToRender) {
-        const list = byKind.get(lane.kind) || [];
+        const list = lane.kinds.flatMap(kind => byKind.get(kind) || [])
+          .sort((a, b) => String(a.localId).localeCompare(String(b.localId), undefined, { numeric: true }));
         const laneDiv = document.createElement('div');
         laneDiv.className = 'flow-lane';
 
@@ -1388,6 +1435,40 @@
       }
     }
 
+    async function deleteDemoEntity(node) {
+      if (!/demo/i.test(node.specSlug)) return;
+      if (typeof confirm === 'function' && !confirm(`Delete ${node.specId} from ${node.specSlug}?`)) return;
+      const button = document.getElementById('v1-d-delete');
+      if (button) button.disabled = true;
+      try {
+        const response = await host.fetchApp('spec-handler/spec', {
+          method: 'POST',
+          body: {
+            id: 'board-delete-entity',
+            method: 'tools/call',
+            params: {
+              name: 'spec_patch',
+              arguments: {
+                intent: 'deleteEntity',
+                requestId: 'board-delete-' + Date.now(),
+                reason: 'Delete a demo entity from the board',
+                spec: node.specSlug,
+                entity: node.specId,
+                forceDelete: true,
+                dryRun: false,
+              },
+            },
+          },
+        });
+        const envelope = response && typeof response.json === 'function' ? await response.json() : response;
+        if (envelope && envelope.error) throw new Error(envelope.error.message || envelope.error);
+        window.location.reload();
+      } catch (error) {
+        if (button) button.disabled = false;
+        alert('Delete failed: ' + (error && error.message ? error.message : error));
+      }
+    }
+
     function updateV1Drawer(nodeId) {
       const node = nodeId ? NODE_MAP.get(nodeId) : null;
       if (!node) return;
@@ -1425,6 +1506,14 @@
         openLink.setAttribute('aria-disabled', 'true');
         openLink.style.pointerEvents = 'none';
         openLink.style.opacity = '0.55';
+      }
+
+      const deleteBtn = document.getElementById('v1-d-delete');
+      const canDelete = /demo/i.test(node.specSlug) && !['DOCUMENT', 'ROADMAP', 'FILE', 'SCENARIO'].includes(node.kind);
+      if (deleteBtn) {
+        deleteBtn.style.display = canDelete ? 'flex' : 'none';
+        deleteBtn.disabled = false;
+        deleteBtn.onclick = canDelete ? () => deleteDemoEntity(node) : null;
       }
 
       const { outgoing, incoming } = getLineage(nodeId);

@@ -7,8 +7,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const pluginUrl = pathToFileURL(path.join(repositoryRoot, "src", "hosts", "opencode", "plugin.mjs")).href;
+const setupUrl = pathToFileURL(path.join(repositoryRoot, "src", "hosts", "opencode", "setup.mjs")).href;
 const classifierUrl = pathToFileURL(path.join(repositoryRoot, "src", "enforcement", "classifier.js")).href;
 const { createGuard } = await import(pluginUrl);
+const { OmpSpecKitSetup, opencodeConfigured } = await import(setupUrl);
 const { classifyToolCall } = await import(classifierUrl);
 
 const SCENARIO_FEATURE = "Feature: Foo\n  Scenario: Foo works\n    Given a foo\n";
@@ -113,5 +115,54 @@ describe("OpenCode spec guard", () => {
 
   it("refuses to start without a classifier", () => {
     assert.throws(() => createGuard({ directory: projectDir, config: { registryServer: "spec-registry" } }), /classifier is required/u);
+  });
+});
+
+describe("OpenCode setup reporter", () => {
+  it("injects the warning into the first chat message when the host is not configured", async () => {
+    const home = mkdtempSync(path.join(tmpdir(), "omp-spec-kit-opencode-home-"));
+    const directory = mkdtempSync(path.join(tmpdir(), "omp-spec-kit-opencode-project-"));
+    try {
+      assert.equal(opencodeConfigured({ home }), false);
+      const plugin = await OmpSpecKitSetup({ directory, home });
+      const first = { parts: [] };
+      await plugin["chat.message"]({ sessionID: "s" }, first);
+      assert.equal(first.parts.length, 1);
+      assert.match(first.parts[0].text, /SPEC_SETUP_REQUIRED/u);
+      const second = { parts: [] };
+      await plugin["chat.message"]({ sessionID: "s" }, second);
+      assert.equal(second.parts.length, 0, "the warning is emitted once per session");
+      await plugin.event({ event: { type: "session.created" } });
+      const third = { parts: [] };
+      await plugin["chat.message"]({ sessionID: "s" }, third);
+      assert.equal(third.parts.length, 1, "a new session re-arms the warning");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("stays silent when opencode.json declares the remote registry", async () => {
+    const home = mkdtempSync(path.join(tmpdir(), "omp-spec-kit-opencode-home2-"));
+    const directory = mkdtempSync(path.join(tmpdir(), "omp-spec-kit-opencode-project2-"));
+    try {
+      mkdirSync(path.join(home, ".config", "opencode"), { recursive: true });
+      writeFileSync(
+        path.join(home, ".config", "opencode", "spec-kit-guard.json"),
+        JSON.stringify({ registryServer: "spec-registry" }),
+      );
+      writeFileSync(
+        path.join(home, ".config", "opencode", "opencode.json"),
+        JSON.stringify({ mcp: { "spec-registry": { type: "remote", url: "http://127.0.0.1:8650/mcp" } } }),
+      );
+      assert.equal(opencodeConfigured({ home }), true);
+      const plugin = await OmpSpecKitSetup({ directory, home });
+      const output = { parts: [] };
+      await plugin["chat.message"]({ sessionID: "s" }, output);
+      assert.equal(output.parts.length, 0);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });

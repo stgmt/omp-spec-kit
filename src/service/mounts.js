@@ -288,9 +288,8 @@ export class MountManager {
   }
 
   /** One bare mirror per repository credential; every spec branch shares its objects. */
-  repoDescriptor(repoUrl, branch = "main", forProject = null) {
+  descriptorFor(repoUrl, branch, auth) {
     const cleanRepoUrl = sanitizeRepoUrl(repoUrl);
-    const auth = forProject ? this.authFor(forProject, cleanRepoUrl) : undefined;
     const authKey = auth
       ? createHash("sha256").update(`${auth.username ?? ""}\0${auth.token}`, "utf8").digest("hex").slice(0, 12)
       : "anon";
@@ -308,6 +307,12 @@ export class MountManager {
       });
     }
     return mount;
+  }
+
+  repoDescriptor(repoUrl, branch = "main", forProject = null) {
+    const cleanRepoUrl = sanitizeRepoUrl(repoUrl);
+    const auth = forProject ? this.authFor(forProject, cleanRepoUrl) : undefined;
+    return this.descriptorFor(cleanRepoUrl, branch, auth);
   }
 
   /** The mirror behind a project's active binding (writes require active). */

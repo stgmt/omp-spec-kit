@@ -562,6 +562,45 @@
       });
     }
 
+    function demoSectionHtml() {
+      var demoSpecs = specsList.filter(function (slug) {
+        return /(?:^|[-_])demo(?:[-_]|$)/u.test(slug);
+      });
+      if (demoSpecs.length === 0) return '';
+      var html = '<div class="step" data-testid="demo-panel"><h4>Demo</h4>'
+        + '<p class="hint">The demo is an explicit fixture. Delete it to return this project to its real state.</p>';
+      for (var i = 0; i < demoSpecs.length; i += 1) {
+        html += '<p class="state"><code>' + escapeHtml(demoSpecs[i]) + '</code> '
+          + '<button class="secondary" data-testid="demo-delete" data-spec="' + escapeHtml(demoSpecs[i]) + '" type="button">Delete demo</button></p>';
+      }
+      return html + '<p class="state" data-testid="demo-result"></p></div>';
+    }
+
+    function bindDemoHandlers() {
+      var buttons = root.querySelectorAll('[data-testid="demo-delete"]');
+      for (var i = 0; i < buttons.length; i += 1) {
+        buttons[i].addEventListener('click', function (event) {
+          var button = event.target;
+          var slug = button.getAttribute('data-spec');
+          if (!slug) return;
+          if (typeof confirm === 'function' && !confirm('Delete the demo spec ' + slug + ' and all of its cards?')) return;
+          button.disabled = true;
+          callService({
+            id: 'widget-demo-delete',
+            method: 'tools/call',
+            params: { name: 'spec_branch', arguments: { action: 'deleteSpec', spec: slug } }
+          }).then(function (envelope) {
+            if (envelope && envelope.error) throw new Error(envelope.error.message || envelope.error);
+            loadAll();
+          }).catch(function (error) {
+            button.disabled = false;
+            var result = root.querySelector('[data-testid="demo-result"]');
+            if (result) result.textContent = String(error && error.message ? error.message : error);
+          });
+        });
+      }
+    }
+
     function render() {
       root.setAttribute('data-state', 'ready');
       var html = '<p class="lead" data-testid="page-lead">Specs, repository binding, and your agent connection — all in one place.</p>';
@@ -574,6 +613,7 @@
       if (catalogError) {
         html += '<p class="err" data-testid="spec-error-note">' + escapeHtml(catalogError) + '</p>';
       }
+      html += demoSectionHtml();
       html += wizardHtml();
       html += idpSectionHtml();
       root.innerHTML = html;
@@ -581,6 +621,7 @@
       bindVerifyHandlers();
       bindAgentHandlers();
       bindIdpHandlers();
+      bindDemoHandlers();
       if (focusStep) {
         var target = root.querySelector('[data-testid="wizard-step-' + focusStep + '"]');
         if (target) {

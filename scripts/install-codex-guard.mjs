@@ -61,7 +61,8 @@ if (!existsSync(path.join(hostsSource, "hook.mjs"))) fail(`missing Codex adapter
 rmSync(installRoot, { recursive: true, force: true });
 mkdirSync(path.join(installRoot, "hosts", "codex"), { recursive: true });
 cpSync(distSource, path.join(installRoot, "dist"), { recursive: true });
-for (const name of ["hook.mjs", "normalize.mjs"]) copyFileSync(path.join(hostsSource, name), path.join(installRoot, "hosts", "codex", name));
+for (const name of ["hook.mjs", "normalize.mjs", "sessionstart.mjs"]) copyFileSync(path.join(hostsSource, name), path.join(installRoot, "hosts", "codex", name));
+copyFileSync(path.join(distSource, "enforcement", "setup-warning.js"), path.join(installRoot, "hosts", "codex", "setup-warning.js"));
 writeFileSync(path.join(installRoot, "package.json"), JSON.stringify({ type: "module" }, null, 2) + "\n");
 const skills = installSkills({
   sourceRoot: path.join(repositoryRoot, "plugins", "omp-spec-kit", "skills"),
@@ -87,6 +88,13 @@ kept.push({
   hooks: [{ type: "command", command: `node "${hookPath}"`, timeout: 10 }],
 });
 hooks.hooks.PreToolUse = kept;
+const sessionGroups = Array.isArray(hooks.hooks.SessionStart) ? hooks.hooks.SessionStart : [];
+hooks.hooks.SessionStart = sessionGroups.filter(
+  (group) => !(group?.hooks ?? []).some((hook) => typeof hook?.command === "string" && hook.command.includes("spec-kit-guard")),
+);
+hooks.hooks.SessionStart.push({
+  hooks: [{ type: "command", command: `node "${path.join(installRoot, "hosts", "codex", "sessionstart.mjs")}"`, timeout: 10 }],
+});
 if (existsSync(hooksPath)) copyFileSync(hooksPath, `${hooksPath}.bak-${new Date().toISOString().replaceAll(":", "-")}`);
 mkdirSync(codexHome, { recursive: true });
 writeFileSync(hooksPath, JSON.stringify(hooks, null, 2) + "\n");

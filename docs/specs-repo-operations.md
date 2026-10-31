@@ -165,7 +165,7 @@ Semantics:
 ## Guided onboarding (TASK-19)
 
 The app's own page — `spec-app`, an `ADMINISTRATION_MENU_ITEM` extension point — is the
-member's whole journey: **Administration menu → Spec Service**. Installing the
+member's whole journey: **Administration → Integrations → Spec Service** (never the main left navigation). Installing the
 ZIP creates nothing in the tracker; the page hosts the full stepper, and
 `?step=agent` deep-links straight to the agent step. Discovery is the native
 **System-wide banner** an administrator configures in Global Settings — the

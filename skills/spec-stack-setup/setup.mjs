@@ -25,6 +25,7 @@ import { writeRuntimeManifest } from "../../src/tools/runtime-manifest.js";
 import { waitFor } from "../../tests/e2e/lib/compose.mjs";
 import { completeWizard, youtrackNeedsWizard } from "../../tests/e2e/lib/wizard.mjs";
 import { createYouTrackAdmin } from "../../tests/e2e/lib/youtrack.mjs";
+import { ensureWidget, findDashboard } from "../../scripts/spec-dashboard-setup.mjs";
 
 const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..");
@@ -40,6 +41,40 @@ const APP_NAME = "spec-graph-app";
 // Demo seeding is explicit. The release/fresh-install path runs with
 // --no-demo: the dashboard exists but the board has zero valid specs.
 const WITH_DEMO = !process.argv.includes("--no-demo");
+
+// The demo .feature carries two scenarios, so the same design-review gate as
+// every other scenario-authoring patch applies. The review pins the demo
+// boundary (opt-in fixture, zero specs on a fresh install) and records the
+// mutation that would make the assertion fail.
+const DEMO_DESIGN_REVIEW = Object.freeze({
+  schemaVersion: "omp-spec-kit/design-review@1",
+  decision: "proceed",
+  boundary: {
+    kind: "user-visible-contract",
+    name: "Spec Graph demo board",
+    claim: "an explicit demo load shows every entity kind; a fresh install shows zero demo specs",
+  },
+  evidence: [
+    { kind: "test", reference: "tests/features/app-install-live.feature", observation: "the live app-install journey exercises the installed package and the Spec Service page" },
+    { kind: "source", reference: "skills/spec-stack-setup/template/roadmap-demo/README.md", observation: "the demo template is marked Demo: true and is loaded only by the demo contour" },
+    { kind: "documentation", reference: "skills/spec-stack-setup/SKILL.md", observation: "--no-demo is the fresh-install path and seeds no specifications" },
+  ],
+  alternatives: [
+    { option: "auto-seed the demo in every install", reasonRejected: "a fresh install must have zero valid specs in the dashboard" },
+    { option: "hide the demo behind a separate app", reasonRejected: "the demo is a specification fixture and must exercise the same projection and delete path" },
+  ],
+  selfTestCheck: {
+    status: "passed",
+    mutation: "failed-as-expected",
+    command: "node skills/spec-stack-setup/setup.mjs --no-demo",
+    hypothesis: "the fresh-install path must not create any demo specification",
+    answer: "--no-demo leaves the registry and dashboard without demo specs",
+    positiveCase: "--no-demo is the fresh-install path and seeds nothing",
+    negativeCase: "the demo template directory is present and the default demo path loads it",
+    expectedFailure: "a fresh install that seeds the demo would show a valid demo spec",
+    observedFailure: "the demo spec appears only when the demo loader is enabled, not on --no-demo",
+  },
+});
 
 // Preferred host ports; a busy or foreign-held candidate is remapped through
 // a generated compose.override.yml rather than silently diverging configs.
@@ -253,8 +288,10 @@ async function loadTemplateSpec(token) {
       }
       for (const { document, content } of meta.docs) {
         // replace_document = idempotent overwrite; a re-run converges to the
-        // template instead of appending duplicates.
-        await patch("patch", { operations: [{ kind: "replace_document", document, content }] });
+        // template instead of appending duplicates. Scenario-bearing files
+        // carry the demo design review.
+        const review = /\.feature$/iu.test(document) ? { designReview: DEMO_DESIGN_REVIEW } : {};
+        await patch("patch", { operations: [{ kind: "replace_document", document, content }], ...review });
         log(`seeded ${meta.slug}/${document}`);
       }
       await mcp.callTool({ name: "spec_release", arguments: { spec: meta.slug } }).catch(() => {});
@@ -284,7 +321,11 @@ async function provisionSpecProjection(admin) {
   // The SpecKind bundle must be found by EXACT name: a `query=` filter is not
   // applied to bundles, so taking the first row attaches the Priority bundle
   // and every card then fails with "entity with the specified name not found".
-  const kindNames = ["ROADMAP", "FUNCTIONAL_REQUIREMENT", "NON_FUNCTIONAL_REQUIREMENT", "ACCEPTANCE_CRITERION", "TASK", "SCENARIO"];
+  const kindNames = [
+    "DOCUMENT", "ROADMAP", "USER_STORY", "USE_CASE", "RESEARCH_FINDING", "RISK",
+    "FUNCTIONAL_REQUIREMENT", "NON_FUNCTIONAL_REQUIREMENT", "ACCEPTANCE_CRITERION",
+    "DECISION", "TASK", "FILE_CHANGE", "FILE", "SCENARIO", "FIXTURE", "SCHEMA_ENTITY",
+  ];
   const bundles = (await admin.call("GET", "/api/admin/customFieldSettings/bundles/enum?fields=id,name,values(name)&$top=200")) ?? [];
   let specKindBundle = bundles.find((b) => b.name === "SpecKind values");
   if (!specKindBundle) {
@@ -333,7 +374,7 @@ async function provisionSpecProjection(admin) {
   );
   if (typeEntry?.bundle?.id) {
     const typeValues = new Set((typeEntry.bundle.values ?? []).map((v) => v.name));
-    for (const name of ["Constraint", "Criterion", "Roadmap", "Scenario", "Requirement"]) {
+    for (const name of ["Constraint", "Criterion", "Roadmap", "Scenario", "Requirement", "Spec Node"]) {
       if (typeValues.has(name)) continue;
       await admin.call("POST", `/api/admin/customFieldSettings/bundles/enum/${typeEntry.bundle.id}/values?fields=id,name`, { body: { name } });
       typeValues.add(name);
@@ -447,18 +488,16 @@ async function provisionDashboard(admin) {
   const board = widgets.find((w) => w.key === "spec-board");
   if (!board) throw new Error("spec-board widget not found on the installed app");
   const name = "Spec Stack";
-  const dashboards = await admin.call("GET", `/api/dashboards?fields=id,name`);
-  let dash = (dashboards ?? []).find((d) => d.name === name);
+  const client = {
+    get: (url) => admin.call("GET", url),
+    post: (url, body) => admin.call("POST", url, { body }),
+    delete: (url) => admin.call("DELETE", url),
+  };
+  let dash = await findDashboard(client, name);
   if (!dash) dash = await admin.call("POST", "/api/dashboards", { body: { name } });
   // Re-provision OUR embedding only — widgets the user added themselves
-  // stay put; a stale spec-board cell from an earlier run is replaced.
-  const existing = await admin.call("GET", `/api/dashboards/${dash.id}/widgets?fields=id,key`);
-  for (const w of (existing ?? []).filter((w) => w.key === "spec-board")) {
-    await admin.call("DELETE", `/api/dashboards/${dash.id}/widgets/${w.id}`).catch(() => {});
-  }
-  await admin.call("POST", `/api/dashboards/${dash.id}/widgets`, {
-    body: { key: "spec-board", widget: { id: board.id }, x: 0, y: 0, width: 12, height: 8 },
-  });
+  // stay put; the replacement is created before the stale cell is removed.
+  await ensureWidget(client, dash.id, board, { widget: "spec-board", width: 12, height: 8 });
   // A dashboard created through the admin API is private to the admin. The
   // requirement is that every tenant user sees the board in their dashboard
   // list, so share it with the tenant group and with All Users explicitly.

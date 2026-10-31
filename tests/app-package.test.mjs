@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import yauzl from "yauzl";
@@ -145,6 +145,42 @@ test("the Spec Service page lives in the administration menu", () => {
   // fall back to the old MAIN_MENU_ITEM placement.
   const legacy = widgets.filter((widget) => widget.extensionPoint === "MAIN_MENU_ITEM");
   assert.deepEqual(legacy, [], "MAIN_MENU_ITEM is not allowed in this app");
+});
+
+test("install docs only point at the current app package", () => {
+  const manifest = JSON.parse(readFileSync(path.join("tools", "spec-graph-app", "manifest.json"), "utf8"));
+  const docs = [
+    "README.md",
+    "tools/spec-graph-app/README.md",
+    "docs/specs-repo-operations.md",
+    "skills/spec-stack-setup/SKILL.md",
+  ];
+  for (const file of docs) {
+    const text = readFileSync(file, "utf8");
+    for (const match of text.matchAll(/spec-graph-app-(\d+\.\d+\.\d+)\.zip/g)) {
+      assert.equal(
+        match[1],
+        manifest.version,
+        `${file} references app ${match[1]} but tools/spec-graph-app is ${manifest.version}; install docs must not pin an old package`,
+      );
+    }
+  }
+});
+
+test("no current manifest declares MAIN_MENU_ITEM", () => {
+  // Release staging is rebuilt from tools/spec-graph-app; the checked-in
+  // extracted tree was removed because it kept a pre-1.0.27 manifest alive.
+  const roots = ["tools/spec-graph-app", "release-candidate"];
+  const offenders = [];
+  for (const root of roots) {
+    for (const entry of readdirSync(root, { recursive: true, withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+      const absolute = path.join(entry.parentPath ?? entry.path, entry.name);
+      const text = readFileSync(absolute, "utf8");
+      if (text.includes('"MAIN_MENU_ITEM"')) offenders.push(absolute);
+    }
+  }
+  assert.deepEqual(offenders, [], `MAIN_MENU_ITEM must not survive in a current manifest: ${offenders.join(", ")}`);
 });
 
 test("the real app derives to exactly the JetBrains launch checklist", () => {

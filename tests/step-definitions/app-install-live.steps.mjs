@@ -142,7 +142,7 @@ When("the admin fills the service connection settings with an unreachable URL", 
   await fillAppSettings(this.adminPage, { ...SERVICE_SETTINGS, serviceUrl: "http://spec-registryd:9999" });
 });
 
-// The app's own page (ADMINISTRATION_MENU_ITEM) — all onboarding lives here,
+// The app's own page (ADMINISTRATION_MENU_ITEM, Administration → Integrations) - all onboarding lives here,
 // issues only carry the context card. The URL was probed live on 2025.3: both
 // the admin-menu item and the issue card link to /app/<appName>/<widgetKey>.
 const APP_PAGE_PATH = "/app/spec-graph-app/spec-app";

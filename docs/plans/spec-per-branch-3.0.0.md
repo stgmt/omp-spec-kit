@@ -249,14 +249,14 @@ Refactor:
 |---|---|---|
 | P12-1 | Канон соответствует коду: `spec-registry-service` переавторена, VALID | `spec_inspect validation` = VALID |
 | P12-2 | Нет центрального репозитория: `stgmt/spec-database` только архив | нет ссылок как на источник истины |
-| P12-3 | 9 спек = 9 orphan-веток `spec-*` с валидной metadata | `/registry` показывает 10/10 |
+| P12-3 | 10 спек = 10 orphan-веток `spec-*` с валидной metadata | `/registry` показывает 10/10 |
 | P12-4 | Slug уникален в репозитории; дубль отклоняется | `SPEC_SLUG_DUPLICATE` |
 | P12-5 | На ветках `spec-*` нет кода: только `.spec-kit.json` + `.specs/**` | allowlist-тест + merge-тест |
-| P12-6 | Нет `specsRepo`, `SPECS_BRANCH`, `SPEC_REGISTRY_GIT_TOKEN`, `specs-clone`, `<owner>/<project>` | нулевой grep |
+| P12-6 | Нет `specsRepo`, `SPECS_BRANCH`, `SPEC_REGISTRY_GIT_TOKEN`, `specs-clone`, `<owner>/<project>` | нулевой grep, кроме `MIGRATION_REQUIRED` |
 | P12-7 | Unbound → `REPO_BINDING_REQUIRED`; spec_* → `SETUP_REQUIRED` по проекту | живые вызовы |
 | P12-8 | Ruleset `spec-*`: пуш только бот | GitHub API/аудит |
 | P12-9 | 4 хоста: setup-required, блок `.specs`, MCP only | матрица проверок |
-| P12-10 | 11 инструментов, полный tool-e2e | зелёный |
+| P12-10 | 15 инструментов (10 kernel + 5 service), полный tool-e2e | `npm run tool:e2e` зелёный |
 | P12-11 | Digest'ы, ledger, YouTrack после миграции | 13/8/36/21/29 |
 | P12-12 | Релиз 3.0.0 разрешён только после P12-1…P12-11 | preflight |
 
@@ -312,9 +312,9 @@ Refactor:
 | P8: миграция | **done** | 10 orphan-веток в `stgmt/omp-spec-kit`, metadata валидна, binding active, ruleset `spec-*`, `stgmt/spec-database` archived |
 | P9-1/P9-2: README Mermaid | **done** | Mermaid-схема веток; старого HTML/SVG нет; ADR добавлен |
 | P11: рудименты | **done** | удалены `SPEC_REGISTRY_GIT_TOKEN`/`SPECS_BRANCH`/`specs-clone`, старые проверки; docs переписаны |
-| P5: setup-required | **частично** | `/status` + `mcp_preflight.setup` + `SETUP_REQUIRED`; Claude SessionStart готов, Codex/OpenCode/OMP ещё нет |
-| P6: установщик | **частично** | demo setup создаёт binding + ветки; отдельного CLI установщика нет |
-| P12: аудит | **частично** | канон VALID, 10/10 веток, metadata, ruleset, архив старого репо, grep запретов; tool-e2e и матрица 4 хостов не закрыты |
+| P5: setup-required | **done** | `/status` + `mcp_preflight.setup` + `SETUP_REQUIRED`; Claude SessionStart, Codex SessionStart, OpenCode `session.created`/`chat.message`, OMP `session_start` |
+| P6: установщик | **done** | `scripts/install-host.mjs` (claude/codex/opencode/omp); demo setup создаёт binding + ветки |
+| P12: аудит | **частично** | канон VALID, 10/10 веток, metadata, ruleset, архив старого репо, `tool:e2e` = 15 tools passed; матрица 4 хостов ещё нет |
 
 Следующий шаг: P5-хуки и P6-установщик, затем полный `@tool-e2e`/матрица 4 хостов и релиз 3.0.0.
 

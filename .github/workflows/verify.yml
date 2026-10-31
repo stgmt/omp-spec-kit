@@ -34,6 +34,22 @@ jobs:
             dist/spec-graph-app/
             dist/spec-graph-app-*.zip
 
+  service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      # The service suite creates real commits in temporary repositories.
+      - run: git config --global user.name "spec-registryd CI"
+      - run: git config --global user.email "bot@spec-registryd.invalid"
+      - run: npm run test:service
+
   bdd:
     runs-on: ubuntu-latest
     steps:

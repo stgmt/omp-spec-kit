@@ -118,10 +118,10 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     const migratedFrom = current?.status === "active" ? sanitizeRepoUrl(current.repoUrl) : null;
     const migratedFromBranch = current?.status === "active" ? current.branch : null;
 
-    // Persist creds + mark migrating before touching remotes: a crash here
-    // leaves a resumable row, not an invisible half-state. migratedFrom=null
-    // means the project had no previous repo (a first bind), not a default.
-    await store?.putCredential?.(project, { repoUrl: cleanRepoUrl, tokenEnc: sealSecret(secretsKey, token), username: auth.username ?? null });
+    // Mark migrating before touching remotes but keep the previous credential
+    // until the target mirror is ready: a read during the move still resolves
+    // `migratedFrom`, and that repo needs its own token, not the new one.
+    // migratedFrom=null means the project had no previous repo (a first bind).
     const put = (status, lastError = null) => store?.putBinding?.({
       project, repoUrl: cleanRepoUrl, branch: resolvedBranch, status,
       boundBy, boundAt: new Date().toISOString(),
@@ -131,9 +131,10 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     });
     await put("migrating");
 
-    const mount = mounts.repoDescriptor(cleanRepoUrl, resolvedBranch, project);
+    const mount = mounts.descriptorFor(cleanRepoUrl, resolvedBranch, auth);
     try {
       await mounts.ensureMount(mount);
+      await store?.putCredential?.(project, { repoUrl: cleanRepoUrl, tokenEnc: sealSecret(secretsKey, token), username: auth.username ?? null });
       await put("active");
       await mounts.projectRoot(project);
       // The binding change bypasses the write pipeline — the tracker
@@ -162,9 +163,10 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     // The bound clone stays on disk: ledger rows still reference its commits
     // for versioned reads across the migration boundary.
     await unbindInternal(project);
-    audit({ login: ctx.identity?.login ?? null, role: ctx.role ?? null, project, op: "repo-unbind", spec: null, result: `ok:${row.repoUrl}` });
-    logger(`repo-unbind ${project} (was ${row.repoUrl})`);
-    return { unbound: project, previous: row.repoUrl };
+    const previous = sanitizeRepoUrl(row.repoUrl);
+    audit({ login: ctx.identity?.login ?? null, role: ctx.role ?? null, project, op: "repo-unbind", spec: null, result: `ok:${previous}` });
+    logger(`repo-unbind ${project} (was ${previous})`);
+    return { unbound: project, previous };
   }
 
   /**
@@ -180,7 +182,7 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     // The unbound project's specs leave the corpus — the tracker should drop
     // their cards on the next projection, not whenever something else fires.
     afterRepoChange?.();
-    return row.repoUrl;
+    return sanitizeRepoUrl(row.repoUrl);
   }
 
   function bindings(ctx) {
@@ -202,7 +204,7 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
         // An external-tenant project with no binding has no repo at all —
         // reporting "default" would pretend the operator's repo serves it.
         const status = row?.status ?? "required";
-        const repoUrl = row?.status === "active" ? row.repoUrl : null;
+        const repoUrl = row?.status === "active" ? sanitizeRepoUrl(row.repoUrl) : null;
         return { project, repoUrl, bound: row?.status === "active", status };
       }),
     };

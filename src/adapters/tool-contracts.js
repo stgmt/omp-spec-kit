@@ -387,6 +387,14 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("designReview", "json"),
         ]),
       }),
+      deleteEntity: Object.freeze({
+        description: "Delete one authored entity from its owning document.",
+        fields: Object.freeze([
+          field("entity", "string"),
+          optionalField("forceDelete", "boolean"),
+          optionalField("designReview", "json"),
+        ]),
+      }),
       renameSpecDoc: Object.freeze({
         description: "Rename a spec document.",
         fields: Object.freeze([

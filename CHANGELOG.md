@@ -2,7 +2,14 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
-## Unreleased
+## 3.0.0 — 2026-10-31
+
+### Changed
+
+- **Specs are orphan branches**: a canonical specification is `spec-<slug>` in its project repository, bound by `.spec-kit.json`; `spec-<slug>--<topic>` holds unmerged work. The shared `stgmt/spec-database` repository and the global `SPEC_REGISTRY_GIT_TOKEN` are retired.
+- **Per-repository credentials**: bindings carry their own sealed token; mirrors are keyed by repository + credential, and unbinding no longer affects any other project.
+- **Setup-required is a first-class state**: `/status`, `mcp_preflight.setup`, and `SETUP_REQUIRED` report unbound projects; Claude, Codex, OpenCode, and OMP receive one bounded session-start warning (configured hosted projects stay silent).
+- **`scripts/install-host.mjs`**: one installer entry point for Claude, Codex, and OpenCode, plus the OMP PluginManager command.
 
 ### Added
 

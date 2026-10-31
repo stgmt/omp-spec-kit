@@ -299,6 +299,41 @@ export function publicOperationKind(operation) {
   }
 }
 
+function removeEntityBlock(text, node) {
+  const lines = text.split(/\r?\n/u);
+  const feature = node.kind === "SCENARIO";
+  let start = Math.max(0, (node.span?.startLine ?? 1) - 1);
+  if (feature && start > 0 && /^\s*@/u.test(lines[start - 1])) start -= 1;
+  let end = start + 1;
+  if (feature) {
+    while (end < lines.length && !/^\s*(?:@|Scenario:|Scenario Outline:|Feature:)/u.test(lines[end])) end += 1;
+  } else {
+    while (end < lines.length && !/^#{1,2}\s/u.test(lines[end])) end += 1;
+  }
+  return [...lines.slice(0, start), ...lines.slice(end)].join("\n");
+}
+
+async function compileDeleteEntity({ graph, root, spec, input }) {
+  const entity = typeof input.entity === "string" ? input.entity : "";
+  const node = graph.nodes.find(
+    (candidate) => candidate.specSlug === spec && (candidate.canonicalId === entity || candidate.localId === entity),
+  );
+  if (!node) return error("ENTITY_NOT_FOUND", `entity not found in ${spec}: ${entity}`);
+  if (["DOCUMENT", "ROADMAP", "FILE"].includes(node.kind)) {
+    return error("ENTITY_NOT_DELETABLE", `entity kind ${node.kind} cannot be deleted directly`);
+  }
+  const incident = graph.edges.filter((edge) => edge.from === node.canonicalId || edge.to === node.canonicalId);
+  if (incident.length > 0 && input.forceDelete !== true) {
+    return error("ENTITY_HAS_DEPENDENTS", `entity ${node.canonicalId} has ${incident.length} graph reference(s); pass forceDelete: true to remove it anyway`);
+  }
+  const document = String(node.span?.path ?? "").replace(`.specs/${spec}/`, "");
+  if (document === "") return error("ENTITY_NOT_FOUND", `entity ${node.canonicalId} has no owning document`);
+  const current = await loadDocument(root, spec, document, false);
+  if (current.missing) return error("DOC_NOT_FOUND", `document is missing: ${document}`);
+  const content = removeEntityBlock(current.bytes.toString("utf8"), node);
+  return { ok: true, operations: [{ kind: "replace_document", document, content }] };
+}
+
 export function operationForFacade(name, input) {
   const spec = input.spec;
   if (typeof spec !== "string" || !isValidSpecSlug(spec))
@@ -618,7 +653,11 @@ export class ProposalCompiler {
     }
 
     let rawOperations;
-    if (intent === "patch") {
+    if (intent === "deleteEntity") {
+      const compiled = await compileDeleteEntity({ graph, root: this.root, spec, input });
+      if (compiled.ok === false) return compiled;
+      rawOperations = compiled.operations;
+    } else if (intent === "patch") {
       if (typeof input.repositoryRootFingerprint === "string" && input.repositoryRootFingerprint !== graph.fingerprint) {
         return error("CONFLICT", "repositoryRootFingerprint does not match the current graph snapshot", {
           causeCode: "REPOSITORY_ROOT_FINGERPRINT_MISMATCH",

@@ -64,9 +64,13 @@ rmSync(pluginRoot, { recursive: true, force: true });
 mkdirSync(path.join(pluginRoot, "hosts", "opencode"), { recursive: true });
 cpSync(distSource, path.join(pluginRoot, "dist"), { recursive: true });
 copyFileSync(hostSource, path.join(pluginRoot, "hosts", "opencode", "plugin.mjs"));
+copyFileSync(path.join(repositoryRoot, "src", "hosts", "opencode", "setup.mjs"), path.join(pluginRoot, "hosts", "opencode", "setup.mjs"));
+copyFileSync(path.join(distSource, "enforcement", "setup-warning.js"), path.join(pluginRoot, "hosts", "opencode", "setup-warning.js"));
 
 const loaderPath = path.join(pluginsDir, "omp-spec-kit-guard.mjs");
 writeFileSync(loaderPath, 'export { OmpSpecKitGuard } from "./omp-spec-kit/hosts/opencode/plugin.mjs";\n');
+const setupLoaderPath = path.join(pluginsDir, "omp-spec-kit-setup.mjs");
+writeFileSync(setupLoaderPath, 'export { OmpSpecKitSetup } from "./omp-spec-kit/hosts/opencode/setup.mjs";\n');
 writeFileSync(path.join(pluginRoot, "package.json"), JSON.stringify({ type: "module" }, null, 2) + "\n");
 const skills = installSkills({
   sourceRoot: path.join(repositoryRoot, "plugins", "omp-spec-kit", "skills"),

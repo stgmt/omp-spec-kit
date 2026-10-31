@@ -6,6 +6,8 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { after, describe, it } from "node:test";
 import { MountManager, parseProjectsConfig } from "../../../src/service/mounts.js";
+import { createDispatcher } from "../../../src/service/dispatch.js";
+import { BRANCH_CONTRACTS, createBranchOps } from "../../../src/service/ops/branch.js";
 import { createSpecBranchManager } from "../../../src/service/spec-branches.js";
 
 const execFileAsync = promisify(execFile);
@@ -101,6 +103,28 @@ describe("spec_branch", () => {
     assert.deepEqual(listed.branches.map((entry) => entry.branch), ["spec-demo-spec"], "merged work branch is gone");
   });
 
+  it("deletes only a spec explicitly marked Demo: true", async () => {
+    const { bare, manager } = await setup();
+    await manager.run({ args: { action: "create", spec: "demo-spec" }, project: PROJECT, requestId: "b1", login: "alice" });
+    await manager.run({ args: { action: "create", spec: "demo-spec", topic: "demo" }, project: PROJECT, requestId: "b2", login: "alice" });
+    await pushToWork(bare, {
+      spec: "demo-spec",
+      topic: "demo",
+      files: { ".specs/demo-spec/README.md": "# demo-spec\n\n**Demo:** true\n" },
+    });
+    const merged = await manager.run({ args: { action: "merge", spec: "demo-spec", topic: "demo" }, project: PROJECT, requestId: "b3", login: "alice" });
+    assert.equal(merged.ok, true, JSON.stringify(merged.error ?? {}));
+
+    await manager.run({ args: { action: "create", spec: "real-spec" }, project: PROJECT, requestId: "b4", login: "alice" });
+    const refused = await manager.run({ args: { action: "deleteSpec", spec: "real-spec" }, project: PROJECT, requestId: "b5", login: "alice", role: "owner" });
+    assert.equal(refused.ok, false);
+    assert.equal(refused.error.code, "DELETE_FORBIDDEN");
+
+    const removed = await manager.run({ args: { action: "deleteSpec", spec: "demo-spec" }, project: PROJECT, requestId: "b6", login: "alice", role: "owner" });
+    assert.equal(removed.ok, true, JSON.stringify(removed.error ?? {}));
+    assert.equal(await git(bare, ["ls-remote", "--heads", bare, "refs/heads/spec-demo-spec"]), "");
+  });
+
   it("honors an active claim before merging another user's spec", async () => {
     const { mounts, manager } = await setup();
     await manager.run({ args: { action: "create", spec: "demo-spec" }, project: PROJECT, requestId: "b1", login: "alice" });
@@ -143,5 +167,33 @@ describe("spec_branch", () => {
     const removedWork = await manager.run({ args: { action: "delete", spec: "demo-spec", topic: "code" }, project: PROJECT, requestId: "b6", login: "alice", force: true, role: "owner" });
     assert.equal(removedWork.ok, true, JSON.stringify(removedWork.error ?? {}));
     assert.equal(await git(bare, ["ls-remote", "--heads", bare, "refs/heads/spec-demo-spec--code"]), "");
+  });
+});
+
+describe("spec_branch dispatch", () => {
+  it("passes the transport-level force flag to the branch manager", async () => {
+    let seen = null;
+    const dispatcher = createDispatcher({
+      mounts: { requireConfigured: () => {}, requireRepoReady: () => {} },
+      serviceOps: {
+        specBranch: createBranchOps({
+          branches: {
+            async run(payload) {
+              seen = payload;
+              return { ok: true };
+            },
+          },
+        }).specBranch,
+      },
+      serviceContracts: BRANCH_CONTRACTS,
+    });
+    await dispatcher.callTool({
+      tool: "spec_branch",
+      args: { schemaVersion: "spec-kernel@2", project: PROJECT, action: "delete", spec: "demo-spec", topic: "topic", force: true },
+      ctx: { role: "owner", scopes: [PROJECT], identity: { login: "alice" }, defaultScope: null },
+    });
+    assert.equal(seen?.force, true, "force must survive the dispatcher's transport-field split");
+    assert.equal(seen?.args?.force, undefined, "force is a transport field, not a closed op argument");
+    assert.equal(seen?.role, "owner");
   });
 });

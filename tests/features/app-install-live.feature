@@ -4,7 +4,8 @@ Feature: Operator installs the spec-graph-app through the YouTrack UI
   headless Chrome against the live compose stack: uploading the built ZIP
   through Administration → Apps, attaching the project, filling the service
   connection settings, and a user onboarding on the app's own Spec Service
-  page (MAIN_MENU_ITEM) — not inside any issue (FR-17, TASK-16). The
+  page (ADMINISTRATION_MENU_ITEM, Administration → Integrations) — not inside
+  any issue and never in the main navigation (FR-17, TASK-16). The
   package, stack and service are the real artifacts — only the clicks are
   simulated.
 

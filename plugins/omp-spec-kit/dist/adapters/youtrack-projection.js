@@ -1,21 +1,41 @@
 import { createHash } from "node:crypto";
 
 export const KIND_LABELS = Object.freeze({
+  DOCUMENT: "DOCUMENT",
+  ROADMAP: "ROADMAP",
+  USER_STORY: "USER_STORY",
+  USE_CASE: "USE_CASE",
+  RESEARCH_FINDING: "RESEARCH_FINDING",
+  RISK: "RISK",
   FUNCTIONAL_REQUIREMENT: "FR",
   NON_FUNCTIONAL_REQUIREMENT: "NFR",
   ACCEPTANCE_CRITERION: "AC",
+  DECISION: "DECISION",
   TASK: "TASK",
+  FILE_CHANGE: "FILE_CHANGE",
+  FILE: "FILE",
   SCENARIO: "SCENARIO",
-  ROADMAP: "ROADMAP",
+  FIXTURE: "FIXTURE",
+  SCHEMA_ENTITY: "SCHEMA_ENTITY",
 });
 
 export const TYPE_PER_KIND = Object.freeze({
-  TASK: "Task",
-  FUNCTIONAL_REQUIREMENT: "Feature",
-  ACCEPTANCE_CRITERION: "Criterion",
-  SCENARIO: "Scenario",
-  NON_FUNCTIONAL_REQUIREMENT: "Constraint",
+  DOCUMENT: "Spec Node",
   ROADMAP: "Roadmap",
+  USER_STORY: "Spec Node",
+  USE_CASE: "Spec Node",
+  RESEARCH_FINDING: "Spec Node",
+  RISK: "Spec Node",
+  FUNCTIONAL_REQUIREMENT: "Feature",
+  NON_FUNCTIONAL_REQUIREMENT: "Constraint",
+  ACCEPTANCE_CRITERION: "Criterion",
+  DECISION: "Spec Node",
+  TASK: "Task",
+  FILE_CHANGE: "Spec Node",
+  FILE: "Spec Node",
+  SCENARIO: "Scenario",
+  FIXTURE: "Spec Node",
+  SCHEMA_ENTITY: "Spec Node",
 });
 
 export const STATUS_MAP = Object.freeze({
@@ -103,6 +123,27 @@ const EDGE_LINK_RULES = Object.freeze([
   Object.freeze({ edge: "CONTAINS", from: "ROADMAP", to: "AC", link: "contains", flip: false }),
   Object.freeze({ edge: "CONTAINS", from: "ROADMAP", to: "TASK", link: "contains", flip: false }),
   Object.freeze({ edge: "CONTAINS", from: "ROADMAP", to: "SCENARIO", link: "contains", flip: false }),
+  // Demo/full-entity vocabulary: documents declare design/story nodes, design
+  // and research document requirements, stories cover requirements, and
+  // file changes implement requirements.
+  Object.freeze({ edge: "DECLARES", from: "DOCUMENT", to: "DECISION", link: "contains", flip: false }),
+  Object.freeze({ edge: "DECLARES", from: "DOCUMENT", to: "USER_STORY", link: "contains", flip: false }),
+  Object.freeze({ edge: "DECLARES", from: "DOCUMENT", to: "USE_CASE", link: "contains", flip: false }),
+  Object.freeze({ edge: "DOCUMENTS", from: "DECISION", to: "FUNCTIONAL_REQUIREMENT", link: "contains", flip: false }),
+  Object.freeze({ edge: "DOCUMENTS", from: "RESEARCH_FINDING", to: "FUNCTIONAL_REQUIREMENT", link: "contains", flip: false }),
+  Object.freeze({ edge: "DOCUMENTS", from: "RISK", to: "FUNCTIONAL_REQUIREMENT", link: "contains", flip: false }),
+  Object.freeze({ edge: "REFS", from: "DECISION", to: "FUNCTIONAL_REQUIREMENT", link: "contains", flip: false }),
+  Object.freeze({ edge: "REFS", from: "RESEARCH_FINDING", to: "FUNCTIONAL_REQUIREMENT", link: "contains", flip: false }),
+  Object.freeze({ edge: "REFS", from: "RISK", to: "FUNCTIONAL_REQUIREMENT", link: "contains", flip: false }),
+  Object.freeze({ edge: "REFS", from: "FILE_CHANGE", to: "FUNCTIONAL_REQUIREMENT", link: "implements", flip: false }),
+  Object.freeze({ edge: "REFS", from: "FILE", to: "FUNCTIONAL_REQUIREMENT", link: "implements", flip: false }),
+  Object.freeze({ edge: "COVERS", from: "USER_STORY", to: "FUNCTIONAL_REQUIREMENT", link: "covers", flip: false }),
+  Object.freeze({ edge: "COVERS", from: "USER_STORY", to: "NON_FUNCTIONAL_REQUIREMENT", link: "covers", flip: false }),
+  Object.freeze({ edge: "COVERS", from: "USE_CASE", to: "FUNCTIONAL_REQUIREMENT", link: "covers", flip: false }),
+  Object.freeze({ edge: "COVERS", from: "USE_CASE", to: "NON_FUNCTIONAL_REQUIREMENT", link: "covers", flip: false }),
+  Object.freeze({ edge: "IMPLEMENTS", from: "FILE_CHANGE", to: "FUNCTIONAL_REQUIREMENT", link: "implements", flip: false }),
+  Object.freeze({ edge: "IMPLEMENTS", from: "FILE_CHANGE", to: "ACCEPTANCE_CRITERION", link: "implements", flip: false }),
+  Object.freeze({ edge: "IMPLEMENTS", from: "FILE", to: "FUNCTIONAL_REQUIREMENT", link: "implements", flip: false }),
 ]);
 
 export const LINK_LABELS = Object.freeze({

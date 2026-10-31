@@ -1,6 +1,7 @@
 import { registerSpecEnforcement } from "../enforcement/adapter.js";
+import { registerSetupWarning } from "../enforcement/setup-warning.js";
 
-export const PLUGIN_VERSION = "2.9.3";
+export const PLUGIN_VERSION = "3.0.0";
 export const SCHEMA_VERSION = "1";
 
 // OMP 18.0.11 extension contract pinned at the active release runtime
@@ -11,4 +12,7 @@ export const SCHEMA_VERSION = "1";
 export default function ompSpecKitExtension(pi) {
   pi.setLabel("OMP Spec Kit");
   registerSpecEnforcement(pi);
+  // P5: a configured hosted project stays silent; an installed-but-unbound
+  // project gets one bounded message on session start.
+  registerSetupWarning(pi, { root: process.cwd(), env: process.env });
 }

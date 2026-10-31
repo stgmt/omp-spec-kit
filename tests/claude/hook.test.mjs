@@ -444,6 +444,21 @@ describe("SessionStart setup warning", () => {
     assert.equal(result.stdout, "");
   });
 
+  it("stays silent for a configured hosted project without a local corpus", () => {
+    const hosted = realpathSync.native(mkdtempSync(path.join(tmpdir(), "omp-spec-kit-hosted-")));
+    try {
+      writeFileSync(
+        path.join(hosted, ".mcp.json"),
+        JSON.stringify({ mcpServers: { "omp-spec-kit": { type: "http", url: "http://127.0.0.1:8650/mcp" } } }),
+      );
+      const result = runSessionStart(hosted);
+      assert.equal(result.status, 0);
+      assert.equal(result.stdout, "", "a hosted project is configured by .mcp.json, not by a local .specs tree");
+    } finally {
+      rmSync(hosted, { recursive: true, force: true });
+    }
+  });
+
   it("never echoes a token value", () => {
     const result = runSessionStart(projectDir, {
       OMP_SPEC_REGISTRY_TOKEN: "super-secret-token-value",
