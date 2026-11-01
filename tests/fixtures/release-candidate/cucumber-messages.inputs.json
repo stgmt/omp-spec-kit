@@ -1,12 +1,12 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "3d7a5afef555fe0ac64dfb70085f725db9da3797a8fe2f9955f56eaf20fd6509",
+  "aggregateSha256": "90162dde8e844241bbefb62e0aca31c69b41ab061c8369eea43f23f8f5d8e38b",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
       "bytes": 733,
-      "sha256": "ebc19c6c9699be1a96cd180e7cb9a16ec181abd072de9e2a1782968ff9c84189"
+      "sha256": "b74fa2b18621dd87c2b57eb851167a9098045f8b8743682ebcb4a5e9bb0c9e82"
     },
     {
       "path": "CHANGELOG.md",
@@ -145,13 +145,13 @@
     },
     {
       "path": "scripts/check-spec-port.mjs",
-      "bytes": 4324,
-      "sha256": "2e643dd9260ca8306840aaf7c2879925ddbef475689bd0941b825d095e7dd316"
+      "bytes": 4139,
+      "sha256": "fdad53515f6cd2eb7a034bf53cfeabb261cdb154e5099342a0e0677a1d39a1e9"
     },
     {
       "path": "scripts/check-tool-surface-mutations.mjs",
-      "bytes": 21234,
-      "sha256": "98effccdbcbc539267a4bed08f64fe58a7a0ef356e5c3e54be17632aabcc8fdd"
+      "bytes": 21392,
+      "sha256": "afb6a7cd68e35b5a932ecb579973dd794c984a74b3f6d7314a5d07a4ea3b7e2b"
     },
     {
       "path": "scripts/compose-mri-lifecycle-receipts.mjs",
@@ -356,7 +356,7 @@
     {
       "path": "scripts/verify-marketplace.mjs",
       "bytes": 9326,
-      "sha256": "f8604a671869fbece376272bb22255b6ce8b216854bffadef16746d6a69f1fac"
+      "sha256": "249e50de26b389f79ff2ba58f06733d9f7a7e04e04b837e9672de5eb259de54d"
     },
     {
       "path": "scripts/verify-package.mjs",
@@ -370,8 +370,8 @@
     },
     {
       "path": "scripts/verify-release.mjs",
-      "bytes": 31181,
-      "sha256": "7fae2c3b519d0e6d06306deb3dfb3f8afd67c84f5f0be5cd640e8835c9fcfcc7"
+      "bytes": 31204,
+      "sha256": "ae3dd9cd71722b2186c9751d3f0f423c3fc6153fd0033df640ccb03df046200f"
     },
     {
       "path": "src/adapters/document-service.js",
@@ -395,8 +395,8 @@
     },
     {
       "path": "src/adapters/tool-contracts.js",
-      "bytes": 39468,
-      "sha256": "47cdf890216fdbc28d12be8818086c1d358738792e54fc5066cd8b4dae50355e"
+      "bytes": 39242,
+      "sha256": "18a7df22e0a2484128b7758291660ee8be04dc1a444d9e90ab32985c00f5e503"
     },
     {
       "path": "src/adapters/youtrack-projection.js",
@@ -685,8 +685,8 @@
     },
     {
       "path": "src/service/index.js",
-      "bytes": 18929,
-      "sha256": "622a3358bf66aa5f187c5a114321ce4423447dbb07ad41f89f7086d420502820"
+      "bytes": 18848,
+      "sha256": "cd2c758d85b1816473dd9427def94c6f8125fc20a93d60fabf528fd08e3ffa63"
     },
     {
       "path": "src/service/ledger.js",
@@ -747,6 +747,11 @@
       "path": "src/service/repos.js",
       "bytes": 10894,
       "sha256": "184c412717f0c0a47f9990c0e20e295d6fb9e126e9de7207e73aa6331617f6ce"
+    },
+    {
+      "path": "src/service/scope.js",
+      "bytes": 6332,
+      "sha256": "e6fc501916c7c1adb9d627bf6a76166aecce6702b7af5666a76cc557a7728b3e"
     },
     {
       "path": "src/service/secrets.js",
@@ -816,7 +821,7 @@
     {
       "path": "src/v0.1/extension.js",
       "bytes": 1134,
-      "sha256": "747b60a517dd69eb089372dd0c3d91fe9280705cd7aaba80771c1bb610743c6e"
+      "sha256": "18820534304e9fc29590f0adcb86ea7efaadcaa2e92be70018e9062d8bd23ba1"
     },
     {
       "path": "tests/.rev-tmp/board.mjs",
@@ -1780,8 +1785,8 @@
     },
     {
       "path": "tests/helpers/tool-e2e.mjs",
-      "bytes": 26582,
-      "sha256": "132741adedf11248eb506babfe0583f4b4c3ec7d40fc2dbbcfa6182afe0c82d6"
+      "bytes": 26559,
+      "sha256": "aae28c154dc8413dcbf566c9d2caf84ecac90de59a323dd0f0a6610f632a7744"
     },
     {
       "path": "tests/hosts/omp-project-injection.test.mjs",
@@ -1840,13 +1845,18 @@
     },
     {
       "path": "tests/service/http.test.mjs",
-      "bytes": 19194,
-      "sha256": "c0b48e1aa71e32a46872cf645d085206f6b410619675d160bcaaf950d2ffe8c4"
+      "bytes": 19558,
+      "sha256": "1f47f6b1ab146da45ff24121d945f3d5738a91f1f74c8114e79d65aa21613688"
     },
     {
       "path": "tests/service/integration.test.mjs",
       "bytes": 4380,
       "sha256": "9af95136976f9588c08405ae0487867fb04275a6e9f38f9a551db7e2da53a7ab"
+    },
+    {
+      "path": "tests/service/lib/scoped-service.mjs",
+      "bytes": 4657,
+      "sha256": "aa77ebd3c97adfd7b61f5cbbf468f3f4f1efef780cfc272ae4ea9a51c2fec486"
     },
     {
       "path": "tests/service/lib/spec-repo.mjs",
@@ -1865,8 +1875,8 @@
     },
     {
       "path": "tests/service/project-scope.test.mjs",
-      "bytes": 8629,
-      "sha256": "bb8973c25bb17c678418276003a102688d83a2699a4aeb633ac3d68b9ce64aff"
+      "bytes": 8690,
+      "sha256": "5461ef2343b8c046d41c6630a31542e67a5a24a4717bd02cb1458e85da35ea93"
     },
     {
       "path": "tests/service/projection.test.mjs",
@@ -1877,6 +1887,11 @@
       "path": "tests/service/publish.test.mjs",
       "bytes": 23276,
       "sha256": "8375a034bd0e10fb19ff45a7a392bcfeef48852648e13bd93e3c360badc4233c"
+    },
+    {
+      "path": "tests/service/rest-scope.test.mjs",
+      "bytes": 3659,
+      "sha256": "e1b848e60e732174d13ac3e358b80506d8f233360fff673e45f14e2329d98e26"
     },
     {
       "path": "tests/service/task6.test.mjs",
@@ -2012,6 +2027,11 @@
       "path": "tests/test-harness.test.mjs",
       "bytes": 1168,
       "sha256": "7b40a922c6cfbf773b5678e3bc3748527085a72e660b91592c772b65c99bcde3"
+    },
+    {
+      "path": "tests/unit/service/board-card-keys.test.mjs",
+      "bytes": 2643,
+      "sha256": "f92c03e2dea1a6b916735ad1c7ed38c85ab5bdc53c200d6d0274644ec98a8ca7"
     },
     {
       "path": "tests/unit/service/branch-policy.test.mjs",
