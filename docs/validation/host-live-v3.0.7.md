@@ -92,6 +92,13 @@ Next: bind the project ...
 This is a real hook process, not only the adapter unit test; it is still not a
 model session, so the Codex row remains short of a live model transcript.
 
+A local OSS attempt (`codex exec --oss --local-provider ollama`, Llama 3.2 3B,
+128k context) did start a live Codex session, but the model repeatedly emitted
+invalid tool-call arguments (`failed to parse function arguments: invalid type`)
+and never reached the guard. That is a local-model tool-calling limitation, not
+a host guard result; the temporary GGUF/Ollama models were removed after the
+probe.
+
 ## Setup-required warning
 
 The live OpenCode warning was not recorded: a temporary home without a global
