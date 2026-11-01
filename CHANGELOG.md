@@ -2,6 +2,20 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.0.6 — 2026-11-01
+
+### Added
+
+- **Project-scoped Spec Board (app 1.0.48)**: the committed state is a v7 root index (`SPEC:SYNC-STATE`) with one signed pointer per project plus an `Unassigned` bucket. The board adds an `All projects` selector, loads the selected project's pointer, persists `?project=`, resolves an unknown selection to `Unassigned`, and fails closed with `PROJECTION_INDEX_REQUIRED` instead of rendering a stale aggregate. `spec_graph board { project }` serves the same scopes; the manual HTTP reader carries per-project boards so the script path publishes the same index.
+- **Executable `youtrack-spec-delivery` scenarios**: `tests/features/youtrack-spec-delivery.feature` + steps implement the six acceptance scenarios against the live compose stack (placement, setup health, shared dashboard for a second user, upgrade, demo load/delete, agent warning). The full run is 6 scenarios / 56 steps; the release workflow runs `npm run test:delivery-live`.
+
+### Fixed
+
+- **Dashboard provisioning is idempotent and sharing is mandatory**: a stale, duplicate, or narrow `spec-board` embedding is replaced; a missing `All Users` group fails the provision instead of reporting a ready dashboard; the persisted one-full-width-widget + share state is verified before `status: ok`. The page logic lives in `widgets/spec-app/dashboard.js` with behavior tests.
+- **The health page survives an unreachable service**: the six-row checklist and next action stay visible instead of being replaced by a dead error page; `health/app` answers before settings exist and the snapshot probe uses the configurable `markerProject` setting (default `SPEC`).
+- **Clean-host setup continues past a conflicting agent config**: OpenCode/Codex guards report the existing-stack conflict as a skip with the installer's reason; the demo stack still does not overwrite it.
+- **SPEC project provisioning adds the short SpecKind labels** (`FR`, `NFR`, `AC`) the projection actually writes, so a fresh stack no longer fails card creation with `incompatible-issue-custom-field-name-SpecKind`.
+
 ## 3.0.5 — 2026-11-01
 
 ### Fixed

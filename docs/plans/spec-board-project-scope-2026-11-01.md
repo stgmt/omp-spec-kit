@@ -1,7 +1,8 @@
 # Spec Board project scope — C+D hybrid work plan
 
 Date: 2026-11-01
-Status: approved direction; implementation starting
+Status: implemented in 3.0.6 (see `CHANGELOG.md` and
+`audit-reports/youtrack-spec-delivery-scenarios-2026-11-01.md`).
 Supersedes the client-only Option A in
 `audit-reports/spec-board-project-selection-blast-2026-11-01.md`.
 

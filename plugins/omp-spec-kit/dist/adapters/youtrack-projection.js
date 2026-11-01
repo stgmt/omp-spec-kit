@@ -173,6 +173,13 @@ const DISPLAY_REVERSE_LINK_TYPE = Object.freeze({
 });
 
 export const SYNC_STATE_SPEC_ID = "SPEC:SYNC-STATE";
+// v7 project-scoped committed state: one signed pointer per project plus a
+// root index. The key is URL-safe so the SpecId text stays deterministic.
+export const PROJECT_POINTER_PREFIX = `${SYNC_STATE_SPEC_ID}:`;
+export const UNASSIGNED_PROJECT_ID = "__unassigned__";
+export function projectPointerSpecId(projectId) {
+  return PROJECT_POINTER_PREFIX + Buffer.from(String(projectId), "utf8").toString("base64url");
+}
 
 /**
  * Shape version of the projected payload: bump when the marker, snapshot, or
@@ -198,7 +205,9 @@ export const SYNC_STATE_SPEC_ID = "SPEC:SYNC-STATE";
  * upgrade; without it the cheap path would keep a valid pre-v5 marker.
  */
 // 6: compact committed snapshot (marker must fit YouTrack's description cap).
-export const PROJECTION_VERSION = 6;
+// 7: per-project pointers + root index; a v6 marker is not readable and must
+//    be reprojected before the board renders.
+export const PROJECTION_VERSION = 7;
 
 const BOARD_KINDS = new Set(Object.keys(KIND_LABELS));
 
@@ -590,6 +599,35 @@ export function compareProjection(actual, plan) {
   return { equal: true, reason: "PARITY" };
 }
 
+export function buildProjectionPlans(board) {
+  const projectPlans = {};
+  for (const [projectId, projectBoard] of Object.entries(board.projectBoards ?? {})) {
+    projectPlans[projectId] = buildProjectionPlan({
+      ...projectBoard,
+      scope: { mode: "project", project: projectId, specSlugs: projectBoard.scope?.specSlugs ?? [] },
+    });
+  }
+  const unassignedSlugs = (board.scope?.specSlugs ?? [])
+    .filter((slug) => !Object.hasOwn(board.specProjects ?? {}, slug))
+    .sort();
+  let unassignedPlan = null;
+  if (unassignedSlugs.length > 0) {
+    const slugs = new Set(unassignedSlugs);
+    const nodes = board.nodes.filter((node) => slugs.has(node.specSlug));
+    const nodeIds = new Set(nodes.map((node) => node.canonicalId));
+    const edges = board.edges.filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to));
+    unassignedPlan = buildProjectionPlan({
+      ...board,
+      nodes,
+      edges,
+      counts: { nodes: nodes.length, edges: edges.length },
+      scope: { mode: "project", project: UNASSIGNED_PROJECT_ID, specSlugs: unassignedSlugs },
+      fingerprint: digest({ unassigned: unassignedSlugs }),
+    });
+  }
+  return { projectPlans, unassignedPlan };
+}
+
 export class YouTrackProjectionService {
   #sourceReader;
   #tracker;
@@ -618,7 +656,8 @@ export class YouTrackProjectionService {
     const parity = compareProjection(actual, plan);
     const canSkip = pointer?.valid === true && pointer.complete === true && pointer.fingerprint === plan.fingerprint &&
       pointer.snapshotHash === plan.snapshotHash && pointer.projectionDigest === plan.projectionDigest &&
-      pointer.projectionVersion === plan.projectionVersion && parity.equal;
+      pointer.projectionVersion === plan.projectionVersion && Array.isArray(pointer.projects) &&
+      pointer.projectIndexComplete === true && parity.equal;
     if (canSkip) {
       return { outcome: "SKIPPED", fingerprint: plan.fingerprint, writeCalls: 0, plan, parity };
     }
@@ -640,12 +679,29 @@ export class YouTrackProjectionService {
     // match). complete:false keeps the pointer signed and owned — writeback
     // still routes through its cardIds — while every skip gate requires
     // complete === true, so the next trigger retries the full path.
-    const stateResult = await this.#syncState.publishCommitted(plan, {
+    const builtPlans = !board.projectPlans && board.projectBoards ? buildProjectionPlans(board) : null;
+    const projectPlans = board.projectPlans ?? builtPlans?.projectPlans ?? null;
+    const unassignedPlan = board.unassignedPlan ?? builtPlans?.unassignedPlan ?? null;
+    let projectState = null;
+    if (projectPlans && typeof this.#syncState.publishProjectPointers === "function") {
+      projectState = await this.#syncState.publishProjectPointers(projectPlans, {
+        cardIds: cardResult?.cardIds ?? {},
+        complete: failures.length === 0,
+        unassignedPlan,
+      });
+    }
+    const stateOptions = {
       cardIds: cardResult?.cardIds ?? {},
       complete: failures.length === 0,
-    });
+    };
+    if (projectState) {
+      stateOptions.projects = projectState.projects;
+      stateOptions.unassigned = projectState.unassigned;
+      stateOptions.staleProjectPointers = projectState.stale;
+    }
+    const stateResult = await this.#syncState.publishCommitted(plan, stateOptions);
     const writeCalls = (cardResult?.writeCalls ?? 0) + (linkResult?.writeCalls ?? 0) +
-      (staleResult?.writeCalls ?? 0) + (stateResult?.writeCalls ?? 0);
+      (staleResult?.writeCalls ?? 0) + (projectState?.writeCalls ?? 0) + (stateResult?.writeCalls ?? 0);
     if (failures.length > 0) {
       return { outcome: "PARTIAL", fingerprint: plan.fingerprint, writeCalls, failures, plan, parity };
     }
