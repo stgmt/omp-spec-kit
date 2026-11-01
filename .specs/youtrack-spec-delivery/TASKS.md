@@ -44,9 +44,10 @@
 
 ## TASK-8: Spec scenarios and review
 
-- **Status:** todo
+- **Status:** done
 - **Implements:** FR-1..FR-8
 - **Done When:** executable scenarios for the acceptance criteria are authored with a valid design review and pass against the real stack.
+- **Evidence:** `tests/features/youtrack-spec-delivery.feature` + `tests/step-definitions/youtrack-spec-delivery.steps.mjs`; `npm run test:delivery-live` (6 scenarios / 56 steps) on the live compose stack; `audit-reports/youtrack-spec-delivery-scenarios-2026-11-01.md`.
 
 ## TASK-9: Placement regression
 
