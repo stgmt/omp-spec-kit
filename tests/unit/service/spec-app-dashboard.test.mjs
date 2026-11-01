@@ -232,9 +232,9 @@ test("shareDashboard is idempotent when All Users is already permitted", async (
 test("checkSnapshot queries the configured marker project and validates completeness", async () => {
   const calls = [];
   const marker = {
-    schemaVersion: "BoardSnapshotV1",
+    schemaVersion: "BoardSnapshotV2",
     complete: true,
-    snapshot: { schemaVersion: "BoardSnapshotV1", complete: true, page: null, nodes: [], edges: [] },
+    snapshot: { schemaVersion: "BoardSnapshotV2", complete: true, page: null, nodes: [], edges: [] },
   };
   const host = {
     fetchYouTrack: async (url) => {

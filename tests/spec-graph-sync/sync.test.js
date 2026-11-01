@@ -96,7 +96,7 @@ describe("YouTrack projection adapter", () => {
       { type: "satisfies", source: q("demo:FR-1"), target: q("demo:AC-1.1") },
       { type: "verifies", source: q("demo:SCENARIO-a"), target: q("demo:AC-1.1") },
     ]);
-    assert.equal(plan.snapshot.schemaVersion, "BoardSnapshotV1");
+    assert.equal(plan.snapshot.schemaVersion, "BoardSnapshotV2");
     assert.equal(plan.snapshot.fingerprint, source.fingerprint);
     assert.ok(plan.projectionDigest.length === 64);
   });

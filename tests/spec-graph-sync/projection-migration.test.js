@@ -98,7 +98,7 @@ function v7Marker() {
     cardIds: { [`${SLUG}:T-12`]: "SPEC-1" },
     specProjects: { [SLUG]: A },
     projects: [{ id: A, pointer: "SPEC-11" }, { id: B, pointer: "SPEC-12" }],
-    snapshot: { schemaVersion: "BoardSnapshotV1", complete: true, page: null, nodes: [], edges: [] },
+    snapshot: { schemaVersion: "BoardSnapshotV2", complete: true, page: null, nodes: [], edges: [] },
   };
 }
 

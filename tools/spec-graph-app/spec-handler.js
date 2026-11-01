@@ -73,23 +73,44 @@ exports.httpHandler = {
         // would send the <***> mask).
         connection.bearerAuth(bridgeToken);
         connection.addHeader('X-Spec-User', login);
-        // Service-HTTP methods (repo bindings, identity) are REST endpoints on
-        // the service, not MCP tools — route them beside the JSON-RPC tunnel.
+        // Identity and repository binding are MCP tools now (spec_identity,
+        // spec_repo): the app methods translate into tool calls and unwrap the
+        // tool's data, so the service keeps one surface per capability.
         var method = payload.method;
         var restPath = null;
         var restMethod = 'POST';
+        var toolCall = null;
+        var repoActions = {
+          'repo/bindings': 'bindings',
+          'repo/probe': 'probe',
+          'repo/bind': 'bind',
+          'repo/unbind': 'unbind'
+        };
         if (method === 'service/me') { restPath = '/me'; restMethod = 'GET'; }
-        else if (method === 'repo/bindings') { restPath = '/repos/bindings'; restMethod = 'GET'; }
-        else if (method === 'repo/probe') { restPath = '/repos/probe'; }
-        else if (method === 'repo/bind') { restPath = '/repos/bind'; }
-        else if (method === 'repo/unbind') { restPath = '/repos/unbind'; }
-        else if (method === 'idp/bindings') { restPath = '/idp/bindings'; restMethod = 'GET'; }
+        else if (Object.prototype.hasOwnProperty.call(repoActions, method)) {
+          toolCall = { name: 'spec_repo', args: Object.assign({ action: repoActions[method] }, payload.params || {}) };
+        } else if (method === 'idp/bindings') { restPath = '/idp/bindings'; restMethod = 'GET'; }
         else if (method === 'idp/probe') { restPath = '/idp/probe'; }
         else if (method === 'idp/bind') { restPath = '/idp/bind'; }
         else if (method === 'idp/unbind') { restPath = '/idp/unbind'; }
         else if (method === 'onboarding/token') { restPath = '/onboarding/token'; }
         var response;
-        if (restPath) {
+        if (toolCall) {
+          var rpcPayload = {
+            jsonrpc: '2.0',
+            id: payload.id,
+            method: 'tools/call',
+            params: { name: toolCall.name, arguments: toolCall.args }
+          };
+          response = connection.postSync('/mcp', null, JSON.stringify(rpcPayload));
+          if (response && response.code >= 200 && response.code < 300) {
+            var unwrapped = unwrapToolData(response.body);
+            if (unwrapped) {
+              ctx.response.json(unwrapped);
+              return;
+            }
+          }
+        } else if (restPath) {
           var restBody = restMethod === 'POST' ? JSON.stringify(payload.params || {}) : null;
           response = restMethod === 'GET'
             ? connection.getSync(restPath)

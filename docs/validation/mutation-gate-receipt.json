@@ -1,6 +1,6 @@
 {
   "schema": "omp-spec-kit-mutation-gate@1",
-  "timestamp": "2026-11-01T18:53:30.068Z",
+  "timestamp": "2026-11-01T21:55:37.248Z",
   "totalMutants": 170,
   "killed": 170,
   "survivors": 0,
@@ -418,12 +418,12 @@
       "id": "invert-patch-annotations-to-read-only",
       "status": "KILLED",
       "description": "Invert spec_patch annotation to read-only",
-      "killerAssertion": "Invariants failed: expected exactly one mutating tool 'spec_patch'"
+      "killerAssertion": "Invariants failed: expected exactly one mutating tool 'spec_patch', got mutant_read_patch"
     },
     {
       "id": "catalog-as-mutating-tool",
       "status": "KILLED",
-      "description": "Add spec_catalog to MUTATING_TOOL_NAMES",
+      "description": "Declare spec_catalog mutating",
       "killerAssertion": "Only spec_patch can be mutating\n\n2 !== 1\n"
     },
     {

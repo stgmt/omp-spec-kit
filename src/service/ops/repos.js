@@ -1,33 +1,19 @@
 import { serviceErrorEnvelope, serviceSuccess } from "../dispatch.js";
+import {
+  field,
+  LOCAL_READ_TOOL_ANNOTATIONS,
+  MUTATING_TOOL_ANNOTATIONS,
+  optionalField,
+  READ_TOOL_ANNOTATIONS,
+} from "../../adapters/tool-contracts.js";
 
-const MUTATING_VARIANT_ANNOTATIONS = Object.freeze({
-  readOnlyHint: false,
-  destructiveHint: true,
-  idempotentHint: true,
-  openWorldHint: true,
-});
-
-const READ_VARIANT_ANNOTATIONS = Object.freeze({
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: true,
-});
-
-const LOCAL_READ_VARIANT_ANNOTATIONS = Object.freeze({
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: false,
-});
-
-function field(name, kind) {
-  return { name, kind };
-}
-
-function optionalField(name, kind) {
-  return { name, kind, optional: true };
-}
+/**
+ * Repo variants reach a remote git host, so they extend the shared annotation
+ * contracts with `openWorldHint: true` instead of re-declaring every field.
+ */
+const MUTATING_REMOTE_ANNOTATIONS = Object.freeze({ ...MUTATING_TOOL_ANNOTATIONS, openWorldHint: true });
+const READ_REMOTE_ANNOTATIONS = Object.freeze({ ...READ_TOOL_ANNOTATIONS, openWorldHint: true });
+const LOCAL_READ_REMOTE_ANNOTATIONS = LOCAL_READ_TOOL_ANNOTATIONS;
 
 /**
  * One typed tool for the project's specs repository: setup, accessibility and
@@ -50,7 +36,7 @@ export const REPO_CONTRACTS = Object.freeze([
         description: "Verify the credential against the repository, then bind the project to it (migrating an existing .specs snapshot when the project was bound elsewhere).",
         operation: "specRepoBind",
         setupExempt: true,
-        annotations: MUTATING_VARIANT_ANNOTATIONS,
+        annotations: MUTATING_REMOTE_ANNOTATIONS,
         fields: Object.freeze([
           field("repoUrl", "string"),
           field("token", "string"),
@@ -63,13 +49,13 @@ export const REPO_CONTRACTS = Object.freeze([
         description: "Remove the project's repository binding; the bound clone stays on disk for versioned reads.",
         operation: "specRepoUnbind",
         setupExempt: true,
-        annotations: MUTATING_VARIANT_ANNOTATIONS,
+        annotations: MUTATING_REMOTE_ANNOTATIONS,
         fields: Object.freeze([]),
       }),
       probe: Object.freeze({
         description: "Check that the supplied credential can read the repository, without persisting a binding.",
         setupExempt: true,
-        annotations: READ_VARIANT_ANNOTATIONS,
+        annotations: READ_REMOTE_ANNOTATIONS,
         fields: Object.freeze([
           field("repoUrl", "string"),
           field("token", "string"),
@@ -80,7 +66,7 @@ export const REPO_CONTRACTS = Object.freeze([
         description: "List the caller's project repository bindings; omit project to report every project in the caller's scopes.",
         listing: true,
         setupExempt: true,
-        annotations: LOCAL_READ_VARIANT_ANNOTATIONS,
+        annotations: LOCAL_READ_REMOTE_ANNOTATIONS,
         fields: Object.freeze([]),
       }),
     }),

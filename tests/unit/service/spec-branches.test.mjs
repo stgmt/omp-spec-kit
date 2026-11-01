@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import { after, describe, it } from "node:test";
 import { MountManager, parseProjectsConfig } from "../../../src/service/mounts.js";
 import { createDispatcher } from "../../../src/service/dispatch.js";
+import { scopeFromContext } from "../../../src/service/scope.js";
 import { BRANCH_CONTRACTS, createBranchOps } from "../../../src/service/ops/branch.js";
 import { createSpecBranchManager } from "../../../src/service/spec-branches.js";
 import { publishTagName } from "../../../src/service/publish.js";
@@ -382,10 +383,11 @@ describe("spec_branch dispatch", () => {
       },
       serviceContracts: BRANCH_CONTRACTS,
     });
+    const ctx = { role: "owner", scopes: [PROJECT], identity: { login: "alice" }, defaultScope: null };
     await dispatcher.callTool({
       tool: "spec_branch",
       args: { schemaVersion: "spec-kernel@2", project: PROJECT, action: "delete", spec: "demo-spec", topic: "topic", force: true },
-      ctx: { role: "owner", scopes: [PROJECT], identity: { login: "alice" }, defaultScope: null },
+      ctx: { ...ctx, scope: scopeFromContext(ctx) },
     });
     assert.equal(seen?.force, true, "force must survive the dispatcher's transport-field split");
     assert.equal(seen?.args?.force, undefined, "force is a transport field, not a closed op argument");

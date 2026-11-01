@@ -4,6 +4,7 @@ import { GitClient } from "./git.js";
 import { isValidBranchName } from "./branch-policy.js";
 import { repoHostAllowed, sanitizeRepoUrl } from "./mounts.js";
 import { sealSecret } from "./secrets.js";
+import { requireScope } from "./scope.js";
 
 export class RepoError extends Error {
   constructor(status, code, message, extra = {}) {
@@ -186,20 +187,22 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
   }
 
   function bindings(ctx) {
+    const scope = requireScope(ctx?.scope, "repo bindings listing");
     const all = store?.listBindings?.() ?? [];
-    return { bindings: all.filter((row) => ctx.scopes.includes(row.project)).map(publicBinding) };
+    return { bindings: all.filter((row) => scope.allows(row.project)).map(publicBinding) };
   }
 
   function me(ctx) {
+    const scope = requireScope(ctx?.scope, "identity report");
     const bound = new Map((store?.listBindings?.() ?? []).map((row) => [row.project, row]));
     return {
       login: ctx.identity?.login ?? null,
       role: ctx.role ?? null,
       tenant: ctx.tenant ?? null,
       idp: ctx.idp ?? null,
-      scopes: ctx.scopes ?? [],
-      defaultScope: ctx.defaultScope ?? null,
-      repos: (ctx.scopes ?? []).map((project) => {
+      scopes: scope.projects,
+      defaultScope: scope.sessionProject,
+      repos: scope.projects.map((project) => {
         const row = bound.get(project);
         // An external-tenant project with no binding has no repo at all —
         // reporting "default" would pretend the operator's repo serves it.

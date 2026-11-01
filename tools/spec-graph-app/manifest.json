@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/youtrack-app.json",
-  "description": "In-UI spec-graph viewer backed by the last committed BoardSnapshotV1.",
+  "description": "In-UI spec-graph viewer backed by the last committed BoardSnapshotV2.",
   "minYouTrackVersion": "2025.3.0",
   "name": "spec-graph-app",
   "title": "Spec Graph",

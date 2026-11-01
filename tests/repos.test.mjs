@@ -138,13 +138,22 @@ async function flipActive(url, token, version) {
   assert.equal(result.structuredContent.data.outcome, "APPLIED");
 }
 
-async function bind(api, token, args) {
-  return rest(api, token, "POST", "/repos/bind", { project: "stgmt/alpha", repoUrl: args.repoUrl, token: args.token ?? BYO_TOKEN, migrate: args.migrate, branch: args.branch });
+/** Repository binding is an MCP tool call now: no REST mirror exists. */
+async function bind(url, token, args) {
+  const result = await callTool(url, token, "spec_repo", {
+    action: "bind",
+    project: "stgmt/alpha",
+    repoUrl: args.repoUrl,
+    token: args.token ?? BYO_TOKEN,
+    migrate: args.migrate,
+    branch: args.branch,
+  });
+  return result.structuredContent;
 }
 
 describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
-  it("reports the configured binding in /me", async () => {
-    const { api, bare, tokens } = await setup();
+  it("reports the configured binding in /me and through spec_repo", async () => {
+    const { api, url, bare, tokens } = await setup();
     const me = await rest(api, tokens.alice, "GET", "/me");
     assert.equal(me.status, 200);
     assert.equal(me.body.login, "alice");
@@ -153,50 +162,52 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
     assert.equal(alpha.bound, true);
     assert.equal(alpha.status, "active");
     assert.equal(alpha.repoUrl, bare);
-    const bindings = await rest(api, tokens.alice, "GET", "/repos/bindings");
-    assert.deepEqual(bindings.body.bindings.map((b) => b.project), ["stgmt/alpha"]);
+    const bindings = (await callTool(url, tokens.alice, "spec_repo", { action: "bindings" })).structuredContent;
+    assert.deepEqual(bindings.data.bindings.map((b) => b.project), ["stgmt/alpha"]);
   });
 
   it("refuses bind for readers, scope-outsiders, and non-private non-allowlisted hosts", async () => {
-    const { api, byoUrl, tokens } = await setup();
-    const reader = await bind(api, tokens.bob, { repoUrl: byoUrl });
-    assert.equal(reader.status, 403);
-    assert.equal(reader.body.error, "FORBIDDEN_ROLE");
+    const { url, byoUrl, tokens } = await setup();
+    const reader = await bind(url, tokens.bob, { repoUrl: byoUrl });
+    assert.equal(reader.ok, false);
+    assert.match(reader.error.message, /requires writer role/u);
 
-    const publicHost = await bind(api, tokens.alice, { repoUrl: "https://git.example.com/x/y.git" });
-    assert.equal(publicHost.status, 400);
-    assert.equal(publicHost.body.error, "REPO_HOST_FORBIDDEN");
+    const publicHost = await bind(url, tokens.alice, { repoUrl: "https://git.example.com/x/y.git" });
+    assert.equal(publicHost.ok, false);
+    assert.equal(publicHost.error.code, "REPO_HOST_FORBIDDEN");
 
-    const badScheme = await bind(api, tokens.alice, { repoUrl: "ssh://git@git.example.com/x/y.git" });
-    assert.equal(badScheme.body.error, "REPO_HOST_FORBIDDEN");
+    const badScheme = await bind(url, tokens.alice, { repoUrl: "ssh://git@git.example.com/x/y.git" });
+    assert.equal(badScheme.error.code, "REPO_HOST_FORBIDDEN");
 
     // file:// is allowlisted in this config, so the failure must come from the
     // reachability probe, not policy.
-    const deadPath = await bind(api, tokens.alice, { repoUrl: "file:///nonexistent/definitely-missing.git" });
-    assert.equal(deadPath.body.error, "REPO_PROBE_FAILED");
+    const deadPath = await bind(url, tokens.alice, { repoUrl: "file:///nonexistent/definitely-missing.git" });
+    assert.equal(deadPath.error.code, "REPO_PROBE_FAILED");
   });
 
   it("requires a credential and probes reachability before binding", async () => {
-    const { api, byoUrl, tokens } = await setup();
-    const noToken = await rest(api, tokens.alice, "POST", "/repos/bind", { project: "stgmt/alpha", repoUrl: byoUrl });
-    assert.equal(noToken.status, 400);
-    assert.equal(noToken.body.error, "REPO_TOKEN_REQUIRED");
+    const { url, byoUrl, tokens } = await setup();
+    const noToken = (await callTool(url, tokens.alice, "spec_repo", { action: "bind", project: "stgmt/alpha", repoUrl: byoUrl })).structuredContent;
+    assert.equal(noToken.ok, false);
+    // The bind variant declares token required, so the refusal arrives at the
+    // contract boundary and names the missing parameter instead of reaching git.
+    assert.equal(noToken.error.code, "INVALID_REQUEST");
+    assert.equal(noToken.error.parameter, "token");
 
-    const missing = await rest(api, tokens.alice, "POST", "/repos/probe", { project: "stgmt/alpha", repoUrl: "file:///nonexistent/dead.git", token: "x" });
-    assert.equal(missing.status, 400);
-    assert.equal(missing.body.error, "REPO_PROBE_FAILED");
+    const missing = (await callTool(url, tokens.alice, "spec_repo", { action: "probe", project: "stgmt/alpha", repoUrl: "file:///nonexistent/dead.git", token: "x" })).structuredContent;
+    assert.equal(missing.ok, false);
+    assert.equal(missing.error.code, "REPO_PROBE_FAILED");
 
-    const probe = await rest(api, tokens.alice, "POST", "/repos/probe", { project: "stgmt/alpha", repoUrl: byoUrl, token: "x" });
-    assert.equal(probe.status, 200);
-    assert.equal(probe.body.ok, true);
+    const probe = (await callTool(url, tokens.alice, "spec_repo", { action: "probe", project: "stgmt/alpha", repoUrl: byoUrl, token: "x" })).structuredContent;
+    assert.equal(probe.ok, true, JSON.stringify(probe.error ?? {}));
   });
 
   it("bind attaches the spec branch already present in the user's repo", async () => {
-    const { api, byoBare, byoUrl, tokens } = await setup();
-    const res = await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
-    assert.equal(res.status, 200, JSON.stringify(res.body));
-    assert.equal(res.body.binding.status, "active");
-    assert.equal(res.body.binding.repoUrl, byoUrl);
+    const { url, byoBare, byoUrl, tokens } = await setup();
+    const res = await bind(url, tokens.alice, { repoUrl: byoUrl, migrate: true });
+    assert.equal(res.ok, true, JSON.stringify(res.error ?? {}));
+    assert.equal(res.data.binding.status, "active");
+    assert.equal(res.data.binding.repoUrl, byoUrl);
 
     // The spec branch is the source of truth: binding attaches it, and the
     // pre-existing commit is exactly what the service serves.
@@ -207,8 +218,8 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
   });
 
   it("routes reads and writes to the bound repo, never the previous one", async () => {
-    const { api, url, bare, byoBare, byoUrl, tokens } = await setup();
-    await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
+    const { url, bare, byoBare, byoUrl, tokens } = await setup();
+    await bind(url, tokens.alice, { repoUrl: byoUrl, migrate: true });
 
     const catalog = await callTool(url, tokens.alice, "spec_catalog", { view: "specs" });
     assert.ok(catalog.structuredContent.data.specs.includes("spec-kernel"));
@@ -232,12 +243,12 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
   });
 
   it("records the bound repo in ledger rows and serves old versions from the old clone", async () => {
-    const { api, url, bare, byoUrl, service, tokens } = await setup();
+    const { url, bare, byoUrl, service, tokens } = await setup();
     await flipActive(url, tokens.alice, "1.0.0");
     const v1 = service.store.getLedger(SPEC_KEY).find((r) => r.version === "1.0.0");
     assert.equal(v1.repoUrl, bare);
 
-    await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
+    await bind(url, tokens.alice, { repoUrl: byoUrl, migrate: true });
 
     // Bump to a second version in the bound repo and publish it there.
     const readme = await callTool(url, tokens.alice, "spec_documents", { action: "read", spec: "spec-kernel", doc: "README.md" });
@@ -264,22 +275,22 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
   });
 
   it("re-binding the same repo is a no-op and cannot revert bound content", async () => {
-    const { api, byoBare, byoUrl, tokens } = await setup();
-    await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
+    const { url, byoBare, byoUrl, tokens } = await setup();
+    await bind(url, tokens.alice, { repoUrl: byoUrl, migrate: true });
     const commits = await gitDir(byoBare, ["rev-list", "--count", `refs/heads/${SPEC_BRANCH}`]);
-    const again = await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
-    assert.equal(again.status, 200);
-    assert.equal(again.body.unchanged, true);
+    const again = await bind(url, tokens.alice, { repoUrl: byoUrl, migrate: true });
+    assert.equal(again.ok, true, JSON.stringify(again.error ?? {}));
+    assert.equal(again.data.unchanged, true);
     assert.equal(await gitDir(byoBare, ["rev-list", "--count", `refs/heads/${SPEC_BRANCH}`]), commits, "no extra migration commit");
   });
 
   it("never persists or returns the repo credential in plaintext", async () => {
-    const { api, byoUrl, storeFile, service, tokens } = await setup();
-    await bind(api, tokens.alice, { repoUrl: byoUrl, token: BYO_TOKEN, migrate: true });
+    const { api, url, byoUrl, storeFile, service, tokens } = await setup();
+    await bind(url, tokens.alice, { repoUrl: byoUrl, token: BYO_TOKEN, migrate: true });
     const raw = await readFile(storeFile, "utf8").catch(() => readFile(`${storeFile}.json`, "utf8"));
     assert.ok(!raw.includes(BYO_TOKEN), "the sealed token must not appear in the store file");
-    const bindings = await rest(api, tokens.alice, "GET", "/repos/bindings");
-    assert.ok(!JSON.stringify(bindings.body).includes(BYO_TOKEN));
+    const bindings = (await callTool(url, tokens.alice, "spec_repo", { action: "bindings" })).structuredContent;
+    assert.ok(!JSON.stringify(bindings.data).includes(BYO_TOKEN));
     const cred = service.store.getCredential("stgmt/alpha");
     assert.equal(cred.repoUrl, byoUrl);
     assert.ok(!cred.tokenEnc.includes(BYO_TOKEN));
@@ -288,10 +299,10 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
   it("unbind leaves the project unbound; published history stays readable", async () => {
     const { api, url, bare, byoUrl, service, tokens } = await setup();
     await flipActive(url, tokens.alice, "1.0.0");
-    await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
-    const unbind = await rest(api, tokens.alice, "POST", "/repos/unbind", { project: "stgmt/alpha" });
-    assert.equal(unbind.status, 200);
-    assert.equal(unbind.body.previous, byoUrl);
+    await bind(url, tokens.alice, { repoUrl: byoUrl, migrate: true });
+    const unbind = (await callTool(url, tokens.alice, "spec_repo", { action: "unbind", project: "stgmt/alpha" })).structuredContent;
+    assert.equal(unbind.ok, true, JSON.stringify(unbind.error ?? {}));
+    assert.equal(unbind.data.previous, byoUrl);
 
     const me = await rest(api, tokens.alice, "GET", "/me");
     assert.equal(me.body.repos.find((r) => r.project === "stgmt/alpha").bound, false);
@@ -307,8 +318,8 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
     assert.equal(service.store.getCredential("stgmt/alpha"), null, "the credential is gone");
     // ...but once the project is bound again, the ledger still serves v1 from
     // the repo it was published into.
-    const rebound = await bind(api, tokens.alice, { repoUrl: byoUrl });
-    assert.equal(rebound.status, 200, JSON.stringify(rebound.body));
+    const rebound = await bind(url, tokens.alice, { repoUrl: byoUrl });
+    assert.equal(rebound.ok, true, JSON.stringify(rebound.error ?? {}));
     const frozen = await callTool(url, tokens.alice, "spec_documents", { action: "read", spec: "spec-kernel", doc: "README.md", version: "1.0.0" });
     assert.equal(frozen.isError, false, JSON.stringify(frozen.structuredContent?.error ?? {}));
     assert.equal(frozen.structuredContent.data.published.commit, service.store.getLedger(SPEC_KEY).find((r) => r.version === "1.0.0").commitSha);
@@ -316,21 +327,30 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
     assert.ok(log.length > 0);
   });
 
-  it("accepts a per-request project hint, still scope-checked, while selection stays per call", async () => {
+  it("refuses the retired project hint header while selection stays per call", async () => {
     const tenants = [
       { tenant: "alpha", projects: ["stgmt/alpha"], hubGroups: ["spec-alpha"], defaultProject: null },
       { tenant: "beta", projects: ["stgmt/beta"], hubGroups: ["spec-beta"], defaultProject: null },
     ];
-    const { api, url, tokens } = await setup({ projects: ["stgmt/alpha", "stgmt/beta"], tenants });
+    const { url, tokens } = await setup({ projects: ["stgmt/alpha", "stgmt/beta"], tenants });
     // frank is a writer in both tenants: no default scope without a selection.
-    const noHint = await callTool(url, tokens.frank, "spec_catalog", { view: "specs" });
-    assert.equal(noHint.structuredContent.ok, false);
-    assert.equal(noHint.structuredContent.error.code, "PROJECT_SELECTION_REQUIRED");
-    // The transport hint is request context, never stored state.
-    const hinted = await callTool(url, tokens.frank, "spec_catalog", { view: "specs" }, { "x-spec-project": "stgmt/alpha" });
-    assert.equal(hinted.structuredContent.ok, true);
-    const outside = await callTool(url, tokens.frank, "spec_catalog", { view: "specs" }, { "x-spec-project": "stgmt/gamma" });
-    assert.equal(outside.structuredContent.ok, false);
+    const noSelection = await callTool(url, tokens.frank, "spec_catalog", { view: "specs" });
+    assert.equal(noSelection.structuredContent.ok, false);
+    assert.equal(noSelection.structuredContent.error.code, "PROJECT_SELECTION_REQUIRED");
+    // The transport hint was removed: a client still sending it learns so
+    // instead of getting a corpus chosen behind the call's back.
+    const hinted = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json, text/event-stream",
+        authorization: `Bearer ${tokens.frank}`,
+        "x-spec-project": "stgmt/alpha",
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "spec_catalog", arguments: { view: "specs" } } }),
+    });
+    assert.equal(hinted.status, 400);
+    assert.match(JSON.stringify(await hinted.json()), /PROJECT_HEADER_REMOVED/u);
     // An explicit per-call project is the documented selection path.
     const explicit = await callTool(url, tokens.frank, "spec_catalog", { project: "stgmt/beta", view: "specs" });
     assert.equal(explicit.structuredContent.ok, true);

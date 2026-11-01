@@ -7,7 +7,7 @@ import {
   annotationsFor,
   assertContractInvariants,
   jsonSchemaFor,
-  MUTATING_TOOL_NAMES,
+  contractIsMutating,
   PATCH_OPERATION_KINDS,
   TASK_STATUS_VALUES,
   TOOL_CONTRACTS,
@@ -153,13 +153,15 @@ export function generateAndEvaluateMutants() {
   receipts.push(
     runMutant(
       "catalog-as-mutating-tool",
-      "Add spec_catalog to MUTATING_TOOL_NAMES",
+      "Declare spec_catalog mutating",
       () => {
-        const mutantMutators = new Set([...MUTATING_TOOL_NAMES, "spec_catalog"]);
-        return { mutantMutators };
+        // The predicate reads the contract, so the mutant declares spec_catalog
+        // mutating and the invariant must reject the surface.
+        const mutantContracts = TOOL_CONTRACTS.map((c) => (c.tool === "spec_catalog" ? { ...c, mutating: true } : c));
+        return { mutantContracts };
       },
-      ({ mutantMutators }) => {
-        const mutating = TOOL_CONTRACTS.filter((c) => mutantMutators.has(c.tool));
+      ({ mutantContracts }) => {
+        const mutating = mutantContracts.filter(contractIsMutating);
         assert.equal(mutating.length, 1, "Only spec_patch can be mutating");
         assert.equal(mutating[0].tool, "spec_patch");
       },

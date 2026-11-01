@@ -43,14 +43,17 @@ describe("HttpMcpClient", () => {
     }
   });
 
-  it("sends the x-spec-project hint when configured", async () => {
+  it("sends the project as a per-call argument, never as a connection header", async () => {
     const server = fakeMcpServer(async () => ({}));
     const real = globalThis.fetch;
     globalThis.fetch = server.fetch;
     try {
       const client = new HttpMcpClient({ baseUrl: "http://registry.test", token: "tok", project: "demo/stack" });
       await client.callTool("spec_graph", { view: "board" });
-      assert.equal(server.calls[0].init.headers["x-spec-project"], "demo/stack");
+      assert.equal(server.calls[0].init.headers["x-spec-project"], undefined);
+      const call = server.calls.find((entry) => entry.message.method === "tools/call");
+      assert.equal(call.message.params.arguments.project, "demo/stack");
+      assert.equal(call.message.params.arguments.view, "board");
     } finally {
       globalThis.fetch = real;
     }

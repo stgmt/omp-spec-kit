@@ -62,7 +62,7 @@ describe("spec-graph-sync CLI wiring", () => {
   it("a registry-mode sync republishes a project-qualified marker with no flat routing map", async () => {
     // Seeded marker signed with MARKER_SECRET — ownership must verify.
     const unsigned = {
-      schemaVersion: "BoardSnapshotV1",
+      schemaVersion: "BoardSnapshotV2",
       projectionVersion: 3,
       complete: true,
       fingerprint: "x".repeat(64),
@@ -180,7 +180,7 @@ describe("spec-graph-sync CLI wiring", () => {
     // Seeded v3 marker: the card SPEC-2 owns demo-spec:TASK-1, served by
     // project demo/stack — writeback must resolve the project from it.
     const unsigned = {
-      schemaVersion: "BoardSnapshotV1",
+      schemaVersion: "BoardSnapshotV2",
       projectionVersion: 3,
       complete: true,
       fingerprint: "x".repeat(64),

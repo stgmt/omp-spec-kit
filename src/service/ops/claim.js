@@ -1,11 +1,13 @@
 import { KERNEL_SCHEMA_VERSION } from "../../kernel/index.js";
 import { serviceErrorEnvelope, serviceSuccess } from "../dispatch.js";
+import { field, optionalField } from "../../adapters/tool-contracts.js";
 
 export const CLAIM_CONTRACTS = Object.freeze([
   {
     tool: "spec_claim",
     label: "Spec Claim",
     operation: "specClaim",
+    mutating: true,
     description: "Take a renewable write lease (default TTL 30 min) on one spec in a project.",
     fields: [field("spec", "string"), optionalField("ttlMinutes", "integer")],
   },
@@ -13,18 +15,11 @@ export const CLAIM_CONTRACTS = Object.freeze([
     tool: "spec_release",
     label: "Spec Release",
     operation: "specRelease",
+    mutating: true,
     description: "Drop the caller's write lease on one spec in a project.",
     fields: [field("spec", "string")],
   },
 ]);
-
-function field(name, kind, values) {
-  return values === undefined ? { name, kind } : { name, kind, values };
-}
-
-function optionalField(name, kind, values) {
-  return { ...field(name, kind, values), optional: true };
-}
 
 /** Listing ops treat absent `project` as "all scopes"; claim ops are targeted. */
 export function createClaimOps({ claims }) {

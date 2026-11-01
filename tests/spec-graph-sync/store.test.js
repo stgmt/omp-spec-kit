@@ -154,7 +154,7 @@ describe("YouTrackSyncStateStore marker integrity", () => {
   });
 
   it("round-trips a signed marker", async () => {
-    const marker = signedMarker({ schemaVersion: "BoardSnapshotV1", complete: true, fingerprint: "fp", snapshotHash: "sh", cardIds: { "demo:TASK-1": "SPEC-1" }, snapshot: { nodes: [] } });
+    const marker = signedMarker({ schemaVersion: "BoardSnapshotV2", complete: true, fingerprint: "fp", snapshotHash: "sh", cardIds: { "demo:TASK-1": "SPEC-1" }, snapshot: { nodes: [] } });
     const client = fakeClient({ issues: [pointerRow("3-5", marker)] });
     const committed = await store(client).readCommitted();
     assert.equal(committed.valid, true);
@@ -166,7 +166,7 @@ describe("YouTrackSyncStateStore marker integrity", () => {
     // the store reads the full project listing rather than a truncated query
     // page whose ordering an attacker can poison.
     const marker = signedMarker({
-      schemaVersion: "BoardSnapshotV1",
+      schemaVersion: "BoardSnapshotV2",
       complete: true,
       fingerprint: "fp",
       snapshotHash: "sh",
@@ -186,8 +186,8 @@ describe("YouTrackSyncStateStore marker integrity", () => {
   });
 
   it("refuses unsigned and wrongly signed markers as committed baselines", async () => {
-    const unsigned = pointerRow("3-5", { schemaVersion: "BoardSnapshotV1", complete: true, fingerprint: "fp", snapshotHash: "sh", cardIds: { "demo:TASK-1": "SPEC-99" } });
-    const forged = signedMarker({ schemaVersion: "BoardSnapshotV1", complete: true, fingerprint: "fp", snapshotHash: "sh", cardIds: {} });
+    const unsigned = pointerRow("3-5", { schemaVersion: "BoardSnapshotV2", complete: true, fingerprint: "fp", snapshotHash: "sh", cardIds: { "demo:TASK-1": "SPEC-99" } });
+    const forged = signedMarker({ schemaVersion: "BoardSnapshotV2", complete: true, fingerprint: "fp", snapshotHash: "sh", cardIds: {} });
     forged.signature = "0".repeat(64);
     const client = fakeClient({ issues: [unsigned, pointerRow("3-6", forged)] });
     const committed = await store(client).readCommitted();
@@ -248,13 +248,13 @@ describe("YouTrackSyncStateStore marker integrity", () => {
 
   it("marks the root index incomplete when a project pointer is missing", async () => {
     const root = signedMarker({
-      schemaVersion: "BoardSnapshotV1",
+      schemaVersion: "BoardSnapshotV2",
       projectionVersion: 7,
       complete: true,
       fingerprint: "fp",
       snapshotHash: "sh",
       projects: [{ id: "demo/stack", pointer: "SPEC-999" }],
-      snapshot: { schemaVersion: "BoardSnapshotV1", complete: true, page: null, nodes: [], edges: [] },
+      snapshot: { schemaVersion: "BoardSnapshotV2", complete: true, page: null, nodes: [], edges: [] },
     });
     const client = fakeClient({ issues: [pointerRow("3-1", root)] });
     const committed = await store(client).readCommitted();
@@ -265,23 +265,23 @@ describe("YouTrackSyncStateStore marker integrity", () => {
   it("accepts a complete project index", async () => {
     const project = "demo/stack";
     const child = signedMarker({
-      schemaVersion: "BoardSnapshotV1",
+      schemaVersion: "BoardSnapshotV2",
       projectionVersion: 7,
       complete: true,
       scope: { mode: "project", project, specSlugs: ["demo"] },
-      snapshot: { schemaVersion: "BoardSnapshotV1", complete: true, page: null, nodes: [], edges: [] },
+      snapshot: { schemaVersion: "BoardSnapshotV2", complete: true, page: null, nodes: [], edges: [] },
     });
     const childRow = issueRow("3-2", projectPointerSpecId(project), {
       description: "SPEC-SYNC-STATE\n" + JSON.stringify(child),
     });
     const root = signedMarker({
-      schemaVersion: "BoardSnapshotV1",
+      schemaVersion: "BoardSnapshotV2",
       projectionVersion: 7,
       complete: true,
       fingerprint: "fp",
       snapshotHash: "sh",
       projects: [{ id: project, pointer: "SPEC-2" }],
-      snapshot: { schemaVersion: "BoardSnapshotV1", complete: true, page: null, nodes: [], edges: [] },
+      snapshot: { schemaVersion: "BoardSnapshotV2", complete: true, page: null, nodes: [], edges: [] },
     });
     const client = fakeClient({ issues: [pointerRow("3-1", root), childRow] });
     const committed = await store(client).readCommitted();
@@ -290,7 +290,7 @@ describe("YouTrackSyncStateStore marker integrity", () => {
 
   it("a signed partial marker verifies for writeback routing but stays incomplete", async () => {
     const marker = signedMarker({
-      schemaVersion: "BoardSnapshotV1",
+      schemaVersion: "BoardSnapshotV2",
       complete: false,
       fingerprint: "fp",
       snapshotHash: "sh",

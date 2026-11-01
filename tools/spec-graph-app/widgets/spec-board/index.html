@@ -812,9 +812,9 @@
     }
     const snapshot = marker && marker.snapshot;
     if (
-      marker.schemaVersion !== 'BoardSnapshotV1' ||
+      marker.schemaVersion !== 'BoardSnapshotV2' ||
       marker.complete !== true ||
-      snapshot?.schemaVersion !== 'BoardSnapshotV1' ||
+      snapshot?.schemaVersion !== 'BoardSnapshotV2' ||
       snapshot.complete !== true ||
       snapshot.page !== null ||
       !Array.isArray(snapshot.nodes) ||
@@ -827,10 +827,10 @@
     const snapshot = marker && marker.snapshot;
     if (
       !marker ||
-      marker.schemaVersion !== 'BoardSnapshotV1' ||
+      marker.schemaVersion !== 'BoardSnapshotV2' ||
       marker.complete !== true ||
       !snapshot ||
-      snapshot.schemaVersion !== 'BoardSnapshotV1' ||
+      snapshot.schemaVersion !== 'BoardSnapshotV2' ||
       snapshot.complete !== true ||
       snapshot.page !== null ||
       !Array.isArray(snapshot.nodes) ||
@@ -936,19 +936,12 @@
     });
   }
 
-  // Shared card key: project::canonicalId. Mirrors CARD_KEY_SEPARATOR in
-  // src/adapters/youtrack-projection.js; two projects may own the same
-  // canonicalId, so the bare id is never used as a lookup key.
-  function cardKey(project, canonicalId) {
-    return String(project || 'local') + '::' + canonicalId;
-  }
-
+  // Cards arrive with a server-built `key` (project-qualified). The widget never
+  // reconstructs that format: a second definition would drift silently.
   function snapshotNodes(snapshot, marker) {
     const cardIds = marker.cardIds || {};
-    const defaultProject = (marker.scope && marker.scope.project) || 'local';
     const nodes = snapshot.nodes.map(source => {
-      const project = source.project || defaultProject;
-      const key = cardKey(project, source.canonicalId);
+      const key = source.key;
       const trackerId = typeof cardIds[key] === 'string' ? cardIds[key] : '';
       const state = source.kind === 'TASK'
         ? (TASK_STATES[source.taskStatus] || 'Unknown')
@@ -956,7 +949,7 @@
       return {
         id: key,
         trackerId,
-        project,
+        project: source.project,
         specId: source.canonicalId,
         specSlug: source.specSlug,
         localId: source.localId,
@@ -972,9 +965,8 @@
     });
     const byId = new Map(nodes.map(node => [node.id, node]));
     for (const edge of snapshot.edges) {
-      const project = edge.project || defaultProject;
-      const source = byId.get(cardKey(project, edge.from));
-      const target = byId.get(cardKey(project, edge.to));
+      const source = byId.get(edge.fromKey);
+      const target = byId.get(edge.toKey);
       if (source && target) source.links.push({ type: edge.type, target: target.id });
     }
     return nodes;

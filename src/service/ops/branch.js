@@ -1,8 +1,11 @@
+import { serviceErrorEnvelope } from "../dispatch.js";
+
 export const BRANCH_CONTRACTS = Object.freeze([
   {
     tool: "spec_branch",
     label: "Spec Branch",
     operation: "specBranch",
+    mutating: true,
     description: "Create, merge, delete, or delete a demo spec branch.",
     fields: [
       { name: "action", kind: "enum", values: ["create", "merge", "delete", "deleteSpec"], optional: false },
@@ -19,19 +22,11 @@ export function createBranchOps({ branches }) {
     specBranch: {
       async run({ args, project, requestId, ctx, force = false }) {
         if (!project) {
+          // The dispatcher never reaches here with an unresolved project; the
+          // refusal exists for direct callers and goes through the one envelope
+          // builder instead of a hand-written literal.
           return {
-            envelope: {
-              schemaVersion: "spec-kernel@2",
-              requestId: requestId ?? null,
-              operation: "specBranch",
-              ok: false,
-              graph: null,
-              page: null,
-              data: null,
-              error: { code: "INVALID_REQUEST", message: "project is required", parameter: "project", retryable: false },
-              diagnostics: [],
-              provenance: null,
-            },
+            envelope: serviceErrorEnvelope("specBranch", requestId, "INVALID_REQUEST", "project is required", { parameter: "project" }),
           };
         }
         const envelope = await branches.run({

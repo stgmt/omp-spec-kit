@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { specificationDirectoryDigest } from "../authoring/transactions.js";
+import { requireScope } from "./scope.js";
 
 export function authoredField(text, name) {
   const match = typeof text === "string" ? text.match(new RegExp(`^${name}:\\s*(.+)$`, "um")) : null;
@@ -39,11 +40,12 @@ function catalogSlugs(catalogEnvelope) {
  * status/version, directory digest, claim state, published pointer. Rebuilt
  * from git on every call; never authoritative for content.
  */
-export async function buildRegistryIndex({ mounts, claims, ledger, projects = null }) {
+export async function buildRegistryIndex({ mounts, claims, ledger, scope }) {
+  const requestScope = requireScope(scope, "buildRegistryIndex");
   const indexProjects = [];
-  // A scoped listing builds only the caller's projects: another tenant's
+  // The index is built for exactly the caller's projects: another tenant's
   // repository is never mounted, fetched or counted as a side effect.
-  for (const projectId of Array.isArray(projects) ? projects : mounts.projects) {
+  for (const projectId of requestScope.projects) {
     let root, service;
     try {
       root = await mounts.projectRoot(projectId);

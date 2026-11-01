@@ -19,11 +19,11 @@ import {
 
 export { ELICITATION_HINT, ELICITATION_REQUIRED, ELICITATION_SKILL_URI };
 
-function field(name, kind, values) {
+export function field(name, kind, values) {
   return values === undefined ? { name, kind } : { name, kind, values };
 }
 
-function optionalField(name, kind, values) {
+export function optionalField(name, kind, values) {
   return { ...field(name, kind, values), optional: true };
 }
 
@@ -339,6 +339,7 @@ export const TOOL_CONTRACTS = Object.freeze([
     tool: "spec_patch",
     label: "Spec Patch",
     operation: "specPatch",
+    mutating: true,
     description: "Preview or apply spec patches in memory or atomically to disk.",
     discriminator: "intent",
     commonFields: Object.freeze([
@@ -671,10 +672,14 @@ export function jsonSchemaFor(contract) {
       if (!f.optional) required.push(f.name);
     }
 
-    // Root closes unknown keys; branches intentionally omit per-branch
-    // `additionalProperties: false` so transport fields stay in the root
-    // and the catalog stays under the 27 000-byte blast gate (26 220 bytes).
-    // Re-add per-branch closure only if a future remeasure passes.
+    // Transport context is declared once on the root schema. Branches stay
+    // open: the root already rejects an unknown key, and repeating the
+    // transport fields per branch would grow the catalog without adding a
+    // single check the runtime performs.
+
+    // The root closes unknown keys; a branch only constrains its own fields.
+    // Declaring transport context per branch would not add an enforcement the
+    // runtime lacks (the root already rejects it) and would double the schema.
     oneOf.push({
       type: "object",
       title: `${disc}: ${vName}`,
@@ -958,37 +963,62 @@ export function validateContractArguments(contract, args) {
   return { ok: true };
 }
 
-export const MUTATING_TOOL_NAMES = Object.freeze(new Set([
-  "spec_patch",
-  // Mutating actions of the hosted repository-binding tool; its read-only
-  // variants are gated per action in the dispatcher, never by this set.
-  "spec_repo",
-]));
-
-export const MUTATING_OPERATION_NAMES = Object.freeze(new Set([
-  "specPatch",
-  "specRepoBind",
-  "specRepoUnbind",
-]));
-
-const READ_TOOL_ANNOTATIONS = Object.freeze({
+export const READ_TOOL_ANNOTATIONS = Object.freeze({
   readOnlyHint: true,
   destructiveHint: false,
   idempotentHint: true,
   openWorldHint: false,
 });
 
-const MUTATING_TOOL_ANNOTATIONS = Object.freeze({
+export const MUTATING_TOOL_ANNOTATIONS = Object.freeze({
   readOnlyHint: false,
   destructiveHint: true,
   idempotentHint: true,
   openWorldHint: false,
 });
 
-export function annotationsFor(contract) {
-  return MUTATING_TOOL_NAMES.has(contract.tool)
-    ? MUTATING_TOOL_ANNOTATIONS
-    : READ_TOOL_ANNOTATIONS;
+/** A read that never leaves this service (local listings, identity). */
+export const LOCAL_READ_TOOL_ANNOTATIONS = Object.freeze({
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+});
+
+/**
+ * The one statement about whether a contract can change anything: a contract
+ * that declares `mutating`, or whose variants carry a non-read-only
+ * annotation. Tool visibility, role gating and the advertised annotations all
+ * read this function; no second list of "write tools" exists.
+ */
+export function contractIsMutating(contract) {
+  if (contract?.mutating === true) return true;
+  const variants = contract?.variants ?? null;
+  if (!variants || typeof variants !== "object") return false;
+  return Object.values(variants).some((variant) => variant?.annotations?.readOnlyHint === false);
+}
+
+/**
+ * A discriminated tool with at least one explicitly read-only action stays
+ * available to readers. A mutating tool whose variants declare no annotations
+ * (every action writes) does not become reader-visible by omission.
+ */
+export function contractExposesReadAction(contract) {
+  const variants = contract?.variants ?? null;
+  if (!variants || typeof variants !== "object") return contract?.mutating !== true;
+  const declared = Object.values(variants).filter((variant) => typeof variant?.annotations?.readOnlyHint === "boolean");
+  if (declared.length === 0) return contract?.mutating !== true;
+  return declared.some((variant) => variant.annotations.readOnlyHint === true);
+}
+
+/**
+ * Annotations for the call being made: a discriminated tool answers per action
+ * (its variant owns the truth), everything else answers for the contract.
+ */
+export function annotationsFor(contract, action = null) {
+  const variant = contract?.discriminator && action !== null ? contract.variants?.[action] : null;
+  if (variant?.annotations) return variant.annotations;
+  return contractIsMutating(contract) ? MUTATING_TOOL_ANNOTATIONS : READ_TOOL_ANNOTATIONS;
 }
 
 export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts an optional project (owner/project) that selects the project serving that call only; when it is omitted the host's session project or your default scope applies, and an unresolved or unauthorized project is refused instead of falling back. declaredWorktree (absolute path) selects a corpus only on the local stdio/test transport; the hosted HTTP transport refuses it, so select a project there instead. ${ELICITATION_HINT}`;
@@ -1078,11 +1108,11 @@ export function assertContractInvariants(contracts = TOOL_CONTRACTS) {
   if (new Set(operations).size !== contracts.length) {
     throw new Error("Invariants failed: duplicate operation names in contracts");
   }
-  const mutatingTools = contracts.filter((c) => MUTATING_TOOL_NAMES.has(c.tool));
+  const mutatingTools = contracts.filter(contractIsMutating);
   if (mutatingTools.length !== 1 || mutatingTools[0].tool !== "spec_patch") {
-    throw new Error("Invariants failed: expected exactly one mutating tool 'spec_patch'");
+    throw new Error("Invariants failed: expected exactly one mutating tool 'spec_patch', got " + mutatingTools.map((c) => c.tool).join(","));
   }
-  const readOnlyTools = contracts.filter((c) => !MUTATING_TOOL_NAMES.has(c.tool));
+  const readOnlyTools = contracts.filter((c) => !contractIsMutating(c));
   if (readOnlyTools.length !== 9) {
     throw new Error("Invariants failed: expected exactly 9 read-only tools");
   }

@@ -547,7 +547,7 @@ export class YouTrackSyncStateStore {
 
   #buildMarker(plan, { cardIds = {}, complete = true, projects = null, unassigned = null } = {}) {
     const marker = {
-      schemaVersion: "BoardSnapshotV1",
+      schemaVersion: "BoardSnapshotV2",
       projectionVersion: plan.projectionVersion ?? null,
       complete,
       fingerprint: plan.fingerprint,
