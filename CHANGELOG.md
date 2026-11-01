@@ -2,6 +2,13 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.0.8 — 2026-11-01
+
+### Fixed
+
+- **Codex 0.166 hook blocking**: Codex 0.166 ignores exit code 2 when a hook also writes JSON, and fails open on a bare exit 2. The hook now detects the managed CLI version and emits the legacy `decision: "block"` plus the current `hookSpecificOutput.permissionDecision: "deny"` shape (exit 0) for 0.166+, while keeping exit 2 for older Codex. A live `codex exec` 0.166 session (`gpt-6.1-terra`) blocks a `.specs` read with `RAW_SPEC_WRITE` and serves `spec_catalog` over MCP (10 specs). Covered by the process-level test in `tests/codex/hook.test.mjs`.
+- **Host evidence for 0.166**: `docs/validation/host-matrix-v3.0.8.md` and `docs/validation/host-live-v3.0.8.md` record the live Codex, OpenCode, and OMP sessions; the Codex SessionStart warning is also a real hook process.
+
 ## 3.0.7 — 2026-11-01
 
 ### Fixed

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { copyFileSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -140,6 +141,45 @@ describe("Codex spec guard", () => {
       assert.match(warning, /not configured for this host/u);
     } finally {
       rmSync(emptyHome, { recursive: true, force: true });
+    }
+  });
+
+  it("emits the JSON deny shape Codex 0.166 honors and exits 0", () => {
+    const installRoot = mkdtempSync(path.join(tmpdir(), "omp-spec-kit-codex-install-"));
+    try {
+      cpSync(path.join(repositoryRoot, "plugins", "omp-spec-kit", "dist"), path.join(installRoot, "dist"), { recursive: true });
+      mkdirSync(path.join(installRoot, "hosts", "codex"), { recursive: true });
+      writeFileSync(path.join(installRoot, "package.json"), JSON.stringify({ version: "0.166.0" }));
+      for (const name of ["hook.mjs", "normalize.mjs"]) {
+        copyFileSync(path.join(repositoryRoot, "src", "hosts", "codex", name), path.join(installRoot, "hosts", "codex", name));
+      }
+      copyFileSync(path.join(repositoryRoot, "src", "enforcement", "setup-warning.js"), path.join(installRoot, "hosts", "codex", "setup-warning.js"));
+      const runHook = (payloadValue, managedRoot = installRoot) => spawnSync(process.execPath, [path.join(installRoot, "hosts", "codex", "hook.mjs")], {
+        input: JSON.stringify(payloadValue),
+        encoding: "utf8",
+        cwd: projectDir,
+        env: { ...process.env, USERPROFILE: codexHome, HOME: codexHome, CODEX_MANAGED_PACKAGE_ROOT: managedRoot },
+      });
+      const blocked = runHook(payload("Bash", { command: "cat .specs/foo/foo.md" }));
+      assert.equal(blocked.status, 0, blocked.stderr);
+      const envelope = JSON.parse(blocked.stdout);
+      assert.equal(envelope.decision, "block");
+      assert.match(envelope.reason, /RAW_SPEC_WRITE/u);
+      assert.equal(envelope.hookSpecificOutput.permissionDecision, "deny");
+      const allowed = runHook(payload("Bash", { command: "node --version" }));
+      assert.equal(allowed.status, 0, allowed.stderr);
+      assert.equal(allowed.stdout.trim(), "");
+      const legacyRoot = mkdtempSync(path.join(tmpdir(), "omp-spec-kit-codex-legacy-"));
+      try {
+        writeFileSync(path.join(legacyRoot, "package.json"), JSON.stringify({ version: "0.144.6" }));
+        const legacy = runHook(payload("Bash", { command: "cat .specs/foo/foo.md" }), legacyRoot);
+        assert.equal(legacy.status, 2);
+        assert.match(legacy.stderr, /RAW_SPEC_WRITE/u);
+      } finally {
+        rmSync(legacyRoot, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+      }
+    } finally {
+      rmSync(installRoot, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
     }
   });
 });

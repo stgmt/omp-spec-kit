@@ -17,6 +17,43 @@ import { toClassifierEvent } from "./normalize.mjs";
 
 const MAX_STDIN_BYTES = 1024 * 1024;
 
+// Codex 0.166 ignores exit code 2 when the hook also writes JSON, and a bare
+// non-zero exit fails open. Older Codex (0.144) blocks on exit 2 and did not
+// parse the JSON deny shape. Detect the managed CLI package version so both
+// hosts get a blocking answer.
+function supportsJsonDeny() {
+  const root = process.env.CODEX_MANAGED_PACKAGE_ROOT;
+  if (typeof root !== "string" || root.length === 0) return false;
+  try {
+    const version = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
+    const [major, minor] = String(version).split(".").map((part) => Number(part));
+    return major > 0 || (major === 0 && minor >= 166);
+  } catch {
+    return false;
+  }
+}
+
+function deny(reason) {
+  if (supportsJsonDeny()) {
+    process.stdout.write(JSON.stringify({
+      decision: "block",
+      reason,
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+        permissionDecisionReason: reason,
+      },
+    }) + "\n");
+    return;
+  }
+  try {
+    process.stderr.write(`${reason}\n`);
+  } catch {
+    // fd 2 closed: the exit code still denies the call.
+  }
+  process.exitCode = 2;
+}
+
 // A closed fd 2 emits an asynchronous stream error; without a listener the
 // process exits 1 instead of denying with 2.
 process.stderr.on("error", () => {});
@@ -109,12 +146,7 @@ async function main() {
   const guard = createCodexGuard({ classifier: classifyToolCall });
   const decision = guard.decide(payload);
   if (decision.block) {
-    try {
-      process.stderr.write(`${decision.reason}\n`);
-    } catch {
-      // fd 2 closed: the exit code still denies the call.
-    }
-    process.exitCode = 2;
+    deny(decision.reason);
   }
 }
 
@@ -122,11 +154,6 @@ const invokedDirectly =
   process.argv[1] !== undefined && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 if (invokedDirectly) {
   main().catch((error) => {
-    try {
-      process.stderr.write(`SPEC_HOOK_FAILED: ${error instanceof Error ? error.message : String(error)}\n`);
-    } catch {
-      // fd 2 closed: the exit code still denies the call.
-    }
-    process.exitCode = 2;
+    deny(`SPEC_HOOK_FAILED: ${error instanceof Error ? error.message : String(error)}`);
   });
 }
