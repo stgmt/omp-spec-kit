@@ -11,6 +11,15 @@ Mode: `node skills/spec-stack-setup/setup.mjs --no-demo`
 - Ran setup with `--no-demo`; template seeding is skipped (`phase 5 - --no-demo: skipping template seeding`).
 - The setup exits non-zero only at **phase 9 (OpenCode guard)**: the host's global OpenCode config points at the operator stack `http://127.0.0.1:8650/mcp`, while the demo serves `8644`. The guard refuses to overwrite a different stack (fail-closed) and does not affect the delivery under test.
 
+> **2026-11-01 update:** phase 9/10 now report a conflicting host config as a
+> skip with the installer's reason and the setup continues to exit 0. The
+> guard still refuses to overwrite the other stack; only the demo-stack setup
+> stops treating that operator configuration as its own failure. The app's
+> dashboard writes from the widget host are also reported with the
+> `scripts/spec-dashboard-setup.mjs` command instead of hanging (YouTrack
+> 2025.3 does not complete them), and the health page keeps its checklist when
+> the service is unreachable.
+
 ## Fresh install
 
 | Check | Result |

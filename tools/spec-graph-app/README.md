@@ -68,6 +68,20 @@ can be lost; the next health check reports the resulting state and a rerun
 repairs the board. The headless provisioner
 (`scripts/spec-dashboard-setup.mjs`) has the same contract.
 
+YouTrack 2025.3 did not complete dashboard writes issued from the widget host
+(the request never reaches the server). The page therefore verifies the
+persisted dashboard and, on a write timeout, reports the canonical command
+instead of hanging:
+
+```text
+node scripts/spec-dashboard-setup.mjs --host <youtrack-url> --token <admin-token>
+```
+
+Creation, stale/duplicate repair, and the `All Users` share are implemented
+idempotently in that provisioner and in the page module
+(`widgets/spec-app/dashboard.js`); the module's behavior is covered by
+`tests/unit/service/spec-app-dashboard.test.mjs`.
+
 ## What CI produces
 
 `npm run build` (also `build:youtrack-app` alone) emits:
