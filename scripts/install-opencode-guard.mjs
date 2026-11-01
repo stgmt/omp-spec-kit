@@ -67,10 +67,29 @@ copyFileSync(hostSource, path.join(pluginRoot, "hosts", "opencode", "plugin.mjs"
 copyFileSync(path.join(repositoryRoot, "src", "hosts", "opencode", "setup.mjs"), path.join(pluginRoot, "hosts", "opencode", "setup.mjs"));
 copyFileSync(path.join(distSource, "enforcement", "setup-warning.js"), path.join(pluginRoot, "hosts", "opencode", "setup-warning.js"));
 
-const loaderPath = path.join(pluginsDir, "omp-spec-kit-guard.mjs");
-writeFileSync(loaderPath, 'export { OmpSpecKitGuard } from "./omp-spec-kit/hosts/opencode/plugin.mjs";\n');
-const setupLoaderPath = path.join(pluginsDir, "omp-spec-kit-setup.mjs");
-writeFileSync(setupLoaderPath, 'export { OmpSpecKitSetup } from "./omp-spec-kit/hosts/opencode/setup.mjs";\n');
+const loaderPath = path.join(pluginsDir, "omp-spec-kit-guard.js");
+// OpenCode 1.19.3 scans `.js` plugin files but ignores `.mjs` in the plugin
+// directory. The bridge is ESM (Bun auto-detects it) and imports the packaged
+// adapter lazily, so both the `.js` and legacy `.mjs` loaders stay valid.
+writeFileSync(
+  loaderPath,
+  'export const OmpSpecKitGuard = async (ctx) => {\n' +
+    '  const mod = await import("./omp-spec-kit/hosts/opencode/plugin.mjs");\n' +
+    '  return mod.OmpSpecKitGuard(ctx);\n' +
+    '};\n',
+);
+const legacyLoaderPath = path.join(pluginsDir, "omp-spec-kit-guard.mjs");
+writeFileSync(legacyLoaderPath, 'export { OmpSpecKitGuard } from "./omp-spec-kit/hosts/opencode/plugin.mjs";\n');
+const setupLoaderPath = path.join(pluginsDir, "omp-spec-kit-setup.js");
+writeFileSync(
+  setupLoaderPath,
+  'export const OmpSpecKitSetup = async (ctx) => {\n' +
+    '  const mod = await import("./omp-spec-kit/hosts/opencode/setup.mjs");\n' +
+    '  return mod.OmpSpecKitSetup(ctx);\n' +
+    '};\n',
+);
+const legacySetupLoaderPath = path.join(pluginsDir, "omp-spec-kit-setup.mjs");
+writeFileSync(legacySetupLoaderPath, 'export { OmpSpecKitSetup } from "./omp-spec-kit/hosts/opencode/setup.mjs";\n');
 writeFileSync(path.join(pluginRoot, "package.json"), JSON.stringify({ type: "module" }, null, 2) + "\n");
 const skills = installSkills({
   sourceRoot: path.join(repositoryRoot, "plugins", "omp-spec-kit", "skills"),
@@ -79,7 +98,7 @@ const skills = installSkills({
 
 writeFileSync(
   guardConfigPath,
-  JSON.stringify({ schema: "omp-spec-kit/opencode-guard@1", registryServer: serverName, registryUrl: url, project }, null, 2) + "\n",
+  JSON.stringify({ schema: "omp-spec-kit/opencode-guard@1", registryServer: serverName, registryUrl: url, project, opencodeConfigPath: configPath }, null, 2) + "\n",
 );
 try {
   chmodSync(guardConfigPath, 0o600);

@@ -2,6 +2,13 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.0.7 — 2026-11-01
+
+### Fixed
+
+- **OpenCode guard actually loads on OpenCode 1.19.3**: the host scans `.js` plugin files and ignores `.mjs`, so the previous installer's `.mjs` loaders were silently skipped. The installer now writes ESM `.js` bridges (dynamic-importing the packaged adapter) while keeping the legacy `.mjs` files, and records `opencodeConfigPath` in `spec-kit-guard.json`. A live `opencode run` session now blocks a direct `.specs` read with `SPEC_READ_REDIRECT` and serves `spec_catalog` over MCP. Covered by `tests/unit/service/opencode-loader.test.mjs`, which installs into a temporary host and executes the installed bridge.
+- **Live host matrix evidence for 3.0.7**: OpenCode and OMP were exercised in real CLI sessions (direct `.specs` read blocked, MCP `spec_catalog` returns 10 specs). Codex sessions remain adapter-level: the local CLI account rejected every available model with `model_not_found`, so no Codex session transcript is claimed. See `docs/validation/host-matrix-v3.0.7.md`.
+
 ## 3.0.6 — 2026-11-01
 
 ### Added
