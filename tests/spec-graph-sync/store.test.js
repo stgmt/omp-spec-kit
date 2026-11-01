@@ -6,7 +6,7 @@ import {
   YouTrackSyncStateStore,
   provisionLinkTypes,
 } from "../../scripts/spec-graph-sync.mjs";
-import { stableJson, SYNC_STATE_SPEC_ID, projectPointerSpecId } from "../../src/adapters/youtrack-projection.js";
+import { stableJson, SYNC_STATE_SPEC_ID, UNASSIGNED_PROJECT_ID, projectPointerSpecId } from "../../src/adapters/youtrack-projection.js";
 
 const MARKER_SECRET = "store-test-marker-secret-0123456789abcdef";
 
@@ -246,6 +246,48 @@ describe("YouTrackSyncStateStore marker integrity", () => {
     assert.equal(signature, createHmac("sha256", MARKER_SECRET).update(stableJson(unsigned), "utf8").digest("hex"), "partial marker must still be verifiably signed");
   });
 
+  it("marks the root index incomplete when a project pointer is missing", async () => {
+    const root = signedMarker({
+      schemaVersion: "BoardSnapshotV1",
+      projectionVersion: 7,
+      complete: true,
+      fingerprint: "fp",
+      snapshotHash: "sh",
+      projects: [{ id: "demo/stack", pointer: "SPEC-999" }],
+      snapshot: { schemaVersion: "BoardSnapshotV1", complete: true, page: null, nodes: [], edges: [] },
+    });
+    const client = fakeClient({ issues: [pointerRow("3-1", root)] });
+    const committed = await store(client).readCommitted();
+    assert.equal(committed.valid, true);
+    assert.equal(committed.projectIndexComplete, false, "a missing project pointer must force a republish");
+  });
+
+  it("accepts a complete project index", async () => {
+    const project = "demo/stack";
+    const child = signedMarker({
+      schemaVersion: "BoardSnapshotV1",
+      projectionVersion: 7,
+      complete: true,
+      scope: { mode: "project", project, specSlugs: ["demo"] },
+      snapshot: { schemaVersion: "BoardSnapshotV1", complete: true, page: null, nodes: [], edges: [] },
+    });
+    const childRow = issueRow("3-2", projectPointerSpecId(project), {
+      description: "SPEC-SYNC-STATE\n" + JSON.stringify(child),
+    });
+    const root = signedMarker({
+      schemaVersion: "BoardSnapshotV1",
+      projectionVersion: 7,
+      complete: true,
+      fingerprint: "fp",
+      snapshotHash: "sh",
+      projects: [{ id: project, pointer: "SPEC-2" }],
+      snapshot: { schemaVersion: "BoardSnapshotV1", complete: true, page: null, nodes: [], edges: [] },
+    });
+    const client = fakeClient({ issues: [pointerRow("3-1", root), childRow] });
+    const committed = await store(client).readCommitted();
+    assert.equal(committed.projectIndexComplete, true);
+  });
+
   it("a signed partial marker verifies for writeback routing but stays incomplete", async () => {
     const marker = signedMarker({
       schemaVersion: "BoardSnapshotV1",
@@ -306,6 +348,23 @@ describe("YouTrackSyncStateStore marker integrity", () => {
       assert.equal(typeof marker.signature, "string");
       assert.equal(Object.keys(marker.cardIds).length, 1, "each project marker carries only its cards");
     }
+  });
+
+  it("publishes the unassigned pointer", async () => {
+    const client = fakeClient({ issues: [] });
+    const sync = store(client);
+    const unassignedPlan = {
+      ...plan(),
+      scope: { mode: "project", project: UNASSIGNED_PROJECT_ID, specSlugs: ["orphan"] },
+      issues: [{ specId: "orphan:TASK-1" }],
+      snapshot: { nodes: [{ canonicalId: "orphan:TASK-1" }], edges: [] },
+    };
+    const state = await sync.publishProjectPointers({}, { cardIds: { "orphan:TASK-1": "SPEC-9" }, unassignedPlan });
+    assert.ok(state.unassigned, "unassigned bucket is published");
+    const create = client.calls.find((call) => call[0] === "POST" && call[1] === "/api/issues?fields=id,idReadable");
+    assert.equal(create[2].customFields[0].value, projectPointerSpecId(UNASSIGNED_PROJECT_ID));
+    const marker = JSON.parse(create[2].description.slice("SPEC-SYNC-STATE\n".length));
+    assert.deepEqual(marker.scope, { mode: "project", project: UNASSIGNED_PROJECT_ID, specSlugs: ["orphan"] });
   });
 
   it("commits the root index before deleting stale project pointers", async () => {

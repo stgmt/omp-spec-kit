@@ -599,6 +599,35 @@ export function compareProjection(actual, plan) {
   return { equal: true, reason: "PARITY" };
 }
 
+export function buildProjectionPlans(board) {
+  const projectPlans = {};
+  for (const [projectId, projectBoard] of Object.entries(board.projectBoards ?? {})) {
+    projectPlans[projectId] = buildProjectionPlan({
+      ...projectBoard,
+      scope: { mode: "project", project: projectId, specSlugs: projectBoard.scope?.specSlugs ?? [] },
+    });
+  }
+  const unassignedSlugs = (board.scope?.specSlugs ?? [])
+    .filter((slug) => !Object.hasOwn(board.specProjects ?? {}, slug))
+    .sort();
+  let unassignedPlan = null;
+  if (unassignedSlugs.length > 0) {
+    const slugs = new Set(unassignedSlugs);
+    const nodes = board.nodes.filter((node) => slugs.has(node.specSlug));
+    const nodeIds = new Set(nodes.map((node) => node.canonicalId));
+    const edges = board.edges.filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to));
+    unassignedPlan = buildProjectionPlan({
+      ...board,
+      nodes,
+      edges,
+      counts: { nodes: nodes.length, edges: edges.length },
+      scope: { mode: "project", project: UNASSIGNED_PROJECT_ID, specSlugs: unassignedSlugs },
+      fingerprint: digest({ unassigned: unassignedSlugs }),
+    });
+  }
+  return { projectPlans, unassignedPlan };
+}
+
 export class YouTrackProjectionService {
   #sourceReader;
   #tracker;
@@ -627,7 +656,8 @@ export class YouTrackProjectionService {
     const parity = compareProjection(actual, plan);
     const canSkip = pointer?.valid === true && pointer.complete === true && pointer.fingerprint === plan.fingerprint &&
       pointer.snapshotHash === plan.snapshotHash && pointer.projectionDigest === plan.projectionDigest &&
-      pointer.projectionVersion === plan.projectionVersion && Array.isArray(pointer.projects) && parity.equal;
+      pointer.projectionVersion === plan.projectionVersion && Array.isArray(pointer.projects) &&
+      pointer.projectIndexComplete === true && parity.equal;
     if (canSkip) {
       return { outcome: "SKIPPED", fingerprint: plan.fingerprint, writeCalls: 0, plan, parity };
     }
@@ -649,8 +679,9 @@ export class YouTrackProjectionService {
     // match). complete:false keeps the pointer signed and owned — writeback
     // still routes through its cardIds — while every skip gate requires
     // complete === true, so the next trigger retries the full path.
-    const projectPlans = board.projectPlans ?? null;
-    const unassignedPlan = board.unassignedPlan ?? null;
+    const builtPlans = !board.projectPlans && board.projectBoards ? buildProjectionPlans(board) : null;
+    const projectPlans = board.projectPlans ?? builtPlans?.projectPlans ?? null;
+    const unassignedPlan = board.unassignedPlan ?? builtPlans?.unassignedPlan ?? null;
     let projectState = null;
     if (projectPlans && typeof this.#syncState.publishProjectPointers === "function") {
       projectState = await this.#syncState.publishProjectPointers(projectPlans, {

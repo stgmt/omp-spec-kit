@@ -121,6 +121,8 @@ describe("spec-graph-sync CLI wiring", () => {
         const data = {
           fingerprint: "f".repeat(64),
           scope: { mode: "corpus", specSlugs: ["demo-spec"] },
+          complete: true,
+          page: null,
           nodes: [
             {
               canonicalId: "demo-spec:TASK-1",
@@ -158,7 +160,14 @@ describe("spec-graph-sync CLI wiring", () => {
       assert.equal(graphCalls.length, 1);
       assert.equal(graphCalls[0].arguments.project, "demo/stack");
       // The republished marker keeps a usable routing map instead of null.
-      const markerWrite = ytWrites.find((w) => typeof w?.description === "string" && w.description.startsWith("SPEC-SYNC-STATE"));
+      const markerWrite = ytWrites.find((w) => {
+        if (typeof w?.description !== "string" || !w.description.startsWith("SPEC-SYNC-STATE\n")) return false;
+        try {
+          return JSON.parse(w.description.slice("SPEC-SYNC-STATE\n".length)).scope?.mode === "corpus";
+        } catch {
+          return false;
+        }
+      });
       assert.ok(markerWrite, "the marker was republished");
       const republished = JSON.parse(markerWrite.description.slice("SPEC-SYNC-STATE\n".length));
       assert.deepEqual(republished.specProjects, { "demo-spec": "demo/stack" });

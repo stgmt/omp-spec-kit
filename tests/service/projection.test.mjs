@@ -3,8 +3,10 @@ import { describe, it } from "node:test";
 import { createProjection } from "../../src/service/projection.js";
 import {
   PROJECTION_VERSION,
+  UNASSIGNED_PROJECT_ID,
   YouTrackProjectionService,
   buildProjectionPlan,
+  buildProjectionPlans,
   projectPointerSpecId,
 } from "../../src/adapters/youtrack-projection.js";
 
@@ -156,6 +158,56 @@ describe("service projection", () => {
       assert.deepEqual(projectMarker.scope, { mode: "project", project: "demo/stack", specSlugs: ["demo-spec"] });
       assert.equal(projectMarker.nodeCount, 1);
       assert.deepEqual(parsed.projects, [{ id: "demo/stack", pointer: projectIssue.idReadable, nodeCount: 1, edgeCount: 0 }]);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("builds an unassigned plan when a served slug has no project", () => {
+    const aggregate = {
+      ...board(),
+      scope: { mode: "corpus", specSlugs: ["demo", "orphan"] },
+      specProjects: { demo: "demo/stack" },
+      projectBoards: {
+        "demo/stack": { ...board(), scope: { mode: "corpus", specSlugs: ["demo"] } },
+      },
+      nodes: [...board().nodes, node("orphan:FR-1", "FUNCTIONAL_REQUIREMENT", "Orphan requirement")],
+    };
+    const { projectPlans, unassignedPlan } = buildProjectionPlans(aggregate);
+    assert.deepEqual(Object.keys(projectPlans), ["demo/stack"]);
+    assert.deepEqual(unassignedPlan.scope, {
+      mode: "project",
+      project: UNASSIGNED_PROJECT_ID,
+      specSlugs: ["orphan"],
+    });
+    assert.equal(unassignedPlan.snapshot.nodes.length, 1);
+    assert.equal(unassignedPlan.snapshot.nodes[0].canonicalId, "orphan:FR-1");
+  });
+
+  it("repairs a deleted project pointer instead of skipping", async () => {
+    const yt = fakeYouTrack();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (url, init) => yt.handler(url, init);
+    try {
+      const projection = createProjection({
+        mounts: fakeMounts(board()),
+        baseUrl: "http://yt.test",
+        serviceToken: "tok",
+        projectShortName: "SPEC",
+        markerSecret: MARKER_SECRET,
+      });
+      await projection.syncOnce();
+      const specIdOf = (issue) => {
+        const field = (issue.customFields ?? []).find((entry) => entry.name === "SpecId");
+        return field?.value?.text ?? field?.value ?? null;
+      };
+      const projectSpecId = projectPointerSpecId("demo/stack");
+      assert.ok(yt.state.issues.some((issue) => specIdOf(issue) === projectSpecId), "first sync creates the project pointer");
+      yt.state.issues = yt.state.issues.filter((issue) => specIdOf(issue) !== projectSpecId);
+      const writesBefore = yt.state.writes;
+      await projection.syncOnce();
+      assert.ok(yt.state.writes > writesBefore, "a missing project pointer forces a republish");
+      assert.ok(yt.state.issues.some((issue) => specIdOf(issue) === projectSpecId), "the project pointer is recreated");
     } finally {
       globalThis.fetch = realFetch;
     }

@@ -497,13 +497,38 @@ export class YouTrackSyncStateStore {
       // A complete:false (partial) marker is still authentic and owned — its
       // cardIds/specProjects route writeback for the cards that did land.
       // Completeness gates the skip paths, not the read.
-      return { valid: true, ...marker };
+      return { valid: true, ...marker, projectIndexComplete: this.#validateProjectIndex(marker, issues) };
     }
     // No marker passes signature verification: spec wins. The lowest-id
     // candidate is taken over on publish so a forged pointer cannot outlive
     // the next sync.
     this.#pointer = candidates[0] ?? null;
     return { valid: false };
+  }
+
+  /**
+   * The root index is only trustworthy when every pointer it names exists,
+   * verifies, is complete, and is scoped to the same project. A missing or
+   * edited project pointer must force a republish instead of being skipped.
+   */
+  #validateProjectIndex(marker, issues) {
+    if (!Array.isArray(marker.projects)) return false;
+    const byReadable = new Map(issues.map((issue) => [issue.idReadable ?? issue.id, issue]));
+    const verify = (entry, expectedProject) => {
+      if (!entry || typeof entry.pointer !== "string") return false;
+      const issue = byReadable.get(entry.pointer);
+      if (!issue) return false;
+      const child = parseMarker(issue.description);
+      if (!child || !this.#verify(child)) return false;
+      return child.complete === true &&
+        child.scope?.mode === "project" &&
+        child.scope.project === expectedProject;
+    };
+    for (const project of marker.projects) {
+      if (!project || typeof project.id !== "string" || !verify(project, project.id)) return false;
+    }
+    if (marker.unassigned && !verify(marker.unassigned, UNASSIGNED_PROJECT_ID)) return false;
+    return true;
   }
 
   async #specIdCustomField(specId = SYNC_STATE_SPEC_ID) {

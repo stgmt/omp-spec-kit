@@ -1,6 +1,5 @@
 import {
   PROJECTION_VERSION,
-  UNASSIGNED_PROJECT_ID,
   YouTrackProjectionService,
   buildProjectionPlan,
   digest,
@@ -176,6 +175,7 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
     // A partial marker carries the same fingerprint/heads but certifies
     // failed writes — never let it satisfy a skip.
     if (pointer.complete !== true) return false;
+    if (pointer.projectIndexComplete !== true) return false;
     if (pointer.projectionVersion !== PROJECTION_VERSION) return false;
     if (pointer.mountsClean !== true || !pointer.mountHeads || typeof pointer.mountHeads !== "object") return false;
     const recorded = pointer.mountHeads;
@@ -231,43 +231,19 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
         pointer.snapshotHash === plan.snapshotHash &&
         pointer.projectionDigest === plan.projectionDigest &&
         pointer.projectionVersion === PROJECTION_VERSION &&
+        pointer.projectIndexComplete === true &&
         Array.isArray(pointer.projects);
       if (fresh) {
         logger("projection: committed snapshot is current, skipping");
         return { outcome: "SKIPPED", fingerprint: board.fingerprint, writeCalls: 0 };
       }
-      // Per-project plans are the v7 committed pointers. Build them only when
-      // a write is needed; a project board is a complete, unpaged board.
-      const projectPlans = Object.create(null);
-      for (const [projectId, projectBoard] of Object.entries(board.projectBoards)) {
-        projectPlans[projectId] = buildProjectionPlan({
-          ...projectBoard,
-          scope: { mode: "project", project: projectId, specSlugs: projectBoard.scope?.specSlugs ?? [] },
-        });
-      }
-      let unassignedPlan = null;
-      if (board.unassignedSlugs.length > 0) {
-        const slugs = new Set(board.unassignedSlugs);
-        const nodes = board.nodes.filter((node) => slugs.has(node.specSlug));
-        const nodeIds = new Set(nodes.map((node) => node.canonicalId));
-        const edges = board.edges.filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to));
-        unassignedPlan = buildProjectionPlan({
-          ...board,
-          nodes,
-          edges,
-          counts: { nodes: nodes.length, edges: edges.length },
-          scope: { mode: "project", project: UNASSIGNED_PROJECT_ID, specSlugs: [...slugs].sort() },
-          fingerprint: digest({ unassigned: board.unassignedSlugs }),
-        });
-      }
-      const syncBoard = { ...board, projectPlans, unassignedPlan };
       const tracker = new YouTrackProjectionStore({
         client,
         projectId: trackerProjectId,
         projectShortName,
       });
       const service = new YouTrackProjectionService({
-        sourceReader: { readBoard: async () => syncBoard },
+        sourceReader: { readBoard: async () => board },
         tracker,
         syncState,
       });

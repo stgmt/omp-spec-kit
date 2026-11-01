@@ -9,6 +9,7 @@ import {
   parseTaskStatus,
 } from "../../src/adapters/youtrack-projection.js";
 import { isValidCanonicalId } from "../../src/kernel/identity.js";
+import { HttpBoardReader } from "../../scripts/spec-graph-sync.mjs";
 
 function node(canonicalId, kind, title, extra = {}) {
   const [specSlug, localId] = canonicalId.split(":");
@@ -405,6 +406,83 @@ describe("YouTrack projection adapter", () => {
     const result = await service.sync();
     assert.equal(result.outcome, "SYNCED");
     assert.deepEqual(published, [{ cardIds: {}, complete: true }]);
+  });
+
+  it("builds project pointers from a script-style board", async () => {
+    const pointerCalls = [];
+    const published = [];
+    const scriptBoard = {
+      ...board(),
+      specProjects: { demo: "demo/stack" },
+      projectBoards: {
+        "demo/stack": { ...board(), scope: { mode: "corpus", specSlugs: ["demo"] } },
+      },
+    };
+    const service = new YouTrackProjectionService({
+      sourceReader: { readBoard: async () => scriptBoard },
+      tracker: {
+        readProjection: async () => ({ issues: [], links: [] }),
+        upsertCards: async () => ({ writeCalls: 0, cardIds: {}, failures: [] }),
+        reconcileLinks: async () => ({ writeCalls: 0 }),
+        removeStaleCards: async () => ({ writeCalls: 0 }),
+      },
+      syncState: {
+        readCommitted: async () => ({ valid: false }),
+        publishProjectPointers: async (plans, options) => {
+          pointerCalls.push({ plans, options });
+          return { writeCalls: 1, projects: [{ id: "demo/stack", pointer: "SPEC-10", nodeCount: 5, edgeCount: 0 }], unassigned: null, stale: [] };
+        },
+        publishCommitted: async (plan, options) => { published.push(options); return { writeCalls: 1 }; },
+      },
+    });
+    await service.sync();
+    assert.equal(pointerCalls.length, 1);
+    assert.deepEqual(Object.keys(pointerCalls[0].plans), ["demo/stack"]);
+    assert.deepEqual(pointerCalls[0].plans["demo/stack"].scope, { mode: "project", project: "demo/stack", specSlugs: ["demo"] });
+    assert.deepEqual(published[0].projects, [{ id: "demo/stack", pointer: "SPEC-10", nodeCount: 5, edgeCount: 0 }]);
+    assert.equal(published[0].unassigned, null);
+  });
+
+  it("does not publish the root if a project pointer publish fails", async () => {
+    let rootPublished = false;
+    const service = new YouTrackProjectionService({
+      sourceReader: {
+        readBoard: async () => ({
+          ...board(),
+          specProjects: { demo: "demo/stack" },
+          projectBoards: { "demo/stack": { ...board(), scope: { mode: "corpus", specSlugs: ["demo"] } } },
+        }),
+      },
+      tracker: {
+        readProjection: async () => ({ issues: [], links: [] }),
+        upsertCards: async () => ({ writeCalls: 0, cardIds: {}, failures: [] }),
+        reconcileLinks: async () => ({ writeCalls: 0 }),
+        removeStaleCards: async () => ({ writeCalls: 0 }),
+      },
+      syncState: {
+        readCommitted: async () => ({ valid: false }),
+        publishProjectPointers: async () => { throw new Error("project pointer write failed"); },
+        publishCommitted: async () => { rootPublished = true; return { writeCalls: 1 }; },
+      },
+    });
+    await assert.rejects(() => service.sync(), /project pointer write failed/);
+    assert.equal(rootPublished, false, "the root index must not commit after a project pointer failure");
+  });
+
+  it("HttpBoardReader exposes per-project boards for the script path", async () => {
+    const reader = new HttpBoardReader({
+      client: {
+        callTool: async (_name, args) => {
+          const base = board();
+          const node = { ...base.nodes[0], canonicalId: `${args.project}:FR-1`, specSlug: args.project, localId: "FR-1" };
+          return { ...base, nodes: [node], edges: [], counts: { nodes: 1, edges: 0 }, scope: { mode: "corpus", specSlugs: [args.project] }, fingerprint: args.project };
+        },
+      },
+      specProjects: async () => ({ demo: "demo/stack", acme: "acme/gamma" }),
+    });
+    const merged = await reader.readBoard();
+    assert.deepEqual(Object.keys(merged.projectBoards).sort(), ["acme/gamma", "demo/stack"]);
+    assert.equal(merged.projectBoards["demo/stack"].fingerprint, "demo/stack");
   });
 
 });

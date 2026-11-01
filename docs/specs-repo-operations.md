@@ -162,6 +162,23 @@ Semantics:
   verifies is still refused — `UNAVAILABLE` (503) only when a dead IdP might
   have been its issuer.
 
+## Spec Board project selection (v7)
+
+The board reads the root `SPEC:SYNC-STATE` index and loads a signed
+`SPEC:SYNC-STATE:<project>` pointer for the selected project. The selector
+offers `All projects`, each indexed project, and `Unassigned`; an unknown
+selection resolves to `Unassigned`, never to the aggregate. A marker without a
+v7 index fails closed with `PROJECTION_INDEX_REQUIRED`.
+
+The selection persists through the host storage/cache. `?project=` is honored
+only when the widget location exposes it; in a dashboard the widget runs in a
+sandboxed `about:srcdoc` iframe where `localStorage` and `window.parent.location`
+are blocked. Do not promise URL persistence for dashboard widgets.
+
+The marker issues are service-owned: only the `spec-registryd` account (and
+tracker administrators) may edit them; dashboard readers are read-only. See
+`docs/decisions/widget-marker-trust.md`.
+
 ## Guided onboarding (TASK-19)
 
 The app's own page — `spec-app`, an `ADMINISTRATION_MENU_ITEM` extension point — is the

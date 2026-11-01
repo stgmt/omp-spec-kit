@@ -318,6 +318,7 @@ export class HttpBoardReader {
     const slugs = [];
     const seen = new Map();
     const served = Object.create(null);
+    const projectBoards = Object.create(null);
     // No v3 specProjects (pre-upgrade marker, or the token scopes a single
     // corpus): one board call without a project hint covers that case.
     const targets = projects.length > 0 ? projects : [null];
@@ -325,6 +326,7 @@ export class HttpBoardReader {
       const args = { view: "board", specSlugs };
       if (project) args.project = project;
       const board = await this.#client.callTool("spec_graph", args);
+      if (project) projectBoards[project] = board;
       for (const node of board?.nodes ?? []) {
         // Same collision contract as the service-side mergedBoard: a canonicalId
         // or spec slug claimed by two mounts makes writeback routing ambiguous —
@@ -364,6 +366,7 @@ export class HttpBoardReader {
       // whatever the board carries, so a reader that fetched per-project boards
       // re-derives the routing table instead of nulling it out.
       ...(Object.keys(served).length > 0 ? { specProjects: served } : {}),
+      ...(Object.keys(projectBoards).length > 0 ? { projectBoards } : {}),
     };
   }
 }
