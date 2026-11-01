@@ -55,7 +55,10 @@ function readToken() {
   }
   fail("provide --token, OMP_SPEC_REGISTRY_TOKEN, or OMP_SPEC_REGISTRY_TOKEN_FILE");
 }
-const token = readToken();
+// The token is a precondition, never a payload: opencode.json is a file that
+// gets copied, committed, and shared, so the header keeps the environment
+// reference OpenCode substitutes at call time.
+readToken();
 
 const serverName = flag("server", "spec-registry");
 const configPath = path.resolve(flag("config", path.join(homedir(), ".config", "opencode", "opencode.json")));
@@ -127,7 +130,7 @@ config.mcp[serverName] = {
   type: "remote",
   url,
   enabled: true,
-  headers: { Authorization: `Bearer ${token}` },
+  headers: { Authorization: "Bearer {env:OMP_SPEC_REGISTRY_TOKEN}" },
 };
 mkdirSync(path.dirname(configPath), { recursive: true });
 if (existsSync(configPath)) {

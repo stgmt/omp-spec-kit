@@ -2,6 +2,18 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.2.1 — 2026-11-02
+
+### Fixed
+
+- **The 3.2.0 marker migration now actually runs.** 3.2.0 told operators to "run one sync to republish" the board as `BoardSnapshotV2`, but both skip gates (`YouTrackProjectionService.sync` and the service loop's `cheapCheck` / freshness check) compared only fingerprint, hashes, projection version and parity. A pointer committed as `BoardSnapshotV1` therefore matched every field and stayed `SKIPPED` forever, while the shipped widgets reject that schema — an upgraded install showed "committed SPEC snapshot is incomplete" with no way out short of deleting the marker. Both gates now require the current `MARKER_SCHEMA_VERSION`, so the first projection run after an upgrade republishes once and the next run converges. `tests/spec-graph-sync/projection-migration.test.js` proves the older-schema marker republishes and never loops.
+- **`install-host.mjs --host omp` writes what OMP reads.** It printed a `PluginManager.link` hint and nothing else, so a documented OMP install had no working MCP door: OMP expands `${VAR}` only in its native config, and a portable plugin's `.mcp.json` keeps header values literal. The installer now merges `omp-spec-kit` into `<PI_CONFIG_DIR|~/.omp>/agent/mcp.json` (`type: http`, the endpoint, `Authorization: Bearer ${OMP_SPEC_REGISTRY_TOKEN}`), preserving the servers already there and never writing a secret or the removed `X-Spec-Project` header. `--host omp` now requires `--url`, and `--config` targets another file.
+- **The OpenCode installer no longer writes the token into `opencode.json`.** It persisted `Bearer <token>` in a file that is routinely copied and committed; it now writes `Bearer {env:OMP_SPEC_REGISTRY_TOKEN}`, which OpenCode substitutes at call time. The token is still required (from `--token`, `OMP_SPEC_REGISTRY_TOKEN`, or `OMP_SPEC_REGISTRY_TOKEN_FILE`) so a broken credential is caught at install time rather than at first call.
+
+### Verification
+
+`tests/spec-graph-sync/projection-migration.test.js` (older-schema republish, then convergence), `tests/unit/service/install-host.test.mjs` (native OMP config merge, no secret, no removed header), `tests/unit/service/opencode-loader.test.mjs` (env reference written, literal token absent). Live: after deploying the image, the operator YouTrack wrote `BoardSnapshotV2` root and project pointers on its own projection run.
+
 ## 3.2.0 — 2026-11-02
 
 ### Upgrade notes

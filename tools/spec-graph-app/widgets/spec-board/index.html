@@ -964,12 +964,32 @@
       };
     });
     const byId = new Map(nodes.map(node => [node.id, node]));
+    // Edges name endpoints by canonical id; the owning node carries the
+    // server-built key, so the widget resolves an endpoint instead of
+    // reconstructing the project-qualified format a second time.
+    const keyOf = endpointResolver(snapshot);
     for (const edge of snapshot.edges) {
-      const source = byId.get(edge.fromKey);
-      const target = byId.get(edge.toKey);
+      const source = byId.get(keyOf(edge.from, edge.project));
+      const target = byId.get(keyOf(edge.to, edge.project));
       if (source && target) source.links.push({ type: edge.type, target: target.id });
     }
     return nodes;
+  }
+
+  function endpointResolver(snapshot) {
+    const index = new Map();
+    for (const node of snapshot.nodes) {
+      const list = index.get(node.canonicalId);
+      if (list) list.push(node);
+      else index.set(node.canonicalId, [node]);
+    }
+    return function resolve(canonicalId, project) {
+      const list = index.get(canonicalId);
+      if (!list) return null;
+      if (project === undefined) return list[0].key;
+      const match = list.find(entry => entry.project === project);
+      return (match || list[0]).key;
+    };
   }
 
   let host = null;

@@ -41,13 +41,20 @@ describe("board cards carry the server-built key", () => {
     assert.equal(new Set(keys).size, 2, "two projects may share a canonical id without sharing a key");
   });
 
-  it("gives every edge its endpoint keys, so a widget never rebuilds the format", () => {
+  it("keeps edges to endpoint ids only, and names a project only when it differs", () => {
     const snapshot = compactSnapshot(BOARD);
-    for (const [index, edge] of snapshot.edges.entries()) {
-      const project = BOARD.edges[index].project;
-      assert.equal(edge.fromKey, cardKey(project, edge.from));
-      assert.equal(edge.toKey, cardKey(project, edge.to));
+    // Same-project edges: no repeated endpoint keys, no project — the endpoints
+    // already carry both, and the repetition overflowed the description limit.
+    for (const edge of snapshot.edges) {
+      assert.deepEqual(Object.keys(edge).sort(), ["from", "to", "type"]);
     }
+    // An edge whose project owns neither endpoint cannot inherit it.
+    const foreign = compactSnapshot({
+      ...BOARD,
+      edges: [{ from: "alpha-spec:FR-1", to: "alpha-spec:FR-1", project: "stgmt/gamma", type: "VERIFIED_BY" }],
+      counts: { nodes: 2, edges: 1 },
+    });
+    assert.equal(foreign.edges[0].project, "stgmt/gamma");
   });
 
   it("is the only definition of the key format: no widget re-declares it", async () => {

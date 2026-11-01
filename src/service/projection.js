@@ -1,4 +1,5 @@
 import {
+  MARKER_SCHEMA_VERSION,
   PROJECTION_VERSION,
   YouTrackProjectionService,
   buildProjectionPlan,
@@ -176,6 +177,9 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
    */
   async function cheapCheck(pointer) {
     if (pointer.valid !== true) return false;
+    // A pointer committed under an older marker schema is authentic but not
+    // what the in-tracker views read: republish instead of certifying it.
+    if (pointer.schemaVersion !== MARKER_SCHEMA_VERSION) return false;
     // A partial marker carries the same fingerprint/heads but certifies
     // failed writes — never let it satisfy a skip.
     if (pointer.complete !== true) return false;
@@ -231,6 +235,7 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
       const fresh =
         pointer.valid === true &&
         pointer.complete === true &&
+        pointer.schemaVersion === MARKER_SCHEMA_VERSION &&
         pointer.fingerprint === plan.fingerprint &&
         pointer.snapshotHash === plan.snapshotHash &&
         pointer.projectionDigest === plan.projectionDigest &&
