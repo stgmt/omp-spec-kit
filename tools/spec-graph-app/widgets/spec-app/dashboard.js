@@ -116,6 +116,40 @@
     return '/dashboard?id=' + encodeURIComponent(dashboardId);
   }
 
+  var WRITE_TIMEOUT_MS = 15_000;
+  var DASHBOARD_WRITE_HINT =
+    'YouTrack did not complete the dashboard write from the app; run ' +
+    'node scripts/spec-dashboard-setup.mjs with an admin token instead';
+
+  function withTimeout(promise, label) {
+    return new Promise(function (resolve, reject) {
+      var settled = false;
+      var timer = setTimeout(function () {
+        if (settled) return;
+        settled = true;
+        reject(new Error(label + ' timed out'));
+      }, WRITE_TIMEOUT_MS);
+      promise.then(function (value) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      }, function (error) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      });
+    });
+  }
+
+  function dashboardWrite(host, url, body, label) {
+    return withTimeout(host.fetchYouTrack(url, { method: 'POST', body: body }), label)
+      .catch(function (error) {
+        throw new Error(label + ' failed: ' + errorText(error) + ' — ' + DASHBOARD_WRITE_HINT);
+      });
+  }
+
   function checkDashboard(host) {
     var found = null;
     return host.fetchYouTrack('dashboards?fields=id,name&$top=200').then(function (rows) {
@@ -254,10 +288,12 @@
       if (wanted.length === 0) {
         return { shared: true, added: false, groups: names };
       }
-      return host.fetchYouTrack('dashboards/' + encodeURIComponent(dashboardId), {
-        method: 'POST',
-        body: dashboardBody(dash, mergeGroups(existing, wanted)),
-      }).then(function () {
+      return dashboardWrite(
+        host,
+        'dashboards/' + encodeURIComponent(dashboardId),
+        dashboardBody(dash, mergeGroups(existing, wanted)),
+        'dashboard sharing',
+      ).then(function () {
         return { shared: true, added: true, groups: names };
       });
     });
@@ -266,7 +302,12 @@
   function removeBoardWidgets(host, dashboardId, widgets) {
     var base = 'dashboards/' + encodeURIComponent(dashboardId) + '/widgets/';
     return Promise.all(arrayOf(widgets).map(function (widget) {
-      return host.fetchYouTrack(base + encodeURIComponent(widget.id), { method: 'DELETE' });
+      return withTimeout(
+        host.fetchYouTrack(base + encodeURIComponent(widget.id), { method: 'DELETE' }),
+        'spec-board removal',
+      ).catch(function (error) {
+        throw new Error('spec-board removal failed: ' + errorText(error) + ' — ' + DASHBOARD_WRITE_HINT);
+      });
     }));
   }
 
@@ -283,7 +324,7 @@
       var verdict = inspectDashboard({ widgets: existing }, widgetId);
       if (verdict.state === 'ok') return { changed: false, replaced: 0, atomic: true };
       var create = function () {
-        return host.fetchYouTrack(base, { method: 'POST', body: body });
+        return dashboardWrite(host, base, body, 'spec-board creation');
       };
       if (existing.length === 0) {
         return create().then(function () {
@@ -320,10 +361,8 @@
       log('dashboards');
       var dashboard = findDashboard(rows);
       if (dashboard) return dashboard;
-      return host.fetchYouTrack('dashboards?fields=id,name', {
-        method: 'POST',
-        body: { name: DASHBOARD_NAME },
-      });
+      log('create');
+      return dashboardWrite(host, 'dashboards', { name: DASHBOARD_NAME }, 'dashboard creation');
     }).then(function (dashboard) {
       log('widgets');
       return ensureBoard(host, dashboard.id, widgetId).then(function (board) {

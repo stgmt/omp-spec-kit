@@ -2,29 +2,46 @@
 
 Date: 2026-11-01
 Spec: `youtrack-spec-delivery` (6 scenarios, valid: 0 errors / 0 warnings)
-Stack: operator `spec-stack` on `http://127.0.0.1:8090`, app 1.0.39
+Executable suite: `tests/features/youtrack-spec-delivery.feature` +
+`tests/step-definitions/youtrack-spec-delivery.steps.mjs`
+Stack: live compose `spec-auth-e2e` (`YouTrack http://127.0.0.1:8081`,
+`spec-registryd http://127.0.0.1:8643`), app 1.0.48
 
-The scenarios are authored in `youtrack-spec-delivery.feature` with `@id:` tags
-and a valid design review. Each scenario was executed against the live stack or
-the focused suite that owns the same contract.
+## Cucumber run
 
-| Scenario | Executed check | Result |
+```text
+npm run test:delivery-live
+6 scenarios (6 passed)
+56 steps (56 passed)
+2m 33.844s
+```
+
+The release workflow runs the same command after `tool:e2e:live`
+(`.github/workflows/release.yml`). The suite bootstraps its own stack with
+`run-live.mjs --bootstrap-only --skip-app`, uploads the built ZIP through
+Administration → Apps, and executes every scenario against the real service,
+YouTrack, and chrome.
+
+| Scenario | Implemented check | Result |
 |---|---|---|
-| `SCEN-delivery-placement` — fresh install keeps the main navigation clean | live headless Chrome: main nav, Administration → Integrations, issue page | nav has only `Issues…Gantt Charts`; Integrations lists `Spec Service`; issue page has the read-only Spec Panel, no `Open Spec Service`, no `Spec Service` panel |
-| `SCEN-delivery-health` — setup page explains what is missing before settings | handler harness in `vm` with `settings: {}` plus live page health | missing `serviceUrl`/`serviceBridgeToken` reported without leaking the token; live page shows all six checks and the next action |
-| `SCEN-delivery-second-user` — a second user sees the shared dashboard | Hub user created, added to SPEC team, browser login, dashboard | `Spec Board` rendered **709 nodes / 10 specs**; user deleted (`200`) |
-| `SCEN-delivery-upgrade` — reinstall preserves specs and dashboard | re-import `spec-graph-app-1.0.39.zip` + re-run dashboard provisioner | app id/version `144-67`/`1.0.39`, 10 specs, one `Spec Stack` `166-3`, one `spec-board`; no duplicate |
-| `SCEN-delivery-demo` — opt-in demo can be loaded and deleted | live MCP demo load + `deleteSpec` | 35 demo nodes covering all 16 kinds; after delete 0 demo nodes and no catalog entry |
-| `SCEN-delivery-agent-warning` — warning once when unconfigured | `tests/claude/hook.test.mjs` + `tests/unit/service/setup-warning.test.mjs` | 67/67 pass; configured project silent, redaction and non-blocking covered |
+| `SCEN-delivery-placement` — fresh install keeps the main navigation clean | UI upload + attach + settings; installed widget placement; `/issues` has no app link; the anchor issue has no `Open Spec Service` | passed |
+| `SCEN-delivery-health` — setup page explains what is missing before settings | handler executed in `vm` with `settings: {}` (missing keys, no token leak), then a live page with an unreachable URL renders six health rows and the next action | passed |
+| `SCEN-delivery-second-user` — a second user sees the shared dashboard | the headless provisioner creates/shares `Spec Stack`; the page's provision verifies it; `bob` (reader) opens it and sees the committed `spec-board` nodes | passed |
+| `SCEN-delivery-upgrade` — reinstall preserves specs and dashboard | re-upload the same ZIP, converge the dashboard, assert the app id/version, catalog, and one `spec-board` | passed |
+| `SCEN-delivery-demo` — opt-in demo can be loaded and deleted | MCP creates a `demo: true` spec with FR/NFR/AC/TASK/SCENARIO; the owner deletes it; cards and snapshot nodes disappear, `alpha-spec` survives | passed |
+| `SCEN-delivery-agent-warning` — warning once when unconfigured | the real OpenCode plugin emits one bounded text part, stays silent afterwards, never blocks, contains no secret, and stays silent for a configured project | passed |
 
-Supporting live checks:
+## Notes
 
-- `check-app-placement`: `ok 1.0.39`.
-- `tests/app-package.test.mjs` + `tests/unit/service/spec-dashboard-setup.test.mjs`: 20/20.
-- Fresh/upgrade on the clean demo stack: `audit-reports/fresh-upgrade-clean-host-2026-10-31.md`.
-
-Known limitation: the six scenarios are documented in the specs repository;
-the code repository does not yet carry a Cucumber feature/steps for them, so
-`TASK-8` remains open until those steps are added and the scenarios run through
-Cucumber itself. The evidence above is the live contract execution, not a
-Cucumber pass.
+- The health scenario exercises both halves of REQ-4: the handler answers
+  `health/app` before settings exist (YouTrack does not mount a widget while
+  required settings are empty), and the live page keeps the health checklist
+  when the service is unreachable instead of replacing it with a dead error.
+- Dashboard writes from the widget host did not complete on YouTrack 2025.3
+  (the request never reaches the server). The app therefore verifies the
+  persisted dashboard and reports the canonical command
+  (`scripts/spec-dashboard-setup.mjs`) on a write timeout; the headless
+  provisioner performs creation, stale/duplicate repair, and sharing
+  idempotently and is covered by `tests/unit/service/spec-app-dashboard.test.mjs`.
+- Supporting checks: `check-app-placement` (1.0.48), `tests/app-package.test.mjs`,
+  and the dashboard module behavior tests.

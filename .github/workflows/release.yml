@@ -57,6 +57,8 @@ jobs:
       - run: git config --global user.email "bot@spec-registryd.invalid"
       - run: npm run test:service
       - run: npm run tool:e2e:live
+      - name: Run the live delivery Cucumber scenarios
+        run: npm run test:delivery-live
       - name: Tear down the live contour
         if: always()
         run: docker compose -p spec-auth-e2e -f tests/e2e/compose.yml down -v

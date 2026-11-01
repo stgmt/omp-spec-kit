@@ -72,6 +72,9 @@
     var appHealth = null;
     var healthDashboard = null;
     var healthSnapshot = null;
+    // Set when the service call fails (unreachable URL / transport). The page
+    // keeps the health checklist instead of replacing it with a dead error.
+    var serviceUnreachable = false;
 
     function escapeHtml(text) {
       return String(text == null ? '' : text).replace(/[&<>"']/g, function (ch) {
@@ -724,7 +727,8 @@
       }
       html += '</div>';
       if (catalogError) {
-        html += '<p class="err" data-testid="spec-error-note">' + escapeHtml(catalogError) + '</p>';
+        var catalogTestId = serviceUnreachable ? 'service-error' : 'spec-error-note';
+        html += '<p class="err" data-testid="' + catalogTestId + '">' + escapeHtml(catalogError) + '</p>';
       }
       html += healthSectionHtml();
       html += demoSectionHtml();
@@ -751,6 +755,7 @@
     function loadAll() {
       return callService({ id: 'widget-health', method: 'health/app', params: {} }).then(function (health) {
         appHealth = health && typeof health.ok === 'boolean' ? health : { ok: true, missing: [] };
+        serviceUnreachable = false;
         if (!appHealth.ok) {
           // The setup page must render before settings exist: show the health
           // checklist and the exact missing keys instead of a dead error page.
@@ -791,8 +796,14 @@
             specsList = [];
             catalogError = (structured.error && (structured.error.message || structured.error.code)) || 'specs unavailable';
           } else if (!structured || structured.ok !== true) {
-            renderError(structured || results[0]);
-            return;
+            // The service is unreachable or answered a transport error. Keep
+            // the health checklist visible: it names the failing row and the
+            // next action, which is the whole point of the setup page.
+            specsList = [];
+            serviceUnreachable = true;
+            catalogError = (results[0] && (results[0].error || results[0].message)) || 'service is unreachable';
+            meInfo = null;
+            idpList = [];
           } else {
             specsList = (structured.data && structured.data.specs) || [];
             catalogError = null;
