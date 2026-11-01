@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createDispatcher } from "../../src/service/dispatch.js";
+import { scopeFromContext } from "../../src/service/scope.js";
 import { TOOL_CONTRACTS } from "../../src/adapters/tool-contracts.js";
 
 describe("dispatcher PROJECT_NOT_CONFIGURED refusal", () => {
@@ -14,10 +15,11 @@ describe("dispatcher PROJECT_NOT_CONFIGURED refusal", () => {
       },
       serviceContracts: TOOL_CONTRACTS,
     });
+    const ctx = { role: "reader", scopes: ["stgmt/unbound"], identity: { login: "alice" }, defaultScope: null };
     const res = await dispatcher.callTool({
       tool: "spec_catalog",
       args: { schemaVersion: "spec-kernel@2", project: "stgmt/unbound", view: "specs" },
-      ctx: { role: "reader", scopes: ["stgmt/unbound"], identity: { login: "alice" }, defaultScope: null },
+      ctx: { ...ctx, scope: scopeFromContext(ctx) },
     });
     assert.equal(res.envelope.ok, false, "must refuse");
     assert.equal(res.envelope.error.code, "PROJECT_NOT_CONFIGURED");

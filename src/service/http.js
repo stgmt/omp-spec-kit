@@ -4,6 +4,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { CallToolRequestSchema, InitializeRequestSchema, ListToolsRequestSchema, PingRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createDispatcher, serverInfo } from "./dispatch.js";
 import { sanitizeRepoUrl } from "./mounts.js";
+import { scopeFromContext, requireScope } from "./scope.js";
 
 /**
  * Shared tool dispatch for the HTTP transport: same contracts, same argument
@@ -25,7 +26,10 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
     Promise.resolve()
       .then(() => authenticate(req))
       .then((ctx) => {
-        req.ctx = ctx;
+        // One construction site for the request scope: every surface below
+        // (MCP dispatch, /status, /me, bindings) reads it
+        // from here instead of filtering project lists of its own.
+        req.ctx = { ...ctx, scope: scopeFromContext(ctx) };
         next();
       })
       .catch((error) => {
@@ -59,9 +63,9 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
   });
 
   app.get("/status", authGate, async (req, res) => {
-    const scopes = Array.isArray(req.ctx?.scopes) ? req.ctx.scopes : [];
+    const scope = requireScope(req.ctx?.scope, "GET /status");
     const projects = [];
-    for (const project of mounts.projects.filter((id) => scopes.includes(id))) {
+    for (const project of scope.projects) {
       const row = mounts.store?.getBinding?.(project) ?? null;
       const active = row?.status === "active";
       let specs = null;
@@ -83,34 +87,11 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
           : {
               required: true,
               code: "REPO_BINDING_REQUIRED",
-              command: `POST /repos/bind {"project":"${project}","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}`,
+              command: `call spec_repo {"action":"bind","project":"${project}","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}`,
             },
       });
     }
     res.json({ ok: true, projects });
-  });
-
-  app.get("/registry", authGate, async (req, res) => {
-    if (typeof endpoints.registry !== "function") {
-      res.status(501).json({ error: "registry endpoint is not wired" });
-      return;
-    }
-    try {
-      res.json(await endpoints.registry(req.ctx));
-    } catch (error) {
-      res.status(500).json({ error: "registry projection failed", message: String(error?.message ?? error) });
-    }
-  });
-  app.get("/drift", authGate, async (req, res) => {
-    if (typeof endpoints.drift !== "function") {
-      res.status(501).json({ error: "drift endpoint is not wired" });
-      return;
-    }
-    try {
-      res.json(await endpoints.drift(req.ctx));
-    } catch (error) {
-      res.status(500).json({ error: "drift report failed", message: String(error?.message ?? error) });
-    }
   });
 
   // Tracker projection ops: inspect the serialized sync loop and force a
@@ -171,7 +152,8 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
     }
   });
 
-  // Repo bindings (TASK-17): caller identity, scopes and the bound repo set.
+  // Identity is a session read, not spec data: role, tenant and the repository
+  // state of each project in the caller's scope (the scope object above).
   app.get("/me", authGate, async (req, res) => {
     try {
       res.json(await endpoints.me(req.ctx));
@@ -179,30 +161,8 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
       res.status(500).json({ error: "me failed", message: String(error?.message ?? error) });
     }
   });
-  app.get("/repos/bindings", authGate, async (req, res) => {
-    try {
-      res.json(await endpoints.repoBindings(req.ctx));
-    } catch (error) {
-      res.status(500).json({ error: "bindings failed", message: String(error?.message ?? error) });
-    }
-  });
-
-  const repoWrite = (fn) => async (req, res) => {
-    try {
-      res.json(await fn({ ctx: req.ctx, ...req.body }));
-    } catch (error) {
-      const status = Number.isSafeInteger(error?.status) ? error.status : 500;
-      res.status(status).json({
-        error: error?.code ?? "REPO_OP_FAILED",
-        message: String(error?.message ?? error),
-        ...(error?.retryable === true ? { retryable: true } : {}),
-      });
-    }
-  };
-  app.post("/repos/probe", authGate, repoWrite((input) => endpoints.repoProbe(input)));
-  app.post("/repos/bind", authGate, repoWrite((input) => endpoints.repoBind(input)));
-  app.post("/repos/unbind", authGate, repoWrite((input) => endpoints.repoUnbind(input)));
-
+  // Repository binding is a tool (spec_repo): its REST mirrors were a second
+  // surface with a second scope filter and are gone.
   // External IdP bindings (TASK-13): probe/bind/unbind a customer's own
   // YouTrack. The minted bridge secret is returned once on bind, wrapped in
   // the install instructions for their app settings.
@@ -251,10 +211,23 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
   });
 
   app.post("/mcp", async (req, res) => {
+    // The header is gone for good: a client that still sends it must learn that
+    // rather than get a corpus chosen behind the call's back.
+    if (req.headers["x-spec-project"] !== undefined) {
+      res.status(400).json({
+        jsonrpc: "2.0",
+        id: req.body?.id ?? null,
+        error: {
+          code: -32600,
+          message: "PROJECT_HEADER_REMOVED: X-Spec-Project is no longer read; pass project (owner/project) on the call, or configure the workspace project record",
+        },
+      });
+      return;
+    }
     // Stateless mode per SDK docs: a fresh transport per request, no session id.
     const info = serverInfo();
     const server = new Server(info, { capabilities: { tools: {} } });
-    wireProtocolHandlers(server, dispatcher, req.ctx, audit, { projectHint: req.headers["x-spec-project"] });
+    wireProtocolHandlers(server, dispatcher, req.ctx, audit);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on("close", () => {
       transport.close();
@@ -271,7 +244,7 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
   return app;
 }
 
-function wireProtocolHandlers(server, dispatcher, ctx, audit, { projectHint } = {}) {
+function wireProtocolHandlers(server, dispatcher, ctx, audit) {
   server.setRequestHandler(InitializeRequestSchema, async (request) => {
     const requested = typeof request.params?.protocolVersion === "string" ? request.params.protocolVersion : "2025-03-26";
     const info = serverInfo();
@@ -289,7 +262,7 @@ function wireProtocolHandlers(server, dispatcher, ctx, audit, { projectHint } = 
     if (typeof name !== "string") {
       throw Object.assign(new Error("Unknown tool: <missing>"), { code: -32602 });
     }
-    const { envelope, unknownTool, project: servedProject } = await dispatcher.callTool({ tool: name, args: rawArguments, ctx, projectHint });
+    const { envelope, unknownTool, project: servedProject } = await dispatcher.callTool({ tool: name, args: rawArguments, ctx });
     if (unknownTool) {
       throw Object.assign(new Error(`Unknown tool: ${name}`), { code: -32602 });
     }

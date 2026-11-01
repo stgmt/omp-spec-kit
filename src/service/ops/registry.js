@@ -1,4 +1,5 @@
 import { serviceSuccess } from "../dispatch.js";
+import { requireScope } from "../scope.js";
 
 export const REGISTRY_CONTRACTS = Object.freeze([
   {
@@ -17,56 +18,48 @@ export const REGISTRY_CONTRACTS = Object.freeze([
   },
 ]);
 
-/** The verified scope set a service op may read from — never the whole config. */
-export function callerScopes(ctx) {
-  const scopes = Array.isArray(ctx?.scopes) ? ctx.scopes : [];
-  return scopes.filter((project) => typeof project === "string" && project.length > 0);
-}
-
 /**
  * Listing ops. An unqualified listing covers the caller's allowed projects
  * only, and the index/report is built for exactly those projects: a tenant
  * never learns that another project, its repository URL or its spec count
- * exists.
+ * exists. `scope.restrict` hands the callee the already-narrowed subset, so no
+ * callee can widen it back to the deployment's project list.
  */
 export function createRegistryOps({ registryIndex, driftReport, branch, repositoryStatus = () => [] }) {
+  function selection({ allScopes, project, ctx, owner }) {
+    const scope = requireScope(ctx?.scope, owner);
+    const selected = allScopes ? scope.projects : (scope.allows(project) ? [project] : []);
+    return { scope, selected, scoped: scope.restrict(selected) };
+  }
+
   return {
     specRegistry: {
       listing: true,
       async run({ project, allScopes, requestId, ctx }) {
-        const scopes = callerScopes(ctx);
-        const visible = new Set(scopes);
-        const selected = allScopes ? scopes : (visible.has(project) ? [project] : []);
+        const { selected, scoped } = selection({ allScopes, project, ctx, owner: "spec_registry" });
         if (selected.length === 0) {
           return { envelope: serviceSuccess("specRegistry", requestId, { branch, projects: [] }) };
         }
-        const index = await registryIndex({ projects: selected });
+        const index = await registryIndex({ scope: scoped });
         const repositories = new Map(repositoryStatus(ctx).map((entry) => [entry.project, entry]));
-        const projects = index.projects
-          .filter((entry) => visible.has(entry.id))
-          .map((entry) => ({
-            ...entry,
-            // Setup visibility for the caller's own project: an unbound or
-            // errored project still reports what state its binding is in.
-            repository: repositories.get(entry.id) ?? { project: entry.id, repoUrl: null, bound: false, status: "required" },
-          }));
+        const projects = index.projects.map((entry) => ({
+          ...entry,
+          // Setup visibility for the caller's own project: an unbound or
+          // errored project still reports what state its binding is in.
+          repository: repositories.get(entry.id) ?? { project: entry.id, repoUrl: null, bound: false, status: "required" },
+        }));
         return { envelope: serviceSuccess("specRegistry", requestId, { branch, projects }) };
       },
     },
     specDrift: {
       listing: true,
       async run({ project, allScopes, requestId, ctx }) {
-        const scopes = callerScopes(ctx);
-        const visible = new Set(scopes);
-        const selected = allScopes ? scopes : (visible.has(project) ? [project] : []);
+        const { selected, scoped } = selection({ allScopes, project, ctx, owner: "spec_drift" });
         if (selected.length === 0) {
           return { envelope: serviceSuccess("specDrift", requestId, { events: [], branch: null }) };
         }
-        const report = await driftReport({ projects: selected });
-        // Defence in depth: the report was built for the selected projects, and
-        // every event must still name one of the caller's own projects.
-        const events = report.events.filter((event) => typeof event.project === "string" && visible.has(event.project));
-        return { envelope: serviceSuccess("specDrift", requestId, { events, branch: report.branch }) };
+        const report = await driftReport({ scope: scoped });
+        return { envelope: serviceSuccess("specDrift", requestId, { events: report.events, branch: report.branch }) };
       },
     },
   };

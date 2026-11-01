@@ -4,7 +4,7 @@ Each project's specifications live on orphan `spec-<slug>` branches in the
 project's own Git repository. `.spec-kit.json` at the branch root binds the
 branch to its `project`, `spec`, `repo`, and `branch`; the corpus is
 `.specs/<slug>/`. `spec-registryd` is the only writer; consumers reach the
-corpus exclusively through the service (MCP tools, `/registry`, `/drift`).
+corpus exclusively through the service (MCP tools; there is no REST listing surface).
 
 There is no shared default repository and no single configured branch. A spec
 branch contains only `.spec-kit.json` and `.specs/<slug>/**`; work branches
@@ -19,7 +19,7 @@ no git access, and `spec_patch` always writes the canonical branch.
 |---|---|---|
 | `spec-registryd` (bot identity) | Yes | The only legitimate writer. Commits carry `Spec-Author`/`Spec-Request-Id` trailers and are bot-authored. |
 | YouTrack users / agents | No | No git access at all. Writes go through `spec_patch`; concurrency is serialized by the project write lock plus `expectedSha`/`repositoryRootFingerprint` guards — losers get a retryable `CONFLICT`. |
-| Operators (humans with repo access) | Break-glass only | Any non-bot commit on a canonical `spec-*` branch is drift: it appears in `GET /drift` as `non-bot-commit` with author and paths, and the next sync reports it. |
+| Operators (humans with repo access) | Break-glass only | Any non-bot commit on a canonical `spec-*` branch is drift: it appears in the `spec_drift` tool result as `non-bot-commit` with author and paths, and the next sync reports it. |
 | Foreign commits inside the service worktree | Never published | The write path refuses to push any commit not authored by the bot identity (`FOREIGN_COMMITS`, non-retryable). |
 
 ## Verifying repository posture
@@ -37,7 +37,7 @@ Use only when the service is down and a spec change cannot wait.
 1. Clone the project repository with an operator credential.
 2. Commit and push to the `spec-<slug>` branch (never `main`).
 3. Record what was done (commit SHA, reason) — the change is now drift.
-4. On the next sync tick (or `spec_drift` tool / `GET /drift`), the service
+4. On the next sync tick (or the `spec_drift` tool), the service
    fetches the remote and reports a `non-bot-commit` event naming your author
    identity and the divergent paths. This is expected, not a failure.
 5. Decide: keep the change (nothing to do — the service reconciles its mirror

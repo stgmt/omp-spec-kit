@@ -118,9 +118,9 @@
     }
     const snapshot = marker && marker.snapshot;
     if (
-      marker.schemaVersion !== 'BoardSnapshotV1' ||
+      marker.schemaVersion !== 'BoardSnapshotV2' ||
       marker.complete !== true ||
-      snapshot?.schemaVersion !== 'BoardSnapshotV1' ||
+      snapshot?.schemaVersion !== 'BoardSnapshotV2' ||
       snapshot.complete !== true ||
       snapshot.page !== null ||
       !Array.isArray(snapshot.nodes) ||
@@ -133,14 +133,10 @@
     return KIND_LABELS[kind] || kind || 'SPEC';
   }
 
-  // Shared card key: project::canonicalId (mirrors CARD_KEY_SEPARATOR in
-  // src/adapters/youtrack-projection.js). Never key a card by bare slug.
-  function cardKey(project, canonicalId) {
-    return String(project || 'local') + '::' + canonicalId;
-  }
-
   function nodeLink(node, cardIds, currentIssueId) {
-    const key = cardKey(node.project, node.canonicalId);
+    // The card key is built by the server and carried on the node: the panel
+    // never reconstructs the project-qualified format.
+    const key = node.key;
     const trackerId = cardIds[key] || '';
     const label = escapeHtml(node.localId || node.canonicalId);
     const title = escapeHtml(node.title || '');
@@ -159,10 +155,10 @@
   }
 
   function renderTrace(node, nodesById, edges, cardIds, currentIssueId) {
-    const self = cardKey(node.project, node.canonicalId);
+    const self = node.key;
     const requirement = edges
-      .filter((edge) => cardKey(edge.project, edge.from) === self || cardKey(edge.project, edge.to) === self)
-      .map((edge) => ({ edge, from: cardKey(edge.project, edge.from), to: cardKey(edge.project, edge.to) }))
+      .filter((edge) => edge.fromKey === self || edge.toKey === self)
+      .map((edge) => ({ edge, from: edge.fromKey, to: edge.toKey }))
       .map(({ edge, from, to }) => ({ edge, node: nodesById.get(from === self ? to : from) }))
       .find(({ node: candidate }) => candidate?.kind === 'FUNCTIONAL_REQUIREMENT');
     if (!requirement) return '';
@@ -215,10 +211,10 @@
     }
 
     // The tracker SpecId is the qualified card key; the snapshot carries the
-    // same qualification, so a card is resolved by identity, not by slug.
-    const defaultProject = (committed.marker.scope && committed.marker.scope.project) || 'local';
-    const nodesById = new Map(committed.snapshot.nodes.map((entry) => [cardKey(entry.project || defaultProject, entry.canonicalId), entry]));
-    const edgeKey = (edge, side) => cardKey(edge.project || defaultProject, edge[side]);
+    // same qualification on every node and edge, so a card is resolved by
+    // identity, not by a format this widget reconstructs.
+    const nodesById = new Map(committed.snapshot.nodes.map((entry) => [entry.key, entry]));
+    const edgeKey = (edge, side) => (side === 'from' ? edge.fromKey : edge.toKey);
     const node = nodesById.get(specId);
     if (!node) {
       showError('Spec Panel: current issue is not present in the committed snapshot.');

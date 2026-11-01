@@ -7,6 +7,7 @@ import { createServiceApp } from "./http.js";
 import { createClaimStore } from "./claims.js";
 import { createClaimOps, CLAIM_CONTRACTS } from "./ops/claim.js";
 import { createRegistryOps, REGISTRY_CONTRACTS } from "./ops/registry.js";
+import { requireScope } from "./scope.js";
 import { createRepoOps, REPO_CONTRACTS } from "./ops/repos.js";
 import { createWritePipeline } from "./writepath.js";
 import { createStore } from "./ledger.js";
@@ -22,7 +23,7 @@ import { createRepoManager } from "./repos.js";
 import { createIdpManager } from "./idps.js";
 import { createSpecBranchManager } from "./spec-branches.js";
 import { BRANCH_CONTRACTS, createBranchOps } from "./ops/branch.js";
-import { serviceErrorEnvelope, serviceSuccess, setupAction } from "./dispatch.js";
+import { serviceErrorEnvelope, serviceSuccess, setupAction, setupCommand } from "./dispatch.js";
 import { secretsKeyFromEnv, sealSecret } from "./secrets.js";
 export async function bootService({ configPath, cloneDir, git = new GitClient(), identity, store: storeOption = null, secretsKey = null, logger = () => {} }) {
   const config = await loadProjectsConfig(configPath);
@@ -108,13 +109,14 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   });
   const claims = createClaimStore({ store });
   const claimOps = createClaimOps({ claims });
-  const registryIndex = ({ projects } = {}) => buildRegistryIndex({ mounts, claims, ledger: store ?? { getLedger: () => [] }, projects });
+  const registryIndex = ({ scope }) => buildRegistryIndex({ mounts, claims, ledger: store ?? { getLedger: () => [] }, scope });
   // A drift report is only honest against freshly fetched remotes — every
   // bound mirror is fetched and every canonical spec branch checked. The
-  // caller's project scope bounds which mirrors that walk may touch.
-  const driftReport = async ({ projects } = {}) => {
+  // caller's scope bounds which mirrors that walk may touch.
+  const driftReport = async ({ scope } = {}) => {
+    const requestScope = requireScope(scope, "drift report");
     const events = [];
-    for (const projectId of projects ?? mounts.projects) {
+    for (const projectId of requestScope.projects) {
       let discovered;
       try {
         discovered = await mounts.discoverProject(projectId);
@@ -143,10 +145,10 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     }
     // Publish rejections are drift too: a version squatted by different
     // content must surface next to non-bot commits, not only in access_log.
-    const scoped = Array.isArray(projects) ? new Set(projects) : null;
+    const scoped = new Set(requestScope.projects);
     const rejections = store?.listAccess?.({ resultPrefix: "publish-rejected:", limit: 50 }) ?? [];
     for (const entry of rejections) {
-      if (scoped !== null && !scoped.has(entry.project)) continue;
+      if (!scoped.has(entry.project)) continue;
       events.push({ kind: "publish-rejected", spec: entry.spec, project: entry.project, detail: entry.result, detectedAt: entry.ts });
     }
     return { events, branch: null };
@@ -207,9 +209,9 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     const ready = row?.status === "active" || (row?.status === "migrating" && Boolean(row.migratedFrom));
     const bindingStatus = typeof row?.status === "string" ? row.status : "required";
     if (!ready) {
-      // An agent must be able to finish setup over MCP: the typed call comes
-      // first, and the operator HTTP path is kept only as a labelled fallback.
-      const operatorCommand = `POST /repos/bind {"project":"${project}","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}`;
+      // Setup finishes over MCP only: the REST bind mirror is gone, so the
+      // command names the tool call an agent must make.
+      const operatorCommand = setupCommand(project);
       return {
         envelope: serviceSuccess("mcpPreflight", requestId, {
           kind: "mcp-preflight",
@@ -222,7 +224,6 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
             required: true,
             code: "REPO_BINDING_REQUIRED",
             action: setupAction(project),
-            operator: { label: "operator HTTP path", command: operatorCommand },
             command: operatorCommand,
           },
           mutationReady: false,
@@ -278,8 +279,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     serviceContracts: [...CLAIM_CONTRACTS, ...REGISTRY_CONTRACTS, ...BRANCH_CONTRACTS, ...REPO_CONTRACTS],
     wrappers: { specPatch: writePath.specPatch, documents: versionedReads, catalog: catalogBranches, mcpPreflight: preflightSetup },
     endpoints: {
-      registry: () => registryIndex(),
-      drift: () => driftReport(),
+      me: (ctx) => repos.me(ctx),
       onboarding: async (input) => {
         // Bring-your-own specs repo at onboarding: the caller's project is
         // bound to their repository before the agent token is minted, so
@@ -296,11 +296,6 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
         }
         return onboarding.issueToken(input);
       },
-      me: (ctx) => repos.me(ctx),
-      repoBindings: (ctx) => repos.bindings(ctx),
-      repoBind: (input) => repos.bind(input),
-      repoProbe: (input) => repos.probeAccess(input),
-      repoUnbind: (input) => repos.unbind(input),
       idpBindings: (ctx) => idpManager.bindings(ctx),
       idpBind: (input) => idpManager.bind(input),
       idpProbe: (input) => idpManager.probe(input),

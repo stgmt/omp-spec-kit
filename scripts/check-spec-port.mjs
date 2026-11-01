@@ -2,7 +2,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { annotationsFor, MUTATING_TOOL_NAMES, TOOL_CONTRACTS } from "../src/adapters/tool-contracts.js";
+import { annotationsFor, contractIsMutating, MUTATING_TOOL_ANNOTATIONS, READ_TOOL_ANNOTATIONS, TOOL_CONTRACTS } from "../src/adapters/tool-contracts.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const decisionPath = path.join(root, "docs", "decisions", "spec-generator-port.md");
@@ -26,8 +26,6 @@ if (new Set(rows.map((row) => row.name)).size !== rows.length) fail("destination
 
 if (TOOL_CONTRACTS.length !== 10) fail(`single surface drifted from 10 tools, found ${TOOL_CONTRACTS.length}`);
 const annotationKeys = ["destructiveHint", "idempotentHint", "openWorldHint", "readOnlyHint"];
-const readAnnotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
-const mutatingAnnotations = { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false };
 
 for (const contract of TOOL_CONTRACTS) {
   if (typeof contract.label !== "string" || contract.label.trim() === "") fail(contract.tool + " has empty label");
@@ -41,7 +39,7 @@ for (const contract of TOOL_CONTRACTS) {
   for (const key of annotationKeys) {
     if (typeof annotations[key] !== "boolean") fail(contract.tool + " annotation " + key + " must be boolean");
   }
-  const expected = MUTATING_TOOL_NAMES.has(contract.tool) ? mutatingAnnotations : readAnnotations;
+  const expected = contractIsMutating(contract) ? MUTATING_TOOL_ANNOTATIONS : READ_TOOL_ANNOTATIONS;
   if (JSON.stringify(annotations) !== JSON.stringify(expected)) {
     fail(contract.tool + " annotations do not match the semantic matrix");
   }

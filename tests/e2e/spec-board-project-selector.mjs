@@ -20,7 +20,7 @@ const node = (project, canonicalId) => ({
   taskStatus: null,
 });
 const snapshot = (nodes) => ({
-  schemaVersion: "BoardSnapshotV1",
+  schemaVersion: "BoardSnapshotV2",
   fingerprint: "f".repeat(64),
   scope: { mode: "corpus", specSlugs: [] },
   complete: true,
@@ -30,7 +30,7 @@ const snapshot = (nodes) => ({
   counts: { nodes: nodes.length, edges: 0 },
 });
 const marker = (nodes, extra = {}) => ({
-  schemaVersion: "BoardSnapshotV1",
+  schemaVersion: "BoardSnapshotV2",
   projectionVersion: 8,
   complete: true,
   cardIds: { "proj-a::a1:FR-1": "SPEC-201" },

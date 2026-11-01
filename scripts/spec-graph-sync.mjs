@@ -254,7 +254,6 @@ class HttpMcpClient {
   async #post(message) {
     const headers = { "Content-Type": "application/json", Accept: "application/json, text/event-stream" };
     if (this.#token) headers.Authorization = "Bearer " + this.#token;
-    if (this.#project) headers["x-spec-project"] = this.#project;
     const response = await fetch(this.#baseUrl + "/mcp", {
       method: "POST",
       signal: AbortSignal.timeout(this.#timeoutMs),
@@ -290,7 +289,9 @@ class HttpMcpClient {
       jsonrpc: "2.0",
       id: 2,
       method: "tools/call",
-      params: { name, arguments: args },
+      // The project is a per-call argument: the connection-wide header was
+      // removed, so a configured project rides on every call instead.
+      params: { name, arguments: this.#project ? { ...args, project: this.#project } : args },
     });
     const envelope = result?.structuredContent ?? JSON.parse(result?.content?.[0]?.text ?? "null");
     if (!envelope?.ok) throw new Error(envelope?.error?.message ?? "MCP request failed");

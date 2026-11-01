@@ -414,8 +414,8 @@
         return { status: 'error', detail: 'snapshot marker is not valid JSON' };
       }
       var snapshot = marker && marker.snapshot;
-      if (marker.schemaVersion !== 'BoardSnapshotV1' || marker.complete !== true || !snapshot ||
-          snapshot.schemaVersion !== 'BoardSnapshotV1' || snapshot.complete !== true ||
+      if (marker.schemaVersion !== 'BoardSnapshotV2' || marker.complete !== true || !snapshot ||
+          snapshot.schemaVersion !== 'BoardSnapshotV2' || snapshot.complete !== true ||
           snapshot.page !== null || !Array.isArray(snapshot.nodes) || !Array.isArray(snapshot.edges)) {
         return { status: 'error', detail: 'snapshot is incomplete' };
       }

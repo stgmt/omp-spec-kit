@@ -1,6 +1,6 @@
 {
   "schema": "omp-spec-kit-dist-manifest@1",
-  "pluginVersion": "3.1.0",
+  "pluginVersion": "3.2.0",
   "files": {
     "adapters/document-service.js": {
       "sha256": "7b50e5b0888e5f64c9dd780e3f91a5d2a6e1fd848640af605feefe514cc02497"
@@ -9,22 +9,22 @@
       "sha256": "9fa0f9d8ce03fcf5b55aea18576227fd051aefda059e2d15b7843f9e785e41c8"
     },
     "adapters/plugin-version.js": {
-      "sha256": "d1c05043118c32c2cd1cb8c882c93b2d80e12b4fb1b9a447a92afae821576a8d"
+      "sha256": "e040de5a539e31c99cb4623068597e111a8db4902f13f64208628b281ee04b3f"
     },
     "adapters/query-service.js": {
       "sha256": "57ed051aa2f273fa2fb784282a3e8038f2b7dff88db8ece8fd6098e3e7012f75"
     },
     "adapters/tool-contracts.js": {
-      "sha256": "fd1d95b608ba07c66d1a331a99a7b6d0eeac73892019a4a906739a144f568da1"
+      "sha256": "18a7df22e0a2484128b7758291660ee8be04dc1a444d9e90ab32985c00f5e503"
     },
     "adapters/youtrack-projection.js": {
-      "sha256": "93bfc7f5729ed5ede28d332c9d27056e62d8b3f0d2c1ebbfbae0daf852e28a50"
+      "sha256": "c8f7c1f02a99ced9f90c480ab3a978834b7f8c7d37f48b30a9623f549284fbb0"
     },
     "adapters/youtrack-status-sweep.js": {
       "sha256": "d21ddc7ea8f26aadb84614f2de5b450406c6193386f6120f5706cccf31ef55f7"
     },
     "adapters/youtrack-store.js": {
-      "sha256": "f6151f8b4759182fb1e2d7c1d4bb870c32c69572b51eeb73aa881636e1966719"
+      "sha256": "081017556826a1b4317d124f2431096406241afa538b82965ed25fb574e60be1"
     },
     "authoring/design-review.js": {
       "sha256": "ba88286f7885e217bb38f982822a8695ec6f5ce180aaab475eb435b7e804a40a"
@@ -66,7 +66,7 @@
       "sha256": "56e7e622ff072e292894d88811e668edf06de1a1613408b4e42dec9c6ef6cf60"
     },
     "extension.js": {
-      "sha256": "32919bf6142868b21f5d0678d36e431c1a7af2f7c1a1718d556e48db2ae7f13f"
+      "sha256": "e70420e0cbef0acf861f98d6ab196b4c59649b8e1e3578a3604ed02afd2d16a3"
     },
     "gate/automatic-adapter.js": {
       "sha256": "82c385544c2aa793679512b93ef150cfd382722f0cbcc1dd28b99b710e3d3ed8"

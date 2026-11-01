@@ -134,7 +134,7 @@ describe("POST /mcp — official SDK, stateless, YouTrack-verified callers", () 
     assert.equal(unbound.isError, true);
     assert.equal(unbound.structuredContent.error.code, "SETUP_REQUIRED");
     assert.equal(unbound.structuredContent.error.causeCode, "REPO_BINDING_REQUIRED");
-    assert.match(unbound.structuredContent.error.message, /POST \/repos\/bind/u);
+    assert.match(unbound.structuredContent.error.message, /spec_repo/u, "setup names the tool call an agent must make");
 
     const bound = await callTool(url, token, "spec_catalog", { project: "stgmt/alpha", view: "specs" });
     assert.equal(bound.isError, false, JSON.stringify(bound.structuredContent?.error ?? {}));
@@ -296,9 +296,27 @@ describe("POST /mcp — official SDK, stateless, YouTrack-verified callers", () 
     const bobToken = await fixture.userToken("bob");
     const listed = await rpc(url, { jsonrpc: "2.0", id: 1, method: "tools/list" }, bobToken);
     assert.equal(listed.status, 200);
-    const names = listed.json.result.tools.map((tool) => tool.name);
-    assert.equal(names.length, 12, "reader sees 9 reads + registry + drift + the read-only spec_repo variants");
-    assert.ok(!names.includes("spec_patch"));
+    const tools = listed.json.result.tools;
+    const names = tools.map((tool) => tool.name);
+    assert.equal(names.length, 12, "reader sees 9 reads + registry + drift + spec_repo");
+    assert.ok(!names.includes("spec_patch"), "a mutating-only tool is hidden");
+    assert.ok(!names.includes("spec_claim"), "a mutating-only tool is hidden");
+    assert.ok(!names.includes("spec_branch"), "a mutating-only tool is hidden");
+    // spec_repo stays visible because it carries read-only actions, and its
+    // advertised truth is the union of those actions: mutating overall.
+    const repo = tools.find((tool) => tool.name === "spec_repo");
+    assert.ok(repo, "spec_repo stays visible for its read-only actions");
+    assert.equal(repo.annotations.readOnlyHint, false, "a tool with mutating actions is not advertised read-only");
+    const actions = repo.inputSchema.oneOf.map((branch) => branch.properties.action.enum[0]).sort();
+    assert.deepEqual(actions, ["bind", "bindings", "probe", "unbind"], "every action is advertised once");
+    // The root closes unknown keys and declares the transport context once; a
+    // caller that passes an undeclared field is rejected by the root, which is
+    // exactly what validateContractArguments enforces.
+    assert.equal(repo.inputSchema.additionalProperties, false, "the root closes unknown keys");
+    assert.ok(Object.keys(repo.inputSchema.properties).includes("project"), "the root accepts the transport project");
+    for (const branch of repo.inputSchema.oneOf) {
+      assert.equal(branch.additionalProperties, undefined, `branch ${branch.title} does not duplicate the root closure`);
+    }
   });
 
   it("returns envelopes identical to the kernel dispatch modulo provenance", async () => {

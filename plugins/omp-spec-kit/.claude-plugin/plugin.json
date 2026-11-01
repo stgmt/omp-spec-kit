@@ -1,6 +1,6 @@
 {
   "name": "omp-spec-kit",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Safe OMP specification inventory and reviewable authoring tooling for Claude Code and OMP.",
   "author": {
     "name": "stgmt"

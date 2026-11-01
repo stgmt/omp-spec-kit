@@ -85,7 +85,8 @@ async function get(url, pathname, token) {
   const response = await fetch(`${url.replace(/\/mcp$/, "")}${pathname}`, {
     headers: token ? { authorization: `Bearer ${token}` } : {},
   });
-  return { status: response.status, body: await response.json() };
+  // A removed route answers with Express's HTML 404: the status is the fact.
+  return { status: response.status, body: await response.json().catch(() => null) };
 }
 
 describe("store persistence (TASK-6, live-verified identity)", () => {
@@ -114,12 +115,12 @@ describe("store persistence (TASK-6, live-verified identity)", () => {
   });
 });
 
-describe("registry index and drift endpoints (TASK-6)", () => {
-  it("/registry serves the projected index; /drift reports non-bot commits", async () => {
+describe("registry index and drift over MCP (TASK-6)", () => {
+  it("spec_registry serves the projected index and spec_drift reports non-bot commits", async () => {
     const { bare, url, token } = await setup();
-    const registry = await get(url, "/registry", token);
-    assert.equal(registry.status, 200);
-    const alpha = registry.body.projects.find((project) => project.id === "stgmt/alpha");
+    const registry = await callTool(url, token, "spec_registry", {});
+    const projects = registry.structuredContent.data.projects;
+    const alpha = projects.find((project) => project.id === "stgmt/alpha");
     const entry = alpha.specs.find((spec) => spec.slug === "spec-kernel");
     assert.equal(entry.status, "DRAFT");
     assert.match(entry.digest, /^[0-9a-f]{64}$/u);
@@ -130,24 +131,25 @@ describe("registry index and drift endpoints (TASK-6)", () => {
     // break-glass push by a non-bot identity
     const rogue = path.join(await tempDir("spec-rogue-"), "rogue");
     await execFileAsync("git", ["clone", bare, rogue]);
-    await git(rogue, ["checkout", "-B", SPEC_BRANCH, `origin/${SPEC_BRANCH}`]);
+    await git(rogue, ["checkout", "-B", SPEC_BRANCH, "origin/" + SPEC_BRANCH]);
     await git(rogue, ["config", "user.email", "admin@example.invalid"]);
     await git(rogue, ["config", "user.name", "admin"]);
     await writeFile(path.join(rogue, ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: DRAFT\n\ntampered\n");
     await execFileAsync("git", ["-C", rogue, "add", "."]);
     await execFileAsync("git", ["-C", rogue, "commit", "-m", "break-glass edit"]);
-    await execFileAsync("git", ["-C", rogue, "push", "-q", "origin", `HEAD:refs/heads/${SPEC_BRANCH}`]);
+    await execFileAsync("git", ["-C", rogue, "push", "-q", "origin", "HEAD:refs/heads/" + SPEC_BRANCH]);
 
-    const drift = await get(url, "/drift", token);
-    assert.equal(drift.status, 200);
-    const nonBot = drift.body.events.filter((event) => event.kind === "non-bot-commit");
+    const drift = await callTool(url, token, "spec_drift", {});
+    const nonBot = drift.structuredContent.data.events.filter((event) => event.kind === "non-bot-commit");
     assert.ok(nonBot.some((event) => event.author === "admin"), "break-glass commit must appear in drift");
   });
 
-  it("ops endpoints require a verified caller", async () => {
+  it("the removed REST listings answer 404 while /health stays public", async () => {
     const { url } = await setup();
-    const anonymous = await get(url, "/registry", null);
-    assert.equal(anonymous.status, 401);
+    for (const pathname of ["/registry", "/drift"]) {
+      const gone = await get(url, pathname, null);
+      assert.equal(gone.status, 404, pathname + " is served by MCP only");
+    }
     const health = await get(url, "/health", null);
     assert.equal(health.status, 200);
     assert.equal(health.body.ok, true);

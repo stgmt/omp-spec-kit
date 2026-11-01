@@ -8,7 +8,6 @@ import {
   annotationsFor,
   KERNEL_ENVELOPE_OUTPUT_SCHEMA,
   MCP_SERVER_INSTRUCTIONS,
-  MUTATING_TOOL_NAMES,
   TOOL_CONTRACTS,
 } from "../../src/adapters/tool-contracts.js";
 

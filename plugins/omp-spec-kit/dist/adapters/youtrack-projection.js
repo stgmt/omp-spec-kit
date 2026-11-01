@@ -337,13 +337,16 @@ function excerptValue(node) {
  */
 export function compactSnapshot(board) {
   return {
-    schemaVersion: "BoardSnapshotV1",
+    schemaVersion: "BoardSnapshotV2",
     fingerprint: board.fingerprint,
     scope: board.scope ?? { mode: "corpus", specSlugs: [] },
     complete: true,
     page: null,
     nodes: board.nodes.map((node) => ({
       canonicalId: node.canonicalId,
+      // The card key is built here, once, and handed to the widgets: they
+      // never re-implement the project-qualified format.
+      key: cardKey(node.project ?? board.scope?.project ?? LOCAL_PROJECT_ID, node.canonicalId),
       project: node.project ?? board.scope?.project ?? LOCAL_PROJECT_ID,
       specSlug: node.specSlug,
       localId: node.localId,
@@ -355,6 +358,9 @@ export function compactSnapshot(board) {
     edges: board.edges.map((edge) => ({
       from: edge.from,
       to: edge.to,
+      // Same rule as node keys: the format lives in this module only.
+      fromKey: cardKey(edge.project ?? board.scope?.project ?? LOCAL_PROJECT_ID, edge.from),
+      toKey: cardKey(edge.project ?? board.scope?.project ?? LOCAL_PROJECT_ID, edge.to),
       project: edge.project ?? board.scope?.project ?? LOCAL_PROJECT_ID,
       type: edge.type,
     })),

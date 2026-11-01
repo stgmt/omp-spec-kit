@@ -1,6 +1,8 @@
 import { KERNEL_SCHEMA_VERSION } from "../kernel/index.js";
 import {
   annotationsFor,
+  contractExposesReadAction,
+  contractIsMutating,
   jsonSchemaFor,
   KERNEL_ENVELOPE_OUTPUT_SCHEMA,
   MCP_SERVER_INSTRUCTIONS,
@@ -9,6 +11,7 @@ import {
   normalizeToolArguments,
 } from "../adapters/tool-contracts.js";
 import { withServedProject } from "../adapters/query-service.js";
+import { requireScope } from "./scope.js";
 
 const SUPPORTED_SCHEMA_VERSIONS = new Set([undefined, "spec-kernel@1", KERNEL_SCHEMA_VERSION]);
 
@@ -57,13 +60,10 @@ function invalidRequest(operation, requestId, message, extra = {}) {
 
 /**
  * Roles gate operations (FR-8): readers read, writers write, owners force.
- * A discriminator tool gates per variant through the variant's own operation
- * name (see effectiveOperation), so `spec_repo` can expose mutating `bind`
- * and `unbind` beside the read-only `probe` and `bindings` variants.
+ * Whether an action writes is declared once per contract/variant through its
+ * annotations (`contractIsMutating`), so no separate list of write operations
+ * can drift from what the tool advertises.
  */
-const WRITE_OPERATIONS = new Set(["specPatch", "specClaim", "specRelease", "specBranch", "specRepoBind", "specRepoUnbind"]);
-// Preflight must answer for an unbound project: it is how a client learns that
-// setup is required. Every data operation still refuses.
 const SETUP_EXEMPT_OPERATIONS = new Set(["mcpPreflight"]);
 const ROLE_RANK = Object.freeze({ reader: 0, writer: 1, owner: 2 });
 
@@ -71,6 +71,11 @@ const ROLE_RANK = Object.freeze({ reader: 0, writer: 1, owner: 2 });
 function effectiveOperation(contract, args) {
   const variant = contract.discriminator ? contract.variants?.[args?.[contract.discriminator]] : null;
   return typeof variant?.operation === "string" ? variant.operation : contract.operation;
+}
+
+/** The action being performed, for tools whose variants own their semantics. */
+function effectiveAction(contract, args) {
+  return contract.discriminator ? (args?.[contract.discriminator] ?? null) : null;
 }
 
 /** The MCP call an agent makes to finish setup, and the operator fallback. */
@@ -81,19 +86,16 @@ export function setupAction(project) {
   };
 }
 
-function setupCommand(project) {
+export function setupCommand(project) {
   const action = setupAction(project);
-  return `call ${action.tool} ${JSON.stringify(action.arguments)} (operator path: ${operatorBindCommand(project)})`;
+  return `call ${action.tool} ${JSON.stringify(action.arguments)}`;
 }
 
-function operatorBindCommand(project) {
-  return `POST /repos/bind {"project":"${project}","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}`;
-}
-
-function roleAllows(ctx, operation, force) {
+function roleAllows(ctx, contract, args, force) {
   const rank = ROLE_RANK[ctx.role] ?? -1;
   if (rank < 0) return false;
-  if (WRITE_OPERATIONS.has(operation) && rank < ROLE_RANK.writer) return false;
+  const writes = annotationsFor(contract, effectiveAction(contract, args)).readOnlyHint === false;
+  if (writes && rank < ROLE_RANK.writer) return false;
   if (force === true && rank < ROLE_RANK.owner) return false;
   return true;
 }
@@ -125,55 +127,21 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
   // request-scoped project supplied by the host for this request, then the
   // caller's existing default scope. Missing, unauthorized and unknown projects
   // are separate refusals, all raised before any graph lookup or write.
-  function resolveProject({ explicitProject, requestProject, ctx, operation, requestId, listing = false }) {
-    if (explicitProject !== undefined && typeof explicitProject !== "string") {
-      return { error: invalidRequest(operation, requestId, "project must be a string", { parameter: "project", expected: "owner/project", receivedType: typeof explicitProject }) };
+  function resolveProject({ scope, rawProject, operation, requestId, listing }) {
+    if (rawProject !== undefined && typeof rawProject !== "string") {
+      return { error: invalidRequest(operation, requestId, "project must be a string", { parameter: "project", expected: "owner/project", receivedType: typeof rawProject }) };
     }
-    const explicit = typeof explicitProject === "string" && explicitProject.trim().length > 0 ? explicitProject.trim() : null;
-    const requested = typeof requestProject === "string" && requestProject.trim().length > 0 ? requestProject.trim() : null;
-
-    if (explicit === null && requested === null) {
-      if (listing) return { allScopes: true, source: null };
-      if (typeof ctx.defaultScope === "string" && ctx.defaultScope.length > 0) {
-        return { project: ctx.defaultScope, source: "default" };
-      }
-      // Several candidate projects and no default: refuse with the candidate
-      // set instead of silently choosing one for the caller.
-      const candidates = (Array.isArray(ctx.scopes) ? ctx.scopes : []).filter((entry) => typeof entry === "string" && entry.length > 0);
-      if (candidates.length > 1) {
-        return {
-          error: errorEnvelope(operation, requestId, "PROJECT_SELECTION_REQUIRED", `more than one project is available to this caller and none is selected: pass project (owner/project) explicitly`, {
-            parameter: "project",
-            expected: "owner/project",
-            candidates,
-          }),
-        };
-      }
-      return {
-        error: errorEnvelope(operation, requestId, "PROJECT_REQUIRED", "no project selected for this call: pass project (owner/project), or configure a session project, or bind a default scope", {
-          parameter: "project",
-          expected: "owner/project",
-        }),
-      };
-    }
-
-    const project = explicit ?? requested;
-    const source = explicit !== null ? "explicit" : "request-context";
-    const scopes = Array.isArray(ctx.scopes) ? ctx.scopes : [];
-    if (!scopes.includes(project)) {
-      return {
-        error: errorEnvelope(operation, requestId, "PROJECT_NOT_ALLOWED", `project is outside the caller's allowed set: ${project}`, {
-          parameter: "project",
-          receivedSummary: project,
-        }),
-      };
-    }
-    return { project, source };
+    const decision = scope.resolve({ explicitProject: rawProject, listing });
+    if (!decision.error) return decision;
+    return {
+      error: errorEnvelope(operation, requestId, decision.error.code, decision.error.message, decision.error.extra ?? {}),
+    };
   }
 
-  async function callTool({ tool, args, ctx, projectHint = null }) {
+  async function callTool({ tool, args, ctx }) {
     const contract = contractsByName.get(tool);
     if (!contract) return { unknownTool: true };
+    const scope = requireScope(ctx?.scope, `tool ${tool}`);
     const raw = args && typeof args === "object" && !Array.isArray(args) ? args : {};
     const requestId = raw.requestId === undefined ? null : raw.requestId;
     const operation = contract.operation;
@@ -209,7 +177,7 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
       return { envelope: errorEnvelope(operation, requestId, normalized.error.code, normalized.error.message, { parameter: normalized.error.parameter }) };
     }
 
-    if (!roleAllows(ctx, effectiveOperation(contract, normalized.args), force)) {
+    if (!roleAllows(ctx, contract, normalized.args, force)) {
       const needed = force === true ? "owner" : "writer";
       const gated = effectiveOperation(contract, normalized.args);
       return {
@@ -228,20 +196,13 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
     // a targeted variant answers only for the selected project.
     const listing = (variant ? variant.listing === true : serviceEntry?.listing === true);
     // An explicit authorized project affects this call only. Otherwise the
-    // request-scoped project applies (the host's verified request context, then
-    // a per-request transport hint), and a call with neither falls back to the
+    // scope's session project applies (the host's verified request context, then
+    // the caller's default scope), and a call with neither falls back to the
     // caller's existing default scope. No selection is ever stored.
-    const requestProject = typeof ctx.project === "string" && ctx.project.length > 0
-      ? ctx.project
-      : projectHint;
-    const resolved = resolveProject({ explicitProject: rawProject, requestProject, ctx, operation, requestId, listing });
+    const resolved = resolveProject({ scope, rawProject, operation, requestId, listing });
     if (resolved.error) return { envelope: resolved.error };
 
-    if (resolved.allScopes || !resolved.project) {
-      if (!isServiceOp || !resolved.allScopes) {
-        return { envelope: invalidRequest(operation, requestId, "project is required: the caller context has no default scope", { parameter: "project", expected: "owner/project" }) };
-      }
-    } else {
+    if (!resolved.allScopes) {
       // Setup and preflight must answer for a project with no binding yet:
       // they are how a caller completes (or repairs) setup.
       const setupExempt = SETUP_EXEMPT_OPERATIONS.has(contract.operation) || variant?.setupExempt === true;
@@ -299,20 +260,25 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
       }
     }
 
-    const envelope = await mounts.serviceFor(resolved.project).runQuery(contract.operation, argsForKernel, { requestId, schemaVersion: raw.schemaVersion });
+    const envelope = await mounts.serviceFor(resolved.project).runQuery(contract.operation, argsForKernel, {
+      requestId,
+      schemaVersion: raw.schemaVersion,
+      project: resolved.project,
+      projectSource: resolved.source ?? null,
+    });
     return stampResult({ envelope }, resolved.project, resolved.source);
   }
 
   // Every scoped result reports the project that actually served it, through
-  // the one provenance contract (withServedProject in query-service). Service
-  // operations and wrappers return `{ envelope }`; kernel calls return the
-  // envelope itself, so accept both shapes here.
+  // the one provenance contract (withServedProject in query-service). Every
+  // path returns `{ envelope }` — no second shape to guess at.
   function stampResult(result, project, projectSource) {
-    const envelope = result && typeof result === "object" && result.envelope && typeof result.envelope === "object"
-      ? result.envelope
-      : result;
+    const envelope = result?.envelope;
+    if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) {
+      throw new Error("dispatch: every execution path must return an envelope object");
+    }
     return {
-      envelope: { ...envelope, provenance: withServedProject(envelope?.provenance, project) },
+      envelope: { ...envelope, provenance: withServedProject(envelope.provenance, project) },
       project: project ?? null,
       projectSource: projectSource ?? null,
     };
@@ -320,10 +286,11 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
 
   function toolListPayload(ctx) {
     const rank = ROLE_RANK[ctx?.role] ?? ROLE_RANK.reader;
-    const visible = [...TOOL_CONTRACTS, ...serviceContracts].filter((contract) => {
-      if (rank >= ROLE_RANK.writer) return true;
-      return !WRITE_OPERATIONS.has(contract.operation);
-    });
+    // A reader sees read tools and multi-action tools that still expose a read
+    // action; a tool whose every action writes stays hidden.
+    const visible = [...TOOL_CONTRACTS, ...serviceContracts].filter((contract) => (
+      rank >= ROLE_RANK.writer || !contractIsMutating(contract) || contractExposesReadAction(contract)
+    ));
     return {
       tools: visible.map((contract) => ({
         name: contract.tool,

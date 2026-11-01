@@ -300,13 +300,13 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     // customer specs must never land in the operator's shared repo.
     const refused = await callTool(url, tokens.mia, "spec_catalog", { view: "specs" }).then((r) => r.structuredContent);
     assert.equal(refused.ok, false);
-    assert.match(refused.error.message, /repos\/bind|no specs repository/u);
+    assert.match(refused.error.message, /spec_repo|no specs repository/u);
 
     // The tenant binds its own repo (mia is a writer in the acme scope) —
     // migration carries the seeded .specs tree into byo.git.
-    const repoBound = await rest(api, tokens.mia, "POST", "/repos/bind", { project: "acme/gamma", repoUrl: byoUrl, token: "unused-for-file" });
-    assert.equal(repoBound.status, 200, JSON.stringify(repoBound.body));
-    assert.equal(repoBound.body.binding.status, "active");
+    const repoBound = (await callTool(url, tokens.mia, "spec_repo", { action: "bind", project: "acme/gamma", repoUrl: byoUrl, token: "unused-for-file" })).structuredContent;
+    assert.equal(repoBound.ok, true, JSON.stringify(repoBound.error ?? {}));
+    assert.equal(repoBound.data.binding.status, "active");
 
     // mia patches a spec in her tenant project — the write lands under
     // acme/gamma in the CUSTOMER repo, never the operator's.

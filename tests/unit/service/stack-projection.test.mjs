@@ -9,6 +9,7 @@ import { promisify } from "node:util";
 import { after, describe, it } from "node:test";
 import { MountManager, parseProjectsConfig } from "../../../src/service/mounts.js";
 import { buildServiceStack } from "../../../src/service/index.js";
+import { scopeFromContext } from "../../../src/service/scope.js";
 import { stableJson, digest } from "../../../src/adapters/youtrack-projection.js";
 
 const execFileAsync = promisify(execFile);
@@ -201,10 +202,18 @@ describe("buildServiceStack projection wiring", () => {
       // assertion is on invocation, not on tracker outcome.
     };
     void original;
-    const ctx = { role: "owner", scopes: ["stgmt/alpha"], identity: { login: "op" } };
-    await stack.endpoints.repoBind({ ctx, project: "stgmt/alpha", repoUrl: pathToFileURL(byoBare).href, token: "unused-file-remote", migrate: false });
+    const baseCtx = { role: "owner", scopes: ["stgmt/alpha"], identity: { login: "op" } };
+    const ctx = { ...baseCtx, scope: scopeFromContext(baseCtx) };
+    // Binding is the spec_repo tool's job now: drive the same application
+    // service the tool calls, so the trigger is still exercised end to end.
+    await stack.serviceOps.specRepo.run({
+      args: { action: "bind", repoUrl: pathToFileURL(byoBare).href, token: "unused-file-remote", migrate: false },
+      ctx,
+      project: "stgmt/alpha",
+      requestId: null,
+    });
     assert.equal(calls, 1, "bind triggers exactly one projection run");
-    await stack.endpoints.repoUnbind({ ctx, project: "stgmt/alpha" });
+    await stack.serviceOps.specRepo.run({ args: { action: "unbind" }, ctx, project: "stgmt/alpha", requestId: null });
     assert.equal(calls, 2, "unbind triggers a second projection run");
   });
 });

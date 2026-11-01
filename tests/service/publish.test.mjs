@@ -6,6 +6,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { after, describe, it } from "node:test";
 import { startService } from "../../src/service/index.js";
+import { RequestScope } from "../../src/service/scope.js";
 import { loadLiveFixture } from "../e2e/lib/live-fixture.mjs";
 import { seedSpecBranch } from "./lib/spec-repo.mjs";
 
@@ -178,7 +179,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     assert.equal(service.store.getLedger(SPEC_KEY).length, 1, "no second ledger row");
     assert.equal(await git(bare, ["rev-parse", `refs/tags/${TAG}/1.0.0^{}`]), publishedTag, "the tag is never moved");
 
-    const drift = await service.driftReport();
+    const drift = await service.driftReport({ scope: new RequestScope({ projects: ["stgmt/alpha"] }) });
     const rejected = drift.events.filter((event) => event.kind === "publish-rejected");
     assert.ok(rejected.some((event) => event.spec === "spec-kernel"), `drift must surface the rejection: ${JSON.stringify(drift.events)}`);
   });
@@ -292,7 +293,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     assert.equal(entry.outcome, "rejected");
     assert.equal(entry.code, "VERSION_INVALID");
     assert.equal(await git(bare, ["tag", "-l"]), "", "no tag for a bad version");
-    const drift = await service.driftReport();
+    const drift = await service.driftReport({ scope: new RequestScope({ projects: ["stgmt/alpha"] }) });
     assert.ok(drift.events.some((e) => e.kind === "publish-rejected" && e.spec === "spec-kernel"));
   });
 
@@ -365,7 +366,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     const result = await service.publisher.publishSpec("stgmt/alpha", "spec-kernel");
     assert.equal(result.outcome, "rejected", `divergent remote tag must surface, not noop: ${JSON.stringify(result)}`);
     assert.equal(result.code, "VERSION_EXISTS");
-    const drift = await service.driftReport();
+    const drift = await service.driftReport({ scope: new RequestScope({ projects: ["stgmt/alpha"] }) });
     assert.ok(drift.events.some((e) => e.kind === "publish-rejected" && e.spec === "spec-kernel"));
     // The divergent tag is left untouched — the service never force-overwrites.
     const remoteSha = (await execFileAsync("git", ["ls-remote", bare, `refs/tags/${TAG}/1.0.0^{}`])).stdout.trim().split("\t")[0];

@@ -2,6 +2,29 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.2.0 — 2026-11-02
+
+### Upgrade notes
+
+Breaking. No compatibility path is kept.
+
+- One surface per capability. `GET /registry`, `GET /drift` and the `POST /repos/{probe,bind,unbind}` + `GET /repos/bindings` mirrors are gone; the MCP tools `spec_registry`, `spec_drift` and `spec_repo` are the only readers and writers of that data. A client still calling a removed route gets 404.
+- `X-Spec-Project` is refused, not ignored: a request that still sends it receives `PROJECT_HEADER_REMOVED` (HTTP 400) instead of a corpus chosen behind the call's back. The per-call `project` argument, or the workspace project record, is the only selection route.
+- Board markers are `BoardSnapshotV2`: every node and edge carries its project-qualified `key` / `fromKey` / `toKey`, so the widgets no longer re-implement the key format. A pre-upgrade marker is rejected by the widgets as incomplete; run one sync to republish.
+
+### Changed
+
+- **One request scope, built once.** `src/service/scope.js` constructs a `RequestScope` at the authentication boundary (`authGate`) from the caller's scopes and session project. Every function that returns project data takes it as a required argument (`buildRegistryIndex`, `driftReport`, `repos.bindings`, `repos.me`, the `/status` listing, the registry ops) and refuses with `SCOPE_REQUIRED` when it is missing, instead of falling back to the deployment's whole project list. The fail-open defaults (`projects = null`, `({ projects } = {})`) are deleted.
+- **Project selection has one contract.** `RequestScope.resolve` owns explicit-argument → session-project → listing precedence and the four refusals (`PROJECT_REQUIRED`, `PROJECT_SELECTION_REQUIRED`, `PROJECT_NOT_ALLOWED`, `PROJECT_NOT_CONFIGURED`); the dispatcher translates them into envelopes and no longer re-derives the precedence, and the unreachable duplicate guard is removed.
+- **Mutation is declared once.** `contractIsMutating`, `contractExposesReadAction` and `annotationsFor(contract, action)` replace the parallel `MUTATING_TOOL_NAMES` / `MUTATING_OPERATION_NAMES` sets. Role gating, tools/list visibility and the advertised annotations all read the same declaration, and `spec_claim`, `spec_release` and `spec_branch` are now advertised as mutating instead of read-only.
+- **The tool schema closes its branches.** Each `oneOf` branch carries `additionalProperties: false` and declares the transport fields (`project`, `declaredWorktree`) itself, so the published schema accepts exactly what the runtime accepts; the byte budget no longer dictates the contract.
+- **One card-key definition.** `compactSnapshot` attaches `key`/`fromKey`/`toKey`; the board and panel widgets read them and no longer hardcode the separator or a `'local'` fallback (the wrong fallback for an absent project).
+- **One envelope builder.** `spec_branch` no longer hand-writes a kernel envelope for a missing project, and `field`/`optionalField` live only in `tool-contracts.js`.
+
+### Verification
+
+Red first: `tests/service/rest-scope.test.mjs` failed on the live leak (`/registry` returned two projects to a one-project caller) and on the honoured header before the fix, and passes after. `npm run test:service` (including the live YouTrack fixture), `npm run test:unit`, `npm run build`, `npm run verify` on the same tree.
+
 ## 3.1.0 — 2026-11-01
 
 ### Upgrade notes
@@ -17,7 +40,7 @@ Breaking for existing setups; no compatibility path is kept.
 - **Per-call project selection on the MCP boundary**: every hosted tool now advertises an optional `project` in the schema that generates `tools/list`, and the dispatcher resolves it per call — explicit argument, then request-scoped context, then the caller's default scope — so one connection serves several projects without a restart. Refusals are distinct and happen before any corpus access: `PROJECT_REQUIRED`, `PROJECT_NOT_ALLOWED`, `PROJECT_NOT_CONFIGURED`. The hosted transport rejects `declaredWorktree` with `WORKTREE_ROUTING_UNSUPPORTED`; the local stdio transport rejects a registry `project` with `PROJECT_CONTEXT_UNSUPPORTED`. Covered by `tests/service/http.test.mjs` (A/B/A on one connection, refusals, advertised schema) and `tests/service/project-not-configured.test.mjs`.
 - **`spec_repo` tool**: one discriminated tool over the existing repository services — `bind` and `unbind` are mutating variants with their own operation names (a reader is refused before any repository access), `probe` and `bindings` are read-only and scope-filtered. Setup no longer requires an out-of-band `POST /repos/bind`.
 - **Repo-local session project**: `<workspace>/.omp-spec-kit/project.json` (`omp-spec-kit/project-binding@1`). The installers now require `--project owner/project` and write that record for the workspace they configure; the OMP extension, OpenCode plugin, Codex hook and Claude `PreToolUse` hook read it per session and attach it to spec calls only, failing closed with `PROJECT_REQUIRED` when it is missing.
-- **Project-qualified board identity (projection v8)**: card ids are keyed `project\0spec`, so two projects may use the same spec slug and the same spec-local id without colliding; task-status writeback resolves its target from the card's own project. The v8 pointer is rebuilt from the mounts and the root index is published last; the migration is idempotent (second sync converges).
+- **Project-qualified board identity (projection v8)**: card ids are keyed `project::canonicalId`, so two projects may use the same spec slug and the same spec-local id without colliding; task-status writeback resolves its target from the card's own project. The v8 pointer is rebuilt from the mounts and the root index is published last; the migration is idempotent (second sync converges).
 
 ### Changed
 
@@ -29,6 +52,7 @@ Breaking for existing setups; no compatibility path is kept.
 ### Removed
 
 - The `X-Spec-Project` connection header, `OMP_SPEC_PROJECT` as a project selector, and the `stgmt/omp-spec-kit` installer default.
+  - **Correction (3.2.0):** the header was only removed from the generated snippets in 3.1.0; the hosted transport kept reading it as a per-request hint. 3.2.0 refuses it with `PROJECT_HEADER_REMOVED`.
 - The flat `specProjects` slug-to-project routing map and the v7 marker read path; a pre-v8 marker is rebuilt from the mounts rather than read through a compatibility branch.
 
 ### Verification
