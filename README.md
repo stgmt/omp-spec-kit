@@ -40,7 +40,7 @@ The plugin starts the MCP server with `node` against the project where Claude Co
 
 The plugin install above gives your OMP or Claude Code session the **local kernel**: the 10 MCP tools read the `.specs/` corpus of the project you open the host in — no services required.
 
-The **hosted path** is the spec-registry service (`spec-registryd`): every specification is an orphan `spec-<slug>` branch in its project's own Git repository, with `.spec-kit.json` at the branch root and the corpus under `.specs/<slug>/`. Writes go through the service's MCP endpoint with YouTrack-verified identity, roles, and project scopes. Consumers connect with a `.mcp.json` that carries `Authorization` + `X-Spec-Project` headers.
+The **hosted path** is the spec-registry service (`spec-registryd`): every specification is an orphan `spec-<slug>` branch in its project's own Git repository, with `.spec-kit.json` at the branch root and the corpus under `.specs/<slug>/`. Writes go through the service's MCP endpoint with YouTrack-verified identity, roles, and project scopes. Consumers connect with a `.mcp.json` that carries the `Authorization` header only: the project is never a connection-wide header, it is selected per call from the workspace record described below.
 
 ```mermaid
 flowchart LR
@@ -64,6 +64,25 @@ flowchart LR
 ```
 
 A canonical spec branch contains only `.spec-kit.json` and `.specs/<slug>/**`; work branches (`spec-<slug>--<topic>`) are never indexed or projected and are merged directly by `spec_branch merge`. There is no shared default repository: an unbound project refuses spec operations with `REPO_BINDING_REQUIRED`.
+
+### Project selection per session
+
+A session's project comes from the repository it is actually in, never from a global variable, a request header or a value cached at install time. Each workspace carries one record:
+
+```json
+{ "schema": "omp-spec-kit/project-binding@1", "project": "owner/project" }
+```
+
+at `<workspace>/.omp-spec-kit/project.json` (git-ignored). Write it with the installer, which requires an explicit project and has no default:
+
+```sh
+node scripts/install-host.mjs --host claude --url http://127.0.0.1:8650/mcp --project owner/project
+node scripts/install-host.mjs --host codex  --url http://127.0.0.1:8650/mcp --project owner/project
+node scripts/install-host.mjs --host opencode --url http://127.0.0.1:8650/mcp --project owner/project
+node scripts/install-host.mjs --host omp --project owner/project
+```
+
+Every host reads that record at call time for its own session workspace and attaches the project to each registry spec call; an explicit `project` argument on a call still wins for that call only. Two sessions in different repositories run concurrently on their own projects; moving one session to another workspace changes only its next calls — no restart, no reconnect. A spec call in a workspace with no record is refused with `PROJECT_REQUIRED` (and the preflight/setup warning names `spec_repo {"action":"bind",…}`), while ordinary bash/read/edit calls are untouched.
 
 ## Self-hosted demo stack
 
@@ -95,7 +114,7 @@ After install, open **Administration → Integrations → Spec Service** (the ap
 
 ## Available today
 
-The local kernel in v3.0.8 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool. The hosted registry adds service-owned operations on top — `spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, and `spec_branch` — exposed over the same MCP endpoint.
+The local kernel in v3.1.0 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool. The hosted registry adds service-owned operations on top — `spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, `spec_branch`, and `spec_repo` (bind or unbind a project's specs repository) — exposed over the same MCP endpoint.
 
 | Need | Tool | Variant |
 |---|---|---|

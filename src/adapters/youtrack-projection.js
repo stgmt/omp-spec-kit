@@ -173,12 +173,29 @@ const DISPLAY_REVERSE_LINK_TYPE = Object.freeze({
 });
 
 export const SYNC_STATE_SPEC_ID = "SPEC:SYNC-STATE";
-// v7 project-scoped committed state: one signed pointer per project plus a
+// v8 project-scoped committed state: one signed pointer per project plus a
 // root index. The key is URL-safe so the SpecId text stays deterministic.
 export const PROJECT_POINTER_PREFIX = `${SYNC_STATE_SPEC_ID}:`;
 export const UNASSIGNED_PROJECT_ID = "__unassigned__";
+/** Identity of a corpus served by the local stdio transport (no registry project). */
+export const LOCAL_PROJECT_ID = "local";
 export function projectPointerSpecId(projectId) {
   return PROJECT_POINTER_PREFIX + Buffer.from(String(projectId), "utf8").toString("base64url");
+}
+
+/**
+ * Shared tracker identity: card key = `project::canonicalId`, where `::` is the
+ * one separator neither a GitHub `owner/repo` project id nor a kernel
+ * canonicalId (`slug:localId`) may contain. Spec-local ids stay unqualified
+ * inside their project; only the shared card key is qualified.
+ */
+export const CARD_KEY_SEPARATOR = "::";
+export function cardKey(project, canonicalId) {
+  return String(project) + CARD_KEY_SEPARATOR + String(canonicalId);
+}
+export function cardKeyProject(key) {
+  const index = typeof key === "string" ? key.indexOf(CARD_KEY_SEPARATOR) : -1;
+  return index > 0 ? key.slice(0, index) : null;
 }
 
 /**
@@ -188,9 +205,9 @@ export function projectPointerSpecId(projectId) {
  * pointer with an older version as stale even when content is unchanged, so
  * a code upgrade re-projects without waiting for a spec edit.
  *
- * v3: the marker carries mountHeads/mountsClean/specProjects so the service
- * can cheap-skip on git HEADs and the writeback listener can resolve a
- * specSlug to its serving project without guessing.
+ * v3: the marker carries mountHeads/mountsClean so the service can cheap-skip
+ * on git HEADs. v8: every card is keyed project::canonicalId, so the writeback
+ * listener reads the project from the card itself, never from a slug map.
  *
  * v4: REFS edges now emit canonical link types with flipped endpoints
  * (satisfies/implements) instead of inverse-named types — the mirrored
@@ -207,7 +224,8 @@ export function projectPointerSpecId(projectId) {
 // 6: compact committed snapshot (marker must fit YouTrack's description cap).
 // 7: per-project pointers + root index; a v6 marker is not readable and must
 //    be reprojected before the board renders.
-export const PROJECTION_VERSION = 7;
+export const PROJECTION_VERSION = 8;
+// v8: per-project pointers + root index; qualified cardIds key is project + "\0" + canonicalId; no flat specProjects; v7 markers must be rebuilt from mounts.
 
 const BOARD_KINDS = new Set(Object.keys(KIND_LABELS));
 
@@ -288,14 +306,17 @@ function assertBoardProjection(board) {
   if (board.complete !== true || board.page !== null) throw new TypeError("board projection must be complete and unpaged");
   if (typeof board.fingerprint !== "string" || board.fingerprint === "") throw new TypeError("board projection fingerprint is required");
   if (!Array.isArray(board.nodes) || !Array.isArray(board.edges)) throw new TypeError("board projection nodes and edges are required");
-  const identities = new Set();
+  const projectOf = (entry) => entry?.project ?? board.scope?.project ?? LOCAL_PROJECT_ID;
+  const identities = new Map();
   for (const node of board.nodes) {
     if (!node || typeof node.canonicalId !== "string" || !BOARD_KINDS.has(node.kind)) throw new TypeError("board projection contains an invalid node");
-    if (identities.has(node.canonicalId)) throw new TypeError("board projection contains duplicate node identity");
-    identities.add(node.canonicalId);
+    const key = cardKey(projectOf(node), node.canonicalId);
+    if (identities.has(key)) throw new TypeError("board projection contains duplicate node identity");
+    identities.set(key, projectOf(node));
   }
   for (const edge of board.edges) {
-    if (!edge || !identities.has(edge.from) || !identities.has(edge.to) || typeof edge.type !== "string") {
+    if (!edge || typeof edge.type !== "string") throw new TypeError("board projection contains an invalid edge endpoint");
+    if (!identities.has(cardKey(projectOf(edge), edge.from)) || !identities.has(cardKey(projectOf(edge), edge.to))) {
       throw new TypeError("board projection contains an invalid edge endpoint");
     }
   }
@@ -323,6 +344,7 @@ export function compactSnapshot(board) {
     page: null,
     nodes: board.nodes.map((node) => ({
       canonicalId: node.canonicalId,
+      project: node.project ?? board.scope?.project ?? LOCAL_PROJECT_ID,
       specSlug: node.specSlug,
       localId: node.localId,
       kind: node.kind,
@@ -330,7 +352,12 @@ export function compactSnapshot(board) {
       excerpt: excerptValue(node),
       taskStatus: node.kind === "TASK" && typeof node.taskStatus === "string" ? node.taskStatus : null,
     })),
-    edges: board.edges.map((edge) => ({ from: edge.from, to: edge.to, type: edge.type })),
+    edges: board.edges.map((edge) => ({
+      from: edge.from,
+      to: edge.to,
+      project: edge.project ?? board.scope?.project ?? LOCAL_PROJECT_ID,
+      type: edge.type,
+    })),
     counts: board.counts ?? { nodes: board.nodes.length, edges: board.edges.length },
   };
 }
@@ -354,9 +381,12 @@ export function buildProjectionPlan(board) {
   const wanted = new Map();
   for (const node of board.nodes) {
     const kind = KIND_LABELS[node.kind];
-    const specId = node.canonicalId;
+    const project = node.project ?? board.scope?.project ?? LOCAL_PROJECT_ID;
+    // Card identity is qualified; the spec-local canonicalId stays untouched.
+    const specId = cardKey(project, node.canonicalId);
     wanted.set(specId, {
       canonicalId: node.canonicalId,
+      project,
       specId,
       kind,
       typeValue: TYPE_PER_KIND[node.kind],
@@ -380,8 +410,9 @@ export function buildProjectionPlan(board) {
   const byId = (id) => wanted.get(id);
 
   for (const edge of board.edges) {
-    const from = byId(edge.from);
-    const to = byId(edge.to);
+    const edgeProject = edge.project ?? board.scope?.project ?? LOCAL_PROJECT_ID;
+    const from = byId(cardKey(edgeProject, edge.from));
+    const to = byId(cardKey(edgeProject, edge.to));
     if (!from || !to) {
       skippedLinks += 1;
       continue;
@@ -430,11 +461,10 @@ export function buildProjectionPlan(board) {
     snapshot,
     snapshotHash: digest(snapshot),
     // Service-side extras (absent on the script path): git state the merged
-    // board was built from, and the specSlug -> projectId map writeback uses
-    // to route a spec_patch to the owning mount.
+    // board was built from. Writeback routing is not carried here: a card's
+    // own qualified specId names its project.
     mountHeads: board.mountHeads ?? null,
     mountsClean: board.mountsClean ?? null,
-    specProjects: board.specProjects ?? null,
     skippedProjects: board.skippedProjects ?? null,
   };
 }
@@ -604,25 +634,25 @@ export function buildProjectionPlans(board) {
   for (const [projectId, projectBoard] of Object.entries(board.projectBoards ?? {})) {
     projectPlans[projectId] = buildProjectionPlan({
       ...projectBoard,
+      nodes: projectBoard.nodes.map((node) => ({ ...node, project: node.project ?? projectId })),
+      edges: projectBoard.edges.map((edge) => ({ ...edge, project: edge.project ?? projectId })),
       scope: { mode: "project", project: projectId, specSlugs: projectBoard.scope?.specSlugs ?? [] },
     });
   }
-  const unassignedSlugs = (board.scope?.specSlugs ?? [])
-    .filter((slug) => !Object.hasOwn(board.specProjects ?? {}, slug))
-    .sort();
+  // Unassigned is now an explicit fact (a node that carries no project), not a
+  // slug missing from a flat routing map.
+  const orphanNodes = board.nodes.filter((node) => !node.project);
   let unassignedPlan = null;
-  if (unassignedSlugs.length > 0) {
-    const slugs = new Set(unassignedSlugs);
-    const nodes = board.nodes.filter((node) => slugs.has(node.specSlug));
-    const nodeIds = new Set(nodes.map((node) => node.canonicalId));
-    const edges = board.edges.filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to));
+  if (orphanNodes.length > 0) {
+    const nodeIds = new Set(orphanNodes.map((node) => node.canonicalId));
+    const edges = board.edges.filter((edge) => !edge.project && nodeIds.has(edge.from) && nodeIds.has(edge.to));
     unassignedPlan = buildProjectionPlan({
       ...board,
-      nodes,
+      nodes: orphanNodes.map((node) => ({ ...node, project: UNASSIGNED_PROJECT_ID })),
       edges,
-      counts: { nodes: nodes.length, edges: edges.length },
-      scope: { mode: "project", project: UNASSIGNED_PROJECT_ID, specSlugs: unassignedSlugs },
-      fingerprint: digest({ unassigned: unassignedSlugs }),
+      counts: { nodes: orphanNodes.length, edges: edges.length },
+      scope: { mode: "project", project: UNASSIGNED_PROJECT_ID, specSlugs: [...new Set(orphanNodes.map((node) => node.specSlug))].sort() },
+      fingerprint: digest({ unassigned: [...nodeIds].sort() }),
     });
   }
   return { projectPlans, unassignedPlan };
@@ -647,11 +677,8 @@ export class YouTrackProjectionService {
     // A source reader that cannot see the service's mounts (script-mode
     // readers) must not re-sign the committed MOUNT certification — preserved
     // mountHeads/mountsClean would let cheapCheck trust measurements this sync
-    // never took. specProjects is the exception: it is writeback routing, not
-    // a mount claim, and dropping it breaks the listener until a service sync.
-    if (pointer?.valid === true) {
-      plan.specProjects ??= pointer.specProjects ?? null;
-    }
+    // never took. Routing is not a mount claim: it comes from each card's own
+    // qualified specId, so nothing extra is copied from the pointer.
     const actual = await this.#tracker.readProjection();
     const parity = compareProjection(actual, plan);
     const canSkip = pointer?.valid === true && pointer.complete === true && pointer.fingerprint === plan.fingerprint &&

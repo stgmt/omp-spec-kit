@@ -96,6 +96,12 @@ describe("onboarding over POST /onboarding/token (live-verified identity)", () =
     assert.equal(issued.project, "stgmt/alpha", "the response must name the pinned project scope");
     const snippet = JSON.parse(issued.mcpJson);
     assert.equal(snippet.mcpServers["omp-spec-kit"].headers.Authorization, `Bearer ${issued.token}`);
+    assert.equal(snippet.mcpServers["omp-spec-kit"].headers["X-Spec-Project"], undefined, "no connection-wide project header");
+    assert.equal(snippet.projectSelection.mode, "per-call");
+    assert.equal(snippet.projectSelection.argument, "project");
+    assert.equal(snippet.projectSelection.project, "stgmt/alpha");
+    assert.equal(snippet.projectSelection.record.schema, "omp-spec-kit/project-binding@1");
+    assert.match(snippet.projectSelection.record.path, /\.omp-spec-kit\/project\.json$/u);
 
     // The issued token is a real caller: same verified identity as alice.
     const listed = await mcpCall(url, issued.token, { method: "tools/list" });

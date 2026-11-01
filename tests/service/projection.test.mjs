@@ -147,7 +147,9 @@ describe("service projection", () => {
       assert.equal(parsed.nodeCount, 1);
       assert.equal(parsed.mountHeads["demo/stack"], "h".repeat(40), "marker records the mount HEAD the board was built from");
       assert.equal(parsed.mountsClean, true);
-      assert.equal(parsed.specProjects["demo-spec"], "demo/stack", "marker maps each spec slug to its serving project");
+      assert.equal("specProjects" in parsed, false, "the flat routing map is not part of the v8 marker");
+      assert.deepEqual(Object.keys(parsed.cardIds), ["demo/stack::demo:FR-1"], "cards are keyed project::canonicalId");
+      assert.equal(parsed.snapshot.nodes[0].project, "demo/stack", "aggregate nodes carry their project");
       assert.deepEqual(parsed.skippedProjects, []);
       const projectSpecId = projectPointerSpecId("demo/stack");
       const projectIssue = yt.state.issues.find((issue) =>
@@ -163,15 +165,17 @@ describe("service projection", () => {
     }
   });
 
-  it("builds an unassigned plan when a served slug has no project", () => {
+  it("builds an unassigned plan only for a node that carries no project", () => {
     const aggregate = {
       ...board(),
       scope: { mode: "corpus", specSlugs: ["demo", "orphan"] },
-      specProjects: { demo: "demo/stack" },
       projectBoards: {
         "demo/stack": { ...board(), scope: { mode: "corpus", specSlugs: ["demo"] } },
       },
-      nodes: [...board().nodes, node("orphan:FR-1", "FUNCTIONAL_REQUIREMENT", "Orphan requirement")],
+      nodes: [
+        ...board().nodes.map((entry) => ({ ...entry, project: "demo/stack" })),
+        node("orphan:FR-1", "FUNCTIONAL_REQUIREMENT", "Orphan requirement"),
+      ],
     };
     const { projectPlans, unassignedPlan } = buildProjectionPlans(aggregate);
     assert.deepEqual(Object.keys(projectPlans), ["demo/stack"]);
@@ -531,7 +535,7 @@ describe("projection cheap path", () => {
     }
   });
 
-  it("two mounts emitting the same canonicalId fail the sync naming both projects", async () => {
+  it("two projects emitting the same canonicalId coexist, each keeping its own card", async () => {
     const yt = fakeYouTrack();
     const realFetch = globalThis.fetch;
     globalThis.fetch = (url, init) => yt.handler(url, init);
@@ -556,11 +560,77 @@ describe("projection cheap path", () => {
       });
       await projection.syncOnce();
       const last = projection.status().last;
-      assert.equal(last.ok, false);
-      assert.match(last.error, /duplicate spec node dup:FR-1.*served by both alpha\/repo and beta\/repo/);
-      assert.equal(yt.state.writes, 0);
+      assert.equal(last.ok, true, JSON.stringify(last));
+      const marker = rootPointer(yt);
+      const parsed = JSON.parse(marker.description.slice("SPEC-SYNC-STATE\n".length));
+      assert.deepEqual(
+        Object.keys(parsed.cardIds).sort(),
+        ["alpha/repo::dup:FR-1", "beta/repo::dup:FR-1"],
+        "both projects own a card for the same canonicalId",
+      );
+      assert.deepEqual(parsed.snapshot.nodes.map((entry) => entry.project).sort(), ["alpha/repo", "beta/repo"]);
+      const projectSpecIds = yt.state.issues
+        .flatMap((issue) => issue.customFields ?? [])
+        .filter((field) => field.name === "SpecId")
+        .map((field) => (field.value && field.value.text) ?? field.value);
+      assert.ok(projectSpecIds.includes(projectPointerSpecId("alpha/repo")));
+      assert.ok(projectSpecIds.includes(projectPointerSpecId("beta/repo")));
     } finally {
       globalThis.fetch = realFetch;
+    }
+  });
+
+  it("one project duplicating an identity inside its own corpus still fails with the same diagnostics", async () => {
+    for (const collide of ["node", "slug"]) {
+      const yt = fakeYouTrack();
+      const realFetch = globalThis.fetch;
+      globalThis.fetch = (url, init) => yt.handler(url, init);
+      const mount = { git: fakeGit(), cwd: "/fake" };
+      const mounts = {
+        projects: ["alpha/repo"],
+        for: () => mount,
+        serviceFor: () => ({
+          runQuery: async (operation, args) =>
+            operation === "graph" && args.view === "board"
+              ? {
+                  ok: true,
+                  data: collide === "node"
+                    ? {
+                        ...board(),
+                        scope: { mode: "corpus", specSlugs: ["dup"] },
+                        nodes: [
+                          node("dup:FR-1", "FUNCTIONAL_REQUIREMENT", "R"),
+                          node("dup:FR-1", "FUNCTIONAL_REQUIREMENT", "R again"),
+                        ],
+                      }
+                    : {
+                        ...board(),
+                        scope: { mode: "corpus", specSlugs: ["dup", "dup"] },
+                        nodes: [node("dup:FR-1", "FUNCTIONAL_REQUIREMENT", "R")],
+                      },
+                }
+              : { ok: false },
+        }),
+      };
+      try {
+        const projection = createProjection({
+          mounts,
+          baseUrl: "http://yt.test",
+          serviceToken: "tok",
+          projectShortName: "SPEC",
+          markerSecret: MARKER_SECRET,
+        });
+        await projection.syncOnce();
+        const last = projection.status().last;
+        assert.equal(last.ok, false, collide);
+        const pattern = collide === "node"
+          ? /duplicate spec node dup:FR-1 is served by both alpha\/repo and alpha\/repo/
+          : /spec dup is served by both alpha\/repo and alpha\/repo/;
+        assert.match(last.error, pattern);
+        assert.equal(yt.state.writes, 0, collide + ": no marker for a self-duplicating corpus");
+      } finally {
+        globalThis.fetch = realFetch;
+      }
     }
   });
 
@@ -593,7 +663,7 @@ describe("projection cheap path", () => {
     }
   });
 
-  it("two mounts claiming the same spec slug fail the sync instead of misrouting writeback", async () => {
+  it("two projects claiming the same spec slug coexist without misrouting writeback", async () => {
     const yt = fakeYouTrack();
     const realFetch = globalThis.fetch;
     globalThis.fetch = (url, init) => yt.handler(url, init);
@@ -626,9 +696,15 @@ describe("projection cheap path", () => {
       });
       await projection.syncOnce();
       const last = projection.status().last;
-      assert.equal(last.ok, false);
-      assert.match(last.error, /shared-slug.*served by both alpha\/repo and beta\/repo/);
-      assert.equal(yt.state.writes, 0);
+      assert.equal(last.ok, true, JSON.stringify(last));
+      const marker = rootPointer(yt);
+      const parsed = JSON.parse(marker.description.slice("SPEC-SYNC-STATE\n".length));
+      assert.deepEqual(parsed.scope.specSlugs, ["shared-slug"], "the shared slug is listed once");
+      assert.deepEqual(
+        Object.keys(parsed.cardIds).sort(),
+        ["alpha/repo::alpha-spec:FR-1", "beta/repo::beta-spec:FR-1"],
+        "each project keeps its own card for the shared slug",
+      );
     } finally {
       globalThis.fetch = realFetch;
     }
@@ -695,10 +771,14 @@ describe("projection cheap path", () => {
       const second = JSON.parse(marker.description.split("\n")[1]);
       assert.deepEqual(Object.keys(second.mountHeads).sort(), ["acme/unbound", "demo/stack"]);
       assert.deepEqual(second.skippedProjects, []);
-      assert.equal(second.specProjects["acme-spec"], "acme/unbound");
+      assert.deepEqual(
+        Object.keys(second.cardIds).sort(),
+        ["acme/unbound::acme-spec:FR-1", "demo/stack::demo-spec:FR-1"],
+        "both mounts own qualified cards after the flip",
+      );
       const status = projection.status();
       assert.deepEqual(status.last.projects, ["acme/unbound", "demo/stack"], "both mounts are projection units");
-      assert.deepEqual(status.last.unassigned, [], "every served slug has a project");
+      assert.equal("unassigned" in status.last, false, "no unassigned bucket exists in the v8 diagnostics");
     } finally {
       globalThis.fetch = realFetch;
     }

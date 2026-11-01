@@ -11,12 +11,18 @@
  * the packaged dist tree, and tests pass the source module. There is no
  * fallback path.
  *
+ * Session project: `tool.execute.before` may rewrite `output.args`, so a
+ * registry spec call that omits `project` receives the project recorded for
+ * this session's `directory` (`<directory>/.omp-spec-kit/project.json`). A
+ * workspace with no record fails closed with `PROJECT_REQUIRED`.
+ *
  * Fail-closed: malformed arguments, an unreadable config, an unknown tool that
  * carries a path-like argument, or any adapter error blocks the call.
  */
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
+import { projectRequiredMessage, readProjectBinding } from "../../enforcement/project-binding.js";
 
 const GUARD_CONFIG_NAME = "spec-kit-guard.json";
 const DEFAULT_MCP_FAMILY = "mcp__omp_spec_kit_";
@@ -71,25 +77,31 @@ function toClassifierEvent(tool, args, registryServer) {
   const logical = isRegistryTool ? tool.slice(registryServer.length + 1) : null;
 
   if (logical !== null && logical.startsWith("spec_")) {
-    return { event: { toolName: `${DEFAULT_MCP_FAMILY}${logical}`, input: args ?? {} }, mode: "mcp" };
+    return { event: { toolName: `${DEFAULT_MCP_FAMILY}${logical}`, input: args ?? {} }, mode: "mcp", registrySpecCall: true };
   }
   const marker = tool.lastIndexOf(suffix);
   if (marker >= 0) {
     // Any other MCP server that exposes the same operation is refused by its
     // short name, so the decision code names the real problem.
-    return { event: { toolName: tool.slice(marker + 1), input: args ?? {} }, mode: "mcp" };
+    return { event: { toolName: tool.slice(marker + 1), input: args ?? {} }, mode: "mcp", registrySpecCall: false };
   }
   if (tool.startsWith("spec_")) {
-    return { event: { toolName: tool, input: args ?? {} }, mode: "mcp" };
+    return { event: { toolName: tool, input: args ?? {} }, mode: "mcp", registrySpecCall: false };
   }
 
   const targets = targetsFromArgs(tool, args);
-  if (targets === null) return { event: { toolName: tool, input: {} }, mode: "direct" };
-  if (targets.indeterminate) return { event: { toolName: tool, input: { path: null } }, mode: "direct" };
-  return { event: { toolName: tool, input: targets }, mode: "direct" };
+  if (targets === null) return { event: { toolName: tool, input: {} }, mode: "direct", registrySpecCall: false };
+  if (targets.indeterminate) return { event: { toolName: tool, input: { path: null } }, mode: "direct", registrySpecCall: false };
+  return { event: { toolName: tool, input: targets }, mode: "direct", registrySpecCall: false };
 }
 
-export function createGuard({ directory, config, classifier, loadConfig = loadGuardConfig }) {
+export function createGuard({
+  directory,
+  config,
+  classifier,
+  loadConfig = loadGuardConfig,
+  readBinding = readProjectBinding,
+}) {
   if (typeof classifier !== "function") throw new Error("SPEC_HOOK_FAILED: classifier is required");
   const guardConfig = config ?? loadConfig();
   const registryServer = guardConfig?.registryServer;
@@ -106,7 +118,8 @@ export function createGuard({ directory, config, classifier, loadConfig = loadGu
       try {
         const tool = typeof input?.tool === "string" ? input.tool : "";
         if (tool === "") throw new Error("tool name is missing");
-        const { event, mode } = toClassifierEvent(tool, output?.args ?? {}, registryServer);
+        const args = output?.args ?? {};
+        const { event, mode, registrySpecCall } = toClassifierEvent(tool, args, registryServer);
         const decision = classifier(event, { root, allTools: null });
         if (decision?.action === "block") {
           throw new Error(typeof decision.reason === "string" ? decision.reason : `SPEC_HOOK_BLOCKED: ${decision.code}`);
@@ -114,9 +127,16 @@ export function createGuard({ directory, config, classifier, loadConfig = loadGu
         if (mode === "mcp" && decision?.action !== "allow") {
           throw new Error("SPEC_HOOK_FAILED: MCP call was not authorized");
         }
+        if (registrySpecCall && firstString(args?.project) === null) {
+          const binding = readBinding(root);
+          if (binding === null) throw new Error(projectRequiredMessage(root));
+          // `tool.execute.before` may rewrite execution arguments; attaching
+          // the session's project here is the per-call selection.
+          output.args = { ...args, project: binding.project };
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        throw new Error(message.startsWith("SPEC_HOOK_") ? message : `SPEC_HOOK_FAILED: ${message}`);
+        throw new Error(message.startsWith("SPEC_HOOK_") || message.startsWith("PROJECT_") ? message : `SPEC_HOOK_FAILED: ${message}`);
       }
     },
   };

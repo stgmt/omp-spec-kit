@@ -613,7 +613,10 @@ Then("the page shows a ready .mcp.json for alice on her project", async function
   assert.ok(server, `no mcpServers.omp-spec-kit in snippet: ${JSON.stringify(this.lastSnippet).slice(0, 200)}`);
   assert.match(server.url, /\/mcp$/u, `snippet url must point at /mcp: ${server.url}`);
   assert.match(server.headers?.Authorization ?? "", /^Bearer \S+/u, "snippet must carry a bearer token");
-  assert.equal(server.headers?.["X-Spec-Project"], "stgmt/alpha", "snippet must pin alice's project scope");
+  assert.equal(server.headers?.["X-Spec-Project"], undefined, "no connection-wide project header in the snippet");
+  assert.equal(this.lastSnippet.projectSelection?.mode, "per-call", "selection is per call");
+  assert.equal(this.lastSnippet.projectSelection?.project, "stgmt/alpha", "the snippet names alice's project for per-call use");
+  assert.equal(this.lastSnippet.projectSelection?.record?.schema, "omp-spec-kit/project-binding@1", "the snippet names the repo-local record schema");
   await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-widget-agent-alice.png"), fullPage: true }).catch(() => {});
 });
 
@@ -631,9 +634,8 @@ Then("the generated token authenticates as alice against the live service", asyn
       "content-type": "application/json",
       accept: "application/json, text/event-stream",
       authorization: headers.Authorization,
-      ...(headers["X-Spec-Project"] ? { "x-spec-project": headers["X-Spec-Project"] } : {}),
     },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "spec_catalog", arguments: { view: "specs" } } }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "spec_catalog", arguments: { project: this.lastSnippet.projectSelection.project, view: "specs" } } }),
   });
   const json = await response.json();
   assert.equal(json?.result?.structuredContent?.ok, true, `snippet token MCP call failed: ${JSON.stringify(json).slice(0, 300)}`);
@@ -694,7 +696,8 @@ Then("the page shows a ready .mcp.json pinned to the acme tenant", async functio
   assert.match(server.url, /\/mcp$/u);
   assert.match(server.headers?.Authorization ?? "", /^Bearer \S+/u);
   assert.equal(server.headers?.["X-Spec-Idp"], EXT_TENANT, "snippet must pin the tenant so tokens resolve to the bound YouTrack");
-  assert.equal(server.headers?.["X-Spec-Project"], "acme/gamma");
+  assert.equal(server.headers?.["X-Spec-Project"], undefined, "no connection-wide project header in the snippet");
+  assert.equal(this.lastSnippet.projectSelection?.project, "acme/gamma");
 });
 
 Then("the generated token authenticates as mia with only the acme scope", async function () {
@@ -711,10 +714,9 @@ Then("the generated token authenticates as mia with only the acme scope", async 
       "content-type": "application/json",
       accept: "application/json, text/event-stream",
       authorization: headers.Authorization,
-      "x-spec-project": headers["X-Spec-Project"],
       "x-spec-idp": headers["X-Spec-Idp"],
     },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "spec_catalog", arguments: { view: "specs" } } }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "spec_catalog", arguments: { project: this.lastSnippet.projectSelection.project, view: "specs" } } }),
   });
   const json = await response.json();
   const specs = json?.result?.structuredContent?.data?.specs ?? [];

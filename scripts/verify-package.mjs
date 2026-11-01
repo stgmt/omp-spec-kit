@@ -104,7 +104,6 @@ const PLUGIN_ROOT_PLACEHOLDER = "${CLAUDE_PLUGIN_ROOT}";
 const PROJECT_DIR_PLACEHOLDER = "${CLAUDE_PROJECT_DIR}";
 const REGISTRY_URL_PLACEHOLDER = "${OMP_SPEC_REGISTRY_URL}";
 const REGISTRY_TOKEN_PLACEHOLDER = "Bearer ${OMP_SPEC_REGISTRY_TOKEN}";
-const REGISTRY_PROJECT_PLACEHOLDER = "${OMP_SPEC_PROJECT}";
 const HOOK_MATCHER =
   "Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep|Bash|PowerShell|mcp__plugin_omp-spec-kit_omp-spec-kit__.*";
 
@@ -213,12 +212,9 @@ async function verifyMcpJson() {
   if (server.url !== REGISTRY_URL_PLACEHOLDER) {
     fail(`.mcp.json url must be exactly "${REGISTRY_URL_PLACEHOLDER}"`);
   }
-  assertExactKeys(server.headers, ["Authorization", "X-Spec-Project"], ".mcp.json headers", fail);
+  assertExactKeys(server.headers, ["Authorization"], ".mcp.json headers", fail);
   if (server.headers.Authorization !== REGISTRY_TOKEN_PLACEHOLDER) {
     fail(`.mcp.json Authorization must be exactly "${REGISTRY_TOKEN_PLACEHOLDER}"`);
-  }
-  if (server.headers["X-Spec-Project"] !== REGISTRY_PROJECT_PLACEHOLDER) {
-    fail(`.mcp.json X-Spec-Project must be exactly "${REGISTRY_PROJECT_PLACEHOLDER}"`);
   }
   // No local corpus path may survive in the shipped declaration.
   const serialized = JSON.stringify(mcpJson);

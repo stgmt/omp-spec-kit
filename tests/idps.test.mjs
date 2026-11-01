@@ -259,7 +259,9 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     assert.equal(own.body.project, "acme/gamma");
     const snippet = JSON.parse(own.body.mcpJson);
     assert.equal(snippet.mcpServers["omp-spec-kit"].headers["X-Spec-Idp"], EXT_TENANT);
-    assert.equal(snippet.mcpServers["omp-spec-kit"].headers["X-Spec-Project"], "acme/gamma");
+    assert.equal(snippet.mcpServers["omp-spec-kit"].headers["X-Spec-Project"], undefined, "no connection-wide project header");
+    assert.equal(snippet.projectSelection.project, "acme/gamma");
+    assert.equal(snippet.projectSelection.record.schema, "omp-spec-kit/project-binding@1");
   });
 
   it("enforces tenant isolation and group gating for external users", async () => {
@@ -270,7 +272,7 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     // the kernel ever sees the request.
     const outOfScope = await callTool(url, tokens.mia, "spec_catalog", { view: "specs", project: "stgmt/alpha" }).then((r) => r.structuredContent);
     assert.equal(outOfScope.ok, false);
-    assert.equal(outOfScope.error.code, "INVALID_REQUEST");
+    assert.equal(outOfScope.error.code, "PROJECT_NOT_ALLOWED");
     assert.match(outOfScope.error.message, /outside the caller's allowed set/);
 
     // A group-less ext user is refused by the binding's hubGroups, not YouTrack.

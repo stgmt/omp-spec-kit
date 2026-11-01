@@ -11,6 +11,10 @@ import {
 import { isValidCanonicalId } from "../../src/kernel/identity.js";
 import { HttpBoardReader } from "../../scripts/spec-graph-sync.mjs";
 
+// Every tracker card is keyed project::canonicalId; the kernel ids stay bare.
+const P = "demo/stack";
+const q = (canonicalId) => P + "::" + canonicalId;
+
 function node(canonicalId, kind, title, extra = {}) {
   const [specSlug, localId] = canonicalId.split(":");
   return {
@@ -32,7 +36,7 @@ function board(edges = []) {
     kind: "board",
     schemaVersion: "BoardProjectionV1",
     fingerprint: "f".repeat(64),
-    scope: { mode: "corpus", specSlugs: ["demo"] },
+    scope: { mode: "corpus", specSlugs: ["demo"], project: P },
     complete: true,
     page: null,
     nodes: [
@@ -41,7 +45,7 @@ function board(edges = []) {
       node("demo:TASK-1", "TASK", "Implement thing", { body: "Status: todo\nDone when: it works", taskStatus: "todo" }),
       node("demo:SCENARIO-a", "SCENARIO", "Scenario title"),
       node("demo:NFR-CORE-1", "NON_FUNCTIONAL_REQUIREMENT", "Constraint"),
-    ],
+    ].map((entry) => ({ ...entry, project: P })),
     edges,
     counts: { nodes: 5, edges: edges.length, edgeOccurrences: edges.length },
   };
@@ -80,14 +84,17 @@ describe("YouTrack projection adapter", () => {
     ]);
     const plan = buildProjectionPlan(source);
     assert.deepEqual(plan.issues.map((item) => item.specId), [
-      "demo:AC-1.1", "demo:FR-1", "demo:NFR-CORE-1", "demo:SCENARIO-a", "demo:TASK-1",
+      q("demo:AC-1.1"), q("demo:FR-1"), q("demo:NFR-CORE-1"), q("demo:SCENARIO-a"), q("demo:TASK-1"),
     ]);
+    assert.deepEqual(plan.issues.map((item) => item.canonicalId), [
+      "demo:AC-1.1", "demo:FR-1", "demo:NFR-CORE-1", "demo:SCENARIO-a", "demo:TASK-1",
+    ], "kernel ids stay unqualified inside the project");
     assert.deepEqual(plan.links, [
-      { type: "constrains", source: "demo:NFR-CORE-1", target: "demo:TASK-1" },
-      { type: "covers", source: "demo:SCENARIO-a", target: "demo:FR-1" },
-      { type: "implements", source: "demo:TASK-1", target: "demo:FR-1" },
-      { type: "satisfies", source: "demo:FR-1", target: "demo:AC-1.1" },
-      { type: "verifies", source: "demo:SCENARIO-a", target: "demo:AC-1.1" },
+      { type: "constrains", source: q("demo:NFR-CORE-1"), target: q("demo:TASK-1") },
+      { type: "covers", source: q("demo:SCENARIO-a"), target: q("demo:FR-1") },
+      { type: "implements", source: q("demo:TASK-1"), target: q("demo:FR-1") },
+      { type: "satisfies", source: q("demo:FR-1"), target: q("demo:AC-1.1") },
+      { type: "verifies", source: q("demo:SCENARIO-a"), target: q("demo:AC-1.1") },
     ]);
     assert.equal(plan.snapshot.schemaVersion, "BoardSnapshotV1");
     assert.equal(plan.snapshot.fingerprint, source.fingerprint);
@@ -134,7 +141,7 @@ describe("YouTrack projection adapter", () => {
     ]));
     const actual = {
       issues: plan.issues.map(card),
-      links: [{ type: "implemented-by", source: "demo:FR-1", target: "demo:TASK-1" }],
+      links: [{ type: "implemented-by", source: q("demo:FR-1"), target: q("demo:TASK-1") }],
     };
     assert.deepEqual(compareProjection(actual, plan), { equal: true, reason: "PARITY" });
   });
@@ -145,7 +152,7 @@ describe("YouTrack projection adapter", () => {
     ]));
     const reversed = {
       issues: plan.issues.map(card),
-      links: [{ type: "satisfies", source: "demo:AC-1.1", target: "demo:FR-1" }],
+      links: [{ type: "satisfies", source: q("demo:AC-1.1"), target: q("demo:FR-1") }],
     };
     assert.equal(compareProjection(reversed, plan).reason, "LINK_DRIFT");
   });
@@ -186,7 +193,6 @@ describe("YouTrack projection adapter", () => {
       cardIds: {},
       mountHeads: { "demo/stack": "a".repeat(40) },
       mountsClean: true,
-      specProjects: { demo: "demo/stack" },
       skippedProjects: ["acme/unbound"],
     };
     const published = [];
@@ -209,7 +215,7 @@ describe("YouTrack projection adapter", () => {
     const result = await service.sync();
     assert.equal(result.outcome, "SYNCED");
     const plan = published[0];
-    assert.deepEqual(plan.specProjects, { demo: "demo/stack" }, "writeback routing survives a blind republish");
+    assert.equal(plan.specProjects, undefined, "no flat routing map is signed any more");
     assert.equal(plan.mountHeads, null, "mount certification is not re-signed for mounts the reader never measured");
     assert.equal(plan.mountsClean, null, "cleanliness is not attested for unmeasured mounts");
     assert.equal(plan.skippedProjects, null);
@@ -223,11 +229,10 @@ describe("YouTrack projection adapter", () => {
       projectionDigest: "2".repeat(64),
       projectionVersion: 3,
       cardIds: {},
-      specProjects: { demo: "old/stale" },
       mountHeads: { "old/stale": "b".repeat(40) },
     };
     const published = [];
-    const freshBoard = { ...board(), specProjects: { demo: "demo/stack" }, mountHeads: { "demo/stack": "c".repeat(40) }, mountsClean: true, skippedProjects: [] };
+    const freshBoard = { ...board(), mountHeads: { "demo/stack": "c".repeat(40) }, mountsClean: true, skippedProjects: [] };
     const service = new YouTrackProjectionService({
       sourceReader: { readBoard: async () => freshBoard },
       tracker: {
@@ -245,7 +250,7 @@ describe("YouTrack projection adapter", () => {
       },
     });
     await service.sync();
-    assert.deepEqual(published[0].specProjects, { demo: "demo/stack" });
+    assert.equal(published[0].specProjects, undefined);
     assert.deepEqual(published[0].mountHeads, { "demo/stack": "c".repeat(40) });
   });
 
@@ -253,7 +258,7 @@ describe("YouTrack projection adapter", () => {
     const source = board();
     source.nodes = source.nodes.map((entry) => entry.kind === "TASK" ? { ...entry, taskStatus: "unknown", body: "No status marker" } : entry);
     const plan = buildProjectionPlan(source);
-    assert.equal(plan.issues.find((entry) => entry.specId === "demo:TASK-1").status, "todo");
+    assert.equal(plan.issues.find((entry) => entry.specId === q("demo:TASK-1")).status, "todo");
   });
 
   it("projects roadmap aggregate nodes with contains links to members", () => {
@@ -263,25 +268,25 @@ describe("YouTrack projection adapter", () => {
     ]);
     source.nodes.push(node("demo:ROADMAP", "ROADMAP", "Roadmap: Demo", { body: "Roadmap spec `demo`." }));
     const plan = buildProjectionPlan(source);
-    const roadmap = plan.issues.find((entry) => entry.specId === "demo:ROADMAP");
+    const roadmap = plan.issues.find((entry) => entry.specId === q("demo:ROADMAP"));
     assert.equal(isValidCanonicalId(roadmap.canonicalId), true);
     assert.equal(roadmap.kind, "ROADMAP");
     assert.equal(roadmap.typeValue, "Roadmap");
     assert.equal(roadmap.status, null);
     assert.deepEqual(plan.links, [
-      { type: "contains", source: "demo:ROADMAP", target: "demo:FR-1" },
-      { type: "contains", source: "demo:ROADMAP", target: "demo:TASK-1" },
+      { type: "contains", source: q("demo:ROADMAP"), target: q("demo:FR-1") },
+      { type: "contains", source: q("demo:ROADMAP"), target: q("demo:TASK-1") },
     ]);
     assert.equal(plan.skippedLinks, 0);
     assert.deepEqual(roadmap.links.contains, ["FR-1", "TASK-1"]);
-    assert.deepEqual(plan.issues.find((entry) => entry.specId === "demo:FR-1").links["contained-by"], ["ROADMAP"]);
+    assert.deepEqual(plan.issues.find((entry) => entry.specId === q("demo:FR-1")).links["contained-by"], ["ROADMAP"]);
   });
 
   it("caps card summaries at the tracker 255-character limit", () => {
     const source = board();
     source.nodes[0] = node("demo:FR-1", "FUNCTIONAL_REQUIREMENT", "x".repeat(512));
     const plan = buildProjectionPlan(source);
-    const summary = plan.issues.find((entry) => entry.specId === "demo:FR-1");
+    const summary = plan.issues.find((entry) => entry.specId === q("demo:FR-1"));
     assert.equal(desiredSummary(summary).length, 255);
   });
 
@@ -294,8 +299,8 @@ describe("YouTrack projection adapter", () => {
       { from: "demo:FR-1", to: "demo:TASK-1", type: "REFS", occurrenceCount: 1 },
     ]));
     assert.deepEqual(plan.links, [
-      { type: "implements", source: "demo:TASK-1", target: "demo:FR-1" },
-      { type: "satisfies", source: "demo:FR-1", target: "demo:AC-1.1" },
+      { type: "implements", source: q("demo:TASK-1"), target: q("demo:FR-1") },
+      { type: "satisfies", source: q("demo:FR-1"), target: q("demo:AC-1.1") },
     ]);
   });
 
@@ -311,7 +316,6 @@ describe("YouTrack projection adapter", () => {
       projectionDigest: plan.projectionDigest,
       projectionVersion: 3,
       cardIds: {},
-      specProjects: { demo: "demo/stack" },
     };
     const service = new YouTrackProjectionService({
       sourceReader: { readBoard: async () => board() },
@@ -342,7 +346,6 @@ describe("YouTrack projection adapter", () => {
       projectionDigest: plan.projectionDigest,
       projectionVersion: plan.projectionVersion,
       cardIds: {},
-      specProjects: { demo: "demo/stack" },
     };
     const service = new YouTrackProjectionService({
       sourceReader: { readBoard: async () => board() },
@@ -413,7 +416,6 @@ describe("YouTrack projection adapter", () => {
     const published = [];
     const scriptBoard = {
       ...board(),
-      specProjects: { demo: "demo/stack" },
       projectBoards: {
         "demo/stack": { ...board(), scope: { mode: "corpus", specSlugs: ["demo"] } },
       },
@@ -449,7 +451,6 @@ describe("YouTrack projection adapter", () => {
       sourceReader: {
         readBoard: async () => ({
           ...board(),
-          specProjects: { demo: "demo/stack" },
           projectBoards: { "demo/stack": { ...board(), scope: { mode: "corpus", specSlugs: ["demo"] } } },
         }),
       },
@@ -478,11 +479,12 @@ describe("YouTrack projection adapter", () => {
           return { ...base, nodes: [node], edges: [], counts: { nodes: 1, edges: 0 }, scope: { mode: "corpus", specSlugs: [args.project] }, fingerprint: args.project };
         },
       },
-      specProjects: async () => ({ demo: "demo/stack", acme: "acme/gamma" }),
+      projects: async () => ["demo/stack", "acme/gamma"],
     });
     const merged = await reader.readBoard();
     assert.deepEqual(Object.keys(merged.projectBoards).sort(), ["acme/gamma", "demo/stack"]);
     assert.equal(merged.projectBoards["demo/stack"].fingerprint, "demo/stack");
+    assert.deepEqual(merged.nodes.map((entry) => entry.project).sort(), ["acme/gamma", "demo/stack"]);
   });
 
 });

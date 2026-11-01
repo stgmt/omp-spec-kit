@@ -7,6 +7,8 @@
 # `install-host` writes a project-scoped Claude config; never commit it.
 /.mcp.json
 /.mcp.json.bak
+# The per-workspace project selection record written by `install-host`.
+/.omp-spec-kit/project.json
 
 # Dependencies and generated output
 node_modules/

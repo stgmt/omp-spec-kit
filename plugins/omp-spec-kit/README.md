@@ -40,7 +40,24 @@ before the host starts:
 
 - `OMP_SPEC_REGISTRY_URL` — the registry `/mcp` endpoint (for example `http://127.0.0.1:8650/mcp`)
 - `OMP_SPEC_REGISTRY_TOKEN` — the caller's verified YouTrack token
-- `OMP_SPEC_PROJECT` — `owner/project` for scoped tokens
+
+The project is **not** an environment variable and not a header. Each session selects it per MCP
+call from its own workspace record, `<workspace>/.omp-spec-kit/project.json`:
+
+```json
+{ "schema": "omp-spec-kit/project-binding@1", "project": "owner/project" }
+```
+
+Write it once with the installer (`node scripts/install-host.mjs --host <host> --project owner/project
+--workspace <dir>`) or by hand, then bind the repository:
+
+```
+spec_repo {"action":"bind","project":"owner/project","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}
+```
+
+Switching a session's workspace switches its project on the next call; no restart and no
+reconnect are needed, and another session in a different repository keeps its own project. A spec
+call in a workspace without a record is refused with `PROJECT_REQUIRED`.
 
 There is no stdio fallback and no local corpus: a host that cannot expand these placeholders does
 not connect, which is deliberate. The bundled `dist/mcp/server.js` runs inside the registry image;

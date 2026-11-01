@@ -114,7 +114,7 @@ async function verifyCopiedPayload(packageRoot, packageManifest, packageMcpText,
 		server?.type !== "http" ||
 		server.url !== "${OMP_SPEC_REGISTRY_URL}" ||
 		server?.headers?.Authorization !== "Bearer ${OMP_SPEC_REGISTRY_TOKEN}" ||
-		server?.headers?.["X-Spec-Project"] !== "${OMP_SPEC_PROJECT}"
+		Object.keys(server?.headers ?? {}).length !== 1
 	) {
 		throw new Error("Copied MCP declaration does not bind the registry endpoint");
 	}

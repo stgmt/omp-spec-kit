@@ -8,6 +8,7 @@ import {
   validateContractArguments,
   normalizeToolArguments,
 } from "../adapters/tool-contracts.js";
+import { withServedProject } from "../adapters/query-service.js";
 
 const SUPPORTED_SCHEMA_VERSIONS = new Set([undefined, "spec-kernel@1", KERNEL_SCHEMA_VERSION]);
 
@@ -54,14 +55,38 @@ function invalidRequest(operation, requestId, message, extra = {}) {
   return errorEnvelope(operation, requestId, "INVALID_REQUEST", message, extra);
 }
 
-/** Roles gate operations (FR-8): readers read, writers write, owners force. */
-const WRITE_OPERATIONS = new Set(["specPatch", "specClaim", "specRelease", "specBranch"]);
+/**
+ * Roles gate operations (FR-8): readers read, writers write, owners force.
+ * A discriminator tool gates per variant through the variant's own operation
+ * name (see effectiveOperation), so `spec_repo` can expose mutating `bind`
+ * and `unbind` beside the read-only `probe` and `bindings` variants.
+ */
+const WRITE_OPERATIONS = new Set(["specPatch", "specClaim", "specRelease", "specBranch", "specRepoBind", "specRepoUnbind"]);
 // Preflight must answer for an unbound project: it is how a client learns that
 // setup is required. Every data operation still refuses.
 const SETUP_EXEMPT_OPERATIONS = new Set(["mcpPreflight"]);
 const ROLE_RANK = Object.freeze({ reader: 0, writer: 1, owner: 2 });
 
+/** The operation a variant runs as; a plain tool is its own operation. */
+function effectiveOperation(contract, args) {
+  const variant = contract.discriminator ? contract.variants?.[args?.[contract.discriminator]] : null;
+  return typeof variant?.operation === "string" ? variant.operation : contract.operation;
+}
+
+/** The MCP call an agent makes to finish setup, and the operator fallback. */
+export function setupAction(project) {
+  return {
+    tool: "spec_repo",
+    arguments: { action: "bind", project, repoUrl: "<git-url>", token: "<fine-grained-pat-with-contents-rw>" },
+  };
+}
+
 function setupCommand(project) {
+  const action = setupAction(project);
+  return `call ${action.tool} ${JSON.stringify(action.arguments)} (operator path: ${operatorBindCommand(project)})`;
+}
+
+function operatorBindCommand(project) {
   return `POST /repos/bind {"project":"${project}","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}`;
 }
 
@@ -93,33 +118,57 @@ function injectRequestId(contract, args, requestId) {
  * (`project`, `identity`, `force`) are stripped before the closed op args
  * reach the kernel.
  */
-export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [], wrappers = {} }) {
+export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [], wrappers = {}, allowDeclaredWorktree = false }) {
   const contractsByName = new Map([...TOOL_CONTRACTS, ...serviceContracts].map((contract) => [contract.tool, contract]));
 
-  function resolveProject({ rawProject, ctx, operation, requestId, listing = false }) {
-    if (rawProject !== undefined && typeof rawProject !== "string") {
-      return { error: invalidRequest(operation, requestId, "project must be a string", { parameter: "project", expected: "string", receivedType: typeof rawProject }) };
+  // One selection contract per call: an explicit project argument wins, then a
+  // request-scoped project supplied by the host for this request, then the
+  // caller's existing default scope. Missing, unauthorized and unknown projects
+  // are separate refusals, all raised before any graph lookup or write.
+  function resolveProject({ explicitProject, requestProject, ctx, operation, requestId, listing = false }) {
+    if (explicitProject !== undefined && typeof explicitProject !== "string") {
+      return { error: invalidRequest(operation, requestId, "project must be a string", { parameter: "project", expected: "owner/project", receivedType: typeof explicitProject }) };
     }
-    if (rawProject === undefined || rawProject === "") {
-      if (listing) return { allScopes: true };
-      if (ctx.defaultScope) return { project: ctx.defaultScope };
+    const explicit = typeof explicitProject === "string" && explicitProject.trim().length > 0 ? explicitProject.trim() : null;
+    const requested = typeof requestProject === "string" && requestProject.trim().length > 0 ? requestProject.trim() : null;
+
+    if (explicit === null && requested === null) {
+      if (listing) return { allScopes: true, source: null };
+      if (typeof ctx.defaultScope === "string" && ctx.defaultScope.length > 0) {
+        return { project: ctx.defaultScope, source: "default" };
+      }
+      // Several candidate projects and no default: refuse with the candidate
+      // set instead of silently choosing one for the caller.
+      const candidates = (Array.isArray(ctx.scopes) ? ctx.scopes : []).filter((entry) => typeof entry === "string" && entry.length > 0);
+      if (candidates.length > 1) {
+        return {
+          error: errorEnvelope(operation, requestId, "PROJECT_SELECTION_REQUIRED", `more than one project is available to this caller and none is selected: pass project (owner/project) explicitly`, {
+            parameter: "project",
+            expected: "owner/project",
+            candidates,
+          }),
+        };
+      }
       return {
-        error: invalidRequest(operation, requestId, "project is required: the caller context has no default scope", {
+        error: errorEnvelope(operation, requestId, "PROJECT_REQUIRED", "no project selected for this call: pass project (owner/project), or configure a session project, or bind a default scope", {
           parameter: "project",
           expected: "owner/project",
         }),
       };
     }
+
+    const project = explicit ?? requested;
+    const source = explicit !== null ? "explicit" : "request-context";
     const scopes = Array.isArray(ctx.scopes) ? ctx.scopes : [];
-    if (!scopes.includes(rawProject)) {
+    if (!scopes.includes(project)) {
       return {
-        error: invalidRequest(operation, requestId, `project is outside the caller's allowed set: ${rawProject}`, {
+        error: errorEnvelope(operation, requestId, "PROJECT_NOT_ALLOWED", `project is outside the caller's allowed set: ${project}`, {
           parameter: "project",
-          receivedSummary: rawProject,
+          receivedSummary: project,
         }),
       };
     }
-    return { project: rawProject };
+    return { project, source };
   }
 
   async function callTool({ tool, args, ctx, projectHint = null }) {
@@ -143,15 +192,28 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
 
     const { project: rawProject, identity: _retiredIdentity, force, schemaVersion, requestId: _requestId, ...restArgs } = raw;
     void _retiredIdentity;
+    // declaredWorktree routes by a local filesystem path, which only the local
+    // stdio/test transport can honor. Accepting it here would silently serve a
+    // different corpus than the caller asked for.
+    if (!allowDeclaredWorktree && restArgs.declaredWorktree !== undefined) {
+      return {
+        envelope: errorEnvelope(operation, requestId, "WORKTREE_ROUTING_UNSUPPORTED", "declaredWorktree is a local stdio/test transport capability; this hosted transport selects the corpus with the project argument instead", {
+          parameter: "declaredWorktree",
+          expected: "project (owner/project)",
+          receivedType: typeof restArgs.declaredWorktree,
+        }),
+      };
+    }
     const normalized = normalizeToolArguments(restArgs);
     if (!normalized.ok) {
       return { envelope: errorEnvelope(operation, requestId, normalized.error.code, normalized.error.message, { parameter: normalized.error.parameter }) };
     }
 
-    if (!roleAllows(ctx, operation, force)) {
+    if (!roleAllows(ctx, effectiveOperation(contract, normalized.args), force)) {
       const needed = force === true ? "owner" : "writer";
+      const gated = effectiveOperation(contract, normalized.args);
       return {
-        envelope: invalidRequest(operation, requestId, `${force === true ? "force" : operation} requires ${needed} role (caller role: ${ctx.role ?? "none"})`, {
+        envelope: invalidRequest(operation, requestId, `${force === true ? "force" : gated} requires ${needed} role (caller role: ${ctx.role ?? "none"})`, {
           parameter: force === true ? "force" : null,
           expected: needed,
           receivedSummary: ctx.role ?? null,
@@ -161,11 +223,18 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
 
     const isServiceOp = Object.hasOwn(serviceOps, contract.operation);
     const serviceEntry = isServiceOp ? serviceOps[contract.operation] : null;
-    const listing = isServiceOp && serviceEntry.listing === true;
-    // X-Spec-Project (from .mcp.json) supplies a per-client default scope —
-    // a hint only, still validated against ctx.scopes like an explicit arg.
-    const hinted = rawProject === undefined && typeof projectHint === "string" && projectHint.length > 0 ? projectHint : rawProject;
-    const resolved = resolveProject({ rawProject: hinted, ctx, operation, requestId, listing });
+    const variant = contract.discriminator ? contract.variants?.[normalized.args?.[contract.discriminator]] : null;
+    // A listing variant treats an absent project as "every project I may see";
+    // a targeted variant answers only for the selected project.
+    const listing = (variant ? variant.listing === true : serviceEntry?.listing === true);
+    // An explicit authorized project affects this call only. Otherwise the
+    // request-scoped project applies (the host's verified request context, then
+    // a per-request transport hint), and a call with neither falls back to the
+    // caller's existing default scope. No selection is ever stored.
+    const requestProject = typeof ctx.project === "string" && ctx.project.length > 0
+      ? ctx.project
+      : projectHint;
+    const resolved = resolveProject({ explicitProject: rawProject, requestProject, ctx, operation, requestId, listing });
     if (resolved.error) return { envelope: resolved.error };
 
     if (resolved.allScopes || !resolved.project) {
@@ -173,12 +242,25 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
         return { envelope: invalidRequest(operation, requestId, "project is required: the caller context has no default scope", { parameter: "project", expected: "owner/project" }) };
       }
     } else {
+      // Setup and preflight must answer for a project with no binding yet:
+      // they are how a caller completes (or repairs) setup.
+      const setupExempt = SETUP_EXEMPT_OPERATIONS.has(contract.operation) || variant?.setupExempt === true;
       try {
         mounts.requireConfigured(resolved.project);
         // An external-tenant project without a repo binding refuses here —
         // its specs must live in the customer's repo, never the operator's.
-        mounts.requireRepoReady?.(resolved.project);
+        if (!setupExempt) mounts.requireRepoReady?.(resolved.project);
       } catch (error) {
+        // Authorized but unknown to this service: an operator/config drift, not
+        // a missing document. Refuse with its own actionable diagnosis.
+        if (error?.code === "PROJECT_NOT_CONFIGURED") {
+          return {
+            envelope: errorEnvelope(operation, requestId, "PROJECT_NOT_CONFIGURED", `${error.message}; this service has no repository binding for it`, {
+              parameter: "project",
+              receivedSummary: resolved.project,
+            }),
+          };
+        }
         if (error?.code === "REPO_BINDING_REQUIRED" && !SETUP_EXEMPT_OPERATIONS.has(contract.operation)) {
           return {
             envelope: errorEnvelope(operation, requestId, "SETUP_REQUIRED", `${error.message}. Setup: ${setupCommand(resolved.project)}`, {
@@ -205,17 +287,35 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
     }
 
     if (isServiceOp) {
-      return serviceEntry.run({ args: argsForKernel, ctx, project: resolved.project ?? null, allScopes: resolved.allScopes === true, force, requestId, schemaVersion: raw.schemaVersion, contract });
+      const result = await serviceEntry.run({ args: argsForKernel, ctx, project: resolved.project ?? null, projectSource: resolved.source ?? null, allScopes: resolved.allScopes === true, force, requestId, schemaVersion: raw.schemaVersion, contract });
+      return stampResult(result, resolved.project, resolved.source);
     }
 
     const wrapper = wrappers[contract.operation];
     if (wrapper) {
-      const wrapped = await wrapper({ args: argsForKernel, ctx, project: resolved.project, force, requestId, schemaVersion: raw.schemaVersion, contract });
-      if (wrapped !== undefined && wrapped !== null) return wrapped;
+      const wrapped = await wrapper({ args: argsForKernel, ctx, project: resolved.project, projectSource: resolved.source ?? null, force, requestId, schemaVersion: raw.schemaVersion, contract });
+      if (wrapped !== undefined && wrapped !== null) {
+        return stampResult(wrapped, resolved.project, resolved.source);
+      }
     }
 
     const envelope = await mounts.serviceFor(resolved.project).runQuery(contract.operation, argsForKernel, { requestId, schemaVersion: raw.schemaVersion });
-    return { envelope };
+    return stampResult({ envelope }, resolved.project, resolved.source);
+  }
+
+  // Every scoped result reports the project that actually served it, through
+  // the one provenance contract (withServedProject in query-service). Service
+  // operations and wrappers return `{ envelope }`; kernel calls return the
+  // envelope itself, so accept both shapes here.
+  function stampResult(result, project, projectSource) {
+    const envelope = result && typeof result === "object" && result.envelope && typeof result.envelope === "object"
+      ? result.envelope
+      : result;
+    return {
+      envelope: { ...envelope, provenance: withServedProject(envelope?.provenance, project) },
+      project: project ?? null,
+      projectSource: projectSource ?? null,
+    };
   }
 
   function toolListPayload(ctx) {

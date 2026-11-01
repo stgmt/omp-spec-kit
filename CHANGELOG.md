@@ -2,6 +2,39 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.1.0 — 2026-11-01
+
+### Upgrade notes
+
+Breaking for existing setups; no compatibility path is kept.
+
+- Re-run the host installer with `--project owner/project`; it writes `<workspace>/.omp-spec-kit/project.json`. Without that record every spec call fails closed with `PROJECT_REQUIRED`.
+- `X-Spec-Project` and `OMP_SPEC_PROJECT` no longer select a project; passing `project` as a tool argument, or the session record, is the only supported route.
+- The first sync after upgrading rebuilds the board projection as v8; a v7 marker is not read.
+
+### Added
+
+- **Per-call project selection on the MCP boundary**: every hosted tool now advertises an optional `project` in the schema that generates `tools/list`, and the dispatcher resolves it per call — explicit argument, then request-scoped context, then the caller's default scope — so one connection serves several projects without a restart. Refusals are distinct and happen before any corpus access: `PROJECT_REQUIRED`, `PROJECT_NOT_ALLOWED`, `PROJECT_NOT_CONFIGURED`. The hosted transport rejects `declaredWorktree` with `WORKTREE_ROUTING_UNSUPPORTED`; the local stdio transport rejects a registry `project` with `PROJECT_CONTEXT_UNSUPPORTED`. Covered by `tests/service/http.test.mjs` (A/B/A on one connection, refusals, advertised schema) and `tests/service/project-not-configured.test.mjs`.
+- **`spec_repo` tool**: one discriminated tool over the existing repository services — `bind` and `unbind` are mutating variants with their own operation names (a reader is refused before any repository access), `probe` and `bindings` are read-only and scope-filtered. Setup no longer requires an out-of-band `POST /repos/bind`.
+- **Repo-local session project**: `<workspace>/.omp-spec-kit/project.json` (`omp-spec-kit/project-binding@1`). The installers now require `--project owner/project` and write that record for the workspace they configure; the OMP extension, OpenCode plugin, Codex hook and Claude `PreToolUse` hook read it per session and attach it to spec calls only, failing closed with `PROJECT_REQUIRED` when it is missing.
+- **Project-qualified board identity (projection v8)**: card ids are keyed `project\0spec`, so two projects may use the same spec slug and the same spec-local id without colliding; task-status writeback resolves its target from the card's own project. The v8 pointer is rebuilt from the mounts and the root index is published last; the migration is idempotent (second sync converges).
+
+### Changed
+
+- `mcp_preflight` reports five separate admission facts — connection, selected project and its source, repository binding, corpus presence, mutation readiness — instead of a root compared with itself; `matchesResolvedRoot` is gone and `rootId` is a hash, never a path.
+- Scoped results carry the project that actually served them through the single provenance owner (`withServedProject`).
+- Listing operations (`spec_registry`, `spec_drift`) are filtered to the caller's verified scopes, including repository URLs and drift events.
+- The setup warning distinguishes a configured endpoint from a bound workspace: a configured endpoint with no project record still warns, and the message names the record path and the binding call. The "restart the session" advice is removed.
+
+### Removed
+
+- The `X-Spec-Project` connection header, `OMP_SPEC_PROJECT` as a project selector, and the `stgmt/omp-spec-kit` installer default.
+- The flat `specProjects` slug-to-project routing map and the v7 marker read path; a pre-v8 marker is rebuilt from the mounts rather than read through a compatibility branch.
+
+### Verification
+
+`npm run build`, `npm run verify` (blast gate 26 220 / 27 000 bytes, 170/170 mutants killed, tools=10), `npm run test:unit` (508 tests, 0 fail), `npm run test:service` (98 tests, 0 fail, includes `project-scope` and `project-not-configured`), `npm run test:safe-authoring` (27 scenarios / 162 steps), `npm run test:staged` (66 scenarios / 396 steps), `npm run test:bdd` (Docker, 8 scenarios / 77 steps), `npm run dogfood:mcp:candidate` (10 tools), `npm run tool:e2e:live` (16 served tools against the live auth contour, `complete: true`), `npm run test:delivery-live` (6 scenarios / 57 steps on the live compose stack) on the same tree.
+
 ## 3.0.8 — 2026-11-01
 
 ### Fixed
@@ -571,10 +604,6 @@ Published safe-authoring release for OMP `18.0.11`; v0.3.2 remains the read-only
 - Adds deterministic proposal preview, approval-bound apply, document-level CAS, replay-safe receipts, rollback-on-failure, and strict `.specs` access gating.
 - Verifies a provenance-bound 45-document corpus, installed OMP manager execution, lifecycle install/upgrade/rollback producers, Docker BDD, nine closed MRI receipts, and digest-bound GitHub release assets.
 - Published release proof: `docs/validation/release-status-v0.4.0.json`.
-
-## Unreleased
-
-No unreleased changes recorded.
 
 ## 0.3.2 — 2026-08-28
 

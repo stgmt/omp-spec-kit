@@ -13,7 +13,9 @@ import { sanitizeRepoUrl } from "./mounts.js";
  * 503 (retryable) when YouTrack cannot be reached.
  */
 export function createServiceApp({ mounts, authenticate, serviceOps = {}, serviceContracts = [], wrappers = {}, endpoints = {}, audit }) {
-  const dispatcher = createDispatcher({ mounts, serviceOps, serviceContracts, wrappers });
+  // The hosted transport selects a corpus by project only: a local worktree
+  // path is refused rather than silently routed.
+  const dispatcher = createDispatcher({ mounts, serviceOps, serviceContracts, wrappers, allowDeclaredWorktree: false });
 
   const app = express();
   app.disable("x-powered-by");
@@ -287,7 +289,7 @@ function wireProtocolHandlers(server, dispatcher, ctx, audit, { projectHint } = 
     if (typeof name !== "string") {
       throw Object.assign(new Error("Unknown tool: <missing>"), { code: -32602 });
     }
-    const { envelope, unknownTool } = await dispatcher.callTool({ tool: name, args: rawArguments, ctx, projectHint });
+    const { envelope, unknownTool, project: servedProject } = await dispatcher.callTool({ tool: name, args: rawArguments, ctx, projectHint });
     if (unknownTool) {
       throw Object.assign(new Error(`Unknown tool: ${name}`), { code: -32602 });
     }
@@ -297,7 +299,7 @@ function wireProtocolHandlers(server, dispatcher, ctx, audit, { projectHint } = 
           tenant: Array.isArray(ctx?.tenant) ? ctx.tenant.join(",") : ctx?.tenant ?? null,
           login: ctx?.identity?.login ?? null,
           role: ctx?.role ?? null,
-          project: typeof rawArguments?.project === "string" ? rawArguments.project : null,
+          project: servedProject ?? null,
           op: name,
           spec: typeof rawArguments?.spec === "string" ? rawArguments.spec : null,
           requestId: typeof rawArguments?.requestId === "string" ? rawArguments.requestId : null,

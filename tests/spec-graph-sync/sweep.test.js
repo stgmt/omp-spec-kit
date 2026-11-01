@@ -2,9 +2,14 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { planStatusSweep, StatusSweepService } from "../../src/adapters/youtrack-status-sweep.js";
 
+// Cards are keyed project::canonicalId; the kernel ids stay bare.
+const P = "demo/stack";
+const k = (canonicalId) => P + "::" + canonicalId;
+
 function taskNode(canonicalId, taskStatus) {
   return {
     canonicalId,
+    project: P,
     specSlug: canonicalId.split(":")[0],
     localId: canonicalId.split(":")[1],
     kind: "TASK",
@@ -38,9 +43,9 @@ describe("planStatusSweep three-way merge", () => {
     const { plan, warnings } = planStatusSweep({
       board: board([["demo:TASK-1", "todo"]]),
       snapshot: snapshotFrom([["demo:TASK-1", "todo"]]),
-      trackerCards: [{ specId: "demo:TASK-1", state: "Fixed", issueId: "3-1" }],
+      trackerCards: [{ specId: k("demo:TASK-1"), state: "Fixed", issueId: "3-1" }],
     });
-    assert.deepEqual(plan, [{ specId: "demo:TASK-1", status: "done", fromState: "Fixed", issueId: "3-1" }]);
+    assert.deepEqual(plan, [{ specId: k("demo:TASK-1"), status: "done", fromState: "Fixed", issueId: "3-1" }]);
     assert.equal(warnings.length, 0);
   });
 
@@ -48,7 +53,7 @@ describe("planStatusSweep three-way merge", () => {
     const { plan } = planStatusSweep({
       board: board([["demo:TASK-1", "done"]]),
       snapshot: snapshotFrom([["demo:TASK-1", "todo"]]),
-      trackerCards: [{ specId: "demo:TASK-1", state: "Open", issueId: "3-1" }],
+      trackerCards: [{ specId: k("demo:TASK-1"), state: "Open", issueId: "3-1" }],
     });
     assert.equal(plan.length, 0);
   });
@@ -57,7 +62,7 @@ describe("planStatusSweep three-way merge", () => {
     const { plan, warnings } = planStatusSweep({
       board: board([["demo:TASK-1", "done"]]),
       snapshot: snapshotFrom([["demo:TASK-1", "planned"]]),
-      trackerCards: [{ specId: "demo:TASK-1", state: "In Progress", issueId: "3-1" }],
+      trackerCards: [{ specId: k("demo:TASK-1"), state: "In Progress", issueId: "3-1" }],
     });
     assert.equal(plan.length, 0);
     assert.equal(warnings[0].reason, "both sides diverged; spec wins");
@@ -67,7 +72,7 @@ describe("planStatusSweep three-way merge", () => {
     const { plan, warnings } = planStatusSweep({
       board: board([["demo:TASK-1", "planned"]]),
       snapshot: snapshotFrom([]),
-      trackerCards: [{ specId: "demo:TASK-1", state: "Fixed", issueId: "3-1" }],
+      trackerCards: [{ specId: k("demo:TASK-1"), state: "Fixed", issueId: "3-1" }],
     });
     assert.equal(plan.length, 0);
     assert.equal(warnings[0].reason, "no committed baseline; spec wins");
@@ -77,7 +82,7 @@ describe("planStatusSweep three-way merge", () => {
     const { plan, warnings } = planStatusSweep({
       board: board([["demo:TASK-1", "in-progress"]]),
       snapshot: snapshotFrom([["demo:TASK-1", "in-progress"]]),
-      trackerCards: [{ specId: "demo:TASK-1", state: "Open", issueId: "3-1" }],
+      trackerCards: [{ specId: k("demo:TASK-1"), state: "Open", issueId: "3-1" }],
     });
     assert.equal(plan.length, 0);
     assert.equal(warnings[0].reason, "spec status not representable in tracker; spec wins");
@@ -87,7 +92,7 @@ describe("planStatusSweep three-way merge", () => {
     const { plan, warnings } = planStatusSweep({
       board: board([["demo:TASK-1", "done"]]),
       snapshot: snapshotFrom([["demo:TASK-1", "todo"]]),
-      trackerCards: [{ specId: "demo:TASK-1", state: "Open", issueId: "3-1" }],
+      trackerCards: [{ specId: k("demo:TASK-1"), state: "Open", issueId: "3-1" }],
     });
     assert.equal(plan.length, 0);
     assert.equal(warnings[0].reason, "spec diverged from baseline; spec wins");
@@ -98,8 +103,8 @@ describe("planStatusSweep three-way merge", () => {
       board: board([["demo:TASK-1", "todo"], ["demo:TASK-2", "todo"]]),
       snapshot: snapshotFrom([["demo:TASK-1", "todo"], ["demo:TASK-2", "todo"]]),
       trackerCards: [
-        { specId: "demo:TASK-1", state: "Won't fix", issueId: "3-1" },
-        { specId: "demo:TASK-2", state: "Open", issueId: "3-2" },
+        { specId: k("demo:TASK-1"), state: "Won't fix", issueId: "3-1" },
+        { specId: k("demo:TASK-2"), state: "Open", issueId: "3-2" },
       ],
     });
     assert.equal(plan.length, 0);
@@ -112,12 +117,12 @@ describe("planStatusSweep three-way merge", () => {
       board: board([["demo:TASK-9", "todo"], ["demo:TASK-2", "todo"], ["demo:TASK-10", "done"]]),
       snapshot: snapshotFrom([["demo:TASK-9", "todo"], ["demo:TASK-2", "todo"], ["demo:TASK-10", "done"]]),
       trackerCards: [
-        { specId: "demo:TASK-9", state: "Fixed", issueId: "3-9" },
-        { specId: "demo:TASK-2", state: "Verified", issueId: "3-2" },
-        { specId: "demo:TASK-10", state: "Reopened", issueId: "3-10" },
+        { specId: k("demo:TASK-9"), state: "Fixed", issueId: "3-9" },
+        { specId: k("demo:TASK-2"), state: "Verified", issueId: "3-2" },
+        { specId: k("demo:TASK-10"), state: "Reopened", issueId: "3-10" },
       ],
     });
-    assert.deepEqual(plan.map((entry) => entry.specId), ["demo:TASK-2", "demo:TASK-9", "demo:TASK-10"]);
+    assert.deepEqual(plan.map((entry) => entry.specId), [k("demo:TASK-2"), k("demo:TASK-9"), k("demo:TASK-10")]);
     assert.deepEqual(plan.map((entry) => entry.status), ["done", "done", "todo"]);
   });
 });
@@ -147,7 +152,7 @@ describe("StatusSweepService", () => {
   }
 
   it("applies pending tracker-driven changes through the governed port", async () => {
-    const cards = [{ specId: "demo:TASK-1", state: "Fixed", issueId: "3-1" }];
+    const cards = [{ specId: k("demo:TASK-1"), state: "Fixed", issueId: "3-1" }];
     const p = ports({
       boardData: board([["demo:TASK-1", "todo"]]),
       committed: { valid: true, snapshot: snapshotFrom([["demo:TASK-1", "todo"]]), cardIds: cardIdsFor(cards) },
@@ -155,34 +160,34 @@ describe("StatusSweepService", () => {
     });
     const service = new StatusSweepService(p);
     const result = await service.sweep();
-    assert.deepEqual(p.calls, [{ specId: "demo:TASK-1", status: "done" }]);
+    assert.deepEqual(p.calls, [{ specId: k("demo:TASK-1"), status: "done" }]);
     assert.equal(result.applied.length, 1);
     assert.equal(result.failed.length, 0);
   });
 
   it("contains per-item failures so one wedged patch never kills the sweep", async () => {
     const cards = [
-      { specId: "demo:TASK-1", state: "Fixed", issueId: "3-1" },
-      { specId: "demo:TASK-2", state: "Fixed", issueId: "3-2" },
+      { specId: k("demo:TASK-1"), state: "Fixed", issueId: "3-1" },
+      { specId: k("demo:TASK-2"), state: "Fixed", issueId: "3-2" },
     ];
     const p = ports({
       boardData: board([["demo:TASK-1", "todo"], ["demo:TASK-2", "todo"]]),
       committed: { valid: true, snapshot: snapshotFrom([["demo:TASK-1", "todo"], ["demo:TASK-2", "todo"]]), cardIds: cardIdsFor(cards) },
       cards,
-      failSpecIds: ["demo:TASK-1"],
+      failSpecIds: [k("demo:TASK-1")],
     });
     const service = new StatusSweepService(p);
     const result = await service.sweep();
     assert.equal(result.applied.length, 1);
     assert.equal(result.failed.length, 1);
-    assert.equal(result.failed[0].specId, "demo:TASK-1");
+    assert.equal(result.failed[0].specId, k("demo:TASK-1"));
   });
 
   it("treats a missing committed pointer as spec-wins for everything", async () => {
     const p = ports({
       boardData: board([["demo:TASK-1", "todo"]]),
       committed: { valid: false },
-      cards: [{ specId: "demo:TASK-1", state: "Fixed", issueId: "3-1" }],
+      cards: [{ specId: k("demo:TASK-1"), state: "Fixed", issueId: "3-1" }],
     });
     const service = new StatusSweepService(p);
     const result = await service.sweep();
@@ -192,8 +197,8 @@ describe("StatusSweepService", () => {
   it("ignores cards the committed snapshot does not own", async () => {
     const p = ports({
       boardData: board([["demo:TASK-1", "todo"]]),
-      committed: { valid: true, snapshot: snapshotFrom([["demo:TASK-1", "todo"]]), cardIds: { "demo:TASK-1": "SPEC-9" } },
-      cards: [{ specId: "demo:TASK-1", state: "Fixed", issueId: "3-1", idReadable: "SPEC-1" }],
+      committed: { valid: true, snapshot: snapshotFrom([["demo:TASK-1", "todo"]]), cardIds: { [k("demo:TASK-1")]: "SPEC-9" } },
+      cards: [{ specId: k("demo:TASK-1"), state: "Fixed", issueId: "3-1", idReadable: "SPEC-1" }],
     });
     const service = new StatusSweepService(p);
     const result = await service.sweep();

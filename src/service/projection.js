@@ -2,6 +2,7 @@ import {
   PROJECTION_VERSION,
   YouTrackProjectionService,
   buildProjectionPlan,
+  cardKey,
   digest,
 } from "../adapters/youtrack-projection.js";
 import {
@@ -65,19 +66,21 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
   // One board per configured project, merged into a single projection surface:
   // the tracker project holds cards for every spec regardless of which mount
   // served it, and the snapshot fingerprint aggregates per-board fingerprints
-  // so any mount's content move flips it. mountHeads/specProjects/skippedProjects
-  // are recorded alongside so the cheap path and the writeback listener can
-  // reason about the same layout without rebuilding the board.
+  // so any mount's content move flips it. mountHeads/skippedProjects are
+  // recorded alongside so the cheap path can reason about the same layout
+  // without rebuilding the board; per-node project tags carry ownership.
   async function mergedBoard() {
     const nodes = [];
     const edges = [];
     const fingerprints = [];
-    const specSlugs = [];
+    const slugOwners = new Map();
+    const slugs = [];
     // Null-prototype maps: spec slugs like "constructor"/"__proto__" are legal
     // (SPEC_SLUG_RE allows them) and must not collide with Object.prototype
-    // members on the ownership/routing checks below.
+    // members on the ownership checks below.
     const mountHeads = Object.create(null);
-    const specProjects = Object.create(null);
+    // specProjects removed: flat slug-to-project routing map deleted (see v8).
+    // Identity is qualified at the shared boundary as (project, canonicalId).
     const projectBoards = Object.create(null);
     const skippedProjects = [];
     const nodeProjects = new Map();
@@ -107,27 +110,32 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
       // projection units that map to SPEC:SYNC-STATE:<project>.
       projectBoards[projectId] = board;
       for (const node of board.nodes) {
-        // The same canonicalId from two mounts would wedge the sync on
-        // "duplicate node identity" later — name the colliding projects here
-        // so the operator sees who serves the duplicated slug.
-        const seen = nodeProjects.get(node.canonicalId);
-        if (seen !== undefined && seen !== projectId) {
+        // Same-project duplicate internal identity is still a defect: two nodes
+        // with one canonicalId inside one corpus cannot both own the same card.
+        // The key is project-qualified, so the same canonicalId served by two
+        // different projects is legal and both are kept on the aggregate.
+        const key = cardKey(projectId, node.canonicalId);
+        const seen = nodeProjects.get(key);
+        if (seen !== undefined) {
           throw new Error(`duplicate spec node ${node.canonicalId} is served by both ${seen} and ${projectId}`);
         }
-        nodeProjects.set(node.canonicalId, projectId);
+        nodeProjects.set(key, projectId);
       }
-      nodes.push(...board.nodes);
-      edges.push(...board.edges);
+      // Project is part of every aggregate entry: the tracker boundary keys a
+      // card by project + canonicalId, and spec-local ids stay untouched.
+      nodes.push(...board.nodes.map((node) => ({ ...node, project: projectId })));
+      edges.push(...board.edges.map((edge) => ({ ...edge, project: projectId })));
       fingerprints.push(board.fingerprint);
       for (const slug of board.scope?.specSlugs ?? []) {
-        // A slug claimed by two mounts makes writeback routing ambiguous:
-        // specProjects would silently keep whichever mount iterated first.
-        const owner = specProjects[slug];
-        if (owner !== undefined && owner !== projectId) {
+        // Same-project duplicate slug is still a defect (one corpus cannot
+        // claim a slug twice); two projects using the same slug coexist.
+        const key = cardKey(projectId, slug);
+        const owner = slugOwners.get(key);
+        if (owner !== undefined) {
           throw new Error(`spec ${slug} is served by both ${owner} and ${projectId}`);
         }
-        specSlugs.push(slug);
-        specProjects[slug] = projectId;
+        slugOwners.set(key, projectId);
+        slugs.push(slug);
       }
       // HEAD is sampled BEFORE and AFTER the board read: a writepath push or
       // reconcile landing between them would otherwise record a HEAD newer
@@ -140,15 +148,13 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
       mountHeads[projectId] = headBefore;
     }
     fingerprints.sort();
-    specSlugs.sort();
     skippedProjects.sort();
-    // A v7 marker is complete: every served slug has a project. The list is a
-    // guard for an inconsistent mount set and feeds the Unassigned bucket in
-    // the committed index (normally empty).
-    const unassignedSlugs = specSlugs.filter((slug) => !Object.hasOwn(specProjects, slug));
+    // Scope lists each served slug once; project ownership is carried per node
+    // and per card key, so a slug shared by two projects is not "unassigned".
+    const uniqueSlugs = [...new Set(slugs)].sort();
     return {
       fingerprint: digest({ boards: fingerprints }),
-      scope: { mode: "corpus", specSlugs },
+      scope: { mode: "corpus", specSlugs: uniqueSlugs },
       complete: true,
       page: null,
       nodes,
@@ -156,9 +162,7 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
       counts: { nodes: nodes.length, edges: edges.length },
       mountHeads,
       mountsClean,
-      specProjects,
       projectBoards,
-      unassignedSlugs,
       skippedProjects,
     };
   }
@@ -252,9 +256,9 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
       return {
         ...result,
         // Diagnostics for the per-project pointer publication: the projection
-        // units this run built from the mounts.
+        // units this run built from the mounts. Every served node carries its
+        // project, so the aggregate has no unassigned bucket.
         projects: Object.keys(board.projectBoards).sort(),
-        unassigned: board.unassignedSlugs,
       };
     } catch (error) {
       // A deleted/recreated tracker project invalidates the cached id —
@@ -278,7 +282,6 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
           fingerprint: result.fingerprint ?? null,
           writeCalls: result.writeCalls ?? 0,
           projects: result.projects ?? null,
-          unassigned: result.unassigned ?? null,
         };
       } catch (error) {
         lastResult = { at: new Date().toISOString(), ok: false, error: String(error?.message ?? error).split("\n")[0] };

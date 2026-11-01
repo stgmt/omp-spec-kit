@@ -217,7 +217,7 @@ export class MountManager {
   }
 
   bindingRequired(projectId) {
-    const error = new Error(`project ${projectId} has no specs repository — bind one via POST /repos/bind before reading or writing specs`);
+    const error = new Error(`project ${projectId} has no specs repository — call spec_repo {"action":"bind","project":"${projectId}","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"} before reading or writing specs`);
     error.code = "REPO_BINDING_REQUIRED";
     return error;
   }

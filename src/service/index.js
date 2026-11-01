@@ -7,6 +7,7 @@ import { createServiceApp } from "./http.js";
 import { createClaimStore } from "./claims.js";
 import { createClaimOps, CLAIM_CONTRACTS } from "./ops/claim.js";
 import { createRegistryOps, REGISTRY_CONTRACTS } from "./ops/registry.js";
+import { createRepoOps, REPO_CONTRACTS } from "./ops/repos.js";
 import { createWritePipeline } from "./writepath.js";
 import { createStore } from "./ledger.js";
 import { buildRegistryIndex } from "./registry.js";
@@ -21,7 +22,7 @@ import { createRepoManager } from "./repos.js";
 import { createIdpManager } from "./idps.js";
 import { createSpecBranchManager } from "./spec-branches.js";
 import { BRANCH_CONTRACTS, createBranchOps } from "./ops/branch.js";
-import { serviceErrorEnvelope, serviceSuccess } from "./dispatch.js";
+import { serviceErrorEnvelope, serviceSuccess, setupAction } from "./dispatch.js";
 import { secretsKeyFromEnv, sealSecret } from "./secrets.js";
 export async function bootService({ configPath, cloneDir, git = new GitClient(), identity, store: storeOption = null, secretsKey = null, logger = () => {} }) {
   const config = await loadProjectsConfig(configPath);
@@ -107,12 +108,13 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   });
   const claims = createClaimStore({ store });
   const claimOps = createClaimOps({ claims });
-  const registryIndex = () => buildRegistryIndex({ mounts, claims, ledger: store ?? { getLedger: () => [] } });
-  const driftReport = async () => {
-    // A drift report is only honest against freshly fetched remotes — every
-    // bound mirror is fetched and every canonical spec branch checked.
+  const registryIndex = ({ projects } = {}) => buildRegistryIndex({ mounts, claims, ledger: store ?? { getLedger: () => [] }, projects });
+  // A drift report is only honest against freshly fetched remotes — every
+  // bound mirror is fetched and every canonical spec branch checked. The
+  // caller's project scope bounds which mirrors that walk may touch.
+  const driftReport = async ({ projects } = {}) => {
     const events = [];
-    for (const projectId of mounts.projects) {
+    for (const projectId of projects ?? mounts.projects) {
       let discovered;
       try {
         discovered = await mounts.discoverProject(projectId);
@@ -141,13 +143,23 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     }
     // Publish rejections are drift too: a version squatted by different
     // content must surface next to non-bot commits, not only in access_log.
+    const scoped = Array.isArray(projects) ? new Set(projects) : null;
     const rejections = store?.listAccess?.({ resultPrefix: "publish-rejected:", limit: 50 }) ?? [];
     for (const entry of rejections) {
+      if (scoped !== null && !scoped.has(entry.project)) continue;
       events.push({ kind: "publish-rejected", spec: entry.spec, project: entry.project, detail: entry.result, detectedAt: entry.ts });
     }
     return { events, branch: null };
   };
-  const registryOps = createRegistryOps({ registryIndex, driftReport, branch: null });
+  const repoOps = createRepoOps({ repos });
+  const registryOps = createRegistryOps({
+    registryIndex,
+    driftReport,
+    branch: null,
+    // Setup visibility for a listing caller: its own projects and their
+    // binding state, never another tenant's repository.
+    repositoryStatus: (ctx) => repos.me(ctx).repos,
+  });
   const publisher = store ? createPublisher({ mounts, store, identity, logger }) : null;
   const branchManager = createSpecBranchManager({
     mounts,
@@ -186,19 +198,46 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
       };
     }
   };
-  const preflightSetup = async ({ args, project, requestId, schemaVersion }) => {
+  // Admission facts for the project that actually served this call: connection,
+  // selected project, repository binding, corpus availability and write
+  // readiness are reported separately. The served project is carried by the
+  // response provenance (withServedProject) instead of a second data field.
+  const preflightSetup = async ({ args, project, projectSource = null, requestId, schemaVersion }) => {
     const row = store?.getBinding?.(project) ?? null;
-    if (row?.status !== "active") {
-      const command = `POST /repos/bind {"project":"${project}","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}`;
+    const ready = row?.status === "active" || (row?.status === "migrating" && Boolean(row.migratedFrom));
+    const bindingStatus = typeof row?.status === "string" ? row.status : "required";
+    if (!ready) {
+      // An agent must be able to finish setup over MCP: the typed call comes
+      // first, and the operator HTTP path is kept only as a labelled fallback.
+      const operatorCommand = `POST /repos/bind {"project":"${project}","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}`;
       return {
         envelope: serviceSuccess("mcpPreflight", requestId, {
-          project,
-          setup: { required: true, code: "REPO_BINDING_REQUIRED", command },
+          kind: "mcp-preflight",
+          connection: { healthy: true, transport: "http" },
+          project: { selected: project, source: projectSource, selectedByCaller: (projectSource ?? null) === "explicit" },
+          repository: { binding: bindingStatus, rootId: null },
+          worktree: { transport: "http", declared: false },
+          corpus: { present: false, available: false },
+          setup: {
+            required: true,
+            code: "REPO_BINDING_REQUIRED",
+            action: setupAction(project),
+            operator: { label: "operator HTTP path", command: operatorCommand },
+            command: operatorCommand,
+          },
+          mutationReady: false,
         }),
       };
     }
-    const base = await mounts.serviceFor(project).runQuery("mcpPreflight", args, { requestId, schemaVersion });
-    return { envelope: { ...base, data: { ...(base.data ?? {}), project, setup: { required: false, code: null, command: null } } } };
+    const base = await mounts.serviceFor(project).runQuery("mcpPreflight", args, {
+      requestId,
+      schemaVersion,
+      project,
+      projectSource,
+      transport: "http",
+      bindingStatus,
+    });
+    return { envelope: { ...base, data: { ...(base.data ?? {}), setup: { required: false, code: null, action: null, operator: null, command: null } } } };
   };
   const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher, projection, branchManager });
   const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger, idps: { list: () => idpManager.listActiveIdps() } });
@@ -234,8 +273,9 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
       specRegistry: registryOps.specRegistry,
       specDrift: registryOps.specDrift,
       specBranch: branchOps.specBranch,
+      specRepo: repoOps.specRepo,
     },
-    serviceContracts: [...CLAIM_CONTRACTS, ...REGISTRY_CONTRACTS, ...BRANCH_CONTRACTS],
+    serviceContracts: [...CLAIM_CONTRACTS, ...REGISTRY_CONTRACTS, ...BRANCH_CONTRACTS, ...REPO_CONTRACTS],
     wrappers: { specPatch: writePath.specPatch, documents: versionedReads, catalog: catalogBranches, mcpPreflight: preflightSetup },
     endpoints: {
       registry: () => registryIndex(),

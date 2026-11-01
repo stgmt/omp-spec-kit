@@ -31,6 +31,8 @@ import {
   stableJson,
   validateWritebackEvent,
   digest,
+  cardKey,
+  cardKeyProject,
 } from "../src/adapters/youtrack-projection.js";
 import {
   YouTrackClient,
@@ -212,15 +214,17 @@ export class McpTaskStatusWriteback {
   }
 
   setSpecTaskStatus({ specId, status }) {
-    const separator = typeof specId === "string" ? specId.indexOf(":") : -1;
-    if (separator <= 0 || separator === specId.length - 1) throw new TypeError("specId must be specSlug:localId");
+    const keyProject = cardKeyProject(specId);
+    const bare = keyProject === null ? specId : specId.slice(keyProject.length + 2);
+    const separator = typeof bare === "string" ? bare.indexOf(":") : -1;
+    if (separator <= 0 || separator === bare.length - 1) throw new TypeError("specId must be project::specSlug:localId");
     if (!Object.prototype.hasOwnProperty.call(STATUS_MAP, status)) throw new TypeError("status must be planned, todo, or done");
     return this.#client.callTool("spec_patch", {
       requestId: "youtrack-writeback-" + Date.now(),
       reason: "YouTrack task status writeback for " + specId,
-      spec: specId.slice(0, separator),
+      spec: bare.slice(0, separator),
       intent: "setEntityStatus",
-      entity: specId.slice(separator + 1),
+      entity: bare.slice(separator + 1),
       status,
       dryRun: false,
     }).then((data) => ({ writeCalls: 1, data }));
@@ -295,77 +299,56 @@ class HttpMcpClient {
 }
 
 /**
- * Board reader over the registry service: the committed marker's specProjects
- * map names the serving mount for each spec slug, so the merged board is one
- * spec_graph call per project — the same shape the service-side projection
- * builds internally.
+ * Board reader over the registry service: the committed root index names each
+ * project pointer, so the merged board is one spec_graph call per project —
+ * the same shape the service-side projection builds internally. Every node and
+ * edge is returned with its `project`; spec-local ids stay unqualified.
  */
 export class HttpBoardReader {
   #client;
-  #specProjects;
+  #projects;
 
-  constructor({ client, specProjects }) {
+  constructor({ client, projects }) {
     this.#client = client;
-    this.#specProjects = specProjects;
+    this.#projects = projects;
   }
 
   async readBoard({ specSlugs = [] } = {}) {
-    const map = await this.#specProjects();
-    const projects = [...new Set(Object.values(map))].sort();
+    const listed = (await this.#projects()) ?? [];
+    const projects = [...new Set(listed.filter((id) => typeof id === "string" && id !== ""))].sort();
     const nodes = [];
     const edges = [];
     const fingerprints = [];
-    const slugs = [];
+    const slugs = new Set();
     const seen = new Map();
-    const served = Object.create(null);
     const projectBoards = Object.create(null);
-    // No v3 specProjects (pre-upgrade marker, or the token scopes a single
-    // corpus): one board call without a project hint covers that case.
-    const targets = projects.length > 0 ? projects : [null];
-    for (const project of targets) {
-      const args = { view: "board", specSlugs };
-      if (project) args.project = project;
-      const board = await this.#client.callTool("spec_graph", args);
-      if (project) projectBoards[project] = board;
+    for (const project of projects) {
+      const board = await this.#client.callTool("spec_graph", { view: "board", specSlugs, project });
+      projectBoards[project] = board;
       for (const node of board?.nodes ?? []) {
-        // Same collision contract as the service-side mergedBoard: a canonicalId
-        // or spec slug claimed by two mounts makes writeback routing ambiguous —
-        // failing beats silently re-signing an arbitrary winner into the marker.
-        const nodeOwner = seen.get(node.canonicalId);
-        if (nodeOwner !== undefined && nodeOwner !== project) {
+        // Same-project duplicate identity is still a defect; the same
+        // canonicalId under two different projects coexists (qualified key).
+        const key = cardKey(project, node.canonicalId);
+        const nodeOwner = seen.get(key);
+        if (nodeOwner !== undefined) {
           throw new Error(`duplicate spec node ${node.canonicalId} is served by both ${nodeOwner} and ${project}`);
         }
-        if (nodeOwner === project) continue; // same board emitted the node twice
-        seen.set(node.canonicalId, project);
-        nodes.push(node);
+        seen.set(key, project);
+        nodes.push({ ...node, project });
       }
-      edges.push(...(board?.edges ?? []));
+      for (const edge of board?.edges ?? []) edges.push({ ...edge, project });
       if (typeof board?.fingerprint === "string") fingerprints.push(board.fingerprint);
-      for (const slug of board?.scope?.specSlugs ?? []) {
-        slugs.push(slug);
-        if (project) {
-          const slugOwner = served[slug];
-          if (slugOwner !== undefined && slugOwner !== project) {
-            throw new Error(`spec ${slug} is served by both ${slugOwner} and ${project}`);
-          }
-          served[slug] = project;
-        }
-      }
+      for (const slug of board?.scope?.specSlugs ?? []) slugs.add(slug);
     }
     fingerprints.sort();
-    slugs.sort();
     return {
       fingerprint: digest({ boards: fingerprints }),
-      scope: { mode: "corpus", specSlugs: slugs },
+      scope: { mode: "corpus", specSlugs: [...slugs].sort() },
       complete: true,
       page: null,
       nodes,
       edges,
       counts: { nodes: nodes.length, edges: edges.length },
-      // The marker must keep a usable specProjects map — publishCommitted signs
-      // whatever the board carries, so a reader that fetched per-project boards
-      // re-derives the routing table instead of nulling it out.
-      ...(Object.keys(served).length > 0 ? { specProjects: served } : {}),
       ...(Object.keys(projectBoards).length > 0 ? { projectBoards } : {}),
     };
   }
@@ -375,36 +358,36 @@ export class HttpBoardReader {
  * Status writeback over the registry write path: the spec_patch lands as a
  * real bot commit + push, so the next projection run sees the status the
  * tracker already holds instead of reverting the card back.
+ *
+ * The target project comes from the card identity itself — the qualified key
+ * `project::specSlug:localId`, or an explicitly supplied `project` — never
+ * from a slug lookup that could pick another project's mount.
  */
 export class HttpTaskStatusWriteback {
   #client;
-  #specProjects;
 
-  constructor({ client, specProjects }) {
+  constructor({ client }) {
     this.#client = client;
-    this.#specProjects = specProjects;
   }
 
-  async setSpecTaskStatus({ specId, status }) {
-    const separator = typeof specId === "string" ? specId.indexOf(":") : -1;
-    if (separator <= 0 || separator === specId.length - 1) throw new TypeError("specId must be specSlug:localId");
+  async setSpecTaskStatus({ specId, status, project }) {
+    const keyProject = cardKeyProject(specId);
+    const bare = keyProject === null ? specId : specId.slice(keyProject.length + 2);
+    const separator = typeof bare === "string" ? bare.indexOf(":") : -1;
+    if (separator <= 0 || separator === bare.length - 1) throw new TypeError("specId must be project::specSlug:localId or specSlug:localId + project");
     if (!Object.prototype.hasOwnProperty.call(STATUS_MAP, status)) throw new TypeError("status must be planned, todo, or done");
-    const spec = specId.slice(0, separator);
-    const map = await this.#specProjects();
-    const project = map[spec];
-    if (typeof project !== "string" || project === "") {
-      throw new Error(
-        "cannot resolve the serving project for " + spec +
-          " — the committed marker predates specProjects (v3); run one service sync first",
-      );
+    const target = keyProject ?? (typeof project === "string" && project !== "" ? project : null);
+    if (target === null) {
+      throw new Error("cannot resolve the serving project for " + bare + ": card identity carries no project (expected project::specSlug:localId)");
     }
+    const spec = bare.slice(0, separator);
     return this.#client.callTool("spec_patch", {
       requestId: "youtrack-writeback-" + Date.now(),
       reason: "YouTrack task status writeback for " + specId,
       spec,
-      project,
+      project: target,
       intent: "setEntityStatus",
-      entity: specId.slice(separator + 1),
+      entity: bare.slice(separator + 1),
       status,
       dryRun: false,
     }).then((data) => ({ writeCalls: 1, data }));
@@ -643,9 +626,13 @@ async function handleWritebackRequest(req, res, { client, sourceReader, syncStat
       throw new HttpError(409, "card is not owned by the committed snapshot");
     }
     const board = await sourceReader.readBoard({});
-    const node = (board?.nodes ?? []).find((entry) => entry?.canonicalId === event.specId && entry.kind === "TASK");
+    const node = (board?.nodes ?? []).find(
+      (entry) => entry?.kind === "TASK" && cardKey(entry.project, entry.canonicalId) === event.specId,
+    );
     if (!node) return { applied: false, reason: "no such task in the spec corpus; spec wins" };
-    const baseline = (committed.snapshot?.nodes ?? []).find((entry) => entry?.canonicalId === event.specId && entry.kind === "TASK");
+    const baseline = (committed.snapshot?.nodes ?? []).find(
+      (entry) => entry?.kind === "TASK" && cardKey(entry.project, entry.canonicalId) === event.specId,
+    );
     const decision = planCardWriteback({
       specId: event.specId,
       specStatus: node.taskStatus ?? null,
@@ -858,24 +845,25 @@ async function main() {
     projectShortName: project.shortName,
     markerSecret: ensureMarkerSecret(),
   });
-  // specSlug -> projectId comes from the committed v3 marker: the writeback
-  // routes each spec_patch to the mount that actually owns the spec.
-  const specProjectsProvider = async () => {
+  // The committed root index names every project pointer: that list is the
+  // fan-out for per-project reads. Post-writeback routing never reads this —
+  // a card's own qualified specId names its project.
+  const projectListProvider = async () => {
     const committed = await state.readCommitted();
-    return committed?.valid === true && committed.specProjects && typeof committed.specProjects === "object"
-      ? committed.specProjects
-      : {};
+    return committed?.valid === true && Array.isArray(committed.projects)
+      ? committed.projects.map((entry) => entry?.id).filter((id) => typeof id === "string" && id !== "")
+      : [];
   };
   const httpClient = httpMode
     ? new HttpMcpClient({ baseUrl: args.registryUrl, token: args.agentToken, project: args.registryProject })
     : null;
   const sourceReader = httpMode
-    ? new HttpBoardReader({ client: httpClient, specProjects: specProjectsProvider })
+    ? new HttpBoardReader({ client: httpClient, projects: projectListProvider })
     : new McpBoardReader({ root });
   const tracker = new YouTrackProjectionStore({ client, projectId: project.id, projectShortName: project.shortName });
   if (args.serve) {
     const writeback = httpMode
-      ? new HttpTaskStatusWriteback({ client: httpClient, specProjects: specProjectsProvider })
+      ? new HttpTaskStatusWriteback({ client: httpClient })
       : new McpTaskStatusWriteback({ root });
     const sweep = new StatusSweepService({ sourceReader, tracker, syncState: state, writeback });
     startServe({

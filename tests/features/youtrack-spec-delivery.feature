@@ -54,4 +54,5 @@ Feature: YouTrack Spec Graph delivery and setup
     When a session starts
     Then one bounded warning names the next action
     And it does not block and contains no secrets
-    And a configured project stays silent
+    And a configured endpoint warns until the workspace is bound
+    And a configured and bound project stays silent

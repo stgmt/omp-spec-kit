@@ -15,8 +15,10 @@ function firstLine(text, limit = 400) {
   return String(text ?? "").trim().split(/\r?\n/u)[0].slice(0, limit);
 }
 
-function runInstaller({ script, token, url, repoRoot, run }) {
-  return run(process.execPath, [path.join(repoRoot, script), "--url", url], {
+function runInstaller({ script, token, url, repoRoot, project, workspace, run }) {
+  // The installer refuses without --project: the repo-local record is the only
+  // place a session's project lives, so the guard phase must name it.
+  return run(process.execPath, [path.join(repoRoot, script), "--url", url, "--project", project, "--workspace", workspace], {
     env: { ...process.env, OMP_SPEC_REGISTRY_TOKEN: token },
     encoding: "utf8",
     timeout: 120_000,
@@ -36,6 +38,8 @@ function outcome(result, home, label) {
 export function installOpenCodeGuard({
   token,
   url,
+  project,
+  workspace,
   repoRoot,
   homeDir = os.homedir(),
   run = spawnSync,
@@ -46,6 +50,8 @@ export function installOpenCodeGuard({
     script: path.join("scripts", "install-opencode-guard.mjs"),
     token,
     url,
+    project,
+    workspace,
     repoRoot,
     run,
   });
@@ -55,6 +61,8 @@ export function installOpenCodeGuard({
 export function installCodexGuard({
   token,
   url,
+  project,
+  workspace,
   repoRoot,
   homeDir = os.homedir(),
   run = spawnSync,
@@ -65,6 +73,8 @@ export function installCodexGuard({
     script: path.join("scripts", "install-codex-guard.mjs"),
     token,
     url,
+    project,
+    workspace,
     repoRoot,
     run,
   });

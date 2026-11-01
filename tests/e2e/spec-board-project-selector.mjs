@@ -9,8 +9,9 @@ import path from "node:path";
 import { chromium } from "playwright-core";
 
 const prefix = "SPEC-SYNC-STATE\n";
-const node = (canonicalId) => ({
+const node = (project, canonicalId) => ({
   canonicalId,
+  project,
   specSlug: canonicalId.split(":")[0],
   localId: canonicalId.split(":")[1],
   kind: "FUNCTIONAL_REQUIREMENT",
@@ -30,9 +31,9 @@ const snapshot = (nodes) => ({
 });
 const marker = (nodes, extra = {}) => ({
   schemaVersion: "BoardSnapshotV1",
-  projectionVersion: 7,
+  projectionVersion: 8,
   complete: true,
-  cardIds: {},
+  cardIds: { "proj-a::a1:FR-1": "SPEC-201" },
   snapshot: snapshot(nodes),
   ...extra,
 });
@@ -44,17 +45,16 @@ const issue = (id, idReadable, specId, body) => ({
   customFields: [{ name: "SpecId", value: { text: specId } }],
 });
 
-const a1 = node("a1:FR-1");
-const a2 = node("a2:FR-1");
-const b1 = node("b1:FR-1");
-const orphan = node("orphan:FR-1");
+const a1 = node("proj-a", "a1:FR-1");
+const a2 = node("proj-a", "a2:FR-1");
+const b1 = node("proj-b", "b1:FR-1");
+const orphan = node("__unassigned__", "orphan:FR-1");
 const root = issue("3-1", "SPEC-1", "SPEC:SYNC-STATE", marker([a1, a2, b1, orphan], {
   projects: [
     { id: "proj-a", pointer: "SPEC-101", nodeCount: 2, edgeCount: 0 },
     { id: "proj-b", pointer: "SPEC-102", nodeCount: 1, edgeCount: 0 },
   ],
   unassigned: { pointer: "SPEC-103", nodeCount: 1 },
-  specProjects: { a1: "proj-a", a2: "proj-a", b1: "proj-b" },
 }));
 const pointers = {
   "SPEC-101": issue("3-2", "SPEC-101", "SPEC:SYNC-STATE:cHJvai1h", marker([a1, a2], {
@@ -85,8 +85,12 @@ await page.addInitScript((payload) => {
       const match = /^issues\/([^?]+)/.exec(apiPath);
       return match && payload.pointers[match[1]] ? payload.pointers[match[1]] : null;
     },
-    readCache: async () => ({ specBoardProject: await window.__getSpecBoardPreference() }),
-    storeCache: async (data) => { await window.__setSpecBoardPreference(data.specBoardProject); },
+    // The widget scopes its preference to the board context (srcdoc here).
+    readCache: async () => ({ "spec-board-project:srcdoc": await window.__getSpecBoardPreference() }),
+    storeCache: async (data) => {
+      const value = data["spec-board-project:srcdoc"] ?? data.specBoardProject;
+      await window.__setSpecBoardPreference(value);
+    },
   };
   window.YTApp = { register: async () => host };
 }, { root, pointers });

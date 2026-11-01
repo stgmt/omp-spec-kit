@@ -223,8 +223,9 @@ async function uploadAppZip(zipPath) {
 }
 
 async function mcpClient(token) {
+  // Selection is per call: the project argument, never a connection-wide header.
   const transport = new StreamableHTTPClientTransport(new URL(`${SVC_HOST()}/mcp`), {
-    requestInit: { headers: { Authorization: `Bearer ${token}`, "X-Spec-Project": SCOPE } },
+    requestInit: { headers: { Authorization: `Bearer ${token}` } },
   });
   const client = new Client({ name: "spec-stack-setup", version: "1.0.0" }, { capabilities: {} });
   await client.connect(transport);
@@ -256,23 +257,23 @@ async function loadTemplateSpec(token) {
   try {
     // Idempotent re-run: specs that already exist skip createSpec/createRoadmap
     // (a create on an existing slug is a CONFLICT, not an "exists" error).
-    const cat = await mcp.callTool({ name: "spec_catalog", arguments: { view: "specs" } });
+    const cat = await mcp.callTool({ name: "spec_catalog", arguments: { project: SCOPE, view: "specs" } });
     const have = new Set(JSON.parse(cat.content?.[0]?.text ?? "{}").data?.specs ?? []);
     for (const meta of metas) {
       const patch = async (intent, extra = {}) => {
         const args = { intent, requestId: `stack-${stamp}-${++n}`, reason: "spec-stack-setup template load", spec: meta.slug, dryRun: false, ...extra };
-        let { j, refused } = patchOutcome(await mcp.callTool({ name: "spec_patch", arguments: args }));
+        let { j, refused } = patchOutcome(await mcp.callTool({ name: "spec_patch", arguments: { project: SCOPE, ...args } }));
         for (const code of ["ELICITATION_REQUIRED", "CONFLICT"]) {
           if (refused?.code !== code) continue;
           await new Promise((r) => setTimeout(r, 1_500));
-          ({ j, refused } = patchOutcome(await mcp.callTool({ name: "spec_patch", arguments: { ...args, requestId: `stack-${stamp}-${++n}-${code}` } })));
+          ({ j, refused } = patchOutcome(await mcp.callTool({ name: "spec_patch", arguments: { project: SCOPE, ...args, requestId: `stack-${stamp}-${++n}-${code}` } })));
         }
         if (j.ok === false || refused) throw new Error(`${intent} ${meta.slug}: ${refused?.code ?? j.error?.message}`);
         return j;
       };
-      await mcp.callTool({ name: "spec_claim", arguments: { spec: meta.slug } });
+      await mcp.callTool({ name: "spec_claim", arguments: { project: SCOPE, spec: meta.slug } });
       if (!have.has(meta.slug)) {
-        const created = await mcp.callTool({ name: "spec_branch", arguments: { action: "create", spec: meta.slug, demo: meta.demo === true } });
+        const created = await mcp.callTool({ name: "spec_branch", arguments: { project: SCOPE, action: "create", spec: meta.slug, demo: meta.demo === true } });
         const branch = JSON.parse(created.content?.[0]?.text ?? "{}");
         if (branch.ok === false && branch.error?.code !== "SPEC_EXISTS") {
           throw new Error(`create branch ${meta.slug}: ${branch.error?.code ?? "unknown"}`);
@@ -298,7 +299,7 @@ async function loadTemplateSpec(token) {
         await patch("patch", { operations: [{ kind: "replace_document", document, content }], ...review });
         log(`seeded ${meta.slug}/${document}`);
       }
-      await mcp.callTool({ name: "spec_release", arguments: { spec: meta.slug } }).catch(() => {});
+      await mcp.callTool({ name: "spec_release", arguments: { project: SCOPE, spec: meta.slug } }).catch(() => {});
     }
   } finally {
     await mcp.close();
@@ -413,6 +414,8 @@ async function main() {
   const opencodeGuard = installOpenCodeGuard({
     token: seedToken,
     url: `${SVC_HOST()}/mcp`,
+    project: SCOPE,
+    workspace: REPO_ROOT,
     repoRoot: REPO_ROOT,
   });
   if (opencodeGuard.status === "absent") {
@@ -427,6 +430,8 @@ async function main() {
   const codexGuard = installCodexGuard({
     token: seedToken,
     url: `${SVC_HOST()}/mcp`,
+    project: SCOPE,
+    workspace: REPO_ROOT,
     repoRoot: REPO_ROOT,
   });
   if (codexGuard.status === "absent") {

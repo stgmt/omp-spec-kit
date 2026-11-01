@@ -108,7 +108,7 @@ describe("HttpMcpClient", () => {
 });
 
 describe("HttpTaskStatusWriteback", () => {
-  it("routes spec_patch to the project recorded in the committed marker", async () => {
+  it("routes spec_patch from the card's own qualified project key", async () => {
     const toolCalls = [];
     const server = fakeMcpServer(async (message) => {
       if (message.method === "tools/call") toolCalls.push(message.params);
@@ -119,11 +119,10 @@ describe("HttpTaskStatusWriteback", () => {
     try {
       const writeback = new HttpTaskStatusWriteback({
         client: new HttpMcpClient({ baseUrl: "http://registry.test", token: "tok" }),
-        specProjects: async () => ({ "demo-spec": "demo/stack" }),
       });
-      const result = await writeback.setSpecTaskStatus({ specId: "demo-spec:TASK-1", status: "done" });
+      const result = await writeback.setSpecTaskStatus({ specId: "demo/stack::demo-spec:TASK-1", status: "done" });
       assert.equal(result.writeCalls, 1);
-      const call = toolCalls.find((p) => p.name === "spec_patch");
+      const call = toolCalls.find((p2) => p2.name === "spec_patch");
       assert.equal(call.arguments.spec, "demo-spec");
       assert.equal(call.arguments.project, "demo/stack");
       assert.equal(call.arguments.entity, "TASK-1");
@@ -135,12 +134,58 @@ describe("HttpTaskStatusWriteback", () => {
     }
   });
 
-  it("refuses to guess the project when the marker predates specProjects", async () => {
+  it("resolves two projects that share a slug without a lookup, touching only the addressed card", async () => {
+    const patched = [];
+    const server = fakeMcpServer(async (message) => {
+      if (message.method === "tools/call" && message.params.name === "spec_patch") patched.push(message.params.arguments);
+      return { outcome: "APPLIED" };
+    });
+    const real = globalThis.fetch;
+    globalThis.fetch = server.fetch;
+    try {
+      const writeback = new HttpTaskStatusWriteback({
+        client: new HttpMcpClient({ baseUrl: "http://registry.test", token: "tok" }),
+      });
+      await writeback.setSpecTaskStatus({ specId: "team-b::native-task-review:T-12", status: "done" });
+      assert.equal(patched.length, 1, "exactly one card writeback");
+      assert.equal(patched[0].project, "team-b");
+      assert.equal(patched[0].spec, "native-task-review");
+      assert.equal(patched[0].entity, "T-12");
+      assert.ok(!patched.some((call) => call.project === "team-a"), "team-a is never touched");
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
+  it("refuses to guess the project when the card identity carries none", async () => {
     const writeback = new HttpTaskStatusWriteback({
       client: new HttpMcpClient({ baseUrl: "http://registry.test", token: "tok" }),
-      specProjects: async () => ({}),
     });
-    await assert.rejects(writeback.setSpecTaskStatus({ specId: "demo-spec:TASK-1", status: "done" }), /serving project/);
+    await assert.rejects(
+      writeback.setSpecTaskStatus({ specId: "demo-spec:TASK-1", status: "done" }),
+      /carries no project/,
+    );
+  });
+
+  it("accepts an explicit project alongside a bare specId", async () => {
+    const toolCalls = [];
+    const server = fakeMcpServer(async (message) => {
+      if (message.method === "tools/call") toolCalls.push(message.params);
+      return { outcome: "APPLIED" };
+    });
+    const real = globalThis.fetch;
+    globalThis.fetch = server.fetch;
+    try {
+      const writeback = new HttpTaskStatusWriteback({
+        client: new HttpMcpClient({ baseUrl: "http://registry.test", token: "tok" }),
+      });
+      await writeback.setSpecTaskStatus({ specId: "demo-spec:TASK-1", project: "demo/stack", status: "todo" });
+      const call = toolCalls.find((p2) => p2.name === "spec_patch");
+      assert.equal(call.arguments.project, "demo/stack");
+      assert.equal(call.arguments.entity, "TASK-1");
+    } finally {
+      globalThis.fetch = real;
+    }
   });
 
   it("rejects malformed specId and unknown status before any network call", async () => {
@@ -153,13 +198,16 @@ describe("HttpTaskStatusWriteback", () => {
     try {
       const writeback = new HttpTaskStatusWriteback({
         client: new HttpMcpClient({ baseUrl: "http://registry.test", token: "tok" }),
-        specProjects: async () => ({ "demo-spec": "demo/stack" }),
       });
       for (const specId of ["demo:", ":TASK-1", "nocolon", "", null]) {
-        await assert.rejects(writeback.setSpecTaskStatus({ specId, status: "done" }), TypeError, `specId=${specId}`);
+        await assert.rejects(
+          writeback.setSpecTaskStatus({ specId, project: "demo/stack", status: "done" }),
+          TypeError,
+          `specId=${specId}`,
+        );
       }
       await assert.rejects(
-        writeback.setSpecTaskStatus({ specId: "demo-spec:TASK-1", status: "bogus" }),
+        writeback.setSpecTaskStatus({ specId: "demo/stack::demo-spec:TASK-1", status: "bogus" }),
         TypeError,
       );
       assert.equal(fetches, 0, "validation failures never reach the wire");
@@ -170,7 +218,7 @@ describe("HttpTaskStatusWriteback", () => {
 });
 
 describe("HttpBoardReader", () => {
-  it("merges one board per serving project and re-derives the specProjects map", async () => {
+  it("merges one board per project named by the root index and tags every node", async () => {
     const toolCalls = [];
     const server = fakeMcpServer(async (message) => {
       if (message.method === "tools/call") {
@@ -190,71 +238,88 @@ describe("HttpBoardReader", () => {
     try {
       const reader = new HttpBoardReader({
         client: new HttpMcpClient({ baseUrl: "http://registry.test", token: "tok" }),
-        specProjects: async () => ({ s1: "a/p", s2: "b/p" }),
+        projects: async () => ["a/p", "b/p"],
       });
       const board = await reader.readBoard({ specSlugs: [] });
-      const projects = toolCalls.filter((p) => p.name === "spec_graph").map((p) => p.arguments.project);
+      const projects = toolCalls.filter((p2) => p2.name === "spec_graph").map((p2) => p2.arguments.project);
       assert.deepEqual(projects, ["a/p", "b/p"]);
       assert.equal(board.nodes.length, 2);
+      assert.deepEqual(board.nodes.map((node) => node.project).sort(), ["a/p", "b/p"]);
+      assert.equal("specProjects" in board, false, "no flat routing map on the board payload");
       assert.ok(board.fingerprint);
-      assert.deepEqual(
-        { ...board.specProjects },
-        { "spec-ap": "a/p", "spec-bp": "b/p" },
-        "the reader re-derives the routing map so republish does not sign nulls",
-      );
     } finally {
       globalThis.fetch = real;
     }
   });
 
-  it("throws on a canonicalId or slug claimed by two projects instead of picking a silent winner", async () => {
-    for (const collide of ["node", "slug"]) {
-      const server = fakeMcpServer(async (message) => {
-        if (message.method === "tools/call") {
-          const project = message.params.arguments.project;
-          return {
-            fingerprint: "f".repeat(64),
-            scope: { specSlugs: [collide === "slug" ? "shared-slug" : "spec-" + project.replace("/", "")] },
-            nodes: [{ canonicalId: collide === "node" ? "shared:1" : project + ":1", specSlug: project, kind: "TASK" }],
-            edges: [],
-          };
-        }
-        return {};
-      });
-      const real = globalThis.fetch;
-      globalThis.fetch = server.fetch;
-      try {
-        const reader = new HttpBoardReader({
-          client: new HttpMcpClient({ baseUrl: "http://registry.test", token: "tok" }),
-          specProjects: async () => ({ s1: "a/p", s2: "b/p" }),
-        });
-        await assert.rejects(reader.readBoard({ specSlugs: [] }), /served by both a\/p and b\/p/);
-      } finally {
-        globalThis.fetch = real;
-      }
-    }
-  });
-
-  it("falls back to a single unhinted board when specProjects is empty", async () => {
-    const toolCalls = [];
-    const server = fakeMcpServer(async (message) => {
+  it("keeps the same slug and the same canonicalId in two projects, and errors only for one project duplicating itself", async () => {
+    const shared = async (message) => {
       if (message.method === "tools/call") {
-        toolCalls.push(message.params);
-        return { fingerprint: "f".repeat(64), scope: { specSlugs: [] }, nodes: [], edges: [] };
+        const project = message.params.arguments.project;
+        return {
+          fingerprint: "f".repeat(64),
+          scope: { specSlugs: ["native-task-review"] },
+          nodes: [{ canonicalId: "native-task-review:T-12", specSlug: "native-task-review", kind: "TASK" }],
+          edges: [],
+        };
       }
       return {};
-    });
+    };
     const real = globalThis.fetch;
-    globalThis.fetch = server.fetch;
+    globalThis.fetch = fakeMcpServer(shared).fetch;
     try {
       const reader = new HttpBoardReader({
         client: new HttpMcpClient({ baseUrl: "http://registry.test", token: "tok" }),
-        specProjects: async () => ({}),
+        projects: async () => ["team-a", "team-b"],
       });
-      await reader.readBoard({ specSlugs: [] });
-      const calls = toolCalls.filter((p) => p.name === "spec_graph");
-      assert.equal(calls.length, 1);
-      assert.equal("project" in calls[0].arguments, false);
+      const board = await reader.readBoard({ specSlugs: [] });
+      assert.equal(board.nodes.length, 2, "both projects keep their own card");
+      assert.deepEqual(board.nodes.map((n) => n.canonicalId), ["native-task-review:T-12", "native-task-review:T-12"]);
+      assert.deepEqual(board.scope.specSlugs, ["native-task-review"], "the slug is listed once");
+    } finally {
+      globalThis.fetch = real;
+    }
+
+    globalThis.fetch = fakeMcpServer(async (message) => {
+      if (message.method === "tools/call") {
+        return {
+          fingerprint: "f".repeat(64),
+          scope: { specSlugs: ["s"] },
+          nodes: [
+            { canonicalId: "s:1", specSlug: "s", kind: "TASK" },
+            { canonicalId: "s:1", specSlug: "s", kind: "TASK" },
+          ],
+          edges: [],
+        };
+      }
+      return {};
+    }).fetch;
+    try {
+      const reader = new HttpBoardReader({
+        client: new HttpMcpClient({ baseUrl: "http://registry.test", token: "tok" }),
+        projects: async () => ["a/p"],
+      });
+      await assert.rejects(reader.readBoard({ specSlugs: [] }), /served by both a\/p and a\/p/);
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
+  it("reads no board at all when the root index names no project", async () => {
+    const toolCalls = [];
+    const real = globalThis.fetch;
+    globalThis.fetch = fakeMcpServer(async (message) => {
+      if (message.method === "tools/call") toolCalls.push(message.params);
+      return { fingerprint: "f".repeat(64), scope: { specSlugs: [] }, nodes: [], edges: [] };
+    }).fetch;
+    try {
+      const reader = new HttpBoardReader({
+        client: new HttpMcpClient({ baseUrl: "http://registry.test", token: "tok" }),
+        projects: async () => [],
+      });
+      const board = await reader.readBoard({ specSlugs: [] });
+      assert.equal(toolCalls.filter((p2) => p2.name === "spec_graph").length, 0);
+      assert.deepEqual(board.nodes, []);
     } finally {
       globalThis.fetch = real;
     }

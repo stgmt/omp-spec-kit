@@ -854,28 +854,45 @@
     return { marker, snapshot: marker.snapshot };
   }
 
+  // Preference storage is scoped to THIS widget's service/board context: a
+  // dashboard selection is a view preference only, never an MCP routing hint,
+  // an authorization grant, or another session's default.
+  function boardPreferenceKey() {
+    let context = "srcdoc";
+    try {
+      // Only a real http(s) page supplies a distinct board context; a
+      // sandboxed srcdoc/file frame shares the host-provided cache, which is
+      // already per-service.
+      const url = new URL(window.location.href);
+      if (url.protocol === "http:" || url.protocol === "https:") context = url.origin + url.pathname;
+    } catch {}
+    return "spec-board-project:" + context;
+  }
+
   async function readProjectPreference(host) {
+    const key = boardPreferenceKey();
     if (host && host.storage && typeof host.storage.getItem === "function") {
-      try { return await host.storage.getItem("spec-board-project"); } catch {}
+      try { return await host.storage.getItem(key); } catch {}
     }
     if (host && typeof host.readCache === "function") {
       try {
         const cache = await host.readCache();
-        return cache && typeof cache.specBoardProject === "string" ? cache.specBoardProject : null;
+        return cache && typeof cache[key] === "string" ? cache[key] : null;
       } catch {}
     }
-    try { return window.localStorage.getItem("spec-board-project"); } catch {}
+    try { return window.localStorage.getItem(key); } catch {}
     return null;
   }
 
   async function writeProjectPreference(host, value) {
+    const key = boardPreferenceKey();
     if (host && host.storage && typeof host.storage.setItem === "function") {
-      try { await host.storage.setItem("spec-board-project", value); return; } catch {}
+      try { await host.storage.setItem(key, value); return; } catch {}
     }
     if (host && typeof host.storeCache === "function") {
-      try { await host.storeCache({ specBoardProject: value }); return; } catch {}
+      try { await host.storeCache({ [key]: value }); return; } catch {}
     }
-    try { window.localStorage.setItem("spec-board-project", value); } catch {}
+    try { window.localStorage.setItem(key, value); } catch {}
   }
 
   function selectionForValue(rootMarker, value) {
@@ -919,16 +936,27 @@
     });
   }
 
+  // Shared card key: project::canonicalId. Mirrors CARD_KEY_SEPARATOR in
+  // src/adapters/youtrack-projection.js; two projects may own the same
+  // canonicalId, so the bare id is never used as a lookup key.
+  function cardKey(project, canonicalId) {
+    return String(project || 'local') + '::' + canonicalId;
+  }
+
   function snapshotNodes(snapshot, marker) {
     const cardIds = marker.cardIds || {};
+    const defaultProject = (marker.scope && marker.scope.project) || 'local';
     const nodes = snapshot.nodes.map(source => {
-      const trackerId = typeof cardIds[source.canonicalId] === 'string' ? cardIds[source.canonicalId] : '';
+      const project = source.project || defaultProject;
+      const key = cardKey(project, source.canonicalId);
+      const trackerId = typeof cardIds[key] === 'string' ? cardIds[key] : '';
       const state = source.kind === 'TASK'
         ? (TASK_STATES[source.taskStatus] || 'Unknown')
         : 'Tracked';
       return {
-        id: source.canonicalId,
+        id: key,
         trackerId,
+        project,
         specId: source.canonicalId,
         specSlug: source.specSlug,
         localId: source.localId,
@@ -944,8 +972,9 @@
     });
     const byId = new Map(nodes.map(node => [node.id, node]));
     for (const edge of snapshot.edges) {
-      const source = byId.get(edge.from);
-      const target = byId.get(edge.to);
+      const project = edge.project || defaultProject;
+      const source = byId.get(cardKey(project, edge.from));
+      const target = byId.get(cardKey(project, edge.to));
       if (source && target) source.links.push({ type: edge.type, target: target.id });
     }
     return nodes;

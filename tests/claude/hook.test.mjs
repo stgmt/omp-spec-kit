@@ -28,6 +28,12 @@ before(() => {
   writeFileSync(specFile, "# Foo\n");
   writeFileSync(path.join(projectDir, ".specs", "foo", "foo.feature"), SCENARIO_FEATURE);
   writeFileSync(path.join(projectDir, "README.md"), "# Project\n");
+  // The session's project comes from this workspace record, never from cwd.
+  mkdirSync(path.join(projectDir, ".omp-spec-kit"), { recursive: true });
+  writeFileSync(
+    path.join(projectDir, ".omp-spec-kit", "project.json"),
+    JSON.stringify({ schema: "omp-spec-kit/project-binding@1", project: "stgmt/alpha" }),
+  );
   subDir = path.join(projectDir, "sub");
   mkdirSync(subDir);
 });
@@ -72,6 +78,25 @@ function assertAllowed(result) {
   assert.equal(result.status, 0, `expected exit 0, got ${result.status}; stderr=${result.stderr}`);
   assert.equal(result.stdout, "");
   assert.equal(result.stderr, "");
+}
+
+/**
+ * A spec MCP call is allowed with the workspace project attached through
+ * `updatedInput`; the original arguments survive the replacement.
+ */
+function assertAllowedWithProject(result, project, originalInput = null) {
+  assert.equal(result.status, 0, `expected exit 0, got ${result.status}; stderr=${result.stderr}`);
+  assert.equal(result.stderr, "");
+  const parsed = JSON.parse(result.stdout);
+  assert.deepEqual(Object.keys(parsed), ["hookSpecificOutput"]);
+  assert.equal(parsed.hookSpecificOutput.hookEventName, "PreToolUse");
+  assert.equal(parsed.hookSpecificOutput.updatedInput.project, project);
+  if (originalInput !== null) {
+    for (const [key, value] of Object.entries(originalInput)) {
+      assert.deepEqual(parsed.hookSpecificOutput.updatedInput[key], value);
+    }
+  }
+  assert.ok(!JSON.parse(result.stdout).hookSpecificOutput.updatedInput.project.includes("\\"), "a path is never sent as project");
 }
 
 function assertHookFailed(result) {
@@ -204,8 +229,12 @@ describe("PreToolUse hook allows ordinary work", () => {
     }
   });
 
-  it("allows spec_catalog from the plugin's own MCP server", () => {
-    assertAllowed(runHook(payload(`${OWN_MCP}spec_catalog`, { view: "inventory" })));
+  it("allows spec_catalog from the plugin's own MCP server with the workspace project attached", () => {
+    assertAllowedWithProject(
+      runHook(payload(`${OWN_MCP}spec_catalog`, { view: "inventory" })),
+      "stgmt/alpha",
+      { view: "inventory" },
+    );
   });
 });
 
@@ -229,7 +258,36 @@ describe("PreToolUse hook gates spec_patch", () => {
   it("allows the same patch once designReview is attached", () => {
     const operations = [{ kind: "create_document", document: "foo.feature", content: SCENARIO_FEATURE }];
     const designReview = { schema: "omp-spec-kit/design-review@1" };
-    assertAllowed(runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", operations, designReview })));
+    assertAllowedWithProject(
+      runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", operations, designReview })),
+      "stgmt/alpha",
+      { spec: "foo" },
+    );
+  });
+
+  it("leaves an explicit per-call project untouched", () => {
+    const operations = [{ kind: "create_document", document: "foo.feature", content: SCENARIO_FEATURE }];
+    const designReview = { schema: "omp-spec-kit/design-review@1" };
+    assertAllowed(
+      runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", operations, designReview, project: "acme/gamma" })),
+    );
+  });
+
+  it("refuses a spec call in a workspace with no project record and leaves unrelated calls alone", () => {
+    const bare = realpathSync.native(mkdtempSync(path.join(tmpdir(), "omp-spec-kit-hook-unbound-")));
+    try {
+      mkdirSync(path.join(bare, ".specs", "foo"), { recursive: true });
+      writeFileSync(path.join(bare, ".specs", "foo", "foo.md"), "# Foo\n");
+      writeFileSync(path.join(bare, "README.md"), "# Bare\n");
+      const env = { CLAUDE_PROJECT_DIR: bare };
+      const refused = runHook(payload(`${OWN_MCP}spec_catalog`, { view: "inventory" }, bare), { cwd: bare, env });
+      assertBlocked(refused, /^PROJECT_REQUIRED: /u);
+      assert.match(refused.stderr, /spec_repo \{"action":"bind"/u);
+      // An unrelated tool in the same unbound workspace is untouched.
+      assertAllowed(runHook(payload("Read", { file_path: path.join(bare, "README.md") }, bare), { cwd: bare, env }));
+    } finally {
+      rmSync(bare, { recursive: true, force: true });
+    }
   });
 });
 

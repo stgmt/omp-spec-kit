@@ -214,36 +214,43 @@ async function readAttachment(root, args) {
   return operationSuccess({ kind: "attachment", spec: args.spec, path: resolved.relative, mime: MIME_TYPES[extension] ?? "application/octet-stream", bytes: bytes.length, sha256: sha256(bytes), base64: bytes.toString("base64") });
 }
 
-function mcpPreflight(root, args, context) {
-  const declared = args.declaredWorktree;
-  const declaredAbsolute = typeof declared === "string" && path.isAbsolute(declared) ? path.resolve(declared) : null;
-  // The server now routes per call: when a worktree was declared, `root` IS
-  // that worktree's root — the gate is a router, not a refusal. The response
-  // reports the path actually being served so the caller can verify intent.
-  const authoring = true;
-  // Writes need a corpus: spec_patch fails at graph-read time on a root with
-  // no .specs directory, so mutationReady must reflect corpus presence rather
-  // than promise a write the kernel will refuse.
+function mcpPreflight(root, args, context = {}) {
+  // The local stdio/test transport may name the worktree serving this call; the
+  // hosted transport refuses that instruction before reaching here, so a
+  // declared worktree is a local fact, not a root comparison.
+  const declaredWorktree = typeof args.declaredWorktree === "string" && args.declaredWorktree.length > 0;
+  const project = typeof context.project === "string" && context.project.length > 0 ? context.project : null;
+  const transport = typeof context.transport === "string" ? context.transport : "local";
+  const bindingStatus = typeof context.bindingStatus === "string" ? context.bindingStatus : null;
+  // Writes need a corpus: spec_patch fails at graph-read time on a root with no
+  // corpus directory, so mutationReady must reflect corpus presence rather than
+  // promise a write the kernel will refuse.
   let corpusPresent = false;
   try {
-    corpusPresent = statSync(path.join(root, ".specs")).isDirectory();
+    corpusPresent = statSync(path.join(root, '.specs')).isDirectory();
   } catch {}
+
+  // Five separate admission facts, never one tautological root match: the
+  // connection answered; which project served this call; how that project is
+  // bound to a repository; whether its corpus is present; whether a write can
+  // proceed. `rootId` is a local root identity hash, never an absolute path.
+  const binding = project === null ? "not-applicable" : (bindingStatus ?? "unknown");
   return operationSuccess({
     kind: "mcp-preflight",
-    resolvedRootId: rootId(root),
-    corpus: { present: corpusPresent },
-    worktree: {
-      declared: declaredAbsolute === null ? null : rootId(declaredAbsolute),
-      served: declaredAbsolute === null ? null : true,
-      // Routing makes the served root the declared one by construction — a
-      // mismatch is now impossible, so this stays true as before.
-      matchesResolvedRoot: true,
+    connection: { healthy: true, transport },
+    project: {
+      selected: project,
+      source: project === null ? null : (context.projectSource ?? null),
+      selectedByCaller: (context.projectSource ?? null) === "explicit",
     },
-    lockMode: authoring ? "owner" : "read-only",
-    writeMode: authoring ? "proposal-first" : "disabled",
+    repository: { binding, rootId: rootId(root) },
+    worktree: { transport, declared: declaredWorktree },
+    corpus: { present: corpusPresent, available: corpusPresent },
+    lockMode: "owner",
+    writeMode: "proposal-first",
     versions: { mcp: KERNEL_SCHEMA_VERSION, plugin: PLUGIN_VERSION, omp: "18.0.11" },
-    dependencies: { graph: "ready", watcher: "disabled", lock: authoring ? "available" : "disabled", sqlite: "disabled" },
-    mutationReady: authoring && corpusPresent,
+    dependencies: { graph: "ready", watcher: "disabled", lock: "available", sqlite: "disabled" },
+    mutationReady: corpusPresent && (project === null || binding === "active" || binding === "migrating"),
   });
 }
 

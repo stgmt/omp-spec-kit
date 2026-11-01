@@ -45,6 +45,29 @@ describe("multi-worktree routing", () => {
     assert.equal(envA.data.mutationReady, true);
   });
 
+  it("reports admission facts separately instead of a root compared with itself", async () => {
+    const a = worktreeWithSpec("spec-alpha");
+    const serviceFor = createRootedServices(a);
+    const declared = await serviceFor(a).runQuery("mcpPreflight", { declaredWorktree: a });
+    assert.equal(declared.ok, true);
+    assert.equal(declared.data.connection.healthy, true);
+    assert.equal(declared.data.connection.transport, "local");
+    assert.equal(declared.data.project.selected, null, "the local transport has no registry project");
+    assert.equal(declared.data.repository.binding, "not-applicable");
+    assert.equal(declared.data.worktree.transport, "local");
+    assert.equal(declared.data.worktree.declared, true);
+    assert.equal(declared.data.corpus.present, true);
+    assert.equal("matchesResolvedRoot" in declared.data.worktree, false, "no tautological root match");
+
+    const undeclared = await serviceFor(a).runQuery("mcpPreflight", {});
+    assert.equal(undeclared.data.worktree.declared, false, "no worktree was declared on this call");
+    assert.equal(undeclared.data.corpus.present, true, "the default root still serves its corpus");
+    for (const envelope of [declared, undeclared]) {
+      assert.equal(typeof envelope.data.repository.rootId, "string");
+      assert.doesNotMatch(envelope.data.repository.rootId, /[A-Za-z]:[\\/]/u, "root identity is a hash, not an absolute path");
+    }
+  });
+
   it("reuses one service per root (graph cache is not rebuilt per call)", () => {
     const a = worktreeWithSpec("spec-alpha");
     const serviceFor = createRootedServices(a);

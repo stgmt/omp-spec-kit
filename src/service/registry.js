@@ -39,21 +39,23 @@ function catalogSlugs(catalogEnvelope) {
  * status/version, directory digest, claim state, published pointer. Rebuilt
  * from git on every call; never authoritative for content.
  */
-export async function buildRegistryIndex({ mounts, claims, ledger }) {
-  const projects = [];
-  for (const projectId of mounts.projects) {
+export async function buildRegistryIndex({ mounts, claims, ledger, projects = null }) {
+  const indexProjects = [];
+  // A scoped listing builds only the caller's projects: another tenant's
+  // repository is never mounted, fetched or counted as a side effect.
+  for (const projectId of Array.isArray(projects) ? projects : mounts.projects) {
     let root, service;
     try {
       root = await mounts.projectRoot(projectId);
       service = mounts.serviceFor(projectId);
     } catch (error) {
       // Unbound project or invalid binding: it exists but has no readable corpus.
-      projects.push({ id: projectId, error: error?.code ?? "MOUNT_UNAVAILABLE" });
+      indexProjects.push({ id: projectId, error: error?.code ?? "MOUNT_UNAVAILABLE" });
       continue;
     }
     const state = await service.ensure();
     if (state.status === "error") {
-      projects.push({ id: projectId, error: state.readerError?.code ?? "ADAPTER_READ_ERROR" });
+      indexProjects.push({ id: projectId, error: state.readerError?.code ?? "ADAPTER_READ_ERROR" });
       continue;
     }
     const catalog = await service.runQuery("catalog", { view: "specs" }, { requestId: null });
@@ -78,7 +80,7 @@ export async function buildRegistryIndex({ mounts, claims, ledger }) {
         updatedAt: lastChange.updatedAt,
       });
     }
-    projects.push({ id: projectId, specs });
+    indexProjects.push({ id: projectId, specs });
   }
-  return { projects };
+  return { projects: indexProjects };
 }

@@ -11,19 +11,23 @@
  *   OMP_SPEC_REGISTRY_URL          endpoint (default http://127.0.0.1:8642/mcp)
  *   OMP_SPEC_REGISTRY_TOKEN        bearer token
  *   OMP_SPEC_REGISTRY_TOKEN_FILE   file holding the token
- *   OMP_SPEC_PROJECT               project scope for preflight (optional)
+ *   --project owner/project       project scope (or the workspace record)
  */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { readProjectBinding } from "../src/enforcement/project-binding.js";
 
 function fail(message) {
   throw new Error(message);
 }
 
-export async function runToolE2e({ url, token, project = "stgmt/omp-spec-kit" }) {
+export async function runToolE2e({ url, token, project }) {
   if (typeof url !== "string" || url.length === 0) fail("tool-e2e needs an endpoint URL");
   if (typeof token !== "string" || token.length === 0) fail("tool-e2e needs a bearer token");
+  if (typeof project !== "string" || project.length === 0) {
+    fail("tool-e2e needs an explicit --project owner/project or a workspace project record");
+  }
   let nextId = 0;
 
   async function rpc(method, params) {
@@ -144,7 +148,11 @@ export async function runToolE2e({ url, token, project = "stgmt/omp-spec-kit" })
 
 async function main() {
   const url = process.env.OMP_SPEC_REGISTRY_URL ?? "http://127.0.0.1:8642/mcp";
-  const project = process.env.OMP_SPEC_PROJECT ?? "stgmt/omp-spec-kit";
+  const projectFlag = process.argv.indexOf("--project");
+  const project =
+    projectFlag >= 0 && projectFlag + 1 < process.argv.length
+      ? process.argv[projectFlag + 1]
+      : (readProjectBinding(process.cwd())?.project ?? null);
   let bearer = process.env.OMP_SPEC_REGISTRY_TOKEN;
   if (typeof bearer !== "string" || bearer.trim() === "") {
     const fromFile = process.env.OMP_SPEC_REGISTRY_TOKEN_FILE;

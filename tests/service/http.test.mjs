@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -31,12 +32,15 @@ async function tempDir(prefix) {
 }
 
 /** Bare specs repo with one seeded project + a live-auth service in front of it. */
-async function setup({ projects = ["stgmt/alpha"], unbound = [] } = {}) {
+async function setup({ projects = ["stgmt/alpha"], unbound = [], extraSpecs = [] } = {}) {
   const fixture = await loadLiveFixture();
   const base = await tempDir("spec-http-");
   const bare = path.join(base, "specs.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
   await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", sourceDir: FIXTURE_SPEC });
+  for (const { project, spec } of extraSpecs) {
+    await seedSpecBranch(bare, { project, spec, sourceDir: FIXTURE_SPEC });
+  }
 
   const configPath = await fixture.writeServiceConfig(bare, { projects });
   if (unbound.length > 0) {
@@ -44,10 +48,11 @@ async function setup({ projects = ["stgmt/alpha"], unbound = [] } = {}) {
     config.bindings = config.bindings.filter((binding) => !unbound.includes(binding.project));
     await writeFile(configPath, JSON.stringify(config, null, 2));
   }
-  const service = await startService({ configPath, cloneDir: path.join(base, "clone"), port: 0, identity: IDENTITY, logger: () => {} });
+  const storePath = path.join(base, "registry.db");
+  const service = await startService({ configPath, storePath, cloneDir: path.join(base, "clone"), port: 0, identity: IDENTITY, logger: () => {} });
   servers.push(service.server);
   services.push(service);
-  return { fixture, service, bare, url: `http://127.0.0.1:${service.server.address().port}/mcp` };
+  return { fixture, service, bare, storePath, url: `http://127.0.0.1:${service.server.address().port}/mcp` };
 }
 
 async function rpc(url, body, token) {
@@ -87,7 +92,7 @@ describe("POST /mcp — official SDK, stateless, YouTrack-verified callers", () 
     assert.equal(listed.status, 200);
     assert.equal(listed.sessionId, null);
     const names = listed.json.result.tools.map((tool) => tool.name);
-    assert.equal(names.length, 15, "10 kernel tools + 5 service ops for a writer");
+    assert.equal(names.length, 16, "10 kernel tools + 5 service ops + spec_repo for a writer");
     assert.ok(names.includes("spec_patch"));
     assert.ok(names.includes("spec_branch"));
 
@@ -165,6 +170,119 @@ describe("POST /mcp — official SDK, stateless, YouTrack-verified callers", () 
     assert.match(outOfScope.structuredContent.error.message, /outside the caller's allowed set/);
   });
 
+  it("advertises project on every tool's input schema", async () => {
+    const { fixture, url } = await setup();
+    const token = await fixture.userToken("alice");
+    const listed = await rpc(url, { jsonrpc: "2.0", id: 1, method: "tools/list" }, token);
+    assert.equal(listed.status, 200);
+    for (const tool of listed.json.result.tools) {
+      assert.equal(tool.inputSchema?.properties?.project?.type, "string", `${tool.name} must advertise project`);
+      assert.equal(tool.inputSchema?.properties?.declaredWorktree?.type, "string", `${tool.name} must advertise declaredWorktree`);
+      assert.equal((tool.inputSchema.required ?? []).includes("project"), false, `${tool.name} must not require project`);
+      // The root object closes unknown keys: an advertised argument cannot be
+      // rejected by a branch that does not repeat it.
+      assert.equal(tool.inputSchema.additionalProperties, false, `${tool.name} must close unknown root keys`);
+      for (const branch of tool.inputSchema.oneOf ?? []) {
+        assert.ok(!(branch.required ?? []).includes("project"), `${tool.name} branch must not require project`);
+      }
+    }
+    const initialized = await rpc(url, { jsonrpc: "2.0", id: 2, method: "initialize", params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "t", version: "1" } } }, token);
+    const instructions = initialized.json.result.instructions;
+    assert.match(instructions, /optional project/u);
+    assert.match(instructions, /local stdio\/test transport/u, "instructions describe worktree routing as local-only");
+  });
+
+  it("honors a per-call project across A/B/A on one connection while the session default stays unchanged", async () => {
+    const { fixture, url } = await setup({ projects: ["stgmt/alpha", "stgmt/beta"], extraSpecs: [{ project: "stgmt/beta", spec: "spec-beta" }] });
+    const token = await fixture.userToken("alice");
+    const session = await rpc(url, { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "t", version: "1" } } }, token);
+    assert.equal(session.status, 200);
+
+    const first = (await callTool(url, token, "spec_catalog", { project: "stgmt/alpha", view: "specs", requestId: "aba-1" })).structuredContent;
+    const second = (await callTool(url, token, "spec_catalog", { project: "stgmt/beta", view: "specs", requestId: "aba-2" })).structuredContent;
+    const third = (await callTool(url, token, "spec_catalog", { project: "stgmt/alpha", view: "specs", requestId: "aba-3" })).structuredContent;
+
+    assert.deepEqual(first.data.specs, ["spec-kernel"]);
+    assert.deepEqual(second.data.specs, ["spec-beta"]);
+    assert.deepEqual(third.data.specs, ["spec-kernel"], "returning to A yields A's catalog again");
+
+    assert.equal(first.provenance.project, "stgmt/alpha");
+    assert.equal(second.provenance.project, "stgmt/beta");
+    assert.equal(third.provenance.project, "stgmt/alpha");
+
+    // The explicit per-call selection did not replace any session default.
+    const unselected = await callTool(url, token, "spec_catalog", { view: "specs", requestId: "aba-4" });
+    assert.equal(unselected.isError, true);
+    assert.equal(unselected.structuredContent.error.code, "PROJECT_SELECTION_REQUIRED", "two candidate scopes and no default: the caller must choose, and nothing was stored by the cross-project calls");
+    assert.deepEqual(unselected.structuredContent.error.candidates.sort(), ["stgmt/alpha", "stgmt/beta"]);
+  });
+
+  it("records the project that actually served each hosted call in the audit log", async () => {
+    const { fixture, url, storePath } = await setup({ projects: ["stgmt/alpha", "stgmt/beta"], extraSpecs: [{ project: "stgmt/beta", spec: "spec-beta" }] });
+    const token = await fixture.userToken("alice");
+    const sequence = ["stgmt/alpha", "stgmt/beta", "stgmt/alpha"];
+    for (const [index, project] of sequence.entries()) {
+      const result = await callTool(url, token, "spec_catalog", { project, view: "specs", requestId: `audit-${index}` });
+      assert.equal(result.isError, false, JSON.stringify(result.structuredContent?.error ?? {}));
+      assert.equal(result.structuredContent.provenance.project, project);
+    }
+
+    const db = new DatabaseSync(storePath);
+    const rows = db.prepare("SELECT project, op, request_id FROM access_log WHERE request_id LIKE 'audit-%' ORDER BY id").all();
+    db.close();
+    assert.deepEqual(
+      rows.map((row) => ({ project: row.project, op: row.op, requestId: row.request_id })),
+      sequence.map((project, index) => ({ project, op: "spec_catalog", requestId: `audit-${index}` })),
+      "each audit row names the project that served that call, not the session default",
+    );
+  });
+
+  it("refuses declaredWorktree on the hosted transport instead of routing by a local path", async () => {
+    const { fixture, url } = await setup();
+    const token = await fixture.userToken("alice");
+    const result = await callTool(url, token, "spec_catalog", { project: "stgmt/alpha", declaredWorktree: path.resolve("."), view: "specs" });
+    assert.equal(result.isError, true);
+    assert.equal(result.structuredContent.error.code, "WORKTREE_ROUTING_UNSUPPORTED");
+    assert.match(result.structuredContent.error.message, /local stdio\/test transport/u);
+    assert.match(result.structuredContent.error.message, /project argument/u);
+  });
+
+  it("refuses an unconfigured or malformed project before any corpus read", async () => {
+    const { fixture, url } = await setup({ projects: ["stgmt/alpha", "stgmt/beta"] });
+    const token = await fixture.userToken("alice");
+    const numeric = await callTool(url, token, "spec_catalog", { project: 42, view: "specs" });
+    assert.equal(numeric.isError, true);
+    assert.equal(numeric.structuredContent.error.code, "INVALID_REQUEST");
+    assert.equal(numeric.structuredContent.error.parameter, "project");
+
+    const missing = await callTool(url, token, "spec_documents", { action: "list", spec: "spec-kernel" });
+    assert.equal(missing.isError, true);
+    assert.equal(missing.structuredContent.error.code, "PROJECT_SELECTION_REQUIRED");
+    assert.match(missing.structuredContent.error.message, /pass project/u);
+  });
+
+  it("reports the selected project and binding truthfully through mcp_preflight", async () => {
+    const { fixture, url } = await setup({ projects: ["stgmt/alpha", "stgmt/beta"] });
+    const token = await fixture.userToken("alice");
+    const result = await callTool(url, token, "mcp_preflight", { project: "stgmt/alpha" });
+    assert.equal(result.isError, false, JSON.stringify(result.structuredContent?.error ?? {}));
+    const data = result.structuredContent.data;
+    assert.equal(result.structuredContent.provenance.project, "stgmt/alpha");
+    assert.equal(data.connection.healthy, true);
+    assert.equal(data.connection.transport, "http");
+    assert.equal(data.project.selected, "stgmt/alpha");
+    assert.equal(data.project.source, "explicit");
+    assert.equal(data.repository.binding, "active");
+    assert.equal(data.worktree.transport, "http");
+    assert.equal(data.worktree.declared, false);
+    assert.equal(data.corpus.present, true);
+    assert.equal(data.mutationReady, true);
+    assert.equal("matchesResolvedRoot" in data.worktree, false, "no self-comparison root match");
+    assert.equal(typeof data.repository.rootId, "string");
+    assert.doesNotMatch(JSON.stringify(data.repository), /[A-Za-z]:[\\/]/u, "no absolute path is echoed");
+    assert.equal(data.setup.required, false);
+  });
+
   it("refuses a user without tenant groups (live NO_SCOPES)", async () => {
     const { fixture, url } = await setup();
     const daveToken = await fixture.userToken("dave");
@@ -179,7 +297,7 @@ describe("POST /mcp — official SDK, stateless, YouTrack-verified callers", () 
     const listed = await rpc(url, { jsonrpc: "2.0", id: 1, method: "tools/list" }, bobToken);
     assert.equal(listed.status, 200);
     const names = listed.json.result.tools.map((tool) => tool.name);
-    assert.equal(names.length, 11, "reader sees 9 reads + registry + drift");
+    assert.equal(names.length, 12, "reader sees 9 reads + registry + drift + the read-only spec_repo variants");
     assert.ok(!names.includes("spec_patch"));
   });
 

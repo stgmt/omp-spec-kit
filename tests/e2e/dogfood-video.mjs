@@ -830,9 +830,9 @@ async function main() {
   for (const d of (await fetch(`${EXT_YT_HOST_URL}/api/dashboards?fields=id`, { headers: { authorization: `Bearer ${miaSeedToken}` } }).then((r) => r.json()).catch(() => [])) ?? []) {
     await fetch(`${EXT_YT_HOST_URL}/api/dashboards/${d.id}`, { method: "DELETE", headers: { authorization: `Bearer ${miaSeedToken}` } }).catch(() => {});
   }
-  // X-Spec-Project pins the scope — without it writes land in the operator's
-  // default corpus instead of the customer's bound repo.
-  const seedMcp = await mcpSession({ mcpServers: { "omp-spec-kit": { url: `${SERVICE_URL}/mcp`, headers: { Authorization: `Bearer ${miaSeedToken}`, "X-Spec-Idp": EXT_TENANT, "X-Spec-Project": "acme/gamma" } } } });
+  // Scope comes from the per-call project argument — the snippet never pins a
+  // connection-wide project, and writes must land in the customer's bound repo.
+  const seedMcp = await mcpSession({ mcpServers: { "omp-spec-kit": { url: `${SERVICE_URL}/mcp`, headers: { Authorization: `Bearer ${miaSeedToken}`, "X-Spec-Idp": EXT_TENANT } } } });
   // The bind's migrate commit just landed — wait until the service's corpus
   // view is FRESH (SPEC_REGISTRY_SYNC_MS=5000): gamma-spec present AND none
   // of the previous recording's specs still visible. A stale view makes the
@@ -842,7 +842,7 @@ async function main() {
     const stale = /acme-portal|roadmap-growth|acme-sso|zz-probe/;
     const deadline = Date.now() + 30_000;
     for (;;) {
-      const cat = await seedMcp.callTool({ name: "spec_catalog", arguments: { view: "specs" } });
+      const cat = await seedMcp.callTool({ name: "spec_catalog", arguments: { project: "acme/gamma", view: "specs" } });
       const specs = JSON.parse(cat.content?.[0]?.text ?? "{}").data?.specs ?? [];
       if (specs.includes("gamma-spec") && !specs.some((s) => stale.test(s))) break;
       if (Date.now() > deadline) throw new Error(`tenant corpus never settled: ${JSON.stringify(specs)}`);
@@ -1111,9 +1111,11 @@ async function main() {
       await frame.locator('[data-testid="agent-mcp"]').scrollIntoViewIfNeeded().catch(() => {});
       const miaSnippet = JSON.parse(await frame.locator('[data-testid="agent-mcp"]').innerText());
       assert.equal(miaSnippet.mcpServers["omp-spec-kit"].headers["X-Spec-Idp"], EXT_TENANT);
+      assert.equal(miaSnippet.mcpServers["omp-spec-kit"].headers["X-Spec-Project"], undefined, "no connection-wide project header");
+      assert.equal(miaSnippet.projectSelection.project, "acme/gamma");
       await page.waitForTimeout(2_800);
 
-      const miaMcp = await mcpCallWithSnippet(miaSnippet, "spec_catalog", { view: "specs" });
+      const miaMcp = await mcpCallWithSnippet(miaSnippet, "spec_catalog", { project: miaSnippet.projectSelection.project, view: "specs" });
       const catalog = JSON.stringify(miaMcp.result.structuredContent ?? miaMcp.result);
       assert.match(catalog, /gamma-spec/);
       assert.doesNotMatch(catalog, /alpha-spec/);

@@ -1,4 +1,4 @@
-import { STATUS_MAP, specStatusForTrackerState } from "./youtrack-projection.js";
+import { STATUS_MAP, cardKey, specStatusForTrackerState } from "./youtrack-projection.js";
 
 /**
  * Guaranteed-delivery reconciliation for tracker->spec TASK status.
@@ -36,13 +36,15 @@ export function planCardWriteback({ specId, specStatus, trackerStatus, hasBaseli
 }
 
 export function planStatusSweep({ board, trackerCards, snapshot }) {
+  // Cards are keyed project::canonicalId: two projects may own the same
+  // canonicalId, so a bare id would let one project's status drive the other.
   const specTasks = new Map();
   for (const node of board?.nodes ?? []) {
-    if (node?.kind === "TASK" && typeof node.canonicalId === "string") specTasks.set(node.canonicalId, node);
+    if (node?.kind === "TASK" && typeof node.canonicalId === "string") specTasks.set(cardKey(node.project, node.canonicalId), node);
   }
   const baseline = new Map();
   for (const node of snapshot?.nodes ?? []) {
-    if (node?.kind === "TASK" && typeof node.canonicalId === "string") baseline.set(node.canonicalId, node.taskStatus ?? null);
+    if (node?.kind === "TASK" && typeof node.canonicalId === "string") baseline.set(cardKey(node.project, node.canonicalId), node.taskStatus ?? null);
   }
   const plan = [];
   const warnings = [];

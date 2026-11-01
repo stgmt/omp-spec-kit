@@ -316,18 +316,24 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
     assert.ok(log.length > 0);
   });
 
-  it("X-Spec-Project supplies the default scope and is still scope-checked", async () => {
+  it("accepts a per-request project hint, still scope-checked, while selection stays per call", async () => {
     const tenants = [
       { tenant: "alpha", projects: ["stgmt/alpha"], hubGroups: ["spec-alpha"], defaultProject: null },
       { tenant: "beta", projects: ["stgmt/beta"], hubGroups: ["spec-beta"], defaultProject: null },
     ];
     const { api, url, tokens } = await setup({ projects: ["stgmt/alpha", "stgmt/beta"], tenants });
-    // frank is a writer in both tenants: no default scope without the header.
+    // frank is a writer in both tenants: no default scope without a selection.
     const noHint = await callTool(url, tokens.frank, "spec_catalog", { view: "specs" });
     assert.equal(noHint.structuredContent.ok, false);
+    assert.equal(noHint.structuredContent.error.code, "PROJECT_SELECTION_REQUIRED");
+    // The transport hint is request context, never stored state.
     const hinted = await callTool(url, tokens.frank, "spec_catalog", { view: "specs" }, { "x-spec-project": "stgmt/alpha" });
     assert.equal(hinted.structuredContent.ok, true);
     const outside = await callTool(url, tokens.frank, "spec_catalog", { view: "specs" }, { "x-spec-project": "stgmt/gamma" });
     assert.equal(outside.structuredContent.ok, false);
+    // An explicit per-call project is the documented selection path.
+    const explicit = await callTool(url, tokens.frank, "spec_catalog", { project: "stgmt/beta", view: "specs" });
+    assert.equal(explicit.structuredContent.ok, true);
+    assert.equal(explicit.structuredContent.provenance.project, "stgmt/beta");
   });
 });

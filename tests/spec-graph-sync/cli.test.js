@@ -59,8 +59,8 @@ describe("spec-graph-sync CLI wiring", () => {
     assert.match(result.stderr, /SPEC_AGENT_TOKEN/);
   });
 
-  it("a registry-mode sync republishes the marker with a usable specProjects map", async () => {
-    // Seeded v3 marker signed with MARKER_SECRET — ownership must verify.
+  it("a registry-mode sync republishes a project-qualified marker with no flat routing map", async () => {
+    // Seeded marker signed with MARKER_SECRET — ownership must verify.
     const unsigned = {
       schemaVersion: "BoardSnapshotV1",
       projectionVersion: 3,
@@ -73,7 +73,7 @@ describe("spec-graph-sync CLI wiring", () => {
       edgeCount: 0,
       mountHeads: {},
       mountsClean: true,
-      specProjects: { "demo-spec": "demo/stack" },
+      projects: [{ id: "demo/stack", pointer: "SPEC-1" }],
       skippedProjects: [],
       cardIds: {},
       snapshot: { nodes: [], edges: [] },
@@ -159,7 +159,6 @@ describe("spec-graph-sync CLI wiring", () => {
       const graphCalls = boardCalls.filter((call) => call.name === "spec_graph");
       assert.equal(graphCalls.length, 1);
       assert.equal(graphCalls[0].arguments.project, "demo/stack");
-      // The republished marker keeps a usable routing map instead of null.
       const markerWrite = ytWrites.find((w) => {
         if (typeof w?.description !== "string" || !w.description.startsWith("SPEC-SYNC-STATE\n")) return false;
         try {
@@ -170,7 +169,8 @@ describe("spec-graph-sync CLI wiring", () => {
       });
       assert.ok(markerWrite, "the marker was republished");
       const republished = JSON.parse(markerWrite.description.slice("SPEC-SYNC-STATE\n".length));
-      assert.deepEqual(republished.specProjects, { "demo-spec": "demo/stack" });
+      assert.equal("specProjects" in republished, false, "the flat routing map is gone from the marker");
+      assert.equal(republished.snapshot.nodes[0].project, "demo/stack", "the aggregate node is project-qualified");
     } finally {
       await Promise.all([yt.close(), mcp.close()]);
     }
@@ -191,10 +191,10 @@ describe("spec-graph-sync CLI wiring", () => {
       edgeCount: 0,
       mountHeads: {},
       mountsClean: true,
-      specProjects: { "demo-spec": "demo/stack" },
+      projects: [{ id: "demo/stack", pointer: "SPEC-1" }],
       skippedProjects: [],
-      cardIds: { "demo-spec:TASK-1": "SPEC-2" },
-      snapshot: { nodes: [{ canonicalId: "demo-spec:TASK-1", kind: "TASK", taskStatus: "todo" }], edges: [] },
+      cardIds: { "demo/stack::demo-spec:TASK-1": "SPEC-2" },
+      snapshot: { nodes: [{ canonicalId: "demo-spec:TASK-1", project: "demo/stack", kind: "TASK", taskStatus: "todo" }], edges: [] },
       committedAt: new Date(0).toISOString(),
     };
     const marker = {
@@ -213,7 +213,7 @@ describe("spec-graph-sync CLI wiring", () => {
       idReadable: "SPEC-2",
       project: { shortName: "SPEC" },
       customFields: [
-        { name: "SpecId", value: "demo-spec:TASK-1" },
+        { name: "SpecId", value: "demo/stack::demo-spec:TASK-1" },
         { name: "SpecKind", value: "TASK" },
         { name: "State", value: { name: "Fixed" } },
       ],
@@ -237,10 +237,11 @@ describe("spec-graph-sync CLI wiring", () => {
           body.params.name === "spec_graph"
             ? {
                 fingerprint: "f".repeat(64),
-                scope: { mode: "corpus", specSlugs: ["demo-spec"] },
+                scope: { mode: "project", project: "demo/stack", specSlugs: ["demo-spec"] },
                 nodes: [
                   {
                     canonicalId: "demo-spec:TASK-1",
+                    project: "demo/stack",
                     specSlug: "demo-spec",
                     localId: "TASK-1",
                     kind: "TASK",
@@ -302,7 +303,7 @@ describe("spec-graph-sync CLI wiring", () => {
       const response = await fetch(`${base}/writeback`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Spec-Writeback-Token": "w".repeat(32) },
-        body: JSON.stringify({ specId: "demo-spec:TASK-1", toState: "Fixed", issueId: "3-5" }),
+        body: JSON.stringify({ specId: "demo/stack::demo-spec:TASK-1", toState: "Fixed", issueId: "3-5" }),
       });
       assert.equal(response.status, 200);
       const result = await response.json();

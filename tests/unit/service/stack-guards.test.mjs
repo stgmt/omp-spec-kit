@@ -16,7 +16,7 @@ test("a missing host config skips the guard without running the installer", () =
     let calls = 0;
     const run = () => { calls += 1; return { status: 0 }; };
     assert.deepEqual(
-      installOpenCodeGuard({ token: "t", url: "http://127.0.0.1:1/mcp", repoRoot: "/repo", homeDir: home.dir, run }),
+      installOpenCodeGuard({ token: "t", url: "http://127.0.0.1:1/mcp", project: "demo/stack", workspace: "/workspace", repoRoot: "/repo", homeDir: home.dir, run }),
       { status: "absent", path: null, detail: null },
     );
     assert.equal(calls, 0);
@@ -37,6 +37,8 @@ test("a conflicting OpenCode config is a reported skip, not a setup failure", ()
     const result = installOpenCodeGuard({
       token: "secret-token",
       url: "http://127.0.0.1:8644/mcp",
+      project: "demo/stack",
+      workspace: "/workspace",
       repoRoot: "/repo",
       homeDir: home.dir,
       run,
@@ -45,7 +47,11 @@ test("a conflicting OpenCode config is a reported skip, not a setup failure", ()
     assert.match(result.detail, /points at http:\/\/127\.0\.0\.1:8650\/mcp/u);
     assert.equal(result.path, path.join(home.dir, ".config", "opencode"));
     assert.equal(seen.length, 1);
-    assert.deepEqual(seen[0].args.slice(-2), ["--url", "http://127.0.0.1:8644/mcp"]);
+    assert.deepEqual(seen[0].args.slice(1), [
+      "--url", "http://127.0.0.1:8644/mcp",
+      "--project", "demo/stack",
+      "--workspace", "/workspace",
+    ], "the installer gets an explicit project and workspace");
     assert.equal(seen[0].options.env.OMP_SPEC_REGISTRY_TOKEN, "secret-token");
   } finally {
     home.cleanup();
@@ -59,6 +65,8 @@ test("a successful install is reported with the host config path", () => {
     const result = installCodexGuard({
       token: "t",
       url: "http://127.0.0.1:8644/mcp",
+      project: "demo/stack",
+      workspace: "/workspace",
       repoRoot: "/repo",
       homeDir: home.dir,
       run: () => ({ status: 0, stdout: "guard installed" }),

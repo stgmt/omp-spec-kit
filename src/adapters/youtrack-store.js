@@ -495,7 +495,7 @@ export class YouTrackSyncStateStore {
       if (!this.#verify(marker)) continue;
       this.#pointer = candidate;
       // A complete:false (partial) marker is still authentic and owned — its
-      // cardIds/specProjects route writeback for the cards that did land.
+      // cardIds (project-qualified keys) route writeback for the cards that did land.
       // Completeness gates the skip paths, not the read.
       return { valid: true, ...marker, projectIndexComplete: this.#validateProjectIndex(marker, issues) };
     }
@@ -558,7 +558,6 @@ export class YouTrackSyncStateStore {
       edgeCount: plan.snapshot.edges.length,
       mountHeads: plan.mountHeads ?? null,
       mountsClean: plan.mountsClean ?? null,
-      specProjects: plan.specProjects ?? null,
       skippedProjects: plan.skippedProjects ?? null,
       projects,
       unassigned,

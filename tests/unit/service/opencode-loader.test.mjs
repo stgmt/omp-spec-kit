@@ -31,6 +31,7 @@ test("the OpenCode installer writes a loadable .js bridge, not only .mjs", async
         "--url", "http://127.0.0.1:8650/mcp",
         "--token", "test-token",
         "--project", "stgmt/omp-spec-kit",
+        "--workspace", project,
         "--config", configPath,
         "--plugins-dir", pluginsDir,
       ],
@@ -52,6 +53,13 @@ test("the OpenCode installer writes a loadable .js bridge, not only .mjs", async
     );
     const guard = JSON.parse(readFileSync(path.join(configDir, "spec-kit-guard.json"), "utf8"));
     assert.equal(guard.opencodeConfigPath, configPath, "the guard reads the config it wrote");
+    assert.equal(guard.project, undefined, "the guard config stores no project");
+
+    // The workspace record is the only project carrier.
+    const record = JSON.parse(readFileSync(path.join(project, ".omp-spec-kit", "project.json"), "utf8"));
+    assert.deepEqual(record, { schema: "omp-spec-kit/project-binding@1", project: "stgmt/omp-spec-kit" });
+    const opencodeConfig = JSON.parse(readFileSync(configPath, "utf8"));
+    assert.equal(opencodeConfig.mcp["spec-registry"].headers["X-Spec-Project"], undefined);
 
     // OpenCode 1.19.3 loads `.js` plugins. Run the installed bridge against a
     // temporary home so the test proves the loader, not only the source text.

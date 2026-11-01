@@ -4,8 +4,7 @@
       "type": "http",
       "url": "${OMP_SPEC_REGISTRY_URL}",
       "headers": {
-        "Authorization": "Bearer ${OMP_SPEC_REGISTRY_TOKEN}",
-        "X-Spec-Project": "${OMP_SPEC_PROJECT}"
+        "Authorization": "Bearer ${OMP_SPEC_REGISTRY_TOKEN}"
       }
     }
   }

@@ -294,16 +294,15 @@ describe("YouTrackSyncStateStore marker integrity", () => {
       complete: false,
       fingerprint: "fp",
       snapshotHash: "sh",
-      cardIds: { "demo:TASK-1": "SPEC-1" },
-      specProjects: { demo: "demo/stack" },
+      cardIds: { "demo/stack::demo:TASK-1": "SPEC-1" },
       snapshot: { nodes: [] },
     });
     const client = fakeClient({ issues: [pointerRow("3-5", marker)] });
     const committed = await store(client).readCommitted();
     assert.equal(committed.valid, true, "authentic partial marker must verify — writeback routes through it");
     assert.equal(committed.complete, false, "completeness is reported, not laundered");
-    assert.deepEqual(committed.cardIds, { "demo:TASK-1": "SPEC-1" });
-    assert.deepEqual(committed.specProjects, { demo: "demo/stack" });
+    assert.deepEqual(committed.cardIds, { "demo/stack::demo:TASK-1": "SPEC-1" });
+    assert.equal("specProjects" in committed, false, "the flat routing map is not part of the v8 marker");
   });
 
   it("honors a text-typed SpecId field when creating the pointer", async () => {

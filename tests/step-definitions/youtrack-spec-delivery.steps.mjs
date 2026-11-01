@@ -157,9 +157,9 @@ async function mcpCall(token, project, name, args) {
       "content-type": "application/json",
       accept: "application/json, text/event-stream",
       authorization: `Bearer ${token}`,
-      "X-Spec-Project": project,
     },
-    body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method: "tools/call", params: { name, arguments: args } }),
+    // Selection is per call: the project travels as a tool argument.
+    body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method: "tools/call", params: { name, arguments: { ...(project ? { project } : {}), ...args } } }),
     signal: AbortSignal.timeout(120_000),
   });
   const text = await response.text();
@@ -656,7 +656,7 @@ Then("it does not block and contains no secrets", async function () {
   assert.doesNotMatch(text, /perm-[A-Za-z0-9]|Bearer\s+[A-Za-z0-9]|serviceBridgeToken\s*[:=]/u);
 });
 
-Then("a configured project stays silent", async function () {
+Then("a configured endpoint warns until the workspace is bound", async function () {
   const configuredHome = await mkdtemp(path.join(tmpdir(), "delivery-configured-home-"));
   const configRoot = path.join(configuredHome, ".config", "opencode");
   await mkdir(configRoot, { recursive: true });
@@ -667,8 +667,23 @@ Then("a configured project stays silent", async function () {
   const plugin = await OmpSpecKitSetup({ directory: this.emptyRoot, home: configuredHome });
   const parts = [];
   await plugin["chat.message"]({}, { parts });
-  assert.deepEqual(parts, [], "a configured project must not warn");
+  assert.equal(parts.length, 1, "a configured endpoint without a project record still warns");
+  assert.match(parts[0].text, /no project selection record/u);
+  this.configuredHome = configuredHome;
+});
+
+Then("a configured and bound project stays silent", async function () {
+  const bindingDirectory = path.join(this.emptyRoot, ".omp-spec-kit");
+  await mkdir(bindingDirectory, { recursive: true });
+  await writeFile(
+    path.join(bindingDirectory, "project.json"),
+    JSON.stringify({ schema: "omp-spec-kit/project-binding@1", project: "demo/foo" }),
+  );
+  const plugin = await OmpSpecKitSetup({ directory: this.emptyRoot, home: this.configuredHome });
+  const parts = [];
+  await plugin["chat.message"]({}, { parts });
+  assert.deepEqual(parts, [], "a configured and bound workspace must not warn");
   rmSync(this.emptyRoot, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
   rmSync(this.emptyHome, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
-  rmSync(configuredHome, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+  rmSync(this.configuredHome, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
