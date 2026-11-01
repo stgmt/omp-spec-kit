@@ -13,7 +13,6 @@ import { createYouTrackAdmin } from "../e2e/lib/youtrack.mjs";
 import { browserLogin } from "../e2e/lib/browser.mjs";
 import { attachAppToProjectViaUI, fillAppSettings, openAppsPage, openAppTab, uploadAppZip } from "../e2e/lib/app-admin-ui.mjs";
 import { loadLiveFixture } from "../e2e/lib/live-fixture.mjs";
-import { provisionSpecProjection, verifyAppPlacement } from "../../skills/spec-stack-setup/provision-spec.mjs";
 import { digest } from "../../src/adapters/youtrack-projection.js";
 import { OmpSpecKitSetup } from "../../src/hosts/opencode/setup.mjs";
 
@@ -210,6 +209,7 @@ async function mutateWithRetry(token, project, name, args, { attempts = 4 } = {}
 
 async function syncSnapshot() {
   const liveFixture = await loadLiveFixture();
+  const { provisionSpecProjection } = await import("../../skills/spec-stack-setup/provision-spec.mjs");
   await provisionSpecProjection(admin());
   // Preferred path: the service owns the projection and publishes the v7 root
   // index plus per-project pointers. Owner role, tenant header.
@@ -295,6 +295,7 @@ When("an administrator opens the Spec Service page", async function () {
 });
 
 Then("Spec Service is listed under Administration -> Integrations", async function () {
+  const { verifyAppPlacement } = await import("../../skills/spec-stack-setup/provision-spec.mjs");
   const version = await verifyAppPlacement(admin());
   assert.equal(version, live.manifest.version);
   await openAppsPage(this.adminPage);
