@@ -60,6 +60,10 @@ test("the OpenCode installer writes a loadable .js bridge, not only .mjs", async
     assert.deepEqual(record, { schema: "omp-spec-kit/project-binding@1", project: "stgmt/omp-spec-kit" });
     const opencodeConfig = JSON.parse(readFileSync(configPath, "utf8"));
     assert.equal(opencodeConfig.mcp["spec-registry"].headers["X-Spec-Project"], undefined);
+    // opencode.json is a shared, committable file: the token is referenced,
+    // never written, so the installer cannot leak a credential into it.
+    assert.equal(opencodeConfig.mcp["spec-registry"].headers.Authorization, "Bearer {env:OMP_SPEC_REGISTRY_TOKEN}");
+    assert.doesNotMatch(readFileSync(configPath, "utf8"), /test-token/u);
 
     // OpenCode 1.19.3 loads `.js` plugins. Run the installed bridge against a
     // temporary home so the test proves the loader, not only the source text.

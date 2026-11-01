@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  MARKER_SCHEMA_VERSION,
   PROJECTION_VERSION,
   buildProjectionPlan,
   desiredDescription,
@@ -138,6 +139,7 @@ function harness() {
       state.committed = {
         valid: true,
         complete: options.complete,
+        schemaVersion: MARKER_SCHEMA_VERSION,
         projectionVersion: plan.projectionVersion,
         fingerprint: plan.fingerprint,
         snapshotHash: plan.snapshotHash,
@@ -223,6 +225,27 @@ describe("v7 -> v8 projection migration fixture", () => {
     assert.equal(second.outcome, "SKIPPED");
     assert.equal(state.upsertCalls, upsertsAfterFirst, "a converged retry writes no cards again");
     assert.equal(second.writeCalls, 0);
+  });
+
+  it("republishes a marker committed under the older schema instead of skipping it", async () => {
+    const { service, state } = harness();
+    assert.equal((await service.sync()).outcome, "SYNCED");
+    const upsertsAfterFirst = state.upsertCalls;
+
+    // Same content, old marker schema: the fingerprint, hashes and parity all
+    // still match, so only the schema can tell this pointer is stale. The
+    // in-tracker views reject the older format, and freezing it would leave
+    // them broken for good.
+    state.committed = { ...state.committed, schemaVersion: "BoardSnapshotV1" };
+    const upgraded = await service.sync();
+    assert.equal(upgraded.outcome, "SYNCED", "an older marker schema forces a republish");
+    assert.equal(state.committed.schemaVersion, MARKER_SCHEMA_VERSION);
+
+    // The republished marker converges: the next run writes nothing at all.
+    const upsertsAfterUpgrade = state.upsertCalls;
+    const third = await service.sync();
+    assert.equal(third.outcome, "SKIPPED");
+    assert.equal(state.upsertCalls, upsertsAfterUpgrade, "one republish per schema upgrade, never a loop");
   });
 
   it("a failed project-pointer publish never advertises a complete root index", async () => {

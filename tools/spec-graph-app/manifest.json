@@ -7,7 +7,7 @@
   "vendor": {
     "name": "omp-spec-kit"
   },
-  "version": "1.0.48",
+  "version": "1.0.49",
   "widgets": [
     {
       "description": "Committed snapshot neighbors for the current issue with Approve/Verify/Reopen buttons.",
@@ -36,6 +36,8 @@
     }
   ],
   "httpHandlers": [
-    { "file": "spec-handler" }
+    {
+      "file": "spec-handler"
+    }
   ]
 }

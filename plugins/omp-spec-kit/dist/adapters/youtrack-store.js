@@ -12,6 +12,7 @@ import {
   SYNC_STATE_SPEC_ID,
   PROJECT_POINTER_PREFIX,
   UNASSIGNED_PROJECT_ID,
+  MARKER_SCHEMA_VERSION,
   projectPointerSpecId,
   LINK_TYPES,
   STATUS_MAP,
@@ -547,7 +548,7 @@ export class YouTrackSyncStateStore {
 
   #buildMarker(plan, { cardIds = {}, complete = true, projects = null, unassigned = null } = {}) {
     const marker = {
-      schemaVersion: "BoardSnapshotV2",
+      schemaVersion: MARKER_SCHEMA_VERSION,
       projectionVersion: plan.projectionVersion ?? null,
       complete,
       fingerprint: plan.fingerprint,

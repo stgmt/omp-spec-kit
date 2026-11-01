@@ -154,11 +154,11 @@
     return html + '</div>';
   }
 
-  function renderTrace(node, nodesById, edges, cardIds, currentIssueId) {
+  function renderTrace(node, nodesById, edges, cardIds, currentIssueId, edgeKey) {
     const self = node.key;
     const requirement = edges
-      .filter((edge) => edge.fromKey === self || edge.toKey === self)
-      .map((edge) => ({ edge, from: edge.fromKey, to: edge.toKey }))
+      .filter((edge) => edgeKey(edge, 'from') === self || edgeKey(edge, 'to') === self)
+      .map((edge) => ({ edge, from: edgeKey(edge, 'from'), to: edgeKey(edge, 'to') }))
       .map(({ edge, from, to }) => ({ edge, node: nodesById.get(from === self ? to : from) }))
       .find(({ node: candidate }) => candidate?.kind === 'FUNCTIONAL_REQUIREMENT');
     if (!requirement) return '';
@@ -214,7 +214,25 @@
     // same qualification on every node and edge, so a card is resolved by
     // identity, not by a format this widget reconstructs.
     const nodesById = new Map(committed.snapshot.nodes.map((entry) => [entry.key, entry]));
-    const edgeKey = (edge, side) => (side === 'from' ? edge.fromKey : edge.toKey);
+    // An edge names its endpoints by canonical id; the node that owns the id
+    // carries the server-built key, so the widget resolves instead of
+    // reconstructing the project-qualified format itself.
+    const keyOf = (() => {
+      const index = new Map();
+      for (const entry of committed.snapshot.nodes) {
+        const list = index.get(entry.canonicalId);
+        if (list) list.push(entry);
+        else index.set(entry.canonicalId, [entry]);
+      }
+      return function resolve(canonicalId, project) {
+        const list = index.get(canonicalId);
+        if (!list) return null;
+        if (project === undefined) return list[0].key;
+        const match = list.find((candidate) => candidate.project === project);
+        return (match || list[0]).key;
+      };
+    })();
+    const edgeKey = (edge, side) => keyOf(edge[side], edge.project);
     const node = nodesById.get(specId);
     if (!node) {
       showError('Spec Panel: current issue is not present in the committed snapshot.');
@@ -235,7 +253,7 @@
       escapeHtml(node.title || issue.summary || issueId) + ' <span class="id">' + escapeHtml(state) + '</span></h3>';
     html += renderGroup('Outgoing', outgoing, cardIds, issueId);
     html += renderGroup('Incoming', incoming, cardIds, issueId);
-    html += renderTrace(node, nodesById, committed.snapshot.edges, cardIds, issueId);
+    html += renderTrace(node, nodesById, committed.snapshot.edges, cardIds, issueId, edgeKey);
     if (outgoing.length === 0 && incoming.length === 0) html += '<p class="state">No spec links on this issue.</p>';
     html += '<div class="btns">';
     if (node.kind === 'TASK') {

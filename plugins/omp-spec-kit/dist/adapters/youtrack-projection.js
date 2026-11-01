@@ -301,6 +301,15 @@ export function digest(value) {
   return createHash("sha256").update(stableJson(value), "utf8").digest("hex");
 }
 
+/**
+ * The committed-marker schema the widgets and the writers agree on. A pointer
+ * written under an older schema is still authentic and owned, but it no longer
+ * describes what the in-tracker views can read: the skip gates therefore treat
+ * a schema mismatch as stale so an upgrade republishes instead of freezing the
+ * older format forever.
+ */
+export const MARKER_SCHEMA_VERSION = "BoardSnapshotV2";
+
 function assertBoardProjection(board) {
   if (!board || typeof board !== "object" || Array.isArray(board)) throw new TypeError("board projection must be an object");
   if (board.complete !== true || board.page !== null) throw new TypeError("board projection must be complete and unpaged");
@@ -336,8 +345,15 @@ function excerptValue(node) {
  * 512 000-character description limit.
  */
 export function compactSnapshot(board) {
+  const projectOf = (entry) => entry.project ?? board.scope?.project ?? LOCAL_PROJECT_ID;
+  // Edge endpoints are named by canonical id, and their project-qualified card
+  // key already exists on the node. Repeating that key per edge cost ~95 000
+  // characters on the real corpus and pushed the committed description past
+  // YouTrack's 500 000-character safe limit, so the marker omits it and the
+  // widgets resolve an endpoint through the node that owns the id.
+  const ownedBy = new Set(board.nodes.map((node) => projectOf(node) + "\u0000" + node.canonicalId));
   return {
-    schemaVersion: "BoardSnapshotV2",
+    schemaVersion: MARKER_SCHEMA_VERSION,
     fingerprint: board.fingerprint,
     scope: board.scope ?? { mode: "corpus", specSlugs: [] },
     complete: true,
@@ -355,15 +371,15 @@ export function compactSnapshot(board) {
       excerpt: excerptValue(node),
       taskStatus: node.kind === "TASK" && typeof node.taskStatus === "string" ? node.taskStatus : null,
     })),
-    edges: board.edges.map((edge) => ({
-      from: edge.from,
-      to: edge.to,
-      // Same rule as node keys: the format lives in this module only.
-      fromKey: cardKey(edge.project ?? board.scope?.project ?? LOCAL_PROJECT_ID, edge.from),
-      toKey: cardKey(edge.project ?? board.scope?.project ?? LOCAL_PROJECT_ID, edge.to),
-      project: edge.project ?? board.scope?.project ?? LOCAL_PROJECT_ID,
-      type: edge.type,
-    })),
+    edges: board.edges.map((edge) => {
+      const project = projectOf(edge);
+      const entry = { from: edge.from, to: edge.to, type: edge.type };
+      // Only a cross-project edge needs its own project: a same-project edge
+      // inherits it from the nodes that own its endpoints.
+      const inherited = ownedBy.has(project + "\u0000" + edge.from) && ownedBy.has(project + "\u0000" + edge.to);
+      if (!inherited) entry.project = project;
+      return entry;
+    }),
     counts: board.counts ?? { nodes: board.nodes.length, edges: board.edges.length },
   };
 }
@@ -687,7 +703,9 @@ export class YouTrackProjectionService {
     // qualified specId, so nothing extra is copied from the pointer.
     const actual = await this.#tracker.readProjection();
     const parity = compareProjection(actual, plan);
-    const canSkip = pointer?.valid === true && pointer.complete === true && pointer.fingerprint === plan.fingerprint &&
+    const canSkip = pointer?.valid === true && pointer.complete === true &&
+      pointer.schemaVersion === MARKER_SCHEMA_VERSION &&
+      pointer.fingerprint === plan.fingerprint &&
       pointer.snapshotHash === plan.snapshotHash && pointer.projectionDigest === plan.projectionDigest &&
       pointer.projectionVersion === plan.projectionVersion && Array.isArray(pointer.projects) &&
       pointer.projectIndexComplete === true && parity.equal;

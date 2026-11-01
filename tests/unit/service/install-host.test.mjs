@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { mergeClaudeMcpConfig, parseHostArgs } from "../../../scripts/install-host.mjs";
+import { mergeClaudeMcpConfig, mergeOmpMcpConfig, parseHostArgs } from "../../../scripts/install-host.mjs";
 import { readProjectBinding } from "../../../src/enforcement/project-binding.js";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -85,14 +85,22 @@ describe("install-host CLI", () => {
 
   it("writes the workspace project record the hosts read at call time", () => {
     const workspace = tempDir();
+    const configPath = path.join(tempDir(), "mcp.json");
     const parsed = parseHostArgs(
-      ["--host", "omp", "--project", "acme/gamma", "--workspace", workspace],
+      ["--host", "omp", "--url", "http://127.0.0.1:8650/mcp", "--project", "acme/gamma", "--workspace", workspace],
       {},
     );
     assert.equal(parsed.workspace, path.resolve(workspace));
     const installer = spawnSync(
       process.execPath,
-      [path.join(repositoryRoot, "scripts", "install-host.mjs"), "--host", "omp", "--project", "acme/gamma", "--workspace", workspace],
+      [
+        path.join(repositoryRoot, "scripts", "install-host.mjs"),
+        "--host", "omp",
+        "--url", "http://127.0.0.1:8650/mcp",
+        "--project", "acme/gamma",
+        "--workspace", workspace,
+        "--config", configPath,
+      ],
       { cwd: repositoryRoot, encoding: "utf8", timeout: 120_000 },
     );
     assert.equal(installer.status, 0, installer.stderr || installer.stdout);
@@ -100,6 +108,29 @@ describe("install-host CLI", () => {
       project: "acme/gamma",
       file: path.join(workspace, ".omp-spec-kit", "project.json"),
     });
+    // OMP reads its native config, not the plugin `.mcp.json`: the entry must
+    // be written there, with an env reference and no removed header.
+    const written = JSON.parse(readFileSync(configPath, "utf8"));
+    assert.equal(written.mcpServers["omp-spec-kit"].type, "http");
+    assert.equal(written.mcpServers["omp-spec-kit"].url, "http://127.0.0.1:8650/mcp");
+    assert.deepEqual(written.mcpServers["omp-spec-kit"].headers, {
+      Authorization: "Bearer ${OMP_SPEC_REGISTRY_TOKEN}",
+    });
+  });
+
+  it("merges the OMP native server without dropping the servers already configured", () => {
+    const configPath = path.join(tempDir(), "agent", "mcp.json");
+    mergeOmpMcpConfig({ configPath, url: "http://127.0.0.1:8650/mcp" });
+    const first = JSON.parse(readFileSync(configPath, "utf8"));
+    first.mcpServers.other = { command: "npx", args: ["-y", "other"] };
+    writeFileSync(configPath, JSON.stringify(first, null, 2));
+    mergeOmpMcpConfig({ configPath, url: "http://127.0.0.1:8650/mcp" });
+    const config = JSON.parse(readFileSync(configPath, "utf8"));
+    assert.deepEqual(Object.keys(config.mcpServers).sort(), ["omp-spec-kit", "other"]);
+    assert.equal(config.mcpServers.other.command, "npx");
+    const text = readFileSync(configPath, "utf8");
+    assert.doesNotMatch(text, /X-Spec-Project/u);
+    assert.doesNotMatch(text, /perm-/u);
   });
 
   it("refuses to install without an explicit project", () => {
