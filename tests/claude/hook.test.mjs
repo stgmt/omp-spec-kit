@@ -28,6 +28,12 @@ before(() => {
   writeFileSync(specFile, "# Foo\n");
   writeFileSync(path.join(projectDir, ".specs", "foo", "foo.feature"), SCENARIO_FEATURE);
   writeFileSync(path.join(projectDir, "README.md"), "# Project\n");
+  // The session's project comes from this workspace record, never from cwd.
+  mkdirSync(path.join(projectDir, ".omp-spec-kit"), { recursive: true });
+  writeFileSync(
+    path.join(projectDir, ".omp-spec-kit", "project.json"),
+    JSON.stringify({ schema: "omp-spec-kit/project-binding@1", project: "stgmt/alpha" }),
+  );
   subDir = path.join(projectDir, "sub");
   mkdirSync(subDir);
 });
@@ -72,6 +78,25 @@ function assertAllowed(result) {
   assert.equal(result.status, 0, `expected exit 0, got ${result.status}; stderr=${result.stderr}`);
   assert.equal(result.stdout, "");
   assert.equal(result.stderr, "");
+}
+
+/**
+ * A spec MCP call is allowed with the workspace project attached through
+ * `updatedInput`; the original arguments survive the replacement.
+ */
+function assertAllowedWithProject(result, project, originalInput = null) {
+  assert.equal(result.status, 0, `expected exit 0, got ${result.status}; stderr=${result.stderr}`);
+  assert.equal(result.stderr, "");
+  const parsed = JSON.parse(result.stdout);
+  assert.deepEqual(Object.keys(parsed), ["hookSpecificOutput"]);
+  assert.equal(parsed.hookSpecificOutput.hookEventName, "PreToolUse");
+  assert.equal(parsed.hookSpecificOutput.updatedInput.project, project);
+  if (originalInput !== null) {
+    for (const [key, value] of Object.entries(originalInput)) {
+      assert.deepEqual(parsed.hookSpecificOutput.updatedInput[key], value);
+    }
+  }
+  assert.ok(!JSON.parse(result.stdout).hookSpecificOutput.updatedInput.project.includes("\\"), "a path is never sent as project");
 }
 
 function assertHookFailed(result) {
@@ -204,8 +229,12 @@ describe("PreToolUse hook allows ordinary work", () => {
     }
   });
 
-  it("allows spec_catalog from the plugin's own MCP server", () => {
-    assertAllowed(runHook(payload(`${OWN_MCP}spec_catalog`, { view: "inventory" })));
+  it("allows spec_catalog from the plugin's own MCP server with the workspace project attached", () => {
+    assertAllowedWithProject(
+      runHook(payload(`${OWN_MCP}spec_catalog`, { view: "inventory" })),
+      "stgmt/alpha",
+      { view: "inventory" },
+    );
   });
 });
 
@@ -229,7 +258,36 @@ describe("PreToolUse hook gates spec_patch", () => {
   it("allows the same patch once designReview is attached", () => {
     const operations = [{ kind: "create_document", document: "foo.feature", content: SCENARIO_FEATURE }];
     const designReview = { schema: "omp-spec-kit/design-review@1" };
-    assertAllowed(runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", operations, designReview })));
+    assertAllowedWithProject(
+      runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", operations, designReview })),
+      "stgmt/alpha",
+      { spec: "foo" },
+    );
+  });
+
+  it("leaves an explicit per-call project untouched", () => {
+    const operations = [{ kind: "create_document", document: "foo.feature", content: SCENARIO_FEATURE }];
+    const designReview = { schema: "omp-spec-kit/design-review@1" };
+    assertAllowed(
+      runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", operations, designReview, project: "acme/gamma" })),
+    );
+  });
+
+  it("refuses a spec call in a workspace with no project record and leaves unrelated calls alone", () => {
+    const bare = realpathSync.native(mkdtempSync(path.join(tmpdir(), "omp-spec-kit-hook-unbound-")));
+    try {
+      mkdirSync(path.join(bare, ".specs", "foo"), { recursive: true });
+      writeFileSync(path.join(bare, ".specs", "foo", "foo.md"), "# Foo\n");
+      writeFileSync(path.join(bare, "README.md"), "# Bare\n");
+      const env = { CLAUDE_PROJECT_DIR: bare };
+      const refused = runHook(payload(`${OWN_MCP}spec_catalog`, { view: "inventory" }, bare), { cwd: bare, env });
+      assertBlocked(refused, /^PROJECT_REQUIRED: /u);
+      assert.match(refused.stderr, /spec_repo \{"action":"bind"/u);
+      // An unrelated tool in the same unbound workspace is untouched.
+      assertAllowed(runHook(payload("Read", { file_path: path.join(bare, "README.md") }, bare), { cwd: bare, env }));
+    } finally {
+      rmSync(bare, { recursive: true, force: true });
+    }
   });
 });
 
@@ -391,6 +449,113 @@ describe("PreToolUse hook stdin and stderr", () => {
     );
     assert.equal(child.status, 2, `expected exit 2, got ${child.status}; stderr=${child.stderr}`);
     assert.equal(child.stdout, "");
+  });
+});
+
+describe("SessionStart setup warning", () => {
+  const sessionHookPath = path.join(repositoryRoot, "plugins", "omp-spec-kit", "hooks", "sessionstart.mjs");
+
+  function runSessionStart(cwd, env = {}) {
+    const result = spawnSync(process.execPath, [sessionHookPath], {
+      input: JSON.stringify({ hook_event_name: "SessionStart", cwd }),
+      cwd,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: cwd,
+        OMP_SPEC_REGISTRY_URL: "",
+        OMP_SPEC_REGISTRY_TOKEN: "",
+        ...env,
+      },
+      timeout: 30_000,
+      windowsHide: true,
+    });
+    return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+  }
+
+  it("warns once about a missing corpus without blocking", () => {
+    const empty = realpathSync.native(mkdtempSync(path.join(tmpdir(), "omp-spec-kit-empty-")));
+    try {
+      const result = runSessionStart(empty);
+      assert.equal(result.status, 0);
+      assert.match(result.stdout, /SPEC_SETUP_REQUIRED/u);
+      assert.match(result.stdout, /no \.specs corpus/u);
+      assert.doesNotMatch(result.stdout, /Bearer|not-a-real-token|super-secret/u);
+    } finally {
+      rmSync(empty, { recursive: true, force: true });
+    }
+  });
+
+  it("names the missing MCP configuration for an existing corpus", () => {
+    const result = runSessionStart(projectDir);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /OMP_SPEC_REGISTRY_URL is not set/u);
+    assert.match(result.stdout, /OMP_SPEC_REGISTRY_TOKEN is not set/u);
+  });
+
+  it("stays silent when the corpus and MCP environment are configured", () => {
+    const result = runSessionStart(projectDir, {
+      OMP_SPEC_REGISTRY_URL: "http://127.0.0.1:8650/mcp",
+      OMP_SPEC_REGISTRY_TOKEN: "not-a-real-token",
+    });
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, "");
+  });
+
+  it("stays silent for a configured hosted project without a local corpus", () => {
+    const hosted = realpathSync.native(mkdtempSync(path.join(tmpdir(), "omp-spec-kit-hosted-")));
+    try {
+      writeFileSync(
+        path.join(hosted, ".mcp.json"),
+        JSON.stringify({ mcpServers: { "omp-spec-kit": { type: "http", url: "http://127.0.0.1:8650/mcp" } } }),
+      );
+      const result = runSessionStart(hosted);
+      assert.equal(result.status, 0);
+      assert.equal(result.stdout, "", "a hosted project is configured by .mcp.json, not by a local .specs tree");
+    } finally {
+      rmSync(hosted, { recursive: true, force: true });
+    }
+  });
+
+  it("stays silent for a user-scope Claude MCP config", () => {
+    const home = realpathSync.native(mkdtempSync(path.join(tmpdir(), "omp-spec-kit-home-")));
+    const project = realpathSync.native(mkdtempSync(path.join(tmpdir(), "omp-spec-kit-user-scope-")));
+    try {
+      writeFileSync(
+        path.join(home, ".claude.json"),
+        JSON.stringify({ mcpServers: { "omp-spec-kit": { type: "http", url: "http://127.0.0.1:8650/mcp" } } }),
+      );
+      const result = runSessionStart(project, { USERPROFILE: home, HOME: home });
+      assert.equal(result.status, 0);
+      assert.equal(result.stdout, "", "a user-scope Claude config is a valid setup signal");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+      rmSync(project, { recursive: true, force: true });
+    }
+  });
+
+  it("does not treat an unrelated MCP server as the spec registry", () => {
+    const project = realpathSync.native(mkdtempSync(path.join(tmpdir(), "omp-spec-kit-unrelated-")));
+    try {
+      writeFileSync(
+        path.join(project, ".mcp.json"),
+        JSON.stringify({ mcpServers: { github: { type: "http", url: "https://api.github.com/mcp" } } }),
+      );
+      const result = runSessionStart(project);
+      assert.equal(result.status, 0);
+      assert.match(result.stdout, /SPEC_SETUP_REQUIRED/u);
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+    }
+  });
+
+  it("never echoes a token value", () => {
+    const result = runSessionStart(projectDir, {
+      OMP_SPEC_REGISTRY_TOKEN: "super-secret-token-value",
+    });
+    assert.equal(result.status, 0);
+    assert.doesNotMatch(result.stdout, /super-secret-token-value/u);
+    assert.match(result.stdout, /OMP_SPEC_REGISTRY_URL is not set/u);
   });
 });
 

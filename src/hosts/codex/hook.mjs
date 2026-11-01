@@ -6,16 +6,74 @@
  * error is converted into a deny.
  *
  * Path policy always runs. MCP authoring is allowed only for
- * `mcp__<registryServer>__spec_patch`, and only when config.toml declares the
+ * `mcp__<registryServer>__spec_*`, and only when config.toml declares the
  * registry as a streamable HTTP server (`url`), not a stdio `command`.
+ *
+ * Session project: a registry spec call that omits `project` receives this
+ * workspace's recorded project (`<cwd>/.omp-spec-kit/project.json`) through
+ * `updatedInput` — Codex honors `permissionDecision:"allow" + updatedInput`
+ * from `codex-cli 0.141.0` (see `caps.mjs`). On an older build the hook denies
+ * with `PROJECT_INJECTION_UNAVAILABLE` instead of letting an unattached call
+ * through; a workspace with no record is denied with `PROJECT_REQUIRED`.
  */
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { projectRequiredMessage } from "../../enforcement/project-binding.js";
+import { codexSupportsUpdatedInput } from "./caps.mjs";
 import { toClassifierEvent } from "./normalize.mjs";
 
 const MAX_STDIN_BYTES = 1024 * 1024;
+
+// Codex 0.166 ignores exit code 2 when the hook also writes JSON, and a bare
+// non-zero exit fails open. Older Codex (0.144) blocks on exit 2 and did not
+// parse the JSON deny shape. Detect the managed CLI package version so both
+// hosts get a blocking answer.
+function supportsJsonDeny() {
+  const root = process.env.CODEX_MANAGED_PACKAGE_ROOT;
+  if (typeof root !== "string" || root.length === 0) return false;
+  try {
+    const version = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).version;
+    const [major, minor] = String(version).split(".").map((part) => Number(part));
+    return major > 0 || (major === 0 && minor >= 166);
+  } catch {
+    return false;
+  }
+}
+
+function deny(reason) {
+  if (supportsJsonDeny()) {
+    process.stdout.write(JSON.stringify({
+      decision: "block",
+      reason,
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+        permissionDecisionReason: reason,
+      },
+    }) + "\n");
+    return;
+  }
+  try {
+    process.stderr.write(`${reason}\n`);
+  } catch {
+    // fd 2 closed: the exit code still denies the call.
+  }
+  process.exitCode = 2;
+}
+
+/** Allow the call with replacement execution input (Codex >= 0.141.0). */
+function allowWithInput(input, reason) {
+  process.stdout.write(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "allow",
+      permissionDecisionReason: reason,
+      updatedInput: input,
+    },
+  }) + "\n");
+}
 
 // A closed fd 2 emits an asynchronous stream error; without a listener the
 // process exits 1 instead of denying with 2.
@@ -64,12 +122,19 @@ export function createCodexGuard({ home = homedir(), classifier, config = null }
   const remote = serverName !== null && registryTransportIsRemote({ codexHome: path.join(home, ".codex"), serverName });
 
   return {
+    /**
+     * @returns {{block: boolean, reason?: string, input?: Record<string, unknown>}}
+     *   `input` is the replacement execution input the hook must emit; when
+     *   present the caller needs `updatedInput` support.
+     */
     decide(payload) {
       try {
         if (typeof payload?.tool_name !== "string" || payload.tool_name === "") {
           return { block: true, reason: "SPEC_HOOK_FAILED: tool name is missing" };
         }
-        const { event, root } = toClassifierEvent(payload, { registryServer: serverName ?? "" });
+        const { event, root, registrySpecCall, project, source } = toClassifierEvent(payload, {
+          registryServer: serverName ?? "",
+        });
         const mcpCall = typeof payload?.tool_name === "string" && payload.tool_name.startsWith("mcp__");
         if (mcpCall && !remote) {
           return { block: true, reason: `REGISTRY_TRANSPORT_INVALID: mcp_servers.${serverName ?? "<unset>"} must be a streamable HTTP server` };
@@ -81,12 +146,34 @@ export function createCodexGuard({ home = homedir(), classifier, config = null }
         if (mcpCall && decision?.action !== "allow") {
           return { block: true, reason: "SPEC_HOOK_FAILED: MCP call was not authorized" };
         }
-        return { block: false };
+        if (registrySpecCall !== true) return { block: false };
+        if (source === "explicit") return { block: false };
+        if (project === null) return { block: true, reason: projectRequiredMessage(root) };
+        return { block: false, input: { ...(payload.tool_input ?? {}), project } };
       } catch (error) {
         return { block: true, reason: `SPEC_HOOK_FAILED: ${error instanceof Error ? error.message : String(error)}` };
       }
     },
   };
+}
+
+/** Emit the guard decision in the host's contract. */
+export function emitDecision(decision, { supportsUpdatedInput = codexSupportsUpdatedInput } = {}) {
+  if (decision.block) {
+    deny(decision.reason);
+    return;
+  }
+  if (decision.input === undefined) return;
+  if (!supportsUpdatedInput()) {
+    deny(
+      [
+        "PROJECT_INJECTION_UNAVAILABLE: this Codex build ignores PreToolUse updatedInput, so the hook cannot attach the workspace project.",
+        "Use codex-cli >= 0.141.0, or pass the project explicitly on the call.",
+      ].join("\n"),
+    );
+    return;
+  }
+  allowWithInput(decision.input, "omp-spec-kit attached this workspace's project");
 }
 
 async function readStdin() {
@@ -107,26 +194,13 @@ async function main() {
   const payload = JSON.parse(text);
   const { classifyToolCall } = await import(new URL("../../dist/enforcement/classifier.js", import.meta.url).href);
   const guard = createCodexGuard({ classifier: classifyToolCall });
-  const decision = guard.decide(payload);
-  if (decision.block) {
-    try {
-      process.stderr.write(`${decision.reason}\n`);
-    } catch {
-      // fd 2 closed: the exit code still denies the call.
-    }
-    process.exitCode = 2;
-  }
+  emitDecision(guard.decide(payload));
 }
 
 const invokedDirectly =
   process.argv[1] !== undefined && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 if (invokedDirectly) {
   main().catch((error) => {
-    try {
-      process.stderr.write(`SPEC_HOOK_FAILED: ${error instanceof Error ? error.message : String(error)}\n`);
-    } catch {
-      // fd 2 closed: the exit code still denies the call.
-    }
-    process.exitCode = 2;
+    deny(`SPEC_HOOK_FAILED: ${error instanceof Error ? error.message : String(error)}`);
   });
 }

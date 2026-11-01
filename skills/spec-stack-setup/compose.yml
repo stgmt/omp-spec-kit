@@ -47,7 +47,7 @@ services:
     restart: unless-stopped
     environment:
       SPEC_REGISTRY_CONFIG: /data/config/projects.json
-      SPEC_REGISTRY_CLONE: /data/specs-clone
+      SPEC_REGISTRY_CLONE: /data/clones
       SPEC_REGISTRY_STORE: /data/registry.db
       SPEC_REGISTRY_SYNC_MS: "5000"
       SPEC_REGISTRY_AUTH_CACHE_MS: "1000"
@@ -61,9 +61,6 @@ services:
       SPEC_SYNC_MARKER_KEY: ${SPEC_SYNC_MARKER_KEY:-demo-projection-marker-key-not-for-production}
       SPEC_REGISTRY_BOT_NAME: spec-registryd bot
       SPEC_REGISTRY_BOT_EMAIL: bot@spec-registryd.invalid
-      SPEC_REGISTRY_GIT_TOKEN: ${SPEC_REGISTRY_GIT_TOKEN:-}
-      SPEC_REGISTRY_GIT_USER: ${SPEC_REGISTRY_GIT_USER:-x-access-token}
-      SPEC_REGISTRY_GIT_AUTH_URL: ${SPEC_REGISTRY_GIT_AUTH_URL:-}
       # Demo-contour default only — production deployments set a real key.
       SPEC_REGISTRY_SECRETS_KEY: ${SPEC_REGISTRY_SECRETS_KEY:-demo-local-secrets-key-not-for-production}
     volumes:

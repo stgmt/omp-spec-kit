@@ -3,6 +3,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, InitializeRequestSchema, ListToolsRequestSchema, PingRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createDispatcher, serverInfo } from "./dispatch.js";
+import { sanitizeRepoUrl } from "./mounts.js";
 
 /**
  * Shared tool dispatch for the HTTP transport: same contracts, same argument
@@ -12,7 +13,9 @@ import { createDispatcher, serverInfo } from "./dispatch.js";
  * 503 (retryable) when YouTrack cannot be reached.
  */
 export function createServiceApp({ mounts, authenticate, serviceOps = {}, serviceContracts = [], wrappers = {}, endpoints = {}, audit }) {
-  const dispatcher = createDispatcher({ mounts, serviceOps, serviceContracts, wrappers });
+  // The hosted transport selects a corpus by project only: a local worktree
+  // path is refused rather than silently routed.
+  const dispatcher = createDispatcher({ mounts, serviceOps, serviceContracts, wrappers, allowDeclaredWorktree: false });
 
   const app = express();
   app.disable("x-powered-by");
@@ -53,6 +56,38 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
       // and the registry doctor can verify identity before trusting a URL.
       fingerprint: mounts?.config?.fingerprint ?? process.env.SPEC_REGISTRY_INSTANCE ?? null,
     });
+  });
+
+  app.get("/status", authGate, async (req, res) => {
+    const scopes = Array.isArray(req.ctx?.scopes) ? req.ctx.scopes : [];
+    const projects = [];
+    for (const project of mounts.projects.filter((id) => scopes.includes(id))) {
+      const row = mounts.store?.getBinding?.(project) ?? null;
+      const active = row?.status === "active";
+      let specs = null;
+      let error = null;
+      try {
+        const { branches } = await mounts.listBranches(project);
+        specs = branches.filter((branch) => branch.kind === "spec").length;
+      } catch (cause) {
+        error = cause?.code ?? "ADAPTER_READ_ERROR";
+      }
+      projects.push({
+        project,
+        binding: row?.status ?? "required",
+        repoUrl: active ? sanitizeRepoUrl(row.repoUrl) : null,
+        specs,
+        error,
+        setup: active
+          ? { required: false, code: null, command: null }
+          : {
+              required: true,
+              code: "REPO_BINDING_REQUIRED",
+              command: `POST /repos/bind {"project":"${project}","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}`,
+            },
+      });
+    }
+    res.json({ ok: true, projects });
   });
 
   app.get("/registry", authGate, async (req, res) => {
@@ -254,7 +289,7 @@ function wireProtocolHandlers(server, dispatcher, ctx, audit, { projectHint } = 
     if (typeof name !== "string") {
       throw Object.assign(new Error("Unknown tool: <missing>"), { code: -32602 });
     }
-    const { envelope, unknownTool } = await dispatcher.callTool({ tool: name, args: rawArguments, ctx, projectHint });
+    const { envelope, unknownTool, project: servedProject } = await dispatcher.callTool({ tool: name, args: rawArguments, ctx, projectHint });
     if (unknownTool) {
       throw Object.assign(new Error(`Unknown tool: ${name}`), { code: -32602 });
     }
@@ -264,7 +299,7 @@ function wireProtocolHandlers(server, dispatcher, ctx, audit, { projectHint } = 
           tenant: Array.isArray(ctx?.tenant) ? ctx.tenant.join(",") : ctx?.tenant ?? null,
           login: ctx?.identity?.login ?? null,
           role: ctx?.role ?? null,
-          project: typeof rawArguments?.project === "string" ? rawArguments.project : null,
+          project: servedProject ?? null,
           op: name,
           spec: typeof rawArguments?.spec === "string" ? rawArguments.spec : null,
           requestId: typeof rawArguments?.requestId === "string" ? rawArguments.requestId : null,

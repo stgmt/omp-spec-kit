@@ -1,16 +1,17 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { GitClient, botIdentityFromEnv, gitAuthFromEnv } from "./git.js";
-import { loadProjectsConfig, MountManager } from "./mounts.js";
+import { GitClient, botIdentityFromEnv } from "./git.js";
+import { loadProjectsConfig, MountManager, ConfigError } from "./mounts.js";
 import { createYouTrackAuth } from "./auth.js";
 import { createServiceApp } from "./http.js";
 import { createClaimStore } from "./claims.js";
 import { createClaimOps, CLAIM_CONTRACTS } from "./ops/claim.js";
 import { createRegistryOps, REGISTRY_CONTRACTS } from "./ops/registry.js";
+import { createRepoOps, REPO_CONTRACTS } from "./ops/repos.js";
 import { createWritePipeline } from "./writepath.js";
 import { createStore } from "./ledger.js";
 import { buildRegistryIndex } from "./registry.js";
-import { computeDrift } from "./drift.js";
+import { computeDrift, worktreeDrift } from "./drift.js";
 import { startSync } from "./sync.js";
 import { createOnboarding } from "./onboarding.js";
 import { resolveMarkerSecret } from "../adapters/marker-secret.js";
@@ -19,14 +20,50 @@ import { createPublisher } from "./publish.js";
 import { createVersionedReads } from "./versioned.js";
 import { createRepoManager } from "./repos.js";
 import { createIdpManager } from "./idps.js";
-import { secretsKeyFromEnv } from "./secrets.js";
-
-export async function bootService({ configPath, cloneDir, git = new GitClient({ gitAuth: gitAuthFromEnv() }), identity, store = null, secretsKey = null, logger = () => {} }) {
+import { createSpecBranchManager } from "./spec-branches.js";
+import { BRANCH_CONTRACTS, createBranchOps } from "./ops/branch.js";
+import { serviceErrorEnvelope, serviceSuccess, setupAction } from "./dispatch.js";
+import { secretsKeyFromEnv, sealSecret } from "./secrets.js";
+export async function bootService({ configPath, cloneDir, git = new GitClient(), identity, store: storeOption = null, secretsKey = null, logger = () => {} }) {
   const config = await loadProjectsConfig(configPath);
-  const resolvedCloneDir = path.resolve(cloneDir ?? path.join(path.dirname(configPath), "..", "data", "specs-clone"));
+  const store = storeOption ?? (await createStore({ file: path.join(path.dirname(configPath), "registry.db") }));
+  seedInitialBindings({ config, store, secretsKey, env: process.env });
+  const resolvedCloneDir = path.resolve(cloneDir ?? path.join(path.dirname(configPath), "..", "data", "clones"));
   const mounts = new MountManager({ config, cloneDir: resolvedCloneDir, git, identity, store, secretsKey, logger });
   const report = await mounts.boot();
-  return { config, mounts, report };
+  return { config, mounts, report, store };
+}
+
+/** Config-declared bootstrap bindings: no repository default, one explicit record per project. */
+function seedInitialBindings({ config, store, secretsKey, env }) {
+  for (const binding of config.bindings ?? []) {
+    const existing = store?.getBinding?.(binding.project) ?? null;
+    if (existing?.status === "active") {
+      if (existing.repoUrl !== binding.repoUrl) {
+        throw new ConfigError(`binding for ${binding.project} points at ${existing.repoUrl}, config says ${binding.repoUrl}`);
+      }
+      continue;
+    }
+    let tokenEnc = null;
+    if (binding.tokenEnv !== null) {
+      const token = env?.[binding.tokenEnv];
+      if (typeof token !== "string" || token.length === 0) throw new ConfigError(`binding for ${binding.project} needs ${binding.tokenEnv} in the environment`);
+      if (!secretsKey) throw new ConfigError(`binding for ${binding.project} needs SPEC_REGISTRY_SECRETS_KEY to store ${binding.tokenEnv}`);
+      tokenEnc = sealSecret(secretsKey, token);
+    }
+    store?.putBinding?.({
+      project: binding.project,
+      repoUrl: binding.repoUrl,
+      branch: "main",
+      status: "active",
+      boundBy: null,
+      boundAt: new Date().toISOString(),
+      migratedFrom: null,
+      migratedFromBranch: null,
+      lastError: null,
+    });
+    if (tokenEnc !== null) store?.putCredential?.(binding.project, { repoUrl: binding.repoUrl, tokenEnc, username: binding.username });
+  }
 }
 
 export function buildServiceStack({ mounts, config, identity = botIdentityFromEnv(), logger = () => {}, store, secretsKey = null, syncIntervalMs = 0, env = process.env }) {
@@ -71,27 +108,138 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   });
   const claims = createClaimStore({ store });
   const claimOps = createClaimOps({ claims });
-  const registryIndex = () => buildRegistryIndex({ mounts, claims, ledger: store ?? { getLedger: () => [] } });
-  const driftReport = async () => {
-    // A drift report is only honest against freshly fetched remotes — every
-    // mounted repo (default + bound) is fetched and checked.
+  const registryIndex = ({ projects } = {}) => buildRegistryIndex({ mounts, claims, ledger: store ?? { getLedger: () => [] }, projects });
+  // A drift report is only honest against freshly fetched remotes — every
+  // bound mirror is fetched and every canonical spec branch checked. The
+  // caller's project scope bounds which mirrors that walk may touch.
+  const driftReport = async ({ projects } = {}) => {
     const events = [];
-    for (const mount of mounts.activeMounts()) {
-      await mount.git.fetch({ cwd: mount.cwd }).catch(() => {});
-      const report = await computeDrift({ git: mount.git, branch: mount.branch, identity, cwd: mount.cwd }).catch((error) => ({ events: [{ kind: "repo-unreachable", detail: String(error?.message ?? error).split("\n")[0] }] }));
-      for (const event of report.events) events.push({ ...event, repo: mount.repoUrl });
+    for (const projectId of projects ?? mounts.projects) {
+      let discovered;
+      try {
+        discovered = await mounts.discoverProject(projectId);
+      } catch (error) {
+        if (error?.code === "REPO_BINDING_REQUIRED") continue;
+        events.push({ kind: "repo-unreachable", project: projectId, detail: String(error?.message ?? error).split("\n")[0] });
+        continue;
+      }
+      const { mount, bindings, invalid } = discovered;
+      for (const entry of invalid.filter((item) => item.project === projectId)) {
+        events.push({ kind: "binding-invalid", project: projectId, branch: entry.branch, detail: entry.errors.join("; ") });
+      }
+      for (const binding of bindings) {
+        const report = await computeDrift({
+          git: mount.git,
+          branch: binding.branch,
+          identity,
+          cwd: mount.mirrorDir,
+          headRef: binding.ref,
+          remoteRef: binding.ref,
+        }).catch((error) => ({ events: [{ kind: "repo-unreachable", detail: String(error?.message ?? error).split("\n")[0] }] }));
+        for (const event of report.events) events.push({ ...event, repo: mount.repoUrl, project: projectId, spec: binding.spec });
+        const local = await worktreeDrift({ git: mount.git, cwd: mount.mirrorDir, project: projectId, spec: binding.spec, branch: binding.branch, remoteRef: binding.ref }).catch(() => []);
+        for (const event of local) events.push({ ...event, repo: mount.repoUrl });
+      }
     }
     // Publish rejections are drift too: a version squatted by different
     // content must surface next to non-bot commits, not only in access_log.
+    const scoped = Array.isArray(projects) ? new Set(projects) : null;
     const rejections = store?.listAccess?.({ resultPrefix: "publish-rejected:", limit: 50 }) ?? [];
     for (const entry of rejections) {
+      if (scoped !== null && !scoped.has(entry.project)) continue;
       events.push({ kind: "publish-rejected", spec: entry.spec, project: entry.project, detail: entry.result, detectedAt: entry.ts });
     }
-    return { events, branch: config.branch };
+    return { events, branch: null };
   };
-  const registryOps = createRegistryOps({ registryIndex, driftReport, branch: config.branch });
+  const repoOps = createRepoOps({ repos });
+  const registryOps = createRegistryOps({
+    registryIndex,
+    driftReport,
+    branch: null,
+    // Setup visibility for a listing caller: its own projects and their
+    // binding state, never another tenant's repository.
+    repositoryStatus: (ctx) => repos.me(ctx).repos,
+  });
   const publisher = store ? createPublisher({ mounts, store, identity, logger }) : null;
-  const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher, projection });
+  const branchManager = createSpecBranchManager({
+    mounts,
+    claims,
+    identity,
+    logger,
+    audit: (entry) => store?.logAccess?.(entry),
+    publish: publisher,
+    projection,
+    store,
+    dependents: async ({ project: projectId, spec }) => {
+      // deleteCanonical already performed a strict fetch; do not fetch again
+      // with the tolerant read path, or a transient second failure could make
+      // archivalProof inspect a stale corpus.
+      await mounts.projectRoot(projectId, { fetch: false });
+      const proof = await mounts.serviceFor(projectId).runQuery(
+        "inspect",
+        { check: "archivalProof", spec },
+        { requestId: `dependents-${projectId}-${spec}` },
+      );
+      if (!proof?.ok || proof.data?.kind !== "archival-proof") {
+        throw new Error(proof?.error?.message ?? "archival proof failed");
+      }
+      return proof.data.liveInboundReferences ?? [];
+    },
+  });
+  const branchOps = createBranchOps({ branches: branchManager });
+  const catalogBranches = async ({ args, project, requestId }) => {
+    if ((args.view ?? "specs") !== "branches") return undefined;
+    try {
+      const { branches, invalid } = await mounts.listBranches(project);
+      return { envelope: serviceSuccess("catalog", requestId, { kind: "branches", branches, invalid }) };
+    } catch (error) {
+      return {
+        envelope: serviceErrorEnvelope("catalog", requestId, error?.code ?? "ADAPTER_READ_ERROR", String(error?.message ?? error)),
+      };
+    }
+  };
+  // Admission facts for the project that actually served this call: connection,
+  // selected project, repository binding, corpus availability and write
+  // readiness are reported separately. The served project is carried by the
+  // response provenance (withServedProject) instead of a second data field.
+  const preflightSetup = async ({ args, project, projectSource = null, requestId, schemaVersion }) => {
+    const row = store?.getBinding?.(project) ?? null;
+    const ready = row?.status === "active" || (row?.status === "migrating" && Boolean(row.migratedFrom));
+    const bindingStatus = typeof row?.status === "string" ? row.status : "required";
+    if (!ready) {
+      // An agent must be able to finish setup over MCP: the typed call comes
+      // first, and the operator HTTP path is kept only as a labelled fallback.
+      const operatorCommand = `POST /repos/bind {"project":"${project}","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}`;
+      return {
+        envelope: serviceSuccess("mcpPreflight", requestId, {
+          kind: "mcp-preflight",
+          connection: { healthy: true, transport: "http" },
+          project: { selected: project, source: projectSource, selectedByCaller: (projectSource ?? null) === "explicit" },
+          repository: { binding: bindingStatus, rootId: null },
+          worktree: { transport: "http", declared: false },
+          corpus: { present: false, available: false },
+          setup: {
+            required: true,
+            code: "REPO_BINDING_REQUIRED",
+            action: setupAction(project),
+            operator: { label: "operator HTTP path", command: operatorCommand },
+            command: operatorCommand,
+          },
+          mutationReady: false,
+        }),
+      };
+    }
+    const base = await mounts.serviceFor(project).runQuery("mcpPreflight", args, {
+      requestId,
+      schemaVersion,
+      project,
+      projectSource,
+      transport: "http",
+      bindingStatus,
+    });
+    return { envelope: { ...base, data: { ...(base.data ?? {}), setup: { required: false, code: null, action: null, operator: null, command: null } } } };
+  };
+  const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher, projection, branchManager });
   const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger, idps: { list: () => idpManager.listActiveIdps() } });
   const versionedReads = createVersionedReads({ mounts, store });
   let sync = null;
@@ -119,9 +267,16 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     publisher,
     projection,
     authenticate: (req) => auth.authenticate(req),
-    serviceOps: { specClaim: claimOps.specClaim, specRelease: claimOps.specRelease, specRegistry: registryOps.specRegistry, specDrift: registryOps.specDrift },
-    serviceContracts: [...CLAIM_CONTRACTS, ...REGISTRY_CONTRACTS],
-    wrappers: { specPatch: writePath.specPatch, documents: versionedReads },
+    serviceOps: {
+      specClaim: claimOps.specClaim,
+      specRelease: claimOps.specRelease,
+      specRegistry: registryOps.specRegistry,
+      specDrift: registryOps.specDrift,
+      specBranch: branchOps.specBranch,
+      specRepo: repoOps.specRepo,
+    },
+    serviceContracts: [...CLAIM_CONTRACTS, ...REGISTRY_CONTRACTS, ...BRANCH_CONTRACTS, ...REPO_CONTRACTS],
+    wrappers: { specPatch: writePath.specPatch, documents: versionedReads, catalog: catalogBranches, mcpPreflight: preflightSetup },
     endpoints: {
       registry: () => registryIndex(),
       drift: () => driftReport(),
@@ -160,11 +315,11 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
 }
 
 export async function startService({ configPath, cloneDir, storeFile, syncIntervalMs = Number(process.env.SPEC_REGISTRY_SYNC_MS ?? 0), port = Number(process.env.SPEC_REGISTRY_PORT ?? 8642), host = process.env.SPEC_REGISTRY_HOST ?? "127.0.0.1", identity = botIdentityFromEnv(), logger = console.error, env = process.env }) {
-  const git = new GitClient({ gitAuth: gitAuthFromEnv(env) });
+  const git = new GitClient({ env });
   const secretsKey = secretsKeyFromEnv(env);
   // The store must exist before mounts: bound projects resolve their clone
   // through repo_bindings during boot reconciliation.
-  const resolvedCloneDir = path.resolve(cloneDir ?? path.join(path.dirname(configPath), "..", "data", "specs-clone"));
+  const resolvedCloneDir = path.resolve(cloneDir ?? path.join(path.dirname(configPath), "..", "data", "clones"));
   const store = await createStore({ file: storeFile ?? env.SPEC_REGISTRY_STORE ?? path.join(path.dirname(resolvedCloneDir), "registry.db") });
   const { config, mounts } = await bootService({ configPath, cloneDir: resolvedCloneDir, git, identity, store, secretsKey, logger });
   const stack = buildServiceStack({ mounts, config, identity, logger, store, secretsKey, syncIntervalMs, env });

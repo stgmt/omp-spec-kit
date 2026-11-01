@@ -4,12 +4,23 @@ In-UI spec-graph viewer backed by `spec-registryd`. The installable package is
 built in CI from this directory — never commit a hand-made archive.
 
 Installing the ZIP creates nothing in the tracker. The app adds a **Spec
-Service** page to the Administration menu (`ADMINISTRATION_MENU_ITEM`) — the
+Service** page under **Administration → Integrations**
+(`ADMINISTRATION_MENU_ITEM`) — never to the main left navigation — the
 whole member journey lives there: repository binding and verification, the
 `.mcp.json` mint, and the IdP console for operators. Issue pages carry only
-a thin context card (linked spec, repo status, a link to the page) — no
-onboarding inside tasks. Optional discovery aid: the native system-wide
-banner an admin configures in Global Settings.
+the read-only **Spec Panel** (neighbors and tracker transitions) — no setup
+link, no onboarding inside tasks. Optional discovery aid: the native
+system-wide banner an admin configures in Global Settings.
+
+## Project selection
+
+The board reads the v7 root index and offers a **Project** selector
+(`All projects`, each project, `Unassigned`). Each project is a signed
+`SPEC:SYNC-STATE:<project>` pointer; an unknown selection resolves to
+`Unassigned`, and a marker without the v7 index fails closed with
+`PROJECTION_INDEX_REQUIRED`. The selection persists through the host
+storage/cache (`localStorage` and the parent URL are blocked in YouTrack's
+sandboxed dashboard iframe).
 
 ## Install into your YouTrack
 
@@ -34,6 +45,42 @@ npx youtrack-app app attach --host <same> --token <same> --app spec-graph-app --
 The permanent token needs `Update Project` on the target project. Set
 `serviceUrl`/`serviceBridgeToken` afterwards in Administration → Apps →
 Spec Graph → Settings, or reuse the e2e `globalConfig` call.
+
+## Dashboard and health
+
+The **Spec Service** page (Administration → Integrations) runs a health check
+before any service call and offers **Provision dashboard**:
+
+- the dashboard is `Spec Stack` with exactly one `spec-board` embedding,
+  full width (`12`), pointing at the currently installed app widget;
+- a stale embedding, a narrow width, or duplicate boards are repaired on the
+  next provision; a healthy second run performs no writes;
+- sharing with `All Users` is mandatory — a missing group fails the provision
+  instead of reporting a ready dashboard;
+- the Snapshot row reads the committed `SPEC:SYNC-STATE` issue. Set the
+  optional `markerProject` app setting when the pointer lives in a YouTrack
+  project other than `SPEC`.
+
+Known limitation: YouTrack has no dashboard-sharing delta endpoint, so the
+share step reads the dashboard and posts the full snapshot back. A widget
+added by another user in the few milliseconds between the read and the post
+can be lost; the next health check reports the resulting state and a rerun
+repairs the board. The headless provisioner
+(`scripts/spec-dashboard-setup.mjs`) has the same contract.
+
+YouTrack 2025.3 did not complete dashboard writes issued from the widget host
+(the request never reaches the server). The page therefore verifies the
+persisted dashboard and, on a write timeout, reports the canonical command
+instead of hanging:
+
+```text
+node scripts/spec-dashboard-setup.mjs --host <youtrack-url> --token <admin-token>
+```
+
+Creation, stale/duplicate repair, and the `All Users` share are implemented
+idempotently in that provisioner and in the page module
+(`widgets/spec-app/dashboard.js`); the module's behavior is covered by
+`tests/unit/service/spec-app-dashboard.test.mjs`.
 
 ## What CI produces
 

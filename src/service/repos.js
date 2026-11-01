@@ -1,8 +1,8 @@
-import { cp, mkdir, readdir, stat } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { GitClient, commitMessage } from "./git.js";
-import { configuredBranch, isValidBranchName } from "./branch-policy.js";
-import { repoHostAllowed } from "./mounts.js";
+import { GitClient } from "./git.js";
+import { isValidBranchName } from "./branch-policy.js";
+import { repoHostAllowed, sanitizeRepoUrl } from "./mounts.js";
 import { sealSecret } from "./secrets.js";
 
 export class RepoError extends Error {
@@ -33,24 +33,23 @@ function assertBindAllowed(ctx, project, config, mounts) {
 function publicBinding(row) {
   return {
     project: row.project,
-    repoUrl: row.repoUrl,
+    repoUrl: sanitizeRepoUrl(row.repoUrl),
     branch: row.branch,
     status: row.status,
     boundBy: row.boundBy,
     boundAt: row.boundAt,
-    migratedFrom: row.migratedFrom,
+    migratedFrom: row.migratedFrom === null ? null : sanitizeRepoUrl(row.migratedFrom),
     lastError: row.lastError,
   };
 }
 
 /**
- * Repo bindings (TASK-17): a project may live in its own specs repository
- * instead of the shared default. Binding is server-side state — the client
- * (.mcp.json) never carries repo URLs or tokens. Migration copies the
- * project's .specs snapshot into the target repo as a service-bot commit;
- * git history is not transferred (pushing refs would leak every other
- * project's ancestors). Pre-migration published versions stay readable from
- * the previous clone, which is kept on disk.
+ * Repo bindings (TASK-17): every project lives in its own specs repository.
+ * Binding is server-side state — the client (.mcp.json) never carries repo
+ * URLs or tokens. Re-binding migrates the project's .specs snapshot into the
+ * target repo as a service-bot commit; git history is not transferred (pushing
+ * refs would leak every other project's ancestors). Pre-migration published
+ * versions stay readable from the previous clone, which is kept on disk.
  */
 export function createRepoManager({ mounts, store, config, identity, secretsKey, logger = () => {}, afterRepoChange = null }) {
   const audit = (entry) => { try { store?.logAccess?.(entry); } catch {} };
@@ -65,36 +64,6 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     const probeGit = new GitClient({ gitAuth: auth });
     await mkdir(mounts.clonesRoot, { recursive: true });
     return probeGit.probeRemote(repoUrl, { cwd: mounts.clonesRoot });
-  }
-
-  async function copySpecsSnapshot(sourceMount, targetMount, projectId) {
-    const sourceRoot = path.join(sourceMount.cwd, projectId);
-    const targetRoot = path.join(targetMount.cwd, projectId);
-    let specsRoot;
-    try {
-      specsRoot = path.join(sourceRoot, ".specs");
-      if (!(await stat(specsRoot)).isDirectory()) return 0;
-    } catch {
-      return 0;
-    }
-    await mkdir(path.dirname(targetRoot), { recursive: true });
-    // Never carry a write-lock across: a held lock in the snapshot would
-    // wedge writes in the new repo until it expired.
-    await cp(sourceRoot, targetRoot, {
-      recursive: true,
-      filter: (source) => !source.endsWith(".omp-spec-kit-write.lock"),
-    });
-    // The migrated-document count is the onboarding verify step's proof —
-    // count the landed files, not the source listing.
-    let documents = 0;
-    const walk = async (dir) => {
-      for (const entry of await readdir(path.join(targetRoot, ".specs", dir), { withFileTypes: true })) {
-        if (entry.isDirectory()) await walk(path.join(dir, entry.name));
-        else documents += 1;
-      }
-    };
-    await walk(".");
-    return documents;
   }
 
   /** Reachability + credential check without persisting anything. */
@@ -124,22 +93,18 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
   async function bindInternal({ project, repoUrl, branch, token, username, migrate = true, boundBy = null, role = null }) {
     requireStore();
     if (typeof repoUrl !== "string" || repoUrl.length === 0) throw new RepoError(400, "REPO_URL_REQUIRED", "repoUrl is required");
-    const host = repoHostAllowed(repoUrl, config.repoPolicy?.allowedHosts);
+    const cleanRepoUrl = sanitizeRepoUrl(repoUrl);
+    const host = repoHostAllowed(cleanRepoUrl, config.repoPolicy?.allowedHosts);
     if (!host.ok) throw new RepoError(400, "REPO_HOST_FORBIDDEN", host.reason);
-    const pinned = configuredBranch(config);
-    if (pinned === null) throw new RepoError(500, "BRANCH_INVALID", "the configured specs branch is not a valid git ref");
-    const resolvedBranch = typeof branch === "string" && branch.length > 0 ? branch : pinned;
+    const resolvedBranch = typeof branch === "string" && branch.length > 0 ? branch : "main";
     if (!isValidBranchName(resolvedBranch)) throw new RepoError(400, "BRANCH_INVALID", "branch is not a valid git ref");
-    if (resolvedBranch !== pinned) {
-      throw new RepoError(400, "BRANCH_FORBIDDEN", `this stack writes only to ${pinned}; a second branch would become a second canonical store`);
-    }
     if (typeof token !== "string" || token.length === 0) {
       throw new RepoError(400, "REPO_TOKEN_REQUIRED", "a git token for the repo is required (fine-grained PAT with contents read/write)");
     }
     if (!secretsKey) throw new RepoError(503, "SECRETS_UNAVAILABLE", "SPEC_REGISTRY_SECRETS_KEY is not set — credential bindings are disabled", { retryable: true });
 
-    const auth = { token, username: typeof username === "string" && username ? username : undefined, url: repoUrl };
-    const head = await probe(repoUrl, auth).catch((error) => {
+    const auth = { token, username: typeof username === "string" && username ? username : undefined, url: cleanRepoUrl };
+    const head = await probe(cleanRepoUrl, auth).catch((error) => {
       throw new RepoError(400, "REPO_PROBE_FAILED", `cannot read the repo with the supplied credential: ${String(error?.message ?? error).split("\n")[0]}`);
     });
 
@@ -147,73 +112,46 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     // Re-binding the same (repoUrl, branch) is a no-op: without this the copy
     // would write the SOURCE snapshot over the bound repo and silently revert
     // every post-migration write.
-    if (current?.status === "active" && current.repoUrl === repoUrl && current.branch === resolvedBranch) {
+    if (current?.status === "active" && sanitizeRepoUrl(current.repoUrl) === cleanRepoUrl && current.branch === resolvedBranch) {
       return { binding: publicBinding(current), head, unchanged: true };
     }
-    const sourceMount = mounts.forSource(project);
-    const migratedFrom = current?.status === "active" ? current.repoUrl : sourceMount.repoUrl;
-    const migratedFromBranch = current?.status === "active" ? current.branch : sourceMount.branch;
+    const migratedFrom = current?.status === "active" ? sanitizeRepoUrl(current.repoUrl) : null;
+    const migratedFromBranch = current?.status === "active" ? current.branch : null;
 
-    // Persist creds + mark migrating before touching remotes: a crash here
-    // leaves a resumable row, not an invisible half-state. migratedFrom=null
-    // means "came from the default repo" so reads keep resolving to it.
-    await store?.putCredential?.(project, { repoUrl, tokenEnc: sealSecret(secretsKey, token), username: auth.username ?? null });
+    // Mark migrating before touching remotes but keep the previous credential
+    // until the target mirror is ready: a read during the move still resolves
+    // `migratedFrom`, and that repo needs its own token, not the new one.
+    // migratedFrom=null means the project had no previous repo (a first bind).
     const put = (status, lastError = null) => store?.putBinding?.({
-      project, repoUrl, branch: resolvedBranch, status,
+      project, repoUrl: cleanRepoUrl, branch: resolvedBranch, status,
       boundBy, boundAt: new Date().toISOString(),
-      migratedFrom: migratedFrom === repoUrl || migratedFrom === config.specsRepo ? null : migratedFrom,
-      migratedFromBranch: migratedFrom === repoUrl || migratedFrom === config.specsRepo ? null : migratedFromBranch,
+      migratedFrom: migratedFrom === cleanRepoUrl ? null : migratedFrom,
+      migratedFromBranch: migratedFrom === cleanRepoUrl ? null : migratedFromBranch,
       lastError,
     });
     await put("migrating");
 
-    const mount = mounts.byRepo(repoUrl, resolvedBranch, project);
-    let migratedDocuments = 0;
-    let migratedCommit = null;
+    const mount = mounts.descriptorFor(cleanRepoUrl, resolvedBranch, auth);
     try {
       await mounts.ensureMount(mount);
-      // migrate:false means "the target repo stands on its own" — a pre-seeded
-      // .specs there wins and the source snapshot is never copied over it.
-      if (migrate !== false) migratedDocuments = await copySpecsSnapshot(sourceMount, mount, project);
-      if (migratedDocuments > 0) {
-        await mount.git.add([project], { cwd: mount.cwd });
-        await mount.git.commit({
-          message: commitMessage({
-            subject: `chore: migrate ${project} specs snapshot`,
-            trailers: { "Spec-Author": boundBy ?? "service", "Spec-Migrated-From": migratedFrom },
-          }),
-          authorName: identity.name,
-          authorEmail: identity.email,
-          cwd: mount.cwd,
-        });
-        await mount.git.push({ refspec: `HEAD:refs/heads/${resolvedBranch}` }, { cwd: mount.cwd });
-        migratedCommit = await mount.git.revParse("HEAD", { cwd: mount.cwd });
-        // Verify the landed tree matches the source snapshot byte-for-byte.
-        const sourceTree = await sourceMount.git.objectId("HEAD", `${project}/.specs`, { cwd: sourceMount.cwd }).catch(() => null);
-        const targetTree = await mount.git.objectId("HEAD", `${project}/.specs`, { cwd: mount.cwd }).catch(() => null);
-        if (sourceTree && targetTree && sourceTree !== targetTree) {
-          throw new RepoError(502, "MIGRATION_TREE_MISMATCH", `copied tree ${targetTree.slice(0, 12)} differs from source ${sourceTree.slice(0, 12)}`);
-        }
-      }
-      // Empty source, migrate:false, or a bare target: the project directory
-      // must exist in the bound repo either way.
-      await mounts.ensureSkeletonInMount(mount, project);
+      await store?.putCredential?.(project, { repoUrl: cleanRepoUrl, tokenEnc: sealSecret(secretsKey, token), username: auth.username ?? null });
       await put("active");
-      // The migration/skeleton pushes above bypass the write pipeline — the
-      // tracker projection must be told explicitly or bound specs wait for
-      // the next unrelated trigger before their cards exist.
+      await mounts.projectRoot(project);
+      // The binding change bypasses the write pipeline — the tracker
+      // projection must be told explicitly or bound specs wait for the next
+      // unrelated trigger before their cards exist.
       afterRepoChange?.();
     } catch (error) {
       await put("error", String(error?.message ?? error).slice(0, 500));
       if (error instanceof RepoError) throw error;
       throw new RepoError(502, "REPO_BIND_FAILED", `binding failed: ${String(error?.message ?? error).split("\n")[0]}`);
     }
-    audit({ login: boundBy, role, project, op: "repo-bind", spec: null, result: `ok:${migratedDocuments > 0 ? "migrated" : "bound"}:${repoUrl}` });
-    logger(`repo-bind ${project} -> ${repoUrl} (${migratedDocuments > 0 ? "migrated" : "bound"})`);
+    audit({ login: boundBy, role, project, op: "repo-bind", spec: null, result: `ok:bound:${cleanRepoUrl}` });
+    logger(`repo-bind ${project} -> ${cleanRepoUrl} (bound)`);
     return {
       binding: publicBinding(store.getBinding(project)),
       head,
-      migrated: migratedCommit !== null ? { commit: migratedCommit, documents: migratedDocuments } : null,
+      migrated: null,
     };
   }
 
@@ -225,9 +163,10 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     // The bound clone stays on disk: ledger rows still reference its commits
     // for versioned reads across the migration boundary.
     await unbindInternal(project);
-    audit({ login: ctx.identity?.login ?? null, role: ctx.role ?? null, project, op: "repo-unbind", spec: null, result: `ok:${row.repoUrl}` });
-    logger(`repo-unbind ${project} (was ${row.repoUrl})`);
-    return { unbound: project, previous: row.repoUrl };
+    const previous = sanitizeRepoUrl(row.repoUrl);
+    audit({ login: ctx.identity?.login ?? null, role: ctx.role ?? null, project, op: "repo-unbind", spec: null, result: `ok:${previous}` });
+    logger(`repo-unbind ${project} (was ${previous})`);
+    return { unbound: project, previous };
   }
 
   /**
@@ -243,7 +182,7 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     // The unbound project's specs leave the corpus — the tracker should drop
     // their cards on the next projection, not whenever something else fires.
     afterRepoChange?.();
-    return row.repoUrl;
+    return sanitizeRepoUrl(row.repoUrl);
   }
 
   function bindings(ctx) {
@@ -264,9 +203,8 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
         const row = bound.get(project);
         // An external-tenant project with no binding has no repo at all —
         // reporting "default" would pretend the operator's repo serves it.
-        const external = mounts.isExternalProject?.(project) === true;
-        const status = row?.status ?? (external ? "required" : "default");
-        const repoUrl = row?.status === "active" ? row.repoUrl : external ? null : config.specsRepo;
+        const status = row?.status ?? "required";
+        const repoUrl = row?.status === "active" ? sanitizeRepoUrl(row.repoUrl) : null;
         return { project, repoUrl, bound: row?.status === "active", status };
       }),
     };

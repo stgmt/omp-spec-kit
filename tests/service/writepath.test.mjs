@@ -1,16 +1,18 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { after, describe, it } from "node:test";
 import { startService } from "../../src/service/index.js";
 import { loadLiveFixture } from "../e2e/lib/live-fixture.mjs";
+import { seedSpecBranch } from "./lib/spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
 const FIXTURE_SPEC = path.resolve("tests/fixtures/kernel/real-corpus/.specs/spec-kernel");
+const SPEC_BRANCH = "spec-spec-kernel";
 const servers = [];
 const services = [];
 const tempDirs = [];
@@ -38,24 +40,19 @@ async function setup() {
   const base = await tempDir("spec-write-");
   const bare = path.join(base, "specs.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
-  const seed = path.join(base, "seed");
-  await execFileAsync("git", ["clone", bare, seed]);
-  await git(seed, ["config", "user.email", "seed@example.invalid"]);
-  await git(seed, ["config", "user.name", "seed"]);
-  await cp(FIXTURE_SPEC, path.join(seed, "stgmt", "alpha", ".specs", "spec-kernel"), { recursive: true });
-  await execFileAsync("git", ["-C", seed, "add", "."]);
-  await execFileAsync("git", ["-C", seed, "commit", "-m", "seed"]);
-  await execFileAsync("git", ["-C", seed, "push", "-q", "origin", "HEAD:refs/heads/main"]);
-  await rm(seed, { recursive: true, force: true });
+  await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", sourceDir: FIXTURE_SPEC });
 
   const configPath = await fixture.writeServiceConfig(bare);
   const service = await startService({ configPath, cloneDir: path.join(base, "clone"), port: 0, identity: IDENTITY, logger: () => {} });
   servers.push(service.server);
   services.push(service);
+  const worktree = await service.mounts.worktreeFor("stgmt/alpha", "spec-kernel");
   return {
     fixture,
     bare,
-    cloneDir: path.join(base, "clone"),
+    worktree,
+    cloneDir: worktree.cwd,
+    projectRoot: await service.mounts.projectRoot("stgmt/alpha"),
     url: `http://127.0.0.1:${service.server.address().port}/mcp`,
     tokens: {
       alice: await fixture.userToken("alice"),
@@ -95,13 +92,13 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     assert.equal(result.isError, false, JSON.stringify(result?.structuredContent?.error ?? {}));
     assert.equal(result.structuredContent.data.outcome, "APPLIED");
 
-    const body = await git(bare, ["log", "--format=%B", "-1", "main"]);
+    const body = await git(bare, ["log", "--format=%B", "-1", SPEC_BRANCH]);
     assert.match(body, /spec\(stgmt\/alpha\): apply/u);
     assert.match(body, /Spec-Author: alice/u, "the trailer must carry the YouTrack-verified login");
     assert.match(body, /Spec-Request-Id: w1/u);
-    assert.equal(await git(bare, ["log", "--format=%an", "-1", "main"]), "spec-bot");
+    assert.equal(await git(bare, ["log", "--format=%an", "-1", SPEC_BRANCH]), "spec-bot");
 
-    const remoteTasks = await git(bare, ["show", "main:stgmt/alpha/.specs/spec-kernel/TASKS.md"]);
+    const remoteTasks = await git(bare, ["show", `${SPEC_BRANCH}:.specs/spec-kernel/TASKS.md`]);
     assert.match(remoteTasks, /TASK-99 — e2e write/u);
   });
 
@@ -115,23 +112,24 @@ describe("write path over POST /mcp (live-verified identity)", () => {
 
     const operator = await tempDir("spec-write-operator-");
     await execFileAsync("git", ["clone", bare, operator]);
+    await git(operator, ["checkout", "-B", SPEC_BRANCH, `origin/${SPEC_BRANCH}`]);
     await git(operator, ["config", "user.email", "operator@example.invalid"]);
     await git(operator, ["config", "user.name", "operator"]);
     await writeFile(path.join(operator, "BREAK-GLASS.md"), "# break-glass\n\nOperator pushed directly.\n");
     await execFileAsync("git", ["-C", operator, "add", "."]);
     await execFileAsync("git", ["-C", operator, "commit", "-m", "chore: operator break-glass note"]);
-    await execFileAsync("git", ["-C", operator, "push", "-q", "origin", "HEAD:refs/heads/main"]);
+    await execFileAsync("git", ["-C", operator, "push", "-q", "origin", `HEAD:refs/heads/${SPEC_BRANCH}`]);
     await rm(operator, { recursive: true, force: true });
 
     const result = await callTool(url, tokens.alice, "spec_patch", patchArgs({ requestId: "w-reconcile" }));
     assert.equal(result.isError, false, JSON.stringify(result?.structuredContent?.error ?? {}));
     assert.equal(result.structuredContent.data.outcome, "APPLIED", "the write must land even though the remote moved");
 
-    const log = await git(bare, ["log", "--format=%s", "-4", "main"]);
+    const log = await git(bare, ["log", "--format=%s", "-4", SPEC_BRANCH]);
     assert.match(log, /operator break-glass note/u, "the out-of-band commit must stay on the remote");
     assert.match(log, /local-only: simulated rejected push/u, "the local commit must be replayed, not dropped");
     assert.match(log, /apply/u, "the bot commit must land on top of both");
-    assert.match(await git(bare, ["show", "main:stgmt/alpha/.specs/spec-kernel/TASKS.md"]), /TASK-99/u);
+    assert.match(await git(bare, ["show", `${SPEC_BRANCH}:.specs/spec-kernel/TASKS.md`]), /TASK-99/u);
   });
 
   it("keeps the local commit and stays up when a break-glass rewrite conflicts", async () => {
@@ -140,7 +138,7 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     await git(cloneDir, ["config", "user.name", "spec-bot"]);
     // A local commit rewriting a document the remote will rewrite too.
     await writeFile(
-      path.join(cloneDir, "stgmt", "alpha", ".specs", "spec-kernel", "TASKS.md"),
+      path.join(cloneDir, ".specs", "spec-kernel", "TASKS.md"),
       "# Tasks\n\nStatus: DRAFT\n\n## TASK-77 — local only\n- **Status:** todo\n",
     );
     await git(cloneDir, ["add", "."]);
@@ -148,15 +146,16 @@ describe("write path over POST /mcp (live-verified identity)", () => {
 
     const operator = await tempDir("spec-write-conflict-");
     await execFileAsync("git", ["clone", bare, operator]);
+    await git(operator, ["checkout", "-B", SPEC_BRANCH, `origin/${SPEC_BRANCH}`]);
     await git(operator, ["config", "user.email", "operator@example.invalid"]);
     await git(operator, ["config", "user.name", "operator"]);
     await writeFile(
-      path.join(operator, "stgmt", "alpha", ".specs", "spec-kernel", "TASKS.md"),
+      path.join(operator, ".specs", "spec-kernel", "TASKS.md"),
       "# Tasks\n\nStatus: DRAFT\n\n## TASK-78 — operator rewrite\n- **Status:** todo\n",
     );
     await execFileAsync("git", ["-C", operator, "add", "."]);
     await execFileAsync("git", ["-C", operator, "commit", "-m", "chore: operator rewrite of TASKS.md"]);
-    await execFileAsync("git", ["-C", operator, "push", "-q", "origin", "HEAD:refs/heads/main"]);
+    await execFileAsync("git", ["-C", operator, "push", "-q", "origin", `HEAD:refs/heads/${SPEC_BRANCH}`]);
     await rm(operator, { recursive: true, force: true });
 
     const result = await callTool(url, tokens.alice, "spec_patch", patchArgs({ requestId: "w-conflict" }));
@@ -168,7 +167,7 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     assert.match(subjects, /local-only: conflicting write/u, "the local commit must survive the aborted rebase");
     const status = await git(cloneDir, ["status", "--porcelain"]);
     assert.ok(!status.includes("rebase"), `no rebase must be left in progress: ${status}`);
-    assert.equal(await git(cloneDir, ["rev-parse", "--abbrev-ref", "HEAD"]), "main");
+    assert.equal(await git(cloneDir, ["rev-parse", "--abbrev-ref", "HEAD"]), "work/spec-spec-kernel");
   });
 
   it("refuses to publish commits the service did not author", async () => {
@@ -181,13 +180,13 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     await git(cloneDir, ["add", "."]);
     await git(cloneDir, ["-c", "user.email=intruder@example.invalid", "-c", "user.name=intruder", "commit", "-m", "foreign: not the service"]);
 
-    const remoteBefore = await git(bare, ["rev-parse", "main"]);
+    const remoteBefore = await git(bare, ["rev-parse", `refs/heads/${SPEC_BRANCH}`]);
     const result = await callTool(url, tokens.alice, "spec_patch", patchArgs({ requestId: "w-foreign" }));
     assert.equal(result.isError, true, "a foreign author must be refused, not published");
     assert.equal(result.structuredContent.error.causeCode, "FOREIGN_COMMITS");
     assert.equal(result.structuredContent.error.retryable, false);
-    assert.equal(await git(bare, ["rev-parse", "main"]), remoteBefore, "nothing may reach the remote");
-    assert.match(await git(bare, ["log", "--format=%s", "-1", "main"]), /seed/u);
+    assert.equal(await git(bare, ["rev-parse", `refs/heads/${SPEC_BRANCH}`]), remoteBefore, "nothing may reach the remote");
+    assert.match(await git(bare, ["log", "--format=%s", "-1", SPEC_BRANCH]), /seed/u);
   });
 
   it("keeps the foreign-commit refusal non-retryable when it surfaces after a reconcile", async () => {
@@ -203,12 +202,13 @@ describe("write path over POST /mcp (live-verified identity)", () => {
 
     const operator = await tempDir("spec-write-foreign-");
     await execFileAsync("git", ["clone", bare, operator]);
+    await git(operator, ["checkout", "-B", SPEC_BRANCH, `origin/${SPEC_BRANCH}`]);
     await git(operator, ["config", "user.email", "operator@example.invalid"]);
     await git(operator, ["config", "user.name", "operator"]);
     await writeFile(path.join(operator, "BREAK-GLASS.md"), "# break-glass\n");
     await execFileAsync("git", ["-C", operator, "add", "."]);
     await execFileAsync("git", ["-C", operator, "commit", "-m", "chore: operator note"]);
-    await execFileAsync("git", ["-C", operator, "push", "-q", "origin", "HEAD:refs/heads/main"]);
+    await execFileAsync("git", ["-C", operator, "push", "-q", "origin", `HEAD:refs/heads/${SPEC_BRANCH}`]);
     await rm(operator, { recursive: true, force: true });
 
     const result = await callTool(url, tokens.alice, "spec_patch", patchArgs({ requestId: "w-foreign-retry" }));
@@ -248,7 +248,7 @@ describe("write path over POST /mcp (live-verified identity)", () => {
   it("serializes concurrent writes on one spec into a linear bot-only history", async () => {
     const { bare, url, tokens } = await setup();
     const N = 6;
-    const before = Number(await git(bare, ["rev-list", "--count", "main"]));
+    const before = Number(await git(bare, ["rev-list", "--count", `refs/heads/${SPEC_BRANCH}`]));
     // Ten-users-at-once, scaled to the CI box: the writes race through HTTP at
     // the same instant; the write lock and the serialized git queue must turn
     // them into a linear sequence — never interleaved, never dropped.
@@ -276,16 +276,45 @@ describe("write path over POST /mcp (live-verified identity)", () => {
       results[i] = retried;
     }
 
-    const after = Number(await git(bare, ["rev-list", "--count", "main"]));
+    const after = Number(await git(bare, ["rev-list", "--count", `refs/heads/${SPEC_BRANCH}`]));
     assert.equal(after - before, N, "exactly one commit per write — no merge commits, no lost writes");
-    const authors = await git(bare, ["log", `--format=%ae`, `-${N}`, "main"]);
+    const authors = await git(bare, ["log", `--format=%ae`, `-${N}`, SPEC_BRANCH]);
     for (const author of authors.split("\n")) {
       assert.equal(author, IDENTITY.email, "every landed commit is bot-authored");
     }
-    const remoteTasks = await git(bare, ["show", "main:stgmt/alpha/.specs/spec-kernel/TASKS.md"]);
+    const remoteTasks = await git(bare, ["show", `${SPEC_BRANCH}:.specs/spec-kernel/TASKS.md`]);
     for (let i = 0; i < N; i += 1) {
       assert.match(remoteTasks, new RegExp(`TASK-${200 + i} — concurrent write ${i}`, "u"), `write ${i} must reach the remote`);
     }
+  });
+
+  it("creates a canonical branch when createSpec targets a new slug", async () => {
+    const { bare, url, tokens } = await setup();
+    const result = await callTool(url, tokens.alice, "spec_patch", {
+      intent: "createSpec",
+      spec: "created-spec",
+      title: "Created Spec",
+      reason: "branch bootstrap",
+      dryRun: false,
+      requestId: "create-spec-1",
+    });
+    const retried = result.isError
+      ? await callTool(url, tokens.alice, "spec_patch", {
+          intent: "createSpec",
+          spec: "created-spec",
+          title: "Created Spec",
+          reason: "branch bootstrap",
+          dryRun: false,
+          requestId: "create-spec-2",
+        })
+      : result;
+    if (retried.isError) assert.fail(JSON.stringify(retried.structuredContent ?? {}).slice(0, 1500));
+    assert.equal(retried.isError, false, JSON.stringify(retried.structuredContent ?? {}).slice(0, 1500));
+    assert.equal(retried.structuredContent.data.outcome, "APPLIED");
+    assert.equal(await git(bare, ["rev-parse", "--verify", "refs/heads/spec-created-spec"]).then(() => true), true);
+    const metadata = JSON.parse(await git(bare, ["show", "spec-created-spec:.spec-kit.json"]));
+    assert.equal(metadata.project, "stgmt/alpha");
+    assert.equal(metadata.spec, "created-spec");
   });
 
   it("reports a push failure as retryable and keeps the commit on the clone", async () => {

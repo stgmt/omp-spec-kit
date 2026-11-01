@@ -2,21 +2,21 @@
 /**
  * Install the Codex PreToolUse guard and the HTTP registry entry.
  *
- * Codex has no plugin payload for this project, so the installer copies the
- * built enforcement tree and the Codex host adapter into
- * `~/.codex/spec-kit-guard/`, merges one PreToolUse group into
- * `~/.codex/hooks.json`, and adds `[mcp_servers.spec_registry]` to
- * `~/.codex/config.toml` with a bearer token sourced from the environment.
+ *   node scripts/install-codex-guard.mjs --url <http://host/mcp> --project owner/project
+ *     [--token <token>] [--server <name>] [--codex-home <dir>] [--workspace <dir>]
  *
- * Codex requires the hook to be trusted once through `/hooks`; the installer
- * cannot trust it for the user.
+ * `--project` is REQUIRED and has no fallback. It is written once to the
+ * workspace record `<workspace>/.omp-spec-kit/project.json`; the PreToolUse
+ * hook reads that record at call time and attaches it with `updatedInput`.
+ * Neither the guard config nor config.toml stores a project.
  */
 import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { installSkills } from "../src/hosts/skills.mjs";
+import { isProjectIdentity, writeProjectBinding } from "../src/enforcement/project-binding.js";
 import { readCodexServer } from "../src/hosts/codex/hook.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -37,6 +37,15 @@ if (typeof url !== "string" || !/^https?:\/\/[^/]+\/mcp$/u.test(url)) {
   fail("--url must be an http(s) endpoint ending in /mcp");
 }
 
+const project = flag("project");
+if (typeof project !== "string" || project.trim() === "") {
+  fail("--project owner/project is required: the hook cannot infer a project from the endpoint");
+}
+if (!isProjectIdentity(project)) {
+  fail(`--project must be an owner/project registry identity, received ${JSON.stringify(project)}`);
+}
+const workspace = path.resolve(flag("workspace", process.cwd()));
+
 function readToken() {
   const direct = flag("token", process.env.OMP_SPEC_REGISTRY_TOKEN ?? null);
   if (typeof direct === "string" && direct.trim() !== "") return direct.trim();
@@ -50,7 +59,6 @@ function readToken() {
 
 const token = readToken();
 const serverName = flag("server", "spec_registry");
-const project = flag("project", "stgmt/omp-spec-kit");
 const codexHome = path.resolve(flag("codex-home", path.join(homedir(), ".codex")));
 const installRoot = path.join(codexHome, "spec-kit-guard");
 const distSource = path.join(repositoryRoot, "plugins", "omp-spec-kit", "dist");
@@ -60,8 +68,13 @@ if (!existsSync(path.join(hostsSource, "hook.mjs"))) fail(`missing Codex adapter
 
 rmSync(installRoot, { recursive: true, force: true });
 mkdirSync(path.join(installRoot, "hosts", "codex"), { recursive: true });
+mkdirSync(path.join(installRoot, "enforcement"), { recursive: true });
 cpSync(distSource, path.join(installRoot, "dist"), { recursive: true });
-for (const name of ["hook.mjs", "normalize.mjs"]) copyFileSync(path.join(hostsSource, name), path.join(installRoot, "hosts", "codex", name));
+for (const name of ["hook.mjs", "normalize.mjs", "sessionstart.mjs", "caps.mjs"]) {
+  copyFileSync(path.join(hostsSource, name), path.join(installRoot, "hosts", "codex", name));
+}
+copyFileSync(path.join(distSource, "enforcement", "setup-warning.js"), path.join(installRoot, "hosts", "codex", "setup-warning.js"));
+copyFileSync(path.join(repositoryRoot, "src", "enforcement", "project-binding.js"), path.join(installRoot, "enforcement", "project-binding.js"));
 writeFileSync(path.join(installRoot, "package.json"), JSON.stringify({ type: "module" }, null, 2) + "\n");
 const skills = installSkills({
   sourceRoot: path.join(repositoryRoot, "plugins", "omp-spec-kit", "skills"),
@@ -72,7 +85,7 @@ const hookPath = path.join(installRoot, "hosts", "codex", "hook.mjs");
 const guardPath = path.join(codexHome, "spec-kit-guard.json");
 writeFileSync(
   guardPath,
-  JSON.stringify({ schema: "omp-spec-kit/codex-guard@1", registryServer: serverName, registryUrl: url, project }, null, 2) + "\n",
+  JSON.stringify({ schema: "omp-spec-kit/codex-guard@1", registryServer: serverName, registryUrl: url }, null, 2) + "\n",
 );
 
 const hooksPath = path.join(codexHome, "hooks.json");
@@ -87,6 +100,13 @@ kept.push({
   hooks: [{ type: "command", command: `node "${hookPath}"`, timeout: 10 }],
 });
 hooks.hooks.PreToolUse = kept;
+const sessionGroups = Array.isArray(hooks.hooks.SessionStart) ? hooks.hooks.SessionStart : [];
+hooks.hooks.SessionStart = sessionGroups.filter(
+  (group) => !(group?.hooks ?? []).some((hook) => typeof hook?.command === "string" && hook.command.includes("spec-kit-guard")),
+);
+hooks.hooks.SessionStart.push({
+  hooks: [{ type: "command", command: `node "${path.join(installRoot, "hosts", "codex", "sessionstart.mjs")}"`, timeout: 10 }],
+});
 if (existsSync(hooksPath)) copyFileSync(hooksPath, `${hooksPath}.bak-${new Date().toISOString().replaceAll(":", "-")}`);
 mkdirSync(codexHome, { recursive: true });
 writeFileSync(hooksPath, JSON.stringify(hooks, null, 2) + "\n");
@@ -103,7 +123,6 @@ if (existing !== null) {
     `[mcp_servers.${serverName}]`,
     `url = "${url}"`,
     'bearer_token_env_var = "OMP_SPEC_REGISTRY_TOKEN"',
-    `http_headers = { "X-Spec-Project" = "${project}" }`,
     "startup_timeout_sec = 10",
     "tool_timeout_sec = 120",
     "",
@@ -131,9 +150,12 @@ if (process.platform === "win32") {
   }
 }
 
+const record = writeProjectBinding(workspace, project.trim());
+
 console.log(`guard installed: ${installRoot}`);
 console.log(`skills installed: ${skills.join(", ")}`);
 console.log(`hooks.json: ${hooksPath}`);
 console.log(`config.toml: [mcp_servers.${serverName}] -> ${url}`);
 console.log(`environment: ${envName} set for new processes`);
+console.log(`project record: ${record}`);
 console.log("run /hooks in Codex once to review and trust the new hook");

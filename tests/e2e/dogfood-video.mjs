@@ -830,9 +830,9 @@ async function main() {
   for (const d of (await fetch(`${EXT_YT_HOST_URL}/api/dashboards?fields=id`, { headers: { authorization: `Bearer ${miaSeedToken}` } }).then((r) => r.json()).catch(() => [])) ?? []) {
     await fetch(`${EXT_YT_HOST_URL}/api/dashboards/${d.id}`, { method: "DELETE", headers: { authorization: `Bearer ${miaSeedToken}` } }).catch(() => {});
   }
-  // X-Spec-Project pins the scope — without it writes land in the operator's
-  // default corpus instead of the customer's bound repo.
-  const seedMcp = await mcpSession({ mcpServers: { "omp-spec-kit": { url: `${SERVICE_URL}/mcp`, headers: { Authorization: `Bearer ${miaSeedToken}`, "X-Spec-Idp": EXT_TENANT, "X-Spec-Project": "acme/gamma" } } } });
+  // Scope comes from the per-call project argument — the snippet never pins a
+  // connection-wide project, and writes must land in the customer's bound repo.
+  const seedMcp = await mcpSession({ mcpServers: { "omp-spec-kit": { url: `${SERVICE_URL}/mcp`, headers: { Authorization: `Bearer ${miaSeedToken}`, "X-Spec-Idp": EXT_TENANT } } } });
   // The bind's migrate commit just landed — wait until the service's corpus
   // view is FRESH (SPEC_REGISTRY_SYNC_MS=5000): gamma-spec present AND none
   // of the previous recording's specs still visible. A stale view makes the
@@ -842,7 +842,7 @@ async function main() {
     const stale = /acme-portal|roadmap-growth|acme-sso|zz-probe/;
     const deadline = Date.now() + 30_000;
     for (;;) {
-      const cat = await seedMcp.callTool({ name: "spec_catalog", arguments: { view: "specs" } });
+      const cat = await seedMcp.callTool({ name: "spec_catalog", arguments: { project: "acme/gamma", view: "specs" } });
       const specs = JSON.parse(cat.content?.[0]?.text ?? "{}").data?.specs ?? [];
       if (specs.includes("gamma-spec") && !specs.some((s) => stale.test(s))) break;
       if (Date.now() > deadline) throw new Error(`tenant corpus never settled: ${JSON.stringify(specs)}`);
@@ -1097,7 +1097,7 @@ async function main() {
 
       const { stdout: landed } = await execFileAsync("docker", [
         "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${EXT_REPO_PATH}`,
-        "show", "main:acme/gamma/.specs/gamma-spec/README.md",
+        "show", "spec-gamma-spec:.specs/gamma-spec/README.md",
       ]);
       assert.match(landed, /Gamma Spec/i);
 
@@ -1111,9 +1111,11 @@ async function main() {
       await frame.locator('[data-testid="agent-mcp"]').scrollIntoViewIfNeeded().catch(() => {});
       const miaSnippet = JSON.parse(await frame.locator('[data-testid="agent-mcp"]').innerText());
       assert.equal(miaSnippet.mcpServers["omp-spec-kit"].headers["X-Spec-Idp"], EXT_TENANT);
+      assert.equal(miaSnippet.mcpServers["omp-spec-kit"].headers["X-Spec-Project"], undefined, "no connection-wide project header");
+      assert.equal(miaSnippet.projectSelection.project, "acme/gamma");
       await page.waitForTimeout(2_800);
 
-      const miaMcp = await mcpCallWithSnippet(miaSnippet, "spec_catalog", { view: "specs" });
+      const miaMcp = await mcpCallWithSnippet(miaSnippet, "spec_catalog", { project: miaSnippet.projectSelection.project, view: "specs" });
       const catalog = JSON.stringify(miaMcp.result.structuredContent ?? miaMcp.result);
       assert.match(catalog, /gamma-spec/);
       assert.doesNotMatch(catalog, /alpha-spec/);
@@ -1123,21 +1125,18 @@ async function main() {
       // card — repo state plus a link to the page. Anti-slop assert: no
       // onboarding controls may exist on an issue page anymore.
       await questLog(page, miaQuest.goal, miaQuest.steps, 4);
-      await openIssue(page, seededIssues[0], "А в самой задаче — тонкая карточка: привязанный репозиторий и ссылка на страницу. Онбординга в ишью больше нет", { ...miaQuest, current: 4 });
-      const issueFrame = await frameWith(page, '[data-testid="spec-context"], [data-testid="no-access"]', 30_000);
-      await issueFrame.locator('[data-testid="repo-status-active"]').waitFor({ state: "attached", timeout: 30_000 });
-      const chip = await issueFrame.locator('[data-testid="repo-chip"]').first().innerText();
-      assert.match(chip, /acme\/gamma/);
-      const appLink = issueFrame.locator('[data-testid="spec-app-link"]');
-      assert.match(await appLink.getAttribute("href") ?? "", /\/app\/spec-graph-app\/spec-app\?step=agent/);
+      await openIssue(page, seededIssues[0], "А в самой задаче — только traceability-панель; онбординг живёт в Administration → Integrations", { ...miaQuest, current: 4 });
+      const issueFrame = await frameWith(page, '[data-testid="spec-panel"]', 30_000);
+      await issueFrame.locator('[data-testid="spec-panel"]').waitFor({ state: "attached", timeout: 30_000 });
       for (const f of page.frames()) {
+        assert.equal(await f.locator('[data-testid="spec-app-link"]').count(), 0, "issue page must not carry an Open Spec Service gate");
         for (const banned of ["wizard", "agent-panel", "agent-mint", "agent-mcp", "repo-form", "idp-form"]) {
           assert.equal(await f.locator(`[data-testid="${banned}"]`).count(), 0, `issue page must not contain ${banned}`);
         }
       }
       await caption(page, [
-        "Карточка показывает acme/gamma [active] и «Open Spec Service» → страницу с шага агента",
-        "Никаких форм привязки и .mcp.json в задаче — онбординг живёт только на странице",
+        "В задаче нет карточки Spec Service и ссылки «Open Spec Service»",
+        "Единственный вход в настройку — Administration → Integrations → Spec Service",
       ]);
       await page.waitForTimeout(2_400);
 

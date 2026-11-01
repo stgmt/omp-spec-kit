@@ -2,21 +2,21 @@
 /**
  * Install the OpenCode specification guard.
  *
- * The guard is not part of the published plugin payload yet: this installer
- * copies the built enforcement tree and the OpenCode host adapter into the
- * global OpenCode plugin directory, writes the guard config, and registers the
- * registry as a remote MCP server.
+ *   node scripts/install-opencode-guard.mjs --url <http://host/mcp> --project owner/project
+ *     [--token <token>] [--server <name>] [--config <path>] [--plugins-dir <dir>]
+ *     [--guard-config <path>] [--workspace <dir>]
  *
- * Required: --url (http(s)://host/mcp) and a token (--token or
- * OMP_SPEC_REGISTRY_TOKEN / OMP_SPEC_REGISTRY_TOKEN_FILE). There is no
- * fallback: a missing value, a local-server entry, or a conflicting remote
- * entry stops the install.
+ * `--project` is REQUIRED and has no fallback. It is written once to the
+ * workspace record `<workspace>/.omp-spec-kit/project.json`; the plugin reads
+ * that record per session and attaches it to each registry spec call. The
+ * guard config and opencode.json carry no project.
  */
 import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installSkills } from "../src/hosts/skills.mjs";
+import { isProjectIdentity, writeProjectBinding } from "../src/enforcement/project-binding.js";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -36,6 +36,15 @@ if (typeof url !== "string" || !/^https?:\/\/[^/]+\/mcp$/u.test(url)) {
   fail("--url must be an http(s) endpoint ending in /mcp");
 }
 
+const project = flag("project");
+if (typeof project !== "string" || project.trim() === "") {
+  fail("--project owner/project is required: the plugin cannot infer a project from the endpoint");
+}
+if (!isProjectIdentity(project)) {
+  fail(`--project must be an owner/project registry identity, received ${JSON.stringify(project)}`);
+}
+const workspace = path.resolve(flag("workspace", process.cwd()));
+
 function readToken() {
   const direct = flag("token", process.env.OMP_SPEC_REGISTRY_TOKEN ?? null);
   if (typeof direct === "string" && direct.trim() !== "") return direct.trim();
@@ -49,7 +58,6 @@ function readToken() {
 const token = readToken();
 
 const serverName = flag("server", "spec-registry");
-const project = flag("project", "stgmt/omp-spec-kit");
 const configPath = path.resolve(flag("config", path.join(homedir(), ".config", "opencode", "opencode.json")));
 const pluginsDir = path.resolve(flag("plugins-dir", path.join(homedir(), ".config", "opencode", "plugins")));
 const guardConfigPath = path.resolve(flag("guard-config", path.join(homedir(), ".config", "opencode", "spec-kit-guard.json")));
@@ -62,11 +70,36 @@ if (!existsSync(hostSource)) fail(`missing host adapter: ${hostSource}`);
 
 rmSync(pluginRoot, { recursive: true, force: true });
 mkdirSync(path.join(pluginRoot, "hosts", "opencode"), { recursive: true });
+mkdirSync(path.join(pluginRoot, "enforcement"), { recursive: true });
 cpSync(distSource, path.join(pluginRoot, "dist"), { recursive: true });
 copyFileSync(hostSource, path.join(pluginRoot, "hosts", "opencode", "plugin.mjs"));
+copyFileSync(path.join(repositoryRoot, "src", "hosts", "opencode", "setup.mjs"), path.join(pluginRoot, "hosts", "opencode", "setup.mjs"));
+copyFileSync(path.join(distSource, "enforcement", "setup-warning.js"), path.join(pluginRoot, "hosts", "opencode", "setup-warning.js"));
+copyFileSync(path.join(repositoryRoot, "src", "enforcement", "project-binding.js"), path.join(pluginRoot, "enforcement", "project-binding.js"));
 
-const loaderPath = path.join(pluginsDir, "omp-spec-kit-guard.mjs");
-writeFileSync(loaderPath, 'export { OmpSpecKitGuard } from "./omp-spec-kit/hosts/opencode/plugin.mjs";\n');
+const loaderPath = path.join(pluginsDir, "omp-spec-kit-guard.js");
+// OpenCode 1.19.3 scans `.js` plugin files but ignores `.mjs` in the plugin
+// directory. The bridge is ESM (Bun auto-detects it) and imports the packaged
+// adapter lazily, so both the `.js` and legacy `.mjs` loaders stay valid.
+writeFileSync(
+  loaderPath,
+  'export const OmpSpecKitGuard = async (ctx) => {\n' +
+    '  const mod = await import("./omp-spec-kit/hosts/opencode/plugin.mjs");\n' +
+    '  return mod.OmpSpecKitGuard(ctx);\n' +
+    '};\n',
+);
+const legacyLoaderPath = path.join(pluginsDir, "omp-spec-kit-guard.mjs");
+writeFileSync(legacyLoaderPath, 'export { OmpSpecKitGuard } from "./omp-spec-kit/hosts/opencode/plugin.mjs";\n');
+const setupLoaderPath = path.join(pluginsDir, "omp-spec-kit-setup.js");
+writeFileSync(
+  setupLoaderPath,
+  'export const OmpSpecKitSetup = async (ctx) => {\n' +
+    '  const mod = await import("./omp-spec-kit/hosts/opencode/setup.mjs");\n' +
+    '  return mod.OmpSpecKitSetup(ctx);\n' +
+    '};\n',
+);
+const legacySetupLoaderPath = path.join(pluginsDir, "omp-spec-kit-setup.mjs");
+writeFileSync(legacySetupLoaderPath, 'export { OmpSpecKitSetup } from "./omp-spec-kit/hosts/opencode/setup.mjs";\n');
 writeFileSync(path.join(pluginRoot, "package.json"), JSON.stringify({ type: "module" }, null, 2) + "\n");
 const skills = installSkills({
   sourceRoot: path.join(repositoryRoot, "plugins", "omp-spec-kit", "skills"),
@@ -75,7 +108,7 @@ const skills = installSkills({
 
 writeFileSync(
   guardConfigPath,
-  JSON.stringify({ schema: "omp-spec-kit/opencode-guard@1", registryServer: serverName, registryUrl: url, project }, null, 2) + "\n",
+  JSON.stringify({ schema: "omp-spec-kit/opencode-guard@1", registryServer: serverName, registryUrl: url, opencodeConfigPath: configPath }, null, 2) + "\n",
 );
 try {
   chmodSync(guardConfigPath, 0o600);
@@ -94,7 +127,7 @@ config.mcp[serverName] = {
   type: "remote",
   url,
   enabled: true,
-  headers: { Authorization: `Bearer ${token}`, "X-Spec-Project": project },
+  headers: { Authorization: `Bearer ${token}` },
 };
 mkdirSync(path.dirname(configPath), { recursive: true });
 if (existsSync(configPath)) {
@@ -103,8 +136,11 @@ if (existsSync(configPath)) {
 }
 writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
 
+const record = writeProjectBinding(workspace, project.trim());
+
 console.log(`guard installed: ${pluginsDir}`);
 console.log(`skills installed: ${skills.join(", ")}`);
 console.log(`registry: ${serverName} -> ${url}`);
 console.log(`host config: ${configPath}`);
-console.log("restart OpenCode so the plugin and MCP server load");
+console.log(`project record: ${record}`);
+console.log("OpenCode picks the plugin and MCP server up at the next session start");

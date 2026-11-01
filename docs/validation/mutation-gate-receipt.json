@@ -1,8 +1,8 @@
 {
   "schema": "omp-spec-kit-mutation-gate@1",
-  "timestamp": "2026-10-30T13:53:31.045Z",
-  "totalMutants": 168,
-  "killed": 168,
+  "timestamp": "2026-11-01T18:53:30.068Z",
+  "totalMutants": 170,
+  "killed": 170,
   "survivors": 0,
   "passed": true,
   "receipts": [
@@ -457,6 +457,12 @@
       "killerAssertion": "Deleted variant status must be rejected\n\nfalse !== true\n"
     },
     {
+      "id": "delete-branch-spec_catalog-branches",
+      "status": "KILLED",
+      "description": "Delete variant branch branches from spec_catalog",
+      "killerAssertion": "Deleted variant branches must be rejected\n\nfalse !== true\n"
+    },
+    {
       "id": "delete-branch-spec_entities-get",
       "status": "KILLED",
       "description": "Delete variant branch get from spec_entities",
@@ -607,6 +613,12 @@
       "killerAssertion": "Deleted variant deleteSpecDoc must be rejected\n\nfalse !== true\n"
     },
     {
+      "id": "delete-branch-spec_patch-deleteEntity",
+      "status": "KILLED",
+      "description": "Delete variant branch deleteEntity from spec_patch",
+      "killerAssertion": "Deleted variant deleteEntity must be rejected\n\nfalse !== true\n"
+    },
+    {
       "id": "delete-branch-spec_patch-renameSpecDoc",
       "status": "KILLED",
       "description": "Delete variant branch renameSpecDoc from spec_patch",
@@ -652,7 +664,7 @@
       "id": "duplicate-branch-spec_catalog-types",
       "status": "KILLED",
       "description": "Duplicate branch in spec_catalog",
-      "killerAssertion": "oneOf length changed\n\n6 !== 5\n"
+      "killerAssertion": "oneOf length changed\n\n7 !== 6\n"
     },
     {
       "id": "duplicate-branch-spec_entities-get",
@@ -688,7 +700,7 @@
       "id": "duplicate-branch-spec_patch-patch",
       "status": "KILLED",
       "description": "Duplicate branch in spec_patch",
-      "killerAssertion": "oneOf length changed\n\n16 !== 15\n"
+      "killerAssertion": "oneOf length changed\n\n17 !== 16\n"
     },
     {
       "id": "cross-branch-spec_entities-get-with-specSlugs",

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it, after } from "node:test";
@@ -17,40 +17,55 @@ async function tempDir() {
   return dir;
 }
 
-function fakeGit() {
-  const calls = [];
+const AUTH = {
+  youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
+  appBridge: { token: "bridge-token-1234567890" },
+  roleGroups: { reader: ["spec-readers"] },
+};
+
+function config(projects = ["stgmt/omp-spec-kit"]) {
+  return parseProjectsConfig({ projects: projects.map((id) => ({ id })), auth: AUTH });
+}
+
+function storeWith(project, overrides = {}) {
+  const row = {
+    project,
+    repoUrl: "file:///tmp/specs.git",
+    branch: "main",
+    status: "active",
+    migratedFrom: null,
+    migratedFromBranch: null,
+    ...overrides,
+  };
   return {
-    calls,
-    async clone() { calls.push(["clone"]); },
-    async fetch() { calls.push(["fetch"]); },
-    // The fake clone has no origin ref yet: boot reconciliation short-circuits.
-    async revParse(ref) { calls.push(["revParse", ref]); return null; },
-    async add(paths) { calls.push(["add", ...paths]); },
-    async commit({ message }) { calls.push(["commit", message]); },
-    async push({ refspec }) { calls.push(["push", refspec]); },
+    getBinding: (id) => (id === project ? row : null),
+    getCredential: () => null,
+    row,
   };
 }
 
 describe("projects config parsing", () => {
-  it("accepts a well-formed config and normalizes project ids", () => {
-    const config = parseProjectsConfig({
-      specsRepo: "file:///tmp/specs.git",
-      branch: "main",
-      projects: [{ id: "stgmt/omp-spec-kit" }, "acme/billing"],
-      auth: {
-        youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
-        appBridge: { token: "bridge-token-1234567890" },
-        roleGroups: { reader: ["spec-readers"] },
-      },
-    });
-    assert.deepEqual(config.projects, ["stgmt/omp-spec-kit", "acme/billing"]);
-    assert.equal(config.branch, "main");
+  it("accepts a config without a default repository", () => {
+    const parsed = config(["stgmt/omp-spec-kit", "acme/billing"]);
+    assert.deepEqual(parsed.projects, ["stgmt/omp-spec-kit", "acme/billing"]);
+    assert.equal("specsRepo" in parsed, false);
+    assert.equal("branch" in parsed, false);
   });
 
-  it("rejects missing specsRepo, empty projects, and duplicate ids", () => {
-    assert.throws(() => parseProjectsConfig({ projects: [{ id: "a/b" }] }), ConfigError); // auth block is mandatory
-    assert.throws(() => parseProjectsConfig({ specsRepo: "x", projects: [] }), ConfigError);
-    assert.throws(() => parseProjectsConfig({ specsRepo: "x", projects: [{ id: "a/b" }, { id: "a/b" }] }), ConfigError);
+  it("refuses the retired specsRepo/branch with MIGRATION_REQUIRED", () => {
+    assert.throws(
+      () => parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "a/b" }], auth: AUTH }),
+      (error) => error.code === "MIGRATION_REQUIRED",
+    );
+    assert.throws(
+      () => parseProjectsConfig({ branch: "main", projects: [{ id: "a/b" }], auth: AUTH }),
+      (error) => error.code === "MIGRATION_REQUIRED",
+    );
+  });
+
+  it("rejects empty projects and duplicate ids", () => {
+    assert.throws(() => parseProjectsConfig({ projects: [], auth: AUTH }), ConfigError);
+    assert.throws(() => parseProjectsConfig({ projects: [{ id: "a/b" }, { id: "a/b" }], auth: AUTH }), ConfigError);
   });
 
   it("rejects unsafe project ids", () => {
@@ -62,96 +77,127 @@ describe("projects config parsing", () => {
 });
 
 describe("mount manager", () => {
-  it("resolves project roots inside the clone and refuses escapes", async () => {
+  it("derives the materialized project root inside the repo workspace", async () => {
     const dir = await tempDir();
-    const mounts = new MountManager({
-      config: parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "stgmt/omp-spec-kit" }], auth: {
-        youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
-        appBridge: { token: "bridge-token-1234567890" },
-        roleGroups: { reader: ["spec-readers"] },
-      }, }),
-      cloneDir: dir,
-    });
-    assert.equal(mounts.resolveProjectRoot("stgmt/omp-spec-kit"), path.resolve(dir, "stgmt", "omp-spec-kit"));
-    assert.throws(() => mounts.resolveProjectRoot("../outside"), ConfigError);
+    const project = "stgmt/omp-spec-kit";
+    const store = storeWith(project);
+    const mounts = new MountManager({ config: config(), cloneDir: dir, store });
+    const mount = mounts.for(project);
+    assert.equal(mounts.cacheRootFor(project, mount), path.join(mount.cwd, "projects", "stgmt__omp-spec-kit"));
+    await assert.rejects(() => mounts.resolveProjectRoot("../outside"), ConfigError);
   });
 
-  it("requireConfigured refuses unknown projects with PROJECT_NOT_CONFIGURED", async () => {
+  it("refuses an unbound project with REPO_BINDING_REQUIRED", async () => {
     const dir = await tempDir();
+    const mounts = new MountManager({ config: config(), cloneDir: dir, store: { getBinding: () => null } });
+    assert.throws(() => mounts.for("stgmt/omp-spec-kit"), (error) => error.code === "REPO_BINDING_REQUIRED");
+    assert.equal(mounts.forSource("stgmt/omp-spec-kit"), null);
+  });
+
+  it("resolves a migrating project read through its previous repository", async () => {
+    const dir = await tempDir();
+    const project = "stgmt/omp-spec-kit";
+    const store = storeWith(project, { status: "migrating", migratedFrom: "file:///old.git", migratedFromBranch: "main" });
+    const mounts = new MountManager({ config: config(), cloneDir: dir, store });
+    assert.equal(mounts.readableRepo(project).repoUrl, "file:///old.git");
+    await assert.rejects(() => mounts.repoFor(project), (error) => error.code === "REPO_BINDING_REQUIRED");
+  });
+
+  it("keys a mirror by repository and credential, not by URL alone", async () => {
+    const dir = await tempDir();
+    const project = "stgmt/omp-spec-kit";
+    const other = "acme/other";
     const mounts = new MountManager({
-      config: parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "stgmt/omp-spec-kit" }], auth: {
-        youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
-        appBridge: { token: "bridge-token-1234567890" },
-        roleGroups: { reader: ["spec-readers"] },
-      }, }),
+      config: config([project, other]),
       cloneDir: dir,
+      store: { getBinding: () => null, getCredential: () => null },
+      gitFactory: ({ gitAuth }) => ({ gitAuth }),
     });
+    mounts.authFor = (id) => ({ token: id === project ? "token-a" : "token-b" });
+    const first = mounts.repoDescriptor("https://github.com/stgmt/repo.git", "main", project);
+    const second = mounts.repoDescriptor("https://github.com/stgmt/repo.git", "main", other);
+    assert.notEqual(first.key, second.key);
+    assert.equal(first.git.gitAuth.token, "token-a");
+    assert.equal(second.git.gitAuth.token, "token-b");
+  });
+
+  it("fails closed when a strict fetch cannot reach the remote", async () => {
+    const dir = await tempDir();
+    const project = "stgmt/omp-spec-kit";
+    const store = storeWith(project, { repoUrl: "file:///definitely-missing/specs.git" });
+    const mounts = new MountManager({ config: config(), cloneDir: path.join(dir, "clone"), store, logger: () => {} });
+    const mount = await mounts.repoFor(project);
+    await mkdir(mount.mirrorDir, { recursive: true });
+    await writeFile(path.join(mount.mirrorDir, "HEAD"), "ref: refs/heads/main\n");
+    await mounts.ensureRepo(project, { fetch: true });
+    await assert.rejects(() => mounts.ensureRepo(project, { fetch: true, strict: true }));
+  });
+
+  it("requireConfigured refuses unknown projects with PROJECT_NOT_CONFIGURED", async () => {    const dir = await tempDir();
+    const mounts = new MountManager({ config: config(), cloneDir: dir });
     assert.throws(() => mounts.requireConfigured("acme/billing"), /PROJECT_NOT_CONFIGURED|not configured/u);
   });
 
   it("caches one createSpecService instance per project", async () => {
     const dir = await tempDir();
-    const mounts = new MountManager({
-      config: parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "stgmt/omp-spec-kit" }], auth: {
-        youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
-        appBridge: { token: "bridge-token-1234567890" },
-        roleGroups: { reader: ["spec-readers"] },
-      }, }),
-      cloneDir: dir,
-    });
-    const first = mounts.serviceFor("stgmt/omp-spec-kit");
-    const second = mounts.serviceFor("stgmt/omp-spec-kit");
+    const project = "stgmt/omp-spec-kit";
+    const mounts = new MountManager({ config: config(), cloneDir: dir, store: storeWith(project) });
+    const first = mounts.serviceFor(project);
+    const second = mounts.serviceFor(project);
     assert.equal(first, second);
   });
 
-  it("forSource resolves the migration source for an error-state binding instead of wedging", async () => {
+  it("forSource follows an in-flight binding instead of a default repository", async () => {
     const dir = await tempDir();
-    const auth = {
-      youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
-      appBridge: { token: "bridge-token-1234567890" },
-      roleGroups: { reader: ["spec-readers"] },
-    };
-    const row = { project: "acme/gamma", repoUrl: "git://git/acme.git", branch: "main", status: "error", migratedFrom: null, migratedFromBranch: null };
-    const mounts = new MountManager({
-      config: parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "stgmt/omp-spec-kit" }], auth }),
-      cloneDir: dir,
-      store: { getBinding: () => row },
-      extraProjects: () => ["acme/gamma"],
-    });
-    // Reads/writes still refuse — the migration never landed — but the bind
-    // retry must find the source mount instead of dying on the same error.
-    assert.throws(() => mounts.for("acme/gamma"), (e) => e.code === "REPO_BINDING_REQUIRED");
-    assert.equal(mounts.forSource("acme/gamma"), mounts.defaultMount);
-    row.migratedFrom = "git://git/old.git";
-    assert.equal(mounts.forSource("acme/gamma").repoUrl, "git://git/old.git");
-    row.status = "active";
-    assert.equal(mounts.forSource("acme/gamma").repoUrl, "git://git/acme.git");
-    assert.equal(mounts.for("acme/gamma").repoUrl, "git://git/acme.git");
+    const project = "acme/gamma";
+    const store = storeWith(project, { status: "error", repoUrl: "git://git/acme.git" });
+    const mounts = new MountManager({ config: config([project]), cloneDir: dir, store, extraProjects: () => [project] });
+    assert.throws(() => mounts.for(project), (error) => error.code === "REPO_BINDING_REQUIRED");
+    assert.equal(mounts.forSource(project), null);
+    store.row.migratedFrom = "git://git/old.git";
+    assert.equal(mounts.forSource(project).repoUrl, "git://git/old.git");
+    store.row.status = "active";
+    assert.equal(mounts.forSource(project).repoUrl, "git://git/acme.git");
+    assert.equal(mounts.for(project).repoUrl, "git://git/acme.git");
   });
 
-  it("boot creates a .specs skeleton and commits it as the bot", async () => {
+  it("boot reports an unbound project without failing the other projects", async () => {
     const dir = await tempDir();
-    const git = fakeGit();
+    const project = "stgmt/omp-spec-kit";
     const mounts = new MountManager({
-      config: parseProjectsConfig({ specsRepo: "file:///tmp/specs.git", projects: [{ id: "stgmt/omp-spec-kit" }], auth: {
-        youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
-        appBridge: { token: "bridge-token-1234567890" },
-        roleGroups: { reader: ["spec-readers"] },
-      }, }),
-      cloneDir: dir,
-      git,
+      config: config([project, "acme/billing"]),
+      cloneDir: path.join(dir, "clone"),
+      store: { getBinding: (id) => (id === project ? storeWith(project).row : null), getCredential: () => null },
       identity: { name: "spec-bot", email: "bot@example.invalid" },
     });
-    // fake git does not materialize a clone; stub ensureClone out — skeleton path is what we test
-    mounts.ensureClone = async () => {};
     mounts.serviceFor = () => ({ ensure: async () => ({ status: "ready" }) });
+    mounts.projectRoot = async (id) => {
+      if (id === project) return path.join(dir, "root");
+      const error = new Error("unbound");
+      error.code = "REPO_BINDING_REQUIRED";
+      throw error;
+    };
     const report = await mounts.boot();
-    assert.equal(report["stgmt/omp-spec-kit"].graphStatus, "ready");
-    const specsDir = path.join(dir, "stgmt", "omp-spec-kit", ".specs");
-    assert.equal((await stat(specsDir)).isDirectory(), true);
-    const commitCall = git.calls.find(([kind]) => kind === "commit");
-    assert.match(commitCall[1], /chore: init scope stgmt\/omp-spec-kit/u);
-    const pushCall = git.calls.find(([kind]) => kind === "push");
-    assert.equal(pushCall[1], "HEAD:refs/heads/main");
+    assert.equal(report[project].graphStatus, "ready");
+    assert.deepEqual(report["acme/billing"], { error: "REPO_BINDING_REQUIRED" });
+  });
+
+  it("accepts per-project bindings and rejects duplicates", () => {
+    const parsed = parseProjectsConfig({
+      projects: [{ id: "stgmt/omp-spec-kit" }],
+      bindings: [{ project: "stgmt/omp-spec-kit", repoUrl: "file:///tmp/specs.git", tokenEnv: "SPEC_TOKEN" }],
+      auth: AUTH,
+    });
+    assert.deepEqual(parsed.bindings, [{ project: "stgmt/omp-spec-kit", repoUrl: "file:///tmp/specs.git", tokenEnv: "SPEC_TOKEN", username: null }]);
+    assert.throws(() => parseProjectsConfig({
+      projects: [{ id: "stgmt/omp-spec-kit" }],
+      bindings: [{ project: "stgmt/omp-spec-kit", repoUrl: "a" }, { project: "stgmt/omp-spec-kit", repoUrl: "b" }],
+      auth: AUTH,
+    }), /duplicate binding/u);
+    assert.throws(() => parseProjectsConfig({
+      projects: [{ id: "stgmt/omp-spec-kit" }],
+      bindings: [{ project: "acme/other", repoUrl: "a" }],
+      auth: AUTH,
+    }), /unconfigured project/u);
   });
 });

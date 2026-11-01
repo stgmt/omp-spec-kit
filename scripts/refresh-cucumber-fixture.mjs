@@ -8,7 +8,7 @@
 // the @release-candidate-regression loader re-hashes every listed input.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,7 +26,8 @@ const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const tracked = () =>
   execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" })
     .split("\0")
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((repoPath) => existsSync(path.join(ROOT, repoPath)));
 
 // Single-file COPY sources in tests/distribution/Dockerfile (lines whose
 // sources are files rather than directories).

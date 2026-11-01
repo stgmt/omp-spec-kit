@@ -1,8 +1,13 @@
 {
-  "specsRepo": "https://github.com/stgmt/spec-database.git",
-  "branch": "main",
   "projects": [
     { "id": "stgmt/omp-spec-kit" }
+  ],
+  "bindings": [
+    {
+      "project": "stgmt/omp-spec-kit",
+      "repoUrl": "https://github.com/stgmt/omp-spec-kit.git",
+      "tokenEnv": "SPEC_REGISTRY_REPO_TOKEN"
+    }
   ],
   "tenants": [
     {

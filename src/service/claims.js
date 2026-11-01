@@ -1,7 +1,7 @@
 const DEFAULT_TTL_MINUTES = 30;
 const MAX_TTL_MINUTES = 24 * 60;
 
-function claimKey(project, spec) {
+export function claimKey(project, spec) {
   return `${project}/${spec}`;
 }
 

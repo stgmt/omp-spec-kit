@@ -41,6 +41,27 @@ jobs:
           node scripts/refresh-authoring-real-corpus-manifest.mjs --check
       - run: npm run build
       - run: npm run verify
+      - run: npm run test:unit
+      - run: npm run test:staged
+      - run: npm run dogfood:mcp:candidate
+      # The service suite authenticates against a real YouTrack. Bootstrap the
+      # same live contour the branch CI uses before running it.
+      - name: Bootstrap the live contour
+        run: |
+          node tests/e2e/run-live.mjs --bootstrap-only --skip-app || {
+            echo "first bootstrap failed; retrying after YouTrack warm-up"
+            sleep 60
+            node tests/e2e/run-live.mjs --bootstrap-only --skip-app
+          }
+      - run: git config --global user.name "spec-registryd release"
+      - run: git config --global user.email "bot@spec-registryd.invalid"
+      - run: npm run test:service
+      - run: npm run tool:e2e:live
+      - name: Run the live delivery Cucumber scenarios
+        run: npm run test:delivery-live
+      - name: Tear down the live contour
+        if: always()
+        run: docker compose -p spec-auth-e2e -f tests/e2e/compose.yml down -v
       - name: Assemble candidate from peeled tag checkout
         run: node scripts/create-release-candidate.mjs --tag "$GITHUB_REF_NAME" --output release-candidate
       - name: Verify candidate public safety

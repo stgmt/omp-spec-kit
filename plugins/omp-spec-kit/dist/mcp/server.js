@@ -303,9 +303,14 @@ async function handleMessage(message) {
           // non-empty absolute path to a real directory. Anything else is a
           // caller error — silently falling back to the default root would
           // reintroduce the exact wrong-corpus write this field exists to fix.
-          const declaredRoot = args.declaredWorktree === undefined || args.declaredWorktree === null
-            ? null
-            : resolveDeclaredWorktree(args.declaredWorktree);
+          // The local transport routes by worktree root; it has no registry
+          // project, so a project argument is refused instead of silently
+          // ignored (the hosted transport selects by project instead).
+          const declaredRoot = args.project !== undefined
+            ? { ok: false, code: "PROJECT_CONTEXT_UNSUPPORTED", message: "project selection belongs to the hosted transport; this local transport selects a corpus with declaredWorktree (absolute worktree path)", parameter: "project", expected: "declaredWorktree (absolute path)" }
+            : args.declaredWorktree === undefined || args.declaredWorktree === null
+              ? null
+              : resolveDeclaredWorktree(args.declaredWorktree);
           const validation = declaredRoot !== null && !declaredRoot.ok
             ? declaredRoot
             : validateContractArguments(contract, args);

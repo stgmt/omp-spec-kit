@@ -174,7 +174,14 @@ async function runSuccessMatrix({ callTool, projectRoot, repositoryRoot }) {
       assert.equal(data.lockMode, "owner");
       assert.equal(data.writeMode, "proposal-first");
       assert.equal(data.mutationReady, true);
-      assert.equal(data.worktree.matchesResolvedRoot, true);
+      // Admission facts are reported separately, never as a root compared with
+      // itself: connection, selected project, binding, corpus, write readiness.
+      assert.equal(data.connection.healthy, true);
+      assert.equal(data.worktree.transport, "local");
+      assert.equal(typeof data.worktree.declared, "boolean");
+      assert.equal(data.project.selected, null, "local stdio has no registry project");
+      assert.equal(data.repository.binding, "not-applicable");
+      assert.equal(data.corpus.present, true);
     }],
     ["spec_documents", { action: "list", spec: "product" }, (data) => {
       assert.equal(data.kind, "spec-documents");

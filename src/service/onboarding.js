@@ -34,13 +34,14 @@ export class OnboardingError extends Error {
 export function buildManagedSnippet(serviceUrl, token, project = null, idp = null, { audience = null } = {}) {
   if (audience === "host") assertHostReachableUrl(serviceUrl);
   const headers = { Authorization: `Bearer ${token}` };
-  // X-Spec-Project pins the client's default scope; it is a routing hint,
-  // never authorization — the service still validates it against the token's
-  // verified scopes.
-  if (typeof project === "string" && project.length > 0) headers["X-Spec-Project"] = project;
+  // Project selection is never a connection-wide header: a session passes the
+  // `project` argument per call, or the workspace carries one repo-local
+  // record. The snippet states both and names the record's schema so the
+  // agent can honour or write it.
   // X-Spec-Idp tells the service which bound YouTrack issued the token —
-  // same hint semantics as X-Spec-Project.
+  // identity routing, still a hint the service validates.
   if (typeof idp === "string" && idp.length > 0) headers["X-Spec-Idp"] = idp;
+  const single = typeof project === "string" && project.length > 0 ? project : null;
   return `${JSON.stringify(
     {
       $schema: "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
@@ -50,6 +51,16 @@ export function buildManagedSnippet(serviceUrl, token, project = null, idp = nul
           url: `${String(serviceUrl).replace(/\/+$/u, "")}/mcp`,
           headers,
         },
+      },
+      projectSelection: {
+        mode: "per-call",
+        argument: "project",
+        record: {
+          path: "<workspace>/.omp-spec-kit/project.json",
+          schema: "omp-spec-kit/project-binding@1",
+          writeWith: "scripts/install-host.mjs --project <owner/project>",
+        },
+        project: single,
       },
     },
     null,
@@ -214,8 +225,8 @@ export function createOnboarding({ config, audit, logger = () => {}, fetchImpl =
       }
 
       // A requested project must be one of the caller's verified scopes —
-      // the snippet's X-Spec-Project hint would otherwise fail server-side
-      // scope validation on the first call anyway.
+      // the snippet names it for per-call use, so an out-of-scope name would
+      // fail server-side scope validation on the first call anyway.
       if (project !== null && !(Array.isArray(ctx?.scopes) && ctx.scopes.includes(project))) {
         throw new OnboardingError(`project ${project} is outside the caller's scopes`, { status: 403, code: "SCOPE_FORBIDDEN" });
       }

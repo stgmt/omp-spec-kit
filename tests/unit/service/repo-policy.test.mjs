@@ -21,6 +21,12 @@ describe("repoHostAllowed — SSRF policy for bound spec repos", () => {
     assert.equal(repoHostAllowed("not a url").ok, false);
   });
 
+  it("refuses credentials embedded in the repository URL", () => {
+    const result = repoHostAllowed("https://alice:SECRET@github.com/u/r.git");
+    assert.equal(result.ok, false);
+    assert.match(result.reason, /must not contain credentials/u);
+  });
+
   it("narrows public hosts to repoPolicy.allowedHosts when configured", () => {
     const policy = ["github.com"];
     assert.equal(repoHostAllowed("https://github.com/u/r.git", policy).ok, true);

@@ -4,6 +4,11 @@
 !.env.example
 *.pem
 *.key
+# `install-host` writes a project-scoped Claude config; never commit it.
+/.mcp.json
+/.mcp.json.bak
+# The per-workspace project selection record written by `install-host`.
+/.omp-spec-kit/project.json
 
 # Dependencies and generated output
 node_modules/
@@ -14,6 +19,9 @@ dist/
 !tests/fixtures/kernel/v0.3.0/**
 build/
 coverage/
+# release-candidate app staging is rebuilt by create-release-candidate.mjs;
+# never commit an extracted package (it can carry an old extension point).
+release-candidate/spec-graph-app/
 .tmp/
 tmp/
 .cache/

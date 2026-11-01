@@ -3,7 +3,7 @@ name: verify
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, "release/**"]
 
 permissions:
   contents: read
@@ -33,6 +33,36 @@ jobs:
           path: |
             dist/spec-graph-app/
             dist/spec-graph-app-*.zip
+
+  service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      # Several publish tests create real annotated tags; the runner has no
+      # ambient identity.
+      - run: git config --global user.name "spec-registryd CI"
+      - run: git config --global user.email "bot@spec-registryd.invalid"
+      # The service suite authenticates against a real YouTrack. Bootstrap the
+      # live contour (service + YouTrack + git daemon) without the app so the
+      # bootstrap never depends on the browser upload path.
+      - name: Bootstrap the live contour
+        run: |
+          node tests/e2e/run-live.mjs --bootstrap-only --skip-app || {
+            echo "first bootstrap failed; retrying after YouTrack warm-up"
+            sleep 60
+            node tests/e2e/run-live.mjs --bootstrap-only --skip-app
+          }
+      - run: npm run test:service
+      - name: Tear down the live contour
+        if: always()
+        run: docker compose -p spec-auth-e2e -f tests/e2e/compose.yml down -v
 
   bdd:
     runs-on: ubuntu-latest

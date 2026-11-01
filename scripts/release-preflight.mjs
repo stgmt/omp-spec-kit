@@ -50,8 +50,10 @@ const tagCommit = output("git", ["rev-parse", `${expectedTag}^{commit}`]);
 if (head !== tagCommit) throw new Error(`tag ${expectedTag} is not peeled to HEAD (${tagCommit} != ${head})`);
 
 run("full local verification", npmCommand, ["test"]);
+run("live delivery scenarios", npmCommand, ["run", "test:delivery-live"]);
 run("release-integrity scenarios", npmCommand, ["run", "test:release-integrity"]);
 run("assemble candidate", nodeCommand, ["scripts/create-release-candidate.mjs", "--tag", expectedTag, "--output", candidateDir]);
+run("app placement gate", nodeCommand, ["scripts/check-app-placement.mjs", "--manifest", `${candidateDir}/spec-graph-app/manifest.json`]);
 run("verify public tree", nodeCommand, ["scripts/verify-public-tree.mjs", "--candidate", `${candidateDir}/candidate.json`, "--output", `${candidateDir}/public-safety.json`]);
 const candidate = readJson(`${candidateDir}/candidate.json`);
 const archivePath = path.join(candidateDir, candidate.archive.file);
@@ -66,7 +68,7 @@ const result = {
   candidateDigest: candidate.candidateDigest,
   packageTreeDigest: candidate.packageTreeDigest,
   archive: candidate.archive,
-  checks: ["clean-worktree", "peeled-tag", "npm-test", "release-integrity", "candidate", "public-safety", "archive-default"],
+  checks: ["clean-worktree", "peeled-tag", "npm-test", "delivery-live", "release-integrity", "candidate", "app-placement", "public-safety", "archive-default"],
   note: "GitHub attestation, publication, and installed dogfood remain separate post-preflight gates."
 };
 console.log(`\n${JSON.stringify(result, null, 2)}`);

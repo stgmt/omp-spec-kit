@@ -93,12 +93,13 @@ export function createVersionedReads({ mounts, store }) {
         }),
       };
     }
-    const specPath = `${project}/.specs/${args.spec}`;
+    const specPath = `.specs/${args.spec}`;
     // The commit lives in the repo the version was published into — after a
     // migration that is the previous clone, not the project's current mount.
-    const mount = row.repoUrl ? mounts.byRepo(row.repoUrl, row.repoBranch ?? "main", project) : mounts.for(project);
+    const mount = row.repoUrl ? mounts.repoDescriptor(row.repoUrl, row.repoBranch ?? "main", project) : mounts.for(project);
     if (row.repoUrl) await mounts.ensureMount(mount).catch(() => {});
-    const { git, cwd } = mount;
+    const git = mount.git;
+    const cwd = mount.mirrorDir ?? mount.cwd;
     // Integrity: the commit's own tree hash must equal the recorded digest.
     const tree = await git.objectId(row.commitSha, specPath, { cwd }).catch(() => null);
     if (tree !== row.digest) {

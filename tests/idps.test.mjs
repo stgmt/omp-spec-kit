@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -10,6 +10,7 @@ import { startService } from "../src/service/index.js";
 import { createYouTrackAuth } from "../src/service/auth.js";
 import { loadLiveFixture } from "./e2e/lib/live-fixture.mjs";
 import { ensureExtYoutrack, extBindBody, EXT_TENANT, EXT_YT_HOST_URL, EXT_USERS } from "./e2e/lib/idp-fixture.mjs";
+import { seedSpecBranch } from "./service/lib/spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
@@ -49,21 +50,14 @@ async function setup() {
   const base = await tempDir("spec-idps-");
   const bare = path.join(base, "specs.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
-  // Seed the external tenant's project so catalog/patch have content.
-  const seed = path.join(base, "seed");
-  await execFileAsync("git", ["clone", bare, seed]);
-  await execFileAsync("git", ["-C", seed, "config", "user.email", "seed@example.invalid"]);
-  await execFileAsync("git", ["-C", seed, "config", "user.name", "seed"]);
-  await cp(FIXTURE_SPEC, path.join(seed, "acme/gamma/.specs", "gamma-spec"), { recursive: true });
-  await execFileAsync("git", ["-C", seed, "add", "."]);
-  await execFileAsync("git", ["-C", seed, "commit", "-m", "seed"]);
-  await execFileAsync("git", ["-C", seed, "push", "-q", "origin", "HEAD:refs/heads/main"]);
-  await rm(seed, { recursive: true, force: true });
   // The tenant's own specs repo: a second bare reached through file:// —
   // real clone/push/ls-remote, opted in via repoPolicy like repos.test.mjs.
   const byoBare = path.join(base, "byo.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", byoBare]);
   const byoUrl = pathToFileURL(byoBare).href;
+  // 3.0.0: the customer repo is the source of truth from day one — no
+  // operator-side staging copy to migrate out of.
+  await seedSpecBranch(byoBare, { project: "acme/gamma", spec: "gamma-spec", sourceDir: FIXTURE_SPEC, repoUrl: byoUrl });
   const config = fixture.serviceConfigFor(bare);
   config.repoPolicy = { allowedHosts: ["file"] };
   const configPath = path.join(base, "projects.json");
@@ -265,7 +259,9 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     assert.equal(own.body.project, "acme/gamma");
     const snippet = JSON.parse(own.body.mcpJson);
     assert.equal(snippet.mcpServers["omp-spec-kit"].headers["X-Spec-Idp"], EXT_TENANT);
-    assert.equal(snippet.mcpServers["omp-spec-kit"].headers["X-Spec-Project"], "acme/gamma");
+    assert.equal(snippet.mcpServers["omp-spec-kit"].headers["X-Spec-Project"], undefined, "no connection-wide project header");
+    assert.equal(snippet.projectSelection.project, "acme/gamma");
+    assert.equal(snippet.projectSelection.record.schema, "omp-spec-kit/project-binding@1");
   });
 
   it("enforces tenant isolation and group gating for external users", async () => {
@@ -276,7 +272,7 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     // the kernel ever sees the request.
     const outOfScope = await callTool(url, tokens.mia, "spec_catalog", { view: "specs", project: "stgmt/alpha" }).then((r) => r.structuredContent);
     assert.equal(outOfScope.ok, false);
-    assert.equal(outOfScope.error.code, "INVALID_REQUEST");
+    assert.equal(outOfScope.error.code, "PROJECT_NOT_ALLOWED");
     assert.match(outOfScope.error.message, /outside the caller's allowed set/);
 
     // A group-less ext user is refused by the binding's hubGroups, not YouTrack.
@@ -311,8 +307,6 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     const repoBound = await rest(api, tokens.mia, "POST", "/repos/bind", { project: "acme/gamma", repoUrl: byoUrl, token: "unused-for-file" });
     assert.equal(repoBound.status, 200, JSON.stringify(repoBound.body));
     assert.equal(repoBound.body.binding.status, "active");
-    assert.match(repoBound.body.migrated?.commit ?? "", /^[0-9a-f]{40}$/u, "bind must report the migration commit SHA");
-    assert.ok(repoBound.body.migrated.documents > 0, "bind must report the migrated document count");
 
     // mia patches a spec in her tenant project — the write lands under
     // acme/gamma in the CUSTOMER repo, never the operator's.
@@ -327,7 +321,7 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     assert.equal(patch.ok, true, JSON.stringify(patch.error ?? {}));
     assert.equal(patch.data.outcome, "APPLIED");
 
-    const { stdout } = await execFileAsync("git", ["--git-dir", byoBare, "show", "main:acme/gamma/.specs/gamma-spec/README.md"]);
+    const { stdout } = await execFileAsync("git", ["--git-dir", byoBare, "show", "spec-gamma-spec:.specs/gamma-spec/README.md"]);
     assert.match(stdout, /External write/u, `ext write did not land in the customer repo: ${stdout.slice(0, 200)}`);
 
     const catalog = await callTool(url, tokens.mia, "spec_catalog", { view: "specs" }).then((r) => r.structuredContent);
@@ -411,7 +405,7 @@ describe("External IdP binding (TASK-13): probe, bind, auth, isolation", () => {
     assert.equal(bound.body.repos["acme/gamma"].binding.status, "active");
 
     // The migrated tree landed in the customer repo, and reads serve it.
-    const { stdout } = await execFileAsync("git", ["--git-dir", byoBare, "show", "main:acme/gamma/.specs/gamma-spec/TASKS.md"]);
+    const { stdout } = await execFileAsync("git", ["--git-dir", byoBare, "show", "spec-gamma-spec:.specs/gamma-spec/TASKS.md"]);
     assert.match(stdout, /TASK-1/u, `migrated TASKS missing in the customer repo: ${stdout.slice(0, 160)}`);
 
     const catalog = await callTool(url, tokens.mia, "spec_catalog", { view: "specs" }).then((r) => r.structuredContent);

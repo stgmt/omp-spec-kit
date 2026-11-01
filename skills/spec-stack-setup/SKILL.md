@@ -13,6 +13,8 @@ operator == customer), **spec-git** (bare specs repo + git daemon), and
 
 ```sh
 node skills/spec-stack-setup/setup.mjs
+# fresh/install mode: dashboard exists, but no demo specs are seeded
+node skills/spec-stack-setup/setup.mjs --no-demo
 ```
 
 `docker compose up -d` from this directory works too (`name:` in compose.yml
@@ -81,27 +83,33 @@ again (wizard, groups, token, specs, dashboard).
    marker carries `projectionVersion`, so a code upgrade self-reprojects.
    Projection is on by default for every install: there is no opt-in step and
    no "create the SPEC project later" prerequisite.
-8. Creates the `Spec Stack` dashboard with the `spec-board` widget at
-   `width: 12, height: 8` grid cells (the manifest's `defaultDimensions`
-   `12fr × 8fr` covers widgets added by hand through the UI) and prints
-   the link.
+8. Creates the `Spec Stack` dashboard with one full-width `spec-board` widget
+   (`width: 12, height: 8` grid cells; the manifest's `defaultDimensions`
+   `12fr × 8fr` covers widgets added by hand through the UI) and shares it with
+   `All Users`, then prints the link. A rerun replaces a stale/duplicate
+   embedding instead of accepting any widget with the same key, and the page
+   reports the dashboard healthy only when the widget is full width and the
+   share is present.
 9. Installs the OpenCode guard when `~/.config/opencode/` exists: copies the
    built enforcement tree and the OpenCode host adapter into
    `~/.config/opencode/plugins/omp-spec-kit/`, writes
    `~/.config/opencode/spec-kit-guard.json`, and registers the registry as a
    **remote** MCP server (`spec-registry`) in `opencode.json`. The guard
    blocks every direct write/read of `.specs` and accepts `spec_patch` only
-   from that server; a local stdio server is refused. A detected OpenCode
-   install must succeed — the phase fails instead of skipping. The three
+   from that server; a local stdio server is refused. A host whose global
+   config already points at a different stack is a reported **skip** with the
+   installer's reason — the demo stack is already running and the setup does
+   not fail over an operator's existing agent configuration. The three
    authoring skills (`spec-elicitation`, `spec-inventory`,
    `engineering-anti-bike`) are copied to `~/.config/opencode/skills/`.
 10. Installs the Codex guard when `~/.codex/` exists: copies the adapter into
     `~/.codex/spec-kit-guard/`, merges one `PreToolUse` group into
     `~/.codex/hooks.json`, adds `[mcp_servers.spec_registry]` (streamable HTTP
     + `bearer_token_env_var`) to `config.toml`, and exports the token for new
-    processes. Codex blocks on exit 2; a stdio registry entry is refused.
-    Run `/hooks` once in Codex to trust the new hook. The three authoring
-    skills are copied to `~/.codex/skills/`.
+    processes. Codex blocks on exit 2; a stdio registry entry is refused, and
+    a conflicting configuration is skipped with the same warning rule as
+    OpenCode. Run `/hooks` once in Codex to trust the new hook. The three
+    authoring skills are copied to `~/.codex/skills/`.
 
 ## Writeback (tracker → spec), optional
 
@@ -121,7 +129,6 @@ Required env (`.env` next to compose.yml):
 | `SPEC_AGENT_TOKEN` | onboarding-issued agent token scoped to the spec projects (`POST /onboarding/token`); identities land in `Spec-Author` trailers |
 | `SPEC_WRITEBACK_TOKEN` | shared secret the tracker rule sends as `LISTENER_TOKEN` |
 | `SPEC_SYNC_MARKER_KEY` | **must equal the service's value** — mismatched secrets make ownership checks fail every writeback |
-| `SPECS_BRANCH` | branch of the specs repository the service writes (default `main`); a repo binding that names another branch is rejected |
 
 `SPEC_REGISTRY_URL` and `SPEC_AGENT_TOKEN` are required for `--serve`: without
 them the listener refuses to start. There is no local-checkout fallback — the

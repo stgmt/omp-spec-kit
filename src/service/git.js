@@ -58,16 +58,6 @@ export function gitAuthEnv(auth) {
   };
 }
 
-export function gitAuthFromEnv(env = process.env) {
-  const token = env.SPEC_REGISTRY_GIT_TOKEN;
-  if (typeof token !== "string" || token.trim().length === 0) return undefined;
-  return {
-    token: token.trim(),
-    username: env.SPEC_REGISTRY_GIT_USER,
-    url: env.SPEC_REGISTRY_GIT_AUTH_URL,
-  };
-}
-
 /**
  * Thin serialized git CLI wrapper. One queue per repository root: git index and
  * refs are process-global state inside a worktree, so concurrent git calls on
@@ -113,7 +103,7 @@ export class GitClient {
         .then(({ stdout, stderr }) => ({ stdout, stderr }))
         .catch((error) => {
           throw new GitError(
-            this.redact(`git ${args[0]} failed: ${(error.stderr || error.message || "").trim().slice(0, 500)}`),
+            this.redact(`git ${args[0]} failed in ${cwd}: ${(error.stderr || error.message || "").trim().slice(0, 500)}`),
             {
               args: args.map((arg) => this.redact(arg)),
               stdout: this.redact(error.stdout),
@@ -226,6 +216,32 @@ export class GitClient {
   async show(revision, filePath, { cwd } = {}) {
     const { stdout } = await this.run(["show", `${revision}:${filePath}`], { cwd });
     return stdout;
+  }
+
+  /**
+   * Binary-safe blob read. `git show` is for text; attachments (PNG, PDF) must
+   * never round-trip through UTF-8 before landing in the materialised corpus.
+   */
+  async showBytes(revision, filePath, { cwd } = {}) {
+    if (typeof cwd !== "string" || cwd.length === 0) {
+      throw new GitError(`git show refused: no cwd`, { args: ["show"] });
+    }
+    return enqueue(cwd, () =>
+      execFileAsync("git", ["show", `${revision}:${filePath}`], {
+        cwd,
+        windowsHide: true,
+        maxBuffer: 32 * 1024 * 1024,
+        env: this.childEnv(),
+        encoding: "buffer",
+      })
+        .then(({ stdout }) => stdout)
+        .catch((error) => {
+          throw new GitError(
+            this.redact(`git show failed in ${cwd}: ${String(error.stderr ?? error.message ?? "").trim().slice(0, 500)}`),
+            { args: ["show"], stderr: String(error.stderr ?? ""), exitCode: error.code },
+          );
+        }),
+    );
   }
 
   /**

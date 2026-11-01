@@ -6,7 +6,7 @@ import {
   YouTrackSyncStateStore,
   provisionLinkTypes,
 } from "../../scripts/spec-graph-sync.mjs";
-import { stableJson, SYNC_STATE_SPEC_ID } from "../../src/adapters/youtrack-projection.js";
+import { stableJson, SYNC_STATE_SPEC_ID, UNASSIGNED_PROJECT_ID, projectPointerSpecId } from "../../src/adapters/youtrack-projection.js";
 
 const MARKER_SECRET = "store-test-marker-secret-0123456789abcdef";
 
@@ -208,6 +208,24 @@ describe("YouTrackSyncStateStore marker integrity", () => {
     assert.deepEqual(client.calls.filter((call) => call[0] === "DELETE").map((call) => call[1]), ["/api/issues/3-9"]);
   });
 
+  it("refuses a marker YouTrack would truncate", async () => {
+    const client = fakeClient({ issues: [] });
+    const oversized = plan();
+    oversized.snapshot = {
+      nodes: [{ canonicalId: "demo:TASK-1", kind: "TASK", title: "x".repeat(600_000) }],
+      edges: [],
+    };
+    await assert.rejects(
+      () => store(client).publishCommitted(oversized, { cardIds: {} }),
+      (error) => error.code === "MARKER_TOO_LARGE" && /512000|500000/.test(error.message),
+    );
+    assert.equal(
+      client.calls.filter((call) => call[0] === "POST").length,
+      0,
+      "a rejected marker must not reach the pointer issue",
+    );
+  });
+
   it("publishCommitted defaults to a complete marker when options are omitted", async () => {
     const client = fakeClient({ issues: [] });
     await store(client).publishCommitted(plan());
@@ -228,22 +246,63 @@ describe("YouTrackSyncStateStore marker integrity", () => {
     assert.equal(signature, createHmac("sha256", MARKER_SECRET).update(stableJson(unsigned), "utf8").digest("hex"), "partial marker must still be verifiably signed");
   });
 
+  it("marks the root index incomplete when a project pointer is missing", async () => {
+    const root = signedMarker({
+      schemaVersion: "BoardSnapshotV1",
+      projectionVersion: 7,
+      complete: true,
+      fingerprint: "fp",
+      snapshotHash: "sh",
+      projects: [{ id: "demo/stack", pointer: "SPEC-999" }],
+      snapshot: { schemaVersion: "BoardSnapshotV1", complete: true, page: null, nodes: [], edges: [] },
+    });
+    const client = fakeClient({ issues: [pointerRow("3-1", root)] });
+    const committed = await store(client).readCommitted();
+    assert.equal(committed.valid, true);
+    assert.equal(committed.projectIndexComplete, false, "a missing project pointer must force a republish");
+  });
+
+  it("accepts a complete project index", async () => {
+    const project = "demo/stack";
+    const child = signedMarker({
+      schemaVersion: "BoardSnapshotV1",
+      projectionVersion: 7,
+      complete: true,
+      scope: { mode: "project", project, specSlugs: ["demo"] },
+      snapshot: { schemaVersion: "BoardSnapshotV1", complete: true, page: null, nodes: [], edges: [] },
+    });
+    const childRow = issueRow("3-2", projectPointerSpecId(project), {
+      description: "SPEC-SYNC-STATE\n" + JSON.stringify(child),
+    });
+    const root = signedMarker({
+      schemaVersion: "BoardSnapshotV1",
+      projectionVersion: 7,
+      complete: true,
+      fingerprint: "fp",
+      snapshotHash: "sh",
+      projects: [{ id: project, pointer: "SPEC-2" }],
+      snapshot: { schemaVersion: "BoardSnapshotV1", complete: true, page: null, nodes: [], edges: [] },
+    });
+    const client = fakeClient({ issues: [pointerRow("3-1", root), childRow] });
+    const committed = await store(client).readCommitted();
+    assert.equal(committed.projectIndexComplete, true);
+  });
+
   it("a signed partial marker verifies for writeback routing but stays incomplete", async () => {
     const marker = signedMarker({
       schemaVersion: "BoardSnapshotV1",
       complete: false,
       fingerprint: "fp",
       snapshotHash: "sh",
-      cardIds: { "demo:TASK-1": "SPEC-1" },
-      specProjects: { demo: "demo/stack" },
+      cardIds: { "demo/stack::demo:TASK-1": "SPEC-1" },
       snapshot: { nodes: [] },
     });
     const client = fakeClient({ issues: [pointerRow("3-5", marker)] });
     const committed = await store(client).readCommitted();
     assert.equal(committed.valid, true, "authentic partial marker must verify — writeback routes through it");
     assert.equal(committed.complete, false, "completeness is reported, not laundered");
-    assert.deepEqual(committed.cardIds, { "demo:TASK-1": "SPEC-1" });
-    assert.deepEqual(committed.specProjects, { demo: "demo/stack" });
+    assert.deepEqual(committed.cardIds, { "demo/stack::demo:TASK-1": "SPEC-1" });
+    assert.equal("specProjects" in committed, false, "the flat routing map is not part of the v8 marker");
   });
 
   it("honors a text-typed SpecId field when creating the pointer", async () => {
@@ -257,6 +316,84 @@ describe("YouTrackSyncStateStore marker integrity", () => {
     const create = client.calls.find((call) => call[0] === "POST" && call[1] === "/api/issues?fields=id,idReadable");
     assert.equal(create[2].customFields[0].$type, "TextIssueCustomField");
     assert.equal(create[2].customFields[0].value.text, SYNC_STATE_SPEC_ID);
+  });
+
+  it("publishes one signed pointer per project and returns the root index", async () => {
+    const client = fakeClient({ issues: [] });
+    const sync = store(client);
+    const projectPlan = (slug, project) => ({
+      ...plan(),
+      scope: { mode: "project", project, specSlugs: [slug] },
+      issues: [{ specId: `${slug}:TASK-1` }],
+      snapshot: { nodes: [{ canonicalId: `${slug}:TASK-1` }], edges: [] },
+    });
+    const state = await sync.publishProjectPointers({
+      "demo/stack": projectPlan("demo-spec", "demo/stack"),
+      "acme/gamma": projectPlan("acme-spec", "acme/gamma"),
+    }, {
+      cardIds: { "demo-spec:TASK-1": "SPEC-1", "acme-spec:TASK-1": "SPEC-2" },
+    });
+    assert.equal(state.projects.length, 2);
+    assert.deepEqual(state.projects.map((entry) => entry.id).sort(), ["acme/gamma", "demo/stack"]);
+    const creates = client.calls.filter((call) => call[0] === "POST" && call[1] === "/api/issues?fields=id,idReadable");
+    assert.equal(creates.length, 2);
+    assert.deepEqual(
+      creates.map((call) => call[2].customFields[0].value).sort(),
+      [projectPointerSpecId("acme/gamma"), projectPointerSpecId("demo/stack")].sort(),
+    );
+    for (const call of creates) {
+      const marker = JSON.parse(call[2].description.slice("SPEC-SYNC-STATE\n".length));
+      assert.equal(marker.scope.mode, "project");
+      assert.equal(typeof marker.signature, "string");
+      assert.equal(Object.keys(marker.cardIds).length, 1, "each project marker carries only its cards");
+    }
+  });
+
+  it("publishes the unassigned pointer", async () => {
+    const client = fakeClient({ issues: [] });
+    const sync = store(client);
+    const unassignedPlan = {
+      ...plan(),
+      scope: { mode: "project", project: UNASSIGNED_PROJECT_ID, specSlugs: ["orphan"] },
+      issues: [{ specId: "orphan:TASK-1" }],
+      snapshot: { nodes: [{ canonicalId: "orphan:TASK-1" }], edges: [] },
+    };
+    const state = await sync.publishProjectPointers({}, { cardIds: { "orphan:TASK-1": "SPEC-9" }, unassignedPlan });
+    assert.ok(state.unassigned, "unassigned bucket is published");
+    const create = client.calls.find((call) => call[0] === "POST" && call[1] === "/api/issues?fields=id,idReadable");
+    assert.equal(create[2].customFields[0].value, projectPointerSpecId(UNASSIGNED_PROJECT_ID));
+    const marker = JSON.parse(create[2].description.slice("SPEC-SYNC-STATE\n".length));
+    assert.deepEqual(marker.scope, { mode: "project", project: UNASSIGNED_PROJECT_ID, specSlugs: ["orphan"] });
+  });
+
+  it("commits the root index before deleting stale project pointers", async () => {
+    const stale = issueRow("3-9", projectPointerSpecId("old/project"));
+    const client = fakeClient({ issues: [stale] });
+    const sync = store(client);
+    const state = await sync.publishProjectPointers({
+      "demo/stack": {
+        ...plan(),
+        scope: { mode: "project", project: "demo/stack", specSlugs: ["demo-spec"] },
+        issues: [{ specId: "demo-spec:TASK-1" }],
+        snapshot: { nodes: [{ canonicalId: "demo-spec:TASK-1" }], edges: [] },
+      },
+    }, { cardIds: {} });
+    assert.deepEqual(state.stale.map((issue) => issue.id), ["3-9"]);
+    assert.equal(client.calls.some((call) => call[0] === "DELETE"), false, "stale pointers wait for the root");
+    await sync.publishCommitted(plan(), {
+      cardIds: {},
+      projects: state.projects,
+      unassigned: state.unassigned,
+      staleProjectPointers: state.stale,
+    });
+    const order = client.calls
+      .filter((call) => (call[0] === "POST" && call[2]?.summary === SYNC_STATE_SPEC_ID) || call[0] === "DELETE")
+      .map((call) => call[0]);
+    assert.deepEqual(order, ["POST", "DELETE"], "root is written before the stale project pointer is deleted");
+    const rootCreate = client.calls.find((call) => call[0] === "POST" && call[2]?.summary === SYNC_STATE_SPEC_ID);
+    const rootMarker = JSON.parse(rootCreate[2].description.slice("SPEC-SYNC-STATE\n".length));
+    assert.deepEqual(rootMarker.projects.map((entry) => entry.id), ["demo/stack"]);
+    assert.equal(rootMarker.unassigned, null);
   });
 });
 

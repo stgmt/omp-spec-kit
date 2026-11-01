@@ -68,6 +68,20 @@ export function createResponseProvenance({
   });
 }
 
+/**
+ * The one place the served registry project joins the response provenance
+ * contract. Every transport that resolves a project (hosted dispatch, preflight)
+ * uses this rather than carrying a second, parallel representation.
+ */
+export function withServedProject(provenance, project) {
+  const served = typeof project === "string" && project.length > 0 ? project : null;
+  if (!provenance || typeof provenance !== "object" || Array.isArray(provenance)) {
+    return Object.freeze({ project: served });
+  }
+  if (provenance.project === served) return provenance;
+  return Object.freeze({ ...provenance, project: served });
+}
+
 export const PACKAGE_ROOT_REFUSED = "PACKAGE_ROOT_REFUSED";
 
 // A cwd that equals OMP_SPEC_KIT_PACKAGE_ROOT is reported as `refused` with no
@@ -149,7 +163,7 @@ const ERROR_RECOVERY = Object.freeze({
 });
 
 function rootFingerprintRecoveryMessage(provenance) {
-  return "repositoryRootFingerprint may be from another project or stale snapshot. activeProjectRootId=" + provenance.activeProjectRootId + " resolvedRootId=" + provenance.resolvedRootId + ". Run mcp_preflight with the current working directory; reconnect if matchesResolvedRoot is false. Otherwise refresh spec_catalog with overview view and create a new proposal.";
+  return "repositoryRootFingerprint may be from another project or stale snapshot. activeProjectRootId=" + provenance.activeProjectRootId + " resolvedRootId=" + provenance.resolvedRootId + ". Run mcp_preflight to read the served project, repository binding and corpus availability; select the intended project explicitly instead of retrying the stale fingerprint. Otherwise refresh spec_catalog with overview view and create a new proposal.";
 }
 
 function actionableErrorMessage(code, message) {
@@ -373,7 +387,7 @@ export function createSpecService(root, context = {}) {
 
   // spec-kernel@2 accepts @1 callers unchanged (shape-compatible; the new
   // optional `project` scope rule is transport-level), so both are legal here.
-  async function runQuery(operation, args, { requestId = null, schemaVersion } = {}) {
+  async function runQuery(operation, args, { requestId = null, schemaVersion, project = null, projectSource = null, transport = null, bindingStatus = null } = {}) {
     if (schemaVersion !== undefined && schemaVersion !== "spec-kernel@1" && schemaVersion !== KERNEL_SCHEMA_VERSION) {
       return withProvenance(
         makeErrorEnvelope({
@@ -402,7 +416,14 @@ export function createSpecService(root, context = {}) {
     // 1. mcpPreflight
     if (operation === "mcpPreflight") {
       try {
-        const docRes = await executeDocumentOperation(resolvedRoot, "mcpPreflight", effectiveArgs, { stage, provenance });
+        const docRes = await executeDocumentOperation(resolvedRoot, "mcpPreflight", effectiveArgs, {
+          stage,
+          provenance,
+          project: typeof project === "string" && project.length > 0 ? project : null,
+          projectSource,
+          transport,
+          bindingStatus,
+        });
         return withProvenance(
           docRes.ok
             ? makeAdapterSuccessEnvelope({ operation: "mcpPreflight", requestId, data: docRes.data })

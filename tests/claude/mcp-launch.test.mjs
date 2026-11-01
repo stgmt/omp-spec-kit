@@ -113,7 +113,6 @@ describe(".mcp.json launch shape", () => {
     assert.equal(server.url, "${OMP_SPEC_REGISTRY_URL}");
     assert.deepEqual(server.headers, {
       Authorization: "Bearer ${OMP_SPEC_REGISTRY_TOKEN}",
-      "X-Spec-Project": "${OMP_SPEC_PROJECT}",
     });
     assert.equal(server.command, undefined);
     assert.equal(server.env, undefined);

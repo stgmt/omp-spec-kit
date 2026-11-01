@@ -2,6 +2,7 @@ import {
   PROJECTION_VERSION,
   YouTrackProjectionService,
   buildProjectionPlan,
+  cardKey,
   digest,
 } from "../adapters/youtrack-projection.js";
 import {
@@ -9,6 +10,17 @@ import {
   YouTrackProjectionStore,
   YouTrackSyncStateStore,
 } from "../adapters/youtrack-store.js";
+
+async function projectHead(mounts, projectId) {
+  if (typeof mounts.projectHead === "function") return mounts.projectHead(projectId);
+  // Test fakes predate the multi-branch model: keep their single-mount HEAD
+  // contract, including a dirty tree marker.
+  const mount = mounts.for(projectId);
+  const head = await mount.git.revParse("HEAD", { cwd: mount.cwd });
+  let dirty = "";
+  try { dirty = await mount.git.statusPorcelain?.({ cwd: mount.cwd }) ?? ""; } catch {}
+  return dirty.trim() === "" ? head : `${head}:dirty`;
+}
 
 /**
  * Service-side YouTrack projection: the committed spec corpus is mirrored into
@@ -54,19 +66,22 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
   // One board per configured project, merged into a single projection surface:
   // the tracker project holds cards for every spec regardless of which mount
   // served it, and the snapshot fingerprint aggregates per-board fingerprints
-  // so any mount's content move flips it. mountHeads/specProjects/skippedProjects
-  // are recorded alongside so the cheap path and the writeback listener can
-  // reason about the same layout without rebuilding the board.
+  // so any mount's content move flips it. mountHeads/skippedProjects are
+  // recorded alongside so the cheap path can reason about the same layout
+  // without rebuilding the board; per-node project tags carry ownership.
   async function mergedBoard() {
     const nodes = [];
     const edges = [];
     const fingerprints = [];
-    const specSlugs = [];
+    const slugOwners = new Map();
+    const slugs = [];
     // Null-prototype maps: spec slugs like "constructor"/"__proto__" are legal
     // (SPEC_SLUG_RE allows them) and must not collide with Object.prototype
-    // members on the ownership/routing checks below.
+    // members on the ownership checks below.
     const mountHeads = Object.create(null);
-    const specProjects = Object.create(null);
+    // specProjects removed: flat slug-to-project routing map deleted (see v8).
+    // Identity is qualified at the shared boundary as (project, canonicalId).
+    const projectBoards = Object.create(null);
     const skippedProjects = [];
     const nodeProjects = new Map();
     let mountsClean = true;
@@ -83,53 +98,63 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
         }
         throw error;
       }
-      const mount = mounts.for(projectId);
-      const headBefore = await mount.git.revParse("HEAD", { cwd: mount.cwd });
+      const headBefore = await projectHead(mounts, projectId);
+      if (headBefore.endsWith(":dirty")) mountsClean = false;
       const envelope = await service.runQuery("graph", { view: "board", specSlugs: [] });
       if (!envelope?.ok) {
         throw new Error(`board read failed for ${projectId}: ${envelope?.error?.message ?? "no envelope"}`);
       }
       const board = envelope.data;
+      // Keep each project's board for the per-project committed pointers. The
+      // aggregate below stays the All-projects view; these boards are the
+      // projection units that map to SPEC:SYNC-STATE:<project>.
+      projectBoards[projectId] = board;
       for (const node of board.nodes) {
-        // The same canonicalId from two mounts would wedge the sync on
-        // "duplicate node identity" later — name the colliding projects here
-        // so the operator sees who serves the duplicated slug.
-        const seen = nodeProjects.get(node.canonicalId);
-        if (seen !== undefined && seen !== projectId) {
+        // Same-project duplicate internal identity is still a defect: two nodes
+        // with one canonicalId inside one corpus cannot both own the same card.
+        // The key is project-qualified, so the same canonicalId served by two
+        // different projects is legal and both are kept on the aggregate.
+        const key = cardKey(projectId, node.canonicalId);
+        const seen = nodeProjects.get(key);
+        if (seen !== undefined) {
           throw new Error(`duplicate spec node ${node.canonicalId} is served by both ${seen} and ${projectId}`);
         }
-        nodeProjects.set(node.canonicalId, projectId);
+        nodeProjects.set(key, projectId);
       }
-      nodes.push(...board.nodes);
-      edges.push(...board.edges);
+      // Project is part of every aggregate entry: the tracker boundary keys a
+      // card by project + canonicalId, and spec-local ids stay untouched.
+      nodes.push(...board.nodes.map((node) => ({ ...node, project: projectId })));
+      edges.push(...board.edges.map((edge) => ({ ...edge, project: projectId })));
       fingerprints.push(board.fingerprint);
       for (const slug of board.scope?.specSlugs ?? []) {
-        // A slug claimed by two mounts makes writeback routing ambiguous:
-        // specProjects would silently keep whichever mount iterated first.
-        const owner = specProjects[slug];
-        if (owner !== undefined && owner !== projectId) {
+        // Same-project duplicate slug is still a defect (one corpus cannot
+        // claim a slug twice); two projects using the same slug coexist.
+        const key = cardKey(projectId, slug);
+        const owner = slugOwners.get(key);
+        if (owner !== undefined) {
           throw new Error(`spec ${slug} is served by both ${owner} and ${projectId}`);
         }
-        specSlugs.push(slug);
-        specProjects[slug] = projectId;
+        slugOwners.set(key, projectId);
+        slugs.push(slug);
       }
       // HEAD is sampled BEFORE and AFTER the board read: a writepath push or
       // reconcile landing between them would otherwise record a HEAD newer
       // than the board that was actually read — and cheapCheck would certify
       // the unseen content on every later sync.
-      const headAfter = await mount.git.revParse("HEAD", { cwd: mount.cwd });
+      const headAfter = await projectHead(mounts, projectId);
       if (headAfter !== headBefore) {
         throw new Error(`mount ${projectId} moved mid-read (${headBefore} -> ${headAfter})`);
       }
       mountHeads[projectId] = headBefore;
-      if ((await mount.git.statusPorcelain({ cwd: mount.cwd })).trim() !== "") mountsClean = false;
     }
     fingerprints.sort();
-    specSlugs.sort();
     skippedProjects.sort();
+    // Scope lists each served slug once; project ownership is carried per node
+    // and per card key, so a slug shared by two projects is not "unassigned".
+    const uniqueSlugs = [...new Set(slugs)].sort();
     return {
       fingerprint: digest({ boards: fingerprints }),
-      scope: { mode: "corpus", specSlugs },
+      scope: { mode: "corpus", specSlugs: uniqueSlugs },
       complete: true,
       page: null,
       nodes,
@@ -137,7 +162,7 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
       counts: { nodes: nodes.length, edges: edges.length },
       mountHeads,
       mountsClean,
-      specProjects,
+      projectBoards,
       skippedProjects,
     };
   }
@@ -154,6 +179,7 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
     // A partial marker carries the same fingerprint/heads but certifies
     // failed writes — never let it satisfy a skip.
     if (pointer.complete !== true) return false;
+    if (pointer.projectIndexComplete !== true) return false;
     if (pointer.projectionVersion !== PROJECTION_VERSION) return false;
     if (pointer.mountsClean !== true || !pointer.mountHeads || typeof pointer.mountHeads !== "object") return false;
     const recorded = pointer.mountHeads;
@@ -162,17 +188,17 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
     const skippedNow = [];
     try {
       for (const projectId of mounts.projects) {
-        let mount;
+        let head;
         try {
-          mount = mounts.for(projectId);
+          head = await projectHead(mounts, projectId);
         } catch (error) {
           if (error?.code !== "REPO_BINDING_REQUIRED") throw error;
           skippedNow.push(projectId);
           continue;
         }
         servedNow.push(projectId);
-        if (recorded[projectId] !== await mount.git.revParse("HEAD", { cwd: mount.cwd })) return false;
-        if ((await mount.git.statusPorcelain({ cwd: mount.cwd })).trim() !== "") return false;
+        if (head.endsWith(":dirty")) return false;
+        if (recorded[projectId] !== head) return false;
       }
     } catch {
       return false;
@@ -208,7 +234,9 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
         pointer.fingerprint === plan.fingerprint &&
         pointer.snapshotHash === plan.snapshotHash &&
         pointer.projectionDigest === plan.projectionDigest &&
-        pointer.projectionVersion === PROJECTION_VERSION;
+        pointer.projectionVersion === PROJECTION_VERSION &&
+        pointer.projectIndexComplete === true &&
+        Array.isArray(pointer.projects);
       if (fresh) {
         logger("projection: committed snapshot is current, skipping");
         return { outcome: "SKIPPED", fingerprint: board.fingerprint, writeCalls: 0 };
@@ -225,7 +253,13 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
       });
       const result = await service.sync({ log: logger });
       logger(`projection: ${result.outcome} fingerprint=${result.fingerprint?.slice(0, 12)} writeCalls=${result.writeCalls}`);
-      return result;
+      return {
+        ...result,
+        // Diagnostics for the per-project pointer publication: the projection
+        // units this run built from the mounts. Every served node carries its
+        // project, so the aggregate has no unassigned bucket.
+        projects: Object.keys(board.projectBoards).sort(),
+      };
     } catch (error) {
       // A deleted/recreated tracker project invalidates the cached id —
       // clear it so the next trigger re-resolves instead of wedging on 404s.
@@ -247,6 +281,7 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
           outcome: result.outcome,
           fingerprint: result.fingerprint ?? null,
           writeCalls: result.writeCalls ?? 0,
+          projects: result.projects ?? null,
         };
       } catch (error) {
         lastResult = { at: new Date().toISOString(), ok: false, error: String(error?.message ?? error).split("\n")[0] };

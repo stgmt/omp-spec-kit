@@ -3,7 +3,7 @@ import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it, after } from "node:test";
-import { GitClient, GitError, gitAuthEnv, gitAuthFromEnv } from "../../../src/service/git.js";
+import { GitClient, GitError, gitAuthEnv } from "../../../src/service/git.js";
 import { isolateGitEnvironment } from "../../helpers/git-env.mjs";
 
 // Real git runs in this file: never inherit a hook's GIT_DIR/GIT_INDEX_FILE.
@@ -46,17 +46,12 @@ describe("git auth env", () => {
     );
   });
 
-  it("reads the operator token from the environment only", () => {
-    assert.equal(gitAuthFromEnv({}), undefined);
-    assert.equal(gitAuthFromEnv({ SPEC_REGISTRY_GIT_TOKEN: "   " }), undefined);
-    assert.deepEqual(gitAuthFromEnv({ SPEC_REGISTRY_GIT_TOKEN: ` ${TOKEN} ` }), {
-      token: TOKEN,
-      username: undefined,
-      url: undefined,
-    });
-    assert.deepEqual(
-      gitAuthFromEnv({ SPEC_REGISTRY_GIT_TOKEN: TOKEN, SPEC_REGISTRY_GIT_USER: "operator", SPEC_REGISTRY_GIT_AUTH_URL: "https://github.com/" }),
-      { token: TOKEN, username: "operator", url: "https://github.com/" },
+  it("scopes credentials to a git host", () => {
+    const scoped = gitAuthEnv({ token: TOKEN, username: "operator", url: "https://github.com/" });
+    assert.equal(scoped.GIT_CONFIG_KEY_0, "http.https://github.com/.extraheader");
+    assert.equal(
+      scoped.GIT_CONFIG_VALUE_0,
+      `Authorization: Basic ${Buffer.from(`operator:${TOKEN}`, "utf8").toString("base64")}`,
     );
   });
 });

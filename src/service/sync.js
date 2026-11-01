@@ -1,4 +1,4 @@
-import { computeDrift } from "./drift.js";
+import { computeDrift, worktreeDrift } from "./drift.js";
 
 /**
  * Reconcile the clone with the remote (FR-5/FR-10/FR-16): fetch, fast-forward
@@ -45,27 +45,55 @@ export async function reconcileClone({ git, cwd, branch, identity, logger = () =
  */
 export function startSync({ mounts, identity, intervalMs = 30_000, logger = () => {}, afterReconcile = null }) {
   async function reconcileOnce() {
-    let anyMoved = false;
     const events = [];
-    for (const mount of mounts.activeMounts()) {
-      // Each mounted repo is independent: an unreachable or deleted bound
-      // repo must surface as drift, not take the whole sync pass down.
+    let moved = false;
+    for (const projectId of mounts.projects) {
+      let mount, bindings, invalid;
       try {
-        const { moved } = await reconcileClone({ git: mount.git, cwd: mount.cwd, branch: mount.branch, identity, logger });
-        anyMoved = anyMoved || moved;
-        const drift = await computeDrift({ git: mount.git, branch: mount.branch, identity, cwd: mount.cwd });
-        for (const event of drift.events) events.push({ ...event, repo: mount.repoUrl });
+        ({ mount, bindings, invalid } = await mounts.discoverProject(projectId));
       } catch (error) {
-        events.push({ kind: "repo-unreachable", repo: mount.repoUrl, detail: String(error?.message ?? error).split("\n")[0], detectedAt: new Date().toISOString() });
-        logger(`sync: ${mount.repoUrl} unreachable: ${String(error?.message ?? error).split("\n")[0]}`);
+        if (error?.code === "REPO_BINDING_REQUIRED") continue;
+        events.push({ kind: "repo-unreachable", project: projectId, detail: String(error?.message ?? error).split("\n")[0], detectedAt: new Date().toISOString() });
+        logger(`sync: ${projectId} unreachable: ${String(error?.message ?? error).split("\n")[0]}`);
+        continue;
       }
+      for (const entry of invalid.filter((item) => item.project === projectId)) {
+        events.push({ kind: "binding-invalid", project: projectId, branch: entry.branch, detail: entry.errors.join("; "), detectedAt: new Date().toISOString() });
+      }
+      for (const binding of bindings) {
+        // The mirror is the collected remote state: a spec branch that moved
+        // out of band is visible here before the cache is rebuilt.
+        try {
+          const drift = await computeDrift({
+            git: mount.git,
+            branch: binding.branch,
+            identity,
+            cwd: mount.mirrorDir,
+            headRef: binding.ref,
+            remoteRef: binding.ref,
+          });
+          for (const event of drift.events) events.push({ ...event, repo: mount.repoUrl, project: projectId, spec: binding.spec });
+          // A worktree can be ahead of its canonical ref after a failed push;
+          // the mirror alone cannot see that, so report local work explicitly.
+          for (const event of await worktreeDrift({ git: mount.git, cwd: mount.mirrorDir, project: projectId, spec: binding.spec, branch: binding.branch, remoteRef: binding.ref })) {
+            events.push({ ...event, repo: mount.repoUrl });
+          }
+        } catch (error) {
+          events.push({ kind: "repo-unreachable", repo: mount.repoUrl, project: projectId, detail: String(error?.message ?? error).split("\n")[0], detectedAt: new Date().toISOString() });
+        }
+      }
+      const before = mounts.projectSignature?.(projectId) ?? null;
+      // Rebuild only when a branch tip moved; the signature check keeps a
+      // quiet interval from re-materialising every project.
+      try {
+        await mounts.projectRoot(projectId, { fetch: false });
+      } catch (error) {
+        events.push({ kind: "binding-invalid", project: projectId, detail: error?.code ?? "ADAPTER_READ_ERROR", detectedAt: new Date().toISOString() });
+      }
+      const after = mounts.projectSignature?.(projectId) ?? null;
+      if (before !== after) moved = true;
     }
-    if (anyMoved) {
-      for (const projectId of mounts.projects) {
-        // An external-tenant project without a repo binding has no service —
-        // skip it rather than wedging the whole reconcile pass.
-        try { mounts.serviceFor(projectId).refresh(); } catch {}
-      }
+    if (moved) {
       // Accepted remote commits may carry ACTIVE transitions — publish them.
       await afterReconcile?.().catch((error) => logger(`publish after reconcile failed: ${error.message}`));
     }

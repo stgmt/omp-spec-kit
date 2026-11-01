@@ -22,6 +22,33 @@ exports.httpHandler = {
         const settings = ctx.settings || {};
         const serviceUrl = settings.serviceUrl;
         const bridgeToken = settings.serviceBridgeToken;
+        let body;
+        try {
+          body = ctx.request.json();
+        } catch (error) {
+          ctx.response.json({ error: 'request body must be JSON' });
+          return;
+        }
+        // The setup page must render before settings exist, so this one method
+        // reports configuration presence without touching the service and
+        // without echoing either secret.
+        if (body && body.method === 'health/app') {
+          // The marker project is a short name, never user input; keep the
+          // response shape strict so the widget can build the issue query.
+          const configuredMarker = typeof settings.markerProject === 'string' ? settings.markerProject.trim() : '';
+          const markerProject = /^[A-Za-z][A-Za-z0-9_]*$/u.test(configuredMarker) ? configuredMarker : 'SPEC';
+          ctx.response.json({
+            ok: Boolean(serviceUrl && bridgeToken),
+            serviceUrlConfigured: Boolean(serviceUrl),
+            bridgeTokenConfigured: Boolean(bridgeToken),
+            markerProject,
+            missing: [
+              serviceUrl ? null : 'serviceUrl',
+              bridgeToken ? null : 'serviceBridgeToken'
+            ].filter(Boolean)
+          });
+          return;
+        }
         if (!serviceUrl || !bridgeToken) {
           ctx.response.json({ error: 'app settings are not configured: serviceUrl and serviceBridgeToken are required' });
           return;
@@ -30,13 +57,6 @@ exports.httpHandler = {
         const login = currentUser && currentUser.login;
         if (!login) {
           ctx.response.json({ error: 'no authenticated user in handler context' });
-          return;
-        }
-        let body;
-        try {
-          body = ctx.request.json();
-        } catch (error) {
-          ctx.response.json({ error: 'request body must be JSON' });
           return;
         }
         const payload = {

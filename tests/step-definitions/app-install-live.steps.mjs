@@ -142,7 +142,7 @@ When("the admin fills the service connection settings with an unreachable URL", 
   await fillAppSettings(this.adminPage, { ...SERVICE_SETTINGS, serviceUrl: "http://spec-registryd:9999" });
 });
 
-// The app's own page (ADMINISTRATION_MENU_ITEM) — all onboarding lives here,
+// The app's own page (ADMINISTRATION_MENU_ITEM, Administration → Integrations) - all onboarding lives here,
 // issues only carry the context card. The URL was probed live on 2025.3: both
 // the admin-menu item and the issue card link to /app/<appName>/<widgetKey>.
 const APP_PAGE_PATH = "/app/spec-graph-app/spec-app";
@@ -226,8 +226,21 @@ Given("the spec-graph-app is installed with the service settings", async functio
 
 Given("a second specs repo exists in the stack", async function () {
   // The compose git daemon exports anything under /srv/git with receive-pack
-  // enabled — a second bare repo is a second tenant's repository.
-  const script = `if [ ! -d "${BYO_REPO_PATH}" ]; then git init --bare --initial-branch=main "${BYO_REPO_PATH}"; fi && ls "${BYO_REPO_PATH}/HEAD"`;
+  // enabled — a second bare repo is a second tenant's repository. Seed the
+  // alpha-spec branch with its metadata re-pointed at this repo.
+  const script = [
+    `if [ ! -d "${BYO_REPO_PATH}" ]; then git init --bare --initial-branch=main "${BYO_REPO_PATH}"; fi`,
+    `if ! git ls-remote --exit-code --heads "${BYO_REPO_URL}" refs/heads/spec-alpha-spec >/dev/null 2>&1; then`,
+    `  rm -rf /tmp/byo-seed && git clone -q git://127.0.0.1/specs.git /tmp/byo-seed`,
+    `  cd /tmp/byo-seed`,
+    `  git checkout -q spec-alpha-spec`,
+    `  sed -i 's#git://spec-git/specs.git#${BYO_REPO_URL}#' .spec-kit.json`,
+    `  git -c user.email=seed@example.invalid -c user.name=seed commit -qam "seed: byo metadata"`,
+    `  git push -q "${BYO_REPO_URL}" HEAD:refs/heads/spec-alpha-spec`,
+    `  rm -rf /tmp/byo-seed`,
+    `fi`,
+    `ls "${BYO_REPO_PATH}/HEAD"`,
+  ].join("\n");
   const { stdout } = await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-git-1", "sh", "-c", script]);
   assert.match(stdout, /HEAD/u, `byo repo was not created: ${stdout}`);
 });
@@ -281,7 +294,7 @@ Then("the page shows the bound repository state", async function () {
 
 Then("the project specs landed in her repository", async function () {
   const { stdout } = await execFileAsync("docker", [
-    "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${BYO_REPO_PATH}`, "show", "main:stgmt/alpha/.specs/alpha-spec/README.md",
+    "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${BYO_REPO_PATH}`, "show", "spec-alpha-spec:.specs/alpha-spec/README.md",
   ]);
   assert.match(stdout, /Alpha Spec/u, `migrated README missing in byo repo: ${stdout.slice(0, 200)}`);
 });
@@ -303,7 +316,7 @@ When("alice unbinds the project on the page", async function () {
 Then("the project uses the default repository again", async function () {
   // The default clone still holds the migrated-away snapshot; reads resolve there.
   const { stdout } = await execFileAsync("docker", [
-    "exec", "spec-auth-e2e-spec-git-1", "git", "--git-dir=/srv/git/specs.git", "show", "main:stgmt/alpha/.specs/alpha-spec/README.md",
+    "exec", "spec-auth-e2e-spec-git-1", "git", "--git-dir=/srv/git/specs.git", "show", "spec-alpha-spec:.specs/alpha-spec/README.md",
   ]);
   assert.match(stdout, /Alpha Spec/u, "default repo must still carry alpha-spec");
 });
@@ -382,9 +395,18 @@ Given("the tenant has its own specs repo in the stack", async function () {
   if (live.ext?.users?.mia?.token) {
     await serviceRest(live.ext.users.mia.token, "POST", "/repos/unbind", { project: "acme/gamma" }).catch(() => {});
   }
-  const mountKey = createHash("sha256").update(`${EXT_REPO_URL}|main`, "utf8").digest("hex").slice(0, 12);
-  await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-git-1", "sh", "-c",
-    `rm -rf "${EXT_REPO_PATH}" && git init --bare --initial-branch=main "${EXT_REPO_PATH}"`]);
+  const mountKey = createHash("sha256").update(`${EXT_REPO_URL}|`, "utf8").digest("hex").slice(0, 12);
+  const script = [
+    `rm -rf "${EXT_REPO_PATH}" && git init --bare --initial-branch=main "${EXT_REPO_PATH}"`,
+    `rm -rf /tmp/ext-seed && git clone -q git://127.0.0.1/specs.git /tmp/ext-seed`,
+    `cd /tmp/ext-seed`,
+    `git checkout -q spec-gamma-spec`,
+    `sed -i 's#git://spec-git/specs.git#${EXT_REPO_URL}#' .spec-kit.json`,
+    `git -c user.email=seed@example.invalid -c user.name=seed commit -qam "seed: ext metadata"`,
+    `git push -q "${EXT_REPO_URL}" HEAD:refs/heads/spec-gamma-spec`,
+    `rm -rf /tmp/ext-seed`,
+  ].join("\n");
+  await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-git-1", "sh", "-c", script]);
   await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-registryd-1", "rm", "-rf", `/data/clones/${mountKey}`]).catch(() => {});
 });
 
@@ -438,7 +460,7 @@ Then("the tenant specs landed in the tenant repository", async function () {
   const deadline = Date.now() + 60_000;
   for (;;) {
     const { stdout, failed } = await execFileAsync("docker", [
-      "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${EXT_REPO_PATH}`, "show", "main:acme/gamma/.specs/gamma-spec/README.md",
+      "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${EXT_REPO_PATH}`, "show", "spec-gamma-spec:.specs/gamma-spec/README.md",
     ]).then((r) => ({ stdout: r.stdout, failed: false })).catch(() => ({ stdout: "", failed: true }));
     if (!failed && /gamma-spec|Gamma Spec/iu.test(stdout)) return;
     if (Date.now() > deadline) throw new Error(`tenant repo never received the migrated specs: ${stdout.slice(0, 200)}`);
@@ -591,7 +613,10 @@ Then("the page shows a ready .mcp.json for alice on her project", async function
   assert.ok(server, `no mcpServers.omp-spec-kit in snippet: ${JSON.stringify(this.lastSnippet).slice(0, 200)}`);
   assert.match(server.url, /\/mcp$/u, `snippet url must point at /mcp: ${server.url}`);
   assert.match(server.headers?.Authorization ?? "", /^Bearer \S+/u, "snippet must carry a bearer token");
-  assert.equal(server.headers?.["X-Spec-Project"], "stgmt/alpha", "snippet must pin alice's project scope");
+  assert.equal(server.headers?.["X-Spec-Project"], undefined, "no connection-wide project header in the snippet");
+  assert.equal(this.lastSnippet.projectSelection?.mode, "per-call", "selection is per call");
+  assert.equal(this.lastSnippet.projectSelection?.project, "stgmt/alpha", "the snippet names alice's project for per-call use");
+  assert.equal(this.lastSnippet.projectSelection?.record?.schema, "omp-spec-kit/project-binding@1", "the snippet names the repo-local record schema");
   await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-widget-agent-alice.png"), fullPage: true }).catch(() => {});
 });
 
@@ -609,9 +634,8 @@ Then("the generated token authenticates as alice against the live service", asyn
       "content-type": "application/json",
       accept: "application/json, text/event-stream",
       authorization: headers.Authorization,
-      ...(headers["X-Spec-Project"] ? { "x-spec-project": headers["X-Spec-Project"] } : {}),
     },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "spec_catalog", arguments: { view: "specs" } } }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "spec_catalog", arguments: { project: this.lastSnippet.projectSelection.project, view: "specs" } } }),
   });
   const json = await response.json();
   assert.equal(json?.result?.structuredContent?.ok, true, `snippet token MCP call failed: ${JSON.stringify(json).slice(0, 300)}`);
@@ -672,7 +696,8 @@ Then("the page shows a ready .mcp.json pinned to the acme tenant", async functio
   assert.match(server.url, /\/mcp$/u);
   assert.match(server.headers?.Authorization ?? "", /^Bearer \S+/u);
   assert.equal(server.headers?.["X-Spec-Idp"], EXT_TENANT, "snippet must pin the tenant so tokens resolve to the bound YouTrack");
-  assert.equal(server.headers?.["X-Spec-Project"], "acme/gamma");
+  assert.equal(server.headers?.["X-Spec-Project"], undefined, "no connection-wide project header in the snippet");
+  assert.equal(this.lastSnippet.projectSelection?.project, "acme/gamma");
 });
 
 Then("the generated token authenticates as mia with only the acme scope", async function () {
@@ -689,10 +714,9 @@ Then("the generated token authenticates as mia with only the acme scope", async 
       "content-type": "application/json",
       accept: "application/json, text/event-stream",
       authorization: headers.Authorization,
-      "x-spec-project": headers["X-Spec-Project"],
       "x-spec-idp": headers["X-Spec-Idp"],
     },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "spec_catalog", arguments: { view: "specs" } } }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "spec_catalog", arguments: { project: this.lastSnippet.projectSelection.project, view: "specs" } } }),
   });
   const json = await response.json();
   const specs = json?.result?.structuredContent?.data?.specs ?? [];
@@ -705,9 +729,9 @@ Then("the tenant specs are served from the tenant repository", async function ()
   // Migration copies the seeded corpus into the tenant's repo; after binding,
   // reads and writes resolve there — proven above by mia's scoped catalog.
   const tenant = await execFileAsync("docker", [
-    "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${EXT_REPO_PATH}`, "ls-tree", "-r", "--name-only", "main",
+    "exec", "spec-auth-e2e-spec-git-1", "git", `--git-dir=${EXT_REPO_PATH}`, "ls-tree", "-r", "--name-only", "spec-gamma-spec",
   ]);
-  assert.match(tenant.stdout, /acme\/gamma\/\.specs\//u, `tenant repo missing acme/gamma specs: ${tenant.stdout.slice(0, 300)}`);
+  assert.match(tenant.stdout, /\.specs\/gamma-spec\//u, `tenant repo missing gamma-spec docs: ${tenant.stdout.slice(0, 300)}`);
 });
 
 // -- Oda: no scope groups ----------------------------------------------------
@@ -782,14 +806,14 @@ When("noa requests her agent configuration on the page", async function () {
 });
 
 
-// -- Issue context card: no onboarding controls live in tasks ----------------
+// -- Issue context card: read-only, no onboarding, no Spec Service door -----
 
-/** Frame holding the thin issue context card. */
+/** Frame holding the read-only issue context card. */
 async function issueCardFrame(page) {
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
     for (const frame of page.frames()) {
-      const marker = await frame.locator('[data-testid="spec-context"]').count().catch(() => 0);
+      const marker = await frame.locator('[data-testid="spec-panel"]').count().catch(() => 0);
       if (marker > 0) return frame;
     }
     await page.waitForTimeout(1_000);
@@ -797,23 +821,22 @@ async function issueCardFrame(page) {
   throw new Error("issue spec context card did not render");
 }
 
-Then("the issue shows the spec context card and no onboarding controls", async function () {
+Then("the issue shows the read-only spec context and no Spec Service link", async function () {
   const frame = await issueCardFrame(this.alicePage);
-  await frame.locator('[data-testid="spec-app-link"]').waitFor({ state: "attached", timeout: 15_000 });
+  await frame.locator('[data-testid="spec-panel"]').waitFor({ state: "attached", timeout: 15_000 });
   const forbidden = [];
   for (const f of this.alicePage.frames()) {
+    assert.equal(
+      await f.locator('[data-testid="spec-app-link"]').count().catch(() => 0),
+      0,
+      "the issue view must not carry an Open Spec Service link",
+    );
     for (const tid of ["wizard", "agent-panel", "agent-mint", "agent-mcp", "repo-form", "idp-form", "verify-form", "spec-list"]) {
       if (await f.locator(`[data-testid="${tid}"]`).count().catch(() => 0)) forbidden.push(tid);
     }
   }
   assert.deepEqual(forbidden, [], `onboarding controls must not render on issues: ${forbidden.join(", ")}`);
   await this.alicePage.screenshot({ path: path.join(ARTIFACTS, "live-issue-context.png"), fullPage: true }).catch(() => {});
-});
-
-When("alice follows the Spec Service link from the issue", async function () {
-  const frame = await issueCardFrame(this.alicePage);
-  await frame.locator('[data-testid="spec-app-link"]').click();
-  await this.alicePage.waitForURL(/\/app\/spec-graph-app\/spec-app/, { timeout: 30_000 });
 });
 
 Then("the Spec Service page renders its onboarding stepper", async function () {

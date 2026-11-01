@@ -1,14 +1,17 @@
-# Specs repository — operator runbook
+# Spec branches — operator runbook
 
-The canonical specifications live in a dedicated private repository (default
-`stgmt/spec-database`). `spec-registryd` is the only writer; consumers reach
-the corpus exclusively through the service (MCP tools, `/registry`, `/drift`).
+Each project's specifications live on orphan `spec-<slug>` branches in the
+project's own Git repository. `.spec-kit.json` at the branch root binds the
+branch to its `project`, `spec`, `repo`, and `branch`; the corpus is
+`.specs/<slug>/`. `spec-registryd` is the only writer; consumers reach the
+corpus exclusively through the service (MCP tools, `/registry`, `/drift`).
 
-The stack writes exactly one branch, configured by `SPECS_BRANCH` (default
-`main`) and reported by `spec_registry`. A per-project repository binding may
-name another repository but not another branch: `repos.bind` answers
-`BRANCH_FORBIDDEN` for any other ref, so a second branch cannot become a second
-canonical store that drift, projection and the ledger do not track.
+There is no shared default repository and no single configured branch. A spec
+branch contains only `.spec-kit.json` and `.specs/<slug>/**`; work branches
+(`spec-<slug>--<topic>`) hold unmerged changes and are merged by
+`spec_branch merge`, never indexed or projected. Contributors with repository
+access push to a work branch with normal git credentials; hosted MCP agents have
+no git access, and `spec_patch` always writes the canonical branch.
 
 ## Threat model
 
@@ -16,34 +19,31 @@ canonical store that drift, projection and the ledger do not track.
 |---|---|---|
 | `spec-registryd` (bot identity) | Yes | The only legitimate writer. Commits carry `Spec-Author`/`Spec-Request-Id` trailers and are bot-authored. |
 | YouTrack users / agents | No | No git access at all. Writes go through `spec_patch`; concurrency is serialized by the project write lock plus `expectedSha`/`repositoryRootFingerprint` guards — losers get a retryable `CONFLICT`. |
-| Operators (humans with repo access) | Break-glass only | Any non-bot commit on the canonical branch is drift: it appears in `GET /drift` as `non-bot-commit` with author and paths, and the next sync reports it. |
-| Foreign commits inside the service clone | Never published | The write path refuses to push any commit not authored by the bot identity (`FOREIGN_COMMITS`, non-retryable). |
+| Operators (humans with repo access) | Break-glass only | Any non-bot commit on a canonical `spec-*` branch is drift: it appears in `GET /drift` as `non-bot-commit` with author and paths, and the next sync reports it. |
+| Foreign commits inside the service worktree | Never published | The write path refuses to push any commit not authored by the bot identity (`FOREIGN_COMMITS`, non-retryable). |
 
 ## Verifying repository posture
 
-```bash
-SPEC_REGISTRY_GIT_TOKEN=<token with repo access> npm run check:specs-repo
-```
-
-Hard gates: the repository is private; collaborators are limited to the owner,
-the service identity (resolved from the token), and any logins listed in
-`SPEC_REPO_ALLOWED_ACTORS`. Branch protection / rulesets are reported but not
-required (plan-dependent hardening).
+Repository hardening is per bound project, not per stack. Apply a ruleset to
+the project repository that restricts pushes to `refs/heads/spec-*` to the
+service bot, and keep each repository private unless the project owner chooses
+public specs. `GET /repos/bindings` and `GET /me` report the active binding;
+`GET /status` reports whether a project still needs setup.
 
 ## Break-glass procedure
 
 Use only when the service is down and a spec change cannot wait.
 
-1. Clone the specs repository with an operator credential.
-2. Commit and push to the canonical branch.
+1. Clone the project repository with an operator credential.
+2. Commit and push to the `spec-<slug>` branch (never `main`).
 3. Record what was done (commit SHA, reason) — the change is now drift.
 4. On the next sync tick (or `spec_drift` tool / `GET /drift`), the service
    fetches the remote and reports a `non-bot-commit` event naming your author
    identity and the divergent paths. This is expected, not a failure.
-5. Decide: keep the change (nothing to do — the service reconciles its clone
+5. Decide: keep the change (nothing to do — the service reconciles its mirror
    on top of it) or revert it with a follow-up push. Do not force-push: the
-   service's clone history is used for drift accounting.
-6. Re-run `npm run check:specs-repo` if collaborator or token posture changed.
+   service's mirror history is used for drift accounting.
+6. Re-apply the `spec-*` ruleset if collaborator or token posture changed.
 
 ## Concurrency notes
 
@@ -52,38 +52,35 @@ lands, the rest receive `CONFLICT` with `retryable: true` and land on retry —
 a linear, bot-only history. Different projects proceed independently. There is
 no queue that users wait in; refusal-then-retry is the designed behaviour.
 
-## Customer-owned repositories (TASK-17)
+## Project repositories (TASK-17)
 
-A project can leave the shared specs repository and live in its own. The
-binding is server-side state (`repo_bindings`/`repo_credentials` in the store
-file); clients never carry repo URLs or tokens in `.mcp.json`.
+Every project is bound to its own repository; the binding is server-side state
+(`repo_bindings`/`repo_credentials` in the store file), and clients never carry
+repo URLs or tokens in `.mcp.json`.
 
 - `GET /me` — caller's scopes with the repo each resolves to (`bound`,
-  `status`: `default`/`migrating`/`active`/`error`).
+  `status`: `required`/`migrating`/`active`/`error`). An unbound project is
+  `required`, never `default`.
 - `GET /repos/bindings` — binding rows visible in the caller's scopes.
 - `POST /repos/probe` `{project, repoUrl, token, username?}` — reachability +
   credential check (`ls-remote`), persists nothing.
-- `POST /repos/bind` `{project, repoUrl, branch?, token, migrate?}` —
-  owner/writer only, project must be in the caller's scopes. `migrate`
-  defaults to `true`: the project's `.specs` snapshot is copied into the
-  target repo as a bot commit and the landed tree is verified byte-for-byte
-  (git tree hash) against the source. `migrate: false` binds without copying —
-  a pre-seeded target repo wins; an empty one gets a skeleton `.specs`.
-  The response carries `migrated: {commit, documents}` — the pushed commit
-  SHA and the landed file count — or `null` when nothing was migrated; the
-  app page's verify step shows this as the proof of migration.
-- `POST /repos/unbind` `{project}` — back to the default repo. The bound
-  clone stays on disk because published ledger rows still reference it.
+- `POST /repos/bind` `{project, repoUrl, branch?, token}` — owner/writer only,
+  project must be in the caller's scopes. The target repository must already
+  contain canonical `spec-<slug>` branches with valid `.spec-kit.json`; the
+  service attaches them and never copies a corpus or creates a skeleton on
+  `main`. The response carries `migrated: null`.
+- `POST /repos/unbind` `{project}` — the project returns to `required`. There
+  is no default repository to fall back to; reads and writes refuse with
+  `REPO_BINDING_REQUIRED` until a new binding exists. Published versions stay
+  readable from the ledger's recorded repo/commit.
 
 Semantics:
 
-- Migration copies a **snapshot**, not git history — pushing refs would leak
-  every other project's ancestors out of the shared repo. Published versions
-  recorded before the move keep resolving from the previous clone (the ledger
-  stores `repo_url`/`repo_branch` per row).
-- While a binding is `migrating`, reads still hit the source repo and writes
-  are refused with retryable `SPEC_MIGRATING`. Re-binding the same
-  `(repoUrl, branch)` is an idempotent no-op.
+- Re-binding the same `(repoUrl, branch)` is an idempotent no-op. Re-binding a
+  different repository makes it the new source of truth immediately; content
+  that was not already on `spec-*` branches there is not copied.
+- While a binding is `migrating`, reads still hit the previous repo and writes
+  are refused with retryable `SPEC_MIGRATING`.
 - Credentials: `token` is sealed with AES-256-GCM (key from
   `SPEC_REGISTRY_SECRETS_KEY`, ≥16 chars) before it reaches the store. It is
   never logged, returned, or placed in config. A credential only
@@ -91,10 +88,10 @@ Semantics:
 - URL policy (`repoPolicy.allowedHosts`): https on public hosts; http/git
   only on private hosts (compose, on-prem); `file://` only when `"file"` is
   explicitly listed. An empty allowlist means any https public host.
-- The same threat model applies per repo: the service is the only writer in
-  the bound repo; non-bot commits there surface as `non-bot-commit` drift
-  with the repo attached, and an unreachable bound repo surfaces as
-  `repo-unreachable` without stalling sync for the others.
+- The same threat model applies per repo: the service is the only writer on
+  canonical `spec-*` branches; non-bot commits there surface as
+  `non-bot-commit` drift with the repo attached, and an unreachable bound repo
+  surfaces as `repo-unreachable` without stalling sync for the others.
 
 ## Customer-owned YouTrack / external IdP (TASK-13)
 
@@ -133,11 +130,11 @@ Semantics:
   when the operator config or another binding already owns it
   (`IDP_PROJECT_TAKEN`), and a tenant's binding can only be changed by its
   binder or an owner — never silently re-pointed by a stranger.
-- **Tenant specs live in the tenant's repo, never the operator's.** An
-  external-IdP project without a repo binding refuses every data operation
-  with `REPO_BINDING_REQUIRED` until one is bound — through the `repo` block
-  on `idp/bind` or `POST /repos/bind` by a tenant writer/owner. Operator
-  projects keep the configured shared repo as their default.
+- **Tenant specs live in the tenant's repo, never the operator's.** Every
+  external-IdP project needs a repo binding and refuses data operations with
+  `REPO_BINDING_REQUIRED` until one is bound — through the `repo` block on
+  `idp/bind` or `POST /repos/bind` by a tenant writer/owner. Operator
+  projects follow the same rule: no binding, no spec access.
 - Re-binding rules: identical parameters are a no-op (`unchanged`); the same
   URL with different scope/group parameters is refused (`IDP_EXISTS`) —
   unbind first to change a tenant's shape.
@@ -165,24 +162,42 @@ Semantics:
   verifies is still refused — `UNAVAILABLE` (503) only when a dead IdP might
   have been its issuer.
 
+## Spec Board project selection (v7)
+
+The board reads the root `SPEC:SYNC-STATE` index and loads a signed
+`SPEC:SYNC-STATE:<project>` pointer for the selected project. The selector
+offers `All projects`, each indexed project, and `Unassigned`; an unknown
+selection resolves to `Unassigned`, never to the aggregate. A marker without a
+v7 index fails closed with `PROJECTION_INDEX_REQUIRED`.
+
+The selection persists through the host storage/cache. `?project=` is honored
+only when the widget location exposes it; in a dashboard the widget runs in a
+sandboxed `about:srcdoc` iframe where `localStorage` and `window.parent.location`
+are blocked. Do not promise URL persistence for dashboard widgets.
+
+The marker issues are service-owned: only the `spec-registryd` account (and
+tracker administrators) may edit them; dashboard readers are read-only. See
+`docs/decisions/widget-marker-trust.md`.
+
 ## Guided onboarding (TASK-19)
 
 The app's own page — `spec-app`, an `ADMINISTRATION_MENU_ITEM` extension point — is the
-member's whole journey: **Administration menu → Spec Service**. Installing the
+member's whole journey: **Administration → Integrations → Spec Service** (never the main left navigation). Installing the
 ZIP creates nothing in the tracker; the page hosts the full stepper, and
 `?step=agent` deep-links straight to the agent step. Discovery is the native
 **System-wide banner** an administrator configures in Global Settings — the
 apps API exposes no way to post user notifications, and none is fabricated.
 
 1. **Specs repository** — each scoped project shows its repo and status
-   (`active`/`default`/`required`). A `required` project has no repository
-   (external tenant without a binding): owner/writer users get the bind form
-   (URL, git token, branch), probe and bind+migrate run from the page.
-2. **Verify it works** — after a bind the page shows the migration evidence
-   (`migrated.commit` SHA + `migrated.documents` count from the bind
-   response), re-reads the spec list from the newly bound repo, and offers a
-   patch test: dry-run first, real write opt-in. An empty repository shows an
-   honest "no specs yet" instead of a fake success.
+   (`active`/`required`/`migrating`/`error`). A `required` project has no
+   repository binding: owner/writer users get the bind form (URL, git token),
+   probe and bind run from the page against a repository whose canonical
+   `spec-*` branches already exist.
+2. **Verify it works** — after a bind the page re-reads the spec list from the
+   newly bound repo and offers a patch test: dry-run first, real write opt-in.
+   An empty repository shows an honest "no specs yet" instead of a fake
+   success. A repository with an invalid `.spec-kit.json` reports
+   `SPEC_BINDING_INVALID`.
 3. **Connect your agent** — `Get my .mcp.json` calls
    `POST /onboarding/token` through the app bridge and renders the exact
    snippet to paste into the project's `.mcp.json` (`Authorization`,
@@ -190,11 +205,10 @@ apps API exposes no way to post user notifications, and none is fabricated.
    previous same-purpose token — the page says so, and a Dismiss button
    clears the secret from the DOM.
 
-The issue widget (`spec-service-panel`) is deliberately thin: an issue-aware
-context card with the linked spec when `SpecId` is set, repo status chips, and
-an **Open Spec Service** link to `/app/spec-graph-app/spec-app?step=agent`.
-No onboarding forms, no `.mcp.json`, no bind controls live inside an issue —
-a task is not a configuration surface.
+The setup page is the **only** Spec Service entry point: no issue widget links
+to it. The issue view keeps only the read-only `spec-panel` traceability card
+(neighbors, Approve/Verify/Reopen); a task is not a configuration surface, and
+**Administration → Integrations → Spec Service** is the one way in.
 
 Edge cases:
 

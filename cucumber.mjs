@@ -8,6 +8,9 @@ const stdoutMessages = process.env.OMP_SPEC_KIT_BDD_MESSAGE_STDOUT === "1";
 if (process.argv.some((arg) => arg.includes("app-install-live.feature"))) {
   process.env.OMP_SPEC_KIT_LIVE_E2E = "1";
 }
+if (process.argv.some((arg) => arg.includes("youtrack-spec-delivery.feature"))) {
+  process.env.OMP_SPEC_KIT_DELIVERY_LIVE = "1";
+}
 if (process.argv.some((arg) => /release-evidence|release-candidate|lifecycle-producers/.test(arg))) {
   process.env.OMP_SPEC_KIT_RC_BDD = "1";
 }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -8,10 +8,12 @@ import { after, describe, it } from "node:test";
 import { startService } from "../../src/service/index.js";
 import { createStore } from "../../src/service/ledger.js";
 import { loadLiveFixture } from "../e2e/lib/live-fixture.mjs";
+import { seedSpecBranch } from "./lib/spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
 const FIXTURE_SPEC = path.resolve("tests/fixtures/kernel/real-corpus/.specs/spec-kernel");
+const SPEC_BRANCH = "spec-spec-kernel";
 const servers = [];
 const services = [];
 const tempDirs = [];
@@ -39,16 +41,12 @@ async function setup({ syncIntervalMs = 0 } = {}) {
   const base = await tempDir("spec-task6-");
   const bare = path.join(base, "specs.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
-  const seed = path.join(base, "seed");
-  await execFileAsync("git", ["clone", bare, seed]);
-  await git(seed, ["config", "user.email", "seed@example.invalid"]);
-  await git(seed, ["config", "user.name", "seed"]);
-  await cp(FIXTURE_SPEC, path.join(seed, "stgmt", "alpha", ".specs", "spec-kernel"), { recursive: true });
-  await writeFile(path.join(seed, "stgmt", "alpha", ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: DRAFT\n\nSeeded fixture corpus for service tests.\n");
-  await execFileAsync("git", ["-C", seed, "add", "."]);
-  await execFileAsync("git", ["-C", seed, "commit", "-m", "seed: spec-kernel fixture"]);
-  await execFileAsync("git", ["-C", seed, "push", "-q", "origin", "HEAD:refs/heads/main"]);
-  await rm(seed, { recursive: true, force: true });
+  await seedSpecBranch(bare, {
+    project: "stgmt/alpha",
+    spec: "spec-kernel",
+    sourceDir: FIXTURE_SPEC,
+    files: { "README.md": "# Spec Kernel\n\nStatus: DRAFT\n\nSeeded fixture corpus for service tests.\n" },
+  });
 
   const configPath = await fixture.writeServiceConfig(bare);
   const service = await startService({
@@ -132,12 +130,13 @@ describe("registry index and drift endpoints (TASK-6)", () => {
     // break-glass push by a non-bot identity
     const rogue = path.join(await tempDir("spec-rogue-"), "rogue");
     await execFileAsync("git", ["clone", bare, rogue]);
+    await git(rogue, ["checkout", "-B", SPEC_BRANCH, `origin/${SPEC_BRANCH}`]);
     await git(rogue, ["config", "user.email", "admin@example.invalid"]);
     await git(rogue, ["config", "user.name", "admin"]);
-    await writeFile(path.join(rogue, "stgmt", "alpha", ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: DRAFT\n\ntampered\n");
+    await writeFile(path.join(rogue, ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: DRAFT\n\ntampered\n");
     await execFileAsync("git", ["-C", rogue, "add", "."]);
     await execFileAsync("git", ["-C", rogue, "commit", "-m", "break-glass edit"]);
-    await execFileAsync("git", ["-C", rogue, "push", "-q", "origin", "HEAD:refs/heads/main"]);
+    await execFileAsync("git", ["-C", rogue, "push", "-q", "origin", `HEAD:refs/heads/${SPEC_BRANCH}`]);
 
     const drift = await get(url, "/drift", token);
     assert.equal(drift.status, 200);
@@ -160,19 +159,20 @@ describe("sync loop (TASK-6)", () => {
     const { bare, service, url, token } = await setup({ syncIntervalMs: 50 });
     const second = path.join(await tempDir("spec-second-"), "second");
     await execFileAsync("git", ["clone", bare, second]);
+    await git(second, ["checkout", "-B", SPEC_BRANCH, `origin/${SPEC_BRANCH}`]);
     await git(second, ["config", "user.email", "bot@example.invalid"]);
     await git(second, ["config", "user.name", "spec-bot"]);
-    await writeFile(path.join(second, "stgmt", "alpha", ".specs", "spec-kernel", "NFR.md"), "# NFR\n\nStatus: DRAFT\n\nremote-only change\n");
+    await writeFile(path.join(second, ".specs", "spec-kernel", "NFR.md"), "# NFR\n\nStatus: DRAFT\n\nremote-only change\n");
     await execFileAsync("git", ["-C", second, "add", "."]);
     await execFileAsync("git", ["-C", second, "commit", "-m", "docs(spec): remote-only"]);
-    await execFileAsync("git", ["-C", second, "push", "-q", "origin", "HEAD:refs/heads/main"]);
+    await execFileAsync("git", ["-C", second, "push", "-q", "origin", `HEAD:refs/heads/${SPEC_BRANCH}`]);
 
     // A coalesced reconcile may still be in flight from before the push;
     // poll until the clone catches up (eventual consistency, FR-10).
     let cloneNfr = "";
     for (let attempt = 0; attempt < 20; attempt += 1) {
       await service.sync.reconcile();
-      cloneNfr = await readFile(path.join(service.mounts.cloneDir, "stgmt", "alpha", ".specs", "spec-kernel", "NFR.md"), "utf8").catch(() => "");
+      cloneNfr = await readFile(path.join(await service.mounts.projectRoot("stgmt/alpha"), ".specs", "spec-kernel", "NFR.md"), "utf8").catch(() => "");
       if (cloneNfr.includes("remote-only change")) break;
       await new Promise((resolve) => setTimeout(resolve, 50));
     }

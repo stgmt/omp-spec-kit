@@ -40,11 +40,53 @@ The plugin starts the MCP server with `node` against the project where Claude Co
 
 The plugin install above gives your OMP or Claude Code session the **local kernel**: the 10 MCP tools read the `.specs/` corpus of the project you open the host in — no services required.
 
-The **hosted path** is the spec-registry service (`spec-registryd`): canonical specifications live in a dedicated Git repository, writes go through the service's MCP endpoint with YouTrack-verified identity, roles, and project scopes. Consumers connect with a `.mcp.json` that carries `Authorization` + `X-Spec-Project` headers.
+The **hosted path** is the spec-registry service (`spec-registryd`): every specification is an orphan `spec-<slug>` branch in its project's own Git repository, with `.spec-kit.json` at the branch root and the corpus under `.specs/<slug>/`. Writes go through the service's MCP endpoint with YouTrack-verified identity, roles, and project scopes. Consumers connect with a `.mcp.json` that carries the `Authorization` header only: the project is never a connection-wide header, it is selected per call from the workspace record described below.
+
+```mermaid
+flowchart LR
+  subgraph Project repository
+    M[main: product code]
+    S1[spec-teams-task-sync]
+    S2[spec-blast-radius]
+    W["spec-slug--topic<br/>unmerged work"]
+    W -.->|spec_branch merge| S1
+  end
+  subgraph spec-registryd
+    R[bare mirror] --> T[worktree per spec]
+    T --> C[materialised corpus]
+    C --> K[kernel graph]
+  end
+  S1 --> R
+  S2 --> R
+  K --> MCP[MCP tools]
+  P[spec_patch] --> T
+  T -->|bot commit + push| S1
+```
+
+A canonical spec branch contains only `.spec-kit.json` and `.specs/<slug>/**`; work branches (`spec-<slug>--<topic>`) are never indexed or projected and are merged directly by `spec_branch merge`. There is no shared default repository: an unbound project refuses spec operations with `REPO_BINDING_REQUIRED`.
+
+### Project selection per session
+
+A session's project comes from the repository it is actually in, never from a global variable, a request header or a value cached at install time. Each workspace carries one record:
+
+```json
+{ "schema": "omp-spec-kit/project-binding@1", "project": "owner/project" }
+```
+
+at `<workspace>/.omp-spec-kit/project.json` (git-ignored). Write it with the installer, which requires an explicit project and has no default:
+
+```sh
+node scripts/install-host.mjs --host claude --url http://127.0.0.1:8650/mcp --project owner/project
+node scripts/install-host.mjs --host codex  --url http://127.0.0.1:8650/mcp --project owner/project
+node scripts/install-host.mjs --host opencode --url http://127.0.0.1:8650/mcp --project owner/project
+node scripts/install-host.mjs --host omp --project owner/project
+```
+
+Every host reads that record at call time for its own session workspace and attaches the project to each registry spec call; an explicit `project` argument on a call still wins for that call only. Two sessions in different repositories run concurrently on their own projects; moving one session to another workspace changes only its next calls — no restart, no reconnect. A spec call in a workspace with no record is refused with `PROJECT_REQUIRED` (and the preflight/setup warning names `spec_repo {"action":"bind",…}`), while ordinary bash/read/edit calls are untouched.
 
 ## Self-hosted demo stack
 
-A complete working contour — YouTrack (identity + app host), `spec-git` (canonical specs repo), and `spec-registryd` — ships in [`skills/spec-stack-setup/`](skills/spec-stack-setup/SKILL.md) and comes up with one command:
+A complete working contour — YouTrack (identity + app host), `spec-git` (per-project spec branches served as a local fixture), and `spec-registryd` — ships in [`skills/spec-stack-setup/`](skills/spec-stack-setup/SKILL.md) and comes up with one command:
 
 ```sh
 node skills/spec-stack-setup/setup.mjs
@@ -54,19 +96,25 @@ It brings the Docker Compose stack up, completes the YouTrack wizard, wires the 
 
 ### YouTrack app
 
-The YouTrack app (`spec-graph-app`) ships as a ZIP asset on each GitHub release. Install into your YouTrack via **Administration → Apps → Add app → Upload ZIP**, or headlessly:
+The YouTrack app (`spec-graph-app`) ships as a ZIP asset on each GitHub release. Always take the ZIP from the latest release; never install an older `spec-graph-app-*.zip` that is still lying around locally.
+
+Install into your YouTrack via **Administration → Apps → Add app → Upload ZIP**, or headlessly:
 
 ```sh
+# Latest app asset from the current release, then upload that exact file.
+gh release download --pattern 'spec-graph-app-*.zip'
 curl -X POST -H "Authorization: Bearer <admin-token>" \
-  -F "file=@spec-graph-app-1.0.25.zip" \
+  -F "file=@spec-graph-app-<app-version>.zip" \
   https://<youtrack>/api/admin/apps/import
 ```
 
-After install, open the app's **Spec Service** page (main menu) — it walks through repository binding and produces the `.mcp.json` snippet (minted YouTrack token included) to paste into your agent's MCP config. The Spec Board dashboard widget renders the committed specification graph projected into YouTrack issues.
+After install, open **Administration → Integrations → Spec Service** (the app adds no item to the main left navigation and no setup link inside issues) - it walks through repository binding and produces the `.mcp.json` snippet (minted YouTrack token included) to paste into your agent's MCP config. The Spec Board dashboard widget renders the committed specification graph projected into YouTrack issues; the issue view keeps only the read-only Spec Panel.
+
+> **Upgrading from a pre-1.0.27 ZIP:** those packages declared `MAIN_MENU_ITEM`, so `Spec Service` appeared in the main left navigation. A current package declares no main-menu item. If the left navigation still shows it, reinstall the latest ZIP and confirm the app version on **Administration → Apps**; an old package is never silently accepted by `spec-stack-setup` (it fails with `app package is stale`).
 
 ## Available today
 
-The current surface in v2.9.0 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool.
+The local kernel in v3.1.0 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool. The hosted registry adds service-owned operations on top — `spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, `spec_branch`, and `spec_repo` (bind or unbind a project's specs repository) — exposed over the same MCP endpoint.
 
 | Need | Tool | Variant |
 |---|---|---|
@@ -80,6 +128,7 @@ The current surface in v2.9.0 is exactly 10 task-oriented MCP tools: 9 bounded r
 | Markdown References | `spec_markdown` | headings & links inventory |
 | Preflight | `mcp_preflight` | root provenance & admissions |
 | Safe Authoring | `spec_patch` | `dryRun` preview or atomic apply with 13 typed intents |
+| Branch lifecycle (hosted) | `spec_branch` | `action: "create" | "merge" | "delete"` |
 
 The read and evidence tools share one bounded graph and return structured results with current-project provenance. Evidence is content-addressed and stale when its captured graph or scenario binding no longer matches. `spec_patch` defaults to an in-memory preview; only `dryRun: false` can change a specification through hash-checked atomic transactions.
 
@@ -126,7 +175,7 @@ The MCP server reads the active OMP or Claude Code project. It does not use edit
 
 Direct untrusted writes to `.specs` are not an alternative API. Use `spec_patch` to preview and apply changes through hash-checked transactions.
 
-The canonical corpus lives in the dedicated specs repository and is served by the spec registry over MCP; this repository carries no `.specs/` (see `scripts/check-no-root-specs.mjs`). Code gates run against the frozen fixture under `tests/fixtures/kernel/authoring-real-corpus`; the live corpus is checked through the service with `npm run check:corpus:remote`.
+The canonical corpus lives on orphan `spec-<slug>` branches of the project repository and is served by the spec registry over MCP; this repository's `main` carries no `.specs/` (see `scripts/check-no-root-specs.mjs`). Code gates run against the frozen fixture under `tests/fixtures/kernel/authoring-real-corpus`; the live corpus is checked through the service with `npm run check:corpus:remote`.
 
 ## Project documentation
 

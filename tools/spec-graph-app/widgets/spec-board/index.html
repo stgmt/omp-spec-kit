@@ -108,6 +108,29 @@
     color: var(--text-primary);
   }
 
+  /* Project selector */
+  .project-picker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 10px;
+  }
+
+  .project-picker label {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .project-picker select {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 12px;
+    max-width: 240px;
+  }
+
   /* Segmented Control Switcher */
   .variant-switcher {
     display: flex;
@@ -673,20 +696,40 @@
 
   const SNAPSHOT_PREFIX = 'SPEC-SYNC-STATE\n';
   const KIND_LABELS = {
+    DOCUMENT: 'DOCUMENT',
+    ROADMAP: 'ROADMAP',
+    USER_STORY: 'USER_STORY',
+    USE_CASE: 'USE_CASE',
+    RESEARCH_FINDING: 'RESEARCH_FINDING',
+    RISK: 'RISK',
     FUNCTIONAL_REQUIREMENT: 'FR',
     NON_FUNCTIONAL_REQUIREMENT: 'NFR',
     ACCEPTANCE_CRITERION: 'AC',
+    DECISION: 'DECISION',
     TASK: 'TASK',
+    FILE_CHANGE: 'FILE_CHANGE',
+    FILE: 'FILE',
     SCENARIO: 'SCENARIO',
-    ROADMAP: 'ROADMAP'
+    FIXTURE: 'FIXTURE',
+    SCHEMA_ENTITY: 'SCHEMA_ENTITY'
   };
   const TYPE_LABELS = {
+    DOCUMENT: 'Spec Node',
+    ROADMAP: 'Roadmap',
+    USER_STORY: 'Spec Node',
+    USE_CASE: 'Spec Node',
+    RESEARCH_FINDING: 'Spec Node',
+    RISK: 'Spec Node',
     FUNCTIONAL_REQUIREMENT: 'Feature',
     NON_FUNCTIONAL_REQUIREMENT: 'Constraint',
     ACCEPTANCE_CRITERION: 'Criterion',
+    DECISION: 'Spec Node',
     TASK: 'Task',
+    FILE_CHANGE: 'Spec Node',
+    FILE: 'Spec Node',
     SCENARIO: 'Scenario',
-    ROADMAP: 'Roadmap'
+    FIXTURE: 'Spec Node',
+    SCHEMA_ENTITY: 'Spec Node'
   };
   const TASK_STATES = { planned: 'Submitted', todo: 'Open', done: 'Fixed' };
 
@@ -715,6 +758,24 @@
     { edge: 'CONTAINS', from: 'ROADMAP', to: 'AC', link: 'contains' },
     { edge: 'CONTAINS', from: 'ROADMAP', to: 'TASK', link: 'contains' },
     { edge: 'CONTAINS', from: 'ROADMAP', to: 'SCENARIO', link: 'contains' },
+    { edge: 'DECLARES', from: 'DOCUMENT', to: 'DECISION', link: 'contains' },
+    { edge: 'DECLARES', from: 'DOCUMENT', to: 'USER_STORY', link: 'contains' },
+    { edge: 'DECLARES', from: 'DOCUMENT', to: 'USE_CASE', link: 'contains' },
+    { edge: 'DOCUMENTS', from: 'DECISION', to: 'FUNCTIONAL_REQUIREMENT', link: 'contains' },
+    { edge: 'DOCUMENTS', from: 'RESEARCH_FINDING', to: 'FUNCTIONAL_REQUIREMENT', link: 'contains' },
+    { edge: 'DOCUMENTS', from: 'RISK', to: 'FUNCTIONAL_REQUIREMENT', link: 'contains' },
+    { edge: 'REFS', from: 'DECISION', to: 'FUNCTIONAL_REQUIREMENT', link: 'contains' },
+    { edge: 'REFS', from: 'RESEARCH_FINDING', to: 'FUNCTIONAL_REQUIREMENT', link: 'contains' },
+    { edge: 'REFS', from: 'RISK', to: 'FUNCTIONAL_REQUIREMENT', link: 'contains' },
+    { edge: 'REFS', from: 'FILE_CHANGE', to: 'FUNCTIONAL_REQUIREMENT', link: 'implements' },
+    { edge: 'REFS', from: 'FILE', to: 'FUNCTIONAL_REQUIREMENT', link: 'implements' },
+    { edge: 'COVERS', from: 'USER_STORY', to: 'FUNCTIONAL_REQUIREMENT', link: 'covers' },
+    { edge: 'COVERS', from: 'USER_STORY', to: 'NON_FUNCTIONAL_REQUIREMENT', link: 'covers' },
+    { edge: 'COVERS', from: 'USE_CASE', to: 'FUNCTIONAL_REQUIREMENT', link: 'covers' },
+    { edge: 'COVERS', from: 'USE_CASE', to: 'NON_FUNCTIONAL_REQUIREMENT', link: 'covers' },
+    { edge: 'IMPLEMENTS', from: 'FILE_CHANGE', to: 'FUNCTIONAL_REQUIREMENT', link: 'implements' },
+    { edge: 'IMPLEMENTS', from: 'FILE_CHANGE', to: 'ACCEPTANCE_CRITERION', link: 'implements' },
+    { edge: 'IMPLEMENTS', from: 'FILE', to: 'FUNCTIONAL_REQUIREMENT', link: 'implements' },
   ];
 
   function edgeLinkName(edgeType, fromKind, toKind) {
@@ -762,16 +823,140 @@
     return { marker, snapshot };
   }
 
+  function assertSnapshot(marker, expectedProject) {
+    const snapshot = marker && marker.snapshot;
+    if (
+      !marker ||
+      marker.schemaVersion !== 'BoardSnapshotV1' ||
+      marker.complete !== true ||
+      !snapshot ||
+      snapshot.schemaVersion !== 'BoardSnapshotV1' ||
+      snapshot.complete !== true ||
+      snapshot.page !== null ||
+      !Array.isArray(snapshot.nodes) ||
+      !Array.isArray(snapshot.edges)
+    ) throw new Error('committed SPEC snapshot is incomplete');
+    if (expectedProject && (marker.scope?.mode !== 'project' || marker.scope.project !== expectedProject)) {
+      throw new Error('project pointer has the wrong scope: ' + expectedProject);
+    }
+  }
+
+  async function readPointerSnapshot(host, pointerId, expectedProject) {
+    const issue = await host.fetchYouTrack(
+      'issues/' + encodeURIComponent(pointerId) + '?fields=id,idReadable,summary,description'
+    );
+    if (!issue || typeof issue.description !== 'string') throw new Error('project pointer is missing: ' + pointerId);
+    if (!issue.description.startsWith(SNAPSHOT_PREFIX)) throw new Error('project pointer marker is invalid: ' + pointerId);
+    let marker;
+    try { marker = JSON.parse(issue.description.slice(SNAPSHOT_PREFIX.length)); }
+    catch { throw new Error('project pointer marker is not valid JSON: ' + pointerId); }
+    assertSnapshot(marker, expectedProject);
+    return { marker, snapshot: marker.snapshot };
+  }
+
+  // Preference storage is scoped to THIS widget's service/board context: a
+  // dashboard selection is a view preference only, never an MCP routing hint,
+  // an authorization grant, or another session's default.
+  function boardPreferenceKey() {
+    let context = "srcdoc";
+    try {
+      // Only a real http(s) page supplies a distinct board context; a
+      // sandboxed srcdoc/file frame shares the host-provided cache, which is
+      // already per-service.
+      const url = new URL(window.location.href);
+      if (url.protocol === "http:" || url.protocol === "https:") context = url.origin + url.pathname;
+    } catch {}
+    return "spec-board-project:" + context;
+  }
+
+  async function readProjectPreference(host) {
+    const key = boardPreferenceKey();
+    if (host && host.storage && typeof host.storage.getItem === "function") {
+      try { return await host.storage.getItem(key); } catch {}
+    }
+    if (host && typeof host.readCache === "function") {
+      try {
+        const cache = await host.readCache();
+        return cache && typeof cache[key] === "string" ? cache[key] : null;
+      } catch {}
+    }
+    try { return window.localStorage.getItem(key); } catch {}
+    return null;
+  }
+
+  async function writeProjectPreference(host, value) {
+    const key = boardPreferenceKey();
+    if (host && host.storage && typeof host.storage.setItem === "function") {
+      try { await host.storage.setItem(key, value); return; } catch {}
+    }
+    if (host && typeof host.storeCache === "function") {
+      try { await host.storeCache({ [key]: value }); return; } catch {}
+    }
+    try { window.localStorage.setItem(key, value); } catch {}
+  }
+
+  function selectionForValue(rootMarker, value) {
+    const projects = Array.isArray(rootMarker.projects) ? rootMarker.projects : [];
+    if (value === "ALL") return { mode: "ALL", value: "ALL", projects };
+    if (projects.some(project => project && project.id === value)) {
+      return { mode: "project", value, projects };
+    }
+    return { mode: "unassigned", value: "__unassigned__", projects };
+  }
+
+  async function projectSelection(rootMarker, host) {
+    const projects = Array.isArray(rootMarker.projects) ? rootMarker.projects : null;
+    if (!projects) throw new Error("projection index is missing (PROJECTION_INDEX_REQUIRED); re-run projection");
+    // `?project=` is honored when the widget location exposes it. In a
+    // dashboard the widget runs in a sandboxed srcdoc iframe, so the host
+    // cache is the persistent store (localStorage is blocked there).
+    let requested = null;
+    try { requested = new URL(window.location.href).searchParams.get("project"); } catch {}
+    if (!requested) requested = await readProjectPreference(host);
+    return selectionForValue(rootMarker, requested || "ALL");
+  }
+
+  async function loadSelectedSnapshot(host, root, selection) {
+    if (selection.mode === 'ALL') return root;
+    const expected = selection.mode === 'unassigned' ? '__unassigned__' : selection.value;
+    const entry = selection.mode === 'unassigned'
+      ? root.marker.unassigned
+      : selection.projects.find(project => project && project.id === selection.value);
+    if (!entry || !entry.pointer) return { empty: true, marker: root.marker, snapshot: null };
+    return readPointerSnapshot(host, entry.pointer, expected);
+  }
+
+  function bindProjectSelector() {
+    const select = document.getElementById('project-select');
+    if (!select) return;
+    select.addEventListener('change', async function () {
+      const value = select.value;
+      await writeProjectPreference(host, value);
+      await renderSelection(selectionForValue(rootCommitted.marker, value));
+    });
+  }
+
+  // Shared card key: project::canonicalId. Mirrors CARD_KEY_SEPARATOR in
+  // src/adapters/youtrack-projection.js; two projects may own the same
+  // canonicalId, so the bare id is never used as a lookup key.
+  function cardKey(project, canonicalId) {
+    return String(project || 'local') + '::' + canonicalId;
+  }
+
   function snapshotNodes(snapshot, marker) {
     const cardIds = marker.cardIds || {};
+    const defaultProject = (marker.scope && marker.scope.project) || 'local';
     const nodes = snapshot.nodes.map(source => {
-      const trackerId = typeof cardIds[source.canonicalId] === 'string' ? cardIds[source.canonicalId] : '';
+      const project = source.project || defaultProject;
+      const key = cardKey(project, source.canonicalId);
+      const trackerId = typeof cardIds[key] === 'string' ? cardIds[key] : '';
       const state = source.kind === 'TASK'
         ? (TASK_STATES[source.taskStatus] || 'Unknown')
         : 'Tracked';
       return {
-        id: source.canonicalId,
+        id: key,
         trackerId,
+        project,
         specId: source.canonicalId,
         specSlug: source.specSlug,
         localId: source.localId,
@@ -787,36 +972,46 @@
     });
     const byId = new Map(nodes.map(node => [node.id, node]));
     for (const edge of snapshot.edges) {
-      const source = byId.get(edge.from);
-      const target = byId.get(edge.to);
+      const project = edge.project || defaultProject;
+      const source = byId.get(cardKey(project, edge.from));
+      const target = byId.get(cardKey(project, edge.to));
       if (source && target) source.links.push({ type: edge.type, target: target.id });
     }
     return nodes;
   }
 
+  let host = null;
+  let rootCommitted = null;
+
   async function main() {
-    let host;
     try {
       host = await YTApp.register();
     } catch (error) {
       root.innerHTML = '<p class="err">Spec Board: widget host unavailable.</p>';
       return;
     }
+    try {
+      rootCommitted = await loadCommittedSnapshot(host);
+      const selection = await projectSelection(rootCommitted.marker, host);
+      await renderSelection(selection);
+    } catch (error) {
+      root.innerHTML = '<p class="err">Spec Board: cannot load committed snapshot: ' + escapeHtml(error.message || String(error)) + '</p>';
+    }
+  }
 
+  async function renderSelection(selection) {
     let committed;
     try {
-      committed = await loadCommittedSnapshot(host);
+      committed = await loadSelectedSnapshot(host, rootCommitted, selection);
     } catch (error) {
       root.innerHTML = '<p class="err">Spec Board: cannot load committed snapshot: ' + escapeHtml(error.message || String(error)) + '</p>';
       return;
     }
+    renderBoard(committed, selection);
+  }
 
-    const RAW_NODES = snapshotNodes(committed.snapshot, committed.marker);
-
-    if (RAW_NODES.length === 0) {
-      root.innerHTML = '<p class="state">Нет синхронизированных карточек SPEC в проекте.</p>';
-      return;
-    }
+  function renderBoard(committed, selection) {
+    const RAW_NODES = committed.snapshot ? snapshotNodes(committed.snapshot, committed.marker) : [];
 
     const NODE_MAP = new Map(RAW_NODES.map(n => [n.id, n]));
 
@@ -829,6 +1024,16 @@
     const SNAPSHOT_LABEL = COMMITTED_AT
       ? COMMITTED_AT.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       : 'unknown';
+
+    const projectOptionsHtml = [
+      '<option value="ALL"' + (selection.mode === 'ALL' ? ' selected' : '') + '>All projects</option>',
+      ...selection.projects.map(project =>
+        '<option value="' + escapeHtml(project.id) + '"' +
+        (selection.mode === 'project' && selection.value === project.id ? ' selected' : '') + '>' +
+        escapeHtml(project.id) + ' (' + project.nodeCount + ')</option>'
+      ),
+      '<option value="__unassigned__"' + (selection.mode === 'unassigned' ? ' selected' : '') + '>Unassigned</option>'
+    ].join('');
 
     // Reverse adjacency built once — the transitive lineage traversal would
     // otherwise rescan every node's link list per BFS step on each hover.
@@ -877,6 +1082,11 @@
           <span class="brand-title">Spec Graph Board</span>
         </div>
 
+        <div class="project-picker">
+          <label for="project-select">Project</label>
+          <select id="project-select" title="Filter the board by project">${projectOptionsHtml}</select>
+        </div>
+
         <div class="variant-switcher">
           <button class="variant-btn active" data-tab="v1">
             <span>1. Traceability Flow</span>
@@ -907,6 +1117,10 @@
               <button class="pill-btn" data-kind="SCENARIO">SCENARIO</button>
               <button class="pill-btn" data-kind="NFR">NFR</button>
               <button class="pill-btn" data-kind="ROADMAP">ROADMAP</button>
+              <button class="pill-btn" data-kind="DOCUMENT">DOC</button>
+              <button class="pill-btn" data-kind="DECISION">DEC</button>
+              <button class="pill-btn" data-kind="USER_STORY">US</button>
+              <button class="pill-btn" data-kind="USE_CASE">UC</button>
             </div>
 
             <div class="pill-group">
@@ -968,6 +1182,9 @@
                   <a id="v1-d-open-link" href="#" target="_blank" class="detail-link-item" style="justify-content:center; background:var(--border-accent); color:#fff; font-weight:600;">
                     Открыть задачу в YouTrack ↗
                   </a>
+                  <button id="v1-d-delete" type="button" class="detail-link-item" style="display:none; width:100%; margin-top:6px; justify-content:center; border:1px solid #b42318; color:#b42318; background:transparent; cursor:pointer;">
+                    Delete demo entity
+                  </button>
                 </div>
               </div>
             </aside>
@@ -1040,6 +1257,19 @@
         </div>
       </main>
     `;
+
+    bindProjectSelector();
+    if (RAW_NODES.length === 0) {
+      const viewport = root.querySelector('main.viewport');
+      if (viewport) {
+        viewport.innerHTML = '<p class="state" style="padding:24px">' +
+          (selection.mode === 'unassigned'
+            ? 'Нет unassigned specs.'
+            : 'Нет синхронизированных карточек SPEC в проекте.') +
+          '</p>';
+      }
+      return;
+    }
 
     // Switcher Logic
     const tabButtons = root.querySelectorAll('.variant-btn');
@@ -1125,12 +1355,13 @@
     /* VARIANT 1: Traceability Flow Matrix                          */
     /* ============================================================ */
     const LANES_CONFIG = [
-      { key: 'ROADMAP', title: '0. Роадмапы (ROADMAP)', kind: 'ROADMAP' },
-      { key: 'TASK', title: '1. Задачи реализации (TASK)', kind: 'TASK' },
-      { key: 'FR', title: '2. Функциональные требования (FR)', kind: 'FR' },
-      { key: 'AC', title: '3. Критерии приемки (AC)', kind: 'AC' },
-      { key: 'SCENARIO', title: '4. Сценарии проверки (SCENARIO)', kind: 'SCENARIO' },
-      { key: 'NFR', title: '5. Ограничения (NFR)', kind: 'NFR' }
+      { key: 'ROADMAP', title: '0. Roadmap (ROADMAP)', kinds: ['ROADMAP'] },
+      { key: 'REQUIREMENTS', title: '1. Requirements (FR/NFR)', kinds: ['FR', 'NFR'] },
+      { key: 'DESIGN', title: '2. Design & research', kinds: ['DOCUMENT', 'DECISION', 'RESEARCH_FINDING', 'RISK'] },
+      { key: 'STORIES', title: '3. Stories & use cases', kinds: ['USER_STORY', 'USE_CASE'] },
+      { key: 'ACCEPTANCE', title: '4. Acceptance (AC/SCENARIO)', kinds: ['AC', 'SCENARIO'] },
+      { key: 'TASKS', title: '5. Tasks (TASK)', kinds: ['TASK'] },
+      { key: 'FILES', title: '6. Files & schemas', kinds: ['FILE_CHANGE', 'FILE', 'FIXTURE', 'SCHEMA_ENTITY'] }
     ];
 
     function renderVariant1() {
@@ -1152,21 +1383,22 @@
         );
       }
 
-      // Group by kind
+      // Group by exact kind; a lane may own several kinds.
       const byKind = new Map();
-      for (const lane of LANES_CONFIG) byKind.set(lane.kind, []);
+      for (const lane of LANES_CONFIG) for (const kind of lane.kinds) byKind.set(kind, []);
       for (const node of nodes) {
-        const list = byKind.get(node.kind) || byKind.get('NFR');
-        list.push(node);
+        const list = byKind.get(node.kind);
+        if (list) list.push(node);
       }
 
       // Filter visible lanes by active kind filter (isolate semantics)
       const lanesToRender = v1ActiveKind
-        ? LANES_CONFIG.filter(l => l.kind === v1ActiveKind)
+        ? LANES_CONFIG.filter(l => l.kinds.includes(v1ActiveKind))
         : LANES_CONFIG;
 
       for (const lane of lanesToRender) {
-        const list = byKind.get(lane.kind) || [];
+        const list = lane.kinds.flatMap(kind => byKind.get(kind) || [])
+          .sort((a, b) => String(a.localId).localeCompare(String(b.localId), undefined, { numeric: true }));
         const laneDiv = document.createElement('div');
         laneDiv.className = 'flow-lane';
 
@@ -1388,6 +1620,40 @@
       }
     }
 
+    async function deleteDemoEntity(node) {
+      if (!/demo/i.test(node.specSlug)) return;
+      if (typeof confirm === 'function' && !confirm(`Delete ${node.specId} from ${node.specSlug}?`)) return;
+      const button = document.getElementById('v1-d-delete');
+      if (button) button.disabled = true;
+      try {
+        const response = await host.fetchApp('spec-handler/spec', {
+          method: 'POST',
+          body: {
+            id: 'board-delete-entity',
+            method: 'tools/call',
+            params: {
+              name: 'spec_patch',
+              arguments: {
+                intent: 'deleteEntity',
+                requestId: 'board-delete-' + Date.now(),
+                reason: 'Delete a demo entity from the board',
+                spec: node.specSlug,
+                entity: node.specId,
+                forceDelete: true,
+                dryRun: false,
+              },
+            },
+          },
+        });
+        const envelope = response && typeof response.json === 'function' ? await response.json() : response;
+        if (envelope && envelope.error) throw new Error(envelope.error.message || envelope.error);
+        window.location.reload();
+      } catch (error) {
+        if (button) button.disabled = false;
+        alert('Delete failed: ' + (error && error.message ? error.message : error));
+      }
+    }
+
     function updateV1Drawer(nodeId) {
       const node = nodeId ? NODE_MAP.get(nodeId) : null;
       if (!node) return;
@@ -1425,6 +1691,14 @@
         openLink.setAttribute('aria-disabled', 'true');
         openLink.style.pointerEvents = 'none';
         openLink.style.opacity = '0.55';
+      }
+
+      const deleteBtn = document.getElementById('v1-d-delete');
+      const canDelete = /demo/i.test(node.specSlug) && !['DOCUMENT', 'ROADMAP', 'FILE', 'SCENARIO'].includes(node.kind);
+      if (deleteBtn) {
+        deleteBtn.style.display = canDelete ? 'flex' : 'none';
+        deleteBtn.disabled = false;
+        deleteBtn.onclick = canDelete ? () => deleteDemoEntity(node) : null;
       }
 
       const { outgoing, incoming } = getLineage(nodeId);
@@ -1563,6 +1837,7 @@
       let offsetX = 40;
 
       for (const specSlug of availableSpecs) {
+        if (selectedSpec !== 'ALL' && specSlug !== selectedSpec) continue;
         let specNodes = RAW_NODES.filter(n => n.specSlug === specSlug);
         if (v2ActiveKind) {
           specNodes = specNodes.filter(n => n.kind === v2ActiveKind);
@@ -1713,7 +1988,7 @@
       if (!listEl) return;
       listEl.innerHTML = '';
 
-      let items = RAW_NODES;
+      let items = selectedSpec === 'ALL' ? RAW_NODES : RAW_NODES.filter(n => n.specSlug === selectedSpec);
       if (v3SearchQuery) {
         const q = v3SearchQuery.toLowerCase();
         items = items.filter(n => n.localId.toLowerCase().includes(q) || n.specId.toLowerCase().includes(q) || n.title.toLowerCase().includes(q));

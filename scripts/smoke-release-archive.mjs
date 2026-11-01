@@ -87,7 +87,7 @@ try {
   assert.equal(declaredServer?.type, "http", "the archived .mcp.json must declare the registry endpoint");
   assert.equal(declaredServer?.url, "${OMP_SPEC_REGISTRY_URL}", "the archived .mcp.json must take the endpoint from the environment");
   assert.equal(declaredServer?.headers?.Authorization, "Bearer ${OMP_SPEC_REGISTRY_TOKEN}", "the archived .mcp.json must take the token from the environment");
-  assert.equal(declaredServer?.headers?.["X-Spec-Project"], "${OMP_SPEC_PROJECT}", "the archived .mcp.json must take the project from the environment");
+  assert.deepEqual(Object.keys(declaredServer?.headers ?? {}), ["Authorization"], "the archived .mcp.json carries no connection-wide project");
   assert.equal(declaredServer?.command, undefined, "the archive must not ship a stdio launch");
   const start = () => createArchiveClient(process.execPath, [serverEntryPath], projectRoot, env);
   client = start();

@@ -14,18 +14,19 @@
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { randomBytes } from "node:crypto";
 import { findAvailablePort, tcpProbe } from "../../src/tools/endpoint-alloc.js";
-import { isValidBranchName } from "../../src/service/branch-policy.js";
 import { writeRuntimeManifest } from "../../src/tools/runtime-manifest.js";
 import { waitFor } from "../../tests/e2e/lib/compose.mjs";
 import { completeWizard, youtrackNeedsWizard } from "../../tests/e2e/lib/wizard.mjs";
 import { createYouTrackAdmin } from "../../tests/e2e/lib/youtrack.mjs";
+import { ensureWidget, findDashboard } from "../../scripts/spec-dashboard-setup.mjs";
+import { installCodexGuard, installOpenCodeGuard } from "./guards.mjs";
+import { provisionSpecProjection, verifyAppPlacement, verifyProjection } from "./provision-spec.mjs";
 
 const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..");
@@ -38,6 +39,43 @@ const ADMIN_LOGIN = "admin";
 const ADMIN_PASSWORD = "SpecDemo!2026";
 const BRIDGE_TOKEN = "spec-demo-bridge-token-0123456789";
 const APP_NAME = "spec-graph-app";
+// Demo seeding is explicit. The release/fresh-install path runs with
+// --no-demo: the dashboard exists but the board has zero valid specs.
+const WITH_DEMO = !process.argv.includes("--no-demo");
+
+// The demo .feature carries two scenarios, so the same design-review gate as
+// every other scenario-authoring patch applies. The review pins the demo
+// boundary (opt-in fixture, zero specs on a fresh install) and records the
+// mutation that would make the assertion fail.
+const DEMO_DESIGN_REVIEW = Object.freeze({
+  schemaVersion: "omp-spec-kit/design-review@1",
+  decision: "proceed",
+  boundary: {
+    kind: "user-visible-contract",
+    name: "Spec Graph demo board",
+    claim: "an explicit demo load shows every entity kind; a fresh install shows zero demo specs",
+  },
+  evidence: [
+    { kind: "test", reference: "tests/features/app-install-live.feature", observation: "the live app-install journey exercises the installed package and the Spec Service page" },
+    { kind: "source", reference: "skills/spec-stack-setup/template/roadmap-demo/README.md", observation: "the demo template is marked Demo: true and is loaded only by the demo contour" },
+    { kind: "documentation", reference: "skills/spec-stack-setup/SKILL.md", observation: "--no-demo is the fresh-install path and seeds no specifications" },
+  ],
+  alternatives: [
+    { option: "auto-seed the demo in every install", reasonRejected: "a fresh install must have zero valid specs in the dashboard" },
+    { option: "hide the demo behind a separate app", reasonRejected: "the demo is a specification fixture and must exercise the same projection and delete path" },
+  ],
+  selfTestCheck: {
+    status: "passed",
+    mutation: "failed-as-expected",
+    command: "node skills/spec-stack-setup/setup.mjs --no-demo",
+    hypothesis: "the fresh-install path must not create any demo specification",
+    answer: "--no-demo leaves the registry and dashboard without demo specs",
+    positiveCase: "--no-demo is the fresh-install path and seeds nothing",
+    negativeCase: "the demo template directory is present and the default demo path loads it",
+    expectedFailure: "a fresh install that seeds the demo would show a valid demo spec",
+    observedFailure: "the demo spec appears only when the demo loader is enabled, not on --no-demo",
+  },
+});
 
 // Preferred host ports; a busy or foreign-held candidate is remapped through
 // a generated compose.override.yml rather than silently diverging configs.
@@ -57,8 +95,9 @@ const SVC_NET = "http://spec-registryd:8642"; // in-network: the app bridge call
 const TENANT = "demo";
 const SCOPE = "demo/stack";
 const YT_PROJECT = "DEMO";
-const SPECS_BRANCH = process.env.SPECS_BRANCH ?? "main";
-if (!isValidBranchName(SPECS_BRANCH)) throw new Error(`SPECS_BRANCH is not a valid git ref: ${SPECS_BRANCH}`);
+// The projection writes its committed pointer into this project; the app's
+// snapshot health reads the same short name.
+const MARKER_PROJECT = "SPEC";
 const GROUPS = {
   hub: "spec-demo-users",
   owner: "spec-demo-owners",
@@ -139,8 +178,7 @@ function writeConfig(serviceToken, { fingerprint }) {
       fingerprint,
       hostUrl: SVC_HOST(),
       internalUrl: SVC_NET,
-      specsRepo: GIT_NET,
-      branch: SPECS_BRANCH,
+      bindings: [{ project: SCOPE, repoUrl: GIT_NET }],
       publicUrl: "http://spec-registryd:8642",
       projects: [{ id: SCOPE }],
       tenants: [{ tenant: TENANT, projects: [SCOPE], hubGroups: [GROUPS.hub], defaultProject: SCOPE }],
@@ -185,8 +223,9 @@ async function uploadAppZip(zipPath) {
 }
 
 async function mcpClient(token) {
+  // Selection is per call: the project argument, never a connection-wide header.
   const transport = new StreamableHTTPClientTransport(new URL(`${SVC_HOST()}/mcp`), {
-    requestInit: { headers: { Authorization: `Bearer ${token}`, "X-Spec-Project": SCOPE } },
+    requestInit: { headers: { Authorization: `Bearer ${token}` } },
   });
   const client = new Client({ name: "spec-stack-setup", version: "1.0.0" }, { capabilities: {} });
   await client.connect(transport);
@@ -218,22 +257,27 @@ async function loadTemplateSpec(token) {
   try {
     // Idempotent re-run: specs that already exist skip createSpec/createRoadmap
     // (a create on an existing slug is a CONFLICT, not an "exists" error).
-    const cat = await mcp.callTool({ name: "spec_catalog", arguments: { view: "specs" } });
+    const cat = await mcp.callTool({ name: "spec_catalog", arguments: { project: SCOPE, view: "specs" } });
     const have = new Set(JSON.parse(cat.content?.[0]?.text ?? "{}").data?.specs ?? []);
     for (const meta of metas) {
       const patch = async (intent, extra = {}) => {
         const args = { intent, requestId: `stack-${stamp}-${++n}`, reason: "spec-stack-setup template load", spec: meta.slug, dryRun: false, ...extra };
-        let { j, refused } = patchOutcome(await mcp.callTool({ name: "spec_patch", arguments: args }));
+        let { j, refused } = patchOutcome(await mcp.callTool({ name: "spec_patch", arguments: { project: SCOPE, ...args } }));
         for (const code of ["ELICITATION_REQUIRED", "CONFLICT"]) {
           if (refused?.code !== code) continue;
           await new Promise((r) => setTimeout(r, 1_500));
-          ({ j, refused } = patchOutcome(await mcp.callTool({ name: "spec_patch", arguments: { ...args, requestId: `stack-${stamp}-${++n}-${code}` } })));
+          ({ j, refused } = patchOutcome(await mcp.callTool({ name: "spec_patch", arguments: { project: SCOPE, ...args, requestId: `stack-${stamp}-${++n}-${code}` } })));
         }
         if (j.ok === false || refused) throw new Error(`${intent} ${meta.slug}: ${refused?.code ?? j.error?.message}`);
         return j;
       };
-      await mcp.callTool({ name: "spec_claim", arguments: { spec: meta.slug } });
+      await mcp.callTool({ name: "spec_claim", arguments: { project: SCOPE, spec: meta.slug } });
       if (!have.has(meta.slug)) {
+        const created = await mcp.callTool({ name: "spec_branch", arguments: { project: SCOPE, action: "create", spec: meta.slug, demo: meta.demo === true } });
+        const branch = JSON.parse(created.content?.[0]?.text ?? "{}");
+        if (branch.ok === false && branch.error?.code !== "SPEC_EXISTS") {
+          throw new Error(`create branch ${meta.slug}: ${branch.error?.code ?? "unknown"}`);
+        }
         try {
           await patch("createSpec", { title: meta.title });
         } catch (e) {
@@ -249,206 +293,18 @@ async function loadTemplateSpec(token) {
       }
       for (const { document, content } of meta.docs) {
         // replace_document = idempotent overwrite; a re-run converges to the
-        // template instead of appending duplicates.
-        await patch("patch", { operations: [{ kind: "replace_document", document, content }] });
+        // template instead of appending duplicates. Scenario-bearing files
+        // carry the demo design review.
+        const review = /\.feature$/iu.test(document) ? { designReview: DEMO_DESIGN_REVIEW } : {};
+        await patch("patch", { operations: [{ kind: "replace_document", document, content }], ...review });
         log(`seeded ${meta.slug}/${document}`);
       }
-      await mcp.callTool({ name: "spec_release", arguments: { spec: meta.slug } }).catch(() => {});
+      await mcp.callTool({ name: "spec_release", arguments: { project: SCOPE, spec: meta.slug } }).catch(() => {});
     }
   } finally {
     await mcp.close();
   }
   return metas.map((m) => `${m.slug} — ${m.title}`).join(", ");
-}
-
-/** The SPEC projection target: the board reads the SPEC:SYNC-STATE pointer
- *  issue, which spec-graph-sync writes into this project. One-time admin work —
- *  the skill does it because it owns the stack. */
-async function provisionSpecProjection(admin) {
-  const projects = (await admin.call("GET", "/api/admin/projects?fields=id,shortName")) ?? [];
-  let spec = projects.find((p) => p.shortName === "SPEC");
-  if (!spec) spec = await admin.createProject({ name: "Spec", shortName: "SPEC", leaderId: (await admin.meNative()).id });
-
-  const fields = await admin.call("GET", "/api/admin/customFieldSettings/customFields?fields=id,name");
-  const ids = new Map((fields ?? []).map((f) => [f.name, f.id]));
-  for (const [name, fieldType] of Object.entries({ SpecId: "text", ContentHash: "text", Evidence: "text", SpecKind: "enum[1]" })) {
-    if (ids.has(name)) continue;
-    const created = await admin.call("POST", "/api/admin/customFieldSettings/customFields?fields=id,name", { body: { fieldType: { id: fieldType }, name } });
-    ids.set(name, created.id);
-  }
-
-  // The SpecKind bundle must be found by EXACT name: a `query=` filter is not
-  // applied to bundles, so taking the first row attaches the Priority bundle
-  // and every card then fails with "entity with the specified name not found".
-  const kindNames = ["ROADMAP", "FUNCTIONAL_REQUIREMENT", "NON_FUNCTIONAL_REQUIREMENT", "ACCEPTANCE_CRITERION", "TASK", "SCENARIO"];
-  const bundles = (await admin.call("GET", "/api/admin/customFieldSettings/bundles/enum?fields=id,name,values(name)&$top=200")) ?? [];
-  let specKindBundle = bundles.find((b) => b.name === "SpecKind values");
-  if (!specKindBundle) {
-    specKindBundle = await admin.call("POST", "/api/admin/customFieldSettings/bundles/enum?fields=id,name,values(name)", {
-      body: { name: "SpecKind values", values: kindNames.map((name) => ({ name })) },
-    });
-  }
-  const haveKind = new Set((specKindBundle.values ?? []).map((v) => v.name));
-  for (const name of kindNames) {
-    if (haveKind.has(name)) continue;
-    await admin.call("POST", `/api/admin/customFieldSettings/bundles/enum/${specKindBundle.id}/values?fields=id,name`, { body: { name } });
-  }
-
-  const attached = (await admin.call("GET", `/api/admin/projects/${spec.id}/customFields?fields=id,field(name),bundle(id)`)) ?? [];
-  const attachedByName = new Map(attached.map((row) => [row.field?.name, row]));
-  for (const name of ["SpecId", "ContentHash", "Evidence"]) {
-    if (attachedByName.has(name)) continue;
-    await admin.call("POST", `/api/admin/projects/${spec.id}/customFields?fields=id`, {
-      body: { $type: "TextProjectCustomField", field: { id: ids.get(name) }, canBeEmpty: true },
-    });
-  }
-  const kindEntry = attachedByName.get("SpecKind");
-  if (!kindEntry) {
-    // Typed entity refs are mandatory here — bare ids return 500.
-    await admin.call("POST", `/api/admin/projects/${spec.id}/customFields?fields=id`, {
-      body: {
-        $type: "EnumProjectCustomField",
-        field: { id: ids.get("SpecKind"), $type: "CustomField" },
-        bundle: { id: specKindBundle.id, $type: "EnumBundle" },
-        canBeEmpty: true,
-        emptyFieldText: "No SpecKind",
-      },
-    });
-  } else if (kindEntry.bundle?.id !== specKindBundle.id) {
-    // Repair a project provisioned before the exact-name lookup existed.
-    await admin.call("POST", `/api/admin/projects/${spec.id}/customFields/${kindEntry.id}`, {
-      body: { $type: "EnumProjectCustomField", bundle: { id: specKindBundle.id, $type: "EnumBundle" } },
-    });
-  }
-
-  // The projection writes node kinds into the stock Type field; its default
-  // bundle has no Constraint/Criterion/Roadmap/Scenario values and YouTrack
-  // rejects an issue without a Type, pointer included.
-  const typeEntry = ((await admin.call("GET", `/api/admin/projects/${spec.id}/customFields?fields=id,field(name),bundle(id,values(id,name))`)) ?? []).find(
-    (row) => row.field?.name === "Type",
-  );
-  if (typeEntry?.bundle?.id) {
-    const typeValues = new Set((typeEntry.bundle.values ?? []).map((v) => v.name));
-    for (const name of ["Constraint", "Criterion", "Roadmap", "Scenario", "Requirement"]) {
-      if (typeValues.has(name)) continue;
-      await admin.call("POST", `/api/admin/customFieldSettings/bundles/enum/${typeEntry.bundle.id}/values?fields=id,name`, { body: { name } });
-      typeValues.add(name);
-    }
-    const taskValue = ((await admin.call("GET", `/api/admin/projects/${spec.id}/customFields?fields=id,field(name),bundle(id,values(id,name))`)) ?? [])
-      .find((row) => row.field?.name === "Type")
-      ?.bundle?.values?.find((v) => v.name === "Task");
-    if (taskValue) {
-      await admin.call("POST", `/api/admin/projects/${spec.id}/customFields/${typeEntry.id}`, {
-        body: { $type: "EnumProjectCustomField", canBeEmpty: true, defaultValues: [{ id: taskValue.id, $type: "EnumBundleElement" }] },
-      });
-    }
-  }
-
-  // The stock duplicates workflow can wedge issue creation on a fixture
-  // instance — detach it everywhere (same workaround as the e2e contour).
-  for (const p of (await admin.call("GET", "/api/admin/projects?fields=id,shortName")) ?? []) {
-    for (const w of (await admin.call("GET", `/api/admin/projects/${p.id}/workflows?fields=id,workflow(name)`)) ?? []) {
-      if (w.workflow?.name?.includes("duplicates")) {
-        await admin.call("DELETE", `/api/admin/projects/${p.id}/workflows/${w.id}`).catch(() => {});
-      }
-    }
-  }
-  return spec;
-}
-
-/** Clones the specs repo and projects the graph into YouTrack issues — the
- *  same cron-shaped step the customer runs, done once by the skill. */
-async function runProjectionSync(admin, adminUserId, serviceIds) {
-  const cloneDir = path.join(RUNTIME, "specs-clone");
-  const env = { ...process.env, HTTP_PROXY: "", HTTPS_PROXY: "", http_proxy: "", https_proxy: "" };
-  rmSync(cloneDir, { recursive: true, force: true }); // fresh clone every run — the pointer is rewritten anyway
-  execFileSync("git", ["clone", "-q", "--depth", "1", "git://127.0.0.1:9419/specs.git", cloneDir], { env });
-  const syncToken = (await admin.createPermanentToken({ userId: adminUserId, name: "spec-stack-sync", serviceIds })).token;
-  execFileSync(process.execPath, [path.join(REPO_ROOT, "scripts", "spec-graph-sync.mjs"), "--host", YT_HOST(), "--project", "SPEC", "--provision"], {
-    cwd: REPO_ROOT,
-    env: { ...env, OMP_SPEC_KIT_ROOT: path.join(cloneDir, SCOPE), YOUTRACK_TOKEN: syncToken },
-    timeout: 180_000,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-}
-
-/** The projection is only correct once the SPEC project, its bundles and the
- *  link types exist; until then every write fails with a tracker error. The
- *  setup starts the service with projection disabled and flips it on here. */
-async function verifyProjection(admin) {
-  const deadline = Date.now() + 300_000;
-  let cards = 0;
-  let pointer = null;
-  while (Date.now() < deadline) {
-    const rows =
-      (await admin.call(
-        "GET",
-        "/api/issues?query=project:SPEC&fields=idReadable,summary,customFields(name,value(name,text))&$top=1000",
-      )) ?? [];
-    cards = rows.length;
-    for (const row of rows) {
-      const specId = (row.customFields ?? []).find((f) => f.name === "SpecId")?.value?.text;
-      if (specId === "SPEC:SYNC-STATE") pointer = row.idReadable;
-    }
-    if (pointer && cards > 1) return { cards, pointer };
-    await new Promise((resolve) => setTimeout(resolve, 5_000));
-  }
-  throw new Error(`SPEC projection did not converge: ${cards} card(s), pointer ${pointer ?? "missing"}`);
-}
-
-/** The management page belongs to the administration menu. A package built
- *  before the move still declares MAIN_MENU_ITEM and would silently put the
- *  entry back into the left navigation, so a stale package fails the install
- *  instead of being accepted as a fallback. */
-async function verifyAppPlacement(admin) {
-  const app = await admin.appByName(APP_NAME);
-  const full = await admin.call("GET", `/api/admin/apps/${app.id}?fields=version,widgets(key,extensionPoint(id))`);
-  const widgets = full.widgets ?? [];
-  const legacy = widgets.filter((widget) => widget.extensionPoint?.id === "MAIN_MENU_ITEM");
-  if (legacy.length > 0) {
-    throw new Error(`app package is stale: ${legacy.map((widget) => widget.key).join(", ")} still target MAIN_MENU_ITEM`);
-  }
-  const page = widgets.find((widget) => widget.key === "spec-app");
-  if (page?.extensionPoint?.id !== "ADMINISTRATION_MENU_ITEM") {
-    throw new Error(`app package is stale: spec-app targets ${page?.extensionPoint?.id ?? "nothing"}, expected ADMINISTRATION_MENU_ITEM`);
-  }
-  return full.version;
-}
-
-/** Install the OpenCode guard for the operator's global config. OpenCode is
- *  optional on a server host, so the phase is skipped only when the agent
- *  config directory is absent; a detected install must succeed. */
-function installOpenCodeGuard(token) {
-  const configDir = path.join(os.homedir(), ".config", "opencode");
-  if (!existsSync(configDir)) return null;
-  const script = path.join(REPO_ROOT, "scripts", "install-opencode-guard.mjs");
-  const result = spawnSync(process.execPath, [script, "--url", `${SVC_HOST()}/mcp`], {
-    env: { ...process.env, OMP_SPEC_REGISTRY_TOKEN: token },
-    encoding: "utf8",
-    timeout: 120_000,
-  });
-  if (result.status !== 0) {
-    throw new Error(`OpenCode guard install failed: ${(result.stderr ?? "").trim().slice(0, 400)}`);
-  }
-  return configDir;
-}
-
-/** Install the Codex guard for the operator's global config. Codex is
- *  optional on a server host, so the phase is skipped only when ~/.codex is
- *  absent; a detected install must succeed. */
-function installCodexGuard(token) {
-  const codexHome = path.join(os.homedir(), ".codex");
-  if (!existsSync(codexHome)) return null;
-  const script = path.join(REPO_ROOT, "scripts", "install-codex-guard.mjs");
-  const result = spawnSync(process.execPath, [script, "--url", `${SVC_HOST()}/mcp`], {
-    env: { ...process.env, OMP_SPEC_REGISTRY_TOKEN: token },
-    encoding: "utf8",
-    timeout: 120_000,
-  });
-  if (result.status !== 0) {
-    throw new Error(`Codex guard install failed: ${(result.stderr ?? "").trim().slice(0, 400)}`);
-  }
-  return codexHome;
 }
 
 async function provisionDashboard(admin) {
@@ -457,18 +313,21 @@ async function provisionDashboard(admin) {
   const board = widgets.find((w) => w.key === "spec-board");
   if (!board) throw new Error("spec-board widget not found on the installed app");
   const name = "Spec Stack";
-  const dashboards = await admin.call("GET", `/api/dashboards?fields=id,name`);
-  let dash = (dashboards ?? []).find((d) => d.name === name);
+  const client = {
+    get: (url) => admin.call("GET", url),
+    post: (url, body) => admin.call("POST", url, { body }),
+    delete: (url) => admin.call("DELETE", url),
+  };
+  let dash = await findDashboard(client, name);
   if (!dash) dash = await admin.call("POST", "/api/dashboards", { body: { name } });
   // Re-provision OUR embedding only — widgets the user added themselves
-  // stay put; a stale spec-board cell from an earlier run is replaced.
-  const existing = await admin.call("GET", `/api/dashboards/${dash.id}/widgets?fields=id,key`);
-  for (const w of (existing ?? []).filter((w) => w.key === "spec-board")) {
-    await admin.call("DELETE", `/api/dashboards/${dash.id}/widgets/${w.id}`).catch(() => {});
-  }
-  await admin.call("POST", `/api/dashboards/${dash.id}/widgets`, {
-    body: { key: "spec-board", widget: { id: board.id }, x: 0, y: 0, width: 12, height: 8 },
-  });
+  // stay put; the replacement is created before the stale cell is removed.
+  await ensureWidget(client, dash.id, board, { widget: "spec-board", width: 12, height: 8 });
+  // A dashboard created through the admin API is private to the admin. The
+  // requirement is that every tenant user sees the board in their dashboard
+  // list, so share it with the tenant group and with All Users explicitly.
+  const shared = await admin.shareDashboard(dash.id, ["All Users", GROUPS.hub]);
+  log(`dashboard ${dash.id} shared with ${shared.map((group) => group.name).join(", ")}`);
   return `${YT_HOST()}/dashboard?id=${dash.id}`;
 }
 
@@ -518,20 +377,29 @@ async function main() {
     throw e;
   });
   const app = await admin.appByName(APP_NAME);
-  await admin.setAppSettings(app.id, { serviceUrl: SVC_NET, serviceBridgeToken: BRIDGE_TOKEN });
+  await admin.setAppSettings(app.id, {
+    serviceUrl: SVC_NET,
+    serviceBridgeToken: BRIDGE_TOKEN,
+    markerProject: MARKER_PROJECT,
+  });
   const project = await admin.createProject({ name: "Spec Stack Demo", shortName: YT_PROJECT, leaderId: (await admin.meNative()).id });
   await admin.attachAppToProject(app.id, project.id).catch(() => {});
   const appVersion = await verifyAppPlacement(admin);
   log(`app ${appVersion} verified: Spec Service is an administration-menu page`);
 
-  log("phase 5 — template spec via MCP");
+  log("phase 5 - template spec via MCP");
   await admin.revokePermanentTokens({ userId: me.id, name: "spec-stack-seed" }).catch(() => {});
   const seedToken = (await admin.createPermanentToken({ userId: me.id, name: "spec-stack-seed", serviceIds })).token;
-  const seeded = await loadTemplateSpec(seedToken);
+  let seeded;
+  if (WITH_DEMO) {
+    seeded = await loadTemplateSpec(seedToken);
+  } else {
+    seeded = "no demo specs (fresh install)";
+    log("phase 5 - --no-demo: skipping template seeding; the board starts empty");
+  }
 
-  log("phase 6 — SPEC projection (issues + sync pointer)");
+  log("phase 6 — SPEC projection target (issues + sync pointer)");
   await provisionSpecProjection(admin);
-  await runProjectionSync(admin, me.id, serviceIds);
 
   log("phase 7 — enabling service-side projection by default");
   process.env.SPEC_REGISTRY_PROJECTION = "1";
@@ -543,14 +411,36 @@ async function main() {
   const dashboardUrl = await provisionDashboard(admin);
 
   log("phase 9 — OpenCode guard");
-  const guardDir = installOpenCodeGuard(seedToken);
-  if (guardDir === null) log("phase 9 — no OpenCode config on this host; guard not installed");
-  else log(`phase 9 — guard installed in ${guardDir}`);
+  const opencodeGuard = installOpenCodeGuard({
+    token: seedToken,
+    url: `${SVC_HOST()}/mcp`,
+    project: SCOPE,
+    workspace: REPO_ROOT,
+    repoRoot: REPO_ROOT,
+  });
+  if (opencodeGuard.status === "absent") {
+    log("phase 9 — no OpenCode config on this host; guard not installed");
+  } else if (opencodeGuard.status === "skipped") {
+    log(`phase 9 — guard skipped (the host keeps its existing agent config): ${opencodeGuard.detail}`);
+  } else {
+    log(`phase 9 — guard installed in ${opencodeGuard.path}`);
+  }
 
   log("phase 10 — Codex guard");
-  const codexHome = installCodexGuard(seedToken);
-  if (codexHome === null) log("phase 10 — no Codex home on this host; guard not installed");
-  else log(`phase 10 — guard installed in ${codexHome}; run /hooks once to trust it`);
+  const codexGuard = installCodexGuard({
+    token: seedToken,
+    url: `${SVC_HOST()}/mcp`,
+    project: SCOPE,
+    workspace: REPO_ROOT,
+    repoRoot: REPO_ROOT,
+  });
+  if (codexGuard.status === "absent") {
+    log("phase 10 — no Codex home on this host; guard not installed");
+  } else if (codexGuard.status === "skipped") {
+    log(`phase 10 — guard skipped (the host keeps its existing agent config): ${codexGuard.detail}`);
+  } else {
+    log(`phase 10 — guard installed in ${codexGuard.path}; run /hooks once to trust it`);
+  }
 
   console.log("\n━━━ spec-stack ready ━━━");
   console.log(`YouTrack:    ${YT_HOST()}`);

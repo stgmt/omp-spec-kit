@@ -28,6 +28,13 @@
   .step > h4 { margin: 0 0 6px; }
   .hint { font-size: 12px; color: #57606a; margin: 4px 0; }
   .ok { color: #1f883d; }
+  .health { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
+  .health-row { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; flex: none; background: #d0d7de; }
+  .dot.ok { background: #1f883d; }
+  .dot.warn { background: #9a6700; }
+  .dot.error { background: #b42318; }
+  .dot.info { background: #57606a; }
 </style>
 </head>
 <body class="plugin">
@@ -36,6 +43,7 @@
   <p class="state" data-testid="state">Loading specs from spec-registryd…</p>
 </div>
 </div>
+<script src="dashboard.js"></script>
 <script>
   (function () {
     var root = document.getElementById('root');
@@ -59,6 +67,14 @@
     // Deep link: /app/<app>/spec-app?step=agent scrolls straight to the
     // agent step — the issue card and the announcement point here.
     var focusStep = null;
+    // Health/doctor state. `appHealth` is the handler's settings probe, the
+    // other two are YouTrack-side checks; null means "not checked yet".
+    var appHealth = null;
+    var healthDashboard = null;
+    var healthSnapshot = null;
+    // Set when the service call fails (unreachable URL / transport). The page
+    // keeps the health checklist instead of replacing it with a dead error.
+    var serviceUnreachable = false;
 
     function escapeHtml(text) {
       return String(text == null ? '' : text).replace(/[&<>"']/g, function (ch) {
@@ -209,6 +225,106 @@
       }
       html += '</div>';
       return html;
+    }
+
+    function errorText(error) {
+      return String(error && error.message ? error.message : error).slice(0, 300);
+    }
+
+    function checkDashboard() {
+      return SpecAppDashboard.checkDashboard(host);
+    }
+
+    function checkSnapshot() {
+      var project = (appHealth && appHealth.markerProject) || SpecAppDashboard.DEFAULT_MARKER_PROJECT;
+      return SpecAppDashboard.checkSnapshot(host, { project: project });
+    }
+
+    function healthRow(id, label, check) {
+      var status = (check && check.status) || 'info';
+      var detail = (check && check.detail) || 'not checked';
+      return '<div class="health-row" data-testid="health-' + id + '"><span class="dot ' + status + '"></span><span><b>' + escapeHtml(label) + '</b>: ' + escapeHtml(detail) + '</span></div>';
+    }
+
+    function healthSectionHtml() {
+      if (!appHealth) return '';
+      var settings = appHealth.ok
+        ? { status: 'ok', detail: 'serviceUrl and serviceBridgeToken are configured' }
+        : { status: 'error', detail: 'missing ' + (appHealth.missing || []).join(', ') };
+      var service = meInfo
+        ? { status: 'ok', detail: (meInfo.login || 'authenticated') + (meInfo.role ? ' · ' + meInfo.role : '') }
+        : { status: appHealth.ok ? 'error' : 'info', detail: appHealth.ok ? 'service is unreachable' : 'not checked until settings exist' };
+      var repos = (meInfo && meInfo.repos) || [];
+      var bound = 0;
+      for (var i = 0; i < repos.length; i += 1) if (repos[i].bound) bound += 1;
+      var repo = { status: bound > 0 ? 'ok' : 'warn', detail: repos.length ? bound + ' of ' + repos.length + ' project(s) bound' : 'no projects visible' };
+      var specs = { status: specsList.length > 0 ? 'ok' : 'warn', detail: specsList.length + ' spec(s) visible' };
+      var dashboard = healthDashboard || { status: 'info', detail: 'not checked yet' };
+      var snapshot = healthSnapshot || { status: 'info', detail: 'not checked yet' };
+      var checks = [
+        ['settings', 'App settings', settings],
+        ['service', 'Service', service],
+        ['repo', 'Repository', repo],
+        ['dashboard', 'Dashboard', dashboard],
+        ['snapshot', 'Snapshot', snapshot],
+        ['specs', 'Specs', specs]
+      ];
+      var next = null;
+      for (var c = 0; c < checks.length; c += 1) {
+        if (checks[c][2].status === 'error' || checks[c][2].status === 'warn') { next = checks[c]; break; }
+      }
+      var nextText = 'All checks pass.';
+      if (next) {
+        if (next[0] === 'settings') nextText = 'Next: set serviceUrl and serviceBridgeToken in Administration → Apps → Spec Graph → Settings.';
+        else if (next[0] === 'service') nextText = 'Next: check the service URL and bridge token, then re-run the checks.';
+        else if (next[0] === 'repo') nextText = 'Next: bind the project repository in step 1.';
+        else if (next[0] === 'dashboard') nextText = 'Next: provision the Spec Stack dashboard.';
+        else if (next[0] === 'snapshot') nextText = 'Next: run the projection (spec-registryd) and re-check.';
+        else if (next[0] === 'specs') nextText = 'Next: create specs in the bound repository.';
+      }
+      var html = '<div class="step" data-testid="health"><h4>Health</h4><div class="health">';
+      for (var r = 0; r < checks.length; r += 1) html += healthRow(checks[r][0], checks[r][1], checks[r][2]);
+      html += '</div><p class="hint" data-testid="health-next">' + escapeHtml(nextText) + '</p>';
+      html += '<div class="btns"><button class="secondary" data-testid="health-refresh" type="button">Re-run checks</button>';
+      html += '<button data-testid="dashboard-provision" type="button">Provision dashboard</button>';
+      if (healthDashboard && healthDashboard.url) {
+        html += '<a data-testid="dashboard-link" href="' + escapeHtml(healthDashboard.url) + '" target="_top">Open Spec Stack</a>';
+      }
+      html += '</div><p class="state" data-testid="health-result"></p></div>';
+      return html;
+    }
+
+    function shareDashboard(dashboardId) {
+      return SpecAppDashboard.shareDashboard(host, dashboardId);
+    }
+
+    function provisionDashboard() {
+      var message = root.querySelector('[data-testid="health-result"]');
+      if (message) message.textContent = 'Provisioning Spec Stack…';
+      var button = root.querySelector('[data-testid="dashboard-provision"]');
+      if (button) button.disabled = true;
+      return SpecAppDashboard.provisionDashboard(host, {
+        log: function (step) { console.log('[provision] ' + step); }
+      }).then(function (result) {
+        healthDashboard = result.health;
+        render();
+        var resultNode = root.querySelector('[data-testid="health-result"]');
+        if (resultNode) {
+          resultNode.textContent = 'Dashboard ready: ' + result.url +
+            (result.share && result.share.added ? ' (shared with All Users)' : '');
+        }
+      }).catch(function (error) {
+        console.log('[provision] error ' + errorText(error));
+        if (button) button.disabled = false;
+        if (message) message.textContent = 'Provision failed: ' + errorText(error);
+      });
+    }
+
+    function bindHealthHandlers() {
+      var refresh = root.querySelector('[data-testid="health-refresh"]');
+      if (refresh) refresh.addEventListener('click', function () { refresh.disabled = true; loadAll(); });
+      var provision = root.querySelector('[data-testid="dashboard-provision"]');
+      if (provision) provision.addEventListener('click', provisionDashboard);
     }
 
     function wizardHtml() {
@@ -562,6 +678,45 @@
       });
     }
 
+    function demoSectionHtml() {
+      var demoSpecs = specsList.filter(function (slug) {
+        return /(?:^|[-_])demo(?:[-_]|$)/u.test(slug);
+      });
+      if (demoSpecs.length === 0) return '';
+      var html = '<div class="step" data-testid="demo-panel"><h4>Demo</h4>'
+        + '<p class="hint">The demo is an explicit fixture. Delete it to return this project to its real state.</p>';
+      for (var i = 0; i < demoSpecs.length; i += 1) {
+        html += '<p class="state"><code>' + escapeHtml(demoSpecs[i]) + '</code> '
+          + '<button class="secondary" data-testid="demo-delete" data-spec="' + escapeHtml(demoSpecs[i]) + '" type="button">Delete demo</button></p>';
+      }
+      return html + '<p class="state" data-testid="demo-result"></p></div>';
+    }
+
+    function bindDemoHandlers() {
+      var buttons = root.querySelectorAll('[data-testid="demo-delete"]');
+      for (var i = 0; i < buttons.length; i += 1) {
+        buttons[i].addEventListener('click', function (event) {
+          var button = event.target;
+          var slug = button.getAttribute('data-spec');
+          if (!slug) return;
+          if (typeof confirm === 'function' && !confirm('Delete the demo spec ' + slug + ' and all of its cards?')) return;
+          button.disabled = true;
+          callService({
+            id: 'widget-demo-delete',
+            method: 'tools/call',
+            params: { name: 'spec_branch', arguments: { action: 'deleteSpec', spec: slug } }
+          }).then(function (envelope) {
+            if (envelope && envelope.error) throw new Error(envelope.error.message || envelope.error);
+            loadAll();
+          }).catch(function (error) {
+            button.disabled = false;
+            var result = root.querySelector('[data-testid="demo-result"]');
+            if (result) result.textContent = String(error && error.message ? error.message : error);
+          });
+        });
+      }
+    }
+
     function render() {
       root.setAttribute('data-state', 'ready');
       var html = '<p class="lead" data-testid="page-lead">Specs, repository binding, and your agent connection — all in one place.</p>';
@@ -572,15 +727,20 @@
       }
       html += '</div>';
       if (catalogError) {
-        html += '<p class="err" data-testid="spec-error-note">' + escapeHtml(catalogError) + '</p>';
+        var catalogTestId = serviceUnreachable ? 'service-error' : 'spec-error-note';
+        html += '<p class="err" data-testid="' + catalogTestId + '">' + escapeHtml(catalogError) + '</p>';
       }
+      html += healthSectionHtml();
+      html += demoSectionHtml();
       html += wizardHtml();
       html += idpSectionHtml();
       root.innerHTML = html;
+      bindHealthHandlers();
       bindRepoHandlers();
       bindVerifyHandlers();
       bindAgentHandlers();
       bindIdpHandlers();
+      bindDemoHandlers();
       if (focusStep) {
         var target = root.querySelector('[data-testid="wizard-step-' + focusStep + '"]');
         if (target) {
@@ -593,42 +753,69 @@
     }
 
     function loadAll() {
-      return Promise.all([
-        callService({ id: 'widget-list', method: 'tools/call', params: { name: 'spec_catalog', arguments: { view: 'specs' } } }),
-        callService({ id: 'widget-me', method: 'service/me', params: {} }),
-        callService({ id: 'widget-idps', method: 'idp/bindings', params: {} }).catch(function () { return { bindings: [] }; })
-      ]).then(function (results) {
-        // A scope-less caller is refused at the auth gate (NO_SCOPES) — every
-        // call fails the same way, so detect it from any of them.
-        for (var n = 0; n < results.length; n++) {
-          if (errorDetail(results[n]).code === 'NO_SCOPES') {
-            noAccess = true;
+      return callService({ id: 'widget-health', method: 'health/app', params: {} }).then(function (health) {
+        appHealth = health && typeof health.ok === 'boolean' ? health : { ok: true, missing: [] };
+        serviceUnreachable = false;
+        if (!appHealth.ok) {
+          // The setup page must render before settings exist: show the health
+          // checklist and the exact missing keys instead of a dead error page.
+          specsList = [];
+          meInfo = null;
+          idpList = [];
+          noAccess = false;
+          catalogError = null;
+          healthDashboard = { status: 'info', detail: 'not checked until settings exist' };
+          healthSnapshot = { status: 'info', detail: 'not checked until settings exist' };
+          render();
+          return;
+        }
+        return Promise.all([
+          callService({ id: 'widget-list', method: 'tools/call', params: { name: 'spec_catalog', arguments: { view: 'specs' } } }),
+          callService({ id: 'widget-me', method: 'service/me', params: {} }),
+          callService({ id: 'widget-idps', method: 'idp/bindings', params: {} }).catch(function () { return { bindings: [] }; })
+        ]).then(function (results) {
+          // A scope-less caller is refused at the auth gate (NO_SCOPES) — every
+          // call fails the same way, so detect it from any of them.
+          for (var n = 0; n < results.length; n++) {
+            if (errorDetail(results[n]).code === 'NO_SCOPES') {
+              noAccess = true;
+              specsList = [];
+              catalogError = null;
+              meInfo = null;
+              idpList = [];
+              render();
+              return;
+            }
+          }
+          noAccess = false;
+          var structured = results[0] && results[0].result ? results[0].result.structuredContent : results[0];
+          if (structured && structured.ok === false) {
+            // A business refusal (repository not bound yet, empty scope) is not
+            // a broken widget — the onboarding wizard still renders; the note
+            // explains why the list is empty.
             specsList = [];
-            catalogError = null;
+            catalogError = (structured.error && (structured.error.message || structured.error.code)) || 'specs unavailable';
+          } else if (!structured || structured.ok !== true) {
+            // The service is unreachable or answered a transport error. Keep
+            // the health checklist visible: it names the failing row and the
+            // next action, which is the whole point of the setup page.
+            specsList = [];
+            serviceUnreachable = true;
+            catalogError = (results[0] && (results[0].error || results[0].message)) || 'service is unreachable';
             meInfo = null;
             idpList = [];
-            render();
-            return;
+          } else {
+            specsList = (structured.data && structured.data.specs) || [];
+            catalogError = null;
           }
-        }
-        noAccess = false;
-        var structured = results[0] && results[0].result ? results[0].result.structuredContent : results[0];
-        if (structured && structured.ok === false) {
-          // A business refusal (repository not bound yet, empty scope) is not
-          // a broken widget — the onboarding wizard still renders; the note
-          // explains why the list is empty.
-          specsList = [];
-          catalogError = (structured.error && (structured.error.message || structured.error.code)) || 'specs unavailable';
-        } else if (!structured || structured.ok !== true) {
-          renderError(structured || results[0]);
-          return;
-        } else {
-          specsList = (structured.data && structured.data.specs) || [];
-          catalogError = null;
-        }
-        meInfo = results[1] && results[1].login ? results[1] : null;
-        idpList = (results[2] && results[2].bindings) || [];
-        render();
+          meInfo = results[1] && results[1].login ? results[1] : null;
+          idpList = (results[2] && results[2].bindings) || [];
+          return Promise.all([checkDashboard(), checkSnapshot()]).then(function (checks) {
+            healthDashboard = checks[0];
+            healthSnapshot = checks[1];
+            render();
+          });
+        });
       });
     }
 

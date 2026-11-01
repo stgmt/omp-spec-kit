@@ -25,9 +25,10 @@ const EXPECTED_SPECS = Object.freeze([
   "spec-mcp-operations",
   "spec-registry-service",
   "teams-task-sync",
+  "youtrack-spec-delivery",
   "youtrack-visualization",
 ]);
-const EXPECTED_DOCUMENT_COUNT = 129;
+const EXPECTED_DOCUMENT_COUNT = 144;
 
 const url = process.env.OMP_SPEC_REGISTRY_URL ?? "http://127.0.0.1:8642/mcp";
 

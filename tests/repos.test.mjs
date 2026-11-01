@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -8,11 +8,13 @@ import { promisify } from "node:util";
 import { after, describe, it } from "node:test";
 import { startService } from "../src/service/index.js";
 import { loadLiveFixture } from "./e2e/lib/live-fixture.mjs";
+import { seedSpecBranch } from "./service/lib/spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
 const FIXTURE_SPEC = path.resolve("tests/fixtures/kernel/real-corpus/.specs/spec-kernel");
 const SPEC_KEY = "stgmt/alpha/spec-kernel";
+const SPEC_BRANCH = "spec-spec-kernel";
 const SECRETS_KEY = "suite-secrets-key-0123456789";
 const BYO_TOKEN = "byo-user-token-SECRET";
 const servers = [];
@@ -53,22 +55,18 @@ async function setup({ projects = ["stgmt/alpha"], tenants = null, extraSeed = n
   const base = await tempDir("spec-repos-");
   const bare = path.join(base, "specs.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
-  const seed = path.join(base, "seed");
-  await execFileAsync("git", ["clone", bare, seed]);
-  await git(seed, ["config", "user.email", "seed@example.invalid"]);
-  await git(seed, ["config", "user.name", "seed"]);
-  for (const project of projects) {
-    await cp(FIXTURE_SPEC, path.join(seed, project, ".specs", "spec-kernel"), { recursive: true });
-  }
-  if (extraSeed) await extraSeed(seed);
-  await execFileAsync("git", ["-C", seed, "add", "."]);
-  await execFileAsync("git", ["-C", seed, "commit", "-m", "seed"]);
-  await execFileAsync("git", ["-C", seed, "push", "-q", "origin", "HEAD:refs/heads/main"]);
-  await rm(seed, { recursive: true, force: true });
+  await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", sourceDir: FIXTURE_SPEC });
 
   const byoBare = path.join(base, "byo.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", byoBare]);
   const byoUrl = pathToFileURL(byoBare).href;
+  await seedSpecBranch(byoBare, {
+    project: "stgmt/alpha",
+    spec: "spec-kernel",
+    sourceDir: FIXTURE_SPEC,
+    repoUrl: byoUrl,
+    files: { "README.md": "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 1.0.0\n" },
+  });
 
   const config = fixture.serviceConfigFor(bare, { projects });
   if (tenants) config.tenants = tenants;
@@ -145,18 +143,18 @@ async function bind(api, token, args) {
 }
 
 describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
-  it("reports the default repo in /me until a binding exists", async () => {
+  it("reports the configured binding in /me", async () => {
     const { api, bare, tokens } = await setup();
     const me = await rest(api, tokens.alice, "GET", "/me");
     assert.equal(me.status, 200);
     assert.equal(me.body.login, "alice");
     assert.equal(me.body.role, "writer");
     const alpha = me.body.repos.find((r) => r.project === "stgmt/alpha");
-    assert.equal(alpha.bound, false);
-    assert.equal(alpha.status, "default");
+    assert.equal(alpha.bound, true);
+    assert.equal(alpha.status, "active");
     assert.equal(alpha.repoUrl, bare);
     const bindings = await rest(api, tokens.alice, "GET", "/repos/bindings");
-    assert.deepEqual(bindings.body.bindings, []);
+    assert.deepEqual(bindings.body.bindings.map((b) => b.project), ["stgmt/alpha"]);
   });
 
   it("refuses bind for readers, scope-outsiders, and non-private non-allowlisted hosts", async () => {
@@ -193,28 +191,29 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
     assert.equal(probe.body.ok, true);
   });
 
-  it("bind + migrate copies the .specs snapshot into the user's repo", async () => {
+  it("bind attaches the spec branch already present in the user's repo", async () => {
     const { api, byoBare, byoUrl, tokens } = await setup();
     const res = await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
     assert.equal(res.status, 200, JSON.stringify(res.body));
     assert.equal(res.body.binding.status, "active");
     assert.equal(res.body.binding.repoUrl, byoUrl);
 
-    // The snapshot landed in the user's repo as a bot commit.
-    const readme = await gitDir(byoBare, ["show", "main:stgmt/alpha/.specs/spec-kernel/README.md"]);
+    // The spec branch is the source of truth: binding attaches it, and the
+    // pre-existing commit is exactly what the service serves.
+    const readme = await gitDir(byoBare, ["show", `${SPEC_BRANCH}:.specs/spec-kernel/README.md`]);
     assert.match(readme, /Spec Kernel|Status:/u);
-    const subject = await gitDir(byoBare, ["log", "--format=%s", "-1"]);
-    assert.match(subject, /migrate stgmt\/alpha/u);
+    const subject = await gitDir(byoBare, ["log", "--format=%s", "-1", `refs/heads/${SPEC_BRANCH}`]);
+    assert.match(subject, /seed/u);
   });
 
-  it("routes reads and writes to the bound repo, never the default one", async () => {
+  it("routes reads and writes to the bound repo, never the previous one", async () => {
     const { api, url, bare, byoBare, byoUrl, tokens } = await setup();
     await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
 
     const catalog = await callTool(url, tokens.alice, "spec_catalog", { view: "specs" });
     assert.ok(catalog.structuredContent.data.specs.includes("spec-kernel"));
 
-    const before = await gitDir(byoBare, ["rev-list", "--count", "main"]);
+    const before = await gitDir(byoBare, ["rev-list", "--count", `refs/heads/${SPEC_BRANCH}`]);
     const write = await callTool(url, tokens.alice, "spec_patch", {
       intent: "patch",
       spec: "spec-kernel",
@@ -224,19 +223,19 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
       requestId: "byo-write-1",
     });
     assert.equal(write.structuredContent.data.outcome, "APPLIED");
-    const after = await gitDir(byoBare, ["rev-list", "--count", "main"]);
+    const after = await gitDir(byoBare, ["rev-list", "--count", `refs/heads/${SPEC_BRANCH}`]);
     assert.ok(Number(after) > Number(before), "the write pushed to the bound repo");
-    const tasks = await gitDir(byoBare, ["show", "main:stgmt/alpha/.specs/spec-kernel/TASKS.md"]);
+    const tasks = await gitDir(byoBare, ["show", `${SPEC_BRANCH}:.specs/spec-kernel/TASKS.md`]);
     assert.match(tasks, /TASK-900/u);
-    const defaultLog = await gitDir(bare, ["log", "--format=%s", "main"]);
+    const defaultLog = await gitDir(bare, ["log", "--format=%s", `refs/heads/${SPEC_BRANCH}`]);
     assert.ok(!defaultLog.includes("apply"), "the default repo got no write");
   });
 
   it("records the bound repo in ledger rows and serves old versions from the old clone", async () => {
-    const { api, url, byoUrl, service, tokens } = await setup();
+    const { api, url, bare, byoUrl, service, tokens } = await setup();
     await flipActive(url, tokens.alice, "1.0.0");
     const v1 = service.store.getLedger(SPEC_KEY).find((r) => r.version === "1.0.0");
-    assert.equal(v1.repoUrl, service.mounts.config.specsRepo);
+    assert.equal(v1.repoUrl, bare);
 
     await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
 
@@ -251,7 +250,7 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
     assert.equal(write.structuredContent.data.outcome, "APPLIED");
     const v2 = service.store.getLedger(SPEC_KEY).find((r) => r.version === "2.0.0");
     assert.equal(v2.repoUrl, byoUrl);
-    assert.equal(v2.repoBranch, "main");
+    assert.equal(v2.repoBranch, SPEC_BRANCH);
 
     // v1 still resolves — through the recorded repo, i.e. the old clone.
     const frozen = await callTool(url, tokens.alice, "spec_documents", { action: "read", spec: "spec-kernel", doc: "README.md", version: "1.0.0" });
@@ -267,11 +266,11 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
   it("re-binding the same repo is a no-op and cannot revert bound content", async () => {
     const { api, byoBare, byoUrl, tokens } = await setup();
     await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
-    const commits = await gitDir(byoBare, ["rev-list", "--count", "main"]);
+    const commits = await gitDir(byoBare, ["rev-list", "--count", `refs/heads/${SPEC_BRANCH}`]);
     const again = await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
     assert.equal(again.status, 200);
     assert.equal(again.body.unchanged, true);
-    assert.equal(await gitDir(byoBare, ["rev-list", "--count", "main"]), commits, "no extra migration commit");
+    assert.equal(await gitDir(byoBare, ["rev-list", "--count", `refs/heads/${SPEC_BRANCH}`]), commits, "no extra migration commit");
   });
 
   it("never persists or returns the repo credential in plaintext", async () => {
@@ -286,7 +285,7 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
     assert.ok(!cred.tokenEnc.includes(BYO_TOKEN));
   });
 
-  it("unbind returns the project to the default repo; history stays readable", async () => {
+  it("unbind leaves the project unbound; published history stays readable", async () => {
     const { api, url, bare, byoUrl, service, tokens } = await setup();
     await flipActive(url, tokens.alice, "1.0.0");
     await bind(api, tokens.alice, { repoUrl: byoUrl, migrate: true });
@@ -296,29 +295,45 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
 
     const me = await rest(api, tokens.alice, "GET", "/me");
     assert.equal(me.body.repos.find((r) => r.project === "stgmt/alpha").bound, false);
-    // Reads/writes resolve the default clone again — the snapshot copy left
-    // the source intact, so the spec is still listed.
+    assert.equal(me.body.repos.find((r) => r.project === "stgmt/alpha").status, "required");
+    // No silent fallback to another repository: the project must be bound.
     const catalog = await callTool(url, tokens.alice, "spec_catalog", { view: "specs" });
-    assert.ok(catalog.structuredContent.data.specs.includes("spec-kernel"));
-    const frozen = await callTool(url, tokens.alice, "spec_documents", { action: "read", spec: "spec-kernel", doc: "README.md", version: "1.0.0" });
-    assert.equal(frozen.isError, false);
+    assert.equal(catalog.structuredContent.ok, false);
+    assert.match(catalog.structuredContent.error.message, /no specs repository/u);
+    // Published versions resolve through the recorded repo, not the binding.
+    // Unbound projects refuse reads entirely — no silent fallback...
+    const frozenUnbound = await callTool(url, tokens.alice, "spec_documents", { action: "read", spec: "spec-kernel", doc: "README.md", version: "1.0.0" });
+    assert.equal(frozenUnbound.isError, true);
     assert.equal(service.store.getCredential("stgmt/alpha"), null, "the credential is gone");
-    const log = await gitDir(bare, ["log", "--format=%s", "main"]);
+    // ...but once the project is bound again, the ledger still serves v1 from
+    // the repo it was published into.
+    const rebound = await bind(api, tokens.alice, { repoUrl: byoUrl });
+    assert.equal(rebound.status, 200, JSON.stringify(rebound.body));
+    const frozen = await callTool(url, tokens.alice, "spec_documents", { action: "read", spec: "spec-kernel", doc: "README.md", version: "1.0.0" });
+    assert.equal(frozen.isError, false, JSON.stringify(frozen.structuredContent?.error ?? {}));
+    assert.equal(frozen.structuredContent.data.published.commit, service.store.getLedger(SPEC_KEY).find((r) => r.version === "1.0.0").commitSha);
+    const log = await gitDir(bare, ["log", "--format=%s", `refs/heads/${SPEC_BRANCH}`]);
     assert.ok(log.length > 0);
   });
 
-  it("X-Spec-Project supplies the default scope and is still scope-checked", async () => {
+  it("accepts a per-request project hint, still scope-checked, while selection stays per call", async () => {
     const tenants = [
       { tenant: "alpha", projects: ["stgmt/alpha"], hubGroups: ["spec-alpha"], defaultProject: null },
       { tenant: "beta", projects: ["stgmt/beta"], hubGroups: ["spec-beta"], defaultProject: null },
     ];
     const { api, url, tokens } = await setup({ projects: ["stgmt/alpha", "stgmt/beta"], tenants });
-    // frank is a writer in both tenants: no default scope without the header.
+    // frank is a writer in both tenants: no default scope without a selection.
     const noHint = await callTool(url, tokens.frank, "spec_catalog", { view: "specs" });
     assert.equal(noHint.structuredContent.ok, false);
+    assert.equal(noHint.structuredContent.error.code, "PROJECT_SELECTION_REQUIRED");
+    // The transport hint is request context, never stored state.
     const hinted = await callTool(url, tokens.frank, "spec_catalog", { view: "specs" }, { "x-spec-project": "stgmt/alpha" });
     assert.equal(hinted.structuredContent.ok, true);
     const outside = await callTool(url, tokens.frank, "spec_catalog", { view: "specs" }, { "x-spec-project": "stgmt/gamma" });
     assert.equal(outside.structuredContent.ok, false);
+    // An explicit per-call project is the documented selection path.
+    const explicit = await callTool(url, tokens.frank, "spec_catalog", { project: "stgmt/beta", view: "specs" });
+    assert.equal(explicit.structuredContent.ok, true);
+    assert.equal(explicit.structuredContent.provenance.project, "stgmt/beta");
   });
 });

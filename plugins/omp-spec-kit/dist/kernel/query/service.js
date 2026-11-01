@@ -726,6 +726,17 @@ const BOARD_NODE_KINDS = new Set([
   "ROADMAP",
 ]);
 
+// Demo specifications are the one place where the board must show the full
+// entity vocabulary (including documents, decisions, stories, file changes).
+// Keeping that opt-in by slug avoids growing the production corpus response
+// past its 1 MiB budget and keeps the marker small.
+const ALL_BOARD_NODE_KINDS = new Set(NODE_KINDS);
+const DEMO_SPEC_MARKER = /(?:^|[-_])demo(?:[-_]|$)/u;
+
+function boardKindsFor(specSlug) {
+  return DEMO_SPEC_MARKER.test(specSlug) ? ALL_BOARD_NODE_KINDS : BOARD_NODE_KINDS;
+}
+
 const ROADMAP_SPEC_PREFIX = "roadmap-";
 
 // Synthetic spec-aggregate node: one ROADMAP node per `roadmap-*` spec so the
@@ -794,7 +805,7 @@ function runBoard(graph, request, args, limits) {
   const specSlugs = args.specSlugs ?? [];
   const selected = new Set(selectedSpecs(graph, specSlugs));
   const nodes = graph.nodes
-    .filter((node) => BOARD_NODE_KINDS.has(node.kind) && selected.has(node.specSlug))
+    .filter((node) => boardKindsFor(node.specSlug).has(node.kind) && selected.has(node.specSlug))
     .map(boardNode);
   for (const slug of selected) {
     if (!slug.startsWith(ROADMAP_SPEC_PREFIX)) continue;
@@ -836,8 +847,9 @@ function runBoard(graph, request, args, limits) {
     compareStrings(a.from, b.from) || compareStrings(a.to, b.to) || compareStrings(a.type, b.type),
   );
   const byKind = {};
-  for (const kind of ["TASK", "FUNCTIONAL_REQUIREMENT", "ACCEPTANCE_CRITERION", "SCENARIO", "NON_FUNCTIONAL_REQUIREMENT", "ROADMAP"]) {
-    byKind[kind] = nodes.filter((node) => node.kind === kind).length;
+  const presentKinds = new Set(nodes.map((node) => node.kind));
+  for (const kind of NODE_KINDS) {
+    if (presentKinds.has(kind)) byKind[kind] = nodes.filter((node) => node.kind === kind).length;
   }
   const data = {
     kind: "board",

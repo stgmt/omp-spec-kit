@@ -18,6 +18,13 @@
       "format": "secret",
       "minLength": 16,
       "x-scope": "GLOBAL"
+    },
+    "markerProject": {
+      "title": "Marker project",
+      "description": "YouTrack project short name that holds the committed SPEC:SYNC-STATE issue. Leave empty for the default SPEC project.",
+      "type": "string",
+      "default": "SPEC",
+      "x-scope": "GLOBAL"
     }
   },
   "required": ["serviceUrl", "serviceBridgeToken"]

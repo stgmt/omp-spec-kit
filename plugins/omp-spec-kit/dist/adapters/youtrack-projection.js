@@ -1,21 +1,41 @@
 import { createHash } from "node:crypto";
 
 export const KIND_LABELS = Object.freeze({
+  DOCUMENT: "DOCUMENT",
+  ROADMAP: "ROADMAP",
+  USER_STORY: "USER_STORY",
+  USE_CASE: "USE_CASE",
+  RESEARCH_FINDING: "RESEARCH_FINDING",
+  RISK: "RISK",
   FUNCTIONAL_REQUIREMENT: "FR",
   NON_FUNCTIONAL_REQUIREMENT: "NFR",
   ACCEPTANCE_CRITERION: "AC",
+  DECISION: "DECISION",
   TASK: "TASK",
+  FILE_CHANGE: "FILE_CHANGE",
+  FILE: "FILE",
   SCENARIO: "SCENARIO",
-  ROADMAP: "ROADMAP",
+  FIXTURE: "FIXTURE",
+  SCHEMA_ENTITY: "SCHEMA_ENTITY",
 });
 
 export const TYPE_PER_KIND = Object.freeze({
-  TASK: "Task",
-  FUNCTIONAL_REQUIREMENT: "Feature",
-  ACCEPTANCE_CRITERION: "Criterion",
-  SCENARIO: "Scenario",
-  NON_FUNCTIONAL_REQUIREMENT: "Constraint",
+  DOCUMENT: "Spec Node",
   ROADMAP: "Roadmap",
+  USER_STORY: "Spec Node",
+  USE_CASE: "Spec Node",
+  RESEARCH_FINDING: "Spec Node",
+  RISK: "Spec Node",
+  FUNCTIONAL_REQUIREMENT: "Feature",
+  NON_FUNCTIONAL_REQUIREMENT: "Constraint",
+  ACCEPTANCE_CRITERION: "Criterion",
+  DECISION: "Spec Node",
+  TASK: "Task",
+  FILE_CHANGE: "Spec Node",
+  FILE: "Spec Node",
+  SCENARIO: "Scenario",
+  FIXTURE: "Spec Node",
+  SCHEMA_ENTITY: "Spec Node",
 });
 
 export const STATUS_MAP = Object.freeze({
@@ -103,6 +123,27 @@ const EDGE_LINK_RULES = Object.freeze([
   Object.freeze({ edge: "CONTAINS", from: "ROADMAP", to: "AC", link: "contains", flip: false }),
   Object.freeze({ edge: "CONTAINS", from: "ROADMAP", to: "TASK", link: "contains", flip: false }),
   Object.freeze({ edge: "CONTAINS", from: "ROADMAP", to: "SCENARIO", link: "contains", flip: false }),
+  // Demo/full-entity vocabulary: documents declare design/story nodes, design
+  // and research document requirements, stories cover requirements, and
+  // file changes implement requirements.
+  Object.freeze({ edge: "DECLARES", from: "DOCUMENT", to: "DECISION", link: "contains", flip: false }),
+  Object.freeze({ edge: "DECLARES", from: "DOCUMENT", to: "USER_STORY", link: "contains", flip: false }),
+  Object.freeze({ edge: "DECLARES", from: "DOCUMENT", to: "USE_CASE", link: "contains", flip: false }),
+  Object.freeze({ edge: "DOCUMENTS", from: "DECISION", to: "FUNCTIONAL_REQUIREMENT", link: "contains", flip: false }),
+  Object.freeze({ edge: "DOCUMENTS", from: "RESEARCH_FINDING", to: "FUNCTIONAL_REQUIREMENT", link: "contains", flip: false }),
+  Object.freeze({ edge: "DOCUMENTS", from: "RISK", to: "FUNCTIONAL_REQUIREMENT", link: "contains", flip: false }),
+  Object.freeze({ edge: "REFS", from: "DECISION", to: "FUNCTIONAL_REQUIREMENT", link: "contains", flip: false }),
+  Object.freeze({ edge: "REFS", from: "RESEARCH_FINDING", to: "FUNCTIONAL_REQUIREMENT", link: "contains", flip: false }),
+  Object.freeze({ edge: "REFS", from: "RISK", to: "FUNCTIONAL_REQUIREMENT", link: "contains", flip: false }),
+  Object.freeze({ edge: "REFS", from: "FILE_CHANGE", to: "FUNCTIONAL_REQUIREMENT", link: "implements", flip: false }),
+  Object.freeze({ edge: "REFS", from: "FILE", to: "FUNCTIONAL_REQUIREMENT", link: "implements", flip: false }),
+  Object.freeze({ edge: "COVERS", from: "USER_STORY", to: "FUNCTIONAL_REQUIREMENT", link: "covers", flip: false }),
+  Object.freeze({ edge: "COVERS", from: "USER_STORY", to: "NON_FUNCTIONAL_REQUIREMENT", link: "covers", flip: false }),
+  Object.freeze({ edge: "COVERS", from: "USE_CASE", to: "FUNCTIONAL_REQUIREMENT", link: "covers", flip: false }),
+  Object.freeze({ edge: "COVERS", from: "USE_CASE", to: "NON_FUNCTIONAL_REQUIREMENT", link: "covers", flip: false }),
+  Object.freeze({ edge: "IMPLEMENTS", from: "FILE_CHANGE", to: "FUNCTIONAL_REQUIREMENT", link: "implements", flip: false }),
+  Object.freeze({ edge: "IMPLEMENTS", from: "FILE_CHANGE", to: "ACCEPTANCE_CRITERION", link: "implements", flip: false }),
+  Object.freeze({ edge: "IMPLEMENTS", from: "FILE", to: "FUNCTIONAL_REQUIREMENT", link: "implements", flip: false }),
 ]);
 
 export const LINK_LABELS = Object.freeze({
@@ -132,6 +173,30 @@ const DISPLAY_REVERSE_LINK_TYPE = Object.freeze({
 });
 
 export const SYNC_STATE_SPEC_ID = "SPEC:SYNC-STATE";
+// v8 project-scoped committed state: one signed pointer per project plus a
+// root index. The key is URL-safe so the SpecId text stays deterministic.
+export const PROJECT_POINTER_PREFIX = `${SYNC_STATE_SPEC_ID}:`;
+export const UNASSIGNED_PROJECT_ID = "__unassigned__";
+/** Identity of a corpus served by the local stdio transport (no registry project). */
+export const LOCAL_PROJECT_ID = "local";
+export function projectPointerSpecId(projectId) {
+  return PROJECT_POINTER_PREFIX + Buffer.from(String(projectId), "utf8").toString("base64url");
+}
+
+/**
+ * Shared tracker identity: card key = `project::canonicalId`, where `::` is the
+ * one separator neither a GitHub `owner/repo` project id nor a kernel
+ * canonicalId (`slug:localId`) may contain. Spec-local ids stay unqualified
+ * inside their project; only the shared card key is qualified.
+ */
+export const CARD_KEY_SEPARATOR = "::";
+export function cardKey(project, canonicalId) {
+  return String(project) + CARD_KEY_SEPARATOR + String(canonicalId);
+}
+export function cardKeyProject(key) {
+  const index = typeof key === "string" ? key.indexOf(CARD_KEY_SEPARATOR) : -1;
+  return index > 0 ? key.slice(0, index) : null;
+}
 
 /**
  * Shape version of the projected payload: bump when the marker, snapshot, or
@@ -140,9 +205,9 @@ export const SYNC_STATE_SPEC_ID = "SPEC:SYNC-STATE";
  * pointer with an older version as stale even when content is unchanged, so
  * a code upgrade re-projects without waiting for a spec edit.
  *
- * v3: the marker carries mountHeads/mountsClean/specProjects so the service
- * can cheap-skip on git HEADs and the writeback listener can resolve a
- * specSlug to its serving project without guessing.
+ * v3: the marker carries mountHeads/mountsClean so the service can cheap-skip
+ * on git HEADs. v8: every card is keyed project::canonicalId, so the writeback
+ * listener reads the project from the card itself, never from a slug map.
  *
  * v4: REFS edges now emit canonical link types with flipped endpoints
  * (satisfies/implements) instead of inverse-named types — the mirrored
@@ -150,8 +215,17 @@ export const SYNC_STATE_SPEC_ID = "SPEC:SYNC-STATE";
  * workflow that touched issue.links. complete=false pointers publish when
  * card writes fail so the next trigger retries instead of trusting a
  * marker signed over partial state.
+ *
+ * v5: the committed marker stores a compact snapshot (no body/source/hash/
+ * evidence) so a real corpus survives YouTrack's 512 000-character issue
+ * description limit. The version bump forces one full re-projection on
+ * upgrade; without it the cheap path would keep a valid pre-v5 marker.
  */
-export const PROJECTION_VERSION = 4;
+// 6: compact committed snapshot (marker must fit YouTrack's description cap).
+// 7: per-project pointers + root index; a v6 marker is not readable and must
+//    be reprojected before the board renders.
+export const PROJECTION_VERSION = 8;
+// v8: per-project pointers + root index; qualified cardIds key is project + "\0" + canonicalId; no flat specProjects; v7 markers must be rebuilt from mounts.
 
 const BOARD_KINDS = new Set(Object.keys(KIND_LABELS));
 
@@ -232,17 +306,60 @@ function assertBoardProjection(board) {
   if (board.complete !== true || board.page !== null) throw new TypeError("board projection must be complete and unpaged");
   if (typeof board.fingerprint !== "string" || board.fingerprint === "") throw new TypeError("board projection fingerprint is required");
   if (!Array.isArray(board.nodes) || !Array.isArray(board.edges)) throw new TypeError("board projection nodes and edges are required");
-  const identities = new Set();
+  const projectOf = (entry) => entry?.project ?? board.scope?.project ?? LOCAL_PROJECT_ID;
+  const identities = new Map();
   for (const node of board.nodes) {
     if (!node || typeof node.canonicalId !== "string" || !BOARD_KINDS.has(node.kind)) throw new TypeError("board projection contains an invalid node");
-    if (identities.has(node.canonicalId)) throw new TypeError("board projection contains duplicate node identity");
-    identities.add(node.canonicalId);
+    const key = cardKey(projectOf(node), node.canonicalId);
+    if (identities.has(key)) throw new TypeError("board projection contains duplicate node identity");
+    identities.set(key, projectOf(node));
   }
   for (const edge of board.edges) {
-    if (!edge || !identities.has(edge.from) || !identities.has(edge.to) || typeof edge.type !== "string") {
+    if (!edge || typeof edge.type !== "string") throw new TypeError("board projection contains an invalid edge endpoint");
+    if (!identities.has(cardKey(projectOf(edge), edge.from)) || !identities.has(cardKey(projectOf(edge), edge.to))) {
       throw new TypeError("board projection contains an invalid edge endpoint");
     }
   }
+}
+
+function excerptValue(node) {
+  if (typeof node.excerpt === "string" && node.excerpt.length > 0) return node.excerpt;
+  const body = typeof node.body === "string" ? node.body.replace(/\s+/g, " ").trim() : "";
+  if (body.length <= 200) return body || null;
+  return body.slice(0, 200).replace(/\s+\S*$/, "");
+}
+
+/**
+ * Store only what the in-tracker widgets consume. `body`, source spans,
+ * content hashes, and evidence stay on the projected cards; carrying them in
+ * every committed marker is what pushed the real corpus over YouTrack's
+ * 512 000-character description limit.
+ */
+export function compactSnapshot(board) {
+  return {
+    schemaVersion: "BoardSnapshotV1",
+    fingerprint: board.fingerprint,
+    scope: board.scope ?? { mode: "corpus", specSlugs: [] },
+    complete: true,
+    page: null,
+    nodes: board.nodes.map((node) => ({
+      canonicalId: node.canonicalId,
+      project: node.project ?? board.scope?.project ?? LOCAL_PROJECT_ID,
+      specSlug: node.specSlug,
+      localId: node.localId,
+      kind: node.kind,
+      title: node.title,
+      excerpt: excerptValue(node),
+      taskStatus: node.kind === "TASK" && typeof node.taskStatus === "string" ? node.taskStatus : null,
+    })),
+    edges: board.edges.map((edge) => ({
+      from: edge.from,
+      to: edge.to,
+      project: edge.project ?? board.scope?.project ?? LOCAL_PROJECT_ID,
+      type: edge.type,
+    })),
+    counts: board.counts ?? { nodes: board.nodes.length, edges: board.edges.length },
+  };
 }
 
 function addSortedLink(links, seen, type, source, target) {
@@ -264,9 +381,12 @@ export function buildProjectionPlan(board) {
   const wanted = new Map();
   for (const node of board.nodes) {
     const kind = KIND_LABELS[node.kind];
-    const specId = node.canonicalId;
+    const project = node.project ?? board.scope?.project ?? LOCAL_PROJECT_ID;
+    // Card identity is qualified; the spec-local canonicalId stays untouched.
+    const specId = cardKey(project, node.canonicalId);
     wanted.set(specId, {
       canonicalId: node.canonicalId,
+      project,
       specId,
       kind,
       typeValue: TYPE_PER_KIND[node.kind],
@@ -290,8 +410,9 @@ export function buildProjectionPlan(board) {
   const byId = (id) => wanted.get(id);
 
   for (const edge of board.edges) {
-    const from = byId(edge.from);
-    const to = byId(edge.to);
+    const edgeProject = edge.project ?? board.scope?.project ?? LOCAL_PROJECT_ID;
+    const from = byId(cardKey(edgeProject, edge.from));
+    const to = byId(cardKey(edgeProject, edge.to));
     if (!from || !to) {
       skippedLinks += 1;
       continue;
@@ -321,16 +442,13 @@ export function buildProjectionPlan(board) {
   }
 
   const issues = [...wanted.values()].sort((a, b) => sortNatural(a.specId, b.specId));
-  const snapshot = {
-    schemaVersion: "BoardSnapshotV1",
-    fingerprint: board.fingerprint,
-    scope: board.scope ?? { mode: "corpus", specSlugs: [] },
-    complete: true,
-    page: null,
-    nodes: board.nodes,
-    edges: board.edges,
-    counts: board.counts ?? { nodes: board.nodes.length, edges: board.edges.length },
-  };
+  // The committed snapshot is stored in one YouTrack issue description, which
+  // YouTrack truncates at 512 000 characters. Cards still need the full body,
+  // but neither widget reads it: the board uses `excerpt`, the panel uses the
+  // node title/kind/status and the edges. Keep the marker compact so the
+  // committed JSON survives the description limit; `snapshotHash` is computed
+  // over exactly the bytes that are stored, not over the larger board DTO.
+  const snapshot = compactSnapshot(board);
   const projectionDigest = digest({ issues, links });
   return {
     fingerprint: board.fingerprint,
@@ -343,11 +461,10 @@ export function buildProjectionPlan(board) {
     snapshot,
     snapshotHash: digest(snapshot),
     // Service-side extras (absent on the script path): git state the merged
-    // board was built from, and the specSlug -> projectId map writeback uses
-    // to route a spec_patch to the owning mount.
+    // board was built from. Writeback routing is not carried here: a card's
+    // own qualified specId names its project.
     mountHeads: board.mountHeads ?? null,
     mountsClean: board.mountsClean ?? null,
-    specProjects: board.specProjects ?? null,
     skippedProjects: board.skippedProjects ?? null,
   };
 }
@@ -512,6 +629,35 @@ export function compareProjection(actual, plan) {
   return { equal: true, reason: "PARITY" };
 }
 
+export function buildProjectionPlans(board) {
+  const projectPlans = {};
+  for (const [projectId, projectBoard] of Object.entries(board.projectBoards ?? {})) {
+    projectPlans[projectId] = buildProjectionPlan({
+      ...projectBoard,
+      nodes: projectBoard.nodes.map((node) => ({ ...node, project: node.project ?? projectId })),
+      edges: projectBoard.edges.map((edge) => ({ ...edge, project: edge.project ?? projectId })),
+      scope: { mode: "project", project: projectId, specSlugs: projectBoard.scope?.specSlugs ?? [] },
+    });
+  }
+  // Unassigned is now an explicit fact (a node that carries no project), not a
+  // slug missing from a flat routing map.
+  const orphanNodes = board.nodes.filter((node) => !node.project);
+  let unassignedPlan = null;
+  if (orphanNodes.length > 0) {
+    const nodeIds = new Set(orphanNodes.map((node) => node.canonicalId));
+    const edges = board.edges.filter((edge) => !edge.project && nodeIds.has(edge.from) && nodeIds.has(edge.to));
+    unassignedPlan = buildProjectionPlan({
+      ...board,
+      nodes: orphanNodes.map((node) => ({ ...node, project: UNASSIGNED_PROJECT_ID })),
+      edges,
+      counts: { nodes: orphanNodes.length, edges: edges.length },
+      scope: { mode: "project", project: UNASSIGNED_PROJECT_ID, specSlugs: [...new Set(orphanNodes.map((node) => node.specSlug))].sort() },
+      fingerprint: digest({ unassigned: [...nodeIds].sort() }),
+    });
+  }
+  return { projectPlans, unassignedPlan };
+}
+
 export class YouTrackProjectionService {
   #sourceReader;
   #tracker;
@@ -531,16 +677,14 @@ export class YouTrackProjectionService {
     // A source reader that cannot see the service's mounts (script-mode
     // readers) must not re-sign the committed MOUNT certification — preserved
     // mountHeads/mountsClean would let cheapCheck trust measurements this sync
-    // never took. specProjects is the exception: it is writeback routing, not
-    // a mount claim, and dropping it breaks the listener until a service sync.
-    if (pointer?.valid === true) {
-      plan.specProjects ??= pointer.specProjects ?? null;
-    }
+    // never took. Routing is not a mount claim: it comes from each card's own
+    // qualified specId, so nothing extra is copied from the pointer.
     const actual = await this.#tracker.readProjection();
     const parity = compareProjection(actual, plan);
     const canSkip = pointer?.valid === true && pointer.complete === true && pointer.fingerprint === plan.fingerprint &&
       pointer.snapshotHash === plan.snapshotHash && pointer.projectionDigest === plan.projectionDigest &&
-      pointer.projectionVersion === plan.projectionVersion && parity.equal;
+      pointer.projectionVersion === plan.projectionVersion && Array.isArray(pointer.projects) &&
+      pointer.projectIndexComplete === true && parity.equal;
     if (canSkip) {
       return { outcome: "SKIPPED", fingerprint: plan.fingerprint, writeCalls: 0, plan, parity };
     }
@@ -562,12 +706,29 @@ export class YouTrackProjectionService {
     // match). complete:false keeps the pointer signed and owned — writeback
     // still routes through its cardIds — while every skip gate requires
     // complete === true, so the next trigger retries the full path.
-    const stateResult = await this.#syncState.publishCommitted(plan, {
+    const builtPlans = !board.projectPlans && board.projectBoards ? buildProjectionPlans(board) : null;
+    const projectPlans = board.projectPlans ?? builtPlans?.projectPlans ?? null;
+    const unassignedPlan = board.unassignedPlan ?? builtPlans?.unassignedPlan ?? null;
+    let projectState = null;
+    if (projectPlans && typeof this.#syncState.publishProjectPointers === "function") {
+      projectState = await this.#syncState.publishProjectPointers(projectPlans, {
+        cardIds: cardResult?.cardIds ?? {},
+        complete: failures.length === 0,
+        unassignedPlan,
+      });
+    }
+    const stateOptions = {
       cardIds: cardResult?.cardIds ?? {},
       complete: failures.length === 0,
-    });
+    };
+    if (projectState) {
+      stateOptions.projects = projectState.projects;
+      stateOptions.unassigned = projectState.unassigned;
+      stateOptions.staleProjectPointers = projectState.stale;
+    }
+    const stateResult = await this.#syncState.publishCommitted(plan, stateOptions);
     const writeCalls = (cardResult?.writeCalls ?? 0) + (linkResult?.writeCalls ?? 0) +
-      (staleResult?.writeCalls ?? 0) + (stateResult?.writeCalls ?? 0);
+      (staleResult?.writeCalls ?? 0) + (projectState?.writeCalls ?? 0) + (stateResult?.writeCalls ?? 0);
     if (failures.length > 0) {
       return { outcome: "PARTIAL", fingerprint: plan.fingerprint, writeCalls, failures, plan, parity };
     }

@@ -10,6 +10,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
   SYNC_STATE_SPEC_ID,
+  PROJECT_POINTER_PREFIX,
+  UNASSIGNED_PROJECT_ID,
+  projectPointerSpecId,
   LINK_TYPES,
   STATUS_MAP,
   desiredDescription,
@@ -20,6 +23,15 @@ import {
 } from "./youtrack-projection.js";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
+
+/**
+ * YouTrack stores issue descriptions up to 512 000 characters and silently
+ * truncates longer writes. The committed marker is the only copy of the board
+ * snapshot the widgets can read, so an over-limit description is corruption,
+ * not a warning: fail before the POST and leave the previous marker intact.
+ * The 12 000-character margin keeps the guard honest for code-unit counting.
+ */
+export const MARKER_DESCRIPTION_LIMIT = 500_000;
 
 export class YouTrackClient {
   #host;
@@ -483,9 +495,9 @@ export class YouTrackSyncStateStore {
       if (!this.#verify(marker)) continue;
       this.#pointer = candidate;
       // A complete:false (partial) marker is still authentic and owned — its
-      // cardIds/specProjects route writeback for the cards that did land.
+      // cardIds (project-qualified keys) route writeback for the cards that did land.
       // Completeness gates the skip paths, not the read.
-      return { valid: true, ...marker };
+      return { valid: true, ...marker, projectIndexComplete: this.#validateProjectIndex(marker, issues) };
     }
     // No marker passes signature verification: spec wins. The lowest-id
     // candidate is taken over on publish so a forged pointer cannot outlive
@@ -494,7 +506,32 @@ export class YouTrackSyncStateStore {
     return { valid: false };
   }
 
-  async #specIdCustomField() {
+  /**
+   * The root index is only trustworthy when every pointer it names exists,
+   * verifies, is complete, and is scoped to the same project. A missing or
+   * edited project pointer must force a republish instead of being skipped.
+   */
+  #validateProjectIndex(marker, issues) {
+    if (!Array.isArray(marker.projects)) return false;
+    const byReadable = new Map(issues.map((issue) => [issue.idReadable ?? issue.id, issue]));
+    const verify = (entry, expectedProject) => {
+      if (!entry || typeof entry.pointer !== "string") return false;
+      const issue = byReadable.get(entry.pointer);
+      if (!issue) return false;
+      const child = parseMarker(issue.description);
+      if (!child || !this.#verify(child)) return false;
+      return child.complete === true &&
+        child.scope?.mode === "project" &&
+        child.scope.project === expectedProject;
+    };
+    for (const project of marker.projects) {
+      if (!project || typeof project.id !== "string" || !verify(project, project.id)) return false;
+    }
+    if (marker.unassigned && !verify(marker.unassigned, UNASSIGNED_PROJECT_ID)) return false;
+    return true;
+  }
+
+  async #specIdCustomField(specId = SYNC_STATE_SPEC_ID) {
     if (!this.#fieldValueTypes) {
       const fields = await this.#client.get(
         "/api/admin/projects/" + this.#projectId + "/customFields?fields=field(name,fieldType(valueType))",
@@ -504,11 +541,11 @@ export class YouTrackSyncStateStore {
     // Same valueType contract as #createCustomFields: a text-typed SpecId
     // takes TextIssueCustomField, otherwise the string-typed default.
     return this.#fieldValueTypes.get("SpecId") === "text"
-      ? { name: "SpecId", $type: "TextIssueCustomField", value: { $type: "TextFieldValue", text: SYNC_STATE_SPEC_ID } }
-      : { name: "SpecId", $type: "SimpleIssueCustomField", value: SYNC_STATE_SPEC_ID };
+      ? { name: "SpecId", $type: "TextIssueCustomField", value: { $type: "TextFieldValue", text: specId } }
+      : { name: "SpecId", $type: "SimpleIssueCustomField", value: specId };
   }
 
-  async publishCommitted(plan, { cardIds = {}, complete = true } = {}) {
+  #buildMarker(plan, { cardIds = {}, complete = true, projects = null, unassigned = null } = {}) {
     const marker = {
       schemaVersion: "BoardSnapshotV1",
       projectionVersion: plan.projectionVersion ?? null,
@@ -521,14 +558,106 @@ export class YouTrackSyncStateStore {
       edgeCount: plan.snapshot.edges.length,
       mountHeads: plan.mountHeads ?? null,
       mountsClean: plan.mountsClean ?? null,
-      specProjects: plan.specProjects ?? null,
       skippedProjects: plan.skippedProjects ?? null,
+      projects,
+      unassigned,
       cardIds,
       snapshot: plan.snapshot,
       committedAt: new Date().toISOString(),
     };
     marker.signature = this.#sign(marker);
     const description = "SPEC-SYNC-STATE\n" + JSON.stringify(marker);
+    if (description.length > MARKER_DESCRIPTION_LIMIT) {
+      const error = new Error(
+        `committed marker is ${description.length} characters; ` +
+        `${MARKER_DESCRIPTION_LIMIT} is the safe limit (YouTrack truncates descriptions at 512000)`,
+      );
+      error.code = "MARKER_TOO_LARGE";
+      error.descriptionLength = description.length;
+      error.descriptionLimit = MARKER_DESCRIPTION_LIMIT;
+      throw error;
+    }
+    return { marker, description };
+  }
+
+  async #upsertPointer(specId, description, issues) {
+    const candidates = issues
+      .filter((issue) => fieldValue(issue, "SpecId") === specId)
+      .sort((a, b) => issueIdOrder(a.id, b.id));
+    let pointer = candidates[0] ?? null;
+    let writeCalls = 0;
+    if (!pointer) {
+      pointer = await this.#client.post("/api/issues?fields=id,idReadable", {
+        project: { id: this.#projectId },
+        summary: specId,
+        description,
+        customFields: [await this.#specIdCustomField(specId)],
+      });
+      writeCalls += 1;
+      issues.push(pointer);
+    } else {
+      await this.#client.post("/api/issues/" + pointer.id + "?fields=id", { description });
+      writeCalls += 1;
+    }
+    for (const extra of candidates) {
+      if (extra.id === pointer.id) continue;
+      await this.#client.delete("/api/issues/" + extra.id);
+      writeCalls += 1;
+    }
+    return { pointer, writeCalls };
+  }
+
+  /**
+   * Publish one signed marker per project (and the optional unassigned bucket).
+   * The root index is written afterwards by publishCommitted, so a failure here
+   * leaves the previous root untouched. Stale project pointers are returned,
+   * not deleted, until the root has been committed.
+   */
+  async publishProjectPointers(projectPlans, { cardIds = {}, complete = true, unassignedPlan = null } = {}) {
+    const issues = await this.#listPointerIssues();
+    const projects = [];
+    const keep = new Set();
+    let writeCalls = 0;
+
+    const writeOne = async (projectId, plan) => {
+      const scoped = {
+        ...plan,
+        scope: { mode: "project", project: projectId, specSlugs: plan.scope?.specSlugs ?? [] },
+      };
+      const own = new Set((scoped.issues ?? []).map((issue) => issue.specId));
+      const ownCards = Object.fromEntries(Object.entries(cardIds).filter(([canonicalId]) => own.has(canonicalId)));
+      const { description } = this.#buildMarker(scoped, { cardIds: ownCards, complete });
+      const specId = projectPointerSpecId(projectId);
+      keep.add(specId);
+      const result = await this.#upsertPointer(specId, description, issues);
+      writeCalls += result.writeCalls;
+      return {
+        pointer: result.pointer.idReadable ?? result.pointer.id,
+        nodeCount: scoped.snapshot.nodes.length,
+        edgeCount: scoped.snapshot.edges.length,
+      };
+    };
+
+    for (const [projectId, plan] of Object.entries(projectPlans ?? {})) {
+      const row = await writeOne(projectId, plan);
+      projects.push({ id: projectId, ...row });
+    }
+
+    let unassigned = null;
+    if (unassignedPlan && (unassignedPlan.snapshot?.nodes?.length ?? 0) > 0) {
+      const row = await writeOne(UNASSIGNED_PROJECT_ID, unassignedPlan);
+      unassigned = { ...row };
+    }
+
+    const stale = issues.filter((issue) => {
+      const specId = fieldValue(issue, "SpecId");
+      return typeof specId === "string" && specId.startsWith(PROJECT_POINTER_PREFIX) && !keep.has(specId);
+    });
+    return { writeCalls, projects, unassigned, stale };
+  }
+
+  async publishCommitted(plan, { cardIds = {}, complete = true, projects = null, unassigned = null, staleProjectPointers = [] } = {}) {
+    const { description } = this.#buildMarker(plan, { cardIds, complete, projects, unassigned });
     let writeCalls = 0;
     let pointer = this.#pointer;
     if (!pointer) {
@@ -550,6 +679,12 @@ export class YouTrackSyncStateStore {
       writeCalls += 1;
     }
     this.#pointers = [pointer];
+    // Root index is committed: safe to drop pointers for projects that no
+    // longer exist. A failed root write above throws before this loop.
+    for (const stale of staleProjectPointers) {
+      await this.#client.delete("/api/issues/" + stale.id);
+      writeCalls += 1;
+    }
     return { writeCalls };
   }
 }

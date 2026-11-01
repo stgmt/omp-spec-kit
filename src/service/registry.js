@@ -39,35 +39,38 @@ function catalogSlugs(catalogEnvelope) {
  * status/version, directory digest, claim state, published pointer. Rebuilt
  * from git on every call; never authoritative for content.
  */
-export async function buildRegistryIndex({ mounts, claims, ledger }) {
-  const projects = [];
-  for (const projectId of mounts.projects) {
-    let mount, root, service;
+export async function buildRegistryIndex({ mounts, claims, ledger, projects = null }) {
+  const indexProjects = [];
+  // A scoped listing builds only the caller's projects: another tenant's
+  // repository is never mounted, fetched or counted as a side effect.
+  for (const projectId of Array.isArray(projects) ? projects : mounts.projects) {
+    let root, service;
     try {
-      mount = mounts.for(projectId);
-      root = mounts.resolveProjectRoot(projectId);
+      root = await mounts.projectRoot(projectId);
       service = mounts.serviceFor(projectId);
     } catch (error) {
-      // Unbound external-tenant project: it exists but has no repo yet.
-      projects.push({ id: projectId, error: error?.code ?? "MOUNT_UNAVAILABLE" });
+      // Unbound project or invalid binding: it exists but has no readable corpus.
+      indexProjects.push({ id: projectId, error: error?.code ?? "MOUNT_UNAVAILABLE" });
       continue;
     }
     const state = await service.ensure();
     if (state.status === "error") {
-      projects.push({ id: projectId, error: state.readerError?.code ?? "ADAPTER_READ_ERROR" });
+      indexProjects.push({ id: projectId, error: state.readerError?.code ?? "ADAPTER_READ_ERROR" });
       continue;
     }
     const catalog = await service.runQuery("catalog", { view: "specs" }, { requestId: null });
     const specs = [];
     for (const slug of catalogSlugs(catalog)) {
-      const specPath = `${projectId}/.specs/${slug}`;
-      const authored = await readAuthoredFields(path.join(root, ".specs", slug, "README.md"));
-      const digestResult = await specificationDirectoryDigest(root, slug);
+      const worktree = await mounts.worktreeFor(projectId, slug, { fetch: false });
+      const specPath = `.specs/${slug}`;
+      const authored = await readAuthoredFields(path.join(worktree.cwd, ".specs", slug, "README.md"));
+      const digestResult = await specificationDirectoryDigest(worktree.cwd, slug);
       const claim = claims.get(projectId, slug);
       const published = ledger.getLedger(`${projectId}/${slug}`)[0] ?? null;
-      const lastChange = await gitLastChange(mount.git, mount.cwd, specPath);
+      const lastChange = await gitLastChange(worktree.git, worktree.cwd, specPath);
       specs.push({
         slug,
+        branch: worktree.branch,
         status: authored.status,
         version: authored.version,
         digest: digestResult.ok ? digestResult.digest : null,
@@ -77,7 +80,7 @@ export async function buildRegistryIndex({ mounts, claims, ledger }) {
         updatedAt: lastChange.updatedAt,
       });
     }
-    projects.push({ id: projectId, specs });
+    indexProjects.push({ id: projectId, specs });
   }
-  return { projects };
+  return { projects: indexProjects };
 }

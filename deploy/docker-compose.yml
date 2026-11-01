@@ -1,32 +1,29 @@
 # spec-registryd compose stack (TASK-11 / FR-15 / AC-7).
 #
 # ГДЕ ЧТО ХРАНИТСЯ (карта данных стека):
-#   Спеки (канон) ......... git-репозиторий. По умолчанию ВНЕ стека —
-#                           операторский GitHub `spec-database` (FR-1: один
-#                           выделенный репо, пишет только сервис). Для
-#                           самодостаточного хоста: профиль `git` поднимает
-#                           bare-репо в стеке → в конфиге specsRepo =
-#                           git://spec-git/specs.git
+#   Спеки (канон) ......... orphan-ветки `spec-<slug>` в репозитории каждого
+#                           проекта. Общего репозитория спек нет: каждая
+#                           запись `bindings` в projects.json указывает на свой
+#                           repoUrl. Для самодостаточного хоста профиль `git`
+#                           поднимает bare-репо в стеке, и проект биндится на
+#                           git://spec-git/specs.git.
 #   Метаданные сервиса .... SQLite-файл /data/registry.db в named volume
-#                           (tenants/claims/ledger/access_log). Решение спеки:
-#                           node:sqlite, один процесс, human-scale — отдельного
-#                           контейнера БД нет (SCHEMA "Stores").
-#   Клон спек-репо ........ /data/specs-clone в том же named volume — рабочий
-#                           ворктри, из которого ядро читает и в который пишет.
+#                           (bindings/credentials/tenants/claims/ledger/access_log).
+#   Зеркала и worktree .... /data/clones в том же named volume: bare mirror на
+#                           пару repoUrl+credential и ленивый worktree на
+#                           каноническую ветку спеки.
 #   Конфиг оператора ...... bind-mount с хоста (read-only): projects.json —
-#                           specsRepo URL, проекты, тенанты (токены).
-#   Доступ к спек-репо .... URL из конфига должен быть достижим из контейнера:
-#                           внешний GitHub, или профиль `git`
+#                           projects + bindings, тенанты и токены.
+#   Доступ к репо ......... repoUrl из bindings должен быть достижим из
+#                           контейнера: внешний GitHub, или профиль `git`
 #                           (git://spec-git/specs.git), или host-path как
 #                           дополнительный read-only bind mount.
 #   YouTrack .............. снаружи (у оператора уже есть) или профиль
-#                           `youtrack` для чистого хоста; синхронизация статусов
-#                           (youtrack-sync) входит в стек с TASK-8 — у sweep
-#                           пока нет своего входного скрипта, ключ не заглушен.
+#                           `youtrack` для чистого хоста.
 #
 # Чистый хост, полностью самодостаточный стек:
 #   SPEC_REGISTRY_CONFIG_PATH=./projects.json docker compose --profile git --profile youtrack up -d
-#   (в projects.json: "specsRepo": "git://spec-git/specs.git")
+#   (в projects.json: bindings: [{ project: "owner/project", repoUrl: "git://spec-git/specs.git" }])
 #
 # TLS для внешних клиентов: профиль `proxy` (nginx TLS, сертификаты оператора
 # в deploy/proxy/certs/). Прямой порт сервиса — только loopback.
@@ -40,16 +37,14 @@ services:
     restart: unless-stopped
     environment:
       SPEC_REGISTRY_CONFIG: /data/config/projects.json
-      SPEC_REGISTRY_CLONE: /data/specs-clone
+      SPEC_REGISTRY_CLONE: /data/clones
       SPEC_REGISTRY_STORE: /data/registry.db
       SPEC_REGISTRY_SYNC_MS: ${SPEC_REGISTRY_SYNC_MS:-30000}
       SPEC_REGISTRY_BOT_NAME: ${SPEC_REGISTRY_BOT_NAME:-spec-registryd bot}
       SPEC_REGISTRY_BOT_EMAIL: ${SPEC_REGISTRY_BOT_EMAIL:-bot@spec-registryd.invalid}
-      # Operator-issued credential for the private specs repo: injected
-      # server-side only, never into config files or MCP responses.
-      SPEC_REGISTRY_GIT_TOKEN: ${SPEC_REGISTRY_GIT_TOKEN:-}
-      SPEC_REGISTRY_GIT_USER: ${SPEC_REGISTRY_GIT_USER:-x-access-token}
-      SPEC_REGISTRY_GIT_AUTH_URL: ${SPEC_REGISTRY_GIT_AUTH_URL:-}
+      # Seals per-repository credentials at rest. Required as soon as any
+      # binding declares tokenEnv; rotate by re-binding the affected projects.
+      SPEC_REGISTRY_SECRETS_KEY: ${SPEC_REGISTRY_SECRETS_KEY:?set SPEC_REGISTRY_SECRETS_KEY to a 32+ character secret}
     volumes:
       - registry-data:/data
       - type: bind
@@ -63,7 +58,7 @@ services:
   # Самодостаточное git-хранилище спек (профиль `git`): bare-репо + git daemon.
   # receive-pack включён — пуш без аутентификации, но порт НЕ публикуется:
   # протокол git:// доступен только внутри сети compose. Для прод-хостинга
-  # спеков на GitHub профиль не нужен — specsRepo в конфиге смотрит наружу.
+  # спеков на GitHub профиль не нужен — binding смотрит на внешний repoUrl.
   spec-git:
     build:
       context: ..

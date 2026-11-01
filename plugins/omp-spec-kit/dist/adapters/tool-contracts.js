@@ -27,6 +27,21 @@ function optionalField(name, kind, values) {
   return { ...field(name, kind, values), optional: true };
 }
 
+// Transport-level context, not operation arguments: every tool may name the
+// registry project that serves the call, and the local stdio/test transport may
+// name a worktree root. The generator injects them into every advertised input
+// schema so the declared contract and the accepted arguments cannot diverge.
+export const TRANSPORT_CONTEXT_FIELDS = Object.freeze({
+  project: Object.freeze({ type: "string" }),
+  declaredWorktree: Object.freeze({ type: "string" }),
+});
+
+function addTransportContextFields(properties) {
+  for (const [name, specification] of Object.entries(TRANSPORT_CONTEXT_FIELDS)) {
+    if (properties[name] === undefined) properties[name] = { ...specification };
+  }
+}
+
 export const TASK_STATUS_VALUES = Object.freeze([
   "planned",
   "todo",
@@ -74,7 +89,7 @@ export const TOOL_CONTRACTS = Object.freeze([
     tool: "spec_catalog",
     label: "Spec Catalog",
     operation: "catalog",
-    description: "Query spec catalog: types dictionary, slugs, inventory, overview, or status.",
+    description: "Query the spec catalog.",
     discriminator: "view",
     variants: Object.freeze({
       types: Object.freeze({
@@ -95,7 +110,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         ]),
       }),
       overview: Object.freeze({
-        description: "Read corpus-level counts, limits, and diagnostic/kind/edge histograms.",
+        description: "Read corpus counts and histograms.",
         fields: Object.freeze([optionalField("specSlugs", "stringArray")]),
       }),
       status: Object.freeze({
@@ -104,6 +119,10 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("spec", "string"),
           optionalField("statusView", "enum", READINESS_VIEW_VALUES),
         ]),
+      }),
+      branches: Object.freeze({
+        description: "List spec branches.",
+        fields: Object.freeze([]),
       }),
     }),
   },
@@ -383,6 +402,14 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("designReview", "json"),
         ]),
       }),
+      deleteEntity: Object.freeze({
+        description: "Delete one authored entity from its owning document.",
+        fields: Object.freeze([
+          field("entity", "string"),
+          optionalField("forceDelete", "boolean"),
+          optionalField("designReview", "json"),
+        ]),
+      }),
       renameSpecDoc: Object.freeze({
         description: "Rename a spec document.",
         fields: Object.freeze([
@@ -588,6 +615,7 @@ export function jsonSchemaFor(contract) {
       properties[entry.name] = branchSchemaType(entry);
       if (!entry.optional) required.push(entry.name);
     }
+    addTransportContextFields(properties);
     return {
       type: "object",
       properties,
@@ -643,16 +671,20 @@ export function jsonSchemaFor(contract) {
       if (!f.optional) required.push(f.name);
     }
 
+    // Root closes unknown keys; branches intentionally omit per-branch
+    // `additionalProperties: false` so transport fields stay in the root
+    // and the catalog stays under the 27 000-byte blast gate (26 220 bytes).
+    // Re-add per-branch closure only if a future remeasure passes.
     oneOf.push({
       type: "object",
       title: `${disc}: ${vName}`,
       description: variant.description,
       properties: vProps,
       required,
-      additionalProperties: false,
     });
   }
 
+  addTransportContextFields(topProperties);
   return {
     type: "object",
     additionalProperties: false,
@@ -749,11 +781,25 @@ export function validateContractArguments(contract, args) {
     };
   }
 
-  // declaredWorktree is transport-level routing metadata like requestId: it
-  // selects which repository root serves the call (multi-worktree agents
-  // share one server; each call may name a different worktree). It is not an
-  // operation argument, so every tool accepts it without contract churn.
-  const COMMON_METADATA_KEYS = new Set(["schemaVersion", "requestId", "declaredWorktree"]);
+  // Transport context is advertised on every tool (see
+  // TRANSPORT_CONTEXT_FIELDS) and is not an operation argument: it selects
+  // which corpus serves the call, so it is accepted without contract churn but
+  // still type-checked here.
+  const COMMON_METADATA_KEYS = new Set(["schemaVersion", "requestId", ...Object.keys(TRANSPORT_CONTEXT_FIELDS)]);
+  for (const name of Object.keys(TRANSPORT_CONTEXT_FIELDS)) {
+    const value = args[name];
+    if (value === undefined) continue;
+    if (typeof value !== "string" || value.trim().length === 0) {
+      return {
+        ok: false,
+        code: "INVALID_REQUEST",
+        message: name + " must be a non-empty string",
+        parameter: name,
+        expected: "string",
+        receivedType: receivedType(value),
+      };
+    }
+  }
 
   if (contract.discriminator) {
     const discKey = contract.discriminator;
@@ -914,10 +960,15 @@ export function validateContractArguments(contract, args) {
 
 export const MUTATING_TOOL_NAMES = Object.freeze(new Set([
   "spec_patch",
+  // Mutating actions of the hosted repository-binding tool; its read-only
+  // variants are gated per action in the dispatcher, never by this set.
+  "spec_repo",
 ]));
 
 export const MUTATING_OPERATION_NAMES = Object.freeze(new Set([
   "specPatch",
+  "specRepoBind",
+  "specRepoUnbind",
 ]));
 
 const READ_TOOL_ANNOTATIONS = Object.freeze({
@@ -940,7 +991,7 @@ export function annotationsFor(contract) {
     : READ_TOOL_ANNOTATIONS;
 }
 
-export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts declaredWorktree (absolute path) to serve that worktree's spec corpus — use it when your session works across multiple git worktrees. ${ELICITATION_HINT}`;
+export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts an optional project (owner/project) that selects the project serving that call only; when it is omitted the host's session project or your default scope applies, and an unresolved or unauthorized project is refused instead of falling back. declaredWorktree (absolute path) selects a corpus only on the local stdio/test transport; the hosted HTTP transport refuses it, so select a project there instead. ${ELICITATION_HINT}`;
 
 export const KERNEL_ENVELOPE_OUTPUT_SCHEMA = Object.freeze({
   type: "object",

@@ -2,6 +2,153 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.1.0 — 2026-11-01
+
+### Upgrade notes
+
+Breaking for existing setups; no compatibility path is kept.
+
+- Re-run the host installer with `--project owner/project`; it writes `<workspace>/.omp-spec-kit/project.json`. Without that record every spec call fails closed with `PROJECT_REQUIRED`.
+- `X-Spec-Project` and `OMP_SPEC_PROJECT` no longer select a project; passing `project` as a tool argument, or the session record, is the only supported route.
+- The first sync after upgrading rebuilds the board projection as v8; a v7 marker is not read.
+
+### Added
+
+- **Per-call project selection on the MCP boundary**: every hosted tool now advertises an optional `project` in the schema that generates `tools/list`, and the dispatcher resolves it per call — explicit argument, then request-scoped context, then the caller's default scope — so one connection serves several projects without a restart. Refusals are distinct and happen before any corpus access: `PROJECT_REQUIRED`, `PROJECT_NOT_ALLOWED`, `PROJECT_NOT_CONFIGURED`. The hosted transport rejects `declaredWorktree` with `WORKTREE_ROUTING_UNSUPPORTED`; the local stdio transport rejects a registry `project` with `PROJECT_CONTEXT_UNSUPPORTED`. Covered by `tests/service/http.test.mjs` (A/B/A on one connection, refusals, advertised schema) and `tests/service/project-not-configured.test.mjs`.
+- **`spec_repo` tool**: one discriminated tool over the existing repository services — `bind` and `unbind` are mutating variants with their own operation names (a reader is refused before any repository access), `probe` and `bindings` are read-only and scope-filtered. Setup no longer requires an out-of-band `POST /repos/bind`.
+- **Repo-local session project**: `<workspace>/.omp-spec-kit/project.json` (`omp-spec-kit/project-binding@1`). The installers now require `--project owner/project` and write that record for the workspace they configure; the OMP extension, OpenCode plugin, Codex hook and Claude `PreToolUse` hook read it per session and attach it to spec calls only, failing closed with `PROJECT_REQUIRED` when it is missing.
+- **Project-qualified board identity (projection v8)**: card ids are keyed `project\0spec`, so two projects may use the same spec slug and the same spec-local id without colliding; task-status writeback resolves its target from the card's own project. The v8 pointer is rebuilt from the mounts and the root index is published last; the migration is idempotent (second sync converges).
+
+### Changed
+
+- `mcp_preflight` reports five separate admission facts — connection, selected project and its source, repository binding, corpus presence, mutation readiness — instead of a root compared with itself; `matchesResolvedRoot` is gone and `rootId` is a hash, never a path.
+- Scoped results carry the project that actually served them through the single provenance owner (`withServedProject`).
+- Listing operations (`spec_registry`, `spec_drift`) are filtered to the caller's verified scopes, including repository URLs and drift events.
+- The setup warning distinguishes a configured endpoint from a bound workspace: a configured endpoint with no project record still warns, and the message names the record path and the binding call. The "restart the session" advice is removed.
+
+### Removed
+
+- The `X-Spec-Project` connection header, `OMP_SPEC_PROJECT` as a project selector, and the `stgmt/omp-spec-kit` installer default.
+- The flat `specProjects` slug-to-project routing map and the v7 marker read path; a pre-v8 marker is rebuilt from the mounts rather than read through a compatibility branch.
+
+### Verification
+
+`npm run build`, `npm run verify` (blast gate 26 220 / 27 000 bytes, 170/170 mutants killed, tools=10), `npm run test:unit` (508 tests, 0 fail), `npm run test:service` (98 tests, 0 fail, includes `project-scope` and `project-not-configured`), `npm run test:safe-authoring` (27 scenarios / 162 steps), `npm run test:staged` (66 scenarios / 396 steps), `npm run test:bdd` (Docker, 8 scenarios / 77 steps), `npm run dogfood:mcp:candidate` (10 tools), `npm run tool:e2e:live` (16 served tools against the live auth contour, `complete: true`), `npm run test:delivery-live` (6 scenarios / 57 steps on the live compose stack) on the same tree.
+
+## 3.0.8 — 2026-11-01
+
+### Fixed
+
+- **Codex 0.166 hook blocking**: Codex 0.166 ignores exit code 2 when a hook also writes JSON, and fails open on a bare exit 2. The hook now detects the managed CLI version and emits the legacy `decision: "block"` plus the current `hookSpecificOutput.permissionDecision: "deny"` shape (exit 0) for 0.166+, while keeping exit 2 for older Codex. A live `codex exec` 0.166 session (`gpt-6.1-terra`) blocks a `.specs` read with `RAW_SPEC_WRITE` and serves `spec_catalog` over MCP (10 specs). Covered by the process-level test in `tests/codex/hook.test.mjs`.
+- **Host evidence for 0.166**: `docs/validation/host-matrix-v3.0.8.md` and `docs/validation/host-live-v3.0.8.md` record the live Codex, OpenCode, and OMP sessions; the Codex SessionStart warning is also a real hook process.
+
+## 3.0.7 — 2026-11-01
+
+### Fixed
+
+- **OpenCode guard actually loads on OpenCode 1.19.3**: the host scans `.js` plugin files and ignores `.mjs`, so the previous installer's `.mjs` loaders were silently skipped. The installer now writes ESM `.js` bridges (dynamic-importing the packaged adapter) while keeping the legacy `.mjs` files, and records `opencodeConfigPath` in `spec-kit-guard.json`. A live `opencode run` session now blocks a direct `.specs` read with `SPEC_READ_REDIRECT` and serves `spec_catalog` over MCP. Covered by `tests/unit/service/opencode-loader.test.mjs`, which installs into a temporary host and executes the installed bridge.
+- **Live host matrix evidence for 3.0.7**: OpenCode and OMP were exercised in real CLI sessions (direct `.specs` read blocked, MCP `spec_catalog` returns 10 specs). Codex sessions remain adapter-level: the local CLI account rejected every available model with `model_not_found`, so no Codex session transcript is claimed. See `docs/validation/host-matrix-v3.0.7.md`.
+
+## 3.0.6 — 2026-11-01
+
+### Added
+
+- **Project-scoped Spec Board (app 1.0.48)**: the committed state is a v7 root index (`SPEC:SYNC-STATE`) with one signed pointer per project plus an `Unassigned` bucket. The board adds an `All projects` selector, loads the selected project's pointer, persists `?project=`, resolves an unknown selection to `Unassigned`, and fails closed with `PROJECTION_INDEX_REQUIRED` instead of rendering a stale aggregate. `spec_graph board { project }` serves the same scopes; the manual HTTP reader carries per-project boards so the script path publishes the same index.
+- **Executable `youtrack-spec-delivery` scenarios**: `tests/features/youtrack-spec-delivery.feature` + steps implement the six acceptance scenarios against the live compose stack (placement, setup health, shared dashboard for a second user, upgrade, demo load/delete, agent warning). The full run is 6 scenarios / 56 steps; the release workflow runs `npm run test:delivery-live`.
+
+### Fixed
+
+- **Dashboard provisioning is idempotent and sharing is mandatory**: a stale, duplicate, or narrow `spec-board` embedding is replaced; a missing `All Users` group fails the provision instead of reporting a ready dashboard; the persisted one-full-width-widget + share state is verified before `status: ok`. The page logic lives in `widgets/spec-app/dashboard.js` with behavior tests.
+- **The health page survives an unreachable service**: the six-row checklist and next action stay visible instead of being replaced by a dead error page; `health/app` answers before settings exist and the snapshot probe uses the configurable `markerProject` setting (default `SPEC`).
+- **Clean-host setup continues past a conflicting agent config**: OpenCode/Codex guards report the existing-stack conflict as a skip with the installer's reason; the demo stack still does not overwrite it.
+- **SPEC project provisioning adds the short SpecKind labels** (`FR`, `NFR`, `AC`) the projection actually writes, so a fresh stack no longer fails card creation with `incompatible-issue-custom-field-name-SpecKind`.
+
+## 3.0.5 — 2026-11-01
+
+### Fixed
+
+- **Release evidence fixture matches the shipped sources**: the 3.0.4 tag failed the unit gate because the checked-in Cucumber source-input manifest still pinned the pre-3.0.4 `CHANGELOG.md` bytes. The fixture was refreshed from the captured Docker BDD stream and `@release-candidate-regression` passes again.
+- 3.0.4 never produced a GitHub release; 3.0.5 supersedes it with the same app (1.0.39) and release content.
+
+## 3.0.4 — 2026-10-31
+
+### Added
+
+- **Spec Service health/doctor and dashboard provisioning (app 1.0.39)**: the page renders a Health panel (settings, service, repository, dashboard, snapshot, specs) before `serviceUrl`/`serviceBridgeToken` exist, names the one next action, and can create or update the single `Spec Stack` dashboard with `spec-board`, shared with `All Users`.
+- **`youtrack-spec-delivery` scenarios**: six design-reviewed scenarios cover placement, setup health, the shared dashboard for a second user, upgrade preservation, demo delete, and the agent warning.
+
+### Fixed
+
+- **Dependents verification uses the strict-fetched corpus**: the `archivalProof` callback no longer performs a second tolerant fetch that could hide a newly added inbound reference.
+- **Release tool E2E is complete**: the live auth corpus seeds an `@id:` scenario, and `npm run tool:e2e:live` fails unless `spec_evidence` succeeds (`complete: true`).
+- **Owner demo deletion overrides a soft claim**; the audit result records `force` and the dependent count.
+- **`deleteSpec` guard tests** cover owner-claim bypass and the full writer/legacy/dependents/projection matrix.
+- **Dashboard re-provision is idempotent on YouTrack 2025.3**: a repeated `spec-board` key returns `400 "'key' should be unique within a dashboard"`; `ensureWidget` now treats that as the duplicate refusal and replaces the board instead of failing, covered by a unit test.
+
+## 3.0.3 — 2026-10-31
+
+### Fixed
+
+- **FR-6/AC-6.1 alignment**: a writer can delete a demo spec when `.spec-kit.json` carries the immutable `demo: true` binding flag. Legacy README-only demo markers remain owner-only, so writers cannot self-attest a normal spec into deletable state.
+- **Dependent references**: `deleteSpec` now verifies live inbound references via `archivalProof`; it refuses with `SPEC_HAS_DEPENDENTS` unless an owner passes `force: true`.
+- **Projection confirmation**: deletion awaits `projection.syncOnce()` and writes the audit record before the response, so cards/links are reconciled as part of the confirmed operation.
+- **Ledger guard is mandatory**: the branch manager refuses `deleteSpec` when no ledger store is configured.
+- **Release tool E2E**: `npm run tool:e2e:live` runs the 15-tool matrix against the authenticated live contour in the release workflow.
+- The demo template now marks its branch with `demo: true` in `.spec-kit.json`.
+
+## 3.0.2 — 2026-10-31
+
+### Fixed
+
+- **`deleteSpec` fails closed** when the remote tag lookup or fetch fails, instead of treating an unreachable remote as “no published versions”.
+- **Ledger guard**: a published ledger row blocks demo deletion even when its remote tag was deleted out of band.
+- **Unpushed work is protected**: `deleteSpec` refuses when the local worktree has uncommitted changes or commits ahead of the canonical ref.
+- **`SessionStart` matches the registry server name**; an unrelated MCP server no longer suppresses the setup warning.
+- **Release workflow** now runs `test:staged` and `dogfood:mcp:candidate` in addition to unit/service.
+- **`install-host --token`** is rejected for Claude instead of being silently ignored.
+- The `spec_branch` description names the `deleteSpec` action.
+
+## 3.0.1 — 2026-10-31
+
+### Fixed
+
+- **Cross-project branch safety**: `create`, `delete`, and `deleteSpec` now require `.spec-kit.json` to name the requested `project` and `spec`. A repository may host several projects; a writer of one project can no longer mutate another project's branch through the shared mirror.
+- **`deleteSpec` is owner-only** and reads `Demo: true` from the canonical remote ref, never from a mutable worktree. It refuses while unmerged work branches or published versions exist, and deletes with `--force-with-lease` against the tip it inspected.
+- **`install-host` writes no secret**: the Claude `.mcp.json` references `${OMP_SPEC_REGISTRY_TOKEN}`; the backup is `0600` and the root config is gitignored.
+- **`tool:e2e` reads `data.nodes`**, so `spec_evidence` runs its real scenario path; the report distinguishes a complete 15-tool run from a typed-evidence-only run.
+- **Claude `SessionStart` honors user-scope config** (`~/.claude.json` / `CLAUDE_CONFIG_DIR`) instead of warning on a configured project.
+- **Release workflow runs `test:unit` and `test:service`**, bootstrapping the same live YouTrack contour as branch CI.
+
+### Changed
+
+- The host matrix is explicitly adapter-level for Codex/OpenCode/OMP; P12-9 no longer claims recorded interactive sessions.
+
+## 3.0.0 — 2026-10-31
+
+### Changed
+
+- **Specs are orphan branches**: a canonical specification is `spec-<slug>` in its project repository, bound by `.spec-kit.json`; `spec-<slug>--<topic>` holds unmerged work. The shared `stgmt/spec-database` repository and the global `SPEC_REGISTRY_GIT_TOKEN` are retired.
+- **Per-repository credentials**: bindings carry their own sealed token; mirrors are keyed by repository + credential, and unbinding no longer affects any other project.
+- **Setup-required is a first-class state**: `/status`, `mcp_preflight.setup`, and `SETUP_REQUIRED` report unbound projects; Claude, Codex, OpenCode, and OMP receive one bounded session-start warning (configured hosted projects stay silent).
+- **`scripts/install-host.mjs`**: one installer entry point for Claude, Codex, and OpenCode, plus the OMP PluginManager command.
+
+### Added
+
+- **`spec-dashboard-setup`**: idempotent ZIP/CLI-era dashboard provisioner that finds/creates `Spec Stack`, installs the full-width `Spec Board` widget, and merges `All Users` into `readSharingSettings`.
+- **Fresh-install mode**: `spec-stack-setup --no-demo` provisions the dashboard and pointer without seeding template specs, so a fresh project honestly shows zero valid specs.
+- **Coding-agent setup warning**: a Claude Code `SessionStart` hook emits one bounded, redacted warning when the plugin is installed without a corpus or MCP/registry configuration; configured projects stay silent.
+- **`youtrack-spec-delivery` specification**: created in the specs repository with the delivery, fresh/upgrade, dashboard, demo, delete, and warning contracts.
+
+### Fixed
+
+- `spec_branch` now declares its service-contract fields with the schema vocabulary the dispatcher uses (`kind`/`values`/`optional`), so `create`, `merge`, and `delete` no longer fail with an internal `includes` error.
+- A caller context without `scopes` no longer crashes project resolution; it returns a normal authorization error.
+- **Spec Board is readable again**: the committed `SPEC:SYNC-STATE` marker now carries a compact board snapshot (id/slug/kind/title/excerpt/taskStatus and edges) instead of every node body. The real corpus exceeded YouTrack's 512 000-character issue-description limit, so the marker was truncated and both widgets refused it as invalid JSON. `publishCommitted` now fails with `MARKER_TOO_LARGE` before writing an over-limit marker, leaving the previous snapshot intact.
+- **Issue panel recognizes Text-shaped `SpecId`**: `Spec Panel` requested `value(name,presentation)` and ignored `value.text`, so every linked issue rendered as "not linked to a spec". It now requests and reads the Text value. The separate Spec Service issue card was removed in 1.0.35 — setup lives only in Administration → Integrations.
+- **Spec Board dashboard is shared with tenant users**: `spec-stack-setup` shares the provisioned dashboard with `All Users` and the tenant group instead of leaving it private to the admin account.
+- **Placement regression closed at the release boundary**: the README still pinned `spec-graph-app-1.0.25.zip`, whose manifest declared `MAIN_MENU_ITEM` and put `Spec Service` back into the main left navigation. The install docs now use the latest release asset without a pinned version, the stale tracked `release-candidate/spec-graph-app` staging tree is removed and ignored, and `scripts/check-app-placement.mjs` gates both `npm run verify` and release preflight against the source manifest and the assembled candidate.
+- **Issue-view setup door removed (app 1.0.35)**: `spec-service-panel` (the "Open Spec Service" card inside every issue) is deleted from the manifest and package. The only setup entry point is Administration → Integrations; the issue view keeps only the read-only `Spec Panel`, and the installer/placement gate reject a package that reintroduces the card.
+
 ## 2.9.0 — 2026-10-09
 
 ### Added
@@ -74,7 +221,7 @@ Merges the 1.3.x line (released as v1.4.0) into the 2.x product: scenario-author
 
 ### Changed — onboarding moved off issues onto the app's own page
 
-- **`spec-app` @ `MAIN_MENU_ITEM`**: a "Spec Service" page in the YouTrack main menu now hosts the full onboarding stepper (repo state/bind, verify, `.mcp.json` mint + paste-token fallback). `?step=agent` deep-links to the agent step. Installing the ZIP no longer surfaces setup inside issues — it creates nothing in the tracker.
+- **`spec-app` @ `MAIN_MENU_ITEM`**: a "Spec Service" page in the YouTrack main menu now hosts the full onboarding stepper (repo state/bind, verify, `.mcp.json` mint + paste-token fallback). `?step=agent` deep-links to the agent step. Installing the ZIP no longer surfaces setup inside issues — it creates nothing in the tracker. **Superseded in 3.0.0:** `spec-app` moved to `ADMINISTRATION_MENU_ITEM` (Administration → Integrations); no main-menu widget is allowed and `MAIN_MENU_ITEM` packages are rejected.
 - **`spec-service-panel` reduced to a context card**: linked spec (when `SpecId` is set), repo status chips, and an `Open Spec Service` link — no wizard, bind forms, or MCP config inside an issue.
 - **Discovery via the native System-wide banner** (admin-configured in Global Settings); the apps API exposes no user-notification channel, so none is fabricated.
 - App version 1.0.24. Decision doc: `docs/decisions/app-page-onboarding.md`.
@@ -457,10 +604,6 @@ Published safe-authoring release for OMP `18.0.11`; v0.3.2 remains the read-only
 - Adds deterministic proposal preview, approval-bound apply, document-level CAS, replay-safe receipts, rollback-on-failure, and strict `.specs` access gating.
 - Verifies a provenance-bound 45-document corpus, installed OMP manager execution, lifecycle install/upgrade/rollback producers, Docker BDD, nine closed MRI receipts, and digest-bound GitHub release assets.
 - Published release proof: `docs/validation/release-status-v0.4.0.json`.
-
-## Unreleased
-
-No unreleased changes recorded.
 
 ## 0.3.2 — 2026-08-28
 

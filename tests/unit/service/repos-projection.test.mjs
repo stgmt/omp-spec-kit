@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import { describe, it, after } from "node:test";
 import { MountManager, parseProjectsConfig } from "../../../src/service/mounts.js";
 import { createRepoManager } from "../../../src/service/repos.js";
+import { sealSecret } from "../../../src/service/secrets.js";
 
 const execFileAsync = promisify(execFile);
 const tempDirs = [];
@@ -52,8 +53,6 @@ describe("repo bind/unbind repo-change trigger", () => {
     await execFileAsync("git", ["init", "--bare", "--initial-branch=main", specsBare]);
     await execFileAsync("git", ["init", "--bare", "--initial-branch=main", byoBare]);
     const config = parseProjectsConfig({
-      specsRepo: pathToFileURL(specsBare).href,
-      branch: "main",
       projects: [{ id: "stgmt/alpha" }],
       auth: AUTH_BLOCK,
     });
@@ -92,8 +91,6 @@ describe("repo bind/unbind repo-change trigger", () => {
     const specsBare = path.join(dir, "specs.git");
     await execFileAsync("git", ["init", "--bare", "--initial-branch=main", specsBare]);
     const config = parseProjectsConfig({
-      specsRepo: pathToFileURL(specsBare).href,
-      branch: "main",
       projects: [{ id: "stgmt/alpha" }],
       auth: AUTH_BLOCK,
     });
@@ -122,5 +119,66 @@ describe("repo bind/unbind repo-change trigger", () => {
       }),
     );
     assert.equal(calls.length, 0, "failed bind does not trigger a projection run");
+  });
+
+  it("keeps the source credential until the target mirror is ready", async () => {
+    const dir = await tempDir();
+    const oldBare = path.join(dir, "old.git");
+    const newBare = path.join(dir, "new.git");
+    await execFileAsync("git", ["init", "--bare", "--initial-branch=main", oldBare]);
+    await execFileAsync("git", ["init", "--bare", "--initial-branch=main", newBare]);
+    const oldUrl = pathToFileURL(oldBare).href;
+    const newUrl = pathToFileURL(newBare).href;
+    const config = parseProjectsConfig({
+      projects: [{ id: "stgmt/alpha" }],
+      auth: AUTH_BLOCK,
+    });
+    config.repoPolicy = { allowedHosts: ["file"] };
+    const secretsKey = "k".repeat(32);
+    const bindings = new Map([["stgmt/alpha", {
+      project: "stgmt/alpha",
+      repoUrl: oldUrl,
+      branch: "main",
+      status: "active",
+      boundBy: null,
+      boundAt: new Date().toISOString(),
+      migratedFrom: null,
+      migratedFromBranch: null,
+      lastError: null,
+    }]]);
+    const credentials = new Map([["stgmt/alpha", {
+      repoUrl: oldUrl,
+      tokenEnc: sealSecret(secretsKey, "old-token"),
+      username: null,
+    }]]);
+    const store = {
+      getBinding: (project) => bindings.get(project) ?? null,
+      putBinding: async (row) => { bindings.set(row.project, { ...row }); },
+      getCredential: (project) => credentials.get(project) ?? null,
+      putCredential: async (project, row) => { credentials.set(project, { ...row }); },
+      deleteBinding: async () => {},
+      deleteCredential: async () => {},
+      logAccess: () => {},
+    };
+    const mounts = new MountManager({ config, cloneDir: path.join(dir, "clone"), store, secretsKey, identity: { name: "b", email: "b@x" } });
+    const repos = createRepoManager({
+      mounts,
+      store,
+      config,
+      identity: { name: "b", email: "b@x" },
+      secretsKey,
+      logger: () => {},
+    });
+    mounts.ensureMount = async () => {
+      assert.equal(bindings.get("stgmt/alpha").status, "migrating");
+      assert.equal(credentials.get("stgmt/alpha").repoUrl, oldUrl, "the source credential must survive the move");
+      assert.equal(mounts.authFor("stgmt/alpha", oldUrl).token, "old-token");
+      throw new Error("simulated mirror failure");
+    };
+    await assert.rejects(
+      repos.bindInternal({ project: "stgmt/alpha", repoUrl: newUrl, token: "new-token", migrate: false }),
+    );
+    assert.equal(credentials.get("stgmt/alpha").repoUrl, oldUrl, "a failed bind must not strand the source credential");
+    assert.equal(bindings.get("stgmt/alpha").status, "error");
   });
 });

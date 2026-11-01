@@ -62,10 +62,21 @@ async function seededBare() {
   return { dir, bare, byoBare };
 }
 
-function stackConfig(specsBare) {
-  const config = parseProjectsConfig({
-    specsRepo: pathToFileURL(specsBare).href,
+function boundStore(specsBare) {
+  const store = memoryStore();
+  store.bindings.set("stgmt/alpha", {
+    project: "stgmt/alpha",
+    repoUrl: pathToFileURL(specsBare).href,
     branch: "main",
+    status: "active",
+    migratedFrom: null,
+    migratedFromBranch: null,
+  });
+  return store;
+}
+
+function stackConfig() {
+  const config = parseProjectsConfig({
     projects: [{ id: "stgmt/alpha" }],
     auth: AUTH_BLOCK,
   });
@@ -76,12 +87,12 @@ function stackConfig(specsBare) {
 describe("buildServiceStack projection wiring", () => {
   it("projection disabled: ops endpoints report enabled:false without touching YouTrack", async () => {
     const { dir, bare } = await seededBare();
-    const config = stackConfig(bare);
-    const mounts = new MountManager({ config, cloneDir: path.join(dir, "clone"), store: memoryStore(), secretsKey: SECRETS_KEY, identity: { name: "b", email: "b@x" } });
+    const config = stackConfig();
+    const mounts = new MountManager({ config, cloneDir: path.join(dir, "clone"), store: boundStore(bare), secretsKey: SECRETS_KEY, identity: { name: "b", email: "b@x" } });
     const stack = buildServiceStack({
       mounts,
       config,
-      store: memoryStore(),
+      store: boundStore(bare),
       secretsKey: SECRETS_KEY,
       env: {},
       logger: () => {},
@@ -93,8 +104,8 @@ describe("buildServiceStack projection wiring", () => {
 
   it("projection enabled: the marker signature verifies against the env-provided shared key", async () => {
     const { dir, bare } = await seededBare();
-    const config = stackConfig(bare);
-    const mounts = new MountManager({ config, cloneDir: path.join(dir, "clone"), store: memoryStore(), secretsKey: SECRETS_KEY, identity: { name: "b", email: "b@x" } });
+    const config = stackConfig();
+    const mounts = new MountManager({ config, cloneDir: path.join(dir, "clone"), store: boundStore(bare), secretsKey: SECRETS_KEY, identity: { name: "b", email: "b@x" } });
     await mounts.boot();
     const captured = [];
     const realFetch = globalThis.fetch;
@@ -127,7 +138,7 @@ describe("buildServiceStack projection wiring", () => {
       const stack = buildServiceStack({
         mounts,
         config,
-        store: memoryStore(),
+        store: boundStore(bare),
         secretsKey: SECRETS_KEY,
         env: { SPEC_REGISTRY_PROJECTION: "1", SPEC_REGISTRY_YT_URL: "http://yt.test", SPEC_SYNC_MARKER_KEY: MARKER_ENV_KEY },
         logger: () => {},
@@ -150,8 +161,8 @@ describe("buildServiceStack projection wiring", () => {
 
   it("projection enabled: a set-but-short SPEC_SYNC_MARKER_KEY fails closed at stack build", async () => {
     const { dir, bare } = await seededBare();
-    const config = stackConfig(bare);
-    const mounts = new MountManager({ config, cloneDir: path.join(dir, "clone"), store: memoryStore(), secretsKey: SECRETS_KEY, identity: { name: "b", email: "b@x" } });
+    const config = stackConfig();
+    const mounts = new MountManager({ config, cloneDir: path.join(dir, "clone"), store: boundStore(bare), secretsKey: SECRETS_KEY, identity: { name: "b", email: "b@x" } });
     // Reverting the service to the former inline `env.SPEC_SYNC_MARKER_KEY ??`
     // expression would silently sign with the short key — this assertion is
     // the discriminating guard on the shared-resolver wiring.
@@ -160,7 +171,7 @@ describe("buildServiceStack projection wiring", () => {
         buildServiceStack({
           mounts,
           config,
-          store: memoryStore(),
+          store: boundStore(bare),
           secretsKey: SECRETS_KEY,
           env: { SPEC_REGISTRY_PROJECTION: "1", SPEC_REGISTRY_YT_URL: "http://yt.test", SPEC_SYNC_MARKER_KEY: "too-short" },
           logger: () => {},
@@ -171,13 +182,13 @@ describe("buildServiceStack projection wiring", () => {
 
   it("repo bind/unbind through the composed stack fires projection.syncNow once each", async () => {
     const { dir, bare, byoBare } = await seededBare();
-    const config = stackConfig(bare);
-    const mounts = new MountManager({ config, cloneDir: path.join(dir, "clone"), store: memoryStore(), secretsKey: SECRETS_KEY, identity: { name: "b", email: "b@x" } });
+    const config = stackConfig();
+    const mounts = new MountManager({ config, cloneDir: path.join(dir, "clone"), store: boundStore(bare), secretsKey: SECRETS_KEY, identity: { name: "b", email: "b@x" } });
     await mounts.boot();
     const stack = buildServiceStack({
       mounts,
       config,
-      store: memoryStore(),
+      store: boundStore(bare),
       secretsKey: SECRETS_KEY,
       env: { SPEC_REGISTRY_PROJECTION: "1", SPEC_REGISTRY_YT_URL: "http://127.0.0.1:1", SPEC_SYNC_MARKER_KEY: "m".repeat(40) },
       logger: () => {},
