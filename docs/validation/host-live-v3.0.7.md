@@ -92,12 +92,13 @@ Next: bind the project ...
 This is a real hook process, not only the adapter unit test; it is still not a
 model session, so the Codex row remains short of a live model transcript.
 
-A local OSS attempt (`codex exec --oss --local-provider ollama`, Llama 3.2 3B,
-128k context) did start a live Codex session, but the model repeatedly emitted
-invalid tool-call arguments (`failed to parse function arguments: invalid type`)
-and never reached the guard. That is a local-model tool-calling limitation, not
-a host guard result; the temporary GGUF/Ollama models were removed after the
-probe.
+A local OSS attempt (`codex exec --oss --local-provider ollama`, Llama 3.1 8B,
+131k context) recorded a live Codex model turn: 81,061 input tokens, output
+`OK.`. A second turn asked for a shell command; the OSS bridge did not expose a
+`shell` tool to the model, so the turn completed without reaching the guard
+(`You have not provided the shell tool`). That is a Codex OSS tool-bridge
+limitation, not a host guard result. The guard itself is covered by the real
+hook process above. Temporary GGUF/Ollama models were removed after the probe.
 
 ## Setup-required warning
 
