@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "e8053056ff57e2de8cd699635aa8271288411848cae81c0b6a30d31a82b6eedb",
+  "aggregateSha256": "78c69f35f6369eb540283f5bbec22d0813bb1386cd7062ce27268f2e81585888",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -10,8 +10,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 68511,
-      "sha256": "cd4938bbf05c0a5d5db0686b1cbd6ed5e92f44d164e324c8f3eb6462a9aa6074"
+      "bytes": 71099,
+      "sha256": "71f764882c9c23a820e1d6e262f510a29d4d363746ecfc11c33bdaec2c739820"
     },
     {
       "path": "LICENSE",
@@ -20,8 +20,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 12341,
-      "sha256": "7f19a4652ae0bd73a4afd3e8427c87a8c5f2a003117d09d5143ac1df328b2b56"
+      "bytes": 13754,
+      "sha256": "d85c7e88e53e160dec5547b51cbc05bb60f262b848aa246d537645cc58095482"
     },
     {
       "path": "cucumber.mjs",
@@ -199,6 +199,11 @@
       "sha256": "8d7423b602861eea20e8f6918a37d6dba71325866073a2d48002f2602ad7e484"
     },
     {
+      "path": "scripts/host-delivery.mjs",
+      "bytes": 21202,
+      "sha256": "7dd57d106620a8ef5d7a9b7dcdbf29b488167c3e0d4c0a3b0c373215d225e8dd"
+    },
+    {
       "path": "scripts/install-codex-guard.mjs",
       "bytes": 9062,
       "sha256": "ff36facb035263d318a1dab793aa5091d85d982075eacd58ecaaab807346c53c"
@@ -212,6 +217,11 @@
       "path": "scripts/install-opencode-guard.mjs",
       "bytes": 7645,
       "sha256": "ee4316296b01e9cb7ffff3f5f371339eef99fd3c7629a2f0a12ab1ad398e252e"
+    },
+    {
+      "path": "scripts/install-stamp.mjs",
+      "bytes": 2857,
+      "sha256": "c8f4405ee81d042aa2c56ad7c4083563f6ae12050966023616343b31a6cfd09d"
     },
     {
       "path": "scripts/lifecycle/build-tagged-candidate.mjs",
@@ -372,6 +382,11 @@
       "path": "scripts/verify-release.mjs",
       "bytes": 31577,
       "sha256": "25795fa2bcc68f9d89118fbf94544b77aff602e657cd6d4a3793b45f84b92985"
+    },
+    {
+      "path": "scripts/version.mjs",
+      "bytes": 4934,
+      "sha256": "dd6a18e5debd73cc9abbd9cfa92ff9effd5994e96e39a1d3111b8d678da4330d"
     },
     {
       "path": "src/adapters/document-service.js",
@@ -1787,6 +1802,11 @@
       "path": "tests/helpers/tool-e2e.mjs",
       "bytes": 26559,
       "sha256": "aae28c154dc8413dcbf566c9d2caf84ecac90de59a323dd0f0a6610f632a7744"
+    },
+    {
+      "path": "tests/host-delivery.test.mjs",
+      "bytes": 6736,
+      "sha256": "486283bc0480cb2dd422b945fea6c3d44c432b898d4272c7892768e9c07b1f4f"
     },
     {
       "path": "tests/hosts/omp-project-injection.test.mjs",
