@@ -84,6 +84,27 @@ node scripts/install-host.mjs --host omp --project owner/project
 
 Every host reads that record at call time for its own session workspace and attaches the project to each registry spec call; an explicit `project` argument on a call still wins for that call only. Two sessions in different repositories run concurrently on their own projects; moving one session to another workspace changes only its next calls — no restart, no reconnect. A spec call in a workspace with no record is refused with `PROJECT_REQUIRED` (and the preflight/setup warning names `spec_repo {"action":"bind",…}`), while ordinary bash/read/edit calls are untouched.
 
+### Keeping the hosts current
+
+A host that holds a copied plugin keeps answering with the version it was installed at, so an upgraded repository and a stale host look identical from the outside. Two commands close that gap:
+
+```sh
+npm run hosts:audit    # read-only, exits 1 on drift
+npm run hosts:sync     # repairs through the installers, then audits again
+```
+
+The audit prints one row per host: the version it holds, the config file it reads, and whether that entry is usable — present, URL matching, no removed `X-Spec-Project` header, no literal bearer token where an environment reference belongs. It finishes with a real `initialize` against the registry, so a broken credential is reported before a session hits it. OMP is checked as a plugin link (its version follows the repository), Claude through its own plugin list, and Codex and OpenCode through the `.installed.json` stamp their installers write.
+
+A running process keeps the environment it started with. When the token in the audit's environment differs from the persisted one, the report says so and names the restart — no installer can replace another process's environment.
+
+The release version is written once and copied everywhere by:
+
+```sh
+npm run version:set 3.3.1   # package.json, both plugin manifests, the marketplace catalog, the code constant, the extension entry
+npm run version:check       # runs inside npm run verify
+```
+
+
 ## Self-hosted demo stack
 
 A complete working contour — YouTrack (identity + app host), `spec-git` (per-project spec branches served as a local fixture), and `spec-registryd` — ships in [`skills/spec-stack-setup/`](skills/spec-stack-setup/SKILL.md) and comes up with one command:

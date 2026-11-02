@@ -17,6 +17,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installSkills } from "../src/hosts/skills.mjs";
 import { isProjectIdentity, writeProjectBinding } from "../src/enforcement/project-binding.js";
+import { PLUGIN_VERSION } from "../src/adapters/plugin-version.js";
+import { writeStamp } from "./install-stamp.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -140,8 +142,10 @@ if (existsSync(configPath)) {
 writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
 
 const record = writeProjectBinding(workspace, project.trim());
+const stamp = writeStamp(pluginRoot, { version: PLUGIN_VERSION, source: repositoryRoot });
 
 console.log(`guard installed: ${pluginsDir}`);
+console.log(`installed copy: omp-spec-kit@${stamp.version} (digest ${stamp.digest.slice(0, 12)})`);
 console.log(`skills installed: ${skills.join(", ")}`);
 console.log(`registry: ${serverName} -> ${url}`);
 console.log(`host config: ${configPath}`);

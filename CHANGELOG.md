@@ -2,6 +2,23 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.3.0 — 2026-11-02
+
+### Added
+
+- **`npm run hosts:audit` and `npm run hosts:sync`.** One command reports every agent host on the machine — OMP, Claude Code, Codex and OpenCode — with the version it actually holds, the config file it reads, and the state of both: entry present, URL matching, no removed `X-Spec-Project` header, no literal bearer token, installed copy at the current version and unedited since it was written. `hosts:sync` repairs through the installers and re-audits; the audit alone is read-only and exits non-zero on drift, so it fits a pre-release check. The registry is probed with a real `initialize`, and a token that no longer matches the persisted one is reported as "restart the host" instead of "broken".
+- **`npm run version:set <x.y.z>` and `npm run version:check`.** The version is written from one argument into all seven places that must carry it literally and checked as part of `npm run verify`, so a half-finished bump fails the build. `scripts/build-plugin.mjs` and `scripts/verify-marketplace.mjs` now import the constant instead of keeping copies of it, and `expectedManagerToolCount` answers for the current version from `TOOL_CONTRACTS`.
+- **Install stamps.** The OpenCode and Codex installers write `.installed.json` (`version`, `digest`, `source`, `installedAt`) into the copy they own, so "is this copy stale" is a comparison of two files rather than a guess. A copy whose bytes changed under an unchanged version reports `edited`.
+
+### Fixed
+
+- **The Codex installer no longer replaces a working token with a dead one.** It ran `setx OMP_SPEC_REGISTRY_TOKEN <token from the caller's environment>` unconditionally, so a repair started from a shell that predated a rotation wrote the stale value into the user environment and broke every host at once. It now persists only a missing variable and says so when a different value already exists; `--overwrite-env` is the deliberate rotation path.
+- **Codex could keep a copy from an older release.** Nothing compared the installed copy to the repository, so `~/.codex/spec-kit-guard` stayed on 3.1.0 while every other host moved on. `hosts:audit` reports it and `hosts:sync` reinstalls.
+
+### Verification
+
+`tests/host-delivery.test.mjs` (entry audit for literal tokens, the removed header and env references; Codex TOML; stamp states current/stale/edited/unstamped; version drift and one-argument rewrite). Live: `npm run hosts:audit` on this machine reports all four hosts `ok` at 3.3.0 with the registry accepting the token, after `hosts:sync` moved Codex and OpenCode from 3.1.0/3.2.1.
+
 ## 3.2.1 — 2026-11-02
 
 ### Fixed

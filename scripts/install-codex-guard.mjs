@@ -18,6 +18,8 @@ import { fileURLToPath } from "node:url";
 import { installSkills } from "../src/hosts/skills.mjs";
 import { isProjectIdentity, writeProjectBinding } from "../src/enforcement/project-binding.js";
 import { readCodexServer } from "../src/hosts/codex/hook.mjs";
+import { PLUGIN_VERSION } from "../src/adapters/plugin-version.js";
+import { writeStamp } from "./install-stamp.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -134,9 +136,26 @@ if (existing !== null) {
 }
 
 const envName = "OMP_SPEC_REGISTRY_TOKEN";
+// The installer is not a token manager. A caller that starts before a
+// rotation carries an older value, and writing it back here would replace a
+// working environment with a dead one — which is exactly how a repair pass
+// once broke every host at once. Persist only a missing variable; a
+// deliberate rotation passes --overwrite-env.
+const overwriteEnv = flag("overwrite-env", null) !== null;
 if (process.platform === "win32") {
-  const set = spawnSync("setx", [envName, token], { encoding: "utf8", windowsHide: true, timeout: 30_000 });
-  if (set.status !== 0) fail(`setx ${envName} failed: ${(set.stderr ?? "").trim().slice(0, 200)}`);
+  const read = spawnSync(
+    "powershell",
+    ["-NoProfile", "-Command", `[Environment]::GetEnvironmentVariable('${envName}','User')`],
+    { encoding: "utf8", windowsHide: true, timeout: 30_000 },
+  );
+  const persisted = (read.stdout ?? "").trim();
+  if (persisted !== "" && persisted !== token && !overwriteEnv) {
+    console.log(`environment: ${envName} already set; left unchanged (pass --overwrite-env to rotate it)`);
+  } else if (persisted !== token) {
+    const set = spawnSync("setx", [envName, token], { encoding: "utf8", windowsHide: true, timeout: 30_000 });
+    if (set.status !== 0) fail(`setx ${envName} failed: ${(set.stderr ?? "").trim().slice(0, 200)}`);
+    console.log(`environment: ${envName} set for new processes`);
+  }
 } else {
   const profile = path.join(homedir(), ".profile");
   const current = existsSync(profile) ? readFileSync(profile, "utf8") : "";
@@ -151,11 +170,12 @@ if (process.platform === "win32") {
 }
 
 const record = writeProjectBinding(workspace, project.trim());
+const stamp = writeStamp(installRoot, { version: PLUGIN_VERSION, source: repositoryRoot });
 
 console.log(`guard installed: ${installRoot}`);
+console.log(`installed copy: omp-spec-kit@${stamp.version} (digest ${stamp.digest.slice(0, 12)})`);
 console.log(`skills installed: ${skills.join(", ")}`);
 console.log(`hooks.json: ${hooksPath}`);
 console.log(`config.toml: [mcp_servers.${serverName}] -> ${url}`);
-console.log(`environment: ${envName} set for new processes`);
 console.log(`project record: ${record}`);
 console.log("run /hooks in Codex once to review and trust the new hook");
