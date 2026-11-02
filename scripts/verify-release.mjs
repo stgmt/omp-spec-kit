@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { peelTagCommit } from "./create-release-candidate.mjs";
 import { cucumberMessages, requiredScenarioMultiplicity } from "./create-release-evidence.mjs";
 import { PLUGIN_VERSION, repositoryRoot as defaultRepositoryRoot } from "./verify-marketplace.mjs";
+import { TOOL_CONTRACTS } from "../src/adapters/tool-contracts.js";
 import { assertCandidateShape, canonicalJson, collectRegularFiles, isCommit, isSha256, packageTreeDigest, parseArgs, readStrictJson, resolveContainedRegularFile, sha256, toPublicFileRows } from "./release-candidate-utils.mjs";
 import { corpusPath } from "./corpus-root.mjs";
 
@@ -92,6 +93,10 @@ async function scenarioRequirements(repositoryRoot) {
   return { requirements, multiplicities };
 }
 export function expectedManagerToolCount(version) {
+  // The release being verified answers to the tool surface it actually ships,
+  // so a version bump never needs an edit here. Older releases stay pinned
+  // because their receipts were issued against a fixed count.
+  if (version === PLUGIN_VERSION) return TOOL_CONTRACTS.length;
   if (version === "3.2.1" || version === "3.2.0" || version === "3.1.0" || version === "3.0.8" || version === "3.0.7" || version === "3.0.6" || version === "3.0.5" || version === "3.0.4" || version === "3.0.3" || version === "3.0.2" || version === "3.0.1" || version === "3.0.0" || version === "2.9.3" || version === "2.9.2" || version === "2.9.1" || version === "2.9.0" || version === "2.8.1" || version === "2.8.0" || version === "2.7.0" || version === "2.6.2" || version === "2.6.1" || version === "2.6.0" || version === "2.5.0" || version === "2.4.0" || version === "2.3.0" || version === "2.2.1" || version === "2.2.0" || version === "2.1.0" || version === "2.0.0" || version === "1.4.0" || version === "1.3.2" || version === "1.3.1" || version === "1.3.0" || version === "1.2.0" || version === "1.1.0" || version === "1.0.2" || version === "1.0.1" || version === "1.0.0" || version === "0.10.2") return 10;
   if (version === "0.10.1" || version === "0.10.0") return 10;
   if (version === "0.6.0" || version === "0.7.0") return 49;

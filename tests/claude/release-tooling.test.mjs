@@ -194,6 +194,9 @@ describe("version identity across the built payload", () => {
     assert.equal(dist.pluginVersion, PLUGIN_VERSION);
     assert.equal(plugin.version, PLUGIN_VERSION);
     assert.match(pluginVersionModule, new RegExp(`export const PLUGIN_VERSION = "${escaped}";`, "u"));
-    assert.match(buildScript, new RegExp(`const PLUGIN_VERSION = "${escaped}";`, "u"));
+    // The builder reads the constant instead of keeping a second literal, so
+    // a version bump cannot leave the dist manifest on the old number.
+    assert.match(buildScript, /import \{ PLUGIN_VERSION \} from "\.\.\/src\/adapters\/plugin-version\.js";/u);
+    assert.doesNotMatch(buildScript, /const PLUGIN_VERSION = "/u);
   });
 });
