@@ -107,12 +107,10 @@
 **Then:** возвращается `FIELD_OWNED_BY_SPEC`
 **And:** локальное хранилище не содержит копии канонического поля
 ## AC-6.2 — Derived fields are not stored as truth
-
 **Given:** задача `TASK-3` со статусом `in-progress`
-**When:** файл проекции читается напрямую
+**When:** доска запрашивает задачу из реестра
 **Then:** `displayId` равен `TASK-3`, `subject` совпадает с заголовком корпуса
-**And:** проекция хранит максимум `Depends On`; `blocks` и `blockedBy` пересчитываются из канонических рёбер
-
+**And:** `blocks` и `blockedBy` вычисляются из канонических рёбер на стороне реестра, а не хранятся в teams
 ## AC-6.3 — reviewState is derived on the teams side
 
 **Given:** задача в статусе `ready` и в `historyEvents` есть `review_requested`
