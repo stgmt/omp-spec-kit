@@ -126,8 +126,8 @@ Mapping переходов в review-события задаётся контр�
 ## DEC-8 — Bounded contexts, ports and adapters
 
 - Domain (`TaskSyncService`, `StatusPolicy`, `TaskMapper`, `ConflictResolver`, `TransitionJournal`) — чистые функции и классы без I/O.
-- Порты: `RegistryPort` (query/patch, authenticated), `ProjectionPort` (read/write projection), `SyncStatePort` (baseline, pending), `ClockPort`.
-- Адаптеры: `McpRegistryClient` (HTTP MCP with bearer), `FileProjectionStore`, `JsonSyncStateStore`.
+- Порты: `RegistryPort` (query/patch, authenticated), `ExecutionStorePort` (execution-only data keyed by the deterministic task id), `SyncStatePort` (baseline, pending), `ClockPort`.
+- Адаптеры: `McpRegistryClient` (HTTP MCP with bearer), `FileExecutionStore`, `JsonSyncStateStore`.
 - Renderer не содержит правил маппинга и не знает про статусы корпуса — только IPC-контракт.
 
 **Rationale:** SOLID по границам: SRP на преобразование/политику/мерж, OCP через контракт, ISP через узкие порты, DIP через инъекцию адаптеров; KISS — без event sourcing и очередей.
