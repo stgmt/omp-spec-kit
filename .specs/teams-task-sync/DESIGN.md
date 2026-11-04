@@ -10,7 +10,7 @@ teams main process
   |    StatusPolicy        contract -> rank/derivation
   |    TaskMapper          spec node <-> projection record
   |    ConflictResolver    three-way merge, spec wins
-  |    ProjectionWriter    idempotent upsert into ~/.claude/tasks
+  |    ExecutionStore      execution-only data (intervals, comments, files)
   |    TransitionJournal   receipt -> historyEvents, pending_projection
   |  RegistryClient (HTTP MCP, bearer)  spec_patch / spec_query, fail-closed
   v
