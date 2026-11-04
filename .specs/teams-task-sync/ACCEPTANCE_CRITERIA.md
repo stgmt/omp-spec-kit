@@ -102,12 +102,10 @@
 **And:** соответствие вычисляется из `Tracking` и namespace
 
 ## AC-6.1 — Canonical fields are read-only in teams
-
 **Given:** задача с `Tracking`
-**When:** teams пытается изменить `subject`, `status`, `owner` или `Depends On` локально
+**When:** teams пытается изменить `subject`, `status`, `owner` или `Depends On` без вызова реестра
 **Then:** возвращается `FIELD_OWNED_BY_SPEC`
-**And:** значение в проекции не изменяется
-
+**And:** локальное хранилище не содержит копии канонического поля
 ## AC-6.2 — Derived fields are not stored as truth
 
 **Given:** задача `TASK-3` со статусом `in-progress`
