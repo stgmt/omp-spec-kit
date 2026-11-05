@@ -231,7 +231,7 @@
 
 ## TASK-22 — Реализовать RegistryTaskProvider в agent-teams-ai
 
-- **Status:** todo
+- **Status:** in-progress
 - **Owner:** spec-kit
 
 **Implements:** FR-1
