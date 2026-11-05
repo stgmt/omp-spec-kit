@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "78c69f35f6369eb540283f5bbec22d0813bb1386cd7062ce27268f2e81585888",
+  "aggregateSha256": "bb9de0341f8ef8559905d88cb9cb9ab405673068fd23afac6a92fb66c1b9acfa",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -35,8 +35,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 6779,
-      "sha256": "609e14bed4012b1886f2c4109c39db91dbd1d6a3fc2c0c8035b248d1e2fcbfec"
+      "bytes": 6813,
+      "sha256": "07392acee4e40fbefc69cccc1b9cab7d48bff953059bc178c271f2f99e312fee"
     },
     {
       "path": "plugins/omp-spec-kit/.claude-plugin/plugin.json",
@@ -405,13 +405,13 @@
     },
     {
       "path": "src/adapters/query-service.js",
-      "bytes": 30436,
-      "sha256": "57ed051aa2f273fa2fb784282a3e8038f2b7dff88db8ece8fd6098e3e7012f75"
+      "bytes": 30685,
+      "sha256": "675a3f345b865856cc0ccc2141bf69194494a09cb976a1834ffa7ce4f5b517da"
     },
     {
       "path": "src/adapters/tool-contracts.js",
-      "bytes": 39242,
-      "sha256": "18a7df22e0a2484128b7758291660ee8be04dc1a444d9e90ab32985c00f5e503"
+      "bytes": 43003,
+      "sha256": "816b33426cbd12ed1435ad1129ae4f54b0605950b00cc0fff897622d98da0187"
     },
     {
       "path": "src/adapters/youtrack-projection.js",
@@ -440,13 +440,13 @@
     },
     {
       "path": "src/authoring/error-codes.js",
-      "bytes": 1246,
-      "sha256": "18ce9f975c4057fa215b9364cdbcf72df45d3d9f34d7c0a1bee620bb4a248dce"
+      "bytes": 1267,
+      "sha256": "65505bc840dae3014d8330f2e2d68cdb0cc77b712b794269a3f64e146c8d8b49"
     },
     {
       "path": "src/authoring/proposals.js",
-      "bytes": 38375,
-      "sha256": "bd135daa73766855880484a2c29f45108620f15ee1ffee4b36fa27d5e63f6a25"
+      "bytes": 38167,
+      "sha256": "3eaeb901bba615b4bb025a82e20971fa3ad1731ec956f9fa75f40f9dea929774"
     },
     {
       "path": "src/authoring/secrets.js",
@@ -455,8 +455,13 @@
     },
     {
       "path": "src/authoring/service.js",
-      "bytes": 10412,
-      "sha256": "733ddee2979a772efddb60f8937727f46b97c41472e45e7ea9a3e35675c6839d"
+      "bytes": 12663,
+      "sha256": "2438b304bb44ab1411459dfd006d9a294d5d10dac6ef8bc2f7187be3a79cccae"
+    },
+    {
+      "path": "src/authoring/task-ops.js",
+      "bytes": 21733,
+      "sha256": "c787061a50d47dac00f47a88d13f9e155bc74aa11d8b27be98f8a4905e8d624e"
     },
     {
       "path": "src/authoring/transactions.js",
@@ -600,8 +605,8 @@
     },
     {
       "path": "src/kernel/parsers/attributes.js",
-      "bytes": 7669,
-      "sha256": "923d29c3136d9f975e17058f61ec3e4b4be8ee6ccc6b11f550890b708f6cfac3"
+      "bytes": 7719,
+      "sha256": "aabe4d67d0a2858a73f3e0cdb9b63cf1285ebf23030348b8516f6e057428882d"
     },
     {
       "path": "src/kernel/parsers/gherkin.js",
@@ -630,13 +635,13 @@
     },
     {
       "path": "src/kernel/query/extended.js",
-      "bytes": 20371,
-      "sha256": "21a5f0a3ccd1a90f3da3bc5981d2c2bb3eb73d6b97fe81e1e50761738b42c0cf"
+      "bytes": 21345,
+      "sha256": "d2b09ffb75aa111d04f9edfaa2fcbbcdf2c4c993b16c8558637cc1af60024069"
     },
     {
       "path": "src/kernel/query/service.js",
-      "bytes": 59671,
-      "sha256": "0d8e70c82a59df1c7ecef240e6dc6ed9aa00ceb759ec8dcc6b0d904b100ce11b"
+      "bytes": 60203,
+      "sha256": "8463e0ec7c4bcd5580550d447ec3ca6bbf3352701da50809346332d9b1e43070"
     },
     {
       "path": "src/kernel/roadmap/assemble.js",
@@ -650,8 +655,8 @@
     },
     {
       "path": "src/mcp/server.js",
-      "bytes": 13806,
-      "sha256": "684e18a6d6bfcfec4aab14542a972a1f510bb1e636208d99e592aa08b51659e7"
+      "bytes": 13843,
+      "sha256": "2afdbc1d7d8d904d3e07160af03b525d12f326f60ade906cc2f14eea1a3f4a53"
     },
     {
       "path": "src/service/auth.js",
@@ -815,8 +820,8 @@
     },
     {
       "path": "src/service/writepath.js",
-      "bytes": 10547,
-      "sha256": "02cb4e0332bff3d4da90c770b110e3e31eb40e1e282d849e32dbd3a6c6e9e438"
+      "bytes": 10562,
+      "sha256": "18858f2a1bd9c76291d8831ce566ddd9954ceeb779b1f46a99c12aff5493001c"
     },
     {
       "path": "src/tools/endpoint-alloc.js",
@@ -874,9 +879,14 @@
       "sha256": "74d943f59072604a4c2c2706fea1282cab991a4dc75851bd55ecaf7d03e7fd6d"
     },
     {
+      "path": "tests/authoring-task-ops.test.mjs",
+      "bytes": 11580,
+      "sha256": "b2d95af75c7e6a1a0d16e9275df6150ae1b4b166a46af1daf6c60d8ddaa0bbaf"
+    },
+    {
       "path": "tests/authoring-task-status.test.mjs",
-      "bytes": 2510,
-      "sha256": "bd4dc494218734d347a55bc5c2282fc9c91452bb7914901623f3e4eb43aac3dd"
+      "bytes": 2635,
+      "sha256": "02ed9b3156cf1521000e26c895564734b126616062dbb970f864ab11c00577e1"
     },
     {
       "path": "tests/authoring-write-gate.test.mjs",
@@ -941,7 +951,7 @@
     {
       "path": "tests/e2e/dogfood-video.mjs",
       "bytes": 88955,
-      "sha256": "0740835f68a21155b3be674c9e54daed1cc2f24e47357c52cc9698d3a7a423e5"
+      "sha256": "13074a3f1808be06854ae2c6383e6cb945300970367e3c7be9d267254e5c4d3e"
     },
     {
       "path": "tests/e2e/lib/app-admin-ui.mjs",
@@ -1800,8 +1810,8 @@
     },
     {
       "path": "tests/helpers/tool-e2e.mjs",
-      "bytes": 26559,
-      "sha256": "aae28c154dc8413dcbf566c9d2caf84ecac90de59a323dd0f0a6610f632a7744"
+      "bytes": 26591,
+      "sha256": "949cc84cd4a39b7b0c7e497e3aaf7aadec43d5e899e3dea71605fdf8f2aeb5bb"
     },
     {
       "path": "tests/host-delivery.test.mjs",
