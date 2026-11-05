@@ -311,7 +311,10 @@ async function compileDeleteEntity({ graph, root, spec, input }) {
   const current = await loadDocument(root, spec, document, false);
   if (current.missing) return error("DOC_NOT_FOUND", `document is missing: ${document}`);
   const content = removeEntityBlock(current.bytes.toString("utf8"), node);
-  return { ok: true, operations: [{ kind: "replace_document", document, content }] };
+  return {
+    ok: true,
+    operations: [{ kind: "replace_document", document, content, allowStructuredTaskFields: true }],
+  };
 }
 
 export function operationForFacade(name, input) {

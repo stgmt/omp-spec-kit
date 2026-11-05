@@ -84,6 +84,9 @@ export function isStructuredTaskOperation(kind) {
  * refused with the one typed reason.
  */
 export function freeFormTaskWriteRefusal(operation) {
+  // Deleting a whole authored entity is a structured entity operation; it is
+  // not a free-form edit of task fields, so the field guard must not block it.
+  if (operation?.allowStructuredTaskFields === true) return null;
   if (!isTaskDocument(operation?.document)) return null;
   if (STRUCTURED_KIND_SET.has(operation?.kind)) return null;
   const authored = [operation.content, operation.text, operation.newText]
