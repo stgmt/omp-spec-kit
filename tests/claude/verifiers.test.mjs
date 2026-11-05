@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
@@ -57,6 +58,20 @@ describe("payload verifiers accept the untouched inputs", () => {
     assert.equal(verify(dir, "verify-marketplace.mjs").status, 0);
     assert.equal(verify(dir, "verify-package.mjs").status, 0);
   });
+  for (const [label, lineEnding] of [["CRLF", "\r\n"], ["standalone CR", "\r"]]) {
+    it(`accepts ${label} source line endings without accepting changed content`, () => {
+      const dir = copyRepository();
+      for (const relative of ["src/v0.1/extension.js", "src/authoring/task-ops.js"]) {
+        const source = path.join(dir, relative);
+        writeFileSync(source, readFileSync(source, "utf8").replace(/\r\n?|\n/gu, lineEnding));
+      }
+      const clean = verify(dir, "verify-package.mjs");
+      assert.equal(clean.status, 0, clean.stderr);
+      const taskSource = path.join(dir, "src/authoring/task-ops.js");
+      writeFileSync(taskSource, `${readFileSync(taskSource, "utf8")}\n// altered content\n`);
+      assertRejected(verify(dir, "verify-package.mjs"), /dist\/authoring\/task-ops\.js is stale/u);
+    });
+  }
 });
 
 describe("marketplace catalog guards", () => {
@@ -75,6 +90,53 @@ describe("marketplace catalog guards", () => {
 });
 
 describe("payload verifier rejections", () => {
+  for (const [label, subtree] of [["source", "src/authoring"], ["payload", "plugins/omp-spec-kit/hooks"]]) {
+    it(`rejects a linked directory in the ${label} tree`, () => {
+      const dir = copyRepository();
+      const target = path.join(dir, "linked-target");
+      mkdirSync(target);
+      symlinkSync(target, path.join(dir, subtree, "linked"), process.platform === "win32" ? "junction" : "dir");
+      assertRejected(verify(dir, "verify-package.mjs"), /symlink forbidden/u);
+    });
+  }
+
+  it("rejects non-JavaScript files in a source tree", () => {
+    const dir = copyRepository();
+    writeFileSync(path.join(dir, "src", "authoring", "unexpected.txt"), "unexpected");
+    assertRejected(verify(dir, "verify-package.mjs"), /unexpected non-JS source file/u);
+  });
+
+  for (const [label, subtree, message] of [
+    ["source", "src/authoring", /non-regular source entry/u],
+    ["payload", "plugins/omp-spec-kit/hooks", /non-regular payload entry/u],
+  ]) {
+    it(`rejects a non-regular ${label} entry`, { skip: process.platform === "win32" }, async () => {
+      const dir = copyRepository();
+      const previousDirectory = process.cwd();
+      process.chdir(path.join(dir, subtree));
+      try {
+        const server = createServer();
+        await new Promise((resolve, reject) => {
+          server.once("error", reject);
+          server.listen("./entry.sock", resolve);
+        });
+        try {
+          assertRejected(verify(dir, "verify-package.mjs"), message);
+        } finally {
+          await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+        }
+      } finally {
+        process.chdir(previousDirectory);
+      }
+    });
+  }
+
+  it("rejects an extra empty directory nested in the payload", () => {
+    const dir = copyRepository();
+    mkdirSync(path.join(dir, "plugins", "omp-spec-kit", "hooks", "unexpected"));
+    assertRejected(verify(dir, "verify-package.mjs"), /payload directories must be exactly/u);
+  });
+
   it("rejects a retired bin launcher in the payload", () => {
     const dir = copyRepository();
     mkdirSync(path.join(dir, "plugins", "omp-spec-kit", "bin"), { recursive: true });

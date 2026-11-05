@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { lstat, readFile, readdir, readdir as readdirDir } from "node:fs/promises";
+import { lstat, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import {
   PLUGIN_VERSION,
@@ -28,24 +28,30 @@ function fail(message) {
   throw new Error(`verify-package: ${message}`);
 }
 
+// Walk paths relative to one root, rejecting symlinks before descending.
+async function walkTree(rootDirectory, onEntry) {
+  async function visit(relativeDirectory = "") {
+    const directory = path.join(rootDirectory, ...relativeDirectory.split("/"));
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const relative = path.posix.join(relativeDirectory, entry.name);
+      const stats = await lstat(path.join(directory, entry.name));
+      onEntry(relative, stats);
+      if (stats.isDirectory()) await visit(relative);
+    }
+  }
+  await visit();
+}
+
 // The closed dist payload mirrors each src tree exactly; the expectation is
 // derived from the source trees so it cannot drift from the build input.
 async function collectTreeSources(rootDirectory, label) {
   const files = [];
-  async function visit(directory, relativeDirectory) {
-    const entries = await readdirDir(directory, { withFileTypes: true });
-    for (const entry of entries) {
-      const relative = relativeDirectory === "" ? entry.name : `${relativeDirectory}/${entry.name}`;
-      const absolute = path.join(directory, entry.name);
-      const stats = await lstat(absolute);
-      if (stats.isSymbolicLink()) fail(`symlink forbidden in ${label}: ${relative}`);
-      if (!stats.isDirectory() && !stats.isFile()) fail(`non-regular source entry: ${label}/${relative}`);
-      if (stats.isDirectory()) await visit(absolute, relative);
-      else if (relative.endsWith(".js")) files.push(relative);
-      else fail(`unexpected non-JS source file: ${label}/${relative}`);
-    }
-  }
-  await visit(rootDirectory, "");
+  await walkTree(rootDirectory, (relative, stats) => {
+    if (stats.isSymbolicLink()) fail(`symlink forbidden in ${label}: ${relative}`);
+    if (!stats.isDirectory() && !stats.isFile()) fail(`non-regular source entry: ${label}/${relative}`);
+    if (stats.isFile() && relative.endsWith(".js")) files.push(relative);
+    else if (stats.isFile()) fail(`unexpected non-JS source file: ${label}/${relative}`);
+  });
   return files.sort();
 }
 
@@ -118,23 +124,12 @@ function sameStrings(actual, expected) {
 async function collectPayloadTree() {
   const files = [];
   const directories = [];
-  async function visit(directory, relativeDirectory = "") {
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
-      const relative = path.posix.join(relativeDirectory.split(path.sep).join("/"), entry.name);
-      const absolute = path.join(directory, entry.name);
-      const stats = await lstat(absolute);
-      if (stats.isSymbolicLink()) fail(`symlink forbidden in payload: ${relative}`);
-      if (stats.isDirectory()) {
-        directories.push(relative);
-        await visit(absolute, relative);
-      } else if (stats.isFile()) {
-        files.push(relative);
-      } else {
-        fail(`non-regular payload entry forbidden: ${relative}`);
-      }
-    }
-  }
-  await visit(pluginRoot);
+  await walkTree(pluginRoot, (relative, stats) => {
+    if (stats.isSymbolicLink()) fail(`symlink forbidden in payload: ${relative}`);
+    if (stats.isDirectory()) directories.push(relative);
+    else if (stats.isFile()) files.push(relative);
+    else fail(`non-regular payload entry forbidden: ${relative}`);
+  });
   return { files: files.sort(), directories: directories.sort() };
 }
 
@@ -158,10 +153,14 @@ function importedSpecifiers(source) {
   return specifiers;
 }
 
+function normalizeBuildSource(text) {
+  return text.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
+}
+
 // Flat extension sources are one directory deeper in src than in dist. Keep
 // the emitted sibling-tree rewrites identical to build-plugin.mjs.
 function emitTransform(text) {
-  return text
+  return normalizeBuildSource(text)
     .replaceAll('"../adapters/', '"./adapters/')
     .replaceAll('"../enforcement/', '"./enforcement/')
     .replaceAll('"../gate/', '"./gate/');
@@ -381,8 +380,10 @@ async function verifyPackage() {
       const distRelative = `dist/${treeEntry.output}/${relative}`;
       const sourceRelative = `${path.relative(repositoryRoot, treeEntry.source).split(path.sep).join("/")}/${relative}`;
       const distBytes = await readFile(path.join(pluginRoot, distRelative));
-      const sourceBytes = await readFile(path.join(repositoryRoot, sourceRelative));
-      if (!distBytes.equals(sourceBytes)) fail(`${distRelative} is stale against ${sourceRelative}`);
+      const sourceText = await readFile(path.join(repositoryRoot, sourceRelative), "utf8");
+      if (!distBytes.equals(Buffer.from(normalizeBuildSource(sourceText), "utf8"))) {
+        fail(`${distRelative} is stale against ${sourceRelative}`);
+      }
       if (distManifest.files[`${treeEntry.output}/${relative}`].sha256 !== sha256(distBytes)) {
         fail(`dist hash mismatch for ${treeEntry.output}/${relative}`);
       }
