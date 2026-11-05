@@ -228,3 +228,14 @@
 **Depends On:** TASK-1, TASK-11, TASK-19, TASK-20
 
 - **Done When:** DESIGN carries one authoring-constraints section. The kit repository documents the same rules in `docs/authoring-constraints.md`. Each rule has one normative home: FR behavior or DEC rationale or AC check. The glossary fixes registry and corpus and projection terminology. No duplicated fail-closed or single-writer text remains.
+
+## TASK-22 — Реализовать RegistryTaskProvider в agent-teams-ai
+
+- **Status:** todo
+- **Owner:** spec-kit
+
+**Implements:** FR-1
+
+- **Tracking:** agent-teams:tokenplan-ops/9b1f6d7e-0000-4000-8000-000000000001
+
+- **Done When:** Приложение читает канонические поля только из реестра; локально остаются исполнительские поля.
