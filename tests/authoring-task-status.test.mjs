@@ -26,6 +26,7 @@ describe("replace_task_status heading resolution", () => {
       document: "TASKS.md",
       entity: "TASK-1",
       status: "done",
+      expectedStatus: "planned",
     });
     assert.equal(result.ok, true);
     assert.ok(result.text.includes("## TASK-1 — First task\n\n- **Status:** done"));
@@ -38,6 +39,7 @@ describe("replace_task_status heading resolution", () => {
       document: "TASKS.md",
       entity: "TASK-99",
       status: "done",
+      expectedStatus: "todo",
     });
     assert.equal(result.ok, false);
     assert.equal(result.code, "VALIDATION_FAILED");
@@ -50,6 +52,7 @@ describe("replace_task_status heading resolution", () => {
       document: "TASKS.md",
       entity: "TASK-2",
       status: "todo",
+      expectedStatus: "done",
     });
     assert.equal(result.ok, true);
     assert.ok(result.text.includes("## TASK-2: Middle task\n\n- **Status:** todo"));
@@ -69,6 +72,7 @@ describe("replace_task_status heading resolution", () => {
         document: "TASKS.md",
         entity: "TASK-1",
         status: "done",
+        expectedStatus: "todo",
       });
       assert.equal(result.ok, true, "status line form not patched: " + before);
       assert.ok(result.text.includes("## TASK-1 — Task\n\n" + after), "form not preserved: " + before);

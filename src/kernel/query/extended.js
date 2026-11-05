@@ -104,6 +104,23 @@ function taskRequirements(graph, taskId) {
   return [...new Set(refs)].sort(compareStrings);
 }
 
+/**
+ * Dependency view for one task, derived from the canonical DEPENDS_ON edges.
+ * `dependsOn` and `blockedBy` are the same outgoing set under the two names
+ * consumers use; `blocks` is the incoming set. Nothing here is stored twice.
+ */
+export function derivedTaskLinks(graph, taskId) {
+  const dependsOn = [];
+  const blocks = [];
+  for (const edge of graph.edges) {
+    if (edge.type !== "DEPENDS_ON") continue;
+    if (edge.from === taskId) dependsOn.push(edge.to);
+    else if (edge.to === taskId) blocks.push(edge.from);
+  }
+  const blockedBy = [...new Set(dependsOn)].sort(compareStrings);
+  return { dependsOn: blockedBy, blocks: [...new Set(blocks)].sort(compareStrings), blockedBy };
+}
+
 function taskEntry(graph, task, includeComments) {
   const entry = {
     canonicalId: task.canonicalId,
@@ -112,8 +129,12 @@ function taskEntry(graph, task, includeComments) {
     title: task.title,
     status: taskStatus(task),
     phase: taskPhase(task),
+    owner: typeof task.attributes?.owner === "string" ? task.attributes.owner : null,
+    tracking: typeof task.attributes?.tracking === "string" ? task.attributes.tracking : null,
+    contentHash: task.contentHash ?? null,
     source: nodeSource(task),
     requirements: taskRequirements(graph, task.canonicalId),
+    ...derivedTaskLinks(graph, task.canonicalId),
   };
   if (includeComments) entry.body = task.body;
   return entry;

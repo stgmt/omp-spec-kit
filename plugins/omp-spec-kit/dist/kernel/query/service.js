@@ -19,6 +19,7 @@ import {
 import { isValidSpecSlug, makeCanonicalId, splitCanonicalId } from "../identity.js";
 import { canonicalJson } from "../normalize.js";
 import { decodeCursor, encodeCursor } from "./cursor.js";
+import { derivedTaskLinks } from "./extended.js";
 
 const OPERATION_ARG_FIELDS = {
   inventory: ["specSlugs", "includeDocuments", "limit", "cursor"],
@@ -784,9 +785,9 @@ function roadmapBoardNode(graph, specSlug, memberNodes) {
   };
 }
 
-function boardNode(node) {
+function boardNode(graph, node) {
   const attributes = isPlainObject(node.attributes) ? node.attributes : {};
-  return {
+  const projected = {
     canonicalId: node.canonicalId,
     specSlug: node.specSlug,
     localId: node.localId,
@@ -799,6 +800,15 @@ function boardNode(node) {
     evidence: typeof attributes.evidence === "string" ? attributes.evidence : null,
     taskStatus: node.kind === "TASK" && typeof attributes.status === "string" ? attributes.status : null,
   };
+  if (node.kind !== "TASK") return projected;
+  // Task structure is projected, never re-stored: owner and tracking come from
+  // the authored fields, the dependency sets from the canonical edges.
+  return {
+    ...projected,
+    owner: typeof attributes.owner === "string" ? attributes.owner : null,
+    tracking: typeof attributes.tracking === "string" ? attributes.tracking : null,
+    ...derivedTaskLinks(graph, node.canonicalId),
+  };
 }
 
 function runBoard(graph, request, args, limits) {
@@ -806,7 +816,7 @@ function runBoard(graph, request, args, limits) {
   const selected = new Set(selectedSpecs(graph, specSlugs));
   const nodes = graph.nodes
     .filter((node) => boardKindsFor(node.specSlug).has(node.kind) && selected.has(node.specSlug))
-    .map(boardNode);
+    .map((node) => boardNode(graph, node));
   for (const slug of selected) {
     if (!slug.startsWith(ROADMAP_SPEC_PREFIX)) continue;
     // Use the real ROADMAP node from the canonical graph if present;

@@ -112,6 +112,7 @@ const ARGUMENT_ALIASES = Object.freeze({
   verification_method_missing: "verificationMethodMissing",
   scenario_id: "scenarioId",
   actor_ref: "actorRef",
+  expected_status: "expectedStatus",
   repository_root_fingerprint: "repositoryRootFingerprint",
   design_review: "designReview",
   expected_sha: "expectedSha",

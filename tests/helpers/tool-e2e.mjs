@@ -410,6 +410,7 @@ export async function runToolE2E({
         spec: "e2e-spec",
         entity: "TASK-1",
         status: "in-progress",
+        expectedStatus: "todo",
         reason: "v08 entity status test",
       }),
     );

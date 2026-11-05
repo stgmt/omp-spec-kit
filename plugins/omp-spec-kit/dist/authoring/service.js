@@ -20,7 +20,64 @@ export const AUTHORING_OPERATIONS = Object.freeze(["specPatch"]);
 
 
 function compileRefusalCode(code) {
-  return code === "CONFLICT" || code === "DESIGN_REVIEW_REQUIRED" || code === "DESIGN_REVIEW_INVALID";
+  return (
+    code === "CONFLICT" ||
+    code === "STATUS_CONFLICT" ||
+    code === "DESIGN_REVIEW_REQUIRED" ||
+    code === "DESIGN_REVIEW_INVALID"
+  );
+}
+
+// The receipt's actor is an authenticated principal, never client text. The
+// hosted transport passes the caller's verified login; the local stdio
+// transport has no principal and falls back to one deterministic service
+// identity so a transition record is never actorless or caller-supplied.
+const DEFAULT_ACTOR = "registry";
+const MAX_ACTOR_CHARS = 200;
+
+function resolveActor(authenticatedActor, serviceActor) {
+  for (const candidate of [authenticatedActor, serviceActor]) {
+    if (typeof candidate !== "string") continue;
+    const trimmed = candidate.trim();
+    if (trimmed === "") continue;
+    if (trimmed.length > MAX_ACTOR_CHARS) continue;
+    if (/[\x00-\x1f\x7f]/u.test(trimmed)) continue;
+    if (detectSecret(trimmed)) continue;
+    return trimmed;
+  }
+  return DEFAULT_ACTOR;
+}
+
+// The canonical request identity: a replay is the same requestId with the same
+// payload, and a changed payload under a used requestId is a conflict.
+function requestKeyFor(input) {
+  return canonicalJson({
+    requestId: input.requestId,
+    spec: input.spec,
+    intent: input.intent ?? "patch",
+    reason: input.reason,
+    operations: input.operations ?? null,
+    requirement: input.requirement ?? null,
+    body: input.body ?? null,
+    criterion: input.criterion ?? null,
+    title: input.title ?? null,
+    summary: input.summary ?? null,
+    entity: input.entity ?? null,
+    status: input.status ?? null,
+    expectedStatus: input.expectedStatus ?? null,
+    localId: input.localId ?? null,
+    owner: input.owner ?? null,
+    tracking: input.tracking ?? null,
+    dependsOn: input.dependsOn ?? null,
+    refs: input.refs ?? null,
+    requirements: input.requirements ?? null,
+    metadata: input.metadata ?? null,
+    contract: input.contract ?? null,
+    doc: input.doc ?? input.document ?? null,
+    newDoc: input.newDoc ?? null,
+    actorRef: input.actorRef ?? null,
+    designReview: input.designReview ?? null,
+  });
 }
 
 function validateActorRef(actorRef) {
@@ -68,7 +125,7 @@ export class SpecPatchService {
 
     const dryRun = input.dryRun ?? true;
 
-    const refusal = (code, message, findings = [], proposalHash = "") => ({
+    const refusal = (code, message, findings = [], proposalHash = "", extra = {}) => ({
       ok: true,
       data: {
         schemaVersion: "spec-mcp-operations-patch@1",
@@ -84,6 +141,7 @@ export class SpecPatchService {
           proposalHash,
           changedPaths: [],
           ...(findings.length > 0 ? { findings } : {}),
+          ...extra,
         },
       },
     });
@@ -94,27 +152,7 @@ export class SpecPatchService {
       }
 
       // Replay detection using canonical request key before compile
-      const identity = {
-        requestId,
-        spec: input.spec,
-        intent: input.intent ?? "patch",
-        reason: input.reason,
-        operations: input.operations ?? null,
-        requirement: input.requirement ?? null,
-        body: input.body ?? null,
-        criterion: input.criterion ?? null,
-        title: input.title ?? null,
-        summary: input.summary ?? null,
-        entity: input.entity ?? null,
-        status: input.status ?? null,
-        metadata: input.metadata ?? null,
-        contract: input.contract ?? null,
-        doc: input.doc ?? input.document ?? null,
-        newDoc: input.newDoc ?? null,
-        actorRef: input.actorRef ?? null,
-        designReview: input.designReview ?? null,
-      };
-      const requestKey = canonicalJson(identity);
+      const requestKey = requestKeyFor(input);
       const prior = this.applied.get(requestId);
       if (prior) {
         if (prior.requestKey === requestKey) {
@@ -130,11 +168,28 @@ export class SpecPatchService {
     const compileRes = await this.compiler.compile(input, graph);
     if (!compileRes.ok) {
       if (!dryRun && compileRefusalCode(compileRes.error?.code)) {
-        return refusal(compileRes.error.code, compileRes.error.message, compileRes.error.findings, compileRes.error.proposalHash);
+        const detail = {};
+        for (const key of ["currentStatus", "expectedStatus", "localId", "causeCode"]) {
+          if (compileRes.error?.[key] !== undefined) detail[key] = compileRes.error[key];
+        }
+        return refusal(
+          compileRes.error.code,
+          compileRes.error.message,
+          compileRes.error.findings,
+          compileRes.error.proposalHash,
+          detail,
+        );
       }
       return compileRes;
     }
     const proposal = compileRes.data;
+    const requestKey = requestKeyFor(input);
+    const actor = resolveActor(input.actor, this.options.actor);
+    const transitions = (proposal.transitions ?? []).map((transition) => ({
+      requestId: typeof requestId === "string" ? requestId : null,
+      ...transition,
+      actor,
+    }));
 
     // Mode 1: dryRun preview (no write lock, no staging, no writes)
     if (dryRun) {
@@ -148,13 +203,16 @@ export class SpecPatchService {
           outcome: "PREVIEW",
           spec: proposal.spec,
           baseGenerationSha256: proposal.baseSnapshotSha256,
+          unchanged: proposal.unchanged === true,
           operations: proposal.changes.map((change) => ({
             path: "." + "specs/" + change.spec + "/" + change.document,
             operation: publicOperationKind(change.operation),
             beforeSha256: change.preview.beforeSha256,
             afterSha256: change.preview.afterSha256,
+            unchanged: change.unchanged === true,
             diff: change.preview.unifiedDiff,
           })),
+          transitions: transitions.map((transition) => ({ ...transition, at: null })),
           findings: proposal.findings ?? [],
           ...(proposal.designReview ? { designReview: proposal.designReview } : {}),
           ...(proposal.archive ? { archive: { ...proposal.archive } } : {}),
@@ -165,27 +223,27 @@ export class SpecPatchService {
     // Mode 2: dryRun: false transactional commit
     const proposalHash = proposal.proposalHash;
 
-    const identity = {
-      requestId,
-      spec: input.spec,
-      intent: input.intent ?? "patch",
-      reason: input.reason,
-      operations: input.operations ?? null,
-      requirement: input.requirement ?? null,
-      body: input.body ?? null,
-      criterion: input.criterion ?? null,
-      title: input.title ?? null,
-      summary: input.summary ?? null,
-      entity: input.entity ?? null,
-      status: input.status ?? null,
-      metadata: input.metadata ?? null,
-      contract: input.contract ?? null,
-      doc: input.doc ?? input.document ?? null,
-      newDoc: input.newDoc ?? null,
-      actorRef: input.actorRef ?? null,
-      designReview: input.designReview ?? null,
-    };
-    const requestKey = canonicalJson(identity);
+    // Nothing to write: a structured task operation already matches the stored
+    // state. No staging, no lock, and no transition record — replaying a
+    // status write that already landed cannot create a second history event.
+    if (proposal.unchanged === true) {
+      const response = {
+        ok: true,
+        data: {
+          schemaVersion: "spec-mcp-operations-patch@1",
+          requestId,
+          dryRun: false,
+          proposalHash,
+          outcome: "UNCHANGED",
+          spec: proposal.spec,
+          unchanged: true,
+          transitions: [],
+        },
+      };
+      if (typeof requestId === "string") this.applied.set(requestId, { requestKey, response });
+      return response;
+    }
+
 
     try {
       const result = await withWriteLock(this.root, requestId, async () => {
@@ -240,6 +298,8 @@ export class SpecPatchService {
         await commitDocuments(this.root, requestId, changesToApply, this.options);
         if (typeof this.refreshGraph === "function") await this.refreshGraph();
 
+        const at = new Date().toISOString();
+        const receiptTransitions = transitions.map((transition) => ({ ...transition, at }));
         const receipt = {
           schemaVersion: "spec-mcp-operations-receipt@1",
           requestId,
@@ -247,6 +307,7 @@ export class SpecPatchService {
           outcome: "APPLIED",
           reason: input.reason,
           ...(input.actorRef ? { actorRef: input.actorRef } : {}),
+          transitions: receiptTransitions,
           changedDocuments: proposal.changes.map((change) => ({
             path: "." + "specs/" + change.spec + "/" + change.document,
             beforeSha256: change.preview.beforeSha256,
@@ -265,6 +326,7 @@ export class SpecPatchService {
             dryRun: false,
             proposalHash,
             outcome: "APPLIED",
+            transitions: receiptTransitions,
             receipt,
           },
         };

@@ -72,6 +72,9 @@ export const PATCH_OPERATION_KINDS = Object.freeze([
   "replace_section",
   "replace_in_section",
   "replace_task_status",
+  "upsert_task",
+  "replace_task_owner",
+  "replace_task_links",
   "replace_document",
   "delete_document",
   "rename_document",
@@ -340,7 +343,7 @@ export const TOOL_CONTRACTS = Object.freeze([
     label: "Spec Patch",
     operation: "specPatch",
     mutating: true,
-    description: "Preview or apply spec patches in memory or atomically to disk.",
+    description: "Preview or apply spec patches in memory or atomically to disk.\nTask structure is written with upsert_task, replace_task_owner, replace_task_links and replace_task_status (expectedStatus required); free-form task fields are refused with STRUCTURED_TASK_OP_REQUIRED.",
     discriminator: "intent",
     commonFields: Object.freeze([
       field("requestId", "string"),
@@ -382,6 +385,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         fields: Object.freeze([
           field("entity", "string"),
           field("status", "enum", TASK_STATUS_VALUES),
+          field("expectedStatus", "enum", TASK_STATUS_VALUES),
         ]),
       }),
       setSpecStatus: Object.freeze({
@@ -509,12 +513,58 @@ export const OPERATION_SCHEMAS = Object.freeze([
   Object.freeze({
     type: "object",
     additionalProperties: false,
-    required: ["kind", "document", "entity", "status"],
+    required: ["kind", "document", "entity", "status", "expectedStatus"],
     properties: {
       kind: { type: "string", enum: ["replace_task_status"] },
       document: { type: "string" },
       entity: { type: "string" },
-      status: { type: "string" },
+      status: { type: "string", enum: TASK_STATUS_VALUES },
+      expectedStatus: { type: "string", enum: TASK_STATUS_VALUES },
+      expectedSha: { type: "string" },
+    },
+  }),
+  Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "document", "localId", "title"],
+    properties: {
+      kind: { type: "string", enum: ["upsert_task"] },
+      document: { type: "string" },
+      localId: { type: "string" },
+      title: { type: "string" },
+      body: { type: "string" },
+      status: { type: "string", enum: TASK_STATUS_VALUES },
+      owner: { type: "string" },
+      tracking: { type: "string" },
+      dependsOn: { type: "array", items: { type: "string" } },
+      refs: { type: "array", items: { type: "string" } },
+      requirements: { type: "array", items: { type: "string" } },
+      expectedSha: { type: "string" },
+    },
+  }),
+  Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "document", "entity", "owner"],
+    properties: {
+      kind: { type: "string", enum: ["replace_task_owner"] },
+      document: { type: "string" },
+      entity: { type: "string" },
+      owner: { type: "string" },
+      expectedSha: { type: "string" },
+    },
+  }),
+  Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "document", "entity"],
+    properties: {
+      kind: { type: "string", enum: ["replace_task_links"] },
+      document: { type: "string" },
+      entity: { type: "string" },
+      dependsOn: { type: "array", items: { type: "string" } },
+      refs: { type: "array", items: { type: "string" } },
+      requirements: { type: "array", items: { type: "string" } },
       expectedSha: { type: "string" },
     },
   }),
@@ -569,6 +619,15 @@ export const OPERATIONS_SCHEMA = Object.freeze({
       replaceAll: { type: "boolean" },
       entity: { type: "string" },
       status: { type: "string" },
+      expectedStatus: { type: "string" },
+      localId: { type: "string" },
+      title: { type: "string" },
+      body: { type: "string" },
+      owner: { type: "string" },
+      tracking: { type: "string" },
+      dependsOn: { type: "array", items: { type: "string" } },
+      refs: { type: "array", items: { type: "string" } },
+      requirements: { type: "array", items: { type: "string" } },
       newDocument: { type: "string" },
       expectedSha: { type: "string" },
     },
@@ -709,6 +768,18 @@ function hasDuplicates(arr) {
   return new Set(arr).size !== arr.length;
 }
 
+function isStringArray(value) {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function validTaskLinks(op) {
+  return (
+    (op.dependsOn === undefined || isStringArray(op.dependsOn)) &&
+    (op.refs === undefined || isStringArray(op.refs)) &&
+    (op.requirements === undefined || isStringArray(op.requirements))
+  );
+}
+
 function validateOperationObject(op) {
   if (op === null || typeof op !== "object" || Array.isArray(op)) return false;
   if (!PATCH_OPERATION_KINDS.includes(op.kind)) return false;
@@ -730,7 +801,31 @@ function validateOperationObject(op) {
         (op.replaceAll === undefined || typeof op.replaceAll === "boolean")
       );
     case "replace_task_status":
-      return typeof op.entity === "string" && TASK_STATUS_VALUES.includes(op.status);
+      return (
+        typeof op.entity === "string" &&
+        TASK_STATUS_VALUES.includes(op.status) &&
+        TASK_STATUS_VALUES.includes(op.expectedStatus)
+      );
+    case "upsert_task":
+      return (
+        typeof op.localId === "string" &&
+        op.localId.trim() !== "" &&
+        typeof op.title === "string" &&
+        op.title.trim() !== "" &&
+        (op.status === undefined || TASK_STATUS_VALUES.includes(op.status)) &&
+        (op.body === undefined || typeof op.body === "string") &&
+        (op.owner === undefined || typeof op.owner === "string") &&
+        (op.tracking === undefined || typeof op.tracking === "string") &&
+        validTaskLinks(op)
+      );
+    case "replace_task_owner":
+      return typeof op.entity === "string" && typeof op.owner === "string" && op.owner.trim() !== "";
+    case "replace_task_links":
+      return (
+        typeof op.entity === "string" &&
+        validTaskLinks(op) &&
+        (op.dependsOn !== undefined || op.refs !== undefined || op.requirements !== undefined)
+      );
     case "replace_document":
       return typeof op.content === "string";
     case "delete_document":
@@ -1076,6 +1171,7 @@ export const TOOL_ARGUMENT_ALIASES = Object.freeze({
   actor_ref: "actorRef",
   repository_root_fingerprint: "repositoryRootFingerprint",
   expected_sha: "expectedSha",
+  expected_status: "expectedStatus",
   old_string: "oldText",
   new_string: "newText",
   replace_all: "replaceAll",

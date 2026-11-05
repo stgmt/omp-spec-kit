@@ -1241,9 +1241,10 @@ async function main() {
         await patch("acme-sso", "patch", { operations: [{ kind: "insert_at_eof", document: "FR.md",
             text: `\n## FR-1 — ${issue.summary}\n\nСистема ДОЛЖНА пускать пользователей портала через корпоративный SSO — без отдельного пароля.\n` }] },
           `<span style="color:#6fb4ff">→ spec_patch</span>  FR.md += «FR-1 — ${issue.summary}»  <span style="color:#5fd98a">// committed</span>`);
-        await patch("acme-sso", "patch", { operations: [{ kind: "insert_at_eof", document: "TASKS.md",
-            text: `\n## TASK-1 — ${issueId}: ${issue.summary}\n\n- **Status:** todo\n\n**Implements:** FR-1\n\n- **Done When:** вход через корпоративный IdP работает от начала до конца\n` }] },
-          `<span style="color:#6fb4ff">→ spec_patch</span>  TASKS.md += «TASK-1 — ${issueId}: …» · Implements FR-1  <span style="color:#5fd98a">// committed</span>`);
+        await patch("acme-sso", "patch", { operations: [{ kind: "upsert_task", document: "TASKS.md",
+            localId: "TASK-1", title: `${issueId}: ${issue.summary}`, status: "todo",
+            requirements: ["FR-1"], body: "вход через корпоративный IdP работает от начала до конца" }] },
+          `<span style="color:#6fb4ff">→ spec_patch</span>  upsert_task «TASK-1 — ${issueId}: …» · Implements FR-1  <span style="color:#5fd98a">// committed</span>`);
         // Depth for the board's right lanes — a real NFR node, not decoration.
         const nfrText = `\n## NFR-SEC-1 — Сессия SSO не вечна\n\nСессия SSO НЕ ДОЛЖНА жить дольше 8 часов без повторной аутентификации у корпоративного IdP.\n`;
         const nfrRender = `<span style="color:#6fb4ff">→ spec_patch</span>  NFR.md += «NFR-SEC-1 — сессия ≤ 8ч»  <span style="color:#5fd98a">// committed</span>`;
@@ -1264,9 +1265,10 @@ async function main() {
         await agentAppend(page, "tool", `<span style="color:#6fb4ff">→ spec_claim</span>  roadmap-growth`);
         const claimRm = await agent.callTool({ name: "spec_claim", arguments: { spec: "roadmap-growth" } });
         assert.ok(JSON.parse(claimRm.content[0].text).ok !== false, "claim roadmap-growth failed");
-        await patch("roadmap-growth", "patch", { operations: [{ kind: "insert_at_eof", document: "TASKS.md",
-            text: `\n## TASK-2 — SSO-роллаут\n\n- **Status:** todo\n\n**Refs:** acme-sso:FR-1\n\n- **Done When:** SSO включён для всех пользователей портала\n` }] },
-          `<span style="color:#6fb4ff">→ spec_patch</span>  roadmap-growth · TASK-2 «SSO-роллаут» Refs acme-sso:FR-1  <span style="color:#5fd98a">// committed</span>`);
+        await patch("roadmap-growth", "patch", { operations: [{ kind: "upsert_task", document: "TASKS.md",
+            localId: "TASK-2", title: "SSO-роллаут", status: "todo",
+            refs: ["acme-sso:FR-1"], body: "SSO включён для всех пользователей портала" }] },
+          `<span style="color:#6fb4ff">→ spec_patch</span>  roadmap-growth · upsert_task TASK-2 «SSO-роллаут» Refs acme-sso:FR-1  <span style="color:#5fd98a">// committed</span>`);
         await patch("roadmap-growth", "assembleRoadmap", {},
           `<span style="color:#6fb4ff">→ spec_patch</span>  assembleRoadmap → scope += acme-sso  <span style="color:#5fd98a">// committed</span>`);
         await agent.callTool({ name: "spec_release", arguments: { spec: "acme-sso" } });

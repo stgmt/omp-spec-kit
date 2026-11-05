@@ -387,7 +387,7 @@ export function createSpecService(root, context = {}) {
 
   // spec-kernel@2 accepts @1 callers unchanged (shape-compatible; the new
   // optional `project` scope rule is transport-level), so both are legal here.
-  async function runQuery(operation, args, { requestId = null, schemaVersion, project = null, projectSource = null, transport = null, bindingStatus = null } = {}) {
+  async function runQuery(operation, args, { requestId = null, schemaVersion, project = null, projectSource = null, transport = null, bindingStatus = null, actor = null } = {}) {
     if (schemaVersion !== undefined && schemaVersion !== "spec-kernel@1" && schemaVersion !== KERNEL_SCHEMA_VERSION) {
       return withProvenance(
         makeErrorEnvelope({
@@ -680,6 +680,9 @@ export function createSpecService(root, context = {}) {
 
       const authoredInput = { ...effectiveArgs };
       if (requestId !== null && authoredInput.requestId === undefined) authoredInput.requestId = requestId;
+      // The authenticated principal travels beside the closed arguments, never
+      // inside them: a caller cannot name its own receipt actor.
+      if (typeof actor === "string" && actor.trim() !== "") authoredInput.actor = actor;
 
       try {
         const authored = await getAuthoring().execute(authoredInput);
