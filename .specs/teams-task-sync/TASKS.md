@@ -282,3 +282,11 @@
 **Implements:** FR-15
 
 - **Done When:** A single team shows tasks from linked specifications with collision-free project/spec/task identity and isolated execution data.
+
+## TASK-28 — Connect lead spec authoring and linked shared-task creation
+
+- **Status:** todo
+
+**Implements:** FR-16
+
+- **Done When:** Lead can create and author supported specifications through MCP; all shared task creation paths require an existing same-spec requirement.
