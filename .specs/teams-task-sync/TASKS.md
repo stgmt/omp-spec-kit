@@ -115,7 +115,7 @@
 
 **Implements:** FR-9, NFR-DATA-1
 
-**Depends On:** TASK-3
+**Depends On:** TASK-3, TASK-32
 
 - **Done When:** `planSyncDecision` implements the DEC-7 table. The sync service emits `task_sync.conflict` before applying spec-wins. It writes `pending_projection` before the projection update. It emits `task_sync.projected` on success and `task_sync.projection_failed` on failure. Tests cover all five rows plus the pending path.
 
