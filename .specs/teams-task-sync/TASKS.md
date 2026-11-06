@@ -306,3 +306,11 @@
 **Implements:** FR-18
 
 - **Done When:** Run installed application, real registry and real lead and member in a sandbox; prove both directions, boundaries and negative outcomes.
+
+## TASK-31 — Make specification creation preview side-effect free
+
+- **Status:** todo
+
+**Implements:** FR-16
+
+- **Done When:** A dry-run creation leaves remote branches, commits and documents unchanged while a separate confirmed apply can create the specification.
