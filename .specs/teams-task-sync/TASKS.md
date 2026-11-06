@@ -266,3 +266,11 @@
 **Implements:** FR-12, FR-3
 
 - **Done When:** Участник команды через MCP создаёт задачу с требованием; она видна на доске и в spec_tasks.
+
+## TASK-26 — Preserve personal agent task tools
+
+- **Status:** todo
+
+**Implements:** FR-14
+
+- **Done When:** Personal native tasks remain usable and unchanged; migration cannot delete personal data and fails safely if separation is uncertain.
