@@ -290,3 +290,11 @@
 **Implements:** FR-16
 
 - **Done When:** Lead can create and author supported specifications through MCP; all shared task creation paths require an existing same-spec requirement.
+
+## TASK-29 — Expose complete shared task details to team participants
+
+- **Status:** todo
+
+**Implements:** FR-17
+
+- **Done When:** Lead and authorized members read the same untruncated canonical task fields and team execution data while registry roles remain enforced.
