@@ -130,7 +130,7 @@
 
 - **Done When:** team config stores `specProject`. A missing binding returns `TEAM_PROJECT_BINDING_MISSING` and the binding is visible in team settings.
 
-## TASK-13 — Archive and delete legacy tasks
+## TASK-13 — Archive and safely remove only legacy shared tasks
 
 - **Status:** todo
 - **Owner:** teams
@@ -139,7 +139,7 @@
 
 **Refs:** TASK-5
 
-- **Done When:** first sync writes `userData/backups/teams-tasks-<timestamp>/` with `tasks/` and `attachments/` and `manifest.json` containing `path` `sha256` `size`. Then it removes `~/.claude/tasks/<team>`. A repeat run is a no-op. Archive contents match the removed files. Attachments are present. Adoption is impossible.
+- **Done When:** Verify complete archive of legacy shared tasks and attachments before deletion; delete only data proven not to contain personal tasks. If ownership is unclear, stop with an error and preserve all source data. Repeat is a no-op; adoption is unavailable.
 
 ## TASK-14 — BDD suite for the contract
 
