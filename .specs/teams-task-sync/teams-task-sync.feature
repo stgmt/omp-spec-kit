@@ -55,25 +55,22 @@ Feature: Teams task sync
     And a direct task_set_status write is rejected
 
   @id:SCEN-6 @feature9 @AC-9.1 @AC-9.2
-  Scenario: Triple divergence resolves to the corpus
-    Given team "tokenplan-ops" is bound to registry project "tokenplan"
-    And the baseline snapshot records todo
-    And the corpus contains done
-    And the projection contains in-progress
-    When synchronization runs
-    Then done wins
-    And a task_sync.conflict event carries both values
-    And the event is recorded before the change is applied
+  Scenario: A stale edit is rejected without overwriting the registry
+    Given a client read task status todo and the registry now contains done
+    And the user proposes in-progress from the old version
+    When the stale change is submitted
+    Then the registry rejects the change and retains done
+    And the user can see both current and proposed values
+    And the conflict event contains no full task text
 
   @id:SCEN-7 @feature9 @AC-9.1
-  Scenario: Owner conflict is visible
-    Given team "tokenplan-ops" is bound to registry project "tokenplan"
-    And the baseline records owner "BALANSER"
-    And the corpus records owner "KASSA_BILLING_OWNER"
-    And the projection records owner "TEAM_HARNESS"
-    When synchronization runs
-    Then the projection owner becomes KASSA_BILLING_OWNER
-    And a task_sync.conflict event names the field owner
+  Scenario: Owner conflict is visible without a local canonical copy
+    Given a client read owner BALANSER and the registry now contains KASSA_BILLING_OWNER
+    And the user proposes owner TEAM_HARNESS from the old version
+    When the stale change is submitted
+    Then the registry keeps KASSA_BILLING_OWNER
+    And the client shows the conflict and the proposed owner
+    And no local canonical task copy is saved
 
   @id:SCEN-8 @feature6 @AC-6.2 @AC-2.4
   Scenario: Dependency edges are derived, not stored twice
@@ -184,15 +181,12 @@ Feature: Teams task sync
     And no task operation reaches the registry
 
   @id:SCEN-20 @feature9 @AC-9.3
-  Scenario: Pending projection survives a failed projection write
-    Given team "tokenplan-ops" is bound to registry project "tokenplan"
-    And the registry confirms task "TASK-3" moved from todo to ready
-    When the projection write fails
-    Then pending_projection is recorded before the projection update
-    And a task_sync.projection_failed event is emitted
-    And the board shows an error instead of a local status
-    And no queue or optimistic status is created
-    And retrying the canonical ready closes pending and clears it
+  Scenario: A confirmed transition recovers local history and readback
+    Given the registry confirmed task TASK-3 moved from todo to ready with a receipt
+    When saving local history or refreshing the task fails
+    Then a recovery marker and visible error remain without a local canonical status
+    And recovery writes the receipt at most once and reads the task from the registry
+    And no deferred write queue or optimistic status is created
 
   @id:SCEN-21 @feature4 @AC-4.3 @AC-4.4
   Scenario: Double submission is idempotent or conflicts
@@ -393,3 +387,13 @@ Feature: Teams task sync
     When a team member reads canonical details through spec-kit MCP and full details through teams MCP
     Then the canonical details and the team's own execution data are available without truncation
     And unavailable or over-limit details return an explicit error
+
+
+  @id:SCEN-45 @feature9 @AC-9.4
+  Scenario: A confirmed transition receipt survives a crash before the local marker
+    Given teams recorded a request id and payload hash before submitting a transition
+    And the registry confirmed that transition with an authenticated actor
+    When the process crashes before recording the receipt or recovery marker
+    Then restart retrieves the original registry result by request id
+    And the authentic receipt is appended to history at most once
+    And an unavailable result is shown as unknown without issuing a new transition
