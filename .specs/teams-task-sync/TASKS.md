@@ -42,7 +42,7 @@
 
 - **Done When:** `upsert_task` without `Implements` on an FR or NFR or AC of the same spec returns `TASK_REQUIREMENT_REQUIRED` and linked creation succeeds.
 
-## TASK-5 — Replace the teams task store with a projection
+## TASK-5 — Read shared task canon from registry without local copies
 
 - **Status:** todo
 - **Owner:** teams
@@ -51,7 +51,7 @@
 
 **Depends On:** TASK-2, TASK-3
 
-- **Done When:** `~/.claude/tasks/<team>` is written only by the projection writer. `taskStore` has no creation path. the projection stores no derived edges. reading disk as the source of truth is removed.
+- **Done When:** Shared task identity and canonical fields are read from the registry, never persisted in local task files; only team execution data and authorized recovery metadata remain local.
 
 ## TASK-6 — Deterministic identifiers in teams
 
