@@ -281,7 +281,7 @@
 
 **Implements:** FR-15
 
-- **Done When:** A single team shows tasks from linked specifications with collision-free project/spec/task identity and isolated execution data.
+- **Done When:** One team shows linked specifications with collision-free task identity; explicitly shared specifications keep team execution data separate. Team binding after confirmed creation is recoverable without duplicate creation.
 
 ## TASK-28 — Connect lead spec authoring and linked shared-task creation
 
