@@ -108,7 +108,7 @@
 
 - **Done When:** every registry failure maps to a contract error code including `CONTRACT_UNAVAILABLE` and `STATUS_CONFLICT`. The task board shows an error state. No queue or cache or optimistic status exists in code. `pending_projection` is treated only as a recovery marker.
 
-## TASK-11 — Implement three-way conflict resolution
+## TASK-11 — Implement fail-closed conflict handling
 
 - **Status:** todo
 - **Owner:** spec-kit
@@ -117,7 +117,7 @@
 
 **Depends On:** TASK-3, TASK-32
 
-- **Done When:** `planSyncDecision` implements the DEC-7 table. The sync service emits `task_sync.conflict` before applying spec-wins. It writes `pending_projection` before the projection update. It emits `task_sync.projected` on success and `task_sync.projection_failed` on failure. Tests cover all five rows plus the pending path.
+- **Done When:** Compare the read version, current registry value and proposed edit without storing a local canonical task copy; reject stale writes, show proposed and current values to the authorized caller, and record conflicts without full task text.
 
 ## TASK-12 — Bind a team to a registry project
 
