@@ -29,7 +29,7 @@
 
 **Refs:** TASK-2
 
-- **Done When:** TASK nodes parse `Tracking`. `spec_query` board and task views return `owner` `tracking` `contentHash` and computed `dependsOn` `blocks` `blockedBy` while the kernel schema stays `spec-kernel@2`. The projection stores at most `Depends On`.
+- **Done When:** TASK nodes expose owner, tracking, contentHash and derived dependency edges; no local canonical dependency copy is stored.
 
 ## TASK-4 — Enforce requirement linkage on task creation
 
