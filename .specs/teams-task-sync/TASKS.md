@@ -298,3 +298,11 @@
 **Implements:** FR-17
 
 - **Done When:** Lead and authorized members read the same untruncated canonical task fields and team execution data while registry roles remain enforced.
+
+## TASK-30 — Prove the real lead-to-board-to-member workflow
+
+- **Status:** todo
+
+**Implements:** FR-18
+
+- **Done When:** Run installed application, real registry and real lead and member in a sandbox; prove both directions, boundaries and negative outcomes.
