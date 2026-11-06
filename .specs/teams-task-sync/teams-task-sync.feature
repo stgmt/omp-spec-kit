@@ -110,12 +110,13 @@ Feature: Teams task sync
     And no task node and no projection are created
 
   @id:SCEN-12 @feature3 @AC-3.1
-  Scenario: Local task creation is impossible
+  Scenario: Local shared task creation is impossible
     Given team "tokenplan-ops" is bound to registry project "tokenplan"
     And the registry is unavailable
-    When any teams component attempts to create a task file directly
+    When any teams component attempts to create a shared task file directly
     Then the attempt is rejected with TASK_CREATE_REQUIRES_REGISTRY
-    And no file appears under the task directory
+    And no shared task file appears as a fallback
+    And personal agent task tools remain available
 
   @id:SCEN-13 @feature7 @AC-7.1
   Scenario: Kanban column is derived from status
