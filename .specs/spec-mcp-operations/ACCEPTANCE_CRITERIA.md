@@ -375,3 +375,16 @@ Given a real MCP server, tools/list declares the stable result schema and discov
 **Requirement:** [FR-39](FR.md#fr-39-spec-graph-board-view)
 
 **Scenario:** @feature39 @FR-39 @AC-39.1 @id:SCEN-mcp-spec-graph-board-view
+
+
+## AC-40.1: Shared team task authoring and readback
+
+**Given:** a live hosted registry, an authorized team context and a specification containing FR-1
+**When:** a lead creates a shared task through spec_patch and both lead and member read its details through MCP
+**Then:** project, spec, task identity, title, multiline description, original status, owner, requirement, completion criterion and links are preserved without silent truncation
+**And:** creation with a missing specification or without an existing same-spec requirement is rejected without a shared task write
+**And:** personal native tasks remain outside this MCP shared-task contract and no new public tool is introduced
+
+**Requirement:** [FR-40](FR.md#fr-40-shared-team-task-authoring-and-readback)
+
+**Scenario:** @feature40 @FR-40 @AC-40.1 @id:SCEN-mcp-shared-team-task-readback

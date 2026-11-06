@@ -369,3 +369,11 @@ The branch SHALL not accept limit or cursor and SHALL never return a partial or 
 **Contract card:** kind functional; subject mcp-board-view; observables complete board DTO, fingerprint equality, scope filtering, raw edge aggregation, strict no-pagination branch, and unchanged ten-tool surface; verification direct JSON-RPC and staged BDD.
 **Acceptance:** [AC-39.1](ACCEPTANCE_CRITERIA.md#ac-391-spec-graph-board-view)
 **Scenario:** @feature39 @FR-39 @AC-39.1 @id:SCEN-mcp-spec-graph-board-view
+
+
+## FR-40: Shared team task authoring and readback
+
+For an Agent Teams shared task, the existing hosted spec-kit MCP authoring surface SHALL preserve the authorized project, specification and local task identity through creation, readback and updates. It SHALL reject creating a shared task when the selected specification is missing, inaccessible or ambiguous, or when no existing FR, NFR or AC from that specification is linked. The lead and other authorized team members SHALL be able to obtain complete canonical task details without silent field or status loss; compact lists MAY require a separate full-detail read. Registry authorization SHALL remain authoritative. The shared task and personal agent task boundary and the end-to-end team board obligations are owned by `teams-task-sync:FR-14` through `teams-task-sync:FR-18`; this requirement does not add a duplicate public MCP tool or change personal agent task storage.
+
+**Acceptance:** [AC-40.1](ACCEPTANCE_CRITERIA.md#ac-401-shared-team-task-authoring-and-readback)
+**Scenario:** @feature40 @FR-40 @AC-40.1 @id:SCEN-mcp-shared-team-task-readback

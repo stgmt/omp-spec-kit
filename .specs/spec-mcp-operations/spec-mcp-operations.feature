@@ -346,3 +346,12 @@ Scenario: Spec graph returns one complete board view
   And limit or cursor is rejected for this branch
   And an over-size response returns RESPONSE_TOO_LARGE without partial data
   And the registered tool count stays at 10
+
+
+@feature40 @FR-40 @AC-40.1 @id:SCEN-mcp-shared-team-task-readback
+Scenario: Shared team task retains its specification and requirement through MCP
+  Given an isolated hosted registry with an authorized team and specification containing FR-1
+  When the lead creates a shared task through spec_patch linked to FR-1
+  Then the lead and a read-authorized member can read the same complete task and requirement through MCP
+  And a shared task without an existing same-spec requirement is rejected without a write
+  And personal native agent tasks are not imported into the shared board
