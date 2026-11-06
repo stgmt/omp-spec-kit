@@ -315,10 +315,10 @@
 
 - **Done When:** A dry-run creation leaves remote branches, commits and documents unchanged while a separate confirmed apply can create the specification.
 
-## TASK-32 — Resolve pre-existing sync conflict and recovery specification contradictions
+## TASK-32 — Implement durable recovery of confirmed task transitions
 
 - **Status:** todo
 
-**Implements:** FR-1, FR-8, FR-9
+**Implements:** FR-1, FR-4, FR-8, FR-9
 
-- **Done When:** Before implementing conflict recovery, reconcile FR-9 and DEC-7 with FR-1, FR-8 and DEC-15 without a second canonical task store or silent overwrite; define authenticated receipt recovery after a crash, protect task text in logs, and align AC-8, AC-9 and scenarios 4, 6, 7, 20 and 21.
+- **Done When:** Before submitting, record request id and payload hash without a canonical task copy; after crash retrieve the original registry receipt and authenticated actor, append history at most once, and show unknown outcomes without duplicate writes.
