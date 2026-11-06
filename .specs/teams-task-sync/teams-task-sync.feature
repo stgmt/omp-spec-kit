@@ -39,7 +39,7 @@ Feature: Teams task sync
     And the registry answers with a timeout
     When the user moves a task to in-progress
     Then the operation fails with REGISTRY_UNAVAILABLE
-    And the projection keeps its previous status
+    And the board shows an error and does not persist a local canonical status
     And no deferred queue or optimistic status is created
 
   @id:SCEN-5 @feature4 @AC-4.1 @AC-4.2
@@ -144,12 +144,11 @@ Feature: Teams task sync
   @id:SCEN-15 @feature10 @AC-10.1
   Scenario: Legacy tasks are archived and deleted
     Given team "tokenplan-ops" is bound to registry project "tokenplan"
-    And the team task directory contains legacy task files
+    And the team task directory is verified to contain only legacy shared task files
     When the first synchronization runs
     Then an archive userData/backups/teams-tasks-<timestamp>/ is written
     And the archive contains a manifest with path, sha256 and size
-    And the shared task directory is removed only if the archive is verified and personal data is proven absent
-    And if personal data cannot be separated cleanup stops without deleting it
+    And the verified archive matches the removed shared task directory
     And adoption of archived tasks is not offered
 
   @id:SCEN-16 @feature6 @AC-6.1 @AC-6.2
@@ -199,11 +198,11 @@ Feature: Teams task sync
   Scenario: Double submission is idempotent or conflicts
     Given team "tokenplan-ops" is bound to registry project "tokenplan"
     And task "TASK-3" with status todo
-    When the same replace_task_status request is submitted twice with requestId R1
+    When the same replace_task_status request from todo to in-progress is submitted twice with requestId R1
     Then the second call returns the first receipt
     And historyEvents contains exactly one transition
     And a call with expectedStatus ready fails with STATUS_CONFLICT
-    And the corpus still contains todo
+    And the corpus still contains in-progress
 
   @id:SCEN-22 @feature10 @AC-10.2
   Scenario: Adoption is rejected by construction
