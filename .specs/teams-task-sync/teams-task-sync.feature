@@ -1,6 +1,6 @@
 Feature: Teams task sync
   As a team operator
-  I want every task to live in the spec corpus and be moved through spec-kit
+  I want every shared team task to live in the spec corpus and be moved through spec-kit
   So that task state is versioned, traceable to requirements and recoverable
 
   Background:
@@ -82,7 +82,7 @@ Feature: Teams task sync
     When the projection is rebuilt
     Then the projection blockedBy equals TASK-2
     And the projection blocks list is computed from inbound edges
-    And the projection stores at most Depends On
+    And no local copy of Depends On is stored
     And replace_task_links writes Depends On TASK-2
     And editing blockedBy locally is rejected with FIELD_OWNED_BY_SPEC
 
@@ -148,7 +148,8 @@ Feature: Teams task sync
     When the first synchronization runs
     Then an archive userData/backups/teams-tasks-<timestamp>/ is written
     And the archive contains a manifest with path, sha256 and size
-    And the task directory is removed
+    And the shared task directory is removed only if the archive is verified and personal data is proven absent
+    And if personal data cannot be separated cleanup stops without deleting it
     And adoption of archived tasks is not offered
 
   @id:SCEN-16 @feature6 @AC-6.1 @AC-6.2
@@ -371,3 +372,25 @@ Feature: Teams task sync
     When the registry is unavailable or a task creation response is lost
     Then the shared operation reports an error or an unknown outcome without a false success or duplicate
     And the personal task remains available and separate
+
+
+  @id:SCEN-42 @feature15 @AC-15.4
+  Scenario: A created specification can be linked after a partial failure
+    Given the lead created a specification in a verified team context
+    When the team association fails or its result is unknown
+    Then the partial result identifies the created specification
+    And retrying the association neither creates a second specification nor links another team
+
+  @id:SCEN-43 @feature15 @AC-15.5
+  Scenario: Explicitly shared specification keeps team execution data separate
+    Given two authorized teams are explicitly linked to the same specification
+    When one team adds a comment to a shared canonical task
+    Then the other team's execution data is not overwritten or substituted
+    And Tracking is not used as the team association or as authorization
+
+  @id:SCEN-44 @feature17 @AC-17.3
+  Scenario: Team task detail combines canonical and team-owned data
+    Given a task has a canonical completion criterion and a team-owned comment and attachment
+    When a team member reads canonical details through spec-kit MCP and full details through teams MCP
+    Then the canonical details and the team's own execution data are available without truncation
+    And unavailable or over-limit details return an explicit error

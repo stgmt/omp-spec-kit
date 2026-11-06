@@ -1,6 +1,6 @@
 # Teams Task Sync
 
-Centralized task management for agent-teams-ai: the spec-kit corpus (served by `spec-registryd`) is the only task store, and the Electron application in the teams fork renders and mutates tasks exclusively through spec-kit MCP operations.
+Centralized task management for agent-teams-ai: the spec-kit corpus (served by `spec-registryd`) is the only store for shared team tasks, and the Electron application in the teams fork renders and mutates tasks exclusively through spec-kit MCP operations.
 
 **Profile:** standard
 **Status:** active
@@ -11,7 +11,7 @@ Today teams keeps tasks as per-task JSON files under `~/.claude/tasks/<team>` wi
 
 - a task is a canonical `TASK` node in `.specs` with identity, status, owner, dependencies and `Done When`;
 - teams creates, reads and moves tasks only through `spec_patch` / `spec_query` on `spec-registryd`;
-- the local task files become a projection with a deterministic identity (`uuidv5`), so no mapping table exists;
+- shared task identities are deterministic (`uuidv5`) and canonical fields are read from the registry, not persisted as a local task copy;
 - every field has exactly one owner; duplicates are resolved by ownership, not by merging values;
 - the registry being unavailable is a hard error, never a local fallback.
 
