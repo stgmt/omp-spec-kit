@@ -274,3 +274,11 @@
 **Implements:** FR-14
 
 - **Done When:** Personal native tasks remain usable and unchanged; migration cannot delete personal data and fails safely if separation is uncertain.
+
+## TASK-27 — Support several specification scopes on one team board
+
+- **Status:** todo
+
+**Implements:** FR-15
+
+- **Done When:** A single team shows tasks from linked specifications with collision-free project/spec/task identity and isolated execution data.
