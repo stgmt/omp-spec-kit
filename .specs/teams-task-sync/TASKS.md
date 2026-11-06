@@ -289,7 +289,7 @@
 
 **Implements:** FR-16
 
-- **Done When:** Lead can create and author supported specifications through MCP; all shared task creation paths require an existing same-spec requirement.
+- **Done When:** Lead creates and authors specs in a verified team context through MCP. All shared task creation routes and attempts to remove the last requirement enforce an existing same-spec requirement without unsafe partial writes.
 
 ## TASK-29 — Expose complete shared task details to team participants
 
