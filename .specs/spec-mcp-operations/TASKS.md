@@ -425,3 +425,11 @@ _Requirements: [FR-37](FR.md#fr-37-unified-specification-and-corpus-validation-i
 - **Done When:** spec_graph accepts only the strict board branch, returns one complete BoardProjectionV1 with full bounded card-source fields, honors corpus and specSlugs scope, aggregates raw kernel edges, rejects pagination fields, fails closed over 1 MiB, and leaves the public surface at ten tools.
 
 _Requirements: [FR-39](FR.md#fr-39-spec-graph-board-view)_
+
+## TASK-31 — Support complete spec-kit shared team task authoring and readback
+
+- **Status:** todo
+
+**Implements:** FR-40
+
+- **Done When:** Use the existing hosted MCP tools; require an accessible selected specification and existing same-spec requirement for shared team tasks and preserve full task details and permissions.
