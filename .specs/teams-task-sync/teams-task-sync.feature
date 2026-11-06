@@ -282,3 +282,92 @@ Feature: Teams task sync
     Then the second call returns CONFLICT
     And the first receipt remains the stored response
     And historyEvents contains exactly one transition
+
+
+  @id:SCEN-30 @feature14 @AC-14.1
+  Scenario: Personal agent tasks remain available and separate
+    Given a team lead and a member each have a personal native task
+    When both use their native personal task tools
+    Then their personal tasks remain available without a specification link
+    And no personal task appears as a shared board task
+
+  @id:SCEN-31 @feature14 @AC-14.2
+  Scenario: Migration cannot remove personal agent tasks
+    Given legacy shared task data cannot be separated safely from personal agent tasks
+    When the shared task migration attempts cleanup
+    Then cleanup stops with a visible error
+    And the personal tasks remain available and unchanged
+
+  @id:SCEN-32 @feature15 @AC-15.1
+  Scenario: One team board distinguishes identical local ids in different specifications
+    Given the same team is linked to specifications A and B in an authorized project
+    And both specifications contain TASK-1 with different descriptions
+    When the team opens its board and reads both tasks
+    Then both tasks are visible with their own project, specification and local id
+    And edits, comments and attachments remain associated with the correct task
+
+  @id:SCEN-33 @feature15 @AC-15.2
+  Scenario: Lead creates a specification for its team
+    Given a team lead has write access to the team's registry project
+    When the lead creates a specification through spec-kit MCP in its team context
+    And a linked shared task is created in the new specification
+    Then the new specification is linked to that team
+    And the task appears on that team's board without linking another team
+
+  @id:SCEN-34 @feature15 @AC-15.3
+  Scenario: Shared task created through spec-kit appears on the same board
+    Given a team is linked to a specification with requirement FR-1
+    When an authorized participant creates TASK-8 through spec-kit MCP linked to FR-1
+    Then the same task appears through the team MCP and on its board
+    And its project, specification, task id and requirement link are unchanged
+    And the registry contains exactly one such task
+
+  @id:SCEN-35 @feature16 @AC-16.1
+  Scenario: Lead can author a specification through spec-kit
+    Given a team lead is authorized to create a specification in the team project
+    When the lead creates a supported specification and authors a requirement through spec-kit MCP
+    Then the specification and requirement can be read back from that project
+    And an empty scaffold is not reported as an accepted specification
+
+  @id:SCEN-36 @feature16 @AC-16.2
+  Scenario: Shared task without a valid same-spec requirement is refused
+    Given an authorized caller uses the board, team MCP or spec-kit MCP
+    When the caller creates a shared task without an existing requirement of its specification
+    Then the operation is rejected with an explicit error
+    And neither a registry task nor a local shared task is created
+
+  @id:SCEN-37 @feature16 @AC-16.3
+  Scenario: Previewing a new specification does not create its branch
+    Given a test repository has no branch for a new specification
+    When the client previews specification creation
+    Then the preview is returned without creating a branch, document or commit
+
+  @id:SCEN-38 @feature17 @AC-17.1
+  Scenario: Lead and member read complete shared task details
+    Given a shared task has a multiline description, status, owner, requirement, completion criterion and dependencies
+    And the team lead and member both have read access
+    When both read task details through their available MCP tools
+    Then both receive the same untruncated canonical fields and team execution data
+    And the task keeps its original project and specification identity
+
+  @id:SCEN-39 @feature17 @AC-17.2
+  Scenario: Reading a shared task does not grant write permission
+    Given a team member can read a shared task but has no registry write permission
+    When the member reads the task and then attempts to update it
+    Then the full permitted details are returned
+    And the write is rejected without changing the specification
+
+  @id:SCEN-40 @feature18 @AC-18.1
+  Scenario: A real lead and member work on the same registry-backed task
+    Given an installed application and registry use an isolated test project and team
+    When the real lead creates a requirement and shared task through MCP
+    And a real member reads the same task and performs the sandbox work
+    Then the board, the registry and both participants agree on the task identity and fields
+    And changes from each permitted entry point are visible without duplication
+
+  @id:SCEN-41 @feature18 @AC-18.2
+  Scenario: Failure of the registry does not change a personal task or create a duplicate
+    Given a shared task and a separate personal task exist in an isolated team
+    When the registry is unavailable or a task creation response is lost
+    Then the shared operation reports an error or an unknown outcome without a false success or duplicate
+    And the personal task remains available and separate

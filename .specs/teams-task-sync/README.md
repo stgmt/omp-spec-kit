@@ -23,6 +23,10 @@ Today teams keeps tasks as per-task JSON files under `~/.claude/tasks/<team>` wi
 - A confirmed canonical transition that has not reached the projection is a bounded `pending_projection` marker, not a queue and not an optimistic status.
 - Legacy tasks and their attachments are archived together; adoption is impossible by construction.
 
+## Shared tasks and personal agent tasks
+
+The team board aggregates explicitly linked specifications. A lead can create and author specifications through the existing spec-kit MCP tools; tasks created by an authorized caller through either product surface remain bound to their own specification. All authorized team members can read the complete shared task and team execution data. Personal built-in agent tasks are separate and remain available; they are not imported into the board. Live cross-product verification is required before claiming this works.
+
 ## Documents
 
 - [FR.md](FR.md) — functional requirements
