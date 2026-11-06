@@ -379,6 +379,8 @@ Given a real MCP server, tools/list declares the stable result schema and discov
 
 ## AC-40.1: Shared team task authoring and readback
 
+**Covers:** FR-40
+
 **Given:** a live hosted registry, an authorized team context and a specification containing FR-1
 **When:** a lead creates a shared task through spec_patch and both lead and member read its details through MCP
 **Then:** project, spec, task identity, title, multiline description, original status, owner, requirement, completion criterion and links are preserved without silent truncation
