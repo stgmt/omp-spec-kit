@@ -1,20 +1,19 @@
 # Local Corpus Mode
 
-Status: DRAFT
+- **Status:** backlog
 
-Release 3.4.0, wave 1a of issue #51. A specification corpus SHALL be usable directly from a working tree: no registry project, no token, no project selection. Every resolution outcome SHALL be describable in one object, so a caller learns why a corpus is unavailable instead of guessing.
+> **Not part of release 3.4.0.** Owner decision of 2026-11-08, recorded in issue #51: a project must be registered in the registry, so a registry-less local mode is out of scope. This specification is kept as the design record; the delivered path is `spec-project-registration`, and the internal URI allowlist moved to phase 5 of `roadmap-3-4-0`.
 
-This specification owns: local corpus resolution on the stdio transport, the `PROJECT_LOCAL` resolution outcome, the preflight report that doubles as a state doctor, registry reachability probing, and the internal-URI allowlist of the enforcement guard.
+The work recorded here measured what an agent meets on a repository the registry does not know: a resolution refusal with no next action, a preflight report that omits the transport, the registry reachability and the guard mode, and an internal URI scheme treated as a filesystem path. The first two are answered by the registration specification; the third is answered by the release hygiene phase.
 
-It does not own: corpus containment and read redirection (`spec-mcp-access-gate`), the hosted registry service and its project scopes (`spec-registry-service`), the patch operation surface (`spec-patch-bundle`), scenario and command evidence (`spec-verify-runner`), or the task graph itself (`spec-mcp-operations`).
+## What this record contains
+
+- The measured refusal chain and the observed preflight gaps, kept as evidence for the registration specification.
+- The internal URI allowlist defect: `proc` and `out` are resolved as paths while `agent` and the other schemes continue.
 
 ## Public states
 
-- **DRAFT.** Nothing is implemented. The current behaviour this specification replaces is measured in issue #51: `PROJECT_REQUIRED` and `PROJECT_NOT_ALLOWED` are reachable on a repository whose corpus is a plain working tree, and the preflight report omits the transport, the registry reachability, the guard mode and the next action.
-- **Blocking dependency removed:** the enforcement guard currently treats `proc` and `out` as filesystem targets (`src/enforcement/resolve-targets.js`), so a read-only introspection call is refused before any corpus work starts.
-
-
-- **Status:** backlog
+- **BACKLOG.** Requirements in this directory describe a mode the owner declined. They are not commitments, not in the release view, and not referenced by any active specification.
 
 ## Documents
 
