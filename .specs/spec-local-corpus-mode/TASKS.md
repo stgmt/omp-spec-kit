@@ -61,3 +61,18 @@ Status: DRAFT
 > - a real corpus file path is still refused with the corpus containment code
 > - the scheme list lives in one place and is covered by a scenario
 <!-- agent-teams-description:end -->
+
+## TASK-5 — Refusals name the project and one next action
+
+- **Status:** planned
+
+**Implements:** FR-5
+
+<!-- agent-teams-description:start -->
+> A project-resolution refusal names the offending project, the projects the caller may use, and exactly one next action; `PROJECT_REQUIRED` is not emitted when a corpus is resolvable.
+> 
+> Done when:
+> - each refusal code carries the three facts
+> - an unregistered consumer project resolves locally instead of refusing
+> - the refusal message fits the bounded reason budget
+<!-- agent-teams-description:end -->
