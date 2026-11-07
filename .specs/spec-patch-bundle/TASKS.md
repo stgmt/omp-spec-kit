@@ -61,3 +61,18 @@ Status: DRAFT
 > - a complete diff reports no truncation
 > - the envelope states the affected line ranges
 <!-- agent-teams-description:end -->
+
+## TASK-5 — Create a specification with authored documents
+
+- **Status:** planned
+
+**Implements:** FR-5
+
+<!-- agent-teams-description:start -->
+> Let the create intent carry initial document contents, so a new specification is written once with real content instead of a scaffold overwritten by a second call.
+> 
+> Done when:
+> - a create intent with five authored documents produces those bytes in one receipt
+> - the elicitation gate still applies to the first creation
+> - no second call is needed to replace a scaffold
+<!-- agent-teams-description:end -->
