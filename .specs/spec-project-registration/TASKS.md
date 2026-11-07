@@ -31,3 +31,18 @@ Status: DRAFT
 > - a successful registration returns the binding it created
 > - a repeated registration returns unchanged with no re-migration
 <!-- agent-teams-description:end -->
+
+## TASK-3 — Bootstrap the first specification
+
+- **Status:** planned
+
+**Implements:** FR-3, FR-4
+
+<!-- agent-teams-description:start -->
+> Make the first specification creation work right after registration with no operator step, and report whether the caller's credential is accepted with the one repair when it is not.
+> 
+> Done when:
+> - the first spec branch is created and named in the response
+> - the second spec follows the same path
+> - an unaccepted credential names the repair and leaks no value
+<!-- agent-teams-description:end -->
