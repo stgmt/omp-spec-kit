@@ -31,3 +31,18 @@ Status: DRAFT
 > - `upsert_bullet` replaces by key and inserts once when absent
 > - applying the same upsert twice leaves the document byte-identical
 <!-- agent-teams-description:end -->
+
+## TASK-3 — Apply ordered operations per document
+
+- **Status:** planned
+
+**Implements:** FR-3
+
+<!-- agent-teams-description:start -->
+> Let a bundle carry several operations for one document and apply them in array order inside one transaction, naming the failing index when a selector misses.
+> 
+> Done when:
+> - two operations on one document apply in order
+> - a missing selector fails the bundle with the index named and no write
+> - the receipt reports the final hash per document
+<!-- agent-teams-description:end -->
