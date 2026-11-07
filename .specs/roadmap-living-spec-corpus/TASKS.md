@@ -46,3 +46,18 @@ Status: DRAFT
 > - a real drift in a real corpus is reported with both locations
 > - the evidence run is recorded in that specification
 <!-- agent-teams-description:end -->
+
+## TASK-4 — Deliver the verify runner
+
+- **Status:** planned
+
+**Implements:** FR-4
+
+<!-- agent-teams-description:start -->
+> Bring `spec-verify-runner` to accepted: the check field, the allowlisted run, the evidence record, the completion gate and the external writers.
+> 
+> Done when:
+> - the feature specification reports its acceptance criteria green on a release candidate
+> - a real task completes only after its recorded green run
+> - the evidence run is recorded in that specification
+<!-- agent-teams-description:end -->
