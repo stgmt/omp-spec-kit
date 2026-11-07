@@ -46,3 +46,18 @@ Status: DRAFT
 > - the enclosing tool call still returns its own result
 > - the probe never runs in local mode
 <!-- agent-teams-description:end -->
+
+## TASK-4 — Treat internal URIs as non-filesystem targets
+
+- **Status:** planned
+
+**Implements:** FR-4
+
+<!-- agent-teams-description:start -->
+> Every OMP internal URI scheme, including `proc` and `out`, is recognized as an internal target and never resolved as a path.
+> 
+> Done when:
+> - `read proc://` and a read of `out://` content are allowed
+> - a real corpus file path is still refused with the corpus containment code
+> - the scheme list lives in one place and is covered by a scenario
+<!-- agent-teams-description:end -->
