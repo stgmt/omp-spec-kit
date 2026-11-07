@@ -6,7 +6,7 @@ Release 3.4.0, wave 1b of issue #51. One edit call SHALL express a whole authori
 
 This specification owns: the preview diff format, the public section operation set, ordered operations on one document, explicit truncation reporting, and creating a specification together with its authored documents.
 
-It does not own: the transaction and write lock (`spec-mcp-operations`), the design review gate for scenarios (`spec-mcp-operations`), or local resolution (`spec-local-corpus-mode`).
+It does not own: the transaction and write lock (`spec-mcp-operations`), the design review gate for scenarios (`spec-mcp-operations`), or project registration (`spec-project-registration`).
 
 ## Public states
 
