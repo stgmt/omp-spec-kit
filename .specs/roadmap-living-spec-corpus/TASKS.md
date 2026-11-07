@@ -1,6 +1,4 @@
-# Roadmap: Living Specification Corpus
-
-Status: DRAFT
+# Tasks
 
 ## TASK-1 — Deliver local corpus mode
 
