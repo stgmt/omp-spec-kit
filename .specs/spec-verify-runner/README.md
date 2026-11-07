@@ -6,7 +6,7 @@ Release 3.4.0, wave 1d of issue #51. A check written next to a task SHALL be a c
 
 This specification owns: the executable check field of a task, running it under an allowlist and a timeout, the evidence record it produces, the completion gate that consumes that record, spend authorization, and the external result writers that make scenario evidence answer "last green run".
 
-It does not own: the task graph and its transitions (`spec-mcp-operations`), the decision about which rule a check enforces (`spec-decision-drift`), local resolution (`spec-local-corpus-mode`), or the preview surface (`spec-patch-bundle`).
+It does not own: the task graph and its transitions (`spec-mcp-operations`), the decision about which rule a check enforces (`spec-decision-drift`), project registration (`spec-project-registration`), or the preview surface (`spec-patch-bundle`).
 
 ## Public states
 
