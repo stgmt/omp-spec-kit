@@ -13,6 +13,9 @@ It does not own: corpus containment and read redirection (`spec-mcp-access-gate`
 - **DRAFT.** Nothing is implemented. The current behaviour this specification replaces is measured in issue #51: `PROJECT_REQUIRED` and `PROJECT_NOT_ALLOWED` are reachable on a repository whose corpus is a plain working tree, and the preflight report omits the transport, the registry reachability, the guard mode and the next action.
 - **Blocking dependency removed:** the enforcement guard currently treats `proc` and `out` as filesystem targets (`src/enforcement/resolve-targets.js`), so a read-only introspection call is refused before any corpus work starts.
 
+
+- **Status:** backlog
+
 ## Documents
 
 [Requirements](REQUIREMENTS.md) · [NFR](NFR.md) · [FR](FR.md) · [AC](ACCEPTANCE_CRITERIA.md) · [Design](DESIGN.md) · [Tasks](TASKS.md) · [Files](FILE_CHANGES.md) · [Changelog](CHANGELOG.md) · [BDD](spec-local-corpus-mode.feature) · [Fixtures](FIXTURES.md)
