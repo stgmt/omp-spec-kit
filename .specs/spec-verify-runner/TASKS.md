@@ -1,6 +1,4 @@
-# Verify Runner
-
-Status: DRAFT
+# Tasks
 
 ## TASK-1 — Parse checks and run them under an allowlist
 
