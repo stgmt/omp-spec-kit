@@ -47,7 +47,7 @@
 
 ## TASK-4 — Remove any local fallback
 
-- **Status:** planned
+- **Status:** in-progress
 
 **Implements:** FR-5
 
