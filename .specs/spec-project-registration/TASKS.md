@@ -17,7 +17,7 @@
 
 ## TASK-2 — Register a project through the tool
 
-- **Status:** planned
+- **Status:** in-progress
 
 **Implements:** FR-2
 
