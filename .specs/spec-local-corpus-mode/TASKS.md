@@ -31,3 +31,18 @@ Status: DRAFT
 > - a refusal carries the same object instead of a bare code
 > - the root is reported in a form the caller can act on
 <!-- agent-teams-description:end -->
+
+## TASK-3 — Probe registry reachability with a bound
+
+- **Status:** planned
+
+**Implements:** FR-3
+
+<!-- agent-teams-description:start -->
+> The hosted report probes the registry with its own timeout and reports the outcome without failing the enclosing call.
+> 
+> Done when:
+> - a closed registry yields `registryReachable: false` with a timeout flag
+> - the enclosing tool call still returns its own result
+> - the probe never runs in local mode
+<!-- agent-teams-description:end -->
