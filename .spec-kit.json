@@ -1,0 +1,9 @@
+{
+  "schema": "omp-spec-kit/spec-binding@1",
+  "project": "stgmt/omp-spec-kit",
+  "spec": "spec-verify-runner",
+  "repo": "https://github.com/stgmt/omp-spec-kit.git",
+  "branch": "spec-spec-verify-runner",
+  "createdAt": "2026-11-07T22:23:49.694Z",
+  "owner": "stgmt"
+}
