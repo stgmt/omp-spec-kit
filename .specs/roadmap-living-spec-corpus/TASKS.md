@@ -31,3 +31,18 @@ Status: DRAFT
 > - one bundle in a live session produces one reviewable diff
 > - the evidence run is recorded in that specification
 <!-- agent-teams-description:end -->
+
+## TASK-3 — Deliver decision drift
+
+- **Status:** planned
+
+**Implements:** FR-3
+
+<!-- agent-teams-description:start -->
+> Bring `spec-decision-drift` to accepted: the question kind, structured decision metadata, the drift diagnostic and the blocking relation.
+> 
+> Done when:
+> - the feature specification reports its acceptance criteria green on a release candidate
+> - a real drift in a real corpus is reported with both locations
+> - the evidence run is recorded in that specification
+<!-- agent-teams-description:end -->
