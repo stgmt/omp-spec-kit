@@ -1,6 +1,4 @@
-# Decision Drift
-
-Status: DRAFT
+# Tasks
 
 ## TASK-1 — Add the QUESTION entity kind
 
