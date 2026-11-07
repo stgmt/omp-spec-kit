@@ -32,7 +32,7 @@
 
 ## TASK-3 — Bootstrap the first specification
 
-- **Status:** planned
+- **Status:** in-progress
 
 **Implements:** FR-3, FR-4
 
