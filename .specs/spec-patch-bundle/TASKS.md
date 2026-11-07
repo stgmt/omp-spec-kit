@@ -46,3 +46,18 @@ Status: DRAFT
 > - a missing selector fails the bundle with the index named and no write
 > - the receipt reports the final hash per document
 <!-- agent-teams-description:end -->
+
+## TASK-4 — Report truncation and sizes
+
+- **Status:** planned
+
+**Implements:** FR-4
+
+<!-- agent-teams-description:start -->
+> Carry the truncation flag, the byte budget and per-document before and after sizes into the preview envelope, so a truncated diff is never presented as complete.
+> 
+> Done when:
+> - an over-budget diff reports truncation and the budget
+> - a complete diff reports no truncation
+> - the envelope states the affected line ranges
+<!-- agent-teams-description:end -->
