@@ -32,3 +32,19 @@ Status: DRAFT
 > - the history query returns runs in order
 > - a missing run answers not-run rather than an error
 <!-- agent-teams-description:end -->
+
+## TASK-3 — Gate completion and record overrides
+
+- **Status:** planned
+
+**Implements:** FR-4, FR-5
+
+<!-- agent-teams-description:start -->
+> Refuse a completion without a green record for the current commit, refuse a spending command without an authorization, and record any override with its written reason.
+> 
+> Done when:
+> - a completion without evidence is refused and names the missing record
+> - an override carrying a reason is applied and the receipt shows it
+> - a spending command without authorization is refused and names it
+> - a non-spending command runs without authorization
+<!-- agent-teams-description:end -->
