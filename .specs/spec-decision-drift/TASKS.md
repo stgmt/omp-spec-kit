@@ -32,3 +32,18 @@ Status: DRAFT
 > - a disagreeing mention produces a drift diagnostic naming both locations
 > - a decision without a guard reports `no-guard`
 <!-- agent-teams-description:end -->
+
+## TASK-3 — Block work on open questions
+
+- **Status:** planned
+
+**Implements:** FR-4
+
+<!-- agent-teams-description:start -->
+> Report work blocked by an open question and refuse a completion transition while the blocking question stays open, with the finding clearing itself when the question is answered.
+> 
+> Done when:
+> - each blocked target gets a finding naming the question
+> - a completion attempt is refused while the question is open
+> - answering or dropping the question removes the finding on the next read
+<!-- agent-teams-description:end -->
