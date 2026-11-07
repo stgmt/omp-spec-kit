@@ -1,6 +1,4 @@
-# Release 3.4.0
-
-Status: DRAFT
+# Tasks
 
 ## TASK-1 — Deliver the registration path
 
