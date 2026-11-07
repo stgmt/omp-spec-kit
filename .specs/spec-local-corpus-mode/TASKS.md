@@ -76,3 +76,18 @@ Status: DRAFT
 > - an unregistered consumer project resolves locally instead of refusing
 > - the refusal message fits the bounded reason budget
 <!-- agent-teams-description:end -->
+
+## TASK-6 — Local writes carry receipts and no token
+
+- **Status:** planned
+
+**Implements:** FR-6
+
+<!-- agent-teams-description:start -->
+> Writes in local mode use the same transactional patch path as hosted writes, emit a receipt, and require no token.
+> 
+> Done when:
+> - a local write returns an APPLIED receipt with changed documents
+> - no registry credential is read or forwarded
+> - a failed batch leaves no partial document
+<!-- agent-teams-description:end -->
