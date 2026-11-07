@@ -61,3 +61,18 @@ Status: DRAFT
 > - a real task completes only after its recorded green run
 > - the evidence run is recorded in that specification
 <!-- agent-teams-description:end -->
+
+## TASK-5 — Close release hygiene and declare later waves
+
+- **Status:** planned
+
+**Implements:** FR-5, FR-6
+
+<!-- agent-teams-description:start -->
+> Close the non-capability defects from issue #51 (internal URI schemes, type catalog copy, task list default, first-write gate persistence, roadmap markers, roadmap intent safety) and declare the two later waves as planned with their headlines.
+> 
+> Done when:
+> - each hygiene item has a check that fails when the fix is reverted
+> - both later waves appear as planned and neither as shipped
+> - the assembled release view is generated rather than written by hand
+<!-- agent-teams-description:end -->
