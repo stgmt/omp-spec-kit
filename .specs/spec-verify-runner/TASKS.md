@@ -48,3 +48,19 @@ Status: DRAFT
 > - a spending command without authorization is refused and names it
 > - a non-spending command runs without authorization
 <!-- agent-teams-description:end -->
+
+## TASK-4 — Ingest external results and keep history
+
+- **Status:** planned
+
+**Implements:** FR-6
+
+<!-- agent-teams-description:start -->
+> Ship a pytest plugin and a vitest reporter that write the declared result schema with a run identifier and commit, and ingest them so a scenario answers its last green run.
+> 
+> Done when:
+> - both writers emit the declared schema from a real run
+> - ingestion keeps every run rather than one file per machine
+> - a scenario answers last green with commit and timestamp
+> - a binding mismatch reports unknown instead of green
+<!-- agent-teams-description:end -->
