@@ -1,6 +1,4 @@
-# Project Registration
-
-Status: DRAFT
+# Tasks
 
 ## TASK-1 — Diagnose an unknown project
 
