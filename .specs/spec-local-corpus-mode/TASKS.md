@@ -1,6 +1,4 @@
-# Local Corpus Mode
-
-Status: DRAFT
+# Tasks
 
 ## TASK-1 — Resolve a corpus from a working tree without a registry
 
