@@ -61,3 +61,18 @@ Status: DRAFT
 > - a real task completes only after its recorded green run
 > - the evidence run is recorded in that specification
 <!-- agent-teams-description:end -->
+
+## TASK-5 — Declare the later waves
+
+- **Status:** planned
+
+**Implements:** FR-5
+
+<!-- agent-teams-description:start -->
+> Declare the coverage matrix and the zone guard as their own specifications with acceptance headlines, and keep both out of the shipped set until their evidence exists.
+> 
+> Done when:
+> - both capabilities appear as planned with a named headline
+> - neither appears as shipped while its specification is absent
+> - the assembled view is generated rather than hand-written
+<!-- agent-teams-description:end -->
