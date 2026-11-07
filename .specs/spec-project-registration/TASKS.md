@@ -46,3 +46,18 @@ Status: DRAFT
 > - the second spec follows the same path
 > - an unaccepted credential names the repair and leaks no value
 <!-- agent-teams-description:end -->
+
+## TASK-4 — Remove any local fallback
+
+- **Status:** planned
+
+**Implements:** FR-5
+
+<!-- agent-teams-description:start -->
+> Ensure no tool serves a corpus from a working tree when the project is unregistered, and that the refusal states registration is required and points at the registration action.
+> 
+> Done when:
+> - no resolution path returns a local corpus for an unregistered project
+> - the refusal text names the action rather than an alternative mode
+> - a scenario asserts the refusal on a working tree that does contain a corpus
+<!-- agent-teams-description:end -->
