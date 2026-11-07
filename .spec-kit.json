@@ -1,0 +1,9 @@
+{
+  "schema": "omp-spec-kit/spec-binding@1",
+  "project": "stgmt/omp-spec-kit",
+  "spec": "spec-local-corpus-mode",
+  "repo": "https://github.com/stgmt/omp-spec-kit.git",
+  "branch": "spec-spec-local-corpus-mode",
+  "createdAt": "2026-11-07T22:07:36.785Z",
+  "owner": "stgmt"
+}
