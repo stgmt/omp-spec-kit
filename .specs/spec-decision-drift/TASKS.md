@@ -47,3 +47,18 @@ Status: DRAFT
 > - a completion attempt is refused while the question is open
 > - answering or dropping the question removes the finding on the next read
 <!-- agent-teams-description:end -->
+
+## TASK-4 — Supersede decisions
+
+- **Status:** planned
+
+**Implements:** FR-5
+
+<!-- agent-teams-description:start -->
+> Emit a supersession edge, report the earlier decision as superseded, exclude it from drift evaluation and flag references that still point at it.
+> 
+> Done when:
+> - a supersession edge is traversable
+> - the drift report evaluates only decided decisions
+> - a requirement referencing a superseded decision emits a stale reference finding
+<!-- agent-teams-description:end -->
