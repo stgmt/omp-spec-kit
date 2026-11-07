@@ -16,3 +16,18 @@ Status: DRAFT
 > - the response envelope names the local mode and the resolved root
 > - no registry credential is read on that path
 <!-- agent-teams-description:end -->
+
+## TASK-2 — Preflight reports the resolution state
+
+- **Status:** planned
+
+**Implements:** FR-2
+
+<!-- agent-teams-description:start -->
+> The preflight payload carries transport, project source, resolvable root, registry reachability, guard mode, writability and one next action.
+> 
+> Done when:
+> - every field is present in the local and the hosted report
+> - a refusal carries the same object instead of a bare code
+> - the root is reported in a form the caller can act on
+<!-- agent-teams-description:end -->
