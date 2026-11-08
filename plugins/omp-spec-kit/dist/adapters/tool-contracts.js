@@ -49,6 +49,7 @@ export const TASK_STATUS_VALUES = Object.freeze([
   "in-progress",
   "blocked",
   "done",
+  "deleted",
   "deferred",
   "unknown",
 ]);
@@ -72,6 +73,9 @@ export const PATCH_OPERATION_KINDS = Object.freeze([
   "replace_section",
   "replace_in_section",
   "replace_task_status",
+  "upsert_task",
+  "replace_task_owner",
+  "replace_task_links",
   "replace_document",
   "delete_document",
   "rename_document",
@@ -93,15 +97,15 @@ export const TOOL_CONTRACTS = Object.freeze([
     discriminator: "view",
     variants: Object.freeze({
       types: Object.freeze({
-        description: "Return the authoritative domain type dictionary of 15 entity kinds and 7 edge types.",
+        description: "Return the domain dictionary of 15 entity kinds and 7 edge types.",
         fields: Object.freeze([]),
       }),
       specs: Object.freeze({
-        description: "List all specification slugs present in the current repository.",
+        description: "List specification slugs in the repository.",
         fields: Object.freeze([]),
       }),
       inventory: Object.freeze({
-        description: "Read a bounded, paged inventory of specifications and documents.",
+        description: "Read a bounded, paged specification and document inventory.",
         fields: Object.freeze([
           optionalField("specSlugs", "stringArray"),
           optionalField("includeDocuments", "boolean"),
@@ -114,7 +118,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         fields: Object.freeze([optionalField("specSlugs", "stringArray")]),
       }),
       status: Object.freeze({
-        description: "Read status, counts, or structural coverage for one specification or the corpus.",
+        description: "Read status, counts, or coverage for a spec or the corpus.",
         fields: Object.freeze([
           optionalField("spec", "string"),
           optionalField("statusView", "enum", READINESS_VIEW_VALUES),
@@ -134,7 +138,7 @@ export const TOOL_CONTRACTS = Object.freeze([
     discriminator: "mode",
     variants: Object.freeze({
       get: Object.freeze({
-        description: "Read one specification node by qualified canonical ID.",
+        description: "Read a node by qualified canonical ID.",
         fields: Object.freeze([
           field("canonicalId", "string"),
           optionalField("projection", "enum", ["summary", "full"]),
@@ -142,7 +146,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         ]),
       }),
       find: Object.freeze({
-        description: "Search specification nodes by spec slug, node kind, canonical ID, or bounded text match.",
+        description: "Search nodes by spec slug, kind, canonical ID, or bounded text.",
         fields: Object.freeze([
           optionalField("specSlugs", "stringArray"),
           optionalField("kinds", "enumArray", NODE_KINDS),
@@ -163,7 +167,7 @@ export const TOOL_CONTRACTS = Object.freeze([
     discriminator: "view",
     variants: Object.freeze({
       edges: Object.freeze({
-        description: "List resolved edges incident to one canonical node, optionally aggregated.",
+        description: "List resolved edges incident to a node, optionally aggregated.",
         fields: Object.freeze([
           field("canonicalId", "string"),
           optionalField("direction", "enum", ["in", "out", "both"]),
@@ -174,7 +178,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         ]),
       }),
       trace: Object.freeze({
-        description: "Bounded breadth-first trace from one canonical node across resolved edges.",
+        description: "Trace resolved edges breadth-first from a node, within bounds.",
         fields: Object.freeze([
           field("canonicalId", "string"),
           optionalField("direction", "enum", ["in", "out", "both"]),
@@ -187,7 +191,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         ]),
       }),
       board: Object.freeze({
-        description: "Read one complete bounded board projection for the whole corpus or selected specifications.",
+        description: "Read the complete bounded board for the corpus or selected specs.",
         fields: Object.freeze([
           optionalField("specSlugs", "stringArray"),
         ]),
@@ -202,11 +206,11 @@ export const TOOL_CONTRACTS = Object.freeze([
     discriminator: "action",
     variants: Object.freeze({
       list: Object.freeze({
-        description: "List readable documents and binary attachments under one specification.",
+        description: "List readable documents and attachments for one specification.",
         fields: Object.freeze([field("spec", "string")]),
       }),
       read: Object.freeze({
-        description: "Read one specification document, optionally by section or window.",
+        description: "Read a specification document, section, or window.",
         fields: Object.freeze([
           field("spec", "string"),
           field("doc", "string"),
@@ -238,7 +242,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         fields: Object.freeze([field("tags", "stringArray")]),
       }),
       orphans: Object.freeze({
-        description: "Return structural orphan findings for uncovered requirements, tasks, and scenarios.",
+        description: "Find uncovered requirements, tasks, and scenarios.",
         fields: Object.freeze([]),
       }),
       anchor: Object.freeze({
@@ -263,7 +267,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         ]),
       }),
       archivalProof: Object.freeze({
-        description: "Check whether a specification has live inbound references from other specifications.",
+        description: "Check a specification for live inbound references.",
         fields: Object.freeze([field("spec", "string")]),
       }),
       validation: Object.freeze({
@@ -283,9 +287,10 @@ export const TOOL_CONTRACTS = Object.freeze([
     tool: "spec_tasks",
     label: "Spec Tasks",
     operation: "tasks",
-    description: "List tasks for one spec with status, phase, and requirement filters.",
+    description: "List tasks for one spec with status, phase, and requirement filters; an optional teamId restricts results to tasks registered to the authenticated team.",
     fields: [
       field("spec", "string"),
+      optionalField("teamId", "string"),
       optionalField("statuses", "enumArray", TASK_STATUS_VALUES),
       optionalField("phase", "nullableString"),
       optionalField("requirement", "nullableString"),
@@ -340,7 +345,7 @@ export const TOOL_CONTRACTS = Object.freeze([
     label: "Spec Patch",
     operation: "specPatch",
     mutating: true,
-    description: "Preview or apply spec patches in memory or atomically to disk.",
+    description: "Preview or apply spec patches in memory or atomically to disk.\nTask structure is written with upsert_task, replace_task_owner, replace_task_links and replace_task_status (expectedStatus required); free-form task fields are refused with STRUCTURED_TASK_OP_REQUIRED.",
     discriminator: "intent",
     commonFields: Object.freeze([
       field("requestId", "string"),
@@ -382,6 +387,8 @@ export const TOOL_CONTRACTS = Object.freeze([
         fields: Object.freeze([
           field("entity", "string"),
           field("status", "enum", TASK_STATUS_VALUES),
+          field("expectedStatus", "enum", TASK_STATUS_VALUES),
+          optionalField("teamId", "string"),
         ]),
       }),
       setSpecStatus: Object.freeze({
@@ -409,6 +416,7 @@ export const TOOL_CONTRACTS = Object.freeze([
           field("entity", "string"),
           optionalField("forceDelete", "boolean"),
           optionalField("designReview", "json"),
+          optionalField("teamId", "string"),
         ]),
       }),
       renameSpecDoc: Object.freeze({
@@ -509,12 +517,64 @@ export const OPERATION_SCHEMAS = Object.freeze([
   Object.freeze({
     type: "object",
     additionalProperties: false,
-    required: ["kind", "document", "entity", "status"],
+    required: ["kind", "document", "entity", "status", "expectedStatus"],
     properties: {
       kind: { type: "string", enum: ["replace_task_status"] },
       document: { type: "string" },
       entity: { type: "string" },
-      status: { type: "string" },
+      status: { type: "string", enum: TASK_STATUS_VALUES },
+      expectedStatus: { type: "string", enum: TASK_STATUS_VALUES },
+      teamId: { type: "string", minLength: 1 },
+      expectedSha: { type: "string" },
+    },
+  }),
+  Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "document", "localId", "title"],
+    properties: {
+      kind: { type: "string", enum: ["upsert_task"] },
+      document: { type: "string" },
+      localId: { type: "string" },
+      title: { type: "string" },
+      body: { type: "string" },
+      description: { type: "string" },
+      creationToken: { type: "string" },
+      status: { type: "string", enum: TASK_STATUS_VALUES },
+      owner: { type: "string" },
+      tracking: { type: "string" },
+      dependsOn: { type: "array", items: { type: "string" } },
+      refs: { type: "array", items: { type: "string" } },
+      requirements: { type: "array", items: { type: "string" } },
+      teamId: { type: "string", minLength: 1 },
+      expectedSha: { type: "string" },
+    },
+  }),
+  Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "document", "entity", "owner"],
+    properties: {
+      kind: { type: "string", enum: ["replace_task_owner"] },
+      document: { type: "string" },
+      entity: { type: "string" },
+      owner: { type: ["string", "null"] },
+      teamId: { type: "string", minLength: 1 },
+      expectedSha: { type: "string" },
+    },
+  }),
+  Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "document", "entity"],
+    properties: {
+      kind: { type: "string", enum: ["replace_task_links"] },
+      document: { type: "string" },
+      entity: { type: "string" },
+      dependsOn: { type: "array", items: { type: "string" } },
+      refs: { type: "array", items: { type: "string" } },
+      requirements: { type: "array", items: { type: "string" } },
+      teamId: { type: "string", minLength: 1 },
       expectedSha: { type: "string" },
     },
   }),
@@ -557,6 +617,7 @@ export const OPERATIONS_SCHEMA = Object.freeze({
   minItems: 1,
   items: {
     type: "object",
+    additionalProperties: false,
     required: ["kind", "document"],
     properties: {
       kind: { type: "string", enum: PATCH_OPERATION_KINDS },
@@ -568,7 +629,19 @@ export const OPERATIONS_SCHEMA = Object.freeze({
       newText: { type: "string" },
       replaceAll: { type: "boolean" },
       entity: { type: "string" },
-      status: { type: "string" },
+      status: { type: "string", enum: TASK_STATUS_VALUES },
+      expectedStatus: { type: "string", enum: TASK_STATUS_VALUES },
+      localId: { type: "string" },
+      title: { type: "string" },
+      body: { type: "string" },
+      description: { type: "string" },
+      creationToken: { type: "string" },
+      owner: { type: ["string", "null"] },
+      tracking: { type: "string" },
+      teamId: { type: "string", minLength: 1 },
+      dependsOn: { type: "array", items: { type: "string" } },
+      refs: { type: "array", items: { type: "string" } },
+      requirements: { type: "array", items: { type: "string" } },
       newDocument: { type: "string" },
       expectedSha: { type: "string" },
     },
@@ -629,7 +702,7 @@ export function jsonSchemaFor(contract) {
   const topProperties = {
     [disc]: {
       type: "string",
-      description: `Select one declared ${disc} branch in oneOf.`,
+      description: `Select ${disc}.`,
       enum: Object.keys(contract.variants),
     },
     schemaVersion: { type: "string" },
@@ -709,11 +782,25 @@ function hasDuplicates(arr) {
   return new Set(arr).size !== arr.length;
 }
 
+function isStringArray(value) {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function validTaskLinks(op) {
+  return (
+    (op.dependsOn === undefined || isStringArray(op.dependsOn)) &&
+    (op.refs === undefined || isStringArray(op.refs)) &&
+    (op.requirements === undefined || isStringArray(op.requirements))
+  );
+}
+
 function validateOperationObject(op) {
   if (op === null || typeof op !== "object" || Array.isArray(op)) return false;
   if (!PATCH_OPERATION_KINDS.includes(op.kind)) return false;
   if (typeof op.document !== "string" || op.document.trim() === "") return false;
-  if (op.expectedSha !== undefined && typeof op.expectedSha !== "string") return false;
+  if (op.teamId !== undefined && (typeof op.teamId !== "string" || op.teamId.trim() === "")) return false;
+  const schema = OPERATION_SCHEMAS.find((candidate) => candidate.properties.kind.enum[0] === op.kind);
+  if (!schema || Object.keys(op).some((key) => !Object.hasOwn(schema.properties, key))) return false;
 
   switch (op.kind) {
     case "insert_at_eof":
@@ -730,7 +817,33 @@ function validateOperationObject(op) {
         (op.replaceAll === undefined || typeof op.replaceAll === "boolean")
       );
     case "replace_task_status":
-      return typeof op.entity === "string" && TASK_STATUS_VALUES.includes(op.status);
+      return (
+        typeof op.entity === "string" &&
+        TASK_STATUS_VALUES.includes(op.status) &&
+        TASK_STATUS_VALUES.includes(op.expectedStatus)
+      );
+    case "upsert_task":
+      return (
+        typeof op.localId === "string" &&
+        op.localId.trim() !== "" &&
+        typeof op.title === "string" &&
+        op.title.trim() !== "" &&
+        (op.status === undefined || TASK_STATUS_VALUES.includes(op.status)) &&
+        (op.body === undefined || typeof op.body === "string") &&
+        (op.description === undefined || typeof op.description === "string") &&
+        (op.creationToken === undefined || typeof op.creationToken === "string") &&
+        (op.owner === undefined || typeof op.owner === "string") &&
+        (op.tracking === undefined || typeof op.tracking === "string") &&
+        validTaskLinks(op)
+      );
+    case "replace_task_owner":
+      return typeof op.entity === "string" && (op.owner === null || typeof op.owner === "string" && op.owner.trim() !== "");
+    case "replace_task_links":
+      return (
+        typeof op.entity === "string" &&
+        validTaskLinks(op) &&
+        (op.dependsOn !== undefined || op.refs !== undefined || op.requirements !== undefined)
+      );
     case "replace_document":
       return typeof op.content === "string";
     case "delete_document":
@@ -1076,12 +1189,15 @@ export const TOOL_ARGUMENT_ALIASES = Object.freeze({
   actor_ref: "actorRef",
   repository_root_fingerprint: "repositoryRootFingerprint",
   expected_sha: "expectedSha",
+  expected_status: "expectedStatus",
   old_string: "oldText",
   new_string: "newText",
   replace_all: "replaceAll",
   new_doc: "newDoc",
   node_id: "canonicalId",
   design_review: "designReview",
+  request_id: "requestId",
+  team_id: "teamId",
 });
 
 export function normalizeToolArguments(rawArguments) {

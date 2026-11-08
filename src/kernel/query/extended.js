@@ -5,6 +5,8 @@ import {
   TASK_STATUSES,
 } from "../types.js";
 import { isValidSpecSlug } from "../identity.js";
+import { parseTaskDescription } from "../task-description.js";
+import { parseTaskCreationMarker } from "../task-creation-marker.js";
 
 export const EXTENDED_OPERATIONS = Object.freeze([
   "findByTags",
@@ -23,6 +25,7 @@ const DEFAULT_PAGE_LIMIT = 50;
 const MAX_PAGE_LIMIT = 200;
 const NON_TERMINAL_TASK_STATUSES = new Set(["planned", "todo", "ready", "in-progress", "blocked"]);
 const REQUIREMENT_KINDS = new Set(["FUNCTIONAL_REQUIREMENT", "NON_FUNCTIONAL_REQUIREMENT"]);
+const TASK_REQUIREMENT_KINDS = new Set([...REQUIREMENT_KINDS, "ACCEPTANCE_CRITERION"]);
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -94,14 +97,52 @@ function taskStatus(task) {
   return TASK_STATUSES.includes(normalized) ? normalized : "unknown";
 }
 
+function taskReferences(graph, taskId) {
+  const refs = new Set();
+  for (const edge of graph.edges) {
+    if (edge.from === taskId && ["REFS", "COVERS", "IMPLEMENTS"].includes(edge.type)) refs.add(edge.to);
+  }
+  return [...refs].sort(compareStrings);
+}
+
 function taskRequirements(graph, taskId) {
   const refs = [];
   for (const edge of graph.edges) {
     if (edge.from !== taskId || !["REFS", "COVERS", "IMPLEMENTS"].includes(edge.type)) continue;
     const target = graph.nodes.find((node) => node.canonicalId === edge.to);
-    if (target && REQUIREMENT_KINDS.has(target.kind)) refs.push(target.canonicalId);
+    if (target && TASK_REQUIREMENT_KINDS.has(target.kind)) refs.push(target.canonicalId);
   }
   return [...new Set(refs)].sort(compareStrings);
+}
+
+/**
+ * Dependency view for one task, derived from the canonical DEPENDS_ON edges.
+ * `dependsOn` and `blockedBy` are the same outgoing set under the two names
+ * consumers use; `blocks` is the incoming set. Nothing here is stored twice.
+ */
+export function derivedTaskLinks(graph, taskId) {
+  const dependsOn = [];
+  const blocks = [];
+  for (const edge of graph.edges) {
+    if (edge.type !== "DEPENDS_ON") continue;
+    if (edge.from === taskId) dependsOn.push(edge.to);
+    else if (edge.to === taskId) blocks.push(edge.from);
+  }
+  const blockedBy = [...new Set(dependsOn)].sort(compareStrings);
+  return { dependsOn: blockedBy, blocks: [...new Set(blocks)].sort(compareStrings), blockedBy };
+}
+
+export function taskCardFields(graph, task) {
+  const description = parseTaskDescription(typeof task.body === "string" ? task.body : "");
+  return {
+    description: description.kind === "present" ? description.value : null,
+    status: taskStatus(task),
+    estimate: typeof task.attributes?.estimate === "string" ? task.attributes.estimate : null,
+    doneWhen: Array.isArray(task.attributes?.doneWhen) ? task.attributes.doneWhen : [],
+    refs: taskReferences(graph, task.canonicalId),
+    requirements: taskRequirements(graph, task.canonicalId),
+    ...derivedTaskLinks(graph, task.canonicalId),
+  };
 }
 
 function taskEntry(graph, task, includeComments) {
@@ -110,10 +151,13 @@ function taskEntry(graph, task, includeComments) {
     specSlug: task.specSlug,
     localId: task.localId,
     title: task.title,
-    status: taskStatus(task),
+    ...taskCardFields(graph, task),
+    creationToken: parseTaskCreationMarker(typeof task.body === "string" ? task.body : ""),
     phase: taskPhase(task),
+    owner: typeof task.attributes?.owner === "string" ? task.attributes.owner : null,
+    tracking: typeof task.attributes?.tracking === "string" ? task.attributes.tracking : null,
+    contentHash: task.contentHash ?? null,
     source: nodeSource(task),
-    requirements: taskRequirements(graph, task.canonicalId),
   };
   if (includeComments) entry.body = task.body;
   return entry;

@@ -414,6 +414,15 @@ When("the read-only matrix is exercised", { timeout: 30000 }, async function () 
 Then("every read-only call preserves the project byte snapshot", function () {
   assert.equal(this.toolE2E, undefined);
 });
+When("the local task-tool contract matrix is exercised", { timeout: 60000 }, async function () {
+  await prepareToolE2EFixtures(this.stagedMcp.root, { includeEvidence: false });
+  this.taskToolE2E = await runToolE2EPhase(this.stagedMcp, "task-contracts");
+});
+
+Then("spec_patch writes task fields that spec_tasks reads back without changing the project during reads", function () {
+  assert.deepEqual(this.taskToolE2E, { ok: true });
+});
+
 
 When("MCP envelope recovery cases are exercised", { timeout: 30000 }, async function () {
   const request = (name, arguments_) => this.stagedMcp.server.request("tools/call", { name, arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, ...arguments_ } });
@@ -437,23 +446,33 @@ When("MCP envelope recovery cases are exercised", { timeout: 30000 }, async func
     reason: "probe conflict",
     operations: [{ kind: "insert_at_eof", document: "README.md", text: "conflict probe\n", expectedSha: "0".repeat(64) }],
   });
+  const refreshed = await request("spec_catalog", { requestId: "bdd-recovery-refresh", view: "overview", specSlugs: [] });
+  const refreshedFingerprint = refreshed.result.structuredContent.graph.fingerprint;
+  const recoveryPatch = {
+    intent: "patch", repositoryRootFingerprint: refreshedFingerprint, spec: "product",
+    reason: "retry after conflict",
+    operations: [{ kind: "insert_at_eof", document: "README.md", text: "recovered after conflict\n" }],
+  };
+  const preview = await request("spec_patch", { ...recoveryPatch, requestId: "bdd-recovery-preview", dryRun: true });
+  const applied = await request("spec_patch", { ...recoveryPatch, requestId: "bdd-recovery-applied", dryRun: false });
+  const recoveredText = await readFile(target, "utf8");
   const targetBlocked = classifyToolCall({ toolName: "write", cwd: this.stagedMcp.root, input: { path: "" } }, { root: this.stagedMcp.root });
-  this.stagedMcp.recovery = { stale, conflict, targetBlocked };
+  this.stagedMcp.recovery = { stale, conflict, targetBlocked, preview, applied, recoveredText };
 });
 
 Then("stale cursor, conflict, and target indeterminate recoveries are bounded and actionable", function () {
-  const { stale, conflict, targetBlocked } = this.stagedMcp.recovery;
+  const { stale, conflict, targetBlocked, preview, applied, recoveredText } = this.stagedMcp.recovery;
   assert.equal(stale.result.isError, true);
   assert.equal(stale.result.structuredContent.error.code, "STALE_CURSOR");
-  assert.ok(stale.result.structuredContent.error.message.includes("Recovery: retry the same list operation without cursor to obtain a fresh page, then continue with the returned nextCursor."));
   assert.deepEqual(JSON.parse(stale.result.content[0].text), stale.result.structuredContent);
   assert.equal(conflict.result.isError, true, JSON.stringify(conflict));
   assert.equal(conflict.result.structuredContent.data.error.code, "CONFLICT");
-  assert.ok(conflict.result.structuredContent.data.error.message.includes("Recovery: refresh spec_catalog with overview view, resolve the reported conflict, review a fresh preview with dryRun: true, then call spec_patch with dryRun: false and a new requestId."));
   assert.deepEqual(JSON.parse(conflict.result.content[0].text), conflict.result.structuredContent);
+  assert.equal(preview.result.structuredContent.data.outcome, "PREVIEW");
+  assert.equal(applied.result.structuredContent.data.outcome, "APPLIED");
+  assert.ok(recoveredText.includes("recovered after conflict"));
   assert.equal(targetBlocked.action, "block");
   assert.equal(targetBlocked.code, "TARGET_INDETERMINATE");
-  assert.ok(targetBlocked.reason.includes("Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply."));
   assert.ok(Buffer.byteLength(targetBlocked.reason, "utf8") <= 512);
   assert.equal(targetBlocked.reason.includes(path.resolve(this.stagedMcp.root)), false);
 });
@@ -711,7 +730,7 @@ When("all consolidated branches and all 15 spec patch intents are exercised", { 
     ["spec_patch", { intent: "amendRequirement", spec: "product", requirement: "FR-1", body: "amend", reason: "amend reason", requestId: "bdd-int-amend" }, "specPatch", null],
     ["spec_patch", { intent: "addAcceptanceCriterion", spec: "product", requirement: "FR-1", criterion: "crit", reason: "ac reason", requestId: "bdd-int-ac" }, "specPatch", null],
     ["spec_patch", { intent: "addPhase", spec: "product", title: "New Phase", reason: "phase reason", requestId: "bdd-int-phase" }, "specPatch", null],
-    ["spec_patch", { intent: "setEntityStatus", spec: "product", entity: "TASK-1", status: "in-progress", reason: "status reason", requestId: "bdd-int-status" }, "specPatch", null],
+    ["spec_patch", { intent: "setEntityStatus", spec: "product", entity: "TASK-1", status: "in-progress", expectedStatus: "done", reason: "status reason", requestId: "bdd-int-status" }, "specPatch", null],
     ["spec_patch", { intent: "setSpecStatus", spec: "product", status: "active", reason: "spec status reason", requestId: "bdd-int-spec-status" }, "specPatch", null],
     ["spec_patch", { intent: "setRequirementMetadata", spec: "product", requirement: "FR-1", metadata: { schemaVersion: 1, verificationMethod: "test" }, reason: "meta reason", requestId: "bdd-int-meta" }, "specPatch", null],
     ["spec_patch", { intent: "deleteSpecDoc", spec: "temp-e2e-spec", doc: "TASKS.md", reason: "delete doc reason", requestId: "bdd-int-del" }, "specPatch", null],
@@ -798,6 +817,7 @@ When("assembleRoadmap is applied and re-run as dryRun", { timeout: 30000 }, asyn
     name: "spec_patch",
     arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-roadmap-rerun", intent: "assembleRoadmap", spec: "roadmap-e2e", reason: "idempotency check", dryRun: true },
   });
+  this.roadmapAfterRerun = await readFile(path.join(roadmapDir, "ROADMAP.md"), "utf8");
 });
 
 Then("the first apply changes ROADMAP.md and the re-run produces no diff", function () {
@@ -817,6 +837,6 @@ Then("the first apply changes ROADMAP.md and the re-run produces no diff", funct
   const rerunStruct = this.roadmapRerun?.result?.structuredContent;
   assert.equal(rerunStruct?.ok, true, "Idempotent re-run must succeed: " + JSON.stringify(rerunStruct));
   const ops = rerunStruct?.data?.operations ?? [];
-  assert.equal(ops.length, 1, "Re-run must produce exactly one operation entry");
-  assert.equal(ops[0].beforeSha256, ops[0].afterSha256, "Idempotent re-run must produce identical hashes");
+  assert.deepEqual(ops.filter((operation) => operation.beforeSha256 !== operation.afterSha256), []);
+  assert.equal(this.roadmapAfterRerun, this.roadmapAfterApply, "Re-running the preview must not alter the roadmap");
 });

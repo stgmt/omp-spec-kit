@@ -303,6 +303,203 @@ async function runBoundaryMatrix({ callTool, projectRoot, repositoryRoot, outsid
   }
 }
 
+function assertInputError(value, expectedFields) {
+  assert.equal(value.ok, false, JSON.stringify(value));
+  const actual = Object.fromEntries(Object.keys(expectedFields).map((key) => [key, value.error?.[key]]));
+  assert.deepEqual(actual, expectedFields, JSON.stringify(value.error));
+}
+
+export async function runTaskContractMatrix({ callTool, projectRoot, repositoryRoot }) {
+  const spec = "e2e-spec";
+  const localId = "TASK-2";
+  const canonicalId = `${spec}:${localId}`;
+  const creationToken = `aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.${"b".repeat(64)}`;
+  const initialDescription = "First line of the task description.\nSecond line keeps its newline.";
+  const updatedDescription = "Updated first line.\nUpdated second line.\nAdded a third line.";
+
+  async function applyTaskPatch(requestId, operations) {
+    const value = structured(await callTool("spec_patch", {
+      schemaVersion: KERNEL_SCHEMA_VERSION,
+      requestId,
+      intent: "patch",
+      spec,
+      reason: `tool-e2e ${requestId}`,
+      dryRun: false,
+      operations,
+    }));
+    assertEnvelope(value, "spec_patch", requestId, projectRoot, repositoryRoot);
+    assert.equal(value.ok, true, JSON.stringify(value));
+    assert.equal(value.data.outcome, "APPLIED", JSON.stringify(value));
+  }
+
+  async function readTask(requestId, status) {
+    const value = await callRow({
+      callTool,
+      name: "spec_tasks",
+      args: { spec, statuses: [status], includeComments: true, limit: 20 },
+      projectRoot,
+      repositoryRoot,
+      requestId,
+    });
+    assert.equal(value.ok, true, JSON.stringify(value));
+    assert.equal(value.data.kind, "tasks");
+    assert.equal(value.page.limit, 20);
+    assert.ok(value.page.returned <= value.page.limit);
+    const task = value.data.tasks.find((candidate) => candidate.canonicalId === canonicalId);
+    assert.ok(task, `spec_tasks must return ${canonicalId}: ${JSON.stringify(value.data.tasks)}`);
+    return task;
+  }
+
+  await applyTaskPatch("tool-e2e-task-create", [{
+    kind: "upsert_task",
+    document: "TASKS.md",
+    localId,
+    title: "Registry task",
+    status: "todo",
+    owner: "owner-before-edit",
+    description: initialDescription,
+    creationToken,
+  }]);
+  const created = await readTask("tool-e2e-task-read-created", "todo");
+  assert.equal(created.title, "Registry task");
+  assert.equal(created.status, "todo");
+  assert.equal(created.owner, "owner-before-edit");
+  assert.equal(created.description, initialDescription);
+  assert.equal(created.creationToken, creationToken);
+  assert.ok(created.body.includes(creationToken), "creation marker must be persisted with the task");
+
+  await applyTaskPatch("tool-e2e-task-edit", [{
+    kind: "upsert_task",
+    document: "TASKS.md",
+    localId,
+    title: "Edited registry task",
+    description: updatedDescription,
+  }]);
+  const edited = await readTask("tool-e2e-task-read-edited", "todo");
+  assert.equal(edited.title, "Edited registry task");
+  assert.equal(edited.description, updatedDescription);
+  assert.equal(edited.owner, "owner-before-edit");
+  assert.equal(edited.creationToken, creationToken);
+
+  await applyTaskPatch("tool-e2e-task-set-owner", [{
+    kind: "replace_task_owner",
+    document: "TASKS.md",
+    entity: localId,
+    owner: "owner-after-edit",
+  }]);
+  assert.equal((await readTask("tool-e2e-task-read-owner", "todo")).owner, "owner-after-edit");
+
+  await applyTaskPatch("tool-e2e-task-clear-owner", [{
+    kind: "replace_task_owner",
+    document: "TASKS.md",
+    entity: localId,
+    owner: null,
+  }]);
+  const clearedOwner = await readTask("tool-e2e-task-read-null-owner", "todo");
+  assert.equal(clearedOwner.owner, null);
+  assert.equal(clearedOwner.description, updatedDescription);
+
+  await applyTaskPatch("tool-e2e-task-delete-status", [{
+    kind: "replace_task_status",
+    document: "TASKS.md",
+    entity: localId,
+    status: "deleted",
+    expectedStatus: "todo",
+  }]);
+  const deleted = await readTask("tool-e2e-task-read-deleted", "deleted");
+  assert.equal(deleted.status, "deleted");
+  assert.equal(deleted.owner, null);
+  assert.equal(deleted.description, updatedDescription);
+  const defaultTasks = await callRow({
+    callTool,
+    name: "spec_tasks",
+    args: { spec, limit: 20 },
+    projectRoot,
+    repositoryRoot,
+    requestId: "tool-e2e-task-read-default-terminal-filter",
+  });
+  assert.equal(defaultTasks.page.limit, 20);
+  assert.ok(defaultTasks.page.returned <= defaultTasks.page.limit);
+  assert.equal(defaultTasks.data.tasks.some((task) => task.canonicalId === canonicalId), false);
+
+  const unknownNestedField = await callRow({
+    callTool,
+    name: "spec_patch",
+    args: {
+      intent: "patch",
+      spec,
+      reason: "unknown nested field must fail",
+      dryRun: false,
+      operations: [{ kind: "upsert_task", document: "TASKS.md", localId: "TASK-3", title: "Invalid", unexpectedTaskField: true }],
+    },
+    projectRoot,
+    repositoryRoot,
+    requestId: "tool-e2e-task-unknown-nested-field",
+  });
+  assertInputError(unknownNestedField, {
+    code: "INVALID_REQUEST",
+    message: "tool argument has the wrong type or value: operations",
+    parameter: "operations",
+    expected: "operations",
+    receivedType: "array",
+  });
+
+  const wrongNestedType = await callRow({
+    callTool,
+    name: "spec_patch",
+    args: {
+      intent: "patch",
+      spec,
+      reason: "wrong nested type must fail",
+      dryRun: false,
+      operations: [{ kind: "upsert_task", document: "TASKS.md", localId: "TASK-3", title: "Invalid", description: 17 }],
+    },
+    projectRoot,
+    repositoryRoot,
+    requestId: "tool-e2e-task-wrong-nested-type",
+  });
+  assertInputError(wrongNestedType, {
+    code: "INVALID_REQUEST",
+    message: "tool argument has the wrong type or value: operations",
+    parameter: "operations",
+    expected: "operations",
+    receivedType: "array",
+  });
+
+  const unknownTaskQueryField = await callRow({
+    callTool,
+    name: "spec_tasks",
+    args: { spec, unexpectedTaskField: true },
+    projectRoot,
+    repositoryRoot,
+    requestId: "tool-e2e-task-query-unknown-field",
+  });
+  assertInputError(unknownTaskQueryField, {
+    code: "UNKNOWN_FIELD",
+    message: "unknown tool argument field: unexpectedTaskField",
+    parameter: "unexpectedTaskField",
+    expected: "declared contract field",
+  });
+
+  const wrongTaskQueryType = await callRow({
+    callTool,
+    name: "spec_tasks",
+    args: { spec, statuses: "deleted" },
+    projectRoot,
+    repositoryRoot,
+    requestId: "tool-e2e-task-query-wrong-type",
+  });
+  assertInputError(wrongTaskQueryType, {
+    code: "INVALID_REQUEST",
+    message: "tool argument has the wrong type or value: statuses",
+    parameter: "statuses",
+    expected: "enumArray",
+    receivedType: "string",
+  });
+
+  return { ok: true };
+}
+
 async function runMutationMatrix({ callTool, projectRoot, repositoryRoot, surface }) {
   const restart = restartOf(surface);
   assert.ok(restart !== null, "tool-E2E mutation proof requires a restart-capable adapter");
@@ -394,6 +591,7 @@ export async function prepareEvidenceFixtures(projectRoot) {
 
 export async function runEvidenceE2E({ listTools, callTool, projectRoot, repositoryRoot, surface = "built" }) {
   const phase = phaseOf(surface);
+  if (phase === "task-contracts") return runTaskContractMatrix({ callTool, projectRoot, repositoryRoot });
   const outsideRoot = typeof surface === "object" && surface !== null ? surface.outsideRoot : null;
   if (phase === "inventory") throw new Error("inventory moved to tool-e2e matrix");
   if (phase === "success") return runSuccessMatrix({ callTool, projectRoot, repositoryRoot });

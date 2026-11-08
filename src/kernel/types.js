@@ -291,6 +291,7 @@ export const TASK_STATUSES = Object.freeze([
   "blocked",
   "done",
   "deferred",
+  "deleted",
   "unknown",
 ]);
 
@@ -311,6 +312,8 @@ export const TASK_STATUS_NORMALIZATION = Object.freeze({
   completed: "done",
   Deferred: "deferred",
   deferred: "deferred",
+  Deleted: "deleted",
+  deleted: "deleted",
 });
 
 export const FILE_ACTIONS = Object.freeze(["create", "edit", "delete"]);

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile, rm, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { snapshotTree } from "../support/world.mjs";
-import { prepareEvidenceFixtures } from "./evidence-e2e.mjs";
+import { prepareEvidenceFixtures, runTaskContractMatrix } from "./evidence-e2e.mjs";
 import {
   annotationsFor,
   KERNEL_ENVELOPE_OUTPUT_SCHEMA,
@@ -26,8 +26,8 @@ function assertEnvelopeSchema(value) {
   }
 }
 
-export async function prepareToolE2EFixtures(projectRoot) {
-  await prepareEvidenceFixtures(projectRoot);
+export async function prepareToolE2EFixtures(projectRoot, { includeEvidence = true } = {}) {
+  if (includeEvidence) await prepareEvidenceFixtures(projectRoot);
   const testSpecDir = path.join(projectRoot, ".specs", "e2e-spec");
   await mkdir(testSpecDir, { recursive: true });
   await writeFile(
@@ -410,6 +410,7 @@ export async function runToolE2E({
         spec: "e2e-spec",
         entity: "TASK-1",
         status: "in-progress",
+        expectedStatus: "todo",
         reason: "v08 entity status test",
       }),
     );
@@ -627,6 +628,10 @@ export async function runToolE2E({
     assert.equal(secretVal.ok, false);
     assert.equal(secretVal.error?.code, "VALIDATION_FAILED");
     assert.ok(secretVal.error?.message?.includes("secret-like content"));
+  }
+
+  if (phase === "all") {
+    await runTaskContractMatrix({ callTool, projectRoot, repositoryRoot });
   }
 
   return { ok: true, toolsCount: 10 };

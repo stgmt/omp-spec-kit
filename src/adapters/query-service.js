@@ -227,6 +227,20 @@ function graphSummary(graph) {
   };
 }
 
+function graphForTeamTasks(graph, spec, taskFilter) {
+  const taskIds = new Set(taskFilter.taskIds);
+  const nodes = graph.nodes.filter((node) =>
+    node.kind !== "TASK" || (node.specSlug === spec && taskIds.has(node.localId))
+  );
+  const nodeIds = new Set(nodes.map((node) => node.canonicalId));
+  return {
+    ...graph,
+    nodes,
+    edges: graph.edges.filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to)),
+  };
+}
+
+
 function makeSuccessEnvelope({ graph, operation, requestId, data, page = null }) {
   return {
     schemaVersion: KERNEL_SCHEMA_VERSION,
@@ -366,6 +380,10 @@ export function createSpecService(root, context = {}) {
     return authoring;
   }
 
+  async function rollbackApplied(requestId, proposalHash) {
+    return getAuthoring().rollbackApplied(requestId, proposalHash);
+  }
+
   function handleReaderError(readerError, op, reqId) {
     const summaries = adapterDiagnosticSummaries(readerError);
     const firstCode = typeof readerError?.diagnostics?.[0]?.code === "string" ? readerError.diagnostics[0].code : null;
@@ -387,7 +405,7 @@ export function createSpecService(root, context = {}) {
 
   // spec-kernel@2 accepts @1 callers unchanged (shape-compatible; the new
   // optional `project` scope rule is transport-level), so both are legal here.
-  async function runQuery(operation, args, { requestId = null, schemaVersion, project = null, projectSource = null, transport = null, bindingStatus = null } = {}) {
+  async function runQuery(operation, args, { requestId = null, schemaVersion, project = null, projectSource = null, transport = null, bindingStatus = null, actor = null, taskFilter = null } = {}) {
     if (schemaVersion !== undefined && schemaVersion !== "spec-kernel@1" && schemaVersion !== KERNEL_SCHEMA_VERSION) {
       return withProvenance(
         makeErrorEnvelope({
@@ -617,8 +635,34 @@ export function createSpecService(root, context = {}) {
     if (operation === "tasks") {
       const state = await ensure();
       if (state.status === "error") return handleReaderError(state.readerError, "tasks", requestId);
-
-      const ext = executeExtendedQuery(state.graph, "listTasks", {
+      if (effectiveArgs.teamId !== undefined && taskFilter === null) {
+        return withProvenance(
+          makeErrorEnvelope({
+            operation: "tasks",
+            requestId,
+            code: "TEAM_TASK_FILTER_REQUIRED",
+            message: "team-scoped task reads require the authenticated registry filter",
+          }),
+        );
+      }
+      if (
+        taskFilter !== null &&
+        (typeof taskFilter.teamId !== "string" || !Array.isArray(taskFilter.taskIds) || taskFilter.taskIds.some((taskId) => typeof taskId !== "string"))
+      ) {
+        return withProvenance(
+          makeErrorEnvelope({
+            operation: "tasks",
+            requestId,
+            code: "INVALID_TASK_FILTER",
+            message: "internal team task filter is invalid",
+          }),
+        );
+      }
+      const teamTaskMembership = taskFilter === null
+        ? null
+        : createHash("sha256").update(JSON.stringify([...new Set(taskFilter.taskIds)].sort())).digest("hex");
+      const graph = taskFilter === null ? state.graph : graphForTeamTasks(state.graph, effectiveArgs.spec, taskFilter);
+      const taskArgs = {
         spec: effectiveArgs.spec,
         statuses: effectiveArgs.statuses,
         phase: effectiveArgs.phase,
@@ -626,10 +670,15 @@ export function createSpecService(root, context = {}) {
         includeComments: effectiveArgs.includeComments,
         limit: effectiveArgs.limit,
         cursor: effectiveArgs.cursor,
-      });
+        ...(taskFilter === null ? {} : {
+          teamId: taskFilter.teamId,
+          teamTaskMembership,
+        }),
+      };
+      const ext = executeExtendedQuery(graph, "listTasks", taskArgs);
       return withProvenance(
         ext.ok
-          ? makeSuccessEnvelope({ graph: state.graph, operation: "tasks", requestId, data: ext.data, page: ext.page })
+          ? makeSuccessEnvelope({ graph, operation: "tasks", requestId, data: ext.data, page: ext.page })
           : makeErrorEnvelope({ operation: "tasks", requestId, code: ext.error.code, message: ext.error.message, extra: ext.error })
       );
     }
@@ -680,6 +729,9 @@ export function createSpecService(root, context = {}) {
 
       const authoredInput = { ...effectiveArgs };
       if (requestId !== null && authoredInput.requestId === undefined) authoredInput.requestId = requestId;
+      // The authenticated principal travels beside the closed arguments, never
+      // inside them: a caller cannot name its own receipt actor.
+      if (typeof actor === "string" && actor.trim() !== "") authoredInput.actor = actor;
 
       try {
         const authored = await getAuthoring().execute(authoredInput);
@@ -756,5 +808,5 @@ export function createSpecService(root, context = {}) {
     }
   }
 
-  return { root: resolvedRoot, provenance, ensure, runQuery, refresh };
+  return { root: resolvedRoot, provenance, ensure, runQuery, refresh, rollbackApplied };
 }

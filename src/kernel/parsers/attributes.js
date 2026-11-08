@@ -168,6 +168,7 @@ export function extractAttributes(documentKind, role, localId, title, bodyText, 
         status,
         estimate: fieldValue(fields, "Estimate"),
         owner: fieldValue(fields, "Owner"),
+        tracking: fieldValue(fields, "Tracking"),
         doneWhen: fieldList(fields, "Done When", "DoneWhen"),
       };
     }

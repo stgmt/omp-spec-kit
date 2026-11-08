@@ -147,6 +147,12 @@ Feature: Exercise the single-surface MCP server through the packaged server
       | spec_patch         | {"intent": "patch", "spec": "product", "reason": "r", "requestId": "q", "proposalSha256": "h"}               | UNKNOWN_FIELD     |
       | spec_patch         | {"intent": "patch", "spec": "product", "reason": "r", "requestId": "q", "expectedDocuments": []}             | UNKNOWN_FIELD     |
 
+  @tool-e2e
+  Scenario: Local spec_patch and spec_tasks preserve canonical task fields
+    Given a real staged MCP corpus and packaged server
+    When the local task-tool contract matrix is exercised
+    Then spec_patch writes task fields that spec_tasks reads back without changing the project during reads
+
   @roadmap-e2e
   Scenario: Roadmap intents refuse non-roadmap specs
     Given a real staged MCP corpus and packaged server

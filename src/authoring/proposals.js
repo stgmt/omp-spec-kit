@@ -17,6 +17,11 @@ import { validateMetadata } from "../kernel/query/extended.js";
 import { assembleRoadmap as assembleRoadmapContent } from "../kernel/roadmap/assemble.js";
 import { validateDesignReviewForChanges } from "./design-review.js";
 import { error } from "./error-codes.js";
+import {
+  applyTaskOperation,
+  freeFormTaskWriteRefusal,
+  isStructuredTaskOperation,
+} from "./task-ops.js";
 
 const MAX_REASON_BYTES = 512;
 const MAX_DIFF_BYTES = 64 * 1024;
@@ -112,43 +117,15 @@ function replaceOnce(text, oldText, newText, replaceAll) {
 
 export function applyOperation(text, operation) {
   const kind = operation.kind;
+  if (isStructuredTaskOperation(kind)) return applyTaskOperation(text, operation);
+  const taskRefusal = freeFormTaskWriteRefusal(operation);
+  if (taskRefusal) return { ok: false, ...taskRefusal };
   if (kind === "replace_document") {
     if (typeof operation.content !== "string")
       return { ok: false, code: "INVALID_REQUEST", message: "replace_document.content must be text" };
     return { ok: true, text: operation.content };
   }
   if (kind === "delete_document") return { ok: true, text: "", delete: true };
-  if (kind === "replace_task_status") {
-    if (typeof operation.entity !== "string" || typeof operation.status !== "string")
-      return { ok: false, code: "INVALID_REQUEST", message: "replace_task_status needs entity and status" };
-    const lines = text.split(/\r?\n/u);
-    // Exact local-id match on the first heading token: a substring match lets
-    // "TASK-1" silently resolve to a "## TASK-10" section.
-    const heading = lines.findIndex((line) => {
-      const match = line.match(/^##\s+([^\s:]+)/);
-      return match !== null && match[1] === operation.entity;
-    });
-    if (heading < 0)
-      return { ok: false, code: "VALIDATION_FAILED", message: `task heading not found: ${operation.entity}` };
-    let end = lines.length;
-    for (let index = heading + 1; index < lines.length; index += 1) {
-      if (/^##\s+/.test(lines[index])) {
-        end = index;
-        break;
-      }
-    }
-    // The kernel field parser accepts `Status:`, `**Status:**`, and their
-    // bulleted forms; matching only `- **Status:**` would fail to patch the
-    // corpus's dominant plain/bold forms. The matched prefix is preserved so
-    // the task keeps its authored field shape.
-    const STATUS_PREFIX = /^([ ]{0,3}(?:[-*][ \t]+)?(?:\*\*)?[ \t]*Status[ \t]*(?:\*\*)?[ \t]*:(?:\*\*)?)/u;
-    const status = lines.slice(heading + 1, end).findIndex((line) => STATUS_PREFIX.test(line));
-    if (status < 0)
-      return { ok: false, code: "VALIDATION_FAILED", message: `task status field not found: ${operation.entity}` };
-    const index = heading + 1 + status;
-    lines[index] = `${lines[index].match(STATUS_PREFIX)[1]} ${operation.status}`;
-    return { ok: true, text: lines.join("\n") };
-  }
   if (kind === "insert_at_eof") {
     if (typeof operation.text !== "string")
       return { ok: false, code: "INVALID_REQUEST", message: "insert_at_eof.text must be text" };
@@ -285,6 +262,9 @@ export function publicOperationKind(operation) {
     case "replace_section":
     case "replace_in_section":
     case "replace_task_status":
+    case "replace_task_owner":
+    case "replace_task_links":
+    case "upsert_task":
     case "replace_document":
     case "replace_marked_region":
       return "replace";
@@ -331,7 +311,10 @@ async function compileDeleteEntity({ graph, root, spec, input }) {
   const current = await loadDocument(root, spec, document, false);
   if (current.missing) return error("DOC_NOT_FOUND", `document is missing: ${document}`);
   const content = removeEntityBlock(current.bytes.toString("utf8"), node);
-  return { ok: true, operations: [{ kind: "replace_document", document, content }] };
+  return {
+    ok: true,
+    operations: [{ kind: "replace_document", document, content, allowStructuredTaskFields: true }],
+  };
 }
 
 export function operationForFacade(name, input) {
@@ -404,6 +387,8 @@ export function operationForFacade(name, input) {
   if (name === "setEntityStatus") {
     if (typeof input.entity !== "string" || typeof input.status !== "string")
       return error("INVALID_REQUEST", "setEntityStatus requires entity and status");
+    if (typeof input.expectedStatus !== "string" || input.expectedStatus.trim() === "")
+      return error("INVALID_REQUEST", "setEntityStatus requires expectedStatus — the status the caller read");
     return {
       spec,
       reason,
@@ -413,6 +398,8 @@ export function operationForFacade(name, input) {
           document: "TASKS.md",
           entity: input.entity,
           status: input.status,
+          expectedStatus: input.expectedStatus,
+          ...(input.teamId === undefined ? {} : { teamId: input.teamId }),
         },
       ],
     };
@@ -682,17 +669,20 @@ export class ProposalCompiler {
 
     const normalizedOperations = [];
     const documents = new Map();
+    const proposedTransitions = [];
     const addChange = (document, beforeBytes, afterBytes, operation, deleteAfter = false, beforeMissing = false) => {
       const diff = diffPreview(beforeBytes, afterBytes);
+      const unchanged = beforeBytes.equals(afterBytes);
       const preview = {
         document,
         beforeSha256: sha256(beforeBytes),
         afterSha256: sha256(afterBytes),
         unifiedDiff: diff.text,
         diffTruncated: diff.truncated,
+        unchanged,
       };
       normalizedOperations.push({ ...operation });
-      documents.set(document, { spec, document, beforeBytes, afterBytes, operation, deleteAfter, beforeMissing, preview });
+      documents.set(document, { spec, document, beforeBytes, afterBytes, operation, deleteAfter, beforeMissing, preview, unchanged });
     };
 
     for (const rawOperation of rawOperations) {
@@ -756,7 +746,14 @@ export class ProposalCompiler {
         return error("CONFLICT", `document ${operation.document} hash ${current.sha256} does not match expectedSha ${expectedSha}`);
       }
       const transformed = applyOperation(current.bytes.toString("utf8"), operation);
-      if (!transformed.ok) return error(transformed.code, transformed.message, { document: operation.document });
+      if (!transformed.ok) {
+        const detail = {};
+        for (const key of ["localId", "currentStatus", "expectedStatus", "causeCode"]) {
+          if (transformed[key] !== undefined) detail[key] = transformed[key];
+        }
+        return error(transformed.code, transformed.message, { document: operation.document, ...detail });
+      }
+      if (transformed.transition) proposedTransitions.push({ ...transformed.transition, requestId });
       const newline = current.bytes.toString("utf8").includes("\r\n") ? "\r\n" : "\n";
       const transformedText = newline === "\n" ? transformed.text : transformed.text.replace(/\r?\n/gu, newline);
       addChange(operation.document, current.bytes, Buffer.from(transformedText, "utf8"), operation, transformed.delete === true, current.missing === true);
@@ -848,6 +845,10 @@ export class ProposalCompiler {
       return error(reviewCheck.code, reviewCheck.message, { findings: reviewCheck.findings });
     }
     const previews = [...documents.values()].map((entry) => entry.preview).sort((left, right) => left.document.localeCompare(right.document));
+    // A structured task operation that writes exactly the state already on disk
+    // is a no-op: the caller gets `unchanged` and nothing is staged, so a
+    // replay can never produce a second transition record.
+    const changedDocuments = [...documents.values()].filter((entry) => !entry.unchanged);
     const proposalMaterial = {
       requestId,
       repositoryRootFingerprint: graph.fingerprint,
@@ -868,7 +869,9 @@ export class ProposalCompiler {
       affectedNodeIds: [],
       findings: [],
       complete: true,
-      changes: [...documents.values()],
+      changes: changedDocuments,
+      unchanged: changedDocuments.length === 0,
+      transitions: proposedTransitions,
       previews,
       designReview: reviewCheck.receipt,
       kind: "patch",
