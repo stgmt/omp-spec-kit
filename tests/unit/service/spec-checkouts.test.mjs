@@ -52,12 +52,30 @@ describe("per-spec mirror and worktree", () => {
 
   it("mirrors only spec branches, not the host repository's main", async () => {
     const refs = execFileSync("git", ["--git-dir", mirror, "for-each-ref", "--format=%(refname)", "refs/remotes/origin"], { cwd: root, encoding: "utf8", windowsHide: true });
-    assert.ok(refs.includes("spec-teams-task-sync"), "spec branch must be mirrored");
-    assert.ok(!refs.includes("refs/remotes/origin/main"), "main must NOT be mirrored");
+    const names = refs.trim().split(/\r?\n/u);
+    assert.deepEqual(names, ["refs/remotes/origin/spec-teams-task-sync"]);
+    assert.ok(!names.includes("refs/remotes/origin/main"), "main must NOT be mirrored");
   });
+
   it("reuses an existing worktree on the same branch", async () => {
     const checked = await ensureWorktree({ git, mirrorDir: mirror, worktreeDir: worktree, branch: "spec-teams-task-sync", cwd: root });
     assert.equal(checked.reused, true);
+  });
+
+  it("prunes legacy non-spec refs from an old full mirror", async () => {
+    // Simulate a pre-spec-only mirror that still carried host-repo refs.
+    run(mirror, "update-ref", "refs/remotes/origin/main", "refs/remotes/origin/spec-teams-task-sync");
+    run(mirror, "update-ref", "refs/heads/main", "refs/remotes/origin/spec-teams-task-sync");
+    await ensureMirror({ git, repoUrl: source, mirrorDir: mirror, cwd: root });
+    const refs = run(mirror, "for-each-ref", "--format=%(refname)", "refs/remotes/origin", "refs/heads").trim().split(/\r?\n/u).filter(Boolean);
+    assert.ok(!refs.includes("refs/remotes/origin/main"), "legacy remote main must be pruned");
+    assert.ok(!refs.includes("refs/heads/main"), "legacy local main must be pruned");
+    assert.ok(refs.includes("refs/remotes/origin/spec-teams-task-sync"), "spec remote ref must remain");
+    // An active local worktree head (work/spec-* or spec-*) is preserved by design.
+    for (const ref of refs) {
+      const head = ref.startsWith("refs/heads/") ? ref.slice("refs/heads/".length) : null;
+      assert.ok(!head || /^(?:work\/)?spec-/u.test(head), `unexpected non-spec local head preserved: ${ref}`);
+    }
   });
 
   it("commits in the worktree and pushes back to the source", async () => {

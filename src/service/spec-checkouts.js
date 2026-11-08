@@ -1,16 +1,6 @@
 /**
- * Per-spec checkouts: one bare mirror per repository, one worktree per spec
- * branch. A worktree shares the mirror's object store, so nine specs do not
- * duplicate a large code repository, and two spec branches never fight over a
- * checked-out branch in a shared clone.
- */
-import { existsSync } from "node:fs";
-import { mkdir, rm } from "node:fs/promises";
-import path from "node:path";
-
-/**
  * Per-spec checkouts: one bare mirror per repository, holding only the
- * `spec-*` branches.  A worktree shares the mirror's object store, so nine
+ * `spec-*` branches. A worktree shares the mirror's object store, so nine
  * specs do not duplicate a large code repository, and two spec branches never
  * fight over a checked-out branch in a shared clone.
  *
@@ -18,13 +8,37 @@ import path from "node:path";
  * are never mirrored, because specs live on orphan `spec-<slug>` branches
  * and never need the host repository's code or history.
  */
+import { existsSync } from "node:fs";
+import { mkdir, rm } from "node:fs/promises";
+import path from "node:path";
 const SPEC_REFSPEC = "+refs/heads/spec-*:refs/remotes/origin/spec-*";
+
+// Local heads that belong to active spec worktrees (`work/spec-*`) or direct
+// spec-branch checkouts (`spec-*`) must survive cleanup of legacy mirrors.
+const KEEP_LOCAL_HEAD = /^(?:work\/)?spec-/u;
+
+/**
+ * Remove refs that predate spec-only mirroring. `fetch --prune` with an
+ * explicit refspec prunes only inside the destination pattern, so
+ * `refs/remotes/origin/main` and local `refs/heads/main` from an old
+ * `clone --bare` would otherwise linger (and keep host-repo objects alive).
+ */
+async function pruneNonSpecRefs({ git, mirrorDir, cwd }) {
+  const { stdout } = await git.run(["--git-dir", mirrorDir, "for-each-ref", "--format=%(refname)", "refs/remotes/origin", "refs/heads"], { cwd });
+  for (const ref of stdout.split(/\r?\n/u)) {
+    if (!ref) continue;
+    if (ref.startsWith("refs/remotes/origin/spec-")) continue;
+    if (ref.startsWith("refs/heads/") && KEEP_LOCAL_HEAD.test(ref.slice("refs/heads/".length))) continue;
+    await git.run(["--git-dir", mirrorDir, "update-ref", "-d", ref], { cwd }).catch(() => {});
+  }
+}
 
 export async function ensureMirror({ git, repoUrl, mirrorDir, cwd }) {
   await mkdir(cwd, { recursive: true });
   if (existsSync(path.join(mirrorDir, "HEAD"))) {
     await git.run(["--git-dir", mirrorDir, "config", "remote.origin.fetch", SPEC_REFSPEC], { cwd });
     await git.run(["--git-dir", mirrorDir, "fetch", "--prune", "origin", SPEC_REFSPEC], { cwd });
+    await pruneNonSpecRefs({ git, mirrorDir, cwd });
     return { created: false };
   }
   await git.run(["init", "--bare", mirrorDir], { cwd });
