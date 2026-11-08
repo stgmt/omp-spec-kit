@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "853ea8d8cbab7080ff2bcf0cda7faad8ef4d6b0c91c2025f811c8e7acb2d099f",
+  "aggregateSha256": "eb8a23d5c3367a407e20782556fafd5f337ae9a89ef1dfc453ebcce2d920d4ea",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -215,8 +215,8 @@
     },
     {
       "path": "scripts/install-opencode-guard.mjs",
-      "bytes": 7798,
-      "sha256": "1ad94ca5455373245c957de6456a20cd3baaddee3f7197f67b076d777c538942"
+      "bytes": 7645,
+      "sha256": "ee4316296b01e9cb7ffff3f5f371339eef99fd3c7629a2f0a12ab1ad398e252e"
     },
     {
       "path": "scripts/install-stamp.mjs",
@@ -2090,8 +2090,8 @@
     },
     {
       "path": "tests/unit/service/opencode-loader.test.mjs",
-      "bytes": 4215,
-      "sha256": "3d7e4428865836d92b8d52481664f7000c7a2a5ef00399aa3d31fc88a206775c"
+      "bytes": 4127,
+      "sha256": "598285cf82d263dd681df107f2a39258d57df95b93231769b1b7c70caa5f37bd"
     },
     {
       "path": "tests/unit/service/project-id.test.mjs",
