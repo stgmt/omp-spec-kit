@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "00ff22090a82519262e2c20e4a5569721989875429232d56a4c49b1727366581",
+  "aggregateSha256": "113040a06d2375df4ba9fc72819247b3f168e4152a6d7961d114efdd679cc368",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -10,8 +10,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 76090,
-      "sha256": "a7dc3a8ac89dcfb9d5964f251a3bb45a83a6d28cd05d8c1eb8711561892ef158"
+      "bytes": 77063,
+      "sha256": "81a9d44395177980eb54a96dbc79708961d9caa1747dc478b3a354bbde36476d"
     },
     {
       "path": "LICENSE",
@@ -670,8 +670,8 @@
     },
     {
       "path": "src/service/dispatch.js",
-      "bytes": 16117,
-      "sha256": "95dfe38bf0e249fac3b6fe449daa6050356b10c962db9561597b9cf8ab5c5a5a"
+      "bytes": 16197,
+      "sha256": "6c75109340b80387dd638883c3f53b7cce1d1a747b798e171bd42724d1e3e759"
     },
     {
       "path": "src/service/drift.js",
@@ -710,8 +710,8 @@
     },
     {
       "path": "src/service/mounts.js",
-      "bytes": 27920,
-      "sha256": "3ee091097abfd291373fa60f24c133f19e7c20f8e2203bbfbfd2df7f7075f410"
+      "bytes": 29516,
+      "sha256": "b7d13cc66328908b3b133672c252f27d6ad2c7f97ed1996a4a4cc0deaa0196de"
     },
     {
       "path": "src/service/onboarding.js",
@@ -765,8 +765,8 @@
     },
     {
       "path": "src/service/repos.js",
-      "bytes": 23813,
-      "sha256": "b2bdde5831a6fb05ee4832ac542090e7fba21057611b81f47d8c1effab03f916"
+      "bytes": 24010,
+      "sha256": "58b556c61f8425c862b970daa88d4820b42fc48bbb26b67b3688f3e3163c15d8"
     },
     {
       "path": "src/service/scope.js",
@@ -1855,8 +1855,8 @@
     },
     {
       "path": "tests/project-registration.test.mjs",
-      "bytes": 22867,
-      "sha256": "26be071f2d0523b420b5e05afc49b8570b119f05258ab84b8d9c0743568d00f0"
+      "bytes": 26726,
+      "sha256": "6bfc8e56e2161fc032adf654a345e41db525d56d2d8aedf8e38630da6a1968b8"
     },
     {
       "path": "tests/release-status-candidate.test.mjs",
@@ -2085,8 +2085,8 @@
     },
     {
       "path": "tests/unit/service/mounts.test.mjs",
-      "bytes": 9221,
-      "sha256": "f382cb86b45dfab703d40466f12f476c5e4e0227a19a70c7616c03cdfc9ce598"
+      "bytes": 11844,
+      "sha256": "13ad9c703836f84213222662ced8f3b979b909047665063681bfe7f2745c4b55"
     },
     {
       "path": "tests/unit/service/onboarding.test.mjs",
