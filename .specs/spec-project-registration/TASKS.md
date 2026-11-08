@@ -2,7 +2,7 @@
 
 ## TASK-1 — Diagnose an unknown project
 
-- **Status:** in-progress
+- **Status:** done
 
 **Implements:** FR-1
 
