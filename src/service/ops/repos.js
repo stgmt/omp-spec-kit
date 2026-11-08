@@ -28,10 +28,23 @@ export const REPO_CONTRACTS = Object.freeze([
     tool: "spec_repo",
     label: "Spec Repository",
     operation: "specRepo",
-    description: "Bind, unbind, probe, or list the specs repository of a project. bind and unbind mutate; probe and bindings read.",
+    description: "Register a project the deployment does not know, bind a project to its specs repository, unbind it, probe a credential, or list bindings. register, bind and unbind mutate; probe and bindings read.",
     fields: [],
     discriminator: "action",
     variants: Object.freeze({
+      register: Object.freeze({
+        description: "Create a project the deployment does not know and bind it to its specs repository: requires the owner role on the operator's YouTrack, a credential that reads the repository, and a project id no tenant, config entry or binding already owns.",
+        operation: "specRepoRegister",
+        setupExempt: true,
+        annotations: MUTATING_REMOTE_ANNOTATIONS,
+        fields: Object.freeze([
+          field("repoUrl", "string"),
+          field("token", "string"),
+          optionalField("branch", "string"),
+          optionalField("username", "string"),
+          optionalField("migrate", "boolean"),
+        ]),
+      }),
       bind: Object.freeze({
         description: "Verify the credential against the repository, then bind the project to it (migrating an existing .specs snapshot when the project was bound elsewhere).",
         operation: "specRepoBind",
@@ -95,6 +108,16 @@ export function createRepoOps({ repos }) {
       listing: false,
       async run({ args, ctx, project, requestId }) {
         switch (args.action) {
+          case "register":
+            return settled("specRepo", requestId, () => repos.register({
+              ctx,
+              project,
+              repoUrl: args.repoUrl,
+              branch: args.branch,
+              token: args.token,
+              username: args.username,
+              migrate: args.migrate,
+            }));
           case "bind":
             return settled("specRepo", requestId, () => repos.bind({
               ctx,

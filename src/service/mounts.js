@@ -207,6 +207,21 @@ export class MountManager {
   }
 
   /**
+   * Projects claimed through self-service registration. They are configured by
+   * that act alone — no operator config edit — but they are NOT in anyone's
+   * scope except the login that registered them.
+   */
+  registeredProjects() {
+    return (this.store?.listRegistrations?.() ?? []).map((row) => row.project);
+  }
+
+  /** The projects a login registered itself: the only set it may widen its own scope with. */
+  registeredProjectsBy(login) {
+    if (typeof login !== "string" || login.length === 0) return [];
+    return (this.store?.listRegistrations?.({ registeredBy: login }) ?? []).map((row) => row.project);
+  }
+
+  /**
    * A project registered only through an external-IdP binding. Its specs are
    * customer data: they must live in the customer's own repo, so an unbound
    * external project has NO mount — never a silent slice of the operator's

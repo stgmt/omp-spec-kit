@@ -29,7 +29,15 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
         // One construction site for the request scope: every surface below
         // (MCP dispatch, /status, /me, bindings) reads it
         // from here instead of filtering project lists of its own.
-        req.ctx = { ...ctx, scope: scopeFromContext(ctx) };
+        //
+        // A login's own registrations widen its scope and nothing else: the
+        // scope set still comes from the verified identity, so a registration
+        // can never grant access to a project someone else registered.
+        const registered = mounts?.registeredProjectsBy?.(ctx?.identity?.login) ?? [];
+        const scopes = registered.length === 0
+          ? ctx?.scopes
+          : [...new Set([...(Array.isArray(ctx?.scopes) ? ctx.scopes : []), ...registered])];
+        req.ctx = { ...ctx, scopes, scope: scopeFromContext({ ...ctx, scopes }) };
         next();
       })
       .catch((error) => {

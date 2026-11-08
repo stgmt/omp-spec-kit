@@ -23,7 +23,7 @@ import { createRepoManager } from "./repos.js";
 import { createIdpManager } from "./idps.js";
 import { createSpecBranchManager } from "./spec-branches.js";
 import { BRANCH_CONTRACTS, createBranchOps } from "./ops/branch.js";
-import { serviceErrorEnvelope, serviceSuccess, setupAction, setupCommand } from "./dispatch.js";
+import { registerAction, registerCommand, serviceErrorEnvelope, serviceSuccess, setupAction, setupCommand } from "./dispatch.js";
 import { secretsKeyFromEnv, sealSecret } from "./secrets.js";
 export async function bootService({ configPath, cloneDir, git = new GitClient(), identity, store: storeOption = null, secretsKey = null, logger = () => {} }) {
   const config = await loadProjectsConfig(configPath);
@@ -93,8 +93,10 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     unbindProjectRepo: (project) => repos.unbindInternal(project),
   });
   // IdP-bound tenant projects are configured through their binding, not the
-  // operator config — MountManager consults the resolver on every check.
-  mounts.extraProjects = () => idpManager.projectScopes();
+  // operator config. Self-service registrations are configured by the act of
+  // registering: the project exists on this deployment from that moment, but it
+  // only enters the scope of the login that registered it.
+  mounts.extraProjects = () => [...idpManager.projectScopes(), ...mounts.registeredProjects()];
   const auth = createYouTrackAuth({
     youtrack: {
       baseUrl: env.SPEC_REGISTRY_YT_URL ?? config.auth.youtrack.baseUrl,
@@ -206,12 +208,19 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   // response provenance (withServedProject) instead of a second data field.
   const preflightSetup = async ({ args, project, projectSource = null, requestId, schemaVersion }) => {
     const row = store?.getBinding?.(project) ?? null;
+    const registrationRow = store?.getRegistration?.(project) ?? null;
     const ready = row?.status === "active" || (row?.status === "migrating" && Boolean(row.migratedFrom));
     const bindingStatus = typeof row?.status === "string" ? row.status : "required";
     if (!ready) {
       // Setup finishes over MCP only: the REST bind mirror is gone, so the
-      // command names the tool call an agent must make.
-      const operatorCommand = setupCommand(project);
+      // command names the tool call an agent must make. A project nobody owns
+      // yet needs registration, not binding: bind is refused for it because it
+      // is outside the caller's scope.
+      const known = registrationRow !== null
+        || (Array.isArray(config.projects) && config.projects.includes(project))
+        || mounts.isExternalProject?.(project) === true;
+      const action = known ? setupAction(project) : registerAction(project);
+      const repairCommand = known ? setupCommand(project) : registerCommand(project);
       return {
         envelope: serviceSuccess("mcpPreflight", requestId, {
           kind: "mcp-preflight",
@@ -222,9 +231,19 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
           corpus: { present: false, available: false },
           setup: {
             required: true,
-            code: "REPO_BINDING_REQUIRED",
-            action: setupAction(project),
-            command: operatorCommand,
+            code: known ? "REPO_BINDING_REQUIRED" : "PROJECT_NOT_REGISTERED",
+            action,
+            command: repairCommand,
+          },
+          // Credential diagnosis (FR-4): say which credential is missing and
+          // name the one repair, never the credential itself.
+          credential: {
+            repository: row === null ? "not-bound" : "rejected",
+            repair: repairCommand,
+          },
+          registration: {
+            status: registrationRow === null ? "not-registered" : "registered-without-active-binding",
+            registeredBy: registrationRow?.registeredBy ?? null,
           },
           mutationReady: false,
         }),
@@ -238,7 +257,20 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
       transport: "http",
       bindingStatus,
     });
-    return { envelope: { ...base, data: { ...(base.data ?? {}), setup: { required: false, code: null, action: null, operator: null, command: null } } } };
+    return {
+      envelope: {
+        ...base,
+        data: {
+          ...(base.data ?? {}),
+          setup: { required: false, code: null, action: null, operator: null, command: null },
+          credential: { repository: "verified", repair: null },
+          registration: {
+            status: registrationRow === null ? "operator-configured" : "self-registered",
+            registeredBy: registrationRow?.registeredBy ?? null,
+          },
+        },
+      },
+    };
   };
   const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher, projection, branchManager });
   const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger, idps: { list: () => idpManager.listActiveIdps() } });

@@ -2,6 +2,26 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.4.0 — unreleased
+
+### Added
+
+- **Self-service project registration (`spec_repo {"action":"register"}`).** An owner verified by the operator's YouTrack creates a project the deployment does not know and binds it to its specs repository in one call. The credential must read the repository before anything is created; the project id must belong to no tenant, no operator config entry and no existing binding, so an owned id cannot be taken over; the registration widens exactly one scope — the registering login's own (`MountManager.registeredProjectsBy`, unioned at the auth boundary) — and makes the project configured, so its first specification needs no operator edit. Repeating the same registration of the same repository and branch reports `unchanged` without touching the remote. External-IdP callers are refused with `FORBIDDEN_IDP`; writers with `FORBIDDEN_ROLE`.
+- **Every project refusal names the way out.** `PROJECT_NOT_ALLOWED`, `PROJECT_REQUIRED` and `PROJECT_SELECTION_REQUIRED` carry the caller's allowed projects, `causeCode: "PROJECT_NOT_REGISTERED"` where that is the cause, and one `nextAction` — the literal register call. A caller with no project at all is told that no deployment project belongs to a tenant its groups match.
+- **`mcp_preflight` is the doctor for an unknown project.** For an owner it answers outside the scope gate: `setup.code` is `PROJECT_NOT_REGISTERED` with the register call as the action and as the credential repair, or `REPO_BINDING_REQUIRED` with the bind call for a project that is known but unbound. `credential.repository` reports `not-bound`, `rejected` or `verified`, and `registration.status` reports `not-registered`, `registered-without-active-binding`, `self-registered` or `operator-configured`. No credential value is ever returned.
+- **`spec_repo register` is one variant more on the same tool**, so the published tool surface stays at ten tools.
+
+### Verification
+
+`tests/project-registration.test.mjs` — 19 assertions: the three refusal shapes, the registration gate in order (external IdP, writer, malformed id, another principal's registration, operator-configured project, tenant-claimed project, already-bound project), idempotent re-registration with no remote call, a real registration against a local bare repository (registration row, sealed credential, audit entry), dispatch pass-through for the owner and refusal for every other action, preflight for an owner versus a writer, and the auth-boundary scope union for the registering login only. Plus `tests/service/worktree-routing.test.mjs` and `tests/service/integration.test.mjs` green, and `node scripts/check-spec-port.mjs` reporting `tools=10`.
+
+Live, on the operator stack rebuilt from this source (2026-11-08): an unregistered project answered `PROJECT_NOT_ALLOWED` with `candidates`, `causeCode: PROJECT_NOT_REGISTERED` and the register `nextAction`; `mcp_preflight` answered `PROJECT_NOT_REGISTERED` with `credential.repository: "not-bound"`; the register call bound a real private repository and logged `project-register … (registered by admin)`; a repeat answered `unchanged` in 0.05 s; the project then appeared in the caller's scopes and `spec_catalog` served it; registering an already-configured project answered `PROJECT_ALREADY_CONFIGURED`; registering a repository the credential cannot read answered `REPO_PROBE_FAILED`; and on a throwaway project the first `createSpec` ran straight after registration (one `ELICITATION_REQUIRED` stop, then applied, 15 documents, branch `spec-smoke-bootstrap` created on GitHub).
+
+### Notes
+
+- A first registration clones the repository into the service, so a ~900 MB repository makes that single call take minutes; every later call is immediate. Requests that outlive a client timeout still finish server-side.
+- The three files dirty in the worktree before this change (`.githooks/pre-commit`, `scripts/install-opencode-guard.mjs`, `tests/unit/service/opencode-loader.test.mjs`) are not part of it.
+
 ## 3.3.0 — 2026-11-02
 
 ### Added

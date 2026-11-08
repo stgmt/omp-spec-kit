@@ -68,6 +68,20 @@ export class RequestScope {
   }
 
   /**
+   * The one call that turns "this project is unknown" into a usable project.
+   * Every refusal that can be caused by an unregistered project carries it, so
+   * a caller never has to guess what to do next.
+   */
+  #registrationAction(project) {
+    return `spec_repo ${JSON.stringify({
+      action: "register",
+      project: project ?? "<owner/project>",
+      repoUrl: "<git-url>",
+      token: "<fine-grained-pat-with-contents-rw>",
+    })}`;
+  }
+
+  /**
    * The single project-selection contract: an explicit argument wins, then the
    * host's session project, then "every project I may see" for a listing, and
    * otherwise a refusal. Callers translate `error.code` into their envelope;
@@ -80,8 +94,14 @@ export class RequestScope {
         return {
           error: {
             code: "PROJECT_NOT_ALLOWED",
-            message: `project is outside the caller's allowed set: ${explicit}`,
-            extra: { parameter: "project", receivedSummary: explicit },
+            message: `project is outside the caller's allowed set: ${explicit}; allowed: ${this.#projects.join(", ") || "<none>"}`,
+            extra: {
+              parameter: "project",
+              receivedSummary: explicit,
+              causeCode: "PROJECT_NOT_REGISTERED",
+              candidates: [...this.#projects],
+              nextAction: this.#registrationAction(explicit),
+            },
           },
         };
       }
@@ -93,8 +113,14 @@ export class RequestScope {
         return {
           error: {
             code: "PROJECT_NOT_ALLOWED",
-            message: `session project is outside the caller's allowed set: ${this.#sessionProject}`,
-            extra: { parameter: "project", receivedSummary: this.#sessionProject },
+            message: `session project is outside the caller's allowed set: ${this.#sessionProject}; allowed: ${this.#projects.join(", ") || "<none>"}`,
+            extra: {
+              parameter: "project",
+              receivedSummary: this.#sessionProject,
+              causeCode: "PROJECT_NOT_REGISTERED",
+              candidates: [...this.#projects],
+              nextAction: this.#registrationAction(this.#sessionProject),
+            },
           },
         };
       }
@@ -107,8 +133,23 @@ export class RequestScope {
       return {
         error: {
           code: "PROJECT_SELECTION_REQUIRED",
-          message: "more than one project is available to this caller and none is selected: pass project (owner/project) explicitly",
-          extra: { parameter: "project", expected: "owner/project", candidates: this.#projects },
+          message: `more than one project is available to this caller and none is selected: pass project (owner/project) explicitly; allowed: ${this.#projects.join(", ")}`,
+          extra: {
+            parameter: "project",
+            expected: "owner/project",
+            candidates: [...this.#projects],
+            nextAction: "pass project (owner/project) explicitly",
+          },
+        },
+      };
+    }
+
+    if (this.#projects.length === 1) {
+      return {
+        error: {
+          code: "PROJECT_REQUIRED",
+          message: `no project selected for this call: pass project (owner/project), or configure a session project; allowed: ${this.#projects[0]}`,
+          extra: { parameter: "project", expected: "owner/project", candidates: [...this.#projects], nextAction: "pass project (owner/project) explicitly" },
         },
       };
     }
@@ -116,8 +157,14 @@ export class RequestScope {
     return {
       error: {
         code: "PROJECT_REQUIRED",
-        message: "no project selected for this call: pass project (owner/project), or configure a session project, or bind a default scope",
-        extra: { parameter: "project", expected: "owner/project" },
+        message: "no project is available to this caller: none of the deployment's projects belongs to a tenant your groups match, so pass project (owner/project) and register it",
+        extra: {
+          parameter: "project",
+          expected: "owner/project",
+          candidates: [],
+          causeCode: "PROJECT_NOT_REGISTERED",
+          nextAction: this.#registrationAction(null),
+        },
       },
     };
   }

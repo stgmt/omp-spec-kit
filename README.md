@@ -135,7 +135,11 @@ After install, open **Administration → Integrations → Spec Service** (the ap
 
 ## Available today
 
-The local kernel in v3.1.0 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool. The hosted registry adds service-owned operations on top — `spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, `spec_branch`, and `spec_repo` (bind or unbind a project's specs repository) — exposed over the same MCP endpoint.
+The local kernel in v3.1.0 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool. The hosted registry adds service-owned operations on top — `spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, `spec_branch`, and `spec_repo` (register or bind a project's specs repository, unbind it, probe a credential, list bindings) — exposed over the same MCP endpoint.
+
+A project must be registered in the registry before it can be read or written; the tool never serves an unregistered working tree as a substitute. Registration is one call, available to an owner verified by the operator's YouTrack: `spec_repo {"action":"register","project":"owner/project","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}`. It checks that the credential reads the repository before anything is created, refuses a project id that a tenant, the operator config or an existing binding already owns (so an owned id cannot be taken over), binds the project, and widens exactly one scope — the registering login's own. Repeating the same registration is a no-op. The first registration clones the repository into the service, so a large repository makes that single call long; every later call is immediate.
+
+An unregistered project never leaves the caller guessing: any refusal names the project, the projects the caller may use, and one `nextAction` that is that exact register call, and `mcp_preflight` answers for it too — `setup.code: "PROJECT_NOT_REGISTERED"`, `credential.repository: "not-bound"`, and the same command as the repair. A project that is configured but unbound gets the bind command instead.
 
 | Need | Tool | Variant |
 |---|---|---|

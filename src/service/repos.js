@@ -3,6 +3,7 @@ import path from "node:path";
 import { GitClient } from "./git.js";
 import { isValidBranchName } from "./branch-policy.js";
 import { repoHostAllowed, sanitizeRepoUrl } from "./mounts.js";
+import { projectIdError } from "./project-id.js";
 import { sealSecret } from "./secrets.js";
 import { requireScope } from "./scope.js";
 
@@ -29,6 +30,17 @@ function assertBindAllowed(ctx, project, config, mounts) {
   if (!configured.includes(project)) {
     throw new RepoError(404, "PROJECT_NOT_CONFIGURED", `project is not configured on this service: ${project}`);
   }
+}
+
+function publicRegistration(row) {
+  return {
+    project: row.project,
+    repoUrl: sanitizeRepoUrl(row.repoUrl),
+    branch: row.branch,
+    status: row.status,
+    registeredBy: row.registeredBy ?? null,
+    registeredAt: row.registeredAt ?? null,
+  };
 }
 
 function publicBinding(row) {
@@ -84,6 +96,84 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
   async function bind({ ctx, project, repoUrl, branch, token, username, migrate = true }) {
     assertBindAllowed(ctx, project, config, mounts);
     return bindInternal({ project, repoUrl, branch, token, username, migrate, boundBy: ctx.identity?.login ?? null, role: ctx.role ?? null });
+  }
+
+  /**
+   * Self-service registration: the act that makes a project known to the
+   * deployment at all. It is the only path that may create a project, so its
+   * gate is deliberately narrower than binding:
+   *
+   * - the caller must be verified by the OPERATOR's YouTrack (`ctx.idp` null),
+   *   the same boundary self-service IdP binding already draws, because a
+   *   customer-IdP user must never provision projects on the operator;
+   * - the caller must hold the owner role: creating a project and granting
+   *   yourself access to it is an owner act, not a writer act;
+   * - the project must be unknown to the deployment: not in the operator
+   *   config, not bound by an IdP tenant, not registered by somebody else.
+   *   Without this rule a caller could point an existing project id at their
+   *   own repository and take it over;
+   * - the repository credential must actually read the repository (the probe
+   *   below), so registration cannot be used to claim an id with no target.
+   *
+   * The registration itself widens exactly one scope: the registering login's
+   * own (`MountManager.registeredProjectsBy`). Nobody else sees the project
+   * until the operator adds it to a tenant.
+   */
+  async function register({ ctx, project, repoUrl, branch, token, username, migrate = true }) {
+    requireStore();
+    if (ctx?.idp != null) {
+      throw new RepoError(403, "FORBIDDEN_IDP", "project registration is only available to users verified by the operator's YouTrack; a bound IdP registers its own projects");
+    }
+    if (ctx?.role !== "owner") {
+      throw new RepoError(403, "FORBIDDEN_ROLE", `project registration requires the owner role (caller role: ${ctx?.role ?? "none"})`);
+    }
+    const projectId = typeof project === "string" ? project.trim() : "";
+    const projectError = projectIdError(projectId);
+    if (projectError !== null) throw new RepoError(400, "PROJECT_ID_INVALID", projectError);
+    const login = ctx.identity?.login ?? null;
+    const existing = store?.getRegistration?.(projectId) ?? null;
+    if (existing !== null && existing.registeredBy !== login) {
+      throw new RepoError(409, "PROJECT_ALREADY_REGISTERED", `project ${projectId} was registered by another principal`);
+    }
+    if (existing === null) {
+      const operatorProjects = Array.isArray(config.projects) ? config.projects : [];
+      if (operatorProjects.includes(projectId) || mounts?.isExternalProject?.(projectId) === true) {
+        throw new RepoError(409, "PROJECT_ALREADY_CONFIGURED", `project ${projectId} is already configured on this service — bind it instead of registering it`);
+      }
+      if ((store?.getBinding?.(projectId) ?? null) !== null) {
+        throw new RepoError(409, "PROJECT_ALREADY_BOUND", `project ${projectId} already has a repository binding; registration would take it over`);
+      }
+    }
+    const cleanRepoUrl = sanitizeRepoUrl(repoUrl);
+    const resolvedBranch = typeof branch === "string" && branch.length > 0 ? branch : "main";
+    const current = store?.getBinding?.(projectId) ?? null;
+    if (existing !== null && current?.status === "active" && sanitizeRepoUrl(existing.repoUrl) === cleanRepoUrl && existing.branch === resolvedBranch) {
+      return {
+        registration: publicRegistration(existing),
+        binding: publicBinding(current),
+        unchanged: true,
+        credential: { repository: "verified", repair: null },
+      };
+    }
+    const bound = await bindInternal({ project: projectId, repoUrl, branch: resolvedBranch, token, username, migrate, boundBy: login, role: ctx.role });
+    const registration = {
+      project: projectId,
+      repoUrl: cleanRepoUrl,
+      branch: resolvedBranch,
+      status: "active",
+      registeredBy: login,
+      registeredAt: existing?.registeredAt ?? new Date().toISOString(),
+    };
+    await store?.putRegistration?.(registration);
+    audit({ login, role: ctx.role ?? null, project: projectId, op: "project-register", spec: null, result: `ok:registered:${cleanRepoUrl}` });
+    logger(`project-register ${projectId} -> ${cleanRepoUrl} (registered by ${login ?? "unknown"})`);
+    return {
+      registration: publicRegistration(registration),
+      binding: bound.binding,
+      head: bound.head ?? null,
+      unchanged: bound.unchanged === true,
+      credential: { repository: "verified", repair: null },
+    };
   }
 
   /**
@@ -213,5 +303,5 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     };
   }
 
-  return { bind, bindInternal, unbind, unbindInternal, bindings, me, probeAccess };
+  return { bind, bindInternal, register, unbind, unbindInternal, bindings, me, probeAccess };
 }

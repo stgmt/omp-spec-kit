@@ -91,6 +91,23 @@ export function setupCommand(project) {
   return `call ${action.tool} ${JSON.stringify(action.arguments)}`;
 }
 
+/**
+ * The call that registers a project the deployment does not know. Binding is
+ * the wrong advice there: it is refused for a project outside the caller's
+ * scope, which is precisely what an unregistered project is.
+ */
+export function registerAction(project) {
+  return {
+    tool: "spec_repo",
+    arguments: { action: "register", project, repoUrl: "<git-url>", token: "<fine-grained-pat-with-contents-rw>" },
+  };
+}
+
+export function registerCommand(project) {
+  const action = registerAction(project);
+  return `call ${action.tool} ${JSON.stringify(action.arguments)}`;
+}
+
 function roleAllows(ctx, contract, args, force) {
   const rank = ROLE_RANK[ctx.role] ?? -1;
   if (rank < 0) return false;
@@ -199,10 +216,36 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
     // scope's session project applies (the host's verified request context, then
     // the caller's default scope), and a call with neither falls back to the
     // caller's existing default scope. No selection is ever stored.
-    const resolved = resolveProject({ scope, rawProject, operation, requestId, listing });
-    if (resolved.error) return { envelope: resolved.error };
+    // Self-service registration must be callable for a project the caller has
+    // no scope for — that is the whole point: it is how a project becomes
+    // known to the deployment. The handler enforces the owner role, the
+    // operator-IdP boundary and the project-is-unknown rule, so the scope gate
+    // is skipped for this call only, and the raw argument is passed through.
+    const selfServiceRegistration = contract.operation === "specRepo" && normalized.args?.action === "register";
+    let resolved;
+    let bypassScope = selfServiceRegistration;
+    if (selfServiceRegistration) {
+      if (typeof rawProject !== "string" || rawProject.trim().length === 0) {
+        return { envelope: invalidRequest(operation, requestId, "project is required to register it", { parameter: "project", expected: "owner/project" }) };
+      }
+      resolved = { project: rawProject.trim(), source: "explicit" };
+    } else {
+      resolved = resolveProject({ scope, rawProject, operation, requestId, listing });
+      if (resolved.error) {
+        // Preflight is the doctor: an owner asking about a project outside its
+        // scope must get the diagnosis (registered? bound? which credential is
+        // missing) instead of a bare refusal, because that answer is what
+        // tells them to register it. The caller is already verified and holds
+        // the owner role; the handler below never leaves the store.
+        const ownerPreflight = contract.operation === "mcpPreflight" && ctx?.role === "owner"
+          && typeof rawProject === "string" && rawProject.trim().length > 0;
+        if (!ownerPreflight) return { envelope: resolved.error };
+        resolved = { project: rawProject.trim(), source: "explicit" };
+        bypassScope = true;
+      }
+    }
 
-    if (!resolved.allScopes) {
+    if (!bypassScope && !resolved.allScopes) {
       // Setup and preflight must answer for a project with no binding yet:
       // they are how a caller completes (or repairs) setup.
       const setupExempt = SETUP_EXEMPT_OPERATIONS.has(contract.operation) || variant?.setupExempt === true;

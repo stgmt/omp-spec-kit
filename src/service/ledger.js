@@ -56,6 +56,15 @@ CREATE TABLE IF NOT EXISTS repo_credentials (
   username TEXT,
   created_at TEXT
 );
+CREATE TABLE IF NOT EXISTS project_registrations (
+  project TEXT PRIMARY KEY,
+  repo_url TEXT NOT NULL,
+  branch TEXT NOT NULL,
+  status TEXT NOT NULL,
+  registered_by TEXT,
+  registered_at TEXT,
+  updated_at TEXT
+);
 CREATE TABLE IF NOT EXISTS idp_bindings (
   tenant TEXT PRIMARY KEY,
   youtrack_url TEXT NOT NULL UNIQUE,
@@ -182,6 +191,38 @@ class SqliteStore {
     this.db.prepare("DELETE FROM repo_bindings WHERE project = ?").run(project);
   }
 
+  putRegistration(registration) {
+    this.db.prepare(
+      "INSERT INTO project_registrations (project, repo_url, branch, status, registered_by, registered_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) " +
+      "ON CONFLICT(project) DO UPDATE SET repo_url = excluded.repo_url, branch = excluded.branch, status = excluded.status, " +
+      "registered_by = excluded.registered_by, updated_at = excluded.updated_at",
+    ).run(
+      registration.project, registration.repoUrl, registration.branch, registration.status,
+      registration.registeredBy ?? null, registration.registeredAt ?? new Date().toISOString(), new Date().toISOString(),
+    );
+  }
+
+  #registrationRow(row) {
+    return row
+      ? { project: row.project, repoUrl: row.repo_url, branch: row.branch, status: row.status, registeredBy: row.registered_by, registeredAt: row.registered_at, updatedAt: row.updated_at }
+      : null;
+  }
+
+  getRegistration(project) {
+    return this.#registrationRow(this.db.prepare("SELECT * FROM project_registrations WHERE project = ?").get(project));
+  }
+
+  listRegistrations({ registeredBy = null } = {}) {
+    const rows = registeredBy === null
+      ? this.db.prepare("SELECT * FROM project_registrations").all()
+      : this.db.prepare("SELECT * FROM project_registrations WHERE registered_by = ?").all(registeredBy);
+    return rows.map((row) => this.#registrationRow(row));
+  }
+
+  deleteRegistration(project) {
+    this.db.prepare("DELETE FROM project_registrations WHERE project = ?").run(project);
+  }
+
   putCredential(project, { repoUrl, tokenEnc, username }) {
     this.db.prepare(
       "INSERT INTO repo_credentials (project, repo_url, token_enc, username, created_at) VALUES (?, ?, ?, ?, ?) " +
@@ -278,7 +319,7 @@ class JsonlStore {
   }
 
   static async open(file) {
-    let state = { claims: [], ledger: [], access_log: [], repo_bindings: [], repo_credentials: [], idp_bindings: [], idp_credentials: [] };
+    let state = { claims: [], ledger: [], access_log: [], repo_bindings: [], repo_credentials: [], project_registrations: [], idp_bindings: [], idp_credentials: [] };
     try {
       state = { ...state, ...JSON.parse(await readFile(file, "utf8")) };
     } catch {}
@@ -350,6 +391,28 @@ class JsonlStore {
 
   deleteBinding(project) {
     this.state.repo_bindings = this.state.repo_bindings.filter((b) => b.project !== project);
+    return this.persist();
+  }
+
+  putRegistration(registration) {
+    const record = { registeredBy: null, registeredAt: new Date().toISOString(), ...registration, updatedAt: new Date().toISOString() };
+    const existing = this.state.project_registrations.find((r) => r.project === registration.project);
+    if (existing) Object.assign(existing, record);
+    else this.state.project_registrations.push(record);
+    return this.persist();
+  }
+
+  getRegistration(project) {
+    return this.state.project_registrations.find((r) => r.project === project) ?? null;
+  }
+
+  listRegistrations({ registeredBy = null } = {}) {
+    const rows = this.state.project_registrations ?? [];
+    return registeredBy === null ? [...rows] : rows.filter((r) => r.registeredBy === registeredBy);
+  }
+
+  deleteRegistration(project) {
+    this.state.project_registrations = (this.state.project_registrations ?? []).filter((r) => r.project !== project);
     return this.persist();
   }
 
