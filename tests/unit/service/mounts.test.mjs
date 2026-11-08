@@ -259,4 +259,18 @@ describe("materialised corpus cache", () => {
     await mounts.ensureProjectCorpus("acme/widgets");
     assert.equal(materialised, 1, "an existing corpus costs one stat, not a rebuild");
   });
+
+  it("does not turn a failed repair into a different read failure", async () => {
+    const { mounts } = await corpusManager();
+    const logged = [];
+    mounts.logger = (line) => logged.push(line);
+    mounts.projectRoot = async () => {
+      const error = new Error("invalid spec binding in stgmt/alpha: spec-spec-kernel: repo does not match the binding");
+      error.code = "SPEC_BINDING_INVALID";
+      throw error;
+    };
+    assert.equal(await mounts.ensureProjectCorpus("acme/widgets"), "acme/widgets", "the read proceeds and reports its own problem");
+    assert.equal(logged.length, 1);
+    assert.match(logged[0], /corpus repair skipped for acme\/widgets/u);
+  });
 });

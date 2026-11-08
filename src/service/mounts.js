@@ -544,11 +544,20 @@ export class MountManager {
    * place, so a lost root (a removed volume, a project registered by the
    * caller that boot never materialised) heals on the first read instead of
    * answering ADAPTER_READ_ERROR until the next restart.
+   *
+   * Repair is best effort: a corpus that cannot be materialised right now (an
+   * invalid binding in the repository, an unreachable mirror) must not turn a
+   * read that could still be served into a different failure — the read
+   * reports its own problem, and the reason repair was skipped goes to the log.
    */
   async ensureProjectCorpus(projectId) {
     const mount = this.readableRepo(projectId);
     if (await corpusPresent(this.cacheRootFor(projectId, mount))) return projectId;
-    await this.projectRoot(projectId);
+    try {
+      await this.projectRoot(projectId);
+    } catch (error) {
+      this.logger(`corpus repair skipped for ${projectId}: ${String(error?.message ?? error).split("\n")[0]}`);
+    }
     return projectId;
   }
 
