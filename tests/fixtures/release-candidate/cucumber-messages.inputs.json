@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "78c69f35f6369eb540283f5bbec22d0813bb1386cd7062ce27268f2e81585888",
+  "aggregateSha256": "2d403298008cec02f0c9c2907471945859cabcb4f4c1a9b25f36a153b2fd4a1f",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -10,8 +10,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 71099,
-      "sha256": "71f764882c9c23a820e1d6e262f510a29d4d363746ecfc11c33bdaec2c739820"
+      "bytes": 75096,
+      "sha256": "e94c743304dc248b974ed9c593d3883cf30cbd1708eda8eb55124d4346e02128"
     },
     {
       "path": "LICENSE",
@@ -20,8 +20,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 13754,
-      "sha256": "d85c7e88e53e160dec5547b51cbc05bb60f262b848aa246d537645cc58095482"
+      "bytes": 15051,
+      "sha256": "7703e09715618ae6638191771e4a9384be8f21cf04fb5e0036b6b86956ea68cb"
     },
     {
       "path": "cucumber.mjs",
@@ -670,8 +670,8 @@
     },
     {
       "path": "src/service/dispatch.js",
-      "bytes": 13899,
-      "sha256": "7036457141932486808b48fb2c56e4e5cde1e94b6fff5ef5dd2bb6c98eaa2d13"
+      "bytes": 16117,
+      "sha256": "95dfe38bf0e249fac3b6fe449daa6050356b10c962db9561597b9cf8ab5c5a5a"
     },
     {
       "path": "src/service/drift.js",
@@ -690,8 +690,8 @@
     },
     {
       "path": "src/service/http.js",
-      "bytes": 12617,
-      "sha256": "0839db826725451728986937c4ab609bc5661d495615d06d316df848af90d32f"
+      "bytes": 13131,
+      "sha256": "67aa3383ae1260f47994239ed9faa408798f257b3fe817aee7ea734e50c56d60"
     },
     {
       "path": "src/service/idps.js",
@@ -700,18 +700,18 @@
     },
     {
       "path": "src/service/index.js",
-      "bytes": 18848,
-      "sha256": "cd2c758d85b1816473dd9427def94c6f8125fc20a93d60fabf528fd08e3ffa63"
+      "bytes": 20384,
+      "sha256": "9bc1e75de608cda8ebd9070b1a6a7ccc1e81b3ebcdd5a72f9433108e35bd8eba"
     },
     {
       "path": "src/service/ledger.js",
-      "bytes": 17895,
-      "sha256": "fec96c911eedc4834ad5052146e8b29a8bc47acf7dd3fa3bccd3fb307f323bab"
+      "bytes": 20584,
+      "sha256": "9b1f86827efd3cc2981a7d43876645a250a02232721f452460742b7cc48e22b0"
     },
     {
       "path": "src/service/mounts.js",
-      "bytes": 27284,
-      "sha256": "0bb1cc654768dcbd6c65d787166b7cec9d9a9c8d53123c4aa35b4635d81e2800"
+      "bytes": 27920,
+      "sha256": "3ee091097abfd291373fa60f24c133f19e7c20f8e2203bbfbfd2df7f7075f410"
     },
     {
       "path": "src/service/onboarding.js",
@@ -735,8 +735,8 @@
     },
     {
       "path": "src/service/ops/repos.js",
-      "bytes": 5181,
-      "sha256": "8176745f9002d5f3efc27a23d5bddba24bb540a862f717644ad39b3d539f547b"
+      "bytes": 6285,
+      "sha256": "eb35b4218ca39620f7802bf69fd3eadc097516479739cc2e0ad267e18da75c2e"
     },
     {
       "path": "src/service/project-id.js",
@@ -760,13 +760,13 @@
     },
     {
       "path": "src/service/repos.js",
-      "bytes": 10894,
-      "sha256": "184c412717f0c0a47f9990c0e20e295d6fb9e126e9de7207e73aa6331617f6ce"
+      "bytes": 15567,
+      "sha256": "17692c686c8dcd08c81ec95266c68a0e1050c63843f2464ca7a62704f1520dde"
     },
     {
       "path": "src/service/scope.js",
-      "bytes": 6332,
-      "sha256": "e6fc501916c7c1adb9d627bf6a76166aecce6702b7af5666a76cc557a7728b3e"
+      "bytes": 8103,
+      "sha256": "f48c7d2a600ab8b9a4ed1a2426fb0d1e2395e668aa5d8a7d51950bbf4e4514d4"
     },
     {
       "path": "src/service/secrets.js",
@@ -1847,6 +1847,11 @@
       "path": "tests/opencode/hook.test.mjs",
       "bytes": 10327,
       "sha256": "b51c5cc0dcfe293bc092347827e586af06ef01b5e8c604a95ff4c02010f5b2cb"
+    },
+    {
+      "path": "tests/project-registration.test.mjs",
+      "bytes": 15890,
+      "sha256": "e4331a3dec610a52ca58d7ef2fc07841745910047f05b683154b48e6e6316207"
     },
     {
       "path": "tests/release-status-candidate.test.mjs",
