@@ -50,6 +50,11 @@ describe("per-spec mirror and worktree", () => {
     assert.equal(readFileSync(path.join(worktree, ".spec-kit.json"), "utf8").includes("spec-binding"), true);
   });
 
+  it("mirrors only spec branches, not the host repository's main", async () => {
+    const refs = execFileSync("git", ["--git-dir", mirror, "for-each-ref", "--format=%(refname)", "refs/remotes/origin"], { cwd: root, encoding: "utf8", windowsHide: true });
+    assert.ok(refs.includes("spec-teams-task-sync"), "spec branch must be mirrored");
+    assert.ok(!refs.includes("refs/remotes/origin/main"), "main must NOT be mirrored");
+  });
   it("reuses an existing worktree on the same branch", async () => {
     const checked = await ensureWorktree({ git, mirrorDir: mirror, worktreeDir: worktree, branch: "spec-teams-task-sync", cwd: root });
     assert.equal(checked.reused, true);

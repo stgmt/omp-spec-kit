@@ -114,8 +114,8 @@ describe("mount manager", () => {
       gitFactory: ({ gitAuth }) => ({ gitAuth }),
     });
     mounts.authFor = (id) => ({ token: id === project ? "token-a" : "token-b" });
-    const first = mounts.repoDescriptor("https://github.com/stgmt/repo.git", "main", project);
-    const second = mounts.repoDescriptor("https://github.com/stgmt/repo.git", "main", other);
+    const first = mounts.repoDescriptor("https://github.com/stgmt/repo.git", project);
+    const second = mounts.repoDescriptor("https://github.com/stgmt/repo.git", other);
     assert.notEqual(first.key, second.key);
     assert.equal(first.git.gitAuth.token, "token-a");
     assert.equal(second.git.gitAuth.token, "token-b");

@@ -81,7 +81,7 @@ function manager({ store, config = {}, mounts = {} } = {}) {
   return createRepoManager({
     mounts: {
       clonesRoot: path.join(tmpdir(), "spec-kit-probe-root"),
-      descriptorFor: (repoUrl, branch, auth) => ({ key: `${repoUrl}#${branch}`, repoUrl, branch, auth }),
+      descriptorFor: (repoUrl, auth) => ({ key: `${repoUrl}#${auth?.token ?? "anon"}`, repoUrl, auth }),
       ensureMount: async () => {},
       projectRoot: async () => path.join(tmpdir(), "spec-kit-probe-root"),
       ...mounts,

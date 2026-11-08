@@ -289,10 +289,10 @@ export class MountManager {
   for(projectId) {
     const row = this.store?.getBinding?.(projectId) ?? null;
     if (!row) throw this.bindingRequired(projectId);
-    if (row.status === "active") return this.repoDescriptor(row.repoUrl, row.branch, projectId);
+    if (row.status === "active") return this.repoDescriptor(row.repoUrl, projectId);
     if (row.status === "migrating") {
       if (!row.migratedFrom) throw this.bindingRequired(projectId);
-      return this.repoDescriptor(row.migratedFrom, row.migratedFromBranch ?? row.branch, projectId);
+      return this.repoDescriptor(row.migratedFrom, projectId);
     }
     throw this.bindingRequired(projectId);
   }
@@ -307,12 +307,12 @@ export class MountManager {
   forSource(projectId) {
     const row = this.store?.getBinding?.(projectId) ?? null;
     if (!row) return null;
-    if (row.status === "active") return this.repoDescriptor(row.repoUrl, row.branch, projectId);
-    return row.migratedFrom ? this.repoDescriptor(row.migratedFrom, row.migratedFromBranch ?? row.branch, projectId) : null;
+    if (row.status === "active") return this.repoDescriptor(row.repoUrl, projectId);
+    return row.migratedFrom ? this.repoDescriptor(row.migratedFrom, projectId) : null;
   }
 
   /** One bare mirror per repository credential; every spec branch shares its objects. */
-  descriptorFor(repoUrl, branch, auth) {
+  descriptorFor(repoUrl, auth) {
     const cleanRepoUrl = sanitizeRepoUrl(repoUrl);
     const authKey = auth
       ? createHash("sha256").update(`${auth.username ?? ""}\0${auth.token}`, "utf8").digest("hex").slice(0, 12)
@@ -324,7 +324,6 @@ export class MountManager {
       mount = this.registerMount({
         key,
         repoUrl: cleanRepoUrl,
-        branch,
         cwd: dir,
         mirrorDir: path.join(dir, "mirror.git"),
         git: this.gitFactory({ gitAuth: auth }),
@@ -333,17 +332,17 @@ export class MountManager {
     return mount;
   }
 
-  repoDescriptor(repoUrl, branch = "main", forProject = null) {
+  repoDescriptor(repoUrl, forProject = null) {
     const cleanRepoUrl = sanitizeRepoUrl(repoUrl);
     const auth = forProject ? this.authFor(forProject, cleanRepoUrl) : undefined;
-    return this.descriptorFor(cleanRepoUrl, branch, auth);
+    return this.descriptorFor(cleanRepoUrl, auth);
   }
 
   /** The mirror behind a project's active binding (writes require active). */
   async repoFor(projectId) {
     const row = this.store?.getBinding?.(projectId) ?? null;
     if (!row || row.status !== "active") throw this.bindingRequired(projectId);
-    return this.repoDescriptor(row.repoUrl, row.branch ?? "main", projectId);
+    return this.repoDescriptor(row.repoUrl, projectId);
   }
 
   /**
@@ -354,9 +353,9 @@ export class MountManager {
   readableRepo(projectId) {
     const row = this.store?.getBinding?.(projectId) ?? null;
     if (!row) throw this.bindingRequired(projectId);
-    if (row.status === "active") return this.repoDescriptor(row.repoUrl, row.branch ?? "main", projectId);
+    if (row.status === "active") return this.repoDescriptor(row.repoUrl, projectId);
     if (row.status === "migrating" && row.migratedFrom) {
-      return this.repoDescriptor(row.migratedFrom, row.migratedFromBranch ?? row.branch ?? "main", projectId);
+      return this.repoDescriptor(row.migratedFrom, projectId);
     }
     throw this.bindingRequired(projectId);
   }

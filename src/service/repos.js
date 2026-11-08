@@ -369,7 +369,7 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     });
     await put("migrating");
 
-    const mount = mounts.descriptorFor(cleanRepoUrl, resolvedBranch, auth);
+    const mount = mounts.descriptorFor(cleanRepoUrl, auth);
     try {
       // The mirror clone is the long part: mirroring a large repository takes
       // minutes, so the phase is reported before the wait, not after it.
