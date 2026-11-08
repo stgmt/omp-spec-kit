@@ -28,12 +28,12 @@ export const REPO_CONTRACTS = Object.freeze([
     tool: "spec_repo",
     label: "Spec Repository",
     operation: "specRepo",
-    description: "Register a project the deployment does not know, bind a project to its specs repository, unbind it, probe a credential, or list bindings. register, bind and unbind mutate; probe and bindings read.",
+    description: "Register a project the deployment does not know (queued, then cloned in the background), report its progress, bind a project to its specs repository, unbind it, probe a credential, or list bindings. register, bind and unbind mutate; status, probe and bindings read.",
     fields: [],
     discriminator: "action",
     variants: Object.freeze({
       register: Object.freeze({
-        description: "Create a project the deployment does not know and bind it to its specs repository: requires the owner role on the operator's YouTrack, a credential that reads the repository, and a project id no tenant, config entry or binding already owns.",
+        description: "Queue registration of a project the deployment does not know and bind it to its specs repository: requires the owner role on the operator's YouTrack, a credential that reads the repository, and a project id no tenant, config entry or binding already owns. Returns a pending registration; poll status for the phase.",
         operation: "specRepoRegister",
         setupExempt: true,
         annotations: MUTATING_REMOTE_ANNOTATIONS,
@@ -44,6 +44,13 @@ export const REPO_CONTRACTS = Object.freeze([
           optionalField("username", "string"),
           optionalField("migrate", "boolean"),
         ]),
+      }),
+      status: Object.freeze({
+        description: "Report one project's registration and binding state with the current phase and elapsed time; poll this after register, which clones the repository in the background.",
+        operation: "specRepoStatus",
+        setupExempt: true,
+        annotations: LOCAL_READ_REMOTE_ANNOTATIONS,
+        fields: Object.freeze([]),
       }),
       bind: Object.freeze({
         description: "Verify the credential against the repository, then bind the project to it (migrating an existing .specs snapshot when the project was bound elsewhere).",
@@ -102,21 +109,32 @@ async function settled(operation, requestId, run) {
 }
 
 /** Thin handlers over the existing repository application services. */
-export function createRepoOps({ repos }) {
+export function createRepoOps({ repos, jobs = null }) {
   return {
     specRepo: {
       listing: false,
       async run({ args, ctx, project, requestId }) {
         switch (args.action) {
           case "register":
-            return settled("specRepo", requestId, () => repos.register({
-              ctx,
-              project,
-              repoUrl: args.repoUrl,
-              branch: args.branch,
-              token: args.token,
-              username: args.username,
-              migrate: args.migrate,
+            // The call queues the work and returns; the mirror clone runs under
+            // the job, which keeps the phase current for `status` to report.
+            return settled("specRepo", requestId, async () => {
+              const started = await repos.registerStart({
+                ctx,
+                project,
+                repoUrl: args.repoUrl,
+                branch: args.branch,
+                token: args.token,
+                username: args.username,
+                migrate: args.migrate,
+              });
+              if (started.job !== null && jobs !== null && jobs !== undefined) jobs.start(started.job);
+              return started.data;
+            });
+          case "status":
+            return settled("specRepo", requestId, async () => ({
+              ...repos.registrationStatus({ project }),
+              running: jobs?.isRunning?.(project) === true,
             }));
           case "bind":
             return settled("specRepo", requestId, () => repos.bind({

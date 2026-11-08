@@ -13,6 +13,7 @@ import { createRepoManager } from "../src/service/repos.js";
 import { secretsKeyFromEnv } from "../src/service/secrets.js";
 import { createDispatcher } from "../src/service/dispatch.js";
 import { REPO_CONTRACTS } from "../src/service/ops/repos.js";
+import { createRegistrationJobs } from "../src/service/registration-jobs.js";
 import { TOOL_CONTRACTS } from "../src/adapters/tool-contracts.js";
 
 const run = promisify(execFile);
@@ -22,27 +23,53 @@ after(async () => {
 });
 
 function fakeStore(state = {}) {
+  state.registrations ??= {};
+  state.bindings ??= {};
+  state.credentials ??= {};
+  state.phases ??= [];
+  if (state.registration) {
+    state.registrations[state.registration.project] = state.registration;
+    delete state.registration;
+  }
+  if (state.binding) {
+    state.bindings[state.binding.project] = state.binding;
+    delete state.binding;
+  }
   return {
     state,
-    getRegistration: (project) => (state.registration?.project === project ? state.registration : null),
+    getRegistration: (project) => state.registrations[project] ?? null,
     listRegistrations: ({ registeredBy = null } = {}) => {
-      const rows = state.registration ? [state.registration] : [];
+      const rows = Object.values(state.registrations);
       return registeredBy === null ? rows : rows.filter((row) => row.registeredBy === registeredBy);
     },
-    putRegistration: (registration) => {
-      state.registration = registration;
+    putRegistration: (row) => {
+      state.registrations[row.project] = { ...(state.registrations[row.project] ?? {}), ...row };
       state.registrationWrites = (state.registrationWrites ?? 0) + 1;
+      return state.registrations[row.project];
     },
-    getBinding: (project) => (state.binding?.project === project ? state.binding : null),
+    updateRegistration: (project, patch) => {
+      const current = state.registrations[project];
+      if (current === undefined) return null;
+      state.registrations[project] = { ...current, ...patch };
+      if (patch.phase) state.phases.push(patch.phase);
+      return state.registrations[project];
+    },
+    getBinding: (project) => state.bindings[project] ?? null,
     putBinding: (binding) => {
-      state.binding = binding;
+      state.bindings[binding.project] = { ...(state.bindings[binding.project] ?? {}), ...binding };
       state.bindingWrites = (state.bindingWrites ?? 0) + 1;
     },
-    putCredential: () => {
+    putCredential: (project, credential) => {
+      state.credentials[project] = credential;
       state.credentialWrites = (state.credentialWrites ?? 0) + 1;
     },
-    deleteBinding: () => {},
-    deleteCredential: () => {},
+    getCredential: (project) => state.credentials[project] ?? null,
+    deleteBinding: (project) => {
+      delete state.bindings[project];
+    },
+    deleteCredential: (project) => {
+      delete state.credentials[project];
+    },
     logAccess: (entry) => {
       state.audit = [...(state.audit ?? []), entry];
     },
@@ -105,7 +132,7 @@ describe("project refusals name the way out", () => {
 describe("self-service registration gate", () => {
   it("refuses an external-IdP caller before anything else", async () => {
     const store = fakeStore();
-    const error = await rejection(manager({ store }).register({
+    const error = await rejection(manager({ store }).registerStart({
       ctx: { role: "owner", idp: { tenant: "customer" }, identity: { login: "alice" } },
       project: "acme/widgets",
       repoUrl: "https://example.invalid/acme/widgets.git",
@@ -117,7 +144,7 @@ describe("self-service registration gate", () => {
 
   it("refuses a writer: creating a project is an owner act", async () => {
     const store = fakeStore();
-    const error = await rejection(manager({ store }).register({
+    const error = await rejection(manager({ store }).registerStart({
       ctx: { role: "writer", identity: { login: "alice" } },
       project: "acme/widgets",
       repoUrl: "https://example.invalid/acme/widgets.git",
@@ -128,7 +155,7 @@ describe("self-service registration gate", () => {
 
   it("refuses a malformed project id", async () => {
     const store = fakeStore();
-    const error = await rejection(manager({ store }).register({
+    const error = await rejection(manager({ store }).registerStart({
       ctx: { role: "owner", identity: { login: "alice" } },
       project: "widgets",
       repoUrl: "https://example.invalid/acme/widgets.git",
@@ -139,7 +166,7 @@ describe("self-service registration gate", () => {
 
   it("refuses to take over a project another principal registered", async () => {
     const store = fakeStore({ registration: { project: "acme/widgets", registeredBy: "bob", repoUrl: "https://example.invalid/acme/widgets.git", branch: "main", status: "active" } });
-    const error = await rejection(manager({ store }).register({
+    const error = await rejection(manager({ store }).registerStart({
       ctx: { role: "owner", identity: { login: "alice" } },
       project: "acme/widgets",
       repoUrl: "https://example.invalid/alice/widgets.git",
@@ -150,7 +177,7 @@ describe("self-service registration gate", () => {
 
   it("refuses a project the operator already configured", async () => {
     const store = fakeStore();
-    const error = await rejection(manager({ store, config: { projects: ["acme/widgets"] } }).register({
+    const error = await rejection(manager({ store, config: { projects: ["acme/widgets"] } }).registerStart({
       ctx: { role: "owner", identity: { login: "alice" } },
       project: "acme/widgets",
       repoUrl: "https://example.invalid/acme/widgets.git",
@@ -164,7 +191,7 @@ describe("self-service registration gate", () => {
     const error = await rejection(manager({
       store,
       mounts: { isExternalProject: (project) => project === "acme/widgets" },
-    }).register({
+    }).registerStart({
       ctx: { role: "owner", identity: { login: "alice" } },
       project: "acme/widgets",
       repoUrl: "https://example.invalid/acme/widgets.git",
@@ -175,7 +202,7 @@ describe("self-service registration gate", () => {
 
   it("refuses a project that already has a binding, so ids cannot be hijacked", async () => {
     const store = fakeStore({ binding: { project: "acme/widgets", repoUrl: "https://example.invalid/acme/widgets.git", branch: "main", status: "active" } });
-    const error = await rejection(manager({ store }).register({
+    const error = await rejection(manager({ store }).registerStart({
       ctx: { role: "owner", identity: { login: "alice" } },
       project: "acme/widgets",
       repoUrl: "https://example.invalid/alice/widgets.git",
@@ -191,41 +218,102 @@ describe("self-service registration gate", () => {
       binding: { project: "acme/widgets", repoUrl, branch: "main", status: "active" },
     });
     let mounted = false;
-    const result = await manager({ store, mounts: { ensureMount: async () => { mounted = true; } } }).register({
+    const started = await manager({ store, mounts: { ensureMount: async () => { mounted = true; } } }).registerStart({
       ctx: { role: "owner", identity: { login: "alice" } },
       project: "acme/widgets",
       repoUrl,
       branch: "main",
       token: "x",
     });
-    assert.equal(result.unchanged, true);
-    assert.equal(result.credential.repository, "verified");
+    assert.equal(started.job, null, "nothing to run");
+    assert.equal(started.data.unchanged, true);
+    assert.equal(started.data.pending, false);
+    assert.equal(started.data.credential.repository, "verified");
     assert.equal(mounted, false, "an idempotent re-registration must not touch the remote");
     assert.equal(store.state.registrationWrites ?? 0, 0);
+    assert.equal(store.state.credentialWrites ?? 0, 0, "no credential is re-sealed for a no-op");
   });
 
-  it("registers a project, binds it and records who did it", async () => {
+  it("queues the work and reports the phase instead of blocking on the clone", async () => {
+    const store = fakeStore();
+    const mgr = manager({ store, config: { projects: [], repoPolicy: { allowedHosts: ["example.invalid"] } } });
+    const args = {
+      ctx: { role: "owner", identity: { login: "alice" } },
+      project: "acme/widgets",
+      repoUrl: "https://example.invalid/acme/widgets.git",
+      token: "x",
+      username: "alice",
+    };
+    const first = await mgr.registerStart(args);
+    assert.equal(first.data.pending, true);
+    assert.equal(first.data.registration.status, "pending");
+    assert.equal(first.data.progress.phase, "queued");
+    assert.match(first.data.nextAction, /"action":"status"/u);
+    assert.ok(first.job, "the job input is returned to the runner, never to the caller");
+    assert.equal(store.state.credentialWrites, 1, "the credential is sealed before the work starts, so a restart can resume");
+
+    const again = await mgr.registerStart(args);
+    assert.equal(again.job, null, "a queued registration does not queue a second clone");
+    assert.equal(again.data.pending, true);
+    assert.equal(again.data.unchanged, true);
+  });
+
+  it("registers a project, binds it, records who did it and leaves the row active", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "spec-kit-registration-"));
     temporary.push(dir);
     const bare = path.join(dir, "widgets.git");
     await run("git", ["init", "--bare", "--initial-branch=main", bare]);
     const repoUrl = pathToFileURL(bare).href;
     const store = fakeStore();
-    const result = await manager({ store, config: { projects: [], repoPolicy: { allowedHosts: ["file"] } } }).register({
+    const mgr = manager({ store, config: { projects: [], repoPolicy: { allowedHosts: ["file"] } } });
+    const started = await mgr.registerStart({
       ctx: { role: "owner", identity: { login: "alice" } },
       project: "acme/widgets",
       repoUrl,
       token: "file-token",
       username: "alice",
     });
-    assert.equal(result.unchanged, false);
-    assert.equal(result.registration.project, "acme/widgets");
-    assert.equal(result.registration.registeredBy, "alice");
-    assert.equal(result.binding.status, "active");
-    assert.equal(store.state.credentialWrites, 1, "the credential is sealed into the store");
-    assert.equal(store.state.registrationWrites, 1);
+    assert.equal(started.data.pending, true);
+    const view = await mgr.registerRun(started.job);
+    assert.equal(view.registration.status, "active");
+    assert.equal(view.registration.project, "acme/widgets");
+    assert.equal(view.registration.registeredBy, "alice");
+    assert.equal(view.binding.status, "active");
+    assert.equal(view.pending, false);
+    assert.equal(store.state.credentialWrites, 2, "sealed when queued, re-affirmed when bound");
+    assert.equal(store.state.registrationWrites, 1, "queued once; later transitions are progress updates");
     assert.equal(store.state.audit.at(-1).op, "project-register");
     assert.match(store.state.audit.at(-1).result, /^ok:registered:/u);
+    assert.deepEqual(store.state.phases.filter((phase) => phase === "mirroring"), ["mirroring"], "the long phase is reported before the wait");
+
+    const status = mgr.registrationStatus({ project: "acme/widgets" });
+    assert.equal(status.pending, false);
+    assert.equal(status.progress.phase, "active");
+    assert.equal(status.registration.status, "active");
+  });
+
+  it("turns a failed run into an error row with the reason", async () => {
+    const store = fakeStore();
+    const mgr = manager({ store, config: { projects: [], repoPolicy: { allowedHosts: ["example.invalid"] } } });
+    const started = await mgr.registerStart({
+      ctx: { role: "owner", identity: { login: "alice" } },
+      project: "acme/widgets",
+      repoUrl: "https://example.invalid/missing.git",
+      token: "x",
+    });
+    let failure = null;
+    try {
+      await mgr.registerRun(started.job);
+    } catch (error) {
+      failure = error;
+    }
+    assert.ok(failure, "the run rejects so the job logs it");
+    const status = mgr.registrationStatus({ project: "acme/widgets" });
+    assert.equal(status.registration.status, "error");
+    assert.equal(status.registration.phase, "error");
+    assert.equal(status.pending, false);
+    assert.match(status.nextAction, /"action":"register"/u);
+    assert.match(status.credential.repair, /"action":"register"/u);
   });
 });
 
@@ -357,5 +445,66 @@ describe("the auth boundary widens a scope with the caller's own registrations o
 
   it("leaves another login's scope untouched", async () => {
     assert.deepEqual(await scopesFor("bob"), ["acme/existing"]);
+  });
+});
+
+describe("registration jobs fence duplicates and resume after a restart", () => {
+  it("runs one job per project and reports it as running", async () => {
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const seen = [];
+    const jobs = createRegistrationJobs({
+      repos: { registerRun: async ({ projectId }) => { seen.push(projectId); await gate; } },
+      store: fakeStore(),
+    });
+    assert.equal(jobs.start({ projectId: "acme/widgets" }), true);
+    assert.equal(jobs.start({ projectId: "acme/widgets" }), false, "a second start is fenced");
+    assert.equal(jobs.isRunning("acme/widgets"), true);
+    assert.equal(jobs.runningCount(), 1);
+    release();
+    await jobs.whenSettled("acme/widgets");
+    assert.equal(jobs.isRunning("acme/widgets"), false, "the fence clears once the job settles");
+    assert.deepEqual(seen, ["acme/widgets"], "the clone runs once");
+  });
+
+  it("logs a failure without leaving an unhandled rejection", async () => {
+    const logged = [];
+    const jobs = createRegistrationJobs({
+      repos: { registerRun: async () => { throw new Error("REPO_BIND_FAILED: boom"); } },
+      store: fakeStore(),
+      logger: (line) => logged.push(line),
+    });
+    jobs.start({ projectId: "acme/widgets" });
+    await jobs.whenSettled("acme/widgets");
+    assert.equal(logged.length, 1);
+    assert.match(logged[0], /registration acme\/widgets failed: REPO_BIND_FAILED/u);
+    assert.equal(jobs.isRunning("acme/widgets"), false);
+  });
+
+  it("resumes queued registrations and fails the ones whose credential is gone", () => {
+    const store = fakeStore({
+      registrations: {
+        "acme/queued": { project: "acme/queued", repoUrl: "https://example.invalid/a.git", branch: "main", status: "pending", phase: "mirroring" },
+        "acme/lost": { project: "acme/lost", repoUrl: "https://example.invalid/b.git", branch: "main", status: "pending", phase: "queued" },
+        "acme/done": { project: "acme/done", repoUrl: "https://example.invalid/c.git", branch: "main", status: "active", phase: "active" },
+      },
+    });
+    const started = [];
+    const failed = [];
+    const jobs = createRegistrationJobs({
+      repos: {
+        registerRun: async (input) => { started.push(input.projectId); },
+        registrationInput: (row) => (row.project === "acme/queued" ? { projectId: row.project } : null),
+        failRegistration: (project, message) => { failed.push({ project, message }); return {}; },
+      },
+      store,
+    });
+    assert.equal(jobs.resume(), 1, "only the resumable pending row starts");
+    return jobs.whenSettled("acme/queued").then(() => {
+      assert.deepEqual(started, ["acme/queued"]);
+      assert.equal(failed.length, 1);
+      assert.equal(failed[0].project, "acme/lost");
+      assert.match(failed[0].message, /register the project again/u);
+    });
   });
 });

@@ -308,7 +308,7 @@ describe("POST /mcp — official SDK, stateless, YouTrack-verified callers", () 
     assert.ok(repo, "spec_repo stays visible for its read-only actions");
     assert.equal(repo.annotations.readOnlyHint, false, "a tool with mutating actions is not advertised read-only");
     const actions = repo.inputSchema.oneOf.map((branch) => branch.properties.action.enum[0]).sort();
-    assert.deepEqual(actions, ["bind", "bindings", "probe", "register", "unbind"], "every action is advertised once");
+    assert.deepEqual(actions, ["bind", "bindings", "probe", "register", "status", "unbind"], "every action is advertised once");
     // The root closes unknown keys and declares the transport context once; a
     // caller that passes an undeclared field is rejected by the root, which is
     // exactly what validateContractArguments enforces.

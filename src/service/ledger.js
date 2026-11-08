@@ -63,7 +63,12 @@ CREATE TABLE IF NOT EXISTS project_registrations (
   status TEXT NOT NULL,
   registered_by TEXT,
   registered_at TEXT,
-  updated_at TEXT
+  updated_at TEXT,
+  phase TEXT,
+  message TEXT,
+  started_at TEXT,
+  phase_started_at TEXT,
+  finished_at TEXT
 );
 CREATE TABLE IF NOT EXISTS idp_bindings (
   tenant TEXT PRIMARY KEY,
@@ -100,6 +105,13 @@ function migrateLedger(db) {
   if (!bindingColumns.has("migrated_from_branch")) db.exec("ALTER TABLE repo_bindings ADD COLUMN migrated_from_branch TEXT");
   const credentialColumns = new Set(db.prepare("PRAGMA table_info(repo_credentials)").all().map((row) => row.name));
   if (!credentialColumns.has("repo_url")) db.exec("ALTER TABLE repo_credentials ADD COLUMN repo_url TEXT");
+  // Registrations gained their progress columns after the first deploy of the
+  // table: a registration that outlives a client timeout has to say what it is
+  // doing, so the row carries phase and timing.
+  const registrationColumns = new Set(db.prepare("PRAGMA table_info(project_registrations)").all().map((row) => row.name));
+  for (const column of ["phase", "message", "started_at", "phase_started_at", "finished_at"]) {
+    if (!registrationColumns.has(column)) db.exec(`ALTER TABLE project_registrations ADD COLUMN ${column} TEXT`);
+  }
 }
 
 class SqliteStore {
@@ -193,18 +205,36 @@ class SqliteStore {
 
   putRegistration(registration) {
     this.db.prepare(
-      "INSERT INTO project_registrations (project, repo_url, branch, status, registered_by, registered_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) " +
+      "INSERT INTO project_registrations (project, repo_url, branch, status, registered_by, registered_at, updated_at, phase, message, started_at, phase_started_at, finished_at) " +
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
       "ON CONFLICT(project) DO UPDATE SET repo_url = excluded.repo_url, branch = excluded.branch, status = excluded.status, " +
-      "registered_by = excluded.registered_by, updated_at = excluded.updated_at",
+      "registered_by = excluded.registered_by, updated_at = excluded.updated_at, phase = excluded.phase, message = excluded.message, " +
+      "started_at = excluded.started_at, phase_started_at = excluded.phase_started_at, finished_at = excluded.finished_at",
     ).run(
       registration.project, registration.repoUrl, registration.branch, registration.status,
       registration.registeredBy ?? null, registration.registeredAt ?? new Date().toISOString(), new Date().toISOString(),
+      registration.phase ?? null, registration.message ?? null, registration.startedAt ?? null,
+      registration.phaseStartedAt ?? null, registration.finishedAt ?? null,
     );
+  }
+
+  /** Merge a progress patch into an existing registration row. */
+  updateRegistration(project, patch) {
+    const current = this.getRegistration(project);
+    if (current === null) return null;
+    const next = { ...current, ...patch };
+    this.putRegistration(next);
+    return next;
   }
 
   #registrationRow(row) {
     return row
-      ? { project: row.project, repoUrl: row.repo_url, branch: row.branch, status: row.status, registeredBy: row.registered_by, registeredAt: row.registered_at, updatedAt: row.updated_at }
+      ? {
+        project: row.project, repoUrl: row.repo_url, branch: row.branch, status: row.status,
+        registeredBy: row.registered_by, registeredAt: row.registered_at, updatedAt: row.updated_at,
+        phase: row.phase ?? null, message: row.message ?? null, startedAt: row.started_at ?? null,
+        phaseStartedAt: row.phase_started_at ?? null, finishedAt: row.finished_at ?? null,
+      }
       : null;
   }
 
@@ -404,6 +434,13 @@ class JsonlStore {
 
   getRegistration(project) {
     return this.state.project_registrations.find((r) => r.project === project) ?? null;
+  }
+
+  /** Merge a progress patch into an existing registration row. */
+  updateRegistration(project, patch) {
+    const current = this.getRegistration(project);
+    if (current === null) return null;
+    return this.putRegistration({ ...current, ...patch });
   }
 
   listRegistrations({ registeredBy = null } = {}) {

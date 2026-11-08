@@ -20,6 +20,7 @@ import { createProjection } from "./projection.js";
 import { createPublisher } from "./publish.js";
 import { createVersionedReads } from "./versioned.js";
 import { createRepoManager } from "./repos.js";
+import { createRegistrationJobs } from "./registration-jobs.js";
 import { createIdpManager } from "./idps.js";
 import { createSpecBranchManager } from "./spec-branches.js";
 import { BRANCH_CONTRACTS, createBranchOps } from "./ops/branch.js";
@@ -85,6 +86,9 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
       })
     : null;
   const repos = createRepoManager({ mounts, store, config, identity, secretsKey, logger, afterRepoChange: () => projection?.syncNow() });
+  // Registration clones in the background: the tool call queues it and reports
+  // the phase, so nothing waits on a repository clone inside a request.
+  const registrationJobs = createRegistrationJobs({ repos, store, logger });
   const idpManager = createIdpManager({
     store, config, secretsKey, logger,
     // The IdP binder provisions the tenant's specs repo in the same act — an
@@ -155,7 +159,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     }
     return { events, branch: null };
   };
-  const repoOps = createRepoOps({ repos });
+  const repoOps = createRepoOps({ repos, jobs: registrationJobs });
   const registryOps = createRegistryOps({
     registryIndex,
     driftReport,
@@ -297,6 +301,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     sync,
     registryIndex,
     driftReport,
+    registrationJobs,
     publisher,
     projection,
     authenticate: (req) => auth.authenticate(req),
@@ -375,7 +380,11 @@ export async function startService({ configPath, cloneDir, storeFile, syncInterv
   // down AND projectionVersion upgrades — the pointer check makes it a no-op
   // when the committed snapshot is already current.
   stack.projection?.syncNow();
-  return { mounts, auth: stack.auth, claims: stack.claims, store, sync: stack.sync, publisher: stack.publisher, projection: stack.projection, driftReport: stack.driftReport, server, port: server.address().port, host };
+  // A registration that was queued before a restart still has its sealed
+  // credential: restart the clone instead of leaving a pending row with
+  // nothing running behind it.
+  stack.registrationJobs?.resume();
+  return { mounts, auth: stack.auth, claims: stack.claims, store, sync: stack.sync, publisher: stack.publisher, projection: stack.projection, driftReport: stack.driftReport, registrationJobs: stack.registrationJobs, server, port: server.address().port, host };
 }
 
 export async function main() {

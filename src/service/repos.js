@@ -4,7 +4,7 @@ import { GitClient } from "./git.js";
 import { isValidBranchName } from "./branch-policy.js";
 import { repoHostAllowed, sanitizeRepoUrl } from "./mounts.js";
 import { projectIdError } from "./project-id.js";
-import { sealSecret } from "./secrets.js";
+import { openSecret, sealSecret } from "./secrets.js";
 import { requireScope } from "./scope.js";
 
 export class RepoError extends Error {
@@ -38,8 +38,29 @@ function publicRegistration(row) {
     repoUrl: sanitizeRepoUrl(row.repoUrl),
     branch: row.branch,
     status: row.status,
+    phase: row.phase ?? null,
+    message: row.message ?? null,
     registeredBy: row.registeredBy ?? null,
     registeredAt: row.registeredAt ?? null,
+    startedAt: row.startedAt ?? null,
+    phaseStartedAt: row.phaseStartedAt ?? null,
+    finishedAt: row.finishedAt ?? null,
+    updatedAt: row.updatedAt ?? null,
+  };
+}
+
+/** Progress as a caller reads it: what it is doing now, and for how long. */
+function progressOf(row, nowMs = Date.now()) {
+  if (row === null || row.phase === null || row.phase === undefined) return null;
+  const startedMs = Date.parse(row.startedAt ?? "");
+  const phaseMs = Date.parse(row.phaseStartedAt ?? "");
+  return {
+    phase: row.phase,
+    message: row.message ?? null,
+    startedAt: row.startedAt ?? null,
+    phaseStartedAt: row.phaseStartedAt ?? null,
+    elapsedMs: Number.isFinite(startedMs) ? Math.max(0, nowMs - startedMs) : null,
+    phaseElapsedMs: Number.isFinite(phaseMs) ? Math.max(0, nowMs - phaseMs) : null,
   };
 }
 
@@ -113,13 +134,17 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
    *   Without this rule a caller could point an existing project id at their
    *   own repository and take it over;
    * - the repository credential must actually read the repository (the probe
-   *   below), so registration cannot be used to claim an id with no target.
+   *   in `bindInternal`), so registration cannot claim an id with no target.
    *
-   * The registration itself widens exactly one scope: the registering login's
-   * own (`MountManager.registeredProjectsBy`). Nobody else sees the project
-   * until the operator adds it to a tenant.
+   * The registration widens exactly one scope: the registering login's own
+   * (`MountManager.registeredProjectsBy`). Nobody else sees the project until
+   * the operator adds it to a tenant.
+   *
+   * Registration is asynchronous because it clones the repository: a large
+   * repository takes minutes, so the call answers with a queued registration
+   * and the work continues under a job whose phase the caller polls.
    */
-  async function register({ ctx, project, repoUrl, branch, token, username, migrate = true }) {
+  function prepareRegistration({ ctx, project, repoUrl, branch, token, username, migrate = true }) {
     requireStore();
     if (ctx?.idp != null) {
       throw new RepoError(403, "FORBIDDEN_IDP", "project registration is only available to users verified by the operator's YouTrack; a bound IdP registers its own projects");
@@ -144,36 +169,156 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
         throw new RepoError(409, "PROJECT_ALREADY_BOUND", `project ${projectId} already has a repository binding; registration would take it over`);
       }
     }
+    if (typeof repoUrl !== "string" || repoUrl.length === 0) throw new RepoError(400, "REPO_URL_REQUIRED", "repoUrl is required");
     const cleanRepoUrl = sanitizeRepoUrl(repoUrl);
+    const host = repoHostAllowed(cleanRepoUrl, config.repoPolicy?.allowedHosts);
+    if (!host.ok) throw new RepoError(400, "REPO_HOST_FORBIDDEN", host.reason);
     const resolvedBranch = typeof branch === "string" && branch.length > 0 ? branch : "main";
-    const current = store?.getBinding?.(projectId) ?? null;
-    if (existing !== null && current?.status === "active" && sanitizeRepoUrl(existing.repoUrl) === cleanRepoUrl && existing.branch === resolvedBranch) {
-      return {
-        registration: publicRegistration(existing),
-        binding: publicBinding(current),
-        unchanged: true,
-        credential: { repository: "verified", repair: null },
-      };
+    if (!isValidBranchName(resolvedBranch)) throw new RepoError(400, "BRANCH_INVALID", "branch is not a valid git ref");
+    if (typeof token !== "string" || token.length === 0) {
+      throw new RepoError(400, "REPO_TOKEN_REQUIRED", "a git token for the repo is required (fine-grained PAT with contents read/write)");
     }
-    const bound = await bindInternal({ project: projectId, repoUrl, branch: resolvedBranch, token, username, migrate, boundBy: login, role: ctx.role });
-    const registration = {
-      project: projectId,
-      repoUrl: cleanRepoUrl,
-      branch: resolvedBranch,
-      status: "active",
-      registeredBy: login,
-      registeredAt: existing?.registeredAt ?? new Date().toISOString(),
-    };
-    await store?.putRegistration?.(registration);
-    audit({ login, role: ctx.role ?? null, project: projectId, op: "project-register", spec: null, result: `ok:registered:${cleanRepoUrl}` });
-    logger(`project-register ${projectId} -> ${cleanRepoUrl} (registered by ${login ?? "unknown"})`);
+    if (!secretsKey) throw new RepoError(503, "SECRETS_UNAVAILABLE", "SPEC_REGISTRY_SECRETS_KEY is not set — credential bindings are disabled", { retryable: true });
+    return { projectId, repoUrl: cleanRepoUrl, branch: resolvedBranch, token, username, migrate, login, role: ctx?.role ?? null, existing };
+  }
+
+  /** The registration as a caller reads it, plus the one next step. */
+  function registrationView(row, { binding = null, pending, unchanged }) {
     return {
-      registration: publicRegistration(registration),
-      binding: bound.binding,
-      head: bound.head ?? null,
-      unchanged: bound.unchanged === true,
-      credential: { repository: "verified", repair: null },
+      registration: publicRegistration(row),
+      binding: binding === null ? null : publicBinding(binding),
+      pending,
+      unchanged,
+      progress: progressOf(row),
+      credential: { repository: pending ? "pending" : "verified", repair: null },
+      nextAction: pending
+        ? `spec_repo ${JSON.stringify({ action: "status", project: row.project })}`
+        : null,
     };
+  }
+
+  /**
+   * Step 1: validate, seal the credential and queue the work. Returns the
+   * queued view and the input the job needs; it never touches the remote.
+   */
+  async function registerStart(args) {
+    const input = prepareRegistration(args);
+    const current = store?.getBinding?.(input.projectId) ?? null;
+    const existing = input.existing;
+    if (existing?.status === "active" && current?.status === "active"
+      && sanitizeRepoUrl(existing.repoUrl) === input.repoUrl && existing.branch === input.branch) {
+      return { data: registrationView(existing, { binding: current, pending: false, unchanged: true }), job: null };
+    }
+    if (existing?.status === "pending") {
+      return { data: registrationView(existing, { binding: current, pending: true, unchanged: true }), job: null };
+    }
+    // Seal the credential now: a registration queued before a restart must be
+    // resumable, and the token is the only thing a job needs that the row
+    // cannot carry in clear.
+    await store.putCredential(input.projectId, {
+      repoUrl: input.repoUrl,
+      tokenEnc: sealSecret(secretsKey, input.token),
+      username: typeof input.username === "string" && input.username ? input.username : null,
+    });
+    const now = new Date().toISOString();
+    const row = {
+      project: input.projectId,
+      repoUrl: input.repoUrl,
+      branch: input.branch,
+      status: "pending",
+      phase: "queued",
+      message: "queued for registration",
+      registeredBy: input.login,
+      registeredAt: existing?.registeredAt ?? now,
+      startedAt: now,
+      phaseStartedAt: now,
+      finishedAt: null,
+    };
+    await store.putRegistration(row);
+    audit({ login: input.login, role: input.role, project: input.projectId, op: "project-register", spec: null, result: `queued:${input.repoUrl}` });
+    return { data: registrationView(row, { binding: current, pending: true, unchanged: false }), job: input };
+  }
+
+  /**
+   * Step 2: the work. Runs under a job, reports each phase into the store, and
+   * leaves either an `active` row or an `error` row with the reason — never a
+   * row that says pending with nothing running.
+   */
+  async function registerRun({ projectId, repoUrl, branch, token, username, migrate = true }) {
+    const row = store?.getRegistration?.(projectId) ?? null;
+    if (row === null) throw new RepoError(404, "REGISTRATION_NOT_FOUND", `project ${projectId} has no registration to run`);
+    const report = (next) => {
+      const at = new Date().toISOString();
+      Object.assign(row, next, { phaseStartedAt: at });
+      store?.updateRegistration?.(projectId, { ...next, phaseStartedAt: at });
+    };
+    try {
+      const bound = await bindInternal({
+        project: projectId, repoUrl, branch, token, username, migrate,
+        boundBy: row.registeredBy ?? null, role: "owner", onPhase: (next) => report(next),
+      });
+      const at = new Date().toISOString();
+      const done = { status: "active", phase: "active", message: "repository bound", finishedAt: at };
+      await store?.updateRegistration?.(projectId, { ...done, phaseStartedAt: at });
+      Object.assign(row, done);
+      audit({ login: row.registeredBy ?? null, role: "owner", project: projectId, op: "project-register", spec: null, result: `ok:registered:${repoUrl}` });
+      logger(`project-register ${projectId} -> ${repoUrl} (registered by ${row.registeredBy ?? "unknown"})`);
+      return registrationView(row, { binding: store.getBinding(projectId), pending: false, unchanged: bound.unchanged === true });
+    } catch (error) {
+      const at = new Date().toISOString();
+      const failed = {
+        status: "error", phase: "error",
+        message: String(error?.message ?? error).slice(0, 300),
+        finishedAt: at,
+      };
+      await store?.updateRegistration?.(projectId, { ...failed, phaseStartedAt: at });
+      Object.assign(row, failed);
+      audit({ login: row.registeredBy ?? null, role: "owner", project: projectId, op: "project-register", spec: null, result: `error:${String(error?.code ?? "unknown")}` });
+      throw error;
+    }
+  }
+
+  /** The polling view: what the registration is doing, and the next step. */
+  function registrationStatus({ project }) {
+    const row = store?.getRegistration?.(project) ?? null;
+    const binding = store?.getBinding?.(project) ?? null;
+    const pending = row?.status === "pending";
+    const view = row === null
+      ? { registration: null, binding: binding === null ? null : publicBinding(binding), pending: false, unchanged: false, progress: null, credential: { repository: binding?.status === "active" ? "verified" : "not-bound", repair: null }, nextAction: null }
+      : registrationView(row, { binding, pending, unchanged: false });
+    if (row?.status === "error") {
+      view.credential = { repository: "rejected", repair: `spec_repo ${JSON.stringify({ action: "register", project, repoUrl: row.repoUrl, token: "<fine-grained-pat-with-contents-rw>" })}` };
+      view.nextAction = `spec_repo ${JSON.stringify({ action: "register", project, repoUrl: row.repoUrl, token: "<fine-grained-pat-with-contents-rw>" })}`;
+    }
+    return view;
+  }
+
+  /**
+   * The input a queued registration needs to resume after a restart: the
+   * credential was sealed when it was queued, so no clear token is stored.
+   * Returns null when the credential cannot be recovered, which the caller
+   * turns into an `error` row rather than a job that can never finish.
+   */
+  function registrationInput(row) {
+    const credential = store?.getCredential?.(row.project) ?? null;
+    if (credential === null || typeof credential.tokenEnc !== "string" || credential.tokenEnc.length === 0) return null;
+    if (!secretsKey) return null;
+    let token;
+    try {
+      token = openSecret(secretsKey, credential.tokenEnc);
+    } catch {
+      return null;
+    }
+    return { projectId: row.project, repoUrl: row.repoUrl, branch: row.branch, token, username: credential.username ?? undefined, migrate: true };
+  }
+
+  /** Mark a queued registration as interrupted when it cannot be resumed. */
+  function failRegistration(project, message) {
+    const at = new Date().toISOString();
+    const row = store?.getRegistration?.(project) ?? null;
+    if (row === null) return null;
+    store?.updateRegistration?.(project, { status: "error", phase: "error", message: String(message).slice(0, 300), finishedAt: at, phaseStartedAt: at });
+    return registrationStatus({ project });
   }
 
   /**
@@ -181,7 +326,8 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
    * (which asserts scopes first) and by the IdP binder attaching a specs repo
    * to a freshly bound tenant — the IdP-bind act itself is the authority.
    */
-  async function bindInternal({ project, repoUrl, branch, token, username, migrate = true, boundBy = null, role = null }) {
+  async function bindInternal({ project, repoUrl, branch, token, username, migrate = true, boundBy = null, role = null, onPhase = null }) {
+    const phase = (next) => { try { onPhase?.(next); } catch {} };
     requireStore();
     if (typeof repoUrl !== "string" || repoUrl.length === 0) throw new RepoError(400, "REPO_URL_REQUIRED", "repoUrl is required");
     const cleanRepoUrl = sanitizeRepoUrl(repoUrl);
@@ -194,6 +340,7 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     }
     if (!secretsKey) throw new RepoError(503, "SECRETS_UNAVAILABLE", "SPEC_REGISTRY_SECRETS_KEY is not set — credential bindings are disabled", { retryable: true });
 
+    phase({ phase: "probing", message: "checking the repository credential" });
     const auth = { token, username: typeof username === "string" && username ? username : undefined, url: cleanRepoUrl };
     const head = await probe(cleanRepoUrl, auth).catch((error) => {
       throw new RepoError(400, "REPO_PROBE_FAILED", `cannot read the repo with the supplied credential: ${String(error?.message ?? error).split("\n")[0]}`);
@@ -224,9 +371,13 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
 
     const mount = mounts.descriptorFor(cleanRepoUrl, resolvedBranch, auth);
     try {
+      // The mirror clone is the long part: mirroring a large repository takes
+      // minutes, so the phase is reported before the wait, not after it.
+      phase({ phase: "mirroring", message: "mirroring the repository" });
       await mounts.ensureMount(mount);
       await store?.putCredential?.(project, { repoUrl: cleanRepoUrl, tokenEnc: sealSecret(secretsKey, token), username: auth.username ?? null });
       await put("active");
+      phase({ phase: "materialising", message: "checking out the corpus" });
       await mounts.projectRoot(project);
       // The binding change bypasses the write pipeline — the tracker
       // projection must be told explicitly or bound specs wait for the next
@@ -303,5 +454,8 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     };
   }
 
-  return { bind, bindInternal, register, unbind, unbindInternal, bindings, me, probeAccess };
+  return {
+    bind, bindInternal, registerStart, registerRun, registrationStatus, registrationInput, failRegistration,
+    unbind, unbindInternal, bindings, me, probeAccess,
+  };
 }
