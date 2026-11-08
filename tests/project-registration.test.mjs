@@ -14,6 +14,7 @@ import { secretsKeyFromEnv } from "../src/service/secrets.js";
 import { createDispatcher } from "../src/service/dispatch.js";
 import { REPO_CONTRACTS } from "../src/service/ops/repos.js";
 import { createRegistrationJobs } from "../src/service/registration-jobs.js";
+import { MountManager, parseProjectsConfig } from "../src/service/mounts.js";
 import { TOOL_CONTRACTS } from "../src/adapters/tool-contracts.js";
 
 const run = promisify(execFile);
@@ -413,6 +414,35 @@ describe("dispatch: registration and diagnosis for an unknown project", () => {
     assert.equal(result.envelope.ok, false);
     assert.equal(result.envelope.error.code, "WORKTREE_ROUTING_UNSUPPORTED");
   });
+
+  it("repairs a missing corpus before a handler reads it, and skips the guard for setup", async () => {
+    const order = [];
+    const success = (operation) => ({
+      schemaVersion: "spec-kernel@2", requestId: null, operation, ok: true, graph: null, page: null,
+      data: { ok: true }, error: null, diagnostics: [], provenance: null,
+    });
+    const dispatcher = createDispatcher({
+      mounts: {
+        requireConfigured: () => "acme/known",
+        requireRepoReady: () => "acme/known",
+        ensureProjectCorpus: async (project) => { order.push(`repair:${project}`); },
+        serviceFor: () => ({ runQuery: (operation) => { order.push(`read:${operation}`); return success(operation); } }),
+      },
+      wrappers: {
+        mcpPreflight: async () => { order.push("preflight"); return { envelope: success("mcpPreflight") }; },
+      },
+      serviceContracts: TOOL_CONTRACTS,
+    });
+    const ctx = { role: "owner", scopes: ["acme/known"], identity: { login: "alice" }, defaultScope: null };
+    const scoped = { ...ctx, scope: scopeFromContext(ctx) };
+
+    await dispatcher.callTool({ tool: "spec_catalog", args: { schemaVersion: "spec-kernel@2", project: "acme/known", view: "specs" }, ctx: scoped });
+    assert.deepEqual(order, ["repair:acme/known", "read:catalog"], "the corpus is repaired before the handler reads it");
+
+    order.length = 0;
+    await dispatcher.callTool({ tool: "mcp_preflight", args: { schemaVersion: "spec-kernel@2", project: "acme/known" }, ctx: scoped });
+    assert.deepEqual(order, ["preflight"], "setup and preflight must answer without the corpus guard");
+  });
 });
 
 describe("the auth boundary widens a scope with the caller's own registrations only", () => {
@@ -506,5 +536,50 @@ describe("registration jobs fence duplicates and resume after a restart", () => 
       assert.equal(failed[0].project, "acme/lost");
       assert.match(failed[0].message, /register the project again/u);
     });
+  });
+});
+
+describe("unbinding a project drops its cached corpus state", () => {
+  const AUTH = {
+    youtrack: { baseUrl: "http://youtrack:8080", serviceToken: "service-token-1234567890" },
+    appBridge: { token: "bridge-token-1234567890" },
+    roleGroups: { reader: ["spec-readers"] },
+  };
+
+  function realManager(store) {
+    const config = parseProjectsConfig({ projects: [{ id: "acme/widgets" }], auth: AUTH });
+    const mounts = new MountManager({
+      config,
+      cloneDir: path.join(tmpdir(), "spec-kit-unbind", "specs"),
+      store,
+      identity: { name: "bot", email: "bot@example.invalid" },
+    });
+    const repos = createRepoManager({
+      mounts,
+      store,
+      config,
+      identity: { name: "bot", email: "bot@example.invalid" },
+      secretsKey: secretsKeyFromEnv({ SPEC_REGISTRY_SECRETS_KEY: "project-registration-test-key" }),
+      logger: () => {},
+    });
+    mounts.projectRoots.set("acme/widgets", { signature: "sig", repoUrl: "https://example.invalid/acme/widgets.git", root: "/tmp/root" });
+    mounts.services.set("https://example.invalid/acme/widgets.git:acme/widgets", { marker: true });
+    return { mounts, repos };
+  }
+
+  it("a successful unbind clears the signature and the service cache", async () => {
+    const store = fakeStore({ binding: { project: "acme/widgets", repoUrl: "https://example.invalid/acme/widgets.git", branch: "main", status: "active" } });
+    const { mounts, repos } = realManager(store);
+    await repos.unbindInternal("acme/widgets");
+    assert.equal(mounts.projectSignature("acme/widgets"), null, "a later registration must not reuse the old root");
+    assert.equal([...mounts.services.keys()].some((key) => key.endsWith(":acme/widgets")), false, "the service cache goes with the binding");
+  });
+
+  it("an unbind with nothing to unbind leaves the cache alone", async () => {
+    const store = fakeStore();
+    const { mounts, repos } = realManager(store);
+    assert.equal(await repos.unbindInternal("acme/widgets"), null);
+    assert.equal(mounts.projectSignature("acme/widgets"), "sig");
+    assert.equal([...mounts.services.keys()].some((key) => key.endsWith(":acme/widgets")), true);
   });
 });

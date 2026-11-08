@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it, after } from "node:test";
@@ -199,5 +199,64 @@ describe("mount manager", () => {
       bindings: [{ project: "acme/other", repoUrl: "a" }],
       auth: AUTH,
     }), /unconfigured project/u);
+  });
+});
+
+describe("materialised corpus cache", () => {
+  async function corpusManager() {
+    const dir = await tempDir();
+    const mounts = new MountManager({
+      config: config(["acme/widgets"]),
+      cloneDir: path.join(dir, "specs"),
+      store: storeWith("acme/widgets"),
+      identity: { name: "bot", email: "bot@example.invalid" },
+    });
+    const mount = {
+      cwd: path.join(dir, "clones", "key"),
+      repoUrl: "file:///tmp/specs.git",
+      branch: "main",
+      mirrorDir: path.join(dir, "clones", "key", "mirror.git"),
+      git: { revParse: async () => null },
+    };
+    await mkdir(mount.mirrorDir, { recursive: true });
+    mounts.readableRepo = () => mount;
+    mounts.ensureReadableRepo = async () => mount;
+    mounts.discoverProject = async () => ({ mount, bindings: [], invalid: [] });
+    return { mounts, mount };
+  }
+
+  it("re-materialises a root that disappeared instead of trusting the cache", async () => {
+    const { mounts } = await corpusManager();
+    const root = await mounts.projectRoot("acme/widgets");
+    assert.equal((await stat(path.join(root, ".specs"))).isDirectory(), true, "the corpus is materialised");
+    await rm(root, { recursive: true, force: true });
+    assert.equal(await stat(path.join(root, ".specs")).catch(() => null), null, "the root is gone");
+
+    const again = await mounts.projectRoot("acme/widgets");
+    assert.equal(again, root, "the same root path is reused");
+    assert.equal((await stat(path.join(root, ".specs"))).isDirectory(), true, "the corpus is rebuilt, not assumed from the cache");
+  });
+
+  it("forgetting a project drops its cached signature", async () => {
+    const { mounts } = await corpusManager();
+    await mounts.projectRoot("acme/widgets");
+    assert.equal(typeof mounts.projectSignature("acme/widgets"), "string");
+    mounts.forgetProject("acme/widgets");
+    assert.equal(mounts.projectSignature("acme/widgets"), null, "a later registration must not reuse the old root");
+  });
+
+  it("rebuilds a missing corpus on the read path and stays cheap when it exists", async () => {
+    const { mounts } = await corpusManager();
+    let materialised = 0;
+    const realProjectRoot = mounts.projectRoot.bind(mounts);
+    mounts.projectRoot = async (projectId) => {
+      materialised += 1;
+      return realProjectRoot(projectId);
+    };
+
+    await mounts.ensureProjectCorpus("acme/widgets");
+    assert.equal(materialised, 1, "a missing corpus is materialised before the read");
+    await mounts.ensureProjectCorpus("acme/widgets");
+    assert.equal(materialised, 1, "an existing corpus costs one stat, not a rebuild");
   });
 });

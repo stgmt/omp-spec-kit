@@ -254,6 +254,7 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
         // An external-tenant project without a repo binding refuses here —
         // its specs must live in the customer's repo, never the operator's.
         if (!setupExempt) mounts.requireRepoReady?.(resolved.project);
+        if (!setupExempt) await mounts.ensureProjectCorpus?.(resolved.project);
       } catch (error) {
         // Authorized but unknown to this service: an operator/config drift, not
         // a missing document. Refuse with its own actionable diagnosis.

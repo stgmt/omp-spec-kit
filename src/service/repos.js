@@ -421,6 +421,9 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
     if (!row) return null;
     await store?.deleteBinding?.(project);
     await store?.deleteCredential?.(project);
+    // A later registration of the same id may point at another repository, so
+    // the materialised root and its service cache must not outlive the binding.
+    mounts.forgetProject?.(project);
     // The unbound project's specs leave the corpus — the tracker should drop
     // their cards on the next projection, not whenever something else fires.
     afterRepoChange?.();

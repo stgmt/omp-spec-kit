@@ -172,6 +172,15 @@ function mountKey(repoUrl, branch) {
   return createHash("sha256").update(`${repoUrl}|${branch ?? ""}`, "utf8").digest("hex").slice(0, 12);
 }
 
+/** True when the materialised corpus directory is still on disk. */
+async function corpusPresent(root) {
+  try {
+    return (await stat(path.join(root, ".specs"))).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 /**
  * One git mount per (repoUrl, branch): the default mount is the configured
  * Specs repos are cloned under clones/<key>; no repository is implicit.
@@ -440,7 +449,11 @@ export class MountManager {
     const signature = heads.sort().join("\n");
     const cached = this.projectRoots.get(projectId);
     const root = this.cacheRootFor(projectId, mount);
-    if (cached?.signature === signature && cached.repoUrl === mount.repoUrl) {
+    // The cache speaks for a corpus that must still exist: a root removed under
+    // the service (an unbind, a cleanup, a lost volume) cannot be trusted just
+    // because the signature still matches, or every read fails until the
+    // process restarts.
+    if (cached?.signature === signature && cached.repoUrl === mount.repoUrl && await corpusPresent(root)) {
       return root;
     }
 
@@ -452,7 +465,7 @@ export class MountManager {
     await previous;
     try {
       const recheck = this.projectRoots.get(projectId);
-      if (recheck?.signature === signature && recheck.repoUrl === mount.repoUrl) return root;
+      if (recheck?.signature === signature && recheck.repoUrl === mount.repoUrl && await corpusPresent(root)) return root;
       await mkdir(path.join(root, ".specs"), { recursive: true });
       // Drop only the materialised corpus: the directory is ours, but never
       // delete anything outside it.
@@ -525,6 +538,20 @@ export class MountManager {
     return { mount, branches, invalid: invalid.filter((entry) => entry.project === projectId) };
   }
 
+  /**
+   * Cheap guard for the read path: a corpus that should exist and does not is
+   * rebuilt before the service touches it. One stat when everything is in
+   * place, so a lost root (a removed volume, a project registered by the
+   * caller that boot never materialised) heals on the first read instead of
+   * answering ADAPTER_READ_ERROR until the next restart.
+   */
+  async ensureProjectCorpus(projectId) {
+    const mount = this.readableRepo(projectId);
+    if (await corpusPresent(this.cacheRootFor(projectId, mount))) return projectId;
+    await this.projectRoot(projectId);
+    return projectId;
+  }
+
   /** Stable identity of a project's corpus: every canonical spec branch tip. */
   async projectHead(projectId) {
     const { mount, bindings } = await this.discoverProject(projectId);
@@ -548,6 +575,18 @@ export class MountManager {
       release();
       if (this.writeLocks.get(projectId) === tail) this.writeLocks.delete(projectId);
     };
+  }
+
+  /**
+   * Forget everything cached for a project. Called when its binding goes away:
+   * a later registration of the same project must materialise a fresh corpus
+   * instead of reusing a root that may belong to a removed repository.
+   */
+  forgetProject(projectId) {
+    this.projectRoots.delete(projectId);
+    for (const key of [...this.services.keys()]) {
+      if (key.endsWith(`:${projectId}`)) this.services.delete(key);
+    }
   }
 
   /** Drop the materialised corpus after a write so the next read re-reads git. */
@@ -586,7 +625,7 @@ export class MountManager {
       }
     }
     const report = {};
-    for (const projectId of this.config.projects) {
+    for (const projectId of this.configuredProjects()) {
       try {
         const root = await this.projectRoot(projectId);
         await recoverInterruptedTransactions(root, path.join(root, ".specs", LOCK_FILE), null);

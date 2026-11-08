@@ -18,6 +18,10 @@ All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
 Live, on the operator stack rebuilt from this source (2026-11-08): an unregistered project answered `PROJECT_NOT_ALLOWED` with `candidates`, `causeCode: PROJECT_NOT_REGISTERED` and the register `nextAction`; `mcp_preflight` answered `PROJECT_NOT_REGISTERED` with `credential.repository: "not-bound"`; the register call bound a real private repository and logged `project-register … (registered by admin)`; a repeat answered `unchanged` in 0.05 s; the project then appeared in the caller's scopes and `spec_catalog` served it; registering an already-configured project answered `PROJECT_ALREADY_CONFIGURED`; registering a repository the credential cannot read answered `REPO_PROBE_FAILED`; and on a throwaway project the first `createSpec` ran straight after registration (one `ELICITATION_REQUIRED` stop, then applied, 15 documents, branch `spec-smoke-bootstrap` created on GitHub).
 
+### Fixed
+
+- **A registered project keeps a corpus.** Materialisation happened only at bind time, so a corpus that went missing under a running service (a removed volume, the root deleted, a project that boot never touched because it is not in the operator config) answered `ADAPTER_READ_ERROR` until the next restart — and a re-registration could not repair it either, because `MountManager.projectRoot` trusted its in-memory signature without checking that the root still existed. Three changes: `projectRoot` verifies the corpus directory before trusting the cached signature (both the fast path and the post-lock recheck); `MountManager.ensureProjectCorpus` rebuilds a missing corpus on the read path, one `stat` when everything is in place; `unbind` forgets the project's root and service cache, so a later registration of the same id cannot reuse a root that belonged to another repository. `boot` now walks every configured project, not only the operator's list.
+
 ### Notes
 
 - A first registration clones the repository into the service, so a ~900 MB repository makes that single call take minutes; every later call is immediate. Requests that outlive a client timeout still finish server-side.
