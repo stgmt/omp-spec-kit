@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "eb8a23d5c3367a407e20782556fafd5f337ae9a89ef1dfc453ebcce2d920d4ea",
+  "aggregateSha256": "00ff22090a82519262e2c20e4a5569721989875429232d56a4c49b1727366581",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -10,8 +10,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 75096,
-      "sha256": "e94c743304dc248b974ed9c593d3883cf30cbd1708eda8eb55124d4346e02128"
+      "bytes": 76090,
+      "sha256": "a7dc3a8ac89dcfb9d5964f251a3bb45a83a6d28cd05d8c1eb8711561892ef158"
     },
     {
       "path": "LICENSE",
@@ -20,8 +20,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 15051,
-      "sha256": "7703e09715618ae6638191771e4a9384be8f21cf04fb5e0036b6b86956ea68cb"
+      "bytes": 15314,
+      "sha256": "bd40d0b8d4b39e000c9751e0e45487b9f690b4a6717273f0bded690d1226891f"
     },
     {
       "path": "cucumber.mjs",
@@ -700,13 +700,13 @@
     },
     {
       "path": "src/service/index.js",
-      "bytes": 20384,
-      "sha256": "9bc1e75de608cda8ebd9070b1a6a7ccc1e81b3ebcdd5a72f9433108e35bd8eba"
+      "bytes": 20982,
+      "sha256": "6717bfea721b9d99c84eafdf1af799ee49cfca622c7986a0b7aa9e5383f550e1"
     },
     {
       "path": "src/service/ledger.js",
-      "bytes": 20584,
-      "sha256": "9b1f86827efd3cc2981a7d43876645a250a02232721f452460742b7cc48e22b0"
+      "bytes": 22426,
+      "sha256": "017b5d0650b80b1a23fb33dd7998db4b9be58dc14eab824f79af216ef91bbe94"
     },
     {
       "path": "src/service/mounts.js",
@@ -735,8 +735,8 @@
     },
     {
       "path": "src/service/ops/repos.js",
-      "bytes": 6285,
-      "sha256": "eb35b4218ca39620f7802bf69fd3eadc097516479739cc2e0ad267e18da75c2e"
+      "bytes": 7423,
+      "sha256": "0742fe8ac2326a6b6c0a1802f42bf2ae8af8506cdcc73793cc6b7a68eee8b0cf"
     },
     {
       "path": "src/service/project-id.js",
@@ -754,14 +754,19 @@
       "sha256": "3808c01de5fab2d39a13489665d53db9d5715c149735bc175dd76e3767dc3f97"
     },
     {
+      "path": "src/service/registration-jobs.js",
+      "bytes": 2524,
+      "sha256": "4e5f332fe4fe395e411dde9838b446e654f20c5af5b865bd853cfb97f19a9cbf"
+    },
+    {
       "path": "src/service/registry.js",
       "bytes": 3747,
       "sha256": "67e6b60d2425dd3cef4fe5c39d87fc0ee6c671a51e988e6ac3909f9908720d12"
     },
     {
       "path": "src/service/repos.js",
-      "bytes": 15567,
-      "sha256": "17692c686c8dcd08c81ec95266c68a0e1050c63843f2464ca7a62704f1520dde"
+      "bytes": 23813,
+      "sha256": "b2bdde5831a6fb05ee4832ac542090e7fba21057611b81f47d8c1effab03f916"
     },
     {
       "path": "src/service/scope.js",
@@ -1850,8 +1855,8 @@
     },
     {
       "path": "tests/project-registration.test.mjs",
-      "bytes": 15890,
-      "sha256": "e4331a3dec610a52ca58d7ef2fc07841745910047f05b683154b48e6e6316207"
+      "bytes": 22867,
+      "sha256": "26be071f2d0523b420b5e05afc49b8570b119f05258ab84b8d9c0743568d00f0"
     },
     {
       "path": "tests/release-status-candidate.test.mjs",
@@ -1870,8 +1875,8 @@
     },
     {
       "path": "tests/service/http.test.mjs",
-      "bytes": 19570,
-      "sha256": "90d55cda5f5b88786dd6f4558329204defdc4ff569207e8a7349ea3057571eb1"
+      "bytes": 19580,
+      "sha256": "877cdc9d1ba8ef5d68edc2e0ab80317deef0a247507f042c0575dcd87b30dd07"
     },
     {
       "path": "tests/service/integration.test.mjs",
