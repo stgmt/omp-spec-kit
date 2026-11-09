@@ -555,6 +555,7 @@ Given("an explicit demo spec is created through MCP", { timeout: 300_000 }, asyn
   });
   await mutateWithRetry(alice, "stgmt/alpha", "spec_claim", { spec: live.demoSpec, requestId: "delivery-demo-claim" });
   for (const [document, content] of Object.entries(DEMO_DOCS)) {
+    if (document === "TASKS.md") continue;
     await mutateWithRetry(alice, "stgmt/alpha", "spec_patch", {
       intent: "patch",
       spec: live.demoSpec,
@@ -564,6 +565,31 @@ Given("an explicit demo spec is created through MCP", { timeout: 300_000 }, asyn
       operations: [{ kind: "replace_document", document, content }],
     });
   }
+  await mutateWithRetry(alice, "stgmt/alpha", "spec_patch", {
+    intent: "patch",
+    spec: live.demoSpec,
+    dryRun: false,
+    reason: "live delivery demo task document",
+    requestId: "delivery-demo-tasks-document",
+    operations: [{ kind: "replace_document", document: "TASKS.md", content: "# Tasks\n" }],
+  });
+  await mutateWithRetry(alice, "stgmt/alpha", "spec_patch", {
+    intent: "patch",
+    spec: live.demoSpec,
+    dryRun: false,
+    reason: "live delivery demo task",
+    requestId: "delivery-demo-tasks",
+    operations: [
+      {
+        kind: "upsert_task",
+        document: "TASKS.md",
+        localId: "TASK-1",
+        title: "Demo task",
+        requirements: ["FR-1"],
+        status: "todo",
+      },
+    ],
+  });
   const featureDocument = `${live.demoSpec}.feature`;
   await mutateWithRetry(alice, "stgmt/alpha", "spec_patch", {
     intent: "patch",
