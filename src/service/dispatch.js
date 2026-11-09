@@ -3,6 +3,7 @@ import {
   annotationsFor,
   contractExposesReadAction,
   contractIsMutating,
+  field,
   jsonSchemaFor,
   KERNEL_ENVELOPE_OUTPUT_SCHEMA,
   MCP_SERVER_INSTRUCTIONS,
@@ -138,7 +139,19 @@ function injectRequestId(contract, args, requestId) {
  * reach the kernel.
  */
 export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [], wrappers = {}, allowDeclaredWorktree = false }) {
-  const contractsByName = new Map([...TOOL_CONTRACTS, ...serviceContracts].map((contract) => [contract.tool, contract]));
+  const contracts = TOOL_CONTRACTS.map((contract) =>
+    contract.operation !== "specPatch" || typeof wrappers.specPatch !== "function" ? contract : {
+      ...contract,
+      variants: {
+        ...contract.variants,
+        confirmTaskCreation: {
+          description: "Confirm a task creation marker against the fetched authoritative spec branch.",
+          fields: [field("entity", "string"), field("creationToken", "string")],
+        },
+      },
+    }
+  );
+  const contractsByName = new Map([...contracts, ...serviceContracts].map((contract) => [contract.tool, contract]));
 
   // One selection contract per call: an explicit project argument wins, then a
   // request-scoped project supplied by the host for this request, then the
@@ -212,6 +225,10 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
     // A listing variant treats an absent project as "every project I may see";
     // a targeted variant answers only for the selected project.
     const listing = (variant ? variant.listing === true : serviceEntry?.listing === true);
+    const allProjects = contract.operation === "specRegistry" && normalized.args.allProjects === true;
+    if (allProjects && rawProject !== undefined) {
+      return { envelope: invalidRequest(operation, requestId, "project and allProjects cannot be combined", { parameter: "project" }) };
+    }
     // An explicit authorized project affects this call only. Otherwise the
     // scope's session project applies (the host's verified request context, then
     // the caller's default scope), and a call with neither falls back to the
@@ -229,6 +246,8 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
         return { envelope: invalidRequest(operation, requestId, "project is required to register it", { parameter: "project", expected: "owner/project" }) };
       }
       resolved = { project: rawProject.trim(), source: "explicit" };
+    } else if (allProjects) {
+      resolved = { allScopes: true, source: null };
     } else {
       resolved = resolveProject({ scope, rawProject, operation, requestId, listing });
       if (resolved.error) {
@@ -332,7 +351,7 @@ export function createDispatcher({ mounts, serviceOps = {}, serviceContracts = [
     const rank = ROLE_RANK[ctx?.role] ?? ROLE_RANK.reader;
     // A reader sees read tools and multi-action tools that still expose a read
     // action; a tool whose every action writes stays hidden.
-    const visible = [...TOOL_CONTRACTS, ...serviceContracts].filter((contract) => (
+    const visible = [...contracts, ...serviceContracts].filter((contract) => (
       rank >= ROLE_RANK.writer || !contractIsMutating(contract) || contractExposesReadAction(contract)
     ));
     return {

@@ -5,6 +5,50 @@ import { closeScopedServices, content, setupScopedService as setup, tools } from
 
 after(closeScopedServices);
 describe("authorized discovery is bounded by the caller's scopes", () => {
+  it("opts into all authorized projects without changing default or explicit selection", async () => {
+    const { url, tokens } = await setup({
+      projects: ["stgmt/alpha", "stgmt/beta", "stgmt/gamma"],
+      tenants: [
+        { tenant: "alpha", projects: ["stgmt/alpha", "stgmt/beta"], hubGroups: ["spec-alpha"], defaultProject: "stgmt/alpha" },
+        { tenant: "beta", projects: ["stgmt/gamma"], hubGroups: ["spec-beta"], defaultProject: "stgmt/gamma" },
+      ],
+    });
+    const ids = (result) => result.data.projects.map((entry) => entry.id).sort();
+    const defaultResult = await content(url, tokens.alice, "spec_registry", {});
+    assert.equal(defaultResult.ok, true);
+    assert.deepEqual(ids(defaultResult), ["stgmt/alpha"]);
+    const disabled = await content(url, tokens.alice, "spec_registry", { allProjects: false });
+    assert.deepEqual(ids(disabled), ["stgmt/alpha"]);
+    const explicit = await content(url, tokens.alice, "spec_registry", { project: "stgmt/beta" });
+    assert.deepEqual(ids(explicit), ["stgmt/beta"]);
+    const all = await content(url, tokens.alice, "spec_registry", { allProjects: true });
+    assert.equal(all.ok, true);
+    assert.deepEqual(ids(all), ["stgmt/alpha", "stgmt/beta"]);
+    assert.doesNotMatch(JSON.stringify(all.data), /stgmt\/gamma|stgmt-gamma\.git/u);
+    const forbidden = await content(url, tokens.alice, "spec_registry", { project: "stgmt/gamma" });
+    assert.equal(forbidden.error.code, "PROJECT_NOT_ALLOWED");
+    const conflicting = await content(url, tokens.alice, "spec_registry", { project: "stgmt/alpha", allProjects: true });
+    assert.equal(conflicting.ok, false);
+    assert.equal(conflicting.error.code, "INVALID_REQUEST");
+    const invalid = await content(url, tokens.alice, "spec_registry", { allProjects: "true" });
+    assert.equal(invalid.ok, false);
+    const listedTools = await tools(url, tokens.alice);
+    const registry = listedTools.find((entry) => entry.name === "spec_registry");
+    assert.equal(registry.inputSchema.properties.allProjects.type, "boolean");
+  });
+
+  it("lists authorized projects when the default project has no repository binding", async () => {
+    const { url, tokens } = await setup({
+      unbound: ["stgmt/alpha"],
+      tenants: [{ tenant: "alpha", projects: ["stgmt/alpha", "stgmt/beta"], hubGroups: ["spec-alpha"], defaultProject: "stgmt/alpha" }],
+    });
+    const all = await content(url, tokens.alice, "spec_registry", { allProjects: true });
+    assert.equal(all.ok, true);
+    assert.deepEqual(all.data.projects.map((entry) => entry.id).sort(), ["stgmt/alpha", "stgmt/beta"]);
+    assert.equal(all.data.projects.find((entry) => entry.id === "stgmt/alpha").repository.bound, false);
+    assert.ok(Array.isArray(all.data.projects.find((entry) => entry.id === "stgmt/beta").specs));
+  });
+
   it("returns only the caller's project from spec_registry and spec_drift, never another tenant's repository", async () => {
     const { url, repos, tokens } = await setup({
       tenants: [

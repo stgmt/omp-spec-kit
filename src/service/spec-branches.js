@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { serviceErrorEnvelope, serviceSuccess } from "./dispatch.js";
@@ -73,7 +73,7 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
     }
   }
 
-  async function createCanonical({ project, spec, requestId, login, skeleton = true, role = null, demo = false }) {
+  async function createCanonical({ project, spec, requestId, login, skeleton = true, role = null, demo = false, initialSpecRoot = null, initialCommitMessage = null }) {
     const mount = await mounts.ensureRepo(project);
     const branch = specBranchName(spec);
     // A branch with this name means the slug is taken repository-wide, even
@@ -112,19 +112,63 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
         "-c", `user.email=${identity.email}`,
         "commit", "-qm", `chore: create ${branch}`,
       ], { cwd: mount.cwd });
-      await mount.git.run(["-C", dir, "push", "-q", mount.repoUrl, `HEAD:refs/heads/${branch}`], { cwd: mount.cwd });
+      if (initialSpecRoot !== null) {
+        if (typeof initialCommitMessage !== "string" || initialCommitMessage.length === 0) {
+          throw new Error("initial createSpec commit message is required");
+        }
+        const source = path.join(initialSpecRoot, ".specs", spec);
+        const target = path.join(dir, ".specs", spec);
+        await mkdir(path.dirname(target), { recursive: true });
+        await cp(source, target, { recursive: true });
+        await mount.git.run(["-C", dir, "add", "-A", "--", `.specs/${spec}`], { cwd: mount.cwd });
+        await mount.git.run([
+          "-C", dir,
+          "-c", `user.name=${identity.name}`,
+          "-c", `user.email=${identity.email}`,
+          "commit", "-qm", initialCommitMessage,
+        ], { cwd: mount.cwd });
+      }
       const commit = await mount.git.run(["-C", dir, "rev-parse", "HEAD"], { cwd: mount.cwd }).then((result) => result.stdout.trim());
-      await mounts.ensureRepo(project);
-      await mounts.refreshProject(project);
-      audit({ login, role, project, op: "spec-branch-create", spec, result: `ok:${branch}` });
-      projection?.syncNow();
+      let pushed = false;
+      for (let attempt = 0; attempt < 2 && !pushed; attempt += 1) {
+        try {
+          await mount.git.run(["-C", dir, "push", "-q", mount.repoUrl, `HEAD:refs/heads/${branch}`], { cwd: mount.cwd });
+          pushed = true;
+        } catch (pushError) {
+          let remoteHead;
+          try {
+            const { stdout } = await mount.git.run(["ls-remote", "--heads", mount.repoUrl, `refs/heads/${branch}`], { cwd: mount.cwd });
+            remoteHead = stdout.trim().split(/\s+/u)[0] || null;
+          } catch {
+            throw pushError;
+          }
+          if (remoteHead === commit) {
+            pushed = true;
+          } else if (remoteHead !== null || attempt === 1) {
+            throw pushError;
+          }
+        }
+      }
+      if (!pushed) throw new Error(`could not publish ${branch}`);
+      await mounts.ensureRepo(project).catch((error) => logger(`fetch after ${branch} creation failed: ${error.message}`));
+      await mounts.refreshProject(project).catch((error) => logger(`refresh after ${branch} creation failed: ${error.message}`));
+      try {
+        audit({ login, role, project, op: "spec-branch-create", spec, result: `ok:${branch}` });
+      } catch (error) {
+        logger(`audit after ${branch} creation failed: ${error.message}`);
+      }
+      try {
+        projection?.syncNow();
+      } catch (error) {
+        logger(`projection after ${branch} creation failed: ${error.message}`);
+      }
       logger(`created ${branch} for ${project}`);
       return serviceSuccess("specBranch", requestId, { action: "create", kind: "spec", branch, spec, topic: null, commit });
     } catch (error) {
       console.error("spec_branch canonical create failed:", error?.stack ?? error);
       throw error;
     } finally {
-      await cleanup(dir);
+      await cleanup(dir).catch((error) => logger(`temporary branch repo cleanup failed: ${error.message}`));
     }
   }
 
@@ -404,8 +448,8 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
 
   return {
     /** Used by the spec_patch write path when createSpec targets a new slug. */
-    async ensureCanonical({ project, spec, requestId, login, demo = false }) {
-      return createCanonical({ project, spec, requestId, login, skeleton: false, demo });
+    async ensureCanonical({ project, spec, requestId, login, demo = false, initialSpecRoot = null, initialCommitMessage = null }) {
+      return createCanonical({ project, spec, requestId, login, skeleton: false, demo, initialSpecRoot, initialCommitMessage });
     },
     async run({ args, project, requestId, login, force = false, role = null }) {
       const parsed = parseArgs(args);

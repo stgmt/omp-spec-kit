@@ -24,6 +24,8 @@ import { createRegistrationJobs } from "./registration-jobs.js";
 import { createIdpManager } from "./idps.js";
 import { createSpecBranchManager } from "./spec-branches.js";
 import { BRANCH_CONTRACTS, createBranchOps } from "./ops/branch.js";
+import { TEAM_SPECS_CONTRACTS, createTeamSpecsOps } from "./ops/team-specs.js";
+import { createTeamTaskReads } from "./team-task-reads.js";
 import { registerAction, registerCommand, serviceErrorEnvelope, serviceSuccess, setupAction, setupCommand } from "./dispatch.js";
 import { secretsKeyFromEnv, sealSecret } from "./secrets.js";
 export async function bootService({ configPath, cloneDir, git = new GitClient(), identity, store: storeOption = null, secretsKey = null, logger = () => {} }) {
@@ -160,6 +162,8 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     return { events, branch: null };
   };
   const repoOps = createRepoOps({ repos, jobs: registrationJobs });
+  const teamSpecsOps = createTeamSpecsOps({ store, mounts });
+  const teamTaskReads = createTeamTaskReads({ store, mounts });
   const registryOps = createRegistryOps({
     registryIndex,
     driftReport,
@@ -276,7 +280,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
       },
     };
   };
-  const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher, projection, branchManager });
+  const writePath = createWritePipeline({ mounts, claims, identity, logger, publish: publisher, projection, branchManager, store });
   const onboarding = createOnboarding({ config, audit: (entry) => store?.logAccess?.(entry), logger, idps: { list: () => idpManager.listActiveIdps() } });
   const versionedReads = createVersionedReads({ mounts, store });
   let sync = null;
@@ -312,9 +316,10 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
       specDrift: registryOps.specDrift,
       specBranch: branchOps.specBranch,
       specRepo: repoOps.specRepo,
+      teamSpecs: teamSpecsOps.teamSpecs,
     },
-    serviceContracts: [...CLAIM_CONTRACTS, ...REGISTRY_CONTRACTS, ...BRANCH_CONTRACTS, ...REPO_CONTRACTS],
-    wrappers: { specPatch: writePath.specPatch, documents: versionedReads, catalog: catalogBranches, mcpPreflight: preflightSetup },
+    serviceContracts: [...CLAIM_CONTRACTS, ...REGISTRY_CONTRACTS, ...BRANCH_CONTRACTS, ...REPO_CONTRACTS, ...TEAM_SPECS_CONTRACTS],
+    wrappers: { specPatch: writePath.specPatch, documents: versionedReads, catalog: catalogBranches, tasks: teamTaskReads.tasks, mcpPreflight: preflightSetup },
     endpoints: {
       me: (ctx) => repos.me(ctx),
       onboarding: async (input) => {

@@ -1,4 +1,5 @@
 import { serviceSuccess } from "../dispatch.js";
+import { optionalField } from "../../adapters/tool-contracts.js";
 import { requireScope } from "../scope.js";
 
 export const REGISTRY_CONTRACTS = Object.freeze([
@@ -6,8 +7,8 @@ export const REGISTRY_CONTRACTS = Object.freeze([
     tool: "spec_registry",
     label: "Spec Registry",
     operation: "specRegistry",
-    description: "Projected registry index: per project, per spec — status, version, digest, claim, published pointer, repository binding. Listing op: absent project = all allowed scopes.",
-    fields: [],
+    description: "Projected registry index: per project, per spec — status, version, digest, claim, published pointer, repository binding. Set allProjects to list every authorized project regardless of the selected default.",
+    fields: [optionalField("allProjects", "boolean")],
   },
   {
     tool: "spec_drift",
@@ -19,11 +20,10 @@ export const REGISTRY_CONTRACTS = Object.freeze([
 ]);
 
 /**
- * Listing ops. An unqualified listing covers the caller's allowed projects
- * only, and the index/report is built for exactly those projects: a tenant
- * never learns that another project, its repository URL or its spec count
- * exists. `scope.restrict` hands the callee the already-narrowed subset, so no
- * callee can widen it back to the deployment's project list.
+ * Listing ops are bounded by the caller's allowed projects. The index/report
+ * is built for exactly the selected projects: a tenant never learns that
+ * another project, its repository URL or its spec count exists. `scope.restrict`
+ * hands the callee the already-narrowed subset.
  */
 export function createRegistryOps({ registryIndex, driftReport, branch, repositoryStatus = () => [] }) {
   function selection({ allScopes, project, ctx, owner }) {
