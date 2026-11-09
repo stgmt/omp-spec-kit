@@ -11,6 +11,11 @@ All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 - **Every project refusal names the way out.** `PROJECT_NOT_ALLOWED`, `PROJECT_REQUIRED` and `PROJECT_SELECTION_REQUIRED` carry the caller's allowed projects, `causeCode: "PROJECT_NOT_REGISTERED"` where that is the cause, and one `nextAction` — the literal register call. A caller with no project at all is told that no deployment project belongs to a tenant its groups match.
 - **`mcp_preflight` is the doctor for an unknown project.** For an owner it answers outside the scope gate: `setup.code` is `PROJECT_NOT_REGISTERED` with the register call as the action and as the credential repair, or `REPO_BINDING_REQUIRED` with the bind call for a project that is known but unbound. `credential.repository` reports `not-bound`, `rejected` or `verified`, and `registration.status` reports `not-registered`, `registered-without-active-binding`, `self-registered` or `operator-configured`. No credential value is ever returned.
 - **`spec_repo register` is one variant more on the same tool**, so the published tool surface stays at ten tools.
+- **Team specification registry.** Teams have server-issued IDs and can link multiple authorized project/spec pairs without mixing tasks.
+- **Shared-task ownership.** Task writes are bound to a team and require an existing requirement; ambiguous team selection is refused.
+- **Complete task cards.** Task projections include requirement references, estimates, completion criteria, and dependencies.
+- **Team-scoped reads.** Task queries can restrict results to one authenticated team's shared tasks.
+- **All-project discovery.** A caller can explicitly list all authorized projects even when a default project is selected.
 
 ### Verification
 

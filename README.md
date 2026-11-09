@@ -65,6 +65,28 @@ flowchart LR
 
 A canonical spec branch contains only `.spec-kit.json` and `.specs/<slug>/**`; work branches (`spec-<slug>--<topic>`) are never indexed or projected and are merged directly by `spec_branch merge`. There is no shared default repository: an unbound project refuses spec operations with `REPO_BINDING_REQUIRED`.
 
+### Shared team tasks
+
+The hosted registry's `team_specs` operation issues a persistent team ID and
+links that team to one or more project/specification pairs. Mutations require
+the authenticated owning principal and an allowed project scope. Team-scoped
+`spec_tasks` reads return the team's tasks across its linked specifications.
+Shared task writes must retain a reference to an existing requirement in their
+own specification. A direct task creation is assigned automatically only when
+exactly one team is linked; if several teams are linked, the caller must supply
+the team ID. Existing unbound tasks are not assigned to a team merely because
+the specification is linked: their ownership must be established explicitly.
+They remain outside team-scoped reads until explicitly bound. A status change
+with an outdated expected status is refused.
+
+For Agent Teams' scoped MCP proxy, the team workspace must have the project
+selection record described below. An explicit project must match that record;
+a missing record or mismatch is rejected before calling the registry. After a
+confirmed `createSpec`, the proxy links that specification to the
+authenticated runtime's team. If creation succeeds but linking fails, it reports
+a partial result; inspect and link the existing specification rather than
+repeating creation.
+
 ### Project selection per session
 
 A session's project comes from the repository it is actually in, never from a global variable, a request header or a value cached at install time. Each workspace carries one record:
@@ -158,6 +180,27 @@ An unregistered project never leaves the caller guessing: any refusal names the 
 The read and evidence tools share one bounded graph and return structured results with current-project provenance. Evidence is content-addressed and stale when its captured graph or scenario binding no longer matches. `spec_patch` defaults to an in-memory preview; only `dryRun: false` can change a specification through hash-checked atomic transactions.
 
 `spec_evidence` reads cucumber-message NDJSON from fixed locations (`.omp-spec-kit/evidence/last-test-run.ndjson`, `.omp-spec-kit/evidence/bdd-results/run.ndjson`, `tests/fixtures/release-candidate/cucumber-messages.ndjson`) and matches scenarios by their `@id:` tag. With no BDD runner producing that stream, every scenario reports `NOT_RUN` — an expected empty state, not an error.
+
+### Tasks used by Agent Teams
+
+`spec_tasks` returns the task's status, owner, links and `description`. The
+description is separate from the legacy `Done When` field and preserves
+multiline text. Use `spec_patch` with `upsert_task` to create a task or update
+its description, `replace_task_owner` with `owner: null` to clear an assignee,
+and `replace_task_status` with the current `expectedStatus` to delete
+(`deleted`) or restore a task. Deleted tasks remain in the specification and
+can be requested explicitly through the `statuses` filter.
+
+For clients that need safe recovery from a lost creation response,
+`upsert_task` accepts a `creationToken` consisting of a UUID, a period and a
+SHA-256 payload hash. The marker is committed with the task. A repeated create
+with the same marker is unchanged; a different marker for the same task is a
+conflict. The hosted registry additionally advertises the
+`confirmTaskCreation` intent of `spec_patch`: with `dryRun: true`, a task
+`entity` and its `creationToken`, it fetches the authoritative branch and
+returns `CONFIRMED` only for a unique matching task, otherwise `UNKNOWN`.
+An unreachable branch returns an error rather than confirming a local-only
+write. This confirmation intent is not available in the local stdio server.
 
 ## Typical use
 

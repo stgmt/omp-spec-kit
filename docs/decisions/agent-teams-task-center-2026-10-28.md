@@ -53,8 +53,8 @@ MCP-инструменты (каталог `agent-teams-controller/src/mcpToolCa
 
 - `TASKS.md`, заголовок `## TASK-N — title` (грамматика `src/kernel/types.js:263`), поля: `Status`, `Owner`, `Estimate`, `Done When` (`attributes.js:158-172`), ссылки `Refs/Related/Covers/Implements/Depends On` → рёбра `REFS/COVERS/IMPLEMENTS/DEPENDS_ON` (`types.js:271`).
 - Статусы: `planned, todo, ready, in-progress, blocked, done, deferred, unknown` (`types.js:286`), нормализация `Completed → done` уже есть.
-- Единственная мутация — `spec_patch` (`src/adapters/tool-contracts.js:54`), в т.ч. `replace_task_status` (`needs entity + status`, `src/authoring/proposals.js:121`).
-- Чтение: `spec_query` (board/status/tasks), `boardNode` отдаёт `taskStatus`, но **не отдаёт `owner`** (`src/kernel/query/service.js:776`), `taskEntry` тоже (`extended.js:107`).
+- Единственная мутация — `spec_patch` (`src/adapters/tool-contracts.js:54`). Структурированные операции задач: `upsert_task`, `replace_task_status` (обязателен `expectedStatus`), `replace_task_owner`, `replace_task_links` (`src/authoring/task-ops.js`); свободная Markdown-запись полей задачи отклоняется с `STRUCTURED_TASK_OP_REQUIRED`.
+- Чтение: `spec_query` (board/status/tasks), `boardNode` и `taskEntry` отдают `owner`, `tracking`, `contentHash`, а также вычисленные `dependsOn`, `blocks`, `blockedBy` из рёбер `DEPENDS_ON` (`src/kernel/query/service.js`, `extended.js`).
 - Готовый образец двусторонней связи: `src/adapters/youtrack-projection.js` (push карточек, ссылки, снятие устаревших), `youtrack-store.js:430 YouTrackSyncStateStore` (подписанный HMAC указатель ревизии), `youtrack-status-sweep.js` (трёхсторонний мерж + «spec wins»).
 
 ## 4. Матрица полей
