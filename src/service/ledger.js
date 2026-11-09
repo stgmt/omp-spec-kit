@@ -1,5 +1,8 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { teamStoreError } from "./ledger-team-helpers.js";
+import { SqliteStore } from "./sqlite-ledger.js";
 
 /**
  * Service-owned store (DESIGN "Authority split"): fields git cannot express
@@ -10,338 +13,56 @@ import path from "node:path";
  * otherwise. Both drivers implement the same interface.
  */
 
-const SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS claims (
-  spec_key TEXT PRIMARY KEY,
-  holder TEXT,
-  expires_at_ms INTEGER,
-  created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS ledger (
-  spec_key TEXT,
-  version TEXT,
-  digest TEXT,
-  commit_sha TEXT,
-  published_at TEXT,
-  PRIMARY KEY (spec_key, version)
-);
-CREATE TABLE IF NOT EXISTS access_log (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ts TEXT,
-  login TEXT,
-  role TEXT,
-  tenant TEXT,
-  project TEXT,
-  op TEXT,
-  spec TEXT,
-  request_id TEXT,
-  result TEXT
-);
-CREATE TABLE IF NOT EXISTS repo_bindings (
-  project TEXT PRIMARY KEY,
-  repo_url TEXT NOT NULL,
-  branch TEXT NOT NULL,
-  status TEXT NOT NULL,
-  bound_by TEXT,
-  bound_at TEXT,
-  migrated_from TEXT,
-  migrated_from_branch TEXT,
-  last_error TEXT,
-  updated_at TEXT
-);
-CREATE TABLE IF NOT EXISTS repo_credentials (
-  project TEXT PRIMARY KEY,
-  repo_url TEXT NOT NULL,
-  token_enc TEXT NOT NULL,
-  username TEXT,
-  created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS project_registrations (
-  project TEXT PRIMARY KEY,
-  repo_url TEXT NOT NULL,
-  branch TEXT NOT NULL,
-  status TEXT NOT NULL,
-  registered_by TEXT,
-  registered_at TEXT,
-  updated_at TEXT,
-  phase TEXT,
-  message TEXT,
-  started_at TEXT,
-  phase_started_at TEXT,
-  finished_at TEXT
-);
-CREATE TABLE IF NOT EXISTS idp_bindings (
-  tenant TEXT PRIMARY KEY,
-  youtrack_url TEXT NOT NULL UNIQUE,
-  projects TEXT NOT NULL,
-  hub_groups TEXT NOT NULL,
-  role_groups TEXT NOT NULL,
-  default_project TEXT,
-  bridge_token_hash TEXT NOT NULL,
-  status TEXT NOT NULL,
-  bound_by TEXT,
-  bound_at TEXT,
-  last_error TEXT,
-  updated_at TEXT
-);
-CREATE TABLE IF NOT EXISTS idp_credentials (
-  tenant TEXT PRIMARY KEY,
-  service_token_enc TEXT NOT NULL,
-  created_at TEXT
-);
-`;
 
-/**
- * Columns added after first release: CREATE TABLE IF NOT EXISTS never alters
- * an existing table, so the ledger gains its repo dimensions via ALTER when
- * they are missing (repo_url/branch tell versioned reads which clone owns a
- * recorded commit after a project migrated repos).
- */
-function migrateLedger(db) {
-  const columns = new Set(db.prepare("PRAGMA table_info(ledger)").all().map((row) => row.name));
-  if (!columns.has("repo_url")) db.exec("ALTER TABLE ledger ADD COLUMN repo_url TEXT");
-  if (!columns.has("repo_branch")) db.exec("ALTER TABLE ledger ADD COLUMN repo_branch TEXT");
-  const bindingColumns = new Set(db.prepare("PRAGMA table_info(repo_bindings)").all().map((row) => row.name));
-  if (!bindingColumns.has("migrated_from_branch")) db.exec("ALTER TABLE repo_bindings ADD COLUMN migrated_from_branch TEXT");
-  const credentialColumns = new Set(db.prepare("PRAGMA table_info(repo_credentials)").all().map((row) => row.name));
-  if (!credentialColumns.has("repo_url")) db.exec("ALTER TABLE repo_credentials ADD COLUMN repo_url TEXT");
-  // Registrations gained their progress columns after the first deploy of the
-  // table: a registration that outlives a client timeout has to say what it is
-  // doing, so the row carries phase and timing.
-  const registrationColumns = new Set(db.prepare("PRAGMA table_info(project_registrations)").all().map((row) => row.name));
-  for (const column of ["phase", "message", "started_at", "phase_started_at", "finished_at"]) {
-    if (!registrationColumns.has(column)) db.exec(`ALTER TABLE project_registrations ADD COLUMN ${column} TEXT`);
-  }
+function teamRequest(state, ownerPrincipal, requestId, payload) {
+  const existing = state.teamSpecRequests.find((request) => request.ownerPrincipal === ownerPrincipal && request.requestId === requestId);
+  if (!existing) return null;
+  if (existing.payload !== payload) throw teamStoreError("TEAM_REQUEST_ID_REUSED", "requestId was already used for a different team-spec operation");
+  return existing;
 }
 
-class SqliteStore {
-  constructor(db) {
-    this.db = db;
-    this.driver = "sqlite";
-  }
-
-  static async open(file) {
-    const { DatabaseSync } = await import("node:sqlite");
-    const db = new DatabaseSync(file);
-    db.exec(SCHEMA_SQL);
-    migrateLedger(db);
-    return new SqliteStore(db);
-  }
-
-  getClaim(key) {
-    const row = this.db.prepare("SELECT spec_key, holder, expires_at_ms, created_at FROM claims WHERE spec_key = ?").get(key);
-    return row ? { specKey: row.spec_key, holder: row.holder, expiresAtMs: Number(row.expires_at_ms), createdAt: row.created_at } : null;
-  }
-
-  putClaim(record) {
-    this.db.prepare(
-      "INSERT INTO claims (spec_key, holder, expires_at_ms, created_at) VALUES (?, ?, ?, ?) " +
-      "ON CONFLICT(spec_key) DO UPDATE SET holder = excluded.holder, expires_at_ms = excluded.expires_at_ms",
-    ).run(record.specKey, record.holder, record.expiresAtMs, record.createdAt ?? new Date().toISOString());
-  }
-
-  deleteClaim(key) {
-    this.db.prepare("DELETE FROM claims WHERE spec_key = ?").run(key);
-  }
-
-  listClaims() {
-    return this.db.prepare("SELECT spec_key, holder, expires_at_ms, created_at FROM claims").all()
-      .map((row) => ({ specKey: row.spec_key, holder: row.holder, expiresAtMs: Number(row.expires_at_ms), createdAt: row.created_at }));
-  }
-
-  appendLedger(entry) {
-    this.db.prepare(
-      "INSERT INTO ledger (spec_key, version, digest, commit_sha, published_at, repo_url, repo_branch) VALUES (?, ?, ?, ?, ?, ?, ?) " +
-      "ON CONFLICT(spec_key, version) DO UPDATE SET digest = excluded.digest, commit_sha = excluded.commit_sha, published_at = excluded.published_at, repo_url = excluded.repo_url, repo_branch = excluded.repo_branch",
-    ).run(entry.specKey, entry.version, entry.digest, entry.commitSha ?? null, entry.publishedAt ?? new Date().toISOString(), entry.repoUrl ?? null, entry.repoBranch ?? null);
-  }
-
-  /**
-   * Publish-path insert: a recorded publication is immutable evidence, so an
-   * existing (spec_key, version) row is never overwritten — unlike appendLedger
-   * the conflicting row wins and false is returned for the caller to compare.
-   */
-  insertLedgerIfAbsent(entry) {
-    const info = this.db.prepare(
-      "INSERT INTO ledger (spec_key, version, digest, commit_sha, published_at, repo_url, repo_branch) VALUES (?, ?, ?, ?, ?, ?, ?) " +
-      "ON CONFLICT(spec_key, version) DO NOTHING",
-    ).run(entry.specKey, entry.version, entry.digest, entry.commitSha ?? null, entry.publishedAt ?? new Date().toISOString(), entry.repoUrl ?? null, entry.repoBranch ?? null);
-    return Number(info.changes) === 1;
-  }
-
-  getLedger(specKey) {
-    return this.db.prepare("SELECT spec_key, version, digest, commit_sha, published_at, repo_url, repo_branch FROM ledger WHERE spec_key = ? ORDER BY published_at DESC").all(specKey)
-      .map((row) => ({ specKey: row.spec_key, version: row.version, digest: row.digest, commitSha: row.commit_sha, publishedAt: row.published_at, repoUrl: row.repo_url, repoBranch: row.repo_branch }));
-  }
-
-  putBinding(binding) {
-    this.db.prepare(
-      "INSERT INTO repo_bindings (project, repo_url, branch, status, bound_by, bound_at, migrated_from, migrated_from_branch, last_error, updated_at) " +
-      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-      "ON CONFLICT(project) DO UPDATE SET repo_url = excluded.repo_url, branch = excluded.branch, status = excluded.status, " +
-      "bound_by = excluded.bound_by, bound_at = excluded.bound_at, migrated_from = excluded.migrated_from, migrated_from_branch = excluded.migrated_from_branch, last_error = excluded.last_error, updated_at = excluded.updated_at",
-    ).run(
-      binding.project, binding.repoUrl, binding.branch, binding.status,
-      binding.boundBy ?? null, binding.boundAt ?? null, binding.migratedFrom ?? null, binding.migratedFromBranch ?? null,
-      binding.lastError ?? null, binding.updatedAt ?? new Date().toISOString(),
-    );
-  }
-
-  #bindingRow(row) {
-    return row ? { project: row.project, repoUrl: row.repo_url, branch: row.branch, status: row.status, boundBy: row.bound_by, boundAt: row.bound_at, migratedFrom: row.migrated_from, migratedFromBranch: row.migrated_from_branch, lastError: row.last_error, updatedAt: row.updated_at } : null;
-  }
-
-  getBinding(project) {
-    return this.#bindingRow(this.db.prepare("SELECT * FROM repo_bindings WHERE project = ?").get(project));
-  }
-
-  listBindings() {
-    return this.db.prepare("SELECT * FROM repo_bindings").all().map((row) => this.#bindingRow(row));
-  }
-
-  deleteBinding(project) {
-    this.db.prepare("DELETE FROM repo_bindings WHERE project = ?").run(project);
-  }
-
-  putRegistration(registration) {
-    this.db.prepare(
-      "INSERT INTO project_registrations (project, repo_url, branch, status, registered_by, registered_at, updated_at, phase, message, started_at, phase_started_at, finished_at) " +
-      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-      "ON CONFLICT(project) DO UPDATE SET repo_url = excluded.repo_url, branch = excluded.branch, status = excluded.status, " +
-      "registered_by = excluded.registered_by, updated_at = excluded.updated_at, phase = excluded.phase, message = excluded.message, " +
-      "started_at = excluded.started_at, phase_started_at = excluded.phase_started_at, finished_at = excluded.finished_at",
-    ).run(
-      registration.project, registration.repoUrl, registration.branch, registration.status,
-      registration.registeredBy ?? null, registration.registeredAt ?? new Date().toISOString(), new Date().toISOString(),
-      registration.phase ?? null, registration.message ?? null, registration.startedAt ?? null,
-      registration.phaseStartedAt ?? null, registration.finishedAt ?? null,
-    );
-  }
-
-  /** Merge a progress patch into an existing registration row. */
-  updateRegistration(project, patch) {
-    const current = this.getRegistration(project);
-    if (current === null) return null;
-    const next = { ...current, ...patch };
-    this.putRegistration(next);
-    return next;
-  }
-
-  #registrationRow(row) {
-    return row
-      ? {
-        project: row.project, repoUrl: row.repo_url, branch: row.branch, status: row.status,
-        registeredBy: row.registered_by, registeredAt: row.registered_at, updatedAt: row.updated_at,
-        phase: row.phase ?? null, message: row.message ?? null, startedAt: row.started_at ?? null,
-        phaseStartedAt: row.phase_started_at ?? null, finishedAt: row.finished_at ?? null,
-      }
-      : null;
-  }
-
-  getRegistration(project) {
-    return this.#registrationRow(this.db.prepare("SELECT * FROM project_registrations WHERE project = ?").get(project));
-  }
-
-  listRegistrations({ registeredBy = null } = {}) {
-    const rows = registeredBy === null
-      ? this.db.prepare("SELECT * FROM project_registrations").all()
-      : this.db.prepare("SELECT * FROM project_registrations WHERE registered_by = ?").all(registeredBy);
-    return rows.map((row) => this.#registrationRow(row));
-  }
-
-  deleteRegistration(project) {
-    this.db.prepare("DELETE FROM project_registrations WHERE project = ?").run(project);
-  }
-
-  putCredential(project, { repoUrl, tokenEnc, username }) {
-    this.db.prepare(
-      "INSERT INTO repo_credentials (project, repo_url, token_enc, username, created_at) VALUES (?, ?, ?, ?, ?) " +
-      "ON CONFLICT(project) DO UPDATE SET repo_url = excluded.repo_url, token_enc = excluded.token_enc, username = excluded.username",
-    ).run(project, repoUrl ?? null, tokenEnc, username ?? null, new Date().toISOString());
-  }
-
-  getCredential(project) {
-    const row = this.db.prepare("SELECT repo_url, token_enc, username FROM repo_credentials WHERE project = ?").get(project);
-    return row ? { repoUrl: row.repo_url, tokenEnc: row.token_enc, username: row.username } : null;
-  }
-
-  deleteCredential(project) {
-    this.db.prepare("DELETE FROM repo_credentials WHERE project = ?").run(project);
-  }
-
-  putIdpBinding(binding) {
-    this.db.prepare(
-      "INSERT INTO idp_bindings (tenant, youtrack_url, projects, hub_groups, role_groups, default_project, bridge_token_hash, status, bound_by, bound_at, last_error, updated_at) " +
-      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-      "ON CONFLICT(tenant) DO UPDATE SET youtrack_url = excluded.youtrack_url, projects = excluded.projects, hub_groups = excluded.hub_groups, " +
-      "role_groups = excluded.role_groups, default_project = excluded.default_project, bridge_token_hash = excluded.bridge_token_hash, " +
-      "status = excluded.status, bound_by = excluded.bound_by, bound_at = excluded.bound_at, last_error = excluded.last_error, updated_at = excluded.updated_at",
-    ).run(
-      binding.tenant, binding.youtrackUrl, JSON.stringify(binding.projects), JSON.stringify(binding.hubGroups), JSON.stringify(binding.roleGroups),
-      binding.defaultProject ?? null, binding.bridgeTokenHash, binding.status,
-      binding.boundBy ?? null, binding.boundAt ?? null, binding.lastError ?? null, binding.updatedAt ?? new Date().toISOString(),
-    );
-  }
-
-  #idpBindingRow(row) {
-    if (!row) return null;
-    return {
-      tenant: row.tenant, youtrackUrl: row.youtrack_url,
-      projects: JSON.parse(row.projects), hubGroups: JSON.parse(row.hub_groups), roleGroups: JSON.parse(row.role_groups),
-      defaultProject: row.default_project, bridgeTokenHash: row.bridge_token_hash, status: row.status,
-      boundBy: row.bound_by, boundAt: row.bound_at, lastError: row.last_error, updatedAt: row.updated_at,
-    };
-  }
-
-  getIdpBinding(tenant) {
-    return this.#idpBindingRow(this.db.prepare("SELECT * FROM idp_bindings WHERE tenant = ?").get(tenant));
-  }
-
-  getIdpBindingByUrl(youtrackUrl) {
-    return this.#idpBindingRow(this.db.prepare("SELECT * FROM idp_bindings WHERE youtrack_url = ?").get(youtrackUrl));
-  }
-
-  listIdpBindings() {
-    return this.db.prepare("SELECT * FROM idp_bindings").all().map((row) => this.#idpBindingRow(row));
-  }
-
-  deleteIdpBinding(tenant) {
-    this.db.prepare("DELETE FROM idp_bindings WHERE tenant = ?").run(tenant);
-  }
-
-  putIdpCredential(tenant, { serviceTokenEnc }) {
-    this.db.prepare(
-      "INSERT INTO idp_credentials (tenant, service_token_enc, created_at) VALUES (?, ?, ?) " +
-      "ON CONFLICT(tenant) DO UPDATE SET service_token_enc = excluded.service_token_enc",
-    ).run(tenant, serviceTokenEnc, new Date().toISOString());
-  }
-
-  getIdpCredential(tenant) {
-    const row = this.db.prepare("SELECT service_token_enc FROM idp_credentials WHERE tenant = ?").get(tenant);
-    return row ? { serviceTokenEnc: row.service_token_enc } : null;
-  }
-
-  deleteIdpCredential(tenant) {
-    this.db.prepare("DELETE FROM idp_credentials WHERE tenant = ?").run(tenant);
-  }
-
-  logAccess(entry) {
-    this.db.prepare("INSERT INTO access_log (ts, login, role, tenant, project, op, spec, request_id, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .run(entry.ts ?? new Date().toISOString(), entry.login ?? null, entry.role ?? null, entry.tenant ?? null, entry.project ?? null, entry.op ?? null, entry.spec ?? null, entry.requestId ?? null, entry.result ?? null);
-  }
-
-  listAccess({ resultPrefix, limit = 50 } = {}) {
-    return this.db.prepare("SELECT ts, login, role, tenant, project, op, spec, request_id, result FROM access_log WHERE result LIKE ? ORDER BY id DESC LIMIT ?")
-      .all(`${resultPrefix}%`, limit)
-      .map((row) => ({ ts: row.ts, login: row.login, role: row.role, tenant: row.tenant, project: row.project, op: row.op, spec: row.spec, requestId: row.request_id, result: row.result }));
-  }
-
-  close() {
-    this.db.close();
-  }
+function teamRecord(state, teamId) {
+  return state.teams.find((team) => team.teamId === teamId) ?? null;
 }
+
+function teamSpecBindings(state, teamId) {
+  return state.teamSpecBindings
+    .filter((binding) => binding.teamId === teamId)
+    .map(({ project, spec }) => ({ project, spec }))
+    .sort((left, right) => {
+      if (left.project !== right.project) return left.project < right.project ? -1 : 1;
+      if (left.spec !== right.spec) return left.spec < right.spec ? -1 : 1;
+      return 0;
+    });
+}
+function teamSpecsTeamsForBinding(state, project, spec) {
+  const candidates = new Map();
+  for (const binding of state.teamSpecBindings) {
+    if (binding.project !== project || binding.spec !== spec) continue;
+    const team = teamRecord(state, binding.teamId);
+    if (!team) throw teamStoreError("TEAM_REGISTRY_CORRUPT", `team spec binding has no team record: ${binding.teamId}`);
+    candidates.set(team.teamId, { teamId: team.teamId, ownerPrincipal: team.ownerPrincipal });
+  }
+  return [...candidates.values()].sort((left, right) => left.teamId < right.teamId ? -1 : left.teamId > right.teamId ? 1 : 0);
+}
+
+
+function teamSpecTaskBinding(state, project, spec, taskId) {
+  const binding = state.teamTaskBindings.find((entry) =>
+    entry.project === project && entry.spec === spec && entry.taskId === taskId
+  );
+  return binding ? { ...binding } : null;
+}
+
+
+
 
 class JsonlStore {
+  #persistTail = Promise.resolve();
+  #teamWriteTail = Promise.resolve();
+  #tempCounter = 0;
+  #securityIdentityFailure = null;
+
   constructor(file, state) {
     this.file = file;
     this.state = state;
@@ -349,18 +70,218 @@ class JsonlStore {
   }
 
   static async open(file) {
-    let state = { claims: [], ledger: [], access_log: [], repo_bindings: [], repo_credentials: [], project_registrations: [], idp_bindings: [], idp_credentials: [] };
+    let state = {
+      claims: [], ledger: [], access_log: [], repo_bindings: [], repo_credentials: [],
+      project_registrations: [], idp_bindings: [], idp_credentials: [], teams: [],
+      teamSpecBindings: [], teamSpecRequests: [], teamTaskBindings: [],
+    };
     try {
-      state = { ...state, ...JSON.parse(await readFile(file, "utf8")) };
-    } catch {}
+      const saved = JSON.parse(await readFile(file, "utf8"));
+      if (!saved || typeof saved !== "object" || Array.isArray(saved)) {
+        throw teamStoreError("TEAM_STORE_UNAVAILABLE", "JSON registry state is invalid");
+      }
+      state = { ...state, ...saved };
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+    for (const key of ["teams", "teamSpecBindings", "teamSpecRequests", "teamTaskBindings"]) {
+      if (!Array.isArray(state[key])) throw teamStoreError("TEAM_STORE_UNAVAILABLE", `JSON registry ${key} is invalid`);
+    }
     return new JsonlStore(file, state);
   }
 
   async persist() {
-    const tmp = `${this.file}.tmp`;
-    await mkdir(path.dirname(this.file), { recursive: true });
-    await writeFile(tmp, JSON.stringify(this.state, null, 2));
-    await rename(tmp, this.file);
+    const snapshot = JSON.stringify(this.state, null, 2);
+    const operation = this.#persistTail.catch(() => {}).then(async () => {
+      const tmp = `${this.file}.${process.pid}.${++this.#tempCounter}.tmp`;
+      await mkdir(path.dirname(this.file), { recursive: true });
+      await writeFile(tmp, snapshot);
+      await rename(tmp, this.file);
+    });
+    this.#persistTail = operation;
+    return operation;
+  }
+
+  async #serializeTeamWrite(run) {
+    const previous = this.#teamWriteTail;
+    let release;
+    this.#teamWriteTail = new Promise((resolve) => { release = resolve; });
+    await previous;
+    const before = {
+      teams: [...this.state.teams],
+      teamSpecBindings: [...this.state.teamSpecBindings],
+      teamSpecRequests: [...this.state.teamSpecRequests],
+      teamTaskBindings: [...this.state.teamTaskBindings],
+    };
+    try {
+      return await run();
+    } catch (error) {
+      this.state.teams = before.teams;
+      this.state.teamTaskBindings = before.teamTaskBindings;
+      this.state.teamSpecBindings = before.teamSpecBindings;
+      this.state.teamSpecRequests = before.teamSpecRequests;
+      throw error;
+    } finally {
+      release();
+    }
+  }
+
+  async getSecurityStoreId() {
+    return this.#serializeTeamWrite(async () => {
+      if (this.#securityIdentityFailure) throw this.#securityIdentityFailure;
+      const existing = this.state.securityStoreId;
+      if (existing !== undefined) {
+        if (typeof existing !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(existing)) {
+          throw teamStoreError("TEAM_STORE_UNAVAILABLE", "registry security store identity is invalid");
+        }
+        return existing;
+      }
+      const id = randomUUID();
+      this.state.securityStoreId = id;
+      try {
+        await this.persist();
+      } catch (error) {
+        this.#securityIdentityFailure = error;
+        throw error;
+      }
+      return id;
+    });
+  }
+
+  async getTeamSpecsTeam(teamId) {
+    await this.#teamWriteTail;
+    const team = teamRecord(this.state, teamId);
+    return team ? { ...team } : null;
+  }
+
+  async listTeamSpecsBindings(teamId) {
+    await this.#teamWriteTail;
+    return teamSpecBindings(this.state, teamId);
+  }
+  async listTeamSpecsTeamsForBinding({ project, spec }) {
+    await this.#teamWriteTail;
+    return teamSpecsTeamsForBinding(this.state, project, spec);
+  }
+
+
+  async getTeamSpecsTaskBinding({ project, spec, taskId }) {
+    await this.#teamWriteTail;
+    return teamSpecTaskBinding(this.state, project, spec, taskId);
+  }
+  async listTeamSpecsTaskBindings({ teamId, project, spec }) {
+    await this.#teamWriteTail;
+    return this.state.teamTaskBindings
+      .filter((binding) => binding.teamId === teamId && binding.project === project && binding.spec === spec)
+      .map((binding) => ({ ...binding }))
+      .sort((left, right) => left.taskId < right.taskId ? -1 : left.taskId > right.taskId ? 1 : 0);
+  }
+
+
+  applyTeamSpecsTaskBindings({ action, bindings }) {
+    return this.#serializeTeamWrite(async () => {
+      if (!Array.isArray(bindings)) throw teamStoreError("TEAM_ACTION_INVALID", "team task bindings must be an array");
+      for (const binding of bindings) {
+        const team = teamRecord(this.state, binding.teamId);
+        if (!team || team.ownerPrincipal !== binding.ownerPrincipal) {
+          throw teamStoreError("TEAM_ACCESS_DENIED", "team task binding is not authorized for this authenticated principal");
+        }
+        const existing = teamSpecTaskBinding(this.state, binding.project, binding.spec, binding.taskId);
+        if (action === "bind") {
+          if (binding.requireUnambiguous === true) {
+            const candidates = teamSpecsTeamsForBinding(this.state, binding.project, binding.spec);
+            if (candidates.length !== 1 || candidates[0].teamId !== binding.teamId) {
+              throw teamStoreError("TEAM_ID_REQUIRED", "the team selection is no longer unambiguous for this project/spec");
+            }
+          }
+          if (!teamSpecBindings(this.state, binding.teamId).some((item) => item.project === binding.project && item.spec === binding.spec)) {
+            throw teamStoreError("TEAM_SPEC_NOT_LINKED", `team is not linked to ${binding.project}/${binding.spec}`);
+          }
+          if (existing && existing.teamId !== binding.teamId) {
+            throw teamStoreError("TEAM_TASK_ACCESS_DENIED", `task is already owned by another team: ${binding.project}/${binding.spec}/${binding.taskId}`);
+          }
+          if (!existing) this.state.teamTaskBindings.push({ project: binding.project, spec: binding.spec, taskId: binding.taskId, teamId: binding.teamId, linkedAt: binding.createdAt });
+        } else if (action === "unlink") {
+          if (existing && existing.teamId !== binding.teamId) {
+            throw teamStoreError("TEAM_TASK_ACCESS_DENIED", `task is already owned by another team: ${binding.project}/${binding.spec}/${binding.taskId}`);
+          }
+          this.state.teamTaskBindings = this.state.teamTaskBindings.filter((entry) =>
+            entry.project !== binding.project || entry.spec !== binding.spec || entry.taskId !== binding.taskId || entry.teamId !== binding.teamId
+          );
+        } else {
+          throw teamStoreError("TEAM_ACTION_INVALID", `unsupported team task binding action: ${String(action)}`);
+        }
+      }
+      await this.persist();
+      return bindings.map((binding) => teamSpecTaskBinding(this.state, binding.project, binding.spec, binding.taskId)).filter(Boolean);
+    });
+  }
+
+  async getTeamSpecsRequest({ ownerPrincipal, requestId, payload }) {
+    await this.#teamWriteTail;
+    const existing = teamRequest(this.state, ownerPrincipal, requestId, payload);
+    if (!existing) return null;
+    const team = teamRecord(this.state, existing.teamId);
+    if (!team || team.ownerPrincipal !== ownerPrincipal) {
+      throw teamStoreError("TEAM_REGISTRY_CORRUPT", "recorded team-spec request has no matching owner record");
+    }
+    return { teamId: existing.teamId };
+  }
+
+  registerTeamSpecsTeam({ teamId, ownerPrincipal, requestId, payload, project, createdAt }) {
+    return this.#serializeTeamWrite(async () => {
+      const existing = teamRequest(this.state, ownerPrincipal, requestId, payload);
+      if (existing) {
+        const team = teamRecord(this.state, existing.teamId);
+        if (!team || team.ownerPrincipal !== ownerPrincipal) {
+          throw teamStoreError("TEAM_REGISTRY_CORRUPT", "recorded registration has no matching owner record");
+        }
+        return { teamId: existing.teamId, bindings: teamSpecBindings(this.state, existing.teamId) };
+      }
+
+      this.state.teams.push({ teamId, ownerPrincipal, registrationProject: project, createdAt });
+      this.state.teamSpecRequests.push({ ownerPrincipal, requestId, payload, teamId, createdAt });
+      await this.persist();
+      return { teamId, bindings: [] };
+    });
+  }
+
+  applyTeamSpecsBinding({ teamId, ownerPrincipal, requestId, payload, action, project, spec, createdAt, allowedProjects }) {
+    return this.#serializeTeamWrite(async () => {
+      const team = teamRecord(this.state, teamId);
+      if (!team || team.ownerPrincipal !== ownerPrincipal) {
+        throw teamStoreError("TEAM_ACCESS_DENIED", "team_specs access is not authorized for this authenticated principal");
+      }
+      const existing = teamRequest(this.state, ownerPrincipal, requestId, payload);
+      if (existing && existing.teamId !== teamId) {
+        throw teamStoreError("TEAM_REQUEST_ID_REUSED", "requestId belongs to another team");
+      }
+      if (existing === null) {
+        if (action === "link") {
+          const alreadyLinked = this.state.teamSpecBindings.some((binding) =>
+            binding.teamId === teamId && binding.project === project && binding.spec === spec
+          );
+          if (!alreadyLinked) this.state.teamSpecBindings.push({ teamId, project, spec, linkedAt: createdAt });
+        } else if (action === "unlink") {
+          if (this.state.teamTaskBindings.some((binding) =>
+            binding.teamId === teamId && binding.project === project && binding.spec === spec
+          )) {
+            throw teamStoreError("TEAM_TASKS_STILL_BOUND", `team spec ${project}/${spec} still has bound tasks`);
+          }
+          this.state.teamSpecBindings = this.state.teamSpecBindings.filter((binding) =>
+            binding.teamId !== teamId || binding.project !== project || binding.spec !== spec
+          );
+        } else {
+          throw teamStoreError("TEAM_ACTION_INVALID", `unsupported team_specs binding action: ${String(action)}`);
+        }
+        this.state.teamSpecRequests.push({ ownerPrincipal, requestId, payload, teamId, createdAt });
+      }
+      const bindings = teamSpecBindings(this.state, teamId);
+      if (bindings.some((binding) => !allowedProjects.includes(binding.project))) {
+        throw teamStoreError("PROJECT_NOT_ALLOWED", "one or more team bindings are outside the caller's allowed project set");
+      }
+      await this.persist();
+      return { teamId, bindings };
+    });
   }
 
   getClaim(key) {
@@ -528,12 +449,29 @@ class JsonlStore {
   close() {}
 }
 
-/** Opens the sqlite driver when available, JSONL fallback otherwise. */
+/** Preserve an existing JSON store rather than silently opening an empty SQLite store. */
 export async function createStore({ file } = {}) {
   if (!file) throw new Error("store file path is required");
-  try {
-    return await SqliteStore.open(file);
-  } catch {
-    return await JsonlStore.open(`${file}.json`);
+  const exists = async (name) => {
+    try {
+      await access(name);
+      return true;
+    } catch (error) {
+      if (error?.code === "ENOENT") return false;
+      throw error;
+    }
+  };
+  const [hasSqlite, hasJson] = await Promise.all([exists(file), exists(`${file}.json`)]);
+  if (hasSqlite && hasJson) {
+    throw teamStoreError("TEAM_STORE_UNAVAILABLE", "both SQLite and JSON registry stores exist; refusing to choose between them");
   }
+  if (hasJson) return JsonlStore.open(`${file}.json`);
+  try {
+    await import("node:sqlite");
+  } catch (error) {
+    if (error?.code !== "ERR_UNKNOWN_BUILTIN_MODULE" && error?.code !== "ERR_MODULE_NOT_FOUND") throw error;
+    if (hasSqlite) throw teamStoreError("TEAM_STORE_UNAVAILABLE", "SQLite registry exists but the SQLite driver is unavailable");
+    return JsonlStore.open(`${file}.json`);
+  }
+  return SqliteStore.open(file);
 }
