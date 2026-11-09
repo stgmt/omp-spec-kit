@@ -46,7 +46,11 @@ All nine existing read operations are served over the remote transport with the 
 
 ### FR-10 — Drift report and sync cadence
 
-The service fetches every bound mirror on a configured interval (default: every poll cycle; optionally triggered sooner by a repo webhook) and reconciles each canonical spec branch against the remote and the projection. Work branches are not reconciled as canonical. `GET /drift` lists divergence per branch: non-bot commits, unexpected mutations, and projection rebuild failures.
+The service keeps every bound mirror reconciled with its remote, but pays for that work only when the remote moved. Each cycle first asks the cheap ref probe — one `GET /repos/{owner}/{repo}/git/matching-refs/heads/spec-` on a keep-alive connection, compared with the mirror's `refs/remotes/origin/spec-*` tips. Equal tips mean no fetch, no `.spec-kit.json` read and no drift walk. An unavailable probe (not GitHub, no credential, API error) is never treated as "unchanged": the cycle then takes the ordinary path.
+
+The interval is operator-configured (`SPEC_REGISTRY_SYNC_MS`, default 5 minutes; `0` disables the timer). A repository push webhook (`POST /webhook/github`, HMAC-SHA256 over the raw body, `SPEC_REGISTRY_WEBHOOK_SECRET`) marks the matching projects stale and reconciles immediately — the low-latency trigger this requirement allows. Reads fetch lazily: a mirror younger than `SPEC_REGISTRY_FETCH_TTL_MS` (default 15 s) serves reads without touching the network; writes and the sync cycle always fetch.
+
+Reconcile fast-forwards a clone when only its remote moved and replays local commits over the remote when both sides moved. Work branches are not reconciled as canonical. `GET /drift` lists divergence per branch: non-bot commits, unexpected mutations, and projection rebuild failures.
 
 ## Publish
 
