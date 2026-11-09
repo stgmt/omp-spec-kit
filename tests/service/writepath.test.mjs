@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -49,6 +49,7 @@ async function setup() {
   const worktree = await service.mounts.worktreeFor("stgmt/alpha", "spec-kernel");
   return {
     fixture,
+    service,
     bare,
     worktree,
     cloneDir: worktree.cwd,
@@ -288,26 +289,77 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     }
   });
 
-  it("creates a canonical branch when createSpec targets a new slug", async () => {
-    const { bare, url, tokens } = await setup();
+  it("previews createSpec without creating a canonical branch or registry entry", async () => {
+    const { bare, service, url, tokens } = await setup();
+    const remoteRefsBefore = await git(bare, ["for-each-ref", "--format=%(refname) %(objectname)", "refs/heads"]);
+    const branchEventsBefore = service.store.listAccess({ resultPrefix: "", limit: 1000 })
+      .filter((entry) => entry.op === "spec-branch-create" && entry.spec === "preview-spec");
+
     const result = await callTool(url, tokens.alice, "spec_patch", {
+      intent: "createSpec",
+      spec: "preview-spec",
+      title: "Preview Spec",
+      reason: "preview only",
+      dryRun: true,
+      requestId: "create-spec-preview",
+    });
+
+    assert.equal(result.isError, false, JSON.stringify(result.structuredContent ?? {}).slice(0, 1500));
+    const preview = result.structuredContent.data;
+    assert.equal(preview.outcome, "PREVIEW");
+    assert.equal(preview.dryRun, true);
+    assert.equal(preview.spec, "preview-spec");
+    assert.ok(preview.proposalHash);
+    assert.ok(preview.baseGenerationSha256);
+    assert.deepEqual(
+      preview.operations.map((operation) => operation.path).sort(),
+      [
+        "README.md", "USER_STORIES.md", "USE_CASES.md", "RESEARCH.md", "REQUIREMENTS.md",
+        "FR.md", "NFR.md", "ACCEPTANCE_CRITERIA.md", "DESIGN.md", "TASKS.md",
+        "FILE_CHANGES.md", "CHANGELOG.md", "FIXTURES.md", "preview-spec.feature", "preview-spec_SCHEMA.md",
+      ].map((document) => `.specs/preview-spec/${document}`).sort(),
+    );
+    const readme = preview.operations.find((operation) => operation.path === ".specs/preview-spec/README.md");
+    assert.ok(readme.diff.includes("+# Preview Spec"), "preview should contain the proposed document content");
+
+    assert.equal(
+      await git(bare, ["for-each-ref", "--format=%(refname) %(objectname)", "refs/heads"]),
+      remoteRefsBefore,
+      "a preview must not create or move any remote branch",
+    );
+    assert.deepEqual(
+      service.store.listAccess({ resultPrefix: "", limit: 1000 })
+        .filter((entry) => entry.op === "spec-branch-create" && entry.spec === "preview-spec"),
+      branchEventsBefore,
+      "a preview must not register a branch-creation event",
+    );
+  });
+
+  it("creates a canonical branch only after createSpec passes elicitation", async () => {
+    const { bare, service, url, tokens } = await setup();
+    const remoteRefsBefore = await git(bare, ["for-each-ref", "--format=%(refname) %(objectname)", "refs/heads"]);
+    const branchEvents = () => service.store.listAccess({ resultPrefix: "", limit: 1000 })
+      .filter((entry) => entry.op === "spec-branch-create" && entry.spec === "created-spec");
+    const branchEventsBefore = branchEvents();
+    const request = {
       intent: "createSpec",
       spec: "created-spec",
       title: "Created Spec",
       reason: "branch bootstrap",
       dryRun: false,
-      requestId: "create-spec-1",
-    });
-    const retried = result.isError
-      ? await callTool(url, tokens.alice, "spec_patch", {
-          intent: "createSpec",
-          spec: "created-spec",
-          title: "Created Spec",
-          reason: "branch bootstrap",
-          dryRun: false,
-          requestId: "create-spec-2",
-        })
-      : result;
+    };
+    const first = await callTool(url, tokens.alice, "spec_patch", { ...request, requestId: "create-spec-1" });
+    assert.equal(first.isError, true);
+    assert.equal(first.structuredContent.data.outcome, "REFUSED");
+    assert.equal(first.structuredContent.data.error.code, "ELICITATION_REQUIRED");
+    assert.equal(
+      await git(bare, ["for-each-ref", "--format=%(refname) %(objectname)", "refs/heads"]),
+      remoteRefsBefore,
+      "a refused first write must not create or move a remote branch",
+    );
+    assert.deepEqual(branchEvents(), branchEventsBefore, "a refused first write must not register branch creation");
+
+    const retried = await callTool(url, tokens.alice, "spec_patch", { ...request, requestId: "create-spec-2" });
     if (retried.isError) assert.fail(JSON.stringify(retried.structuredContent ?? {}).slice(0, 1500));
     assert.equal(retried.isError, false, JSON.stringify(retried.structuredContent ?? {}).slice(0, 1500));
     assert.equal(retried.structuredContent.data.outcome, "APPLIED");
@@ -315,6 +367,41 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     const metadata = JSON.parse(await git(bare, ["show", "spec-created-spec:.spec-kit.json"]));
     assert.equal(metadata.project, "stgmt/alpha");
     assert.equal(metadata.spec, "created-spec");
+    assert.match(await git(bare, ["show", "spec-created-spec:.specs/created-spec/README.md"]), /# Created Spec/u);
+    assert.equal(branchEvents().length, branchEventsBefore.length + 1);
+  });
+
+  it("rolls back an unpublished createSpec on push failure and retries the same requestId", async () => {
+    const { bare, service, projectRoot, url, tokens } = await setup();
+    const localMarker = path.join(projectRoot, "LOCAL-ONLY.txt");
+    await writeFile(localMarker, "keep local content\n");
+    const branchEvents = () => service.store.listAccess({ resultPrefix: "", limit: 1000 })
+      .filter((entry) => entry.op === "spec-branch-create" && entry.spec === "retry-spec");
+    const branchEventsBefore = branchEvents();
+    const args = {
+      intent: "createSpec",
+      spec: "retry-spec",
+      title: "Retry Spec",
+      reason: "branch push retry",
+      dryRun: false,
+      requestId: "create-spec-push-retry",
+    };
+
+    const refused = await callTool(url, tokens.alice, "spec_patch", args);
+    assert.equal(refused.structuredContent.data.outcome, "REFUSED");
+    assert.equal(refused.structuredContent.data.error.code, "ELICITATION_REQUIRED");
+    await rm(bare, { recursive: true, force: true });
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const result = await callTool(url, tokens.alice, "spec_patch", args);
+      assert.equal(result.isError, true);
+      assert.equal(result.structuredContent.error.code, "INTERNAL_ERROR");
+      assert.equal(result.structuredContent.error.causeCode, "GIT_PUSH_FAILED");
+      assert.notEqual(result.structuredContent.data?.outcome, "APPLIED");
+      await assert.rejects(readFile(path.join(projectRoot, ".specs", "retry-spec", "README.md")), { code: "ENOENT" });
+      assert.equal(await readFile(localMarker, "utf8"), "keep local content\n");
+      assert.deepEqual(branchEvents(), branchEventsBefore);
+    }
   });
 
   it("reports a push failure as retryable and keeps the commit on the clone", async () => {

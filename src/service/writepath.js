@@ -2,6 +2,11 @@ import { cp, rm } from "node:fs/promises";
 import path from "node:path";
 import { commitMessage } from "./git.js";
 import { reconcileClone } from "./sync.js";
+import { taskLocalId } from "../authoring/task-ops.js";
+import { preflightTeamTaskWrites } from "./team-task-writes.js";
+import { isValidSpecSlug } from "../kernel/identity.js";
+import { CREATION_TOKEN_RE, parseTaskCreationMarker } from "../kernel/task-creation-marker.js";
+import { parseMarkdownDocument } from "../kernel/parsers/markdown.js";
 
 function errorEnvelope(operation, requestId, code, message, extra = {}) {
   return {
@@ -41,6 +46,15 @@ function errorEnvelope(operation, requestId, code, message, extra = {}) {
     provenance: null,
   };
 }
+async function releaseDeletedTeamTaskBindings({ store, bindings, logger }) {
+  if (!Array.isArray(bindings) || bindings.length === 0) return;
+  try {
+    await store.applyTeamSpecsTaskBindings({ action: "unlink", bindings });
+  } catch (error) {
+    logger(`could not release deleted team task bindings: ${String(error?.message ?? error)}`);
+  }
+}
+
 
 function shortHash(hash) {
   return typeof hash === "string" && hash.length > 0 ? hash.slice(0, 12) : "patch";
@@ -85,11 +99,17 @@ async function foreignAuthors({ git, cwd, branch, identity }) {
  * the caller only after the push is confirmed (FR-5); a failed push leaves
  * the clone ahead of remote for retry/boot reconciliation.
  */
-export function createWritePipeline({ mounts, claims, identity, logger = () => {}, publish = null, projection = null, branchManager = null }) {
+export function createWritePipeline({ mounts, claims, identity, store = null, logger = () => {}, publish = null, projection = null, branchManager = null }) {
   return {
     async specPatch({ args, ctx, project, force, requestId, schemaVersion }) {
       const spec = typeof args.spec === "string" ? args.spec : null;
       const holder = ctx.identity.login;
+      const confirming = args.intent === "confirmTaskCreation";
+      if (confirming && (args.dryRun !== true || !spec || !isValidSpecSlug(spec) ||
+          taskLocalId(args.entity) === null || typeof args.creationToken !== "string" ||
+          !CREATION_TOKEN_RE.test(args.creationToken))) {
+        return { envelope: errorEnvelope("specPatch", requestId, "INVALID_REQUEST", "invalid task creation confirmation request") };
+      }
       if (args.dryRun !== true && spec) {
         const held = claims.get(project, spec);
         if (held && held.holder !== holder && force !== true) {
@@ -106,7 +126,7 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
         }
       }
 
-      const release = args.dryRun === true ? () => {} : await mounts.acquireWriteLock(project);
+      const release = args.dryRun === true && !confirming ? () => {} : await mounts.acquireWriteLock(project);
       let envelope;
       try {
         if (args.dryRun !== true && typeof mounts.migrating === "function" && mounts.migrating(project)) {
@@ -119,15 +139,18 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
         };
       }
 
+      // A createSpec write can be refused by the authoring gate. Bootstrap its
+      // missing canonical branch only after the authoring transaction applies.
+      let createCanonicalAfterApply = false;
       let worktree = null;
       if (spec !== null) {
         try {
           worktree = await mounts.worktreeFor(project, spec);
         } catch (error) {
-          if (error?.code === "SPEC_BRANCH_MISSING" && args.intent === "createSpec" && branchManager) {
-            const created = await branchManager.ensureCanonical({ project, spec, requestId, login: holder });
-            if (!created.ok && created.error?.code !== "SPEC_EXISTS") return { envelope: created };
-            worktree = await mounts.worktreeFor(project, spec);
+          if (error?.code === "SPEC_BRANCH_MISSING" && args.intent === "createSpec" && args.dryRun === true) {
+            // A preview needs the project projection, not a new canonical branch.
+          } else if (error?.code === "SPEC_BRANCH_MISSING" && args.intent === "createSpec" && branchManager) {
+            createCanonicalAfterApply = true;
           } else {
             return {
               envelope: errorEnvelope("specPatch", requestId, error?.code ?? "INTERNAL_ERROR", String(error?.message ?? error), {
@@ -139,13 +162,140 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
           }
         }
       }
+      if (confirming) {
+        try {
+          const { git, cwd, branch } = worktree;
+          await git.fetch({ cwd });
+          const remoteCommit = await git.revParse(`refs/remotes/origin/${branch}`, { cwd });
+          const documentPath = `.specs/${spec}/TASKS.md`;
+          const { stdout } = await git.run(["ls-tree", "-z", "--full-tree", remoteCommit, "--", documentPath], { cwd });
+          const entries = stdout.split("\0").filter(Boolean);
+          if (entries.length === 0) {
+            return { envelope: {
+              schemaVersion: "spec-kernel@2", requestId: requestId ?? null, operation: "specPatch",
+              ok: true, graph: null, page: null, data: { outcome: "UNKNOWN" },
+              error: null, diagnostics: [], provenance: null,
+            } };
+          }
+          if (entries.length !== 1) throw new Error("authoritative task document path is ambiguous");
+          const separator = entries[0].indexOf("\t");
+          const [mode, type] = entries[0].slice(0, separator).split(" ");
+          const entryPath = entries[0].slice(separator + 1);
+          if (separator < 0 || entryPath !== documentPath || type !== "blob" || !["100644", "100755"].includes(mode)) {
+            throw new Error("authoritative task document is not a regular file");
+          }
+          const rawText = await git.show(remoteCommit, documentPath, { cwd });
+          const text = rawText.replace(/^\uFEFF/u, "").replace(/\r\n?/gu, "\n");
+          const parsed = parseMarkdownDocument({ path: "TASKS.md", documentKind: "TASKS", text });
+          const matches = parsed.definitions.filter((node) => node.role === "TASK" && node.localId === taskLocalId(args.entity));
+          const confirmed = matches.length === 1 && parseTaskCreationMarker(matches[0].bodyText) === args.creationToken;
+          return { envelope: {
+            schemaVersion: "spec-kernel@2", requestId: requestId ?? null, operation: "specPatch",
+            ok: true, graph: null, page: null, data: { outcome: confirmed ? "CONFIRMED" : "UNKNOWN" },
+            error: null, diagnostics: [], provenance: null,
+          } };
+        } catch {
+          return { envelope: errorEnvelope("specPatch", requestId, "INTERNAL_ERROR", "could not verify the authoritative specification branch", {
+            retryable: true, causeCode: "REMOTE_VERIFICATION_FAILED", specSlug: spec,
+          }) };
+        }
+      }
       const root = spec === null ? null : await mounts.projectRoot(project);
-      envelope = await mounts.serviceFor(project).runQuery("specPatch", args, { requestId, schemaVersion });
+      const authoringService = mounts.serviceFor(project);
+      let teamTaskPlan = { binds: [], deletes: [] };
+      try {
+        teamTaskPlan = await preflightTeamTaskWrites({ args, ctx, project, store, authoringService });
+      } catch (error) {
+        return {
+          envelope: errorEnvelope("specPatch", requestId, error?.code ?? "TEAM_TASK_PREFLIGHT_FAILED", String(error?.message ?? error), {
+            specSlug: spec,
+            causeCode: error?.code ?? null,
+          }),
+        };
+      }
+      envelope = await authoringService.runQuery("specPatch", args, { requestId, schemaVersion, actor: holder });
       if (!(envelope.ok && envelope.data?.outcome === "APPLIED")) return { envelope };
+      const receipt = envelope.data.receipt ?? {};
+      if (teamTaskPlan.binds.length > 0) {
+        try {
+          await store.applyTeamSpecsTaskBindings({ action: "bind", bindings: teamTaskPlan.binds });
+        } catch (error) {
+          const rollback = await authoringService.rollbackApplied(requestId, receipt.proposalHash).catch(() => null);
+          if (rollback?.ok) {
+            return {
+              envelope: errorEnvelope("specPatch", requestId, error?.code ?? "TEAM_TASK_BINDING_FAILED", String(error?.message ?? error), {
+                specSlug: spec,
+                causeCode: error?.code ?? null,
+              }),
+            };
+          }
+          return {
+            envelope: errorEnvelope("specPatch", requestId, "TEAM_TASK_BINDING_ROLLBACK_FAILED", "the applied team task could not be registered and its content could not be rolled back", {
+              specSlug: spec,
+              causeCode: error?.code ?? "TEAM_TASK_BINDING_FAILED",
+              rollbackCode: rollback?.code ?? "ROLLBACK_UNAVAILABLE",
+            }),
+          };
+        }
+      }
+      if (createCanonicalAfterApply) {
+        const rollbackUnpublishedCreate = async () => {
+          const rollback = await authoringService.rollbackApplied(requestId, receipt.proposalHash).catch(() => null);
+          if (rollback?.ok) return null;
+          return errorEnvelope(
+            "specPatch",
+            requestId,
+            "INTERNAL_ERROR",
+            "the unpublished createSpec could not be rolled back without overwriting local changes",
+            {
+              retryable: false,
+              causeCode: "CREATE_SPEC_ROLLBACK_FAILED",
+              rollbackCode: rollback?.code ?? "ROLLBACK_UNAVAILABLE",
+              specSlug: spec,
+            },
+          );
+        };
+        let created;
+        try {
+          created = await branchManager.ensureCanonical({
+            project,
+            spec,
+            requestId,
+            login: holder,
+            initialSpecRoot: root,
+            initialCommitMessage: commitMessage({
+              subject: `spec(${project}): apply ${short(receipt.proposalHash)}`,
+              trailers: {
+                "Spec-Author": holder,
+                "Spec-Request-Id": String(requestId ?? ""),
+              },
+            }),
+          });
+        } catch {
+          const rollbackFailure = await rollbackUnpublishedCreate();
+          if (rollbackFailure) return { envelope: rollbackFailure };
+          return {
+            envelope: errorEnvelope("specPatch", requestId, "INTERNAL_ERROR", "could not publish the new specification branch", {
+              retryable: true,
+              causeCode: "GIT_PUSH_FAILED",
+              specSlug: spec,
+            }),
+          };
+        }
+        if (!created.ok) {
+          const rollbackFailure = await rollbackUnpublishedCreate();
+          return { envelope: rollbackFailure ?? created };
+        }
+        logger(`pushed ${project} ${short(receipt.proposalHash)}`);
+        await publish?.publishSpec(project, spec).then((result) => {
+          if (result?.outcome === "published" || result?.outcome === "adopted") logger(`published ${result.spec}@${result.version}`);
+          if (result?.outcome === "rejected") logger(`publish rejected ${result.spec}: ${result.code}`);
+          if (result?.outcome === "skipped") logger(`publish skipped ${result.spec}: ${result.reason}`);
+        }).catch((publishError) => logger(`publish after write failed for ${project}/${spec}: ${publishError.message}`));
+        return { envelope };
+      }
       if (worktree === null) return { envelope };
       const { git, cwd, branch } = worktree;
-
-      const receipt = envelope.data.receipt ?? {};
       const pushBotCommits = async () => {
         const foreign = await foreignAuthors({ git, cwd, branch, identity });
         if (foreign.length > 0) {
@@ -172,6 +322,7 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
           cwd,
         });
         await pushBotCommits();
+        await releaseDeletedTeamTaskBindings({ store, bindings: teamTaskPlan.deletes, logger });
         logger(`pushed ${project} ${short(receipt.proposalHash)}`);
         await mounts.refreshProject?.(project);
         // Publish is post-confirmation work (FR-11): the write already
@@ -213,6 +364,7 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
           });
         if (recovered === true) {
           logger(`pushed ${project} ${short(receipt.proposalHash)} after reconcile`);
+          await releaseDeletedTeamTaskBindings({ store, bindings: teamTaskPlan.deletes, logger });
           await mounts.refreshProject?.(project);
           await publish?.publishSpec(project, spec).then((result) => {
             if (result?.outcome === "published" || result?.outcome === "adopted") logger(`published ${result.spec}@${result.version}`);
