@@ -169,4 +169,34 @@ describe("operation field ownership", () => {
     assert.equal(clean.ok, true);
     assert.equal(taskField.ok, false);
   });
+
+  it("refuses a link or verdict handed to a document or creation operation", async () => {
+    const { validateContractArguments, TOOL_CONTRACTS } = await import(
+      "../src/adapters/tool-contracts.js"
+    );
+    const contract = TOOL_CONTRACTS.find((entry) => entry.tool === "spec_patch");
+    const base = { intent: "patch", spec: "demo", reason: "r", requestId: "req" };
+    const result = (operations) =>
+      validateContractArguments(contract, { ...base, operations }).ok;
+    assert.equal(
+      result([{ kind: "insert_at_eof", document: "TASKS.md", text: "x", refs: ["TASK-1"] }]),
+      false
+    );
+    assert.equal(
+      result([{ kind: "insert_at_eof", document: "TASKS.md", text: "x", review: "approved" }]),
+      false
+    );
+    assert.equal(
+      result([
+        { kind: "create_task", document: "TASKS.md", entity: "TASK-9", subject: "s", dependsOn: ["TASK-1"] },
+      ]),
+      false
+    );
+    assert.equal(
+      result([
+        { kind: "create_task", document: "TASKS.md", entity: "TASK-9", subject: "s", requirements: ["FR-1"] },
+      ]),
+      true
+    );
+  });
 });

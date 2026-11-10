@@ -286,6 +286,15 @@ export const TABLE_REFERENCE_DOCUMENT_KINDS = Object.freeze([
   "FILE_CHANGES",
 ]);
 
+// Review verdicts a canonical task may carry. One list, so the parser, the
+// query layer and the tool contract cannot drift apart.
+export const TASK_REVIEW_VALUES = Object.freeze([
+  "none",
+  "requested",
+  "approved",
+  "changes-requested",
+]);
+
 export const TASK_STATUSES = Object.freeze([
   "planned",
   "todo",

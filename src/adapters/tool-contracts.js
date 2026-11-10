@@ -10,6 +10,7 @@ import {
   ENTITY_TYPE_DESCRIPTORS,
   LINK_OUTCOMES,
   NODE_KINDS,
+  TASK_REVIEW_VALUES,
 } from "../kernel/types.js";
 import {
   ELICITATION_HINT,
@@ -65,7 +66,7 @@ export const VERIFICATION_METHOD_VALUES = Object.freeze([
 export const SAFETY_CLASS_VALUES = Object.freeze(["critical", "major", "minor"]);
 export const DELIVERY_VALUES = Object.freeze(["NOT_DECLARED", "DELIVERED", "INCOMPLETE"]);
 export const SPEC_STATUS_VALUES = Object.freeze(["active", "backlog"]);
-export const TASK_REVIEW_VALUES = Object.freeze(["none", "requested", "approved", "changes-requested"]);
+export { TASK_REVIEW_VALUES };
 export const READINESS_VIEW_VALUES = Object.freeze(["status", "summary", "counts", "coverage"]);
 
 export const PATCH_OPERATION_KINDS = Object.freeze([
@@ -782,6 +783,9 @@ const TASK_ONLY_FIELDS = Object.freeze([
   "subject",
   "requirements",
   "creationToken",
+  "review",
+  "refs",
+  "dependsOn",
 ]);
 const TASK_OPERATION_KINDS = Object.freeze([
   "create_task",
@@ -821,6 +825,11 @@ function validateOperationObject(op) {
         typeof op.entity === "string" &&
         typeof op.subject === "string" &&
         op.subject.trim() !== "" &&
+        // Creation writes requirements, owner, status and description only; a
+        // link or verdict handed to it would be accepted and then dropped.
+        op.review === undefined &&
+        op.refs === undefined &&
+        op.dependsOn === undefined &&
         (op.owner === undefined || op.owner === null || typeof op.owner === "string") &&
         (op.description === undefined || typeof op.description === "string") &&
         (op.status === undefined || TASK_STATUS_VALUES.includes(op.status)) &&

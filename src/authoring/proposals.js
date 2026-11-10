@@ -28,6 +28,7 @@ const MAX_DIFF_BYTES = 64 * 1024;
 const DEFINITION_INTEGRITY_DIAGNOSTIC_CODES = new Set([
   "INVALID_LOCAL_ID",
   "MALFORMED_HEADING",
+  "FORBIDDEN_EDGE_ENDPOINT",
   "DUPLICATE_DEFINITION",
   // A reference the write itself introduces must resolve in the same corpus;
   // otherwise "FR-999" would be written now and only fail a later validation.
@@ -933,6 +934,37 @@ export class ProposalCompiler {
     // so the guard and the edge builder cannot disagree about what a link is.
     const REFERENCE_FIELD_LINE =
       /^ {0,3}(?:[-*][ \t]+)?(?:\*\*)?(Refs|Related|Covers|Implements|Depends On|Requirements)(?:\*\*)?[ \t]*:[ \t]*(?:\*\*)?(.+)$/u;
+    const ownLocalIds = new Set(localIdsBySpec.get(spec) ?? []);
+    // A proposal may define what it references in the same call (add an FR and
+    // a task that implements it). Those ids are not in the pre-write snapshot,
+    // so they are collected from the operations themselves.
+    const HEADING_LOCAL_ID = /^##\s+([^\s:]+)/u;
+    for (const rawOperation of rawOperations) {
+      if (!rawOperation) continue;
+      if (typeof rawOperation.entity === "string" && rawOperation.entity.trim() !== "")
+        ownLocalIds.add(rawOperation.entity.trim());
+      for (const field of [rawOperation.text, rawOperation.content, rawOperation.newText]) {
+        if (typeof field !== "string") continue;
+        for (const line of field.split(/\r?\n/u)) {
+          const heading = line.match(HEADING_LOCAL_ID);
+          if (heading) ownLocalIds.add(heading[1]);
+        }
+      }
+    }
+    // Lines already present in the document are not this write's business: an
+    // old dangling reference must not block an unrelated edit of the same file.
+    const currentDocumentLines = new Map();
+    const existingLinesOf = async (document) => {
+      if (typeof document !== "string" || document === "") return null;
+      if (currentDocumentLines.has(document)) return currentDocumentLines.get(document);
+      const read = await readDocumentBytes(this.root, spec, document);
+      const lines =
+        read && read.ok !== false && read.bytes
+          ? new Set(Buffer.from(read.bytes).toString("utf8").split(/\r?\n/u))
+          : null;
+      currentDocumentLines.set(document, lines);
+      return lines;
+    };
     const writtenTargets = new Set();
     const addTarget = (value) => {
       if (typeof value !== "string") return;
@@ -951,20 +983,27 @@ export class ProposalCompiler {
         if (Array.isArray(value)) for (const entry of value) addTarget(entry);
         else if (typeof value === "string") addTarget(value);
       }
+      const existingLines = await existingLinesOf(rawOperation.document);
       for (const field of [rawOperation.text, rawOperation.content, rawOperation.newText]) {
         if (typeof field !== "string") continue;
         // Fenced content is sample code and documentation, not corpus edges:
         // the kernel skips it when it builds references, and a guard that read
-        // it would refuse legitimate examples.
-        let inFence = false;
+        // it would refuse legitimate examples. Fences close only with the same
+        // character, at least as long as the opener.
+        let fence = null;
         for (const line of field.split(/\r?\n/u)) {
-          if (/^\s{0,3}(?:```|~~~)/u.test(line)) {
-            inFence = !inFence;
+          const marker = /^ {0,3}(`{3,}|~{3,})/u.exec(line);
+          if (fence === null) {
+            if (marker) {
+              fence = { char: marker[1][0], length: marker[1].length };
+              continue;
+            }
+            if (existingLines?.has(line)) continue;
+            const match = line.match(REFERENCE_FIELD_LINE);
+            if (match) addTarget(match[2]);
             continue;
           }
-          if (inFence) continue;
-          const match = line.match(REFERENCE_FIELD_LINE);
-          if (match) addTarget(match[2]);
+          if (marker && marker[1][0] === fence.char && marker[1].length >= fence.length) fence = null;
         }
       }
     }
@@ -973,11 +1012,12 @@ export class ProposalCompiler {
     // reaches a reference line.
     if (typeof input.requirement === "string" && input.requirement.trim())
       addTarget(input.requirement.trim());
-    const ownLocalIds = localIdsBySpec.get(spec) ?? new Set();
     const dangling = [];
     for (const target of writtenTargets) {
       if (canonicalIds.has(target) || ownLocalIds.has(target)) continue;
       if (target.includes(":")) {
+        const [targetSpec, targetLocalId] = target.split(":", 2);
+        if (targetSpec === spec && ownLocalIds.has(targetLocalId)) continue;
         dangling.push({ target, reason: "MISSING" });
         continue;
       }

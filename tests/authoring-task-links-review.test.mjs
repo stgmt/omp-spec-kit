@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
@@ -96,7 +96,7 @@ describe("task links and review state", () => {
     });
     assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
     const diff = result.data.operations?.map((entry) => entry.diff ?? "").join("\n") ?? "";
-    assert.match(diff, /\*\*Refs:\*\*/u);
+    assert.match(diff, new RegExp(`\\*\\*Refs:\\*\\* ${tasks[1].localId}`, "u"));
   });
 
   it("stores review state and links on an existing task", async () => {
@@ -143,7 +143,8 @@ describe("task links and review state", () => {
     const entry = listed.data.tasks.find((item) => item.localId === task.localId);
     assert.equal(entry.review, "approved");
     assert.equal(entry.owner, "agent-x");
-    if (other) assert.deepEqual(entry.links, [other.localId]);
+    assert.ok(other, "fixture corpus must carry a second task");
+    assert.deepEqual(entry.links, [other.canonicalId]);
   });
 });
 
@@ -203,6 +204,69 @@ describe("design-level reference integrity", () => {
       ],
     });
     assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
+  });
+
+
+  it("accepts a reference to an entity the same proposal defines", async () => {
+    const result = await serviceAt(tempRoot).execute({
+      requestId: "refs-batch",
+      intent: "patch",
+      spec: "spec-mcp-access-gate",
+      reason: "define and link",
+      dryRun: true,
+      operations: [
+        { kind: "insert_at_eof", document: "FR.md", text: "\n## FR-50 — Probe requirement\n" },
+        {
+          kind: "insert_at_eof",
+          document: "TASKS.md",
+          text: "\n## TASK-96 — Probe task\n\n- **Status:** todo\n- **Requirements:** FR-50\n",
+        },
+      ],
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
+  });
+
+  it("does not refuse an edit that leaves an older dangling reference untouched", async () => {
+    const tasksPath = path.join(tempRoot, specsDirName, "spec-mcp-access-gate", "TASKS.md");
+    const original = await readFile(tasksPath, "utf8");
+    await writeFile(tasksPath, `${original}\n## TASK-90 — Legacy\n\n- **Status:** todo\n- **Refs:** TASK-777\n`);
+    const result = await serviceAt(tempRoot).execute({
+      requestId: "refs-legacy",
+      intent: "patch",
+      spec: "spec-mcp-access-gate",
+      reason: "rename only",
+      dryRun: true,
+      operations: [
+        {
+          kind: "replace_document",
+          document: "TASKS.md",
+          content: `${original}\n## TASK-90 — Legacy renamed\n\n- **Status:** todo\n- **Refs:** TASK-777\n`,
+        },
+      ],
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
+  });
+
+  it("refuses a link type the endpoint matrix forbids", async () => {
+    const graph = await graphAt(tempRoot);
+    const task = graph.nodes.find(
+      (node) => node.kind === "TASK" && node.specSlug === "spec-mcp-access-gate"
+    );
+    const requirement = graph.nodes.find(
+      (node) => node.kind === "FUNCTIONAL_REQUIREMENT" && node.specSlug === "spec-mcp-access-gate"
+    );
+    assert.ok(task && requirement);
+    const result = await serviceAt(tempRoot).execute({
+      requestId: "refs-endpoint",
+      intent: "updateTask",
+      spec: "spec-mcp-access-gate",
+      reason: "bad edge",
+      dryRun: true,
+      entity: task.localId,
+      dependsOn: [requirement.localId],
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, "VALIDATION_FAILED");
   });
 
   it("refuses a design entity that exists nowhere", async () => {

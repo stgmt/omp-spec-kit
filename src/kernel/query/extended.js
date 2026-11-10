@@ -2,6 +2,7 @@ import {
   DIAGNOSTIC_SEVERITIES,
   EDGE_TYPES,
   NODE_KINDS,
+  TASK_REVIEW_VALUES,
   TASK_STATUSES,
 } from "../types.js";
 import { isValidSpecSlug } from "../identity.js";
@@ -91,7 +92,9 @@ function taskLinks(graph, canonicalId) {
     if (edge.from !== canonicalId) continue;
     if (edge.type !== "REFS" && edge.type !== "DEPENDS_ON") continue;
     const target = graph.nodes.find((node) => node.canonicalId === edge.to);
-    if (target?.kind === "TASK") links.add(target.localId ?? target.canonicalId);
+    // Canonical ids keep the spec qualifier: a bare local id would silently
+    // point at this spec's own task when the link is cross-spec.
+    if (target?.kind === "TASK") links.add(target.canonicalId);
   }
   return [...links].sort();
 }
@@ -100,7 +103,7 @@ function taskReview(task) {
   const raw = task.attributes?.review;
   if (typeof raw !== "string") return "none";
   const normalized = raw.trim().toLowerCase();
-  return ["requested", "approved", "changes-requested"].includes(normalized) ? normalized : "none";
+  return TASK_REVIEW_VALUES.includes(normalized) ? normalized : "none";
 }
 
 function taskStatus(task) {
