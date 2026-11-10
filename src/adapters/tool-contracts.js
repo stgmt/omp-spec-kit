@@ -784,7 +784,13 @@ const TASK_ONLY_FIELDS = Object.freeze([
   "requirements",
   "creationToken",
 ]);
-const TASK_OPERATION_KINDS = Object.freeze(["create_task", "update_task", "replace_task_status"]);
+const TASK_OPERATION_KINDS = Object.freeze([
+  "create_task",
+  "update_task",
+  "replace_task_status",
+  "replace_task_owner",
+  "replace_task_links",
+]);
 
 function validateOperationObject(op) {
   if (op === null || typeof op !== "object" || Array.isArray(op)) return false;
