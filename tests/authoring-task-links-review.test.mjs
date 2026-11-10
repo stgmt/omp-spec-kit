@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { SpecPatchService } from "../src/authoring/service.js";
 import { readRepositorySpecs } from "../src/kernel/adapters/fs.js";
 import { buildKernelGraph } from "../src/kernel/graph/build.js";
+import { executeExtendedQuery } from "../src/kernel/query/extended.js";
 
 const repositoryRoot = process.cwd();
 const specsDirName = "." + "specs";
@@ -121,5 +122,25 @@ describe("task links and review state", () => {
     assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
     const diff = result.data.operations?.map((entry) => entry.diff ?? "").join("\n") ?? "";
     assert.match(diff, /\*\*Review:\*\* approved/u);
+    assert.doesNotMatch(diff, /^\+.*\*\*Refs:\*\* $/mu);
+
+    // The listing must expose what was written: a review verdict and a link.
+    const applied = await serviceAt(tempRoot).execute({
+      requestId: "links-5",
+      intent: "updateTask",
+      spec: "spec-mcp-access-gate",
+      reason: "links",
+      dryRun: false,
+      entity: task.localId,
+      review: "approved",
+      refs: other ? [other.localId] : [],
+    });
+    assert.equal(applied.ok, true, JSON.stringify(applied.error ?? {}).slice(0, 300));
+    const listed = executeExtendedQuery(await graphAt(tempRoot), "listTasks", {
+      spec: "spec-mcp-access-gate",
+    });
+    const entry = listed.data.tasks.find((item) => item.localId === task.localId);
+    assert.equal(entry.review, "approved");
+    if (other) assert.deepEqual(entry.links, [other.localId]);
   });
 });
