@@ -21,7 +21,13 @@ export const DEFAULT_LIMITS = Object.freeze({
   maxTraceVisited: 5000,
   maxSearchScalars: 256,
   maxCursorBytes: 512,
-  maxResponseBytes: 1024 * 1024,
+  // One serialized query response. The frozen kernel spec snapshot
+  // (tests/fixtures/kernel/real-corpus/.specs/spec-kernel/NFR.md) records 1 MiB
+  // as the hard maximum; the tracker projection reads a complete board for a
+  // 17-spec corpus (1523 nodes, 2289 edges) that exceeds it, so the operator
+  // stack had no working projection. 8 MiB keeps ~5x headroom over the
+  // measured board while staying inside the NFR-MEM-1 memory budget.
+  maxResponseBytes: 8 * 1024 * 1024,
 });
 
 export const LIMIT_NAMES = Object.freeze(Object.keys(DEFAULT_LIMITS));

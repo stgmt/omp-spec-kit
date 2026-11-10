@@ -378,7 +378,7 @@ export function createRepoManager({ mounts, store, config, identity, secretsKey,
       await store?.putCredential?.(project, { repoUrl: cleanRepoUrl, tokenEnc: sealSecret(secretsKey, token), username: auth.username ?? null });
       await put("active");
       phase({ phase: "materialising", message: "checking out the corpus" });
-      await mounts.projectRoot(project);
+      await mounts.projectRoot(project, { fetch: true });
       // The binding change bypasses the write pipeline — the tracker
       // projection must be told explicitly or bound specs wait for the next
       // unrelated trigger before their cards exist.

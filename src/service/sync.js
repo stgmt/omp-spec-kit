@@ -1,4 +1,27 @@
 import { computeDrift, worktreeDrift } from "./drift.js";
+import { createRemoteRefsProbe, sameRefs } from "./remote-refs.js";
+
+/**
+ * The cheap gate of one cycle: true when the remote's `spec-*` tips still
+ * equal the mirror's, so no fetch, no binding read and no drift check can find
+ * anything. An unavailable probe (not GitHub, no credential, API failure) is
+ * never "unchanged" — the caller must fall back to the ordinary path.
+ */
+export async function remoteUnchanged({ mounts, remoteRefs, projectId, mount }) {
+  let auth;
+  try {
+    auth = mounts.authFor(projectId, mount.repoUrl);
+  } catch {
+    return false;
+  }
+  const probe = await remoteRefs.probe(mount.repoUrl, auth);
+  if (!probe.supported) return false;
+  try {
+    return sameRefs(probe.refs, await mounts.mirrorSpecRefs(mount));
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Reconcile the clone with the remote (FR-5/FR-10/FR-16): fetch, fast-forward
@@ -43,14 +66,30 @@ export async function reconcileClone({ git, cwd, branch, identity, logger = () =
  * otherwise. Reconciles coalesce: an interval shorter than one reconcile must
  * not pile up git work behind the queue.
  */
-export function startSync({ mounts, identity, intervalMs = 30_000, logger = () => {}, afterReconcile = null }) {
+export function startSync({ mounts, identity, intervalMs = 300_000, logger = () => {}, afterReconcile = null, remoteRefs = createRemoteRefsProbe({ logger }) }) {
   async function reconcileOnce() {
     const events = [];
     let moved = false;
+    let skipped = 0;
     for (const projectId of mounts.projects) {
-      let mount, bindings, invalid;
+      let mount;
       try {
-        ({ mount, bindings, invalid } = await mounts.discoverProject(projectId));
+        mount = mounts.readableRepo(projectId);
+      } catch (error) {
+        if (error?.code === "REPO_BINDING_REQUIRED") continue;
+        events.push({ kind: "repo-unreachable", project: projectId, detail: String(error?.message ?? error).split("\n")[0], detectedAt: new Date().toISOString() });
+        logger(`sync: ${projectId} unreachable: ${String(error?.message ?? error).split("\n")[0]}`);
+        continue;
+      }
+      // Quiet cycle: the remote's tips still match the mirror, so nothing below
+      // (fetch, `.spec-kit.json` reads, drift, corpus rebuild) can find a change.
+      if (await remoteUnchanged({ mounts, remoteRefs, projectId, mount })) {
+        skipped += 1;
+        continue;
+      }
+      let bindings, invalid;
+      try {
+        ({ mount, bindings, invalid } = await mounts.discoverProject(projectId, { fetch: true }));
       } catch (error) {
         if (error?.code === "REPO_BINDING_REQUIRED") continue;
         events.push({ kind: "repo-unreachable", project: projectId, detail: String(error?.message ?? error).split("\n")[0], detectedAt: new Date().toISOString() });
@@ -97,7 +136,8 @@ export function startSync({ mounts, identity, intervalMs = 30_000, logger = () =
       // Accepted remote commits may carry ACTIVE transitions — publish them.
       await afterReconcile?.().catch((error) => logger(`publish after reconcile failed: ${error.message}`));
     }
-    return { events };
+    if (skipped > 0) logger(`sync: ${skipped}/${mounts.projects.length} project(s) unchanged — no fetch`);
+    return { events, skipped };
   }
 
   let inFlight = null;
@@ -106,7 +146,7 @@ export function startSync({ mounts, identity, intervalMs = 30_000, logger = () =
     inFlight = reconcileOnce()
       .catch((error) => {
         logger(`sync failed: ${error.message}`);
-        return { events: [] };
+        return { events: [], skipped: 0 };
       })
       .finally(() => {
         inFlight = null;

@@ -30,7 +30,10 @@ ENV SPEC_REGISTRY_HOST=0.0.0.0 \
 
 EXPOSE 8642
 
-HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=6 \
+# A healthcheck starts a fresh Node process: measured ~1.4 CPU-seconds on this
+# image (mostly startup), so a 10s interval burned ~14% of a core for a service
+# that was otherwise idle. 30s still detects a dead service quickly.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:' + (process.env.SPEC_REGISTRY_PORT ?? 8642) + '/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
 CMD ["node", "--experimental-sqlite", "src/service/index.js"]

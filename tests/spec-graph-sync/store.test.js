@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createHmac } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
+import { gunzipSync } from "node:zlib";
 import {
   YouTrackProjectionStore,
   YouTrackSyncStateStore,
@@ -211,8 +212,11 @@ describe("YouTrackSyncStateStore marker integrity", () => {
   it("refuses a marker YouTrack would truncate", async () => {
     const client = fakeClient({ issues: [] });
     const oversized = plan();
+    // Incompressible payload: SHA-256 hex has no exploitable repetition, so
+    // gzip cannot rescue a genuinely oversized board.
+    const noise = Array.from({ length: 24_000 }, (_, index) => createHash("sha256").update(String(index)).digest("hex")).join("");
     oversized.snapshot = {
-      nodes: [{ canonicalId: "demo:TASK-1", kind: "TASK", title: "x".repeat(600_000) }],
+      nodes: [{ canonicalId: "demo:TASK-1", kind: "TASK", title: noise }],
       edges: [],
     };
     await assert.rejects(
@@ -224,6 +228,36 @@ describe("YouTrackSyncStateStore marker integrity", () => {
       0,
       "a rejected marker must not reach the pointer issue",
     );
+  });
+
+  it("compresses an oversized snapshot instead of dropping content", async () => {
+    const client = fakeClient({ issues: [] });
+    const wide = plan();
+    wide.snapshot = {
+      nodes: Array.from({ length: 1600 }, (_, index) => ({
+        canonicalId: `demo:TASK-${index}`,
+        kind: "TASK",
+        key: `stgmt/demo::demo:TASK-${index}`,
+        project: "stgmt/demo",
+        specSlug: "demo",
+        localId: `TASK-${index}`,
+        title: `Task ${index}`,
+        excerpt: "x".repeat(200),
+        taskStatus: null,
+      })),
+      edges: [],
+    };
+    await store(client).publishCommitted(wide, { cardIds: {} });
+    const create = client.calls.find((call) => call[0] === "POST" && call[1] === "/api/issues?fields=id,idReadable");
+    assert.ok(create, "the marker must be published");
+    assert.ok(create[2].description.length <= 500_000, "the description must fit YouTrack");
+    const marker = JSON.parse(create[2].description.slice("SPEC-SYNC-STATE\n".length));
+    assert.equal(marker.snapshot, undefined, "an oversized board travels compressed, not truncated");
+    const decoded = JSON.parse(gunzipSync(Buffer.from(marker.snapshotGz, "base64")).toString("utf8"));
+    assert.equal(decoded.nodes.length, 1600, "identity survives compression");
+    assert.equal(decoded.nodes[0].excerpt.length, 200, "full excerpts survive compression");
+    const { signature, ...unsigned } = marker;
+    assert.equal(signature, createHmac("sha256", MARKER_SECRET).update(stableJson(unsigned), "utf8").digest("hex"));
   });
 
   it("publishCommitted defaults to a complete marker when options are omitted", async () => {

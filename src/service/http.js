@@ -1,4 +1,5 @@
 import express from "express";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, InitializeRequestSchema, ListToolsRequestSchema, PingRequestSchema } from "@modelcontextprotocol/sdk/types.js";
@@ -13,13 +14,56 @@ import { scopeFromContext, requireScope } from "./scope.js";
  * reach the kernel. Auth failures map to HTTP: 401/403 from the verifier,
  * 503 (retryable) when YouTrack cannot be reached.
  */
-export function createServiceApp({ mounts, authenticate, serviceOps = {}, serviceContracts = [], wrappers = {}, endpoints = {}, audit }) {
+export function createServiceApp({ mounts, authenticate, serviceOps = {}, serviceContracts = [], wrappers = {}, endpoints = {}, audit, sync = null, webhookSecret = null }) {
   // The hosted transport selects a corpus by project only: a local worktree
   // path is refused rather than silently routed.
   const dispatcher = createDispatcher({ mounts, serviceOps, serviceContracts, wrappers, allowDeclaredWorktree: false });
 
   const app = express();
   app.disable("x-powered-by");
+
+  // GitHub push webhook (FR-10): the low-latency trigger the spec already
+  // allows. The signature is computed over the raw bytes, so this route owns
+  // its body parser and must stay above the shared JSON middleware.
+  app.post("/webhook/github", express.raw({ type: "application/json", limit: "2mb" }), async (req, res) => {
+    if (typeof webhookSecret !== "string" || webhookSecret.length === 0) {
+      res.status(503).json({ error: "WEBHOOK_DISABLED", message: "SPEC_REGISTRY_WEBHOOK_SECRET is not set" });
+      return;
+    }
+    const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    if (!verifyGitHubSignature(webhookSecret, raw, req.get("x-hub-signature-256"))) {
+      res.status(401).json({ error: "INVALID_SIGNATURE", message: "X-Hub-Signature-256 does not match the payload" });
+      return;
+    }
+    if (req.get("x-github-event") !== "push") {
+      res.status(202).json({ ok: true, ignored: "event" });
+      return;
+    }
+    let payload;
+    try {
+      payload = JSON.parse(raw.toString("utf8"));
+    } catch {
+      res.status(400).json({ error: "INVALID_PAYLOAD", message: "webhook body is not JSON" });
+      return;
+    }
+    const repoUrl = payload?.repository?.clone_url ?? payload?.repository?.html_url ?? null;
+    const ref = typeof payload?.ref === "string" ? payload.ref : null;
+    const projects = typeof repoUrl === "string" ? mounts.projectsForRepo(repoUrl) : [];
+    if (projects.length === 0) {
+      res.status(202).json({ ok: true, ignored: "repository", projects: [] });
+      return;
+    }
+    if (ref !== null && !ref.startsWith("refs/heads/spec-")) {
+      res.status(202).json({ ok: true, ignored: "ref", projects: [] });
+      return;
+    }
+    for (const project of projects) mounts.markStale(project);
+    // The push is already accepted: answer immediately and let the reconcile
+    // fetch, publish and re-project in the background.
+    Promise.resolve().then(() => sync?.reconcile?.()).catch(() => {});
+    res.status(202).json({ ok: true, projects });
+  });
+
   app.use(express.json({ limit: "4mb" }));
 
   const authGate = (req, res, next) => {
@@ -250,6 +294,19 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
   });
 
   return app;
+}
+
+/**
+ * Constant-time check of GitHub's `X-Hub-Signature-256` against the raw body.
+ * A missing secret or header is never a match.
+ */
+export function verifyGitHubSignature(secret, rawBody, header) {
+  if (typeof secret !== "string" || secret.length === 0) return false;
+  if (typeof header !== "string" || header.length === 0) return false;
+  const expected = `sha256=${createHmac("sha256", secret).update(rawBody).digest("hex")}`;
+  const left = Buffer.from(expected, "utf8");
+  const right = Buffer.from(header, "utf8");
+  return left.length === right.length && timingSafeEqual(left, right);
 }
 
 function wireProtocolHandlers(server, dispatcher, ctx, audit) {

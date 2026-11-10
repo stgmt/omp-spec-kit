@@ -188,7 +188,7 @@ async function corpusPresent(root) {
  * `mounts.cloneDir`/`git` now resolves per project through `for(project)`.
  */
 export class MountManager {
-  constructor({ config, cloneDir, git = new GitClient(), gitFactory = null, identity = botIdentityFromEnv(), store = null, secretsKey = null, extraProjects = () => [], logger = () => {} }) {
+  constructor({ config, cloneDir, git = new GitClient(), gitFactory = null, identity = botIdentityFromEnv(), store = null, secretsKey = null, extraProjects = () => [], logger = () => {}, fetchTtlMs = 15_000 }) {
     this.config = config;
     this.cloneDir = path.resolve(cloneDir);
     this.clonesRoot = path.join(path.dirname(this.cloneDir), "clones");
@@ -204,6 +204,11 @@ export class MountManager {
     this.projectRoots = new Map();
     this.projectLocks = new Map();
     this.writeLocks = new Map();
+    // Read paths fetch at most once per TTL: a burst of reads must not turn
+    // into a burst of `git fetch` children. Writes and the sync loop pass
+    // `fetch: true` and bypass this clock.
+    this.fetchTtlMs = fetchTtlMs;
+    this.lastFetchAt = new Map();
   }
 
   /** Every project the service knows: operator-configured plus IdP-claimed. */
@@ -360,12 +365,19 @@ export class MountManager {
     throw this.bindingRequired(projectId);
   }
 
+  /**
+   * `fetch: "auto"` is the read path: a mirror younger than the fetch TTL is
+   * reused instead of re-fetching on every read. Writes and the sync loop pass
+   * `true`, because they must act on the remote's current state.
+   */
   async ensureDescriptor(mount, { fetch = true, strict = false } = {}) {
     let present = false;
     try { present = (await stat(path.join(mount.mirrorDir, "HEAD"))).isFile(); } catch {}
-    if (fetch || !present) {
+    const wanted = fetch === "auto" ? !present || this.fetchIsStale(mount) : fetch === true || !present;
+    if (wanted) {
       try {
         await ensureMirror({ git: mount.git, repoUrl: mount.repoUrl, mirrorDir: mount.mirrorDir, cwd: mount.cwd });
+        this.lastFetchAt.set(mount.key, Date.now());
       } catch (error) {
         // A temporarily unreachable remote must not block reads from the last
         // fetched state; destructive callers pass `strict` and fail closed.
@@ -376,11 +388,23 @@ export class MountManager {
     return mount;
   }
 
+  /** True when the mirror is older than the read-path fetch TTL. */
+  fetchIsStale(mount) {
+    const at = this.lastFetchAt.get(mount.key) ?? 0;
+    return Date.now() - at >= this.fetchTtlMs;
+  }
+
+  /** Force the next read (or cycle) to re-fetch this project — webhook, refresh. */
+  markStale(projectId) {
+    try { this.lastFetchAt.delete(this.readableRepo(projectId).key); } catch {}
+  }
+
+  /** Write path: always fetches, because a write must act on the remote's tip. */
   async ensureRepo(projectId, { fetch = true, strict = false } = {}) {
     return this.ensureDescriptor(await this.repoFor(projectId), { fetch, strict });
   }
 
-  async ensureReadableRepo(projectId, { fetch = true } = {}) {
+  async ensureReadableRepo(projectId, { fetch = "auto" } = {}) {
     return this.ensureDescriptor(this.readableRepo(projectId), { fetch });
   }
 
@@ -388,7 +412,7 @@ export class MountManager {
    * Canonical spec branches of a project, read from `.spec-kit.json`. Invalid
    * branches are returned, never silently dropped.
    */
-  async discoverProject(projectId, { fetch = true } = {}) {
+  async discoverProject(projectId, { fetch = "auto" } = {}) {
     const mount = await this.ensureReadableRepo(projectId, { fetch });
     const { bindings, invalid } = await discoverSpecBindings({ git: mount.git, cwd: mount.mirrorDir, repoUrl: mount.repoUrl });
     return { mount, bindings: bindings.filter((binding) => binding.project === projectId), invalid };
@@ -432,7 +456,7 @@ export class MountManager {
     return this.projectRoots.get(projectId)?.signature ?? null;
   }
 
-  async projectRoot(projectId, { fetch = true } = {}) {
+  async projectRoot(projectId, { fetch = "auto" } = {}) {
     const { mount, bindings, invalid } = await this.discoverProject(projectId, { fetch });
     const ownInvalid = invalid.filter((entry) => entry.project === projectId);
     if (ownInvalid.length > 0) {
@@ -515,7 +539,9 @@ export class MountManager {
   }
 
   async ensureMount(mount) {
-    return ensureMirror({ git: mount.git, repoUrl: mount.repoUrl, mirrorDir: mount.mirrorDir, cwd: mount.cwd });
+    const result = await ensureMirror({ git: mount.git, repoUrl: mount.repoUrl, mirrorDir: mount.mirrorDir, cwd: mount.cwd });
+    this.lastFetchAt.set(mount.key, Date.now());
+    return result;
   }
 
   /** Canonical and work branches of one project, with their current tips. */
@@ -571,6 +597,42 @@ export class MountManager {
     return heads.sort().join(",");
   }
 
+  /**
+   * Remote-tracking `spec-*` tips of a mirror, keyed by branch name so the
+   * cheap GitHub probe and the mirror compare in one key space.
+   *
+   * The pattern is the ref *prefix* `refs/remotes/origin`: git matches a
+   * literal pattern only up to a slash boundary, so `refs/remotes/origin/spec-`
+   * matches nothing and a gate built on it never skips. The `spec-` filter is
+   * applied here, after the listing.
+   */
+  async mirrorSpecRefs(mount) {
+    const { stdout } = await mount.git.run(
+      ["--git-dir", mount.mirrorDir, "for-each-ref", "--format=%(refname) %(objectname)", "refs/remotes/origin"],
+      { cwd: mount.cwd },
+    );
+    const refs = new Map();
+    for (const line of stdout.split(/\r?\n/u)) {
+      if (line === "") continue;
+      const [ref, sha] = line.split(" ");
+      if (!ref || !sha || !ref.startsWith("refs/remotes/origin/spec-")) continue;
+      refs.set(ref.slice("refs/remotes/origin/".length), sha);
+    }
+    return refs;
+  }
+
+  /** Projects whose active binding (or migration source) is this repository. */
+  projectsForRepo(repoUrl) {
+    const wanted = sanitizeRepoUrl(repoUrl);
+    const matched = [];
+    for (const projectId of this.configuredProjects()) {
+      const row = this.store?.getBinding?.(projectId) ?? null;
+      const bound = row?.status === "active" ? row.repoUrl : row?.migratedFrom ?? null;
+      if (bound && sanitizeRepoUrl(bound) === wanted) matched.push(projectId);
+    }
+    return matched;
+  }
+
   /** Serialize writes per project so a cache rebuild never races an apply. */
   async acquireWriteLock(projectId) {
     const previous = this.writeLocks.get(projectId) ?? Promise.resolve();
@@ -600,7 +662,7 @@ export class MountManager {
   /** Drop the materialised corpus after a write so the next read re-reads git. */
   async refreshProject(projectId) {
     this.projectRoots.delete(projectId);
-    try { await this.projectRoot(projectId); } catch {}
+    try { await this.projectRoot(projectId, { fetch: true }); } catch {}
     try { this.serviceFor(projectId).refresh(); } catch {}
   }
 

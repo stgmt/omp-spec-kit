@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -38,6 +38,39 @@ export class GitError extends Error {
     this.stderr = stderr;
     this.exitCode = exitCode;
   }
+}
+
+/**
+ * Parse `git cat-file --batch` output for the revisions it was given, in
+ * request order. A revision the object store does not know yields
+ * `{ revision, missing: true }`; every other entry keeps its bytes untouched,
+ * because attachments (PNG, PDF) must never round-trip through UTF-8.
+ */
+export function parseCatFileBatch(buffer, revisions) {
+  const results = [];
+  let cursor = 0;
+  for (const revision of revisions) {
+    const headerEnd = buffer.indexOf(0x0a, cursor);
+    if (headerEnd === -1) throw new GitError("git cat-file --batch ended before a header line", { args: ["cat-file"], revision });
+    const header = buffer.toString("utf8", cursor, headerEnd);
+    cursor = headerEnd + 1;
+    const [oid, type, size] = header.split(" ");
+    // `<object> missing` / `<object> ambiguous`: no size field.
+    if (size === undefined) {
+      results.push({ revision, missing: true, reason: type ?? "missing" });
+      continue;
+    }
+    const length = Number(size);
+    if (!Number.isInteger(length) || length < 0) {
+      throw new GitError(`git cat-file --batch returned a malformed size for ${revision}: ${header}`, { args: ["cat-file"], revision });
+    }
+    if (cursor + length > buffer.length) {
+      throw new GitError(`git cat-file --batch ended inside the object for ${revision}`, { args: ["cat-file"], revision });
+    }
+    results.push({ revision, oid, type, size: length, content: Buffer.from(buffer.subarray(cursor, cursor + length)) });
+    cursor += length + 1; // the object is followed by a newline
+  }
+  return results;
 }
 
 /**
@@ -278,6 +311,45 @@ export class GitClient {
   async probeRemote(url, { cwd } = {}) {
     const { stdout } = await this.run(["ls-remote", url, "HEAD"], { cwd });
     return stdout.trim().split("\t")[0] || null;
+  }
+
+  /**
+   * Read many `<rev>:<path>` objects in one `git cat-file --batch` process.
+   * Discovery used to spawn `git show` per spec branch; one process answers
+   * every branch, which is the difference between a quiet cycle and a storm
+   * of short-lived children.
+   */
+  async catFileBatch(revisions, { cwd } = {}) {
+    if (!Array.isArray(revisions) || revisions.length === 0) return [];
+    if (typeof cwd !== "string" || cwd.length === 0) {
+      throw new GitError("git cat-file refused: no cwd", { args: ["cat-file"] });
+    }
+    return enqueue(cwd, () => new Promise((resolve, reject) => {
+      const child = spawn("git", ["cat-file", "--batch"], { cwd, windowsHide: true, env: this.childEnv() });
+      const chunks = [];
+      let stderr = "";
+      child.stdout.on("data", (chunk) => chunks.push(chunk));
+      child.stderr.on("data", (chunk) => { stderr += chunk.toString("utf8"); });
+      child.on("error", (error) => {
+        reject(new GitError(this.redact(`git cat-file failed in ${cwd}: ${error.message}`), { args: ["cat-file"] }));
+      });
+      child.on("close", (code) => {
+        if (code !== 0) {
+          reject(new GitError(
+            this.redact(`git cat-file failed in ${cwd}: ${stderr.trim().slice(0, 500)}`),
+            { args: ["cat-file"], stderr: this.redact(stderr), exitCode: code },
+          ));
+          return;
+        }
+        try {
+          resolve(parseCatFileBatch(Buffer.concat(chunks), revisions));
+        } catch (error) {
+          reject(error);
+        }
+      });
+      child.stdin.on("error", () => {});
+      child.stdin.end(`${revisions.join("\n")}\n`);
+    }));
   }
 
   /** Remote refs matching a pattern → Map(ref → sha). Works without fetching tags. */

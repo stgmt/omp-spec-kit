@@ -69,8 +69,13 @@ test("the OpenCode installer writes a loadable .js bridge, not only .mjs", async
     // temporary home so the test proves the loader, not only the source text.
     process.env.USERPROFILE = home;
     process.env.HOME = home;
-    const { OmpSpecKitGuard } = await import(`${pathToFileURL(bridgePath).href}?v=${Date.now()}`);
-    const hooks = await OmpSpecKitGuard({ directory: project });
+    const loaded = await import(`${pathToFileURL(bridgePath).href}?v=${Date.now()}`);
+    const definition = loaded.default;
+    assert.equal(definition.id, "omp-spec-kit-guard");
+    for (const name of ["effect", "setup", "server"]) {
+      assert.equal(typeof definition[name], "function", `default.${name} must be callable`);
+    }
+    const hooks = await definition.server({ directory: project });
     await assert.rejects(
       () => hooks["tool.execute.before"](
         { tool: "read" },
@@ -78,6 +83,8 @@ test("the OpenCode installer writes a loadable .js bridge, not only .mjs", async
       ),
       /SPEC_READ_REDIRECT/u,
     );
+    const setupBridge = readFileSync(path.join(pluginsDir, "omp-spec-kit-setup.js"), "utf8");
+    assert.match(setupBridge, /export default \{ id: "omp-spec-kit-setup"/u);
   } finally {
     if (previous.USERPROFILE === undefined) delete process.env.USERPROFILE;
     else process.env.USERPROFILE = previous.USERPROFILE;

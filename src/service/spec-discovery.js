@@ -56,14 +56,24 @@ export async function readSpecBinding({ git, cwd, branch }) {
  */
 export async function discoverSpecBindings({ git, cwd, repoUrl, refPrefix = "refs/remotes/origin" }) {
   const branches = await listSpecBranches({ git, cwd, refPrefix });
+  // One `git cat-file --batch` for every branch's `.spec-kit.json`: the old
+  // per-branch `git show` spawned a process per spec branch, and the sync
+  // loop paid for that storm on every cycle.
+  const readings = await git.catFileBatch(branches.map(({ ref }) => `${ref}:.spec-kit.json`), { cwd });
   const bindings = [];
   const invalid = [];
-  for (const { ref, branch } of branches) {
+  for (let index = 0; index < branches.length; index += 1) {
+    const { ref, branch } = branches[index];
+    const reading = readings[index];
+    if (!reading || reading.missing) {
+      invalid.push({ branch, project: null, errors: [`branch ${ref} has no readable .spec-kit.json`] });
+      continue;
+    }
     let raw;
     try {
-      raw = await readSpecBinding({ git, cwd, branch: ref });
-    } catch (error) {
-      invalid.push({ branch, project: null, errors: [error.message] });
+      raw = JSON.parse(reading.content.toString("utf8"));
+    } catch {
+      invalid.push({ branch, project: null, errors: [`branch ${ref} has malformed .spec-kit.json`] });
       continue;
     }
     const result = validateSpecBinding(raw, { branch, repoUrl });

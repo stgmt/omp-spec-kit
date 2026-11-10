@@ -9,6 +9,9 @@ describe("sync cadence", () => {
     let published = 0;
     const mounts = {
       projects: ["stgmt/demo"],
+      readableRepo() {
+        return { git: {}, repoUrl: "file:///tmp/demo.git", mirrorDir: "/tmp/mirror", cwd: "/tmp" };
+      },
       async discoverProject() {
         return { mount: { git: {}, repoUrl: "file:///tmp/demo.git", mirrorDir: "/tmp/mirror", cwd: "/tmp" }, bindings: [], invalid: [] };
       },

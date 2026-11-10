@@ -31,9 +31,15 @@ export async function bootService({ configPath, cloneDir, git = new GitClient(),
   const store = storeOption ?? (await createStore({ file: path.join(path.dirname(configPath), "registry.db") }));
   seedInitialBindings({ config, store, secretsKey, env: process.env });
   const resolvedCloneDir = path.resolve(cloneDir ?? path.join(path.dirname(configPath), "..", "data", "clones"));
-  const mounts = new MountManager({ config, cloneDir: resolvedCloneDir, git, identity, store, secretsKey, logger });
+  const mounts = new MountManager({ config, cloneDir: resolvedCloneDir, git, identity, store, secretsKey, logger, fetchTtlMs: fetchTtlMsFromEnv() });
   const report = await mounts.boot();
   return { config, mounts, report, store };
+}
+
+/** Read-path fetch TTL: how long a mirror may serve reads before re-fetching. */
+function fetchTtlMsFromEnv(env = process.env) {
+  const raw = Number(env.SPEC_REGISTRY_FETCH_TTL_MS ?? 15_000);
+  return Number.isFinite(raw) && raw >= 0 ? raw : 15_000;
 }
 
 /** Config-declared bootstrap bindings: no repository default, one explicit record per project. */
@@ -125,7 +131,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     for (const projectId of requestScope.projects) {
       let discovered;
       try {
-        discovered = await mounts.discoverProject(projectId);
+        discovered = await mounts.discoverProject(projectId, { fetch: true });
       } catch (error) {
         if (error?.code === "REPO_BINDING_REQUIRED") continue;
         events.push({ kind: "repo-unreachable", project: projectId, detail: String(error?.message ?? error).split("\n")[0] });
@@ -355,7 +361,7 @@ export async function startService({ configPath, cloneDir, storeFile, syncInterv
   const store = await createStore({ file: storeFile ?? env.SPEC_REGISTRY_STORE ?? path.join(path.dirname(resolvedCloneDir), "registry.db") });
   const { config, mounts } = await bootService({ configPath, cloneDir: resolvedCloneDir, git, identity, store, secretsKey, logger });
   const stack = buildServiceStack({ mounts, config, identity, logger, store, secretsKey, syncIntervalMs, env });
-  const app = createServiceApp({ mounts, ...stack });
+  const app = createServiceApp({ mounts, ...stack, webhookSecret: env.SPEC_REGISTRY_WEBHOOK_SECRET ?? null });
   const server = app.listen(port, host);
   await new Promise((resolve, reject) => {
     server.once("listening", () => {
