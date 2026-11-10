@@ -8,6 +8,7 @@
  * persistence.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { gzipSync } from "node:zlib";
 import {
   SYNC_STATE_SPEC_ID,
   PROJECT_POINTER_PREFIX,
@@ -33,6 +34,39 @@ const DEFAULT_TIMEOUT_MS = 60_000;
  * The 12 000-character margin keeps the guard honest for code-unit counting.
  */
 export const MARKER_DESCRIPTION_LIMIT = 500_000;
+
+/**
+ * Order in which a marker that does not fit loses card excerpts. Excerpts are
+ * the only free-form field the widgets show as a preview; identity, titles and
+ * links stay intact, and the full text lives on the projected cards.
+ */
+export const MARKER_EXCERPT_STEPS = Object.freeze([200, 120, 60, 0]);
+
+/**
+ * Gzip a snapshot into the marker's `snapshotGz` form (base64). The widgets
+ * decode it with `DecompressionStream('gzip')`; the plain `snapshot` field
+ * stays the default so older widget builds keep working on small boards.
+ */
+export function encodeSnapshotBase64(snapshot) {
+  return gzipSync(Buffer.from(JSON.stringify(snapshot), "utf8"), { level: 9 }).toString("base64");
+}
+
+/** Copy of `snapshot` with every excerpt capped at `limit` (0 drops the key). */
+export function capSnapshotExcerpts(snapshot, limit) {
+  if (!snapshot || !Array.isArray(snapshot.nodes)) return snapshot;
+  let changed = false;
+  const nodes = snapshot.nodes.map((node) => {
+    if (typeof node?.excerpt !== "string" || node.excerpt.length <= limit) return node;
+    changed = true;
+    if (limit === 0) {
+      const { excerpt, ...rest } = node;
+      void excerpt;
+      return rest;
+    }
+    return { ...node, excerpt: node.excerpt.slice(0, limit) };
+  });
+  return changed ? { ...snapshot, nodes } : snapshot;
+}
 
 export class YouTrackClient {
   #host;
@@ -547,7 +581,7 @@ export class YouTrackSyncStateStore {
   }
 
   #buildMarker(plan, { cardIds = {}, complete = true, projects = null, unassigned = null } = {}) {
-    const marker = {
+    const base = {
       schemaVersion: MARKER_SCHEMA_VERSION,
       projectionVersion: plan.projectionVersion ?? null,
       complete,
@@ -563,22 +597,38 @@ export class YouTrackSyncStateStore {
       projects,
       unassigned,
       cardIds,
-      snapshot: plan.snapshot,
       committedAt: new Date().toISOString(),
     };
-    marker.signature = this.#sign(marker);
-    const description = "SPEC-SYNC-STATE\n" + JSON.stringify(marker);
-    if (description.length > MARKER_DESCRIPTION_LIMIT) {
-      const error = new Error(
-        `committed marker is ${description.length} characters; ` +
-        `${MARKER_DESCRIPTION_LIMIT} is the safe limit (YouTrack truncates descriptions at 512000)`,
-      );
-      error.code = "MARKER_TOO_LARGE";
-      error.descriptionLength = description.length;
-      error.descriptionLimit = MARKER_DESCRIPTION_LIMIT;
-      throw error;
+    const build = (snapshotField) => {
+      const marker = { ...base, ...snapshotField };
+      marker.signature = this.#sign(marker);
+      return { marker, description: "SPEC-SYNC-STATE\n" + JSON.stringify(marker) };
+    };
+    // The plain snapshot keeps older widget builds working. Compression is the
+    // durable path for a board that outgrew one description; a marker that
+    // still cannot fit loses excerpts step by step. Candidates are lazy, so a
+    // small corpus never pays for gzip and a big one never pays for trimming.
+    const full = capSnapshotExcerpts(plan.snapshot, MARKER_EXCERPT_STEPS[0]);
+    const candidates = [
+      () => build({ snapshot: full }),
+      () => build({ snapshotGz: encodeSnapshotBase64(full) }),
+      ...MARKER_EXCERPT_STEPS.slice(1).map((limit) => () => build({ snapshot: capSnapshotExcerpts(plan.snapshot, limit) })),
+      () => build({ snapshotGz: encodeSnapshotBase64(capSnapshotExcerpts(plan.snapshot, 0)) }),
+    ];
+    let lastLength = 0;
+    for (const candidate of candidates) {
+      const result = candidate();
+      if (result.description.length <= MARKER_DESCRIPTION_LIMIT) return result;
+      lastLength = result.description.length;
     }
-    return { marker, description };
+    const error = new Error(
+      `committed marker is ${lastLength} characters; ` +
+      `${MARKER_DESCRIPTION_LIMIT} is the safe limit even compressed and without card excerpts (YouTrack truncates descriptions at 512000)`,
+    );
+    error.code = "MARKER_TOO_LARGE";
+    error.descriptionLength = lastLength;
+    error.descriptionLimit = MARKER_DESCRIPTION_LIMIT;
+    throw error;
   }
 
   async #upsertPointer(specId, description, issues) {

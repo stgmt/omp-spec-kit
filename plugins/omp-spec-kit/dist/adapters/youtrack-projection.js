@@ -224,7 +224,10 @@ export function cardKeyProject(key) {
 // 6: compact committed snapshot (marker must fit YouTrack's description cap).
 // 7: per-project pointers + root index; a v6 marker is not readable and must
 //    be reprojected before the board renders.
-export const PROJECTION_VERSION = 8;
+// 9: the marker may carry the snapshot gzip+base64 (`snapshotGz`) instead of
+//    the inline `snapshot`; a v8 marker proves nothing about the widget's
+//    decoder, so an upgrade re-projects once.
+export const PROJECTION_VERSION = 9;
 // v8: per-project pointers + root index; qualified cardIds key is project + "\0" + canonicalId; no flat specProjects; v7 markers must be rebuilt from mounts.
 
 const BOARD_KINDS = new Set(Object.keys(KIND_LABELS));
@@ -358,19 +361,28 @@ export function compactSnapshot(board) {
     scope: board.scope ?? { mode: "corpus", specSlugs: [] },
     complete: true,
     page: null,
-    nodes: board.nodes.map((node) => ({
-      canonicalId: node.canonicalId,
-      // The card key is built here, once, and handed to the widgets: they
-      // never re-implement the project-qualified format.
-      key: cardKey(node.project ?? board.scope?.project ?? LOCAL_PROJECT_ID, node.canonicalId),
-      project: node.project ?? board.scope?.project ?? LOCAL_PROJECT_ID,
-      specSlug: node.specSlug,
-      localId: node.localId,
-      kind: node.kind,
-      title: node.title,
-      excerpt: excerptValue(node),
-      taskStatus: node.kind === "TASK" && typeof node.taskStatus === "string" ? node.taskStatus : null,
-    })),
+    nodes: board.nodes.map((node) => {
+      const project = node.project ?? board.scope?.project ?? LOCAL_PROJECT_ID;
+      const entry = {
+        canonicalId: node.canonicalId,
+        // The card key is built here, once, and handed to the widgets: they
+        // never re-implement the project-qualified format.
+        key: cardKey(project, node.canonicalId),
+        project,
+        specSlug: node.specSlug,
+        localId: node.localId,
+        kind: node.kind,
+        title: node.title,
+      };
+      // Empty fields are omitted, not stored as null: the marker competes for
+      // YouTrack's 500 000-character description, and `"excerpt":null` or
+      // `"taskStatus":null` cost ~35 000 characters on the real corpus while
+      // the widgets treat an absent field exactly like null.
+      const excerpt = excerptValue(node);
+      if (typeof excerpt === "string" && excerpt.length > 0) entry.excerpt = excerpt;
+      if (node.kind === "TASK" && typeof node.taskStatus === "string") entry.taskStatus = node.taskStatus;
+      return entry;
+    }),
     edges: board.edges.map((edge) => {
       const project = projectOf(edge);
       const entry = { from: edge.from, to: edge.to, type: edge.type };

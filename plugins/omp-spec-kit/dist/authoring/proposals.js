@@ -149,6 +149,126 @@ export function applyOperation(text, operation) {
     lines[index] = `${lines[index].match(STATUS_PREFIX)[1]} ${operation.status}`;
     return { ok: true, text: lines.join("\n") };
   }
+  if (kind === "create_task") {
+    if (typeof operation.entity !== "string" || typeof operation.subject !== "string")
+      return { ok: false, code: "INVALID_REQUEST", message: "create_task needs entity and subject" };
+    const entity = operation.entity.trim();
+    if (!/^TASK-[0-9]+$/u.test(entity))
+      return {
+        ok: false,
+        code: "INVALID_REQUEST",
+        message: "create_task entity must look like TASK-<number>",
+      };
+    const lines = text.split(/\r?\n/u);
+    const exists = lines.some((line) => {
+      const match = line.match(/^##\s+([^\s:]+)/u);
+      return match !== null && match[1] === entity;
+    });
+    // Creating the same task twice is a refusal, not a silent duplicate.
+    if (exists) return { ok: false, code: "CONFLICT", message: `task already exists: ${entity}` };
+    const fields = [`- **Status:** ${operation.status ?? "todo"}`];
+    if (Array.isArray(operation.requirements) && operation.requirements.length > 0)
+      fields.push(`- **Requirements:** ${[...new Set(operation.requirements)].sort().join(", ")}`);
+    if (typeof operation.owner === "string" && operation.owner.trim())
+      fields.push(`- **Owner:** ${operation.owner.trim()}`);
+    if (typeof operation.description === "string" && operation.description.trim())
+      fields.push(`- **Done When:** ${operation.description.trim()}`);
+    const block = `## ${entity} — ${operation.subject.trim()}\n\n${fields.join("\n")}\n`;
+    const body = text.length === 0 || text.endsWith("\n") ? text : `${text}\n`;
+    return { ok: true, text: `${body}${body.length === 0 ? "" : "\n"}${block}` };
+  }
+
+  if (kind === "update_task") {
+    if (typeof operation.entity !== "string")
+      return { ok: false, code: "INVALID_REQUEST", message: "update_task needs entity" };
+    const lines = text.split(/\r?\n/u);
+    const heading = lines.findIndex((line) => {
+      const match = line.match(/^##\s+([^\s:]+)/u);
+      return match !== null && match[1] === operation.entity;
+    });
+    if (heading < 0)
+      return { ok: false, code: "VALIDATION_FAILED", message: `task heading not found: ${operation.entity}` };
+    let end = lines.length;
+    for (let index = heading + 1; index < lines.length; index += 1) {
+      if (/^##\s+/u.test(lines[index])) {
+        end = index;
+        break;
+      }
+    }
+    const FIELD_PREFIX = (name) =>
+      new RegExp(`^([ ]{0,3}(?:[-*][ \t]+)?(?:\\*\\*)?[ \t]*${name}[ \t]*(?:\\*\\*)?[ \t]*:(?:\\*\\*)?)`, "u");
+    const currentStatus = lines
+      .slice(heading + 1, end)
+      .map((line) => line.match(FIELD_PREFIX("Status")))
+      .find((match) => match !== null);
+    const current = currentStatus
+      ? lines[heading + 1 + lines.slice(heading + 1, end).findIndex((line) => FIELD_PREFIX("Status").test(line))]
+          .replace(FIELD_PREFIX("Status"), "")
+          .replace(/[*\s]/gu, "")
+      : null;
+    if (
+      typeof operation.expectedStatus === "string" &&
+      current !== null &&
+      current !== operation.expectedStatus
+    )
+      return {
+        ok: false,
+        code: "CONFLICT",
+        message: `task status is ${current}, expected ${operation.expectedStatus}`,
+      };
+    const writeField = (name, value) => {
+      const pattern = FIELD_PREFIX(name);
+      const index = lines
+        .slice(heading + 1, end)
+        .findIndex((line) => pattern.test(line));
+      if (index >= 0) {
+        const at = heading + 1 + index;
+        lines[at] = `${lines[at].match(pattern)[1]} ${value}`;
+        return;
+      }
+      // Missing field: insert right after the last existing field line.
+      let at = heading + 1;
+      for (let cursor = heading + 1; cursor < end; cursor += 1) {
+        if (/^[ ]{0,3}(?:[-*][ \t]+)?(?:\*\*)?[A-Za-z][^:]*:/u.test(lines[cursor])) at = cursor + 1;
+      }
+      lines.splice(at, 0, `- **${name}:** ${value}`);
+      end += 1;
+    };
+    if (typeof operation.status === "string") writeField("Status", operation.status);
+    if (operation.clearOwner === true) writeField("Owner", "");
+    else if (typeof operation.owner === "string") writeField("Owner", operation.owner.trim());
+    if (typeof operation.description === "string") writeField("Done When", operation.description.trim());
+    return { ok: true, text: lines.join("\n") };
+  }
+
+  if (kind === "append_task_comment") {
+    if (typeof operation.entity !== "string" || typeof operation.text !== "string")
+      return { ok: false, code: "INVALID_REQUEST", message: "append_task_comment needs entity and text" };
+    const body = operation.text.trim();
+    if (!body) return { ok: false, code: "INVALID_REQUEST", message: "append_task_comment needs text" };
+    const lines = text.split(/\r?\n/u);
+    const heading = lines.findIndex((line) => {
+      const match = line.match(/^##\s+([^\s:]+)/u);
+      return match !== null && match[1] === operation.entity;
+    });
+    if (heading < 0)
+      return { ok: false, code: "VALIDATION_FAILED", message: `task heading not found: ${operation.entity}` };
+    let end = lines.length;
+    for (let index = heading + 1; index < lines.length; index += 1) {
+      if (/^##\s+/u.test(lines[index])) {
+        end = index;
+        break;
+      }
+    }
+    const actor = typeof operation.actor === "string" && operation.actor.trim() ? operation.actor.trim() : "agent";
+    const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+    // The comment lives in the task block, so the registry stays the single store.
+    let insertAt = end;
+    while (insertAt > heading + 1 && lines[insertAt - 1].trim() === "") insertAt -= 1;
+    lines.splice(insertAt, 0, "", `- **Comment (${actor}, ${stamp}):** ${body}`);
+    return { ok: true, text: lines.join("\n") };
+  }
+
   if (kind === "insert_at_eof") {
     if (typeof operation.text !== "string")
       return { ok: false, code: "INVALID_REQUEST", message: "insert_at_eof.text must be text" };
@@ -398,6 +518,77 @@ export function operationForFacade(name, input) {
       spec,
       reason,
       operations: [{ kind: "rename_document", document, newDocument: input.newDoc }],
+    };
+  }
+
+  if (name === "confirmTaskCreation") {
+    if (typeof input.entity !== "string" || typeof input.subject !== "string")
+      return error("INVALID_REQUEST", "confirmTaskCreation requires entity and subject");
+    if (!Array.isArray(input.requirements) || input.requirements.length === 0)
+      return error("INVALID_REQUEST", "confirmTaskCreation requires requirements");
+    return {
+      spec,
+      reason,
+      operations: [
+        {
+          kind: "create_task",
+          document: "TASKS.md",
+          entity: input.entity,
+          subject: input.subject,
+          requirements: input.requirements,
+          owner: input.owner ?? null,
+          description: input.description,
+          status: input.status,
+        },
+      ],
+    };
+  }
+
+  if (name === "addTaskComment") {
+    if (typeof input.entity !== "string" || typeof input.text !== "string")
+      return error("INVALID_REQUEST", "addTaskComment requires entity and text");
+    if (!input.text.trim())
+      return error("INVALID_REQUEST", "addTaskComment requires non-empty text");
+    return {
+      spec,
+      reason,
+      operations: [
+        {
+          kind: "append_task_comment",
+          document: "TASKS.md",
+          entity: input.entity,
+          text: input.text,
+          actor: input.actor,
+        },
+      ],
+    };
+  }
+
+  if (name === "updateTask") {
+    if (typeof input.entity !== "string")
+      return error("INVALID_REQUEST", "updateTask requires entity");
+    if (
+      input.status === undefined &&
+      input.owner === undefined &&
+      input.description === undefined &&
+      input.clearOwner !== true
+    )
+      return error("INVALID_REQUEST", "updateTask requires status, owner or description");
+    return {
+      spec,
+      reason,
+      operations: [
+        {
+          kind: "update_task",
+          document: "TASKS.md",
+          entity: input.entity,
+          status: input.status,
+          owner: input.owner,
+          description: input.description,
+          expectedStatus: input.expectedStatus,
+          clearOwner: input.clearOwner,
+        },
+      ],
     };
   }
 

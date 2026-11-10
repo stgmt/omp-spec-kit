@@ -51,6 +51,7 @@ export const TASK_STATUS_VALUES = Object.freeze([
   "done",
   "deferred",
   "unknown",
+  "deleted",
 ]);
 
 export const VERIFICATION_METHOD_VALUES = Object.freeze([
@@ -72,6 +73,9 @@ export const PATCH_OPERATION_KINDS = Object.freeze([
   "replace_section",
   "replace_in_section",
   "replace_task_status",
+  "create_task",
+  "update_task",
+  "append_task_comment",
   "replace_document",
   "delete_document",
   "rename_document",
@@ -356,6 +360,9 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("repositoryRootFingerprint", "string"),
           optionalField("designReview", "json"),
           field("operations", "operations"),
+          // Declared here as well: clients read force from the operations
+          // variant, and task maintenance needs it for idempotent cleanup.
+          optionalField("force", "boolean"),
         ]),
       }),
       amendRequirement: Object.freeze({
@@ -376,6 +383,38 @@ export const TOOL_CONTRACTS = Object.freeze([
       addPhase: Object.freeze({
         description: "Add a task phase.",
         fields: Object.freeze([field("title", "string")]),
+      }),
+      confirmTaskCreation: Object.freeze({
+        description: "Create one canonical task in TASKS.md.",
+        fields: Object.freeze([
+          field("entity", "string"),
+          field("subject", "string"),
+          field("requirements", "stringArray"),
+          optionalField("owner", "nullableString"),
+          optionalField("description", "string"),
+          optionalField("status", "enum", TASK_STATUS_VALUES),
+          optionalField("creationToken", "string"),
+        ]),
+      }),
+      updateTask: Object.freeze({
+        description: "Update one canonical task: status, owner or description.",
+        fields: Object.freeze([
+          field("entity", "string"),
+          optionalField("status", "enum", TASK_STATUS_VALUES),
+          optionalField("owner", "nullableString"),
+          optionalField("expectedStatus", "enum", TASK_STATUS_VALUES),
+          optionalField("description", "string"),
+          optionalField("clearOwner", "boolean"),
+          optionalField("force", "boolean"),
+        ]),
+      }),
+      addTaskComment: Object.freeze({
+        description: "Append one comment to a canonical task.",
+        fields: Object.freeze([
+          field("entity", "string"),
+          field("text", "string"),
+          optionalField("actor", "string"),
+        ]),
       }),
       setEntityStatus: Object.freeze({
         description: "Apply a task status transition.",
@@ -568,7 +607,17 @@ export const OPERATIONS_SCHEMA = Object.freeze({
       newText: { type: "string" },
       replaceAll: { type: "boolean" },
       entity: { type: "string" },
-      status: { type: "string" },
+      status: { type: "string", enum: TASK_STATUS_VALUES },
+      expectedStatus: { type: "string", enum: TASK_STATUS_VALUES },
+      owner: { type: ["string", "null"] },
+      clearOwner: { type: "boolean" },
+      force: { type: "boolean" },
+      description: { type: "string" },
+      subject: { type: "string" },
+      requirements: { type: "array", items: { type: "string" } },
+      creationToken: { type: "string" },
+      text: { type: "string" },
+      actor: { type: "string" },
       newDocument: { type: "string" },
       expectedSha: { type: "string" },
     },
@@ -709,9 +758,31 @@ function hasDuplicates(arr) {
   return new Set(arr).size !== arr.length;
 }
 
+/**
+ * Fields that only a task operation may carry. The published schema is a union
+ * of every kind (the client reads one flat property map), so the runtime must
+ * refuse a task field on a document operation instead of ignoring it.
+ */
+const TASK_ONLY_FIELDS = Object.freeze([
+  "entity",
+  "status",
+  "expectedStatus",
+  "owner",
+  "clearOwner",
+  "force",
+  "description",
+  "subject",
+  "requirements",
+  "creationToken",
+]);
+const TASK_OPERATION_KINDS = Object.freeze(["create_task", "update_task", "replace_task_status"]);
+
 function validateOperationObject(op) {
   if (op === null || typeof op !== "object" || Array.isArray(op)) return false;
   if (!PATCH_OPERATION_KINDS.includes(op.kind)) return false;
+  if (!TASK_OPERATION_KINDS.includes(op.kind)) {
+    if (TASK_ONLY_FIELDS.some((field) => op[field] !== undefined)) return false;
+  }
   if (typeof op.document !== "string" || op.document.trim() === "") return false;
   if (op.expectedSha !== undefined && typeof op.expectedSha !== "string") return false;
 
@@ -731,6 +802,34 @@ function validateOperationObject(op) {
       );
     case "replace_task_status":
       return typeof op.entity === "string" && TASK_STATUS_VALUES.includes(op.status);
+    case "create_task":
+      return (
+        typeof op.entity === "string" &&
+        typeof op.subject === "string" &&
+        op.subject.trim() !== "" &&
+        (op.owner === undefined || op.owner === null || typeof op.owner === "string") &&
+        (op.description === undefined || typeof op.description === "string") &&
+        (op.status === undefined || TASK_STATUS_VALUES.includes(op.status)) &&
+        (op.requirements === undefined ||
+          (Array.isArray(op.requirements) &&
+            !hasDuplicates(op.requirements) &&
+            op.requirements.every((item) => typeof item === "string")))
+      );
+    case "append_task_comment":
+      return (
+        typeof op.entity === "string" &&
+        typeof op.text === "string" &&
+        op.text.trim() !== "" &&
+        (op.actor === undefined || typeof op.actor === "string")
+      );
+    case "update_task":
+      return (
+        typeof op.entity === "string" &&
+        (op.status === undefined || TASK_STATUS_VALUES.includes(op.status)) &&
+        (op.owner === undefined || op.owner === null || typeof op.owner === "string") &&
+        (op.description === undefined || typeof op.description === "string") &&
+        (op.expectedStatus === undefined || TASK_STATUS_VALUES.includes(op.expectedStatus))
+      );
     case "replace_document":
       return typeof op.content === "string";
     case "delete_document":

@@ -15,16 +15,16 @@
       "sha256": "57ed051aa2f273fa2fb784282a3e8038f2b7dff88db8ece8fd6098e3e7012f75"
     },
     "adapters/tool-contracts.js": {
-      "sha256": "18a7df22e0a2484128b7758291660ee8be04dc1a444d9e90ab32985c00f5e503"
+      "sha256": "7d4252b120b99a30a1dc8492447d05e4aedb7e870795539e2b03d11d81eeca97"
     },
     "adapters/youtrack-projection.js": {
-      "sha256": "0bb8a167ac78071bd8afb66d0dfd141208a59674c53a88214dd2c5154e86af40"
+      "sha256": "f274edd87cc4c36990006a5e36dee2125394092e23476f5a03acb54c4ce006af"
     },
     "adapters/youtrack-status-sweep.js": {
       "sha256": "d21ddc7ea8f26aadb84614f2de5b450406c6193386f6120f5706cccf31ef55f7"
     },
     "adapters/youtrack-store.js": {
-      "sha256": "4199c210075aa3fc92282693e76abd059df778dc0f7d0805b047171dd00e8ff5"
+      "sha256": "8516fbb3f05cb3e0be9f1f56695644d471f539ae5514119628b8f88e9472fdd4"
     },
     "authoring/design-review.js": {
       "sha256": "ba88286f7885e217bb38f982822a8695ec6f5ce180aaab475eb435b7e804a40a"
@@ -36,7 +36,7 @@
       "sha256": "18ce9f975c4057fa215b9364cdbcf72df45d3d9f34d7c0a1bee620bb4a248dce"
     },
     "authoring/proposals.js": {
-      "sha256": "bd135daa73766855880484a2c29f45108620f15ee1ffee4b36fa27d5e63f6a25"
+      "sha256": "6b1991c8bb8428e1b2d507876bd5685822264c8e6ce69298cf239b50b8d77ab6"
     },
     "authoring/secrets.js": {
       "sha256": "c675f88b73501829fa8ea31a1dbb7a7f5a57b57a4c05ed09beeb43470bbaec06"
@@ -99,7 +99,7 @@
       "sha256": "266b44e88d48bb282db75394e541b96f7e9ed9172cac814a6bfd5f599a989ac6"
     },
     "kernel/limits.js": {
-      "sha256": "4a18582fca95a0fe24073104d62a926580fdbfa5e661d186aa81c6f3716e1938"
+      "sha256": "7258e24d13ee7a459ca74f1d728909a55afa2e28615436846c914ed572ce3c21"
     },
     "kernel/normalize.js": {
       "sha256": "dcf259789cdbc0f11abe7e11bdfdf1fa564a4a29e947d147d0edf785e9b58979"
@@ -132,7 +132,7 @@
       "sha256": "dd06b9b873b773d4c4af9762429f67cfdebfe44354c49f15bcaeb9903a59b980"
     },
     "kernel/types.js": {
-      "sha256": "30c291f7e8b9e164feaadace275c9a9bc6483ed50cc2e80fa305946efe69a99f"
+      "sha256": "ff5db0c86fd7d15c49621e47eba6aecff2a3442b172cf028b5a08112569e09c4"
     },
     "mcp/server.js": {
       "sha256": "684e18a6d6bfcfec4aab14542a972a1f510bb1e636208d99e592aa08b51659e7"
