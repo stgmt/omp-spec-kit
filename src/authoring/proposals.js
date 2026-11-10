@@ -871,6 +871,42 @@ export class ProposalCompiler {
       rawOperations = compiled.operations;
     }
 
+    // A task must point at requirements that exist in this corpus: the
+    // registry used to accept any string here, and the corpus only noticed the
+    // dangling reference later during validation.
+    const requirementIds = new Set(
+      graph.nodes
+        .filter((node) => node.kind === "FUNCTIONAL_REQUIREMENT" || node.kind === "NON_FUNCTIONAL_REQUIREMENT")
+        .map((node) => node.localId ?? node.canonicalId)
+    );
+    const unknownRequirements = [];
+    for (const rawOperation of rawOperations) {
+      if (!rawOperation || rawOperation.kind !== "create_task") continue;
+      for (const requirement of rawOperation.requirements ?? []) {
+        if (typeof requirement !== "string") continue;
+        const normalized = requirement.trim();
+        if (!requirementIds.has(normalized)) unknownRequirements.push(normalized);
+      }
+    }
+    if (unknownRequirements.length > 0) {
+      const known = [...requirementIds].sort().slice(0, 20);
+      const unknown = [...new Set(unknownRequirements)];
+      // The public code set is frozen at VALIDATION_FAILED; the precise reason
+      // travels as a finding so a client can still react to it.
+      return error(
+        "VALIDATION_FAILED",
+        `unknown requirement ids: ${unknown.join(", ")}; read the corpus first ` +
+          `(spec_entities kinds ["requirement"]) and use ids that exist${known.length > 0 ? `, for example ${known.join(", ")}` : ""}`,
+        {
+          findings: unknown.map((id) => ({
+            code: "REQUIREMENT_NOT_FOUND",
+            message: `requirement ${id} does not exist in this specification`,
+            requirement: id,
+          })),
+        }
+      );
+    }
+
     const normalizedOperations = [];
     const documents = new Map();
     const addChange = (document, beforeBytes, afterBytes, operation, deleteAfter = false, beforeMissing = false) => {
