@@ -90,3 +90,63 @@ describe("create_task and update_task", () => {
     assert.equal(updated.operations[0].kind, "update_task");
   });
 });
+
+describe("update_task field shapes", () => {
+  it("inserts an Owner line when the task has none", () => {
+    const created = applyOperation("# Tasks\n", {
+      kind: "create_task",
+      document: "TASKS.md",
+      entity: "TASK-8",
+      subject: "No owner",
+      requirements: ["FR-1"],
+    });
+    const updated = applyOperation(created.text, {
+      kind: "update_task",
+      document: "TASKS.md",
+      entity: "TASK-8",
+      owner: "WRITER",
+    });
+    assert.equal(updated.ok, true);
+    assert.match(updated.text, /- \*\*Owner:\*\* WRITER/);
+  });
+
+  it("keeps a description that contains a colon", () => {
+    const created = applyOperation("# Tasks\n", {
+      kind: "create_task",
+      document: "TASKS.md",
+      entity: "TASK-9",
+      subject: "Colon",
+      requirements: ["FR-1"],
+    });
+    const updated = applyOperation(created.text, {
+      kind: "update_task",
+      document: "TASKS.md",
+      entity: "TASK-9",
+      description: "Проверено: документы прочитаны",
+    });
+    assert.equal(updated.ok, true);
+    assert.match(updated.text, /- \*\*Done When:\*\* Проверено: документы прочитаны/);
+  });
+
+  it("clears an owner without touching the status", () => {
+    const created = applyOperation("# Tasks\n", {
+      kind: "create_task",
+      document: "TASKS.md",
+      entity: "TASK-10",
+      subject: "Clear",
+      requirements: ["FR-1"],
+      owner: "WRITER",
+      status: "in-progress",
+    });
+    const updated = applyOperation(created.text, {
+      kind: "update_task",
+      document: "TASKS.md",
+      entity: "TASK-10",
+      clearOwner: true,
+    });
+    assert.equal(updated.ok, true);
+    assert.match(updated.text, /- \*\*Status:\*\* in-progress/);
+    assert.doesNotMatch(updated.text, /WRITER/);
+    assert.match(updated.text, /- \*\*Owner:\*\*/);
+  });
+});
