@@ -695,6 +695,27 @@
   }
 
   const SNAPSHOT_PREFIX = 'SPEC-SYNC-STATE\n';
+
+  // The committed snapshot travels either inline (`snapshot`) or gzipped
+  // (`snapshotGz`, base64) when the board outgrew one issue description.
+  async function markerSnapshot(marker) {
+    if (marker && marker.snapshot) return marker.snapshot;
+    if (!marker || typeof marker.snapshotGz !== 'string') return null;
+    if (typeof DecompressionStream === 'undefined') {
+      throw new Error('committed SPEC snapshot is compressed and this browser cannot decode it');
+    }
+    let bytes;
+    try {
+      bytes = Uint8Array.from(atob(marker.snapshotGz), ch => ch.charCodeAt(0));
+    } catch {
+      throw new Error('committed SPEC snapshot is not valid base64');
+    }
+    const text = await new Response(
+      new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
+    ).text();
+    return JSON.parse(text);
+  }
+
   const KIND_LABELS = {
     DOCUMENT: 'DOCUMENT',
     ROADMAP: 'ROADMAP',
@@ -810,7 +831,7 @@
     } catch {
       throw new Error('committed SPEC snapshot is not valid JSON');
     }
-    const snapshot = marker && marker.snapshot;
+    const snapshot = await markerSnapshot(marker);
     if (
       marker.schemaVersion !== 'BoardSnapshotV2' ||
       marker.complete !== true ||
@@ -823,8 +844,7 @@
     return { marker, snapshot };
   }
 
-  function assertSnapshot(marker, expectedProject) {
-    const snapshot = marker && marker.snapshot;
+  function assertSnapshot(marker, snapshot, expectedProject) {
     if (
       !marker ||
       marker.schemaVersion !== 'BoardSnapshotV2' ||
@@ -850,8 +870,9 @@
     let marker;
     try { marker = JSON.parse(issue.description.slice(SNAPSHOT_PREFIX.length)); }
     catch { throw new Error('project pointer marker is not valid JSON: ' + pointerId); }
-    assertSnapshot(marker, expectedProject);
-    return { marker, snapshot: marker.snapshot };
+    const snapshot = await markerSnapshot(marker);
+    assertSnapshot(marker, snapshot, expectedProject);
+    return { marker, snapshot };
   }
 
   // Preference storage is scoped to THIS widget's service/board context: a

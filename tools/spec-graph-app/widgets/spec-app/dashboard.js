@@ -388,6 +388,25 @@
     });
   }
 
+  // The committed snapshot travels either inline (`snapshot`) or gzipped
+  // (`snapshotGz`, base64) when the board outgrew one issue description.
+  function markerSnapshot(marker) {
+    if (marker && marker.snapshot) return Promise.resolve(marker.snapshot);
+    if (!marker || typeof marker.snapshotGz !== 'string') return Promise.resolve(null);
+    if (typeof DecompressionStream === 'undefined') {
+      return Promise.reject(new Error('committed SPEC snapshot is compressed and this browser cannot decode it'));
+    }
+    var bytes;
+    try {
+      bytes = Uint8Array.from(atob(marker.snapshotGz), function (ch) { return ch.charCodeAt(0); });
+    } catch (error) {
+      return Promise.reject(new Error('committed SPEC snapshot is not valid base64'));
+    }
+    return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip')))
+      .text()
+      .then(function (text) { return JSON.parse(text); });
+  }
+
   function checkSnapshot(host, options) {
     var project = (options && options.project) ||
       (options && options.markerProject) || DEFAULT_MARKER_PROJECT;
@@ -395,7 +414,7 @@
     return host.fetchYouTrack(
       'issues?query=' + encodeURIComponent(query) +
       '&fields=id,description,customFields(name,value(name,text))&$top=50'
-    ).then(function (rows) {
+    ).then(async function (rows) {
       var list = arrayOf(rows);
       var pointer = null;
       for (var i = 0; i < list.length; i += 1) {
@@ -413,7 +432,7 @@
       } catch (error) {
         return { status: 'error', detail: 'snapshot marker is not valid JSON' };
       }
-      var snapshot = marker && marker.snapshot;
+      var snapshot = await markerSnapshot(marker);
       if (marker.schemaVersion !== 'BoardSnapshotV2' || marker.complete !== true || !snapshot ||
           snapshot.schemaVersion !== 'BoardSnapshotV2' || snapshot.complete !== true ||
           snapshot.page !== null || !Array.isArray(snapshot.nodes) || !Array.isArray(snapshot.edges)) {
