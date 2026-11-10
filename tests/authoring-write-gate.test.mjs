@@ -51,7 +51,7 @@ describe("Definition-integrity write gate", () => {
     });
     assert.equal(result.ok, false);
     assert.equal(result.error?.code, "VALIDATION_FAILED");
-    assert.match(result.error?.message ?? "", /malformed definition headings/u);
+    assert.match(result.error?.message ?? "", /malformed definitions or references that do not resolve/u);
     const finding = result.error?.findings?.find((entry) => entry.code === "MALFORMED_HEADING");
     assert.ok(finding, "expected a MALFORMED_HEADING finding");
     assert.match(finding.path ?? "", /TASKS\.md$/u);

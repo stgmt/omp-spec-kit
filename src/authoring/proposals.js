@@ -29,6 +29,11 @@ const DEFINITION_INTEGRITY_DIAGNOSTIC_CODES = new Set([
   "INVALID_LOCAL_ID",
   "MALFORMED_HEADING",
   "DUPLICATE_DEFINITION",
+  // A reference the write itself introduces must resolve in the same corpus;
+  // otherwise "FR-999" would be written now and only fail a later validation.
+  "BROKEN_REFERENCE",
+  "MALFORMED_REFERENCE",
+  "AMBIGUOUS_REFERENCE",
 ]);
 
 function success(data) {
@@ -907,6 +912,53 @@ export class ProposalCompiler {
       );
     }
 
+    // The kernel graph derives a task's requirements from edges, not from the
+    // `Requirements:` line, so a free-form patch could write a requirement id
+    // that exists nowhere. Check the ids the proposal actually writes.
+    const requirementIdsForWrite = new Set(
+      graph.nodes
+        .filter((node) => node.kind === "FUNCTIONAL_REQUIREMENT" || node.kind === "NON_FUNCTIONAL_REQUIREMENT")
+        .map((node) => node.localId ?? node.canonicalId)
+    );
+    const REQUIREMENT_FIELD_PATTERN = /^[ \t]{0,3}(?:[-*][ \t]+)?(?:\*\*)?(?:Requirements|Refs|Implements)(?:\*\*)?[ \t]*:[ \t]*(.+)$/u;
+    const REQUIREMENT_ID_PATTERN = /\b(?:FR(?:-[A-Z0-9]+)?-\d+|NFR(?:-[A-Z0-9]+)?-\d+)\b/gu;
+    const writtenRequirementIds = new Set();
+    for (const rawOperation of rawOperations) {
+      if (!rawOperation) continue;
+      for (const requirement of rawOperation.requirements ?? []) {
+        if (typeof requirement === "string") writtenRequirementIds.add(requirement.trim());
+      }
+      for (const field of [rawOperation.text, rawOperation.content, rawOperation.newText]) {
+        if (typeof field !== "string") continue;
+        for (const line of field.split(/\r?\n/u)) {
+          const match = line.match(REQUIREMENT_FIELD_PATTERN);
+          if (!match) continue;
+          for (const id of match[1].match(REQUIREMENT_ID_PATTERN) ?? []) writtenRequirementIds.add(id);
+        }
+      }
+    }
+    // Intents that name one requirement directly (amend, acceptance criterion,
+    // metadata) must name one that exists, even when the id never reaches a
+    // `Requirements:` line.
+    if (typeof input.requirement === "string" && input.requirement.trim())
+      writtenRequirementIds.add(input.requirement.trim());
+    const danglingWritten = [...writtenRequirementIds].filter((id) => id.length > 0 && !requirementIdsForWrite.has(id));
+    if (danglingWritten.length > 0) {
+      const known = [...requirementIdsForWrite].sort().slice(0, 20);
+      return error(
+        "VALIDATION_FAILED",
+        `unknown requirement ids: ${danglingWritten.join(", ")}; read the corpus first ` +
+          `(spec_entities kinds ["requirement"]) and use ids that exist${known.length > 0 ? `, for example ${known.join(", ")}` : ""}`,
+        {
+          findings: danglingWritten.map((id) => ({
+            code: "REQUIREMENT_NOT_FOUND",
+            message: `requirement ${id} does not exist in this specification`,
+            requirement: id,
+          })),
+        }
+      );
+    }
+
     const normalizedOperations = [];
     const documents = new Map();
     const addChange = (document, beforeBytes, afterBytes, operation, deleteAfter = false, beforeMissing = false) => {
@@ -1065,7 +1117,7 @@ export class ProposalCompiler {
         (left, right) =>
           (left.path ?? "").localeCompare(right.path ?? "") || left.code.localeCompare(right.code),
       );
-      return error("VALIDATION_FAILED", "proposal introduces malformed definition headings", {
+      return error("VALIDATION_FAILED", "proposal introduces malformed definitions or references that do not resolve", {
         findings: introducedFindings,
       });
     }
