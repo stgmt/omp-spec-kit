@@ -292,6 +292,9 @@ export const TASK_STATUSES = Object.freeze([
   "done",
   "deferred",
   "unknown",
+  // Soft deletion is a task status, not a missing row: the app asks for it when
+  // composing a board and refuses to read when the registry does not know it.
+  "deleted",
 ]);
 
 // Canonical-corpus spellings normalize without coercion between planned and todo.
