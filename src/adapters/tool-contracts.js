@@ -65,6 +65,7 @@ export const VERIFICATION_METHOD_VALUES = Object.freeze([
 export const SAFETY_CLASS_VALUES = Object.freeze(["critical", "major", "minor"]);
 export const DELIVERY_VALUES = Object.freeze(["NOT_DECLARED", "DELIVERED", "INCOMPLETE"]);
 export const SPEC_STATUS_VALUES = Object.freeze(["active", "backlog"]);
+export const TASK_REVIEW_VALUES = Object.freeze(["none", "requested", "approved", "changes-requested"]);
 export const READINESS_VIEW_VALUES = Object.freeze(["status", "summary", "counts", "coverage"]);
 
 export const PATCH_OPERATION_KINDS = Object.freeze([
@@ -397,7 +398,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         ]),
       }),
       updateTask: Object.freeze({
-        description: "Update one canonical task: status, owner or description.",
+        description: "Update one canonical task: status, owner, description, review state or links.",
         fields: Object.freeze([
           field("entity", "string"),
           optionalField("status", "enum", TASK_STATUS_VALUES),
@@ -406,6 +407,9 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("description", "string"),
           optionalField("clearOwner", "boolean"),
           optionalField("force", "boolean"),
+          optionalField("review", "enum", TASK_REVIEW_VALUES),
+          optionalField("refs", "stringArray"),
+          optionalField("dependsOn", "stringArray"),
         ]),
       }),
       addTaskComment: Object.freeze({
@@ -618,6 +622,9 @@ export const OPERATIONS_SCHEMA = Object.freeze({
       creationToken: { type: "string" },
       text: { type: "string" },
       actor: { type: "string" },
+      review: { type: "string", enum: TASK_REVIEW_VALUES },
+      refs: { type: "array", items: { type: "string" } },
+      dependsOn: { type: "array", items: { type: "string" } },
       newDocument: { type: "string" },
       expectedSha: { type: "string" },
     },
@@ -825,6 +832,10 @@ function validateOperationObject(op) {
     case "update_task":
       return (
         typeof op.entity === "string" &&
+        (op.review === undefined || TASK_REVIEW_VALUES.includes(op.review)) &&
+        (op.refs === undefined || (Array.isArray(op.refs) && op.refs.every((item) => typeof item === "string"))) &&
+        (op.dependsOn === undefined ||
+          (Array.isArray(op.dependsOn) && op.dependsOn.every((item) => typeof item === "string"))) &&
         (op.status === undefined || TASK_STATUS_VALUES.includes(op.status)) &&
         (op.owner === undefined || op.owner === null || typeof op.owner === "string") &&
         (op.description === undefined || typeof op.description === "string") &&

@@ -164,11 +164,16 @@ export function extractAttributes(documentKind, role, localId, title, bodyText, 
       else if (Object.hasOwn(TASK_STATUS_NORMALIZATION, normalizedStatus)) {
         status = TASK_STATUS_NORMALIZATION[normalizedStatus];
       } else status = "unknown";
+      const rawReview = (fieldValue(fields, "Review") ?? "").trim().toLowerCase();
+      const review = ["requested", "approved", "changes-requested"].includes(rawReview)
+        ? rawReview
+        : "none";
       return {
         status,
         estimate: fieldValue(fields, "Estimate"),
         owner: fieldValue(fields, "Owner"),
         doneWhen: fieldList(fields, "Done When", "DoneWhen"),
+        review,
       };
     }
     case "FILE_CHANGE": {

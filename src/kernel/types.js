@@ -271,6 +271,9 @@ export const ROLE_HEADING_PRODUCTION = Object.freeze({
 export const REFERENCE_FIELD_EDGE_TYPES = Object.freeze({
   Refs: "REFS",
   Related: "REFS",
+  // A task names the requirements it serves; without this mapping the field was
+  // prose and a dangling FR id could be written without any diagnostic.
+  Requirements: "REFS",
   Covers: "COVERS",
   Implements: "IMPLEMENTS",
   "Depends On": "DEPENDS_ON",

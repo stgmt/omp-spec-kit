@@ -85,6 +85,13 @@ function taskPhase(task) {
   return match?.[1]?.trim() ?? null;
 }
 
+function taskReview(task) {
+  const raw = task.attributes?.review;
+  if (typeof raw !== "string") return "none";
+  const normalized = raw.trim().toLowerCase();
+  return ["requested", "approved", "changes-requested"].includes(normalized) ? normalized : "none";
+}
+
 function taskStatus(task) {
   let raw = typeof task.attributes?.status === "string" ? task.attributes.status : undefined;
   if (!raw || raw.trim().toLowerCase() === "unknown") raw = typeof task.body === "string" ? task.body.match(/\*\*Status:\*\*\s*([^\n]+)/u)?.[1] : undefined;
@@ -114,6 +121,7 @@ function taskEntry(graph, task, includeComments) {
     phase: taskPhase(task),
     source: nodeSource(task),
     requirements: taskRequirements(graph, task.canonicalId),
+    review: taskReview(task),
   };
   if (includeComments) entry.body = task.body;
   return entry;

@@ -243,6 +243,14 @@ export function applyOperation(text, operation) {
     if (operation.clearOwner === true) writeField("Owner", "");
     else if (typeof operation.owner === "string") writeField("Owner", operation.owner.trim());
     if (typeof operation.description === "string") writeField("Done When", operation.description.trim());
+    if (typeof operation.review === "string") writeField("Review", operation.review);
+    if (Array.isArray(operation.refs))
+      writeField("Refs", [...new Set(operation.refs.map((ref) => String(ref).trim()))].filter(Boolean).join(", "));
+    if (Array.isArray(operation.dependsOn))
+      writeField(
+        "Depends On",
+        [...new Set(operation.dependsOn.map((ref) => String(ref).trim()))].filter(Boolean).join(", ")
+      );
     return { ok: true, text: lines.join("\n") };
   }
 
@@ -576,9 +584,12 @@ export function operationForFacade(name, input) {
       input.status === undefined &&
       input.owner === undefined &&
       input.description === undefined &&
-      input.clearOwner !== true
+      input.clearOwner !== true &&
+      input.review === undefined &&
+      input.refs === undefined &&
+      input.dependsOn === undefined
     )
-      return error("INVALID_REQUEST", "updateTask requires status, owner or description");
+      return error("INVALID_REQUEST", "updateTask requires status, owner, description, review or links");
     return {
       spec,
       reason,
@@ -592,6 +603,9 @@ export function operationForFacade(name, input) {
           description: input.description,
           expectedStatus: input.expectedStatus,
           clearOwner: input.clearOwner,
+          review: input.review,
+          refs: input.refs,
+          dependsOn: input.dependsOn,
         },
       ],
     };
