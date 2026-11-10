@@ -75,6 +75,7 @@ export const PATCH_OPERATION_KINDS = Object.freeze([
   "replace_task_status",
   "create_task",
   "update_task",
+  "append_task_comment",
   "replace_document",
   "delete_document",
   "rename_document",
@@ -407,6 +408,14 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("force", "boolean"),
         ]),
       }),
+      addTaskComment: Object.freeze({
+        description: "Append one comment to a canonical task.",
+        fields: Object.freeze([
+          field("entity", "string"),
+          field("text", "string"),
+          optionalField("actor", "string"),
+        ]),
+      }),
       setEntityStatus: Object.freeze({
         description: "Apply a task status transition.",
         fields: Object.freeze([
@@ -607,6 +616,8 @@ export const OPERATIONS_SCHEMA = Object.freeze({
       subject: { type: "string" },
       requirements: { type: "array", items: { type: "string" } },
       creationToken: { type: "string" },
+      text: { type: "string" },
+      actor: { type: "string" },
       newDocument: { type: "string" },
       expectedSha: { type: "string" },
     },
@@ -803,6 +814,13 @@ function validateOperationObject(op) {
           (Array.isArray(op.requirements) &&
             !hasDuplicates(op.requirements) &&
             op.requirements.every((item) => typeof item === "string")))
+      );
+    case "append_task_comment":
+      return (
+        typeof op.entity === "string" &&
+        typeof op.text === "string" &&
+        op.text.trim() !== "" &&
+        (op.actor === undefined || typeof op.actor === "string")
       );
     case "update_task":
       return (

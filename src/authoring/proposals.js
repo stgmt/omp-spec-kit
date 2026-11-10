@@ -241,6 +241,34 @@ export function applyOperation(text, operation) {
     return { ok: true, text: lines.join("\n") };
   }
 
+  if (kind === "append_task_comment") {
+    if (typeof operation.entity !== "string" || typeof operation.text !== "string")
+      return { ok: false, code: "INVALID_REQUEST", message: "append_task_comment needs entity and text" };
+    const body = operation.text.trim();
+    if (!body) return { ok: false, code: "INVALID_REQUEST", message: "append_task_comment needs text" };
+    const lines = text.split(/\r?\n/u);
+    const heading = lines.findIndex((line) => {
+      const match = line.match(/^##\s+([^\s:]+)/u);
+      return match !== null && match[1] === operation.entity;
+    });
+    if (heading < 0)
+      return { ok: false, code: "VALIDATION_FAILED", message: `task heading not found: ${operation.entity}` };
+    let end = lines.length;
+    for (let index = heading + 1; index < lines.length; index += 1) {
+      if (/^##\s+/u.test(lines[index])) {
+        end = index;
+        break;
+      }
+    }
+    const actor = typeof operation.actor === "string" && operation.actor.trim() ? operation.actor.trim() : "agent";
+    const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+    // The comment lives in the task block, so the registry stays the single store.
+    let insertAt = end;
+    while (insertAt > heading + 1 && lines[insertAt - 1].trim() === "") insertAt -= 1;
+    lines.splice(insertAt, 0, "", `- **Comment (${actor}, ${stamp}):** ${body}`);
+    return { ok: true, text: lines.join("\n") };
+  }
+
   if (kind === "insert_at_eof") {
     if (typeof operation.text !== "string")
       return { ok: false, code: "INVALID_REQUEST", message: "insert_at_eof.text must be text" };
@@ -511,6 +539,26 @@ export function operationForFacade(name, input) {
           owner: input.owner ?? null,
           description: input.description,
           status: input.status,
+        },
+      ],
+    };
+  }
+
+  if (name === "addTaskComment") {
+    if (typeof input.entity !== "string" || typeof input.text !== "string")
+      return error("INVALID_REQUEST", "addTaskComment requires entity and text");
+    if (!input.text.trim())
+      return error("INVALID_REQUEST", "addTaskComment requires non-empty text");
+    return {
+      spec,
+      reason,
+      operations: [
+        {
+          kind: "append_task_comment",
+          document: "TASKS.md",
+          entity: input.entity,
+          text: input.text,
+          actor: input.actor,
         },
       ],
     };
