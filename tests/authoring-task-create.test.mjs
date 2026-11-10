@@ -150,3 +150,23 @@ describe("update_task field shapes", () => {
     assert.match(updated.text, /- \*\*Owner:\*\*/);
   });
 });
+
+describe("operation field ownership", () => {
+  it("refuses task-only fields on a document operation", async () => {
+    const { validateContractArguments, TOOL_CONTRACTS } = await import(
+      "../src/adapters/tool-contracts.js"
+    );
+    const contract = TOOL_CONTRACTS.find((entry) => entry.tool === "spec_patch");
+    const base = { intent: "patch", spec: "demo", reason: "r", requestId: "req" };
+    const clean = validateContractArguments(contract, {
+      ...base,
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "x" }],
+    });
+    const taskField = validateContractArguments(contract, {
+      ...base,
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "x", owner: "WRITER" }],
+    });
+    assert.equal(clean.ok, true);
+    assert.equal(taskField.ok, false);
+  });
+});

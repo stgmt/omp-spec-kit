@@ -747,9 +747,31 @@ function hasDuplicates(arr) {
   return new Set(arr).size !== arr.length;
 }
 
+/**
+ * Fields that only a task operation may carry. The published schema is a union
+ * of every kind (the client reads one flat property map), so the runtime must
+ * refuse a task field on a document operation instead of ignoring it.
+ */
+const TASK_ONLY_FIELDS = Object.freeze([
+  "entity",
+  "status",
+  "expectedStatus",
+  "owner",
+  "clearOwner",
+  "force",
+  "description",
+  "subject",
+  "requirements",
+  "creationToken",
+]);
+const TASK_OPERATION_KINDS = Object.freeze(["create_task", "update_task", "replace_task_status"]);
+
 function validateOperationObject(op) {
   if (op === null || typeof op !== "object" || Array.isArray(op)) return false;
   if (!PATCH_OPERATION_KINDS.includes(op.kind)) return false;
+  if (!TASK_OPERATION_KINDS.includes(op.kind)) {
+    if (TASK_ONLY_FIELDS.some((field) => op[field] !== undefined)) return false;
+  }
   if (typeof op.document !== "string" || op.document.trim() === "") return false;
   if (op.expectedSha !== undefined && typeof op.expectedSha !== "string") return false;
 
