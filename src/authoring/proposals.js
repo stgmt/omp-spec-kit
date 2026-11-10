@@ -183,6 +183,15 @@ export function applyOperation(text, operation) {
     return { ok: true, text: `${body}${body.length === 0 ? "" : "\n"}${block}` };
   }
 
+  // The application writes owner and link replacements as their own operation
+  // kinds; they land in the same canonical fields, so they share one writer.
+  if (kind === "replace_task_owner" || kind === "replace_task_links") {
+    return applyOperation(text, {
+      ...operation,
+      kind: "update_task",
+      clearOwner: kind === "replace_task_owner" && operation.owner === null ? true : operation.clearOwner,
+    });
+  }
   if (kind === "update_task") {
     if (typeof operation.entity !== "string")
       return { ok: false, code: "INVALID_REQUEST", message: "update_task needs entity" };
@@ -250,6 +259,11 @@ export function applyOperation(text, operation) {
       writeField(
         "Depends On",
         [...new Set(operation.dependsOn.map((ref) => String(ref).trim()))].filter(Boolean).join(", ")
+      );
+    if (Array.isArray(operation.requirements))
+      writeField(
+        "Requirements",
+        [...new Set(operation.requirements.map((ref) => String(ref).trim()))].filter(Boolean).join(", ")
       );
     return { ok: true, text: lines.join("\n") };
   }

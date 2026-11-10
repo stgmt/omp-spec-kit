@@ -72,6 +72,32 @@ describe("task links and review state", () => {
     assert.equal(result.error.findings?.[0]?.code, "TASK_NOT_FOUND");
   });
 
+  it("accepts the application link operation with existing targets", async () => {
+    const graph = await graphAt(tempRoot);
+    const tasks = graph.nodes.filter(
+      (node) => node.kind === "TASK" && node.specSlug === "spec-mcp-access-gate"
+    );
+    assert.ok(tasks.length >= 2);
+    const result = await serviceAt(tempRoot).execute({
+      requestId: "links-4",
+      intent: "patch",
+      spec: "spec-mcp-access-gate",
+      reason: "links",
+      dryRun: true,
+      operations: [
+        {
+          kind: "replace_task_links",
+          document: "TASKS.md",
+          entity: tasks[0].localId,
+          refs: [tasks[1].localId],
+        },
+      ],
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
+    const diff = result.data.operations?.map((entry) => entry.diff ?? "").join("\n") ?? "";
+    assert.match(diff, /\*\*Refs:\*\*/u);
+  });
+
   it("stores review state and links on an existing task", async () => {
     const graph = await graphAt(tempRoot);
     const task = graph.nodes.find(

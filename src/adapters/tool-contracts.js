@@ -76,6 +76,8 @@ export const PATCH_OPERATION_KINDS = Object.freeze([
   "replace_task_status",
   "create_task",
   "update_task",
+  "replace_task_owner",
+  "replace_task_links",
   "append_task_comment",
   "replace_document",
   "delete_document",
@@ -840,6 +842,22 @@ function validateOperationObject(op) {
         (op.owner === undefined || op.owner === null || typeof op.owner === "string") &&
         (op.description === undefined || typeof op.description === "string") &&
         (op.expectedStatus === undefined || TASK_STATUS_VALUES.includes(op.expectedStatus))
+      );
+    case "replace_task_owner":
+      return (
+        typeof op.entity === "string" &&
+        (op.owner === undefined || op.owner === null || typeof op.owner === "string")
+      );
+    case "replace_task_links":
+      return (
+        typeof op.entity === "string" &&
+        (op.requirements === undefined ||
+          (Array.isArray(op.requirements) && op.requirements.every((item) => typeof item === "string"))) &&
+        (op.dependsOn === undefined ||
+          (Array.isArray(op.dependsOn) && op.dependsOn.every((item) => typeof item === "string"))) &&
+        (op.refs === undefined ||
+          (Array.isArray(op.refs) && op.refs.every((item) => typeof item === "string"))) &&
+        (op.expectedSha === undefined || typeof op.expectedSha === "string")
       );
     case "replace_document":
       return typeof op.content === "string";
