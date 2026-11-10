@@ -53,6 +53,25 @@ describe("task links and review state", () => {
     assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
   });
 
+  it("refuses a link to a task that does not exist", async () => {
+    const graph = await graphAt(tempRoot);
+    const task = graph.nodes.find(
+      (node) => node.kind === "TASK" && node.specSlug === "spec-mcp-access-gate"
+    );
+    const result = await serviceAt(tempRoot).execute({
+      requestId: "links-3",
+      intent: "updateTask",
+      spec: "spec-mcp-access-gate",
+      reason: "links",
+      dryRun: true,
+      entity: task.localId,
+      refs: ["TASK-404"],
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, "VALIDATION_FAILED");
+    assert.equal(result.error.findings?.[0]?.code, "TASK_NOT_FOUND");
+  });
+
   it("stores review state and links on an existing task", async () => {
     const graph = await graphAt(tempRoot);
     const task = graph.nodes.find(

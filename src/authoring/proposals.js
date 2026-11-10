@@ -973,6 +973,48 @@ export class ProposalCompiler {
       );
     }
 
+    // Task-to-task links are edges too: a link to a task that does not exist
+    // would silently drop out of the graph, so it is refused like a dangling
+    // requirement instead of being stored as prose.
+    const taskIdsForWrite = new Set(
+      graph.nodes.filter((node) => node.kind === "TASK").map((node) => node.localId ?? node.canonicalId)
+    );
+    const TASK_LINK_FIELD_PATTERN = /^[ \t]{0,3}(?:[-*][ \t]+)?(?:\*\*)?(?:Refs|Depends On)(?:\*\*)?[ \t]*:[ \t]*(.+)$/u;
+    const TASK_ID_PATTERN = /^TASK-\d+$/u;
+    const writtenTaskLinks = new Set();
+    for (const rawOperation of rawOperations) {
+      if (!rawOperation) continue;
+      for (const link of [...(rawOperation.refs ?? []), ...(rawOperation.dependsOn ?? [])]) {
+        if (typeof link === "string") writtenTaskLinks.add(link.trim());
+      }
+      for (const field of [rawOperation.text, rawOperation.content, rawOperation.newText]) {
+        if (typeof field !== "string") continue;
+        for (const line of field.split(/\r?\n/u)) {
+          const match = line.match(TASK_LINK_FIELD_PATTERN);
+          if (!match) continue;
+          for (const id of match[1].split(",")) writtenTaskLinks.add(id.trim());
+        }
+      }
+    }
+    const danglingTaskLinks = [...writtenTaskLinks].filter(
+      (id) => TASK_ID_PATTERN.test(id) && !taskIdsForWrite.has(id)
+    );
+    if (danglingTaskLinks.length > 0) {
+      const known = [...taskIdsForWrite].sort().slice(0, 20);
+      return error(
+        "VALIDATION_FAILED",
+        `unknown task ids: ${danglingTaskLinks.join(", ")}; read the corpus first ` +
+          `(spec_tasks) and link only tasks that exist${known.length > 0 ? `, for example ${known.join(", ")}` : ""}`,
+        {
+          findings: danglingTaskLinks.map((id) => ({
+            code: "TASK_NOT_FOUND",
+            message: `task ${id} does not exist in this specification`,
+            task: id,
+          })),
+        }
+      );
+    }
+
     const normalizedOperations = [];
     const documents = new Map();
     const addChange = (document, beforeBytes, afterBytes, operation, deleteAfter = false, beforeMissing = false) => {

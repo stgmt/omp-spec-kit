@@ -85,6 +85,18 @@ function taskPhase(task) {
   return match?.[1]?.trim() ?? null;
 }
 
+function taskLinks(graph, canonicalId) {
+  const links = new Set();
+  for (const edge of graph.edges ?? []) {
+    if (edge.from !== canonicalId) continue;
+    if (edge.type !== "REFS" && edge.type !== "DEPENDS_ON") continue;
+    if (edge.status === "BROKEN") continue;
+    const target = graph.nodes.find((node) => node.canonicalId === edge.to);
+    if (target?.kind === "TASK") links.add(target.localId ?? target.canonicalId);
+  }
+  return [...links].sort();
+}
+
 function taskReview(task) {
   const raw = task.attributes?.review;
   if (typeof raw !== "string") return "none";
@@ -121,6 +133,7 @@ function taskEntry(graph, task, includeComments) {
     phase: taskPhase(task),
     source: nodeSource(task),
     requirements: taskRequirements(graph, task.canonicalId),
+    links: taskLinks(graph, task.canonicalId),
     review: taskReview(task),
   };
   if (includeComments) entry.body = task.body;
