@@ -12,7 +12,7 @@ import { buildKernelGraph } from "../kernel/index.js";
 import { readRepositorySpecs } from "../kernel/adapters/fs.js";
 import { detectSecret } from "./secrets.js";
 import { FIXED_DOCUMENT_FILES } from "../kernel/types.js";
-import { isValidSpecSlug } from "../kernel/identity.js";
+import { extractReferenceTarget, isValidSpecSlug } from "../kernel/identity.js";
 import { validateMetadata } from "../kernel/query/extended.js";
 import { assembleRoadmap as assembleRoadmapContent } from "../kernel/roadmap/assemble.js";
 import { validateDesignReviewForChanges } from "./design-review.js";
@@ -904,128 +904,110 @@ export class ProposalCompiler {
       rawOperations = compiled.operations;
     }
 
-    // A task must point at requirements that exist in this corpus: the
-    // registry used to accept any string here, and the corpus only noticed the
-    // dangling reference later during validation.
-    const requirementIds = new Set(
-      graph.nodes
-        .filter((node) => node.kind === "FUNCTIONAL_REQUIREMENT" || node.kind === "NON_FUNCTIONAL_REQUIREMENT")
-        .map((node) => node.localId ?? node.canonicalId)
-    );
-    const unknownRequirements = [];
-    for (const rawOperation of rawOperations) {
-      if (!rawOperation || rawOperation.kind !== "create_task") continue;
-      for (const requirement of rawOperation.requirements ?? []) {
-        if (typeof requirement !== "string") continue;
-        const normalized = requirement.trim();
-        if (!requirementIds.has(normalized)) unknownRequirements.push(normalized);
+    // Every reference field a proposal writes must point at an entity the
+    // corpus actually has. The kernel would otherwise store the id as prose,
+    // and the dangling edge would surface only later — or never, for fields
+    // whose edges nobody reads. Task links, requirement links and design-level
+    // references (AC, DECISION, USER_STORY, SCENARIO, USE_CASE, ...) all pass
+    // through the same resolution.
+    const canonicalIds = new Set(graph.nodes.map((node) => node.canonicalId));
+    const localIdsBySpec = new Map();
+    const specsByLocalId = new Map();
+    for (const node of graph.nodes) {
+      if (typeof node.localId !== "string" || node.localId === "") continue;
+      let localSet = localIdsBySpec.get(node.specSlug);
+      if (!localSet) {
+        localSet = new Set();
+        localIdsBySpec.set(node.specSlug, localSet);
       }
+      localSet.add(node.localId);
+      let slugSet = specsByLocalId.get(node.localId);
+      if (!slugSet) {
+        slugSet = new Set();
+        specsByLocalId.set(node.localId, slugSet);
+      }
+      slugSet.add(node.specSlug);
     }
-    if (unknownRequirements.length > 0) {
-      const known = [...requirementIds].sort().slice(0, 20);
-      const unknown = [...new Set(unknownRequirements)];
-      // The public code set is frozen at VALIDATION_FAILED; the precise reason
-      // travels as a finding so a client can still react to it.
-      return error(
-        "VALIDATION_FAILED",
-        `unknown requirement ids: ${unknown.join(", ")}; read the corpus first ` +
-          `(spec_entities kinds ["requirement"]) and use ids that exist${known.length > 0 ? `, for example ${known.join(", ")}` : ""}`,
-        {
-          findings: unknown.map((id) => ({
-            code: "REQUIREMENT_NOT_FOUND",
-            message: `requirement ${id} does not exist in this specification`,
-            requirement: id,
-          })),
-        }
-      );
-    }
-
-    // The kernel graph derives a task's requirements from edges, not from the
-    // `Requirements:` line, so a free-form patch could write a requirement id
-    // that exists nowhere. Check the ids the proposal actually writes.
-    const requirementIdsForWrite = new Set(
-      graph.nodes
-        .filter((node) => node.kind === "FUNCTIONAL_REQUIREMENT" || node.kind === "NON_FUNCTIONAL_REQUIREMENT")
-        .map((node) => node.localId ?? node.canonicalId)
-    );
-    const REQUIREMENT_FIELD_PATTERN = /^[ \t]{0,3}(?:[-*][ \t]+)?(?:\*\*)?(?:Requirements|Refs|Implements)(?:\*\*)?[ \t]*:[ \t]*(.+)$/u;
-    const REQUIREMENT_ID_PATTERN = /\b(?:FR(?:-[A-Z0-9]+)?-\d+|NFR(?:-[A-Z0-9]+)?-\d+)\b/gu;
-    const writtenRequirementIds = new Set();
+    const LINK_ARRAY_FIELDS = ["requirements", "refs", "dependsOn", "implements", "covers", "related"];
+    // Same allowlist the kernel parser uses for structured reference fields,
+    // so the guard and the edge builder cannot disagree about what a link is.
+    const REFERENCE_FIELD_LINE =
+      /^ {0,3}(?:[-*][ \t]+)?(?:\*\*)?(Refs|Related|Covers|Implements|Depends On|Requirements)(?:\*\*)?[ \t]*:[ \t]*(?:\*\*)?(.+)$/u;
+    const writtenTargets = new Set();
+    const addTarget = (value) => {
+      if (typeof value !== "string") return;
+      for (const token of value.split(/[,;\s]+/u)) {
+        const cleaned = token.replace(/[*`]/gu, "").replace(/[.,;:)\]]+$/u, "").trim();
+        if (cleaned === "" || /^none$/iu.test(cleaned)) continue;
+        const target = extractReferenceTarget(cleaned);
+        if (target === null) continue;
+        writtenTargets.add(target.target);
+      }
+    };
     for (const rawOperation of rawOperations) {
       if (!rawOperation) continue;
-      for (const requirement of rawOperation.requirements ?? []) {
-        if (typeof requirement === "string") writtenRequirementIds.add(requirement.trim());
+      for (const field of LINK_ARRAY_FIELDS) {
+        const value = rawOperation[field];
+        if (Array.isArray(value)) for (const entry of value) addTarget(entry);
+        else if (typeof value === "string") addTarget(value);
       }
       for (const field of [rawOperation.text, rawOperation.content, rawOperation.newText]) {
         if (typeof field !== "string") continue;
         for (const line of field.split(/\r?\n/u)) {
-          const match = line.match(REQUIREMENT_FIELD_PATTERN);
-          if (!match) continue;
-          for (const id of match[1].match(REQUIREMENT_ID_PATTERN) ?? []) writtenRequirementIds.add(id);
+          const match = line.match(REFERENCE_FIELD_LINE);
+          if (match) addTarget(match[2]);
         }
       }
     }
-    // Intents that name one requirement directly (amend, acceptance criterion,
-    // metadata) must name one that exists, even when the id never reaches a
-    // `Requirements:` line.
+    // Intents that name one entity directly (amend requirement, acceptance
+    // criterion, metadata) must name one that exists even when the id never
+    // reaches a reference line.
     if (typeof input.requirement === "string" && input.requirement.trim())
-      writtenRequirementIds.add(input.requirement.trim());
-    const danglingWritten = [...writtenRequirementIds].filter((id) => id.length > 0 && !requirementIdsForWrite.has(id));
-    if (danglingWritten.length > 0) {
-      const known = [...requirementIdsForWrite].sort().slice(0, 20);
-      return error(
-        "VALIDATION_FAILED",
-        `unknown requirement ids: ${danglingWritten.join(", ")}; read the corpus first ` +
-          `(spec_entities kinds ["requirement"]) and use ids that exist${known.length > 0 ? `, for example ${known.join(", ")}` : ""}`,
-        {
-          findings: danglingWritten.map((id) => ({
+      addTarget(input.requirement.trim());
+    const dangling = [];
+    for (const target of writtenTargets) {
+      if (canonicalIds.has(target) || specsByLocalId.has(target) && localIdsBySpec.get(spec)?.has(target)) continue;
+      if (target.includes(":")) {
+        dangling.push({ target, reason: "MISSING" });
+        continue;
+      }
+      const otherSpecs = [...(specsByLocalId.get(target) ?? [])].sort();
+      dangling.push({ target, reason: otherSpecs.length > 0 ? "CROSS_SPEC" : "MISSING", candidates: otherSpecs });
+    }
+    if (dangling.length > 0) {
+      const findingFor = (entry) => {
+        if (/^(?:FR(?:-[A-Z0-9]+)?|NFR(?:-[A-Z0-9]+)?)-\d+$/u.test(entry.target))
+          return {
             code: "REQUIREMENT_NOT_FOUND",
-            message: `requirement ${id} does not exist in this specification`,
-            requirement: id,
-          })),
-        }
-      );
-    }
-
-    // Task-to-task links are edges too: a link to a task that does not exist
-    // would silently drop out of the graph, so it is refused like a dangling
-    // requirement instead of being stored as prose.
-    const taskIdsForWrite = new Set(
-      graph.nodes.filter((node) => node.kind === "TASK").map((node) => node.localId ?? node.canonicalId)
-    );
-    const TASK_LINK_FIELD_PATTERN = /^[ \t]{0,3}(?:[-*][ \t]+)?(?:\*\*)?(?:Refs|Depends On)(?:\*\*)?[ \t]*:[ \t]*(.+)$/u;
-    const TASK_ID_PATTERN = /^TASK-\d+$/u;
-    const writtenTaskLinks = new Set();
-    for (const rawOperation of rawOperations) {
-      if (!rawOperation) continue;
-      for (const link of [...(rawOperation.refs ?? []), ...(rawOperation.dependsOn ?? [])]) {
-        if (typeof link === "string") writtenTaskLinks.add(link.trim());
-      }
-      for (const field of [rawOperation.text, rawOperation.content, rawOperation.newText]) {
-        if (typeof field !== "string") continue;
-        for (const line of field.split(/\r?\n/u)) {
-          const match = line.match(TASK_LINK_FIELD_PATTERN);
-          if (!match) continue;
-          for (const id of match[1].split(",")) writtenTaskLinks.add(id.trim());
-        }
-      }
-    }
-    const danglingTaskLinks = [...writtenTaskLinks].filter(
-      (id) => TASK_ID_PATTERN.test(id) && !taskIdsForWrite.has(id)
-    );
-    if (danglingTaskLinks.length > 0) {
-      const known = [...taskIdsForWrite].sort().slice(0, 20);
+            message: `requirement ${entry.target} does not exist in this specification`,
+            requirement: entry.target,
+          };
+        if (/^TASK-\d+$/u.test(entry.target))
+          return {
+            code: "TASK_NOT_FOUND",
+            message: `task ${entry.target} does not exist in this specification`,
+            task: entry.target,
+          };
+        if (entry.reason === "CROSS_SPEC")
+          return {
+            code: "UNQUALIFIED_CROSS_SPEC_REFERENCE",
+            message: `${entry.target} exists only in another specification; qualify it as <spec-slug>:${entry.target}`,
+            reference: entry.target,
+            candidates: entry.candidates.slice(0, 16).map((slug) => `${slug}:${entry.target}`),
+          };
+        return {
+          code: "REFERENCE_NOT_FOUND",
+          message: `reference ${entry.target} does not exist anywhere in the corpus`,
+          reference: entry.target,
+        };
+      };
+      const unknown = dangling.map((entry) => entry.target);
+      const known = [...(localIdsBySpec.get(spec) ?? [])].sort().slice(0, 20);
       return error(
         "VALIDATION_FAILED",
-        `unknown task ids: ${danglingTaskLinks.join(", ")}; read the corpus first ` +
-          `(spec_tasks) and link only tasks that exist${known.length > 0 ? `, for example ${known.join(", ")}` : ""}`,
-        {
-          findings: danglingTaskLinks.map((id) => ({
-            code: "TASK_NOT_FOUND",
-            message: `task ${id} does not exist in this specification`,
-            task: id,
-          })),
-        }
+        `unknown reference ids: ${[...new Set(unknown)].join(", ")}; read the corpus first ` +
+          `(spec_entities) and reference ids that exist${known.length > 0 ? `, for example ${known.join(", ")}` : ""}`,
+        { findings: dangling.map(findingFor) }
       );
     }
 

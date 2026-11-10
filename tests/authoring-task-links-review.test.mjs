@@ -144,3 +144,83 @@ describe("task links and review state", () => {
     if (other) assert.deepEqual(entry.links, [other.localId]);
   });
 });
+
+describe("design-level reference integrity", () => {
+  let tempRoot;
+
+  beforeEach(async () => {
+    tempRoot = await mkdtemp(path.join(tmpdir(), "omp-design-refs-"));
+    await cp(
+      path.join(repositoryRoot, "tests", "fixtures", "kernel", "authoring-real-corpus", specsDirName),
+      path.join(tempRoot, specsDirName),
+      { recursive: true }
+    );
+  });
+
+  afterEach(async () => {
+    await rm(tempRoot, { recursive: true, force: true });
+  });
+
+  function appendOperation(text) {
+    return {
+      requestId: "refs-1",
+      intent: "patch",
+      spec: "spec-mcp-access-gate",
+      reason: "refs",
+      dryRun: true,
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text }],
+    };
+  }
+
+  it("accepts a design entity that exists", async () => {
+    const graph = await graphAt(tempRoot);
+    const criterion = graph.nodes.find(
+      (node) => node.kind === "ACCEPTANCE_CRITERION" && node.specSlug === "spec-mcp-access-gate"
+    );
+    assert.ok(criterion);
+    const result = await serviceAt(tempRoot).execute(
+      appendOperation(`\n## TASK-96 — Проба критерия\n\n- **Status:** todo\n- **Implements:** ${criterion.localId}\n`)
+    );
+    assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
+  });
+
+  it("refuses a design entity that exists nowhere", async () => {
+    const result = await serviceAt(tempRoot).execute(
+      appendOperation("\n## TASK-96 — Проба критерия\n\n- **Status:** todo\n- **Implements:** AC-99.9\n")
+    );
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, "VALIDATION_FAILED");
+    assert.equal(result.error.findings?.[0]?.code, "REFERENCE_NOT_FOUND");
+  });
+
+  it("refuses a qualified reference to a missing entity", async () => {
+    const result = await serviceAt(tempRoot).execute(
+      appendOperation("\n## TASK-96 — Проба критерия\n\n- **Status:** todo\n- **Refs:** plugin-distribution:DEC-404\n")
+    );
+    assert.equal(result.ok, false);
+    assert.equal(result.error.findings?.[0]?.code, "REFERENCE_NOT_FOUND");
+  });
+
+  it("refuses a bare id that only exists in another specification", async () => {
+    const graph = await graphAt(tempRoot);
+    const ownLocalIds = new Set(
+      graph.nodes
+        .filter((node) => node.specSlug === "spec-mcp-access-gate")
+        .map((node) => node.localId)
+    );
+    const foreign = graph.nodes.find(
+      (node) =>
+        node.specSlug !== "spec-mcp-access-gate" &&
+        typeof node.localId === "string" &&
+        /^(?:AC|DEC|US)-[0-9]/u.test(node.localId) &&
+        !ownLocalIds.has(node.localId)
+    );
+    assert.ok(foreign, "fixture corpus must carry an entity outside the target spec");
+    const result = await serviceAt(tempRoot).execute(
+      appendOperation(`\n## TASK-96 — Проба критерия\n\n- **Status:** todo\n- **Refs:** ${foreign.localId}\n`)
+    );
+    assert.equal(result.ok, false);
+    assert.equal(result.error.findings?.[0]?.code, "UNQUALIFIED_CROSS_SPEC_REFERENCE");
+    assert.ok((result.error.findings?.[0]?.candidates ?? []).length > 0);
+  });
+});
