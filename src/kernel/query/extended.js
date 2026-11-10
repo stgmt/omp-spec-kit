@@ -90,7 +90,6 @@ function taskLinks(graph, canonicalId) {
   for (const edge of graph.edges ?? []) {
     if (edge.from !== canonicalId) continue;
     if (edge.type !== "REFS" && edge.type !== "DEPENDS_ON") continue;
-    if (edge.status === "BROKEN") continue;
     const target = graph.nodes.find((node) => node.canonicalId === edge.to);
     if (target?.kind === "TASK") links.add(target.localId ?? target.canonicalId);
   }

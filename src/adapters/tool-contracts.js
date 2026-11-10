@@ -622,7 +622,6 @@ export const OPERATIONS_SCHEMA = Object.freeze({
       subject: { type: "string" },
       requirements: { type: "array", items: { type: "string" } },
       creationToken: { type: "string" },
-      text: { type: "string" },
       actor: { type: "string" },
       review: { type: "string", enum: TASK_REVIEW_VALUES },
       refs: { type: "array", items: { type: "string" } },

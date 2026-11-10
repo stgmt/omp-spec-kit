@@ -953,7 +953,16 @@ export class ProposalCompiler {
       }
       for (const field of [rawOperation.text, rawOperation.content, rawOperation.newText]) {
         if (typeof field !== "string") continue;
+        // Fenced content is sample code and documentation, not corpus edges:
+        // the kernel skips it when it builds references, and a guard that read
+        // it would refuse legitimate examples.
+        let inFence = false;
         for (const line of field.split(/\r?\n/u)) {
+          if (/^\s{0,3}(?:```|~~~)/u.test(line)) {
+            inFence = !inFence;
+            continue;
+          }
+          if (inFence) continue;
           const match = line.match(REFERENCE_FIELD_LINE);
           if (match) addTarget(match[2]);
         }
@@ -964,9 +973,10 @@ export class ProposalCompiler {
     // reaches a reference line.
     if (typeof input.requirement === "string" && input.requirement.trim())
       addTarget(input.requirement.trim());
+    const ownLocalIds = localIdsBySpec.get(spec) ?? new Set();
     const dangling = [];
     for (const target of writtenTargets) {
-      if (canonicalIds.has(target) || specsByLocalId.has(target) && localIdsBySpec.get(spec)?.has(target)) continue;
+      if (canonicalIds.has(target) || ownLocalIds.has(target)) continue;
       if (target.includes(":")) {
         dangling.push({ target, reason: "MISSING" });
         continue;

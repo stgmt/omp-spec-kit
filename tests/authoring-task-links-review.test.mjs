@@ -186,6 +186,25 @@ describe("design-level reference integrity", () => {
     assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
   });
 
+
+  it("does not refuse sample reference lines inside fenced code", async () => {
+    const result = await serviceAt(tempRoot).execute({
+      requestId: "refs-fence",
+      intent: "patch",
+      spec: "spec-mcp-access-gate",
+      reason: "docs sample",
+      dryRun: true,
+      operations: [
+        {
+          kind: "insert_at_eof",
+          document: "DESIGN.md",
+          text: "\n## Пример\n\n```markdown\n- **Refs:** AC-99.9\n```\n\nЖивая ссылка: FR-1.\n",
+        },
+      ],
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
+  });
+
   it("refuses a design entity that exists nowhere", async () => {
     const result = await serviceAt(tempRoot).execute(
       appendOperation("\n## TASK-96 — Проба критерия\n\n- **Status:** todo\n- **Implements:** AC-99.9\n")
