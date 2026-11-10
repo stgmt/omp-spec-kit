@@ -131,6 +131,10 @@ function taskEntry(graph, task, includeComments) {
     title: task.title,
     status: taskStatus(task),
     phase: taskPhase(task),
+    owner:
+      typeof task.attributes?.owner === "string" && task.attributes.owner.trim() !== ""
+        ? task.attributes.owner.trim()
+        : null,
     source: nodeSource(task),
     requirements: taskRequirements(graph, task.canonicalId),
     links: taskLinks(graph, task.canonicalId),

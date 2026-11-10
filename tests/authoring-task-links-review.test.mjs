@@ -133,6 +133,7 @@ describe("task links and review state", () => {
       dryRun: false,
       entity: task.localId,
       review: "approved",
+      owner: "agent-x",
       refs: other ? [other.localId] : [],
     });
     assert.equal(applied.ok, true, JSON.stringify(applied.error ?? {}).slice(0, 300));
@@ -141,6 +142,7 @@ describe("task links and review state", () => {
     });
     const entry = listed.data.tasks.find((item) => item.localId === task.localId);
     assert.equal(entry.review, "approved");
+    assert.equal(entry.owner, "agent-x");
     if (other) assert.deepEqual(entry.links, [other.localId]);
   });
 });
