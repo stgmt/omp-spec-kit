@@ -1,0 +1,9 @@
+{
+  "schema": "omp-spec-kit/spec-binding@1",
+  "project": "stgmt/omp-spec-kit",
+  "spec": "task-comments-structured",
+  "repo": "https://github.com/stgmt/omp-spec-kit.git",
+  "branch": "spec-task-comments-structured",
+  "createdAt": "2026-11-11T19:52:15.143Z",
+  "owner": "stgmt"
+}
