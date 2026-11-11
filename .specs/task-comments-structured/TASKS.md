@@ -7,4 +7,4 @@ Status: DRAFT
 - **Status:** todo
 - **Requirements:** FR-1
 - **Done When:** тест подтверждает массив comments и узкий прогон зелёный
-- **Owner:** writer
+- **Owner:** team-lead
