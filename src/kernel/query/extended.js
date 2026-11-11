@@ -125,6 +125,22 @@ function taskRequirements(graph, taskId) {
   return [...new Set(refs)].sort(compareStrings);
 }
 
+const TASK_COMMENT_RE = /^\s*[-*]\s+\*\*Comment\s*\(([^,]+),\s*([^)]+)\):\*\*\s*(.*)$/u;
+
+// Comments are authored as bullet lines inside the task block, so the task
+// body is the single source. The listing exposes them structured instead of
+// leaving callers to re-parse the authored markup.
+function taskComments(body) {
+  if (typeof body !== "string") return [];
+  const comments = [];
+  for (const line of body.split(/\r?\n/u)) {
+    const match = TASK_COMMENT_RE.exec(line);
+    if (!match) continue;
+    comments.push({ actor: match[1].trim(), text: match[3].trim(), at: match[2].trim() });
+  }
+  return comments;
+}
+
 function taskEntry(graph, task, includeComments) {
   const entry = {
     canonicalId: task.canonicalId,
@@ -142,7 +158,10 @@ function taskEntry(graph, task, includeComments) {
     links: taskLinks(graph, task.canonicalId),
     review: taskReview(task),
   };
-  if (includeComments) entry.body = task.body;
+  if (includeComments) {
+    entry.body = task.body;
+    entry.comments = taskComments(task.body);
+  }
   return entry;
 }
 

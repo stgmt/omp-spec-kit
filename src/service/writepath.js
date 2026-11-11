@@ -106,7 +106,16 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
         }
       }
 
-      const release = args.dryRun === true ? () => {} : await mounts.acquireWriteLock(project);
+      const releaseLock = args.dryRun === true ? () => {} : await mounts.acquireWriteLock(project);
+      // The lock guards the working tree, not the network: a push can take
+      // seconds, and readers waiting on the lock during it saw multi-second
+      // boards. Release right after the commit, before the push.
+      let lockReleased = false;
+      const release = () => {
+        if (lockReleased) return;
+        lockReleased = true;
+        releaseLock();
+      };
       let envelope;
       try {
         if (args.dryRun !== true && typeof mounts.migrating === "function" && mounts.migrating(project)) {
@@ -171,6 +180,9 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
           authorEmail: identity.email,
           cwd,
         });
+        // Commit is the last step that needs the write lock: everything below
+        // is remote work (push, publish, projection) and must not block reads.
+        release();
         await pushBotCommits();
         logger(`pushed ${project} ${short(receipt.proposalHash)}`);
         await mounts.refreshProject?.(project);
