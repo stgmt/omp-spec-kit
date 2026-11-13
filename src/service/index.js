@@ -340,6 +340,15 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
         return onboarding.issueToken(input);
       },
       idpBindings: (ctx) => idpManager.bindings(ctx),
+      // Loopback bootstrap: the route has already proven the caller is on this
+      // host and that the operator opted in. The login is resolved through the
+      // same IdP lookup an authenticated request uses, then the ordinary
+      // onboarding issuer mints that user's agent token.
+      localToken: async ({ login, serviceUrl }) => {
+        const ctx = await auth.resolveLogin(login);
+        const issued = await onboarding.issueToken({ ctx, serviceUrl });
+        return { token: issued.token, login: issued.login };
+      },
       idpBind: (input) => idpManager.bind(input),
       idpProbe: (input) => idpManager.probe(input),
       idpUnbind: (input) => idpManager.unbind(input),
@@ -361,7 +370,7 @@ export async function startService({ configPath, cloneDir, storeFile, syncInterv
   const store = await createStore({ file: storeFile ?? env.SPEC_REGISTRY_STORE ?? path.join(path.dirname(resolvedCloneDir), "registry.db") });
   const { config, mounts } = await bootService({ configPath, cloneDir: resolvedCloneDir, git, identity, store, secretsKey, logger });
   const stack = buildServiceStack({ mounts, config, identity, logger, store, secretsKey, syncIntervalMs, env });
-  const app = createServiceApp({ mounts, ...stack, webhookSecret: env.SPEC_REGISTRY_WEBHOOK_SECRET ?? null });
+  const app = createServiceApp({ mounts, ...stack, webhookSecret: env.SPEC_REGISTRY_WEBHOOK_SECRET ?? null, env });
   const server = app.listen(port, host);
   await new Promise((resolve, reject) => {
     server.once("listening", () => {

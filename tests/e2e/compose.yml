@@ -78,6 +78,10 @@ services:
       # Seals bound-repo credentials at rest (TASK-17). Test-contour default
       # only — production deployments must set a real key.
       SPEC_REGISTRY_SECRETS_KEY: ${SPEC_REGISTRY_SECRETS_KEY:-e2e-local-secrets-key-not-for-production}
+      # Loopback-only local token bootstrap: empty means disabled, so the
+      # test contour exercises the refusal by default and the live proof sets
+      # the login to mint for.
+      SPEC_REGISTRY_LOCAL_BOOTSTRAP_LOGIN: ${SPEC_REGISTRY_LOCAL_BOOTSTRAP_LOGIN:-}
     volumes:
       - service-data:/data
       - type: bind
