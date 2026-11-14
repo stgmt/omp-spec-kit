@@ -7,6 +7,7 @@
  * is read through MCP; this process never imports or rebuilds the kernel graph.
  */
 import { LEGACY_INVERSE_LINK_TYPES, LINK_TYPE_LABELS, provisionLinkTypes } from "../src/adapters/youtrack-links.js";
+import { provisionProjectSchema } from "../src/adapters/youtrack-schema.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import http from "node:http";
@@ -18,8 +19,6 @@ import { createHmac } from "node:crypto";
 import { createInterface } from "node:readline";
 import {
   BUTTON_TRANSITIONS,
-  KIND_LABELS,
-  TYPE_PER_KIND,
   STATUS_MAP,
   SYNC_STATE_SPEC_ID,
   YouTrackProjectionService,
@@ -710,35 +709,6 @@ export function startServe({
 }
 
 /**
- * Ensures the project enum bundles hold every SpecKind/Type value the
- * projection can emit (e.g. SpecKind=ROADMAP, Type=Roadmap). Bundle edits
- * apply to the bundle wherever it is shared, so this runs only under the
- * explicit --provision flag.
- */
-async function provisionEnumValues(client, projectId, { log = console.log } = {}) {
-  const fields = await client.get(
-    "/api/admin/projects/" + projectId + "/customFields?fields=field(name),bundle(id,values(name))",
-  );
-  const wanted = {
-    SpecKind: Object.keys(KIND_LABELS).map((kind) => KIND_LABELS[kind]),
-    Type: [...new Set(Object.values(TYPE_PER_KIND))],
-  };
-  for (const row of fields ?? []) {
-    const required = wanted[row.field?.name];
-    if (!required || !row.bundle?.id) continue;
-    const existing = new Set((row.bundle.values ?? []).map((value) => value.name));
-    for (const name of required) {
-      if (existing.has(name)) continue;
-      await client.post(
-        "/api/admin/customFieldSettings/bundles/enum/" + row.bundle.id + "/values?fields=id,name",
-        { name, $type: "EnumBundleElement" },
-      );
-      log(JSON.stringify({ op: "provision-enum-value", field: row.field.name, value: name }));
-    }
-  }
-}
-
-/**
  * The canonical corpus is served by the spec registry and no longer lives in
  * this repository, so projecting the working tree would read an EMPTY board
  * and reconcile YouTrack against it. An explicit corpus root is therefore
@@ -761,7 +731,7 @@ async function main() {
   if (!project) fail("project missing on server: " + args.project);
   if (args.provision) {
     await provisionLinkTypes(client, { migrate: args.migrate });
-    await provisionEnumValues(client, project.id);
+    await provisionProjectSchema({ client, projectShortName: project.shortName, log: (line) => console.log(line) });
   }
   const state = new YouTrackSyncStateStore({
     client,

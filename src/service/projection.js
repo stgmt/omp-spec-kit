@@ -51,7 +51,7 @@ async function projectHead(mounts, projectId) {
  *     projectionDigest + projectionVersion must all match the pointer (a
  *     projectionVersion bump forces one rewrite on unchanged content).
  */
-export function createProjection({ mounts, baseUrl, serviceToken, projectShortName, markerSecret, logger = () => {} }) {
+export function createProjection({ mounts, baseUrl, serviceToken, projectShortName, markerSecret, readyGate = null, logger = () => {} }) {
   const client = new YouTrackClient({ host: baseUrl, token: serviceToken });
   let trackerProjectId = null;
 
@@ -273,9 +273,25 @@ export function createProjection({ mounts, baseUrl, serviceToken, projectShortNa
     }
   }
 
+  // The tracker schema is repaired at boot. Waiting for that promise here keeps
+  // the first projection from racing the repair, which used to leave a PARTIAL
+  // board that a second pass had to converge.
+  let gateSettled = false;
+  async function passGate() {
+    if (gateSettled || !readyGate) return;
+    try {
+      await readyGate;
+    } catch {
+      // A failed repair is reported by the provisioner; the projection still
+      // runs and records its own PARTIAL outcome instead of wedging.
+    }
+    gateSettled = true;
+  }
+
   async function runLoop() {
     while (dirty) {
       dirty = false;
+      await passGate();
       try {
         const result = await doSync();
         lastResult = {

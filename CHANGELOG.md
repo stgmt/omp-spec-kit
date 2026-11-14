@@ -2,9 +2,13 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
-## 3.6.1 — unreleased
+## 3.6.2 — unreleased
 
 ### Added
+
+- **One owner for the tracker contract.** The enum values are no longer added by two implementations: `src/adapters/youtrack-schema.js` owns the fields, their bundles and the values, and `scripts/spec-graph-sync.mjs --provision` calls it instead of carrying a copy.
+- **Enum values go into the bundle the project field is attached to.** A hand-provisioned tracker often has the field attached to a bundle with another name; the repair now tops up that bundle (read from the project field) instead of creating a second one beside it. A field attached without a bundle is reported as `TRACKER_FIELD_CONFLICT` and left alone.
+- **The projection waits for the schema instead of racing it.** `createProjection` takes a `readyGate` and awaits it before the first pass, so a bare tracker produces one `SYNCED` line instead of `PARTIAL` followed by a catch-up run.
 
 - **Link types are provisioned with the fields, from one contract.** A tracker without the seven directed spec link types fails the projection with `cannot materialize link implements|…` — the field repair alone did not cover it. `src/adapters/youtrack-links.js` is now the single owner of the link contract; the service repair provisions them at boot (idempotent, relabels drifted labels in place, refuses an undirected or legacy-inverse type as `TRACKER_FIELD_CONFLICT` and writes nothing), and `scripts/spec-graph-sync.mjs` imports the same module instead of carrying a copy.
 - **A refused link type no longer aborts the field repair.** Both halves are reported together: the operator sees the link conflict and still gets the fields.

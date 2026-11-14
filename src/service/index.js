@@ -76,10 +76,31 @@ function seedInitialBindings({ config, store, secretsKey, env }) {
 }
 
 export function buildServiceStack({ mounts, config, identity = botIdentityFromEnv(), logger = () => {}, store, secretsKey = null, syncIntervalMs = 0, env = process.env }) {
+  // The tracker schema (fields, bundles, link types) is a prerequisite of every
+  // projected card. It is provisioned at boot — idempotent, never retyping or
+  // deleting an existing field, and a refusal (no admin rights) is reported
+  // through mcp_preflight instead of failing the start. The promise is the
+  // projection's gate: the first pass waits for it instead of racing it.
+  const projectionEnabled = env.SPEC_REGISTRY_PROJECTION === "1" || env.SPEC_REGISTRY_PROJECTION === "true";
+  const trackerProvisioner = projectionEnabled
+    ? createTrackerProvisioner({
+        baseUrl: env.SPEC_REGISTRY_YT_URL ?? config.auth.youtrack.baseUrl,
+        token: env.SPEC_REGISTRY_YT_SERVICE_TOKEN ?? config.auth.youtrack.serviceToken,
+        projectShortName: env.SPEC_REGISTRY_YT_PROJECT ?? "SPEC",
+        enabled: env.SPEC_REGISTRY_TRACKER_PROVISION !== "0",
+        log: logger,
+      })
+    : null;
+  const trackerReady = trackerProvisioner
+    ? trackerProvisioner.ensure().catch((error) => {
+        logger(`tracker provision failed: ${String(error?.message ?? error)}`);
+        return null;
+      })
+    : null;
   // Tracker projection is opt-in: deployments without a YouTrack write target
   // (pure MCP service) leave it off; the demo stack enables it via env.
   // Created before repos: bind/unbind callbacks below trigger re-projection.
-  const projection = env.SPEC_REGISTRY_PROJECTION === "1" || env.SPEC_REGISTRY_PROJECTION === "true"
+  const projection = projectionEnabled
     ? createProjection({
         mounts,
         baseUrl: env.SPEC_REGISTRY_YT_URL ?? config.auth.youtrack.baseUrl,
@@ -89,41 +110,10 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
         // sign the committed marker with the same secret (env → key file →
         // derived) or writeback ownership checks silently never verify.
         markerSecret: resolveMarkerSecret({ env, secretsKey, logger }),
+        readyGate: trackerReady,
         logger,
       })
     : null;
-  // The tracker schema is a prerequisite of every projected card. With the
-  // projection enabled the service ensures it at boot: idempotent, never
-  // retypes or deletes an existing field, and a refusal (no admin rights) is
-  // reported through mcp_preflight instead of failing the start.
-  const trackerProvisioner = projection
-    ? createTrackerProvisioner({
-        baseUrl: env.SPEC_REGISTRY_YT_URL ?? config.auth.youtrack.baseUrl,
-        token: env.SPEC_REGISTRY_YT_SERVICE_TOKEN ?? config.auth.youtrack.serviceToken,
-        projectShortName: env.SPEC_REGISTRY_YT_PROJECT ?? "SPEC",
-        enabled: env.SPEC_REGISTRY_TRACKER_PROVISION !== "0",
-        log: logger,
-      })
-    : null;
-  if (trackerProvisioner) {
-    void trackerProvisioner
-      .ensure()
-      .then((state) => {
-        // Only a repair that changed the tracker can explain a partial boot
-        // board: when the schema was already complete the boot sync is the one
-        // and only projection pass.
-        if (
-          (state?.created?.length ?? 0) > 0 ||
-          (state?.attached?.length ?? 0) > 0 ||
-          (state?.linkTypesCreated?.length ?? 0) > 0
-        ) {
-          projection?.syncNow?.();
-        }
-      })
-      .catch((error) => {
-        logger(`tracker provision failed: ${String(error?.message ?? error)}`);
-      });
-  }
   const repos = createRepoManager({ mounts, store, config, identity, secretsKey, logger, afterRepoChange: () => projection?.syncNow() });
   // Registration clones in the background: the tool call queues it and reports
   // the phase, so nothing waits on a repository clone inside a request.

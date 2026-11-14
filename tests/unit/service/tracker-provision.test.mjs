@@ -4,6 +4,8 @@ import { describe, it } from "node:test";
 import {
   TRACKER_ENUM_FIELDS,
   TRACKER_TEXT_FIELDS,
+} from "../../../src/adapters/youtrack-schema.js";
+import {
   checkTrackerSchema,
   createTrackerProvisioner,
   repairTrackerSchema,
@@ -52,7 +54,13 @@ function trackerDouble({
           id: row.id,
           $type: row.$type,
           field: { id: state.fields.get(row.name)?.id, name: row.name },
-          bundle: row.bundleId ? { id: row.bundleId, values: state.bundles.get(row.bundleName)?.values } : null,
+          bundle: row.bundleId
+            ? {
+                id: row.bundleId,
+                name: row.bundleName ?? null,
+                values: state.bundles.get(row.bundleName)?.values ?? [],
+              }
+            : null,
         }));
       }
       if (path.startsWith("/api/admin/customFieldSettings/bundles/enum")) {
@@ -74,11 +82,13 @@ function trackerDouble({
       }
       if (/^\/api\/admin\/projects\/[^/]+\/customFields/u.test(path)) {
         const name = [...state.fields.values()].find((row) => row.id === body.field?.id)?.name;
-        state.attached.set(name, { id: `pc-${nextId++}`, name, $type: body.$type, bundleId: body.bundle?.id ?? null });
+        const bundleId = body.bundle?.id ?? null;
+        const bundleName = bundleId ? [...state.bundles.values()].find((row) => row.id === bundleId)?.name ?? null : null;
+        state.attached.set(name, { id: `pc-${nextId++}`, name, $type: body.$type, bundleId, bundleName });
         return { id: `pc-${nextId}` };
       }
-      if (path.startsWith("/api/admin/customFieldSettings/bundles/enum/") && path.endsWith("/values")) {
-        const id = path.split("/")[5];
+      if (/\/customFieldSettings\/bundles\/enum\/[^/?]+\/values/u.test(path)) {
+        const id = path.split("/")[6];
         const bundle = [...state.bundles.values()].find((row) => row.id === id);
         bundle.values.push({ name: body.name });
         return { id: `v-${nextId++}`, name: body.name };
@@ -140,6 +150,25 @@ describe("tracker schema provisioning", () => {
     assert.equal(
       client.calls.some(([method, path]) => method === "POST" && path.includes("customFieldSettings/customFields") && path === "" ),
       false
+    );
+  });
+
+  it("tops up the bundle the project field is attached to, not one found by name", async () => {
+    const client = trackerDouble();
+    await repairTrackerSchema({ client, projectShortName: "SPEC" });
+    // Re-attach SpecKind to a differently named bundle that misses one value,
+    // the way a hand-provisioned tracker looks.
+    const sk = client.state.attached.get("SpecKind");
+    client.state.bundles.set("Legacy kinds", { id: "b-legacy", name: "Legacy kinds", values: [{ name: "TASK" }] });
+    sk.bundleId = "b-legacy";
+    sk.bundleName = "Legacy kinds";
+    const state = await repairTrackerSchema({ client, projectShortName: "SPEC" });
+    assert.equal(state.code, "TRACKER_READY");
+    assert.equal(client.state.bundles.get("Legacy kinds").values.length, TRACKER_ENUM_FIELDS.SpecKind.values.length);
+    assert.equal(client.state.bundles.get("SpecKind values").values.length, TRACKER_ENUM_FIELDS.SpecKind.values.length);
+    assert.equal(
+      state.enumValuesAdded.filter((entry) => entry.startsWith("Legacy kinds:")).length,
+      TRACKER_ENUM_FIELDS.SpecKind.values.length - 1
     );
   });
 
