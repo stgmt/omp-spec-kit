@@ -2,7 +2,7 @@
 // Pure text heuristics over normalized body text; unknown values become null
 // or empty arrays, never invented structure.
 
-import { TASK_STATUS_NORMALIZATION } from "../types.js";
+import { TASK_REVIEW_VALUES, TASK_STATUS_NORMALIZATION } from "../types.js";
 
 // Parse `**Field:** value` style lines plus their immediately following bullet
 // lists. Keys keep authored casing; lookup is exact.
@@ -164,11 +164,14 @@ export function extractAttributes(documentKind, role, localId, title, bodyText, 
       else if (Object.hasOwn(TASK_STATUS_NORMALIZATION, normalizedStatus)) {
         status = TASK_STATUS_NORMALIZATION[normalizedStatus];
       } else status = "unknown";
+      const rawReview = (fieldValue(fields, "Review") ?? "").trim().toLowerCase();
+      const review = TASK_REVIEW_VALUES.includes(rawReview) && rawReview !== "none" ? rawReview : "none";
       return {
         status,
         estimate: fieldValue(fields, "Estimate"),
         owner: fieldValue(fields, "Owner"),
         doneWhen: fieldList(fields, "Done When", "DoneWhen"),
+        review,
       };
     }
     case "FILE_CHANGE": {

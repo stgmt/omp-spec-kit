@@ -49,7 +49,7 @@ export function scanBlocks(text) {
   let lastParagraphIndex = -1;
 
   const FIELD_RE =
-    /^ {0,3}(?:\*\*)?\s*(Refs|Related|Covers|Implements|Depends On)\s*(?:\*\*)?\s*:\s*(?:\*\*)?\s*(.*?)[ \t]*$/u;
+    /^ {0,3}(?:[-*][ \t]+)?(?:\*\*)?\s*(Refs|Related|Covers|Implements|Depends On|Requirements)\s*(?:\*\*)?\s*:\s*(?:\*\*)?\s*(.*?)[ \t]*$/u;
 
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];

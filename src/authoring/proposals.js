@@ -11,7 +11,7 @@ import {
 import { buildKernelGraph } from "../kernel/index.js";
 import { readRepositorySpecs } from "../kernel/adapters/fs.js";
 import { detectSecret } from "./secrets.js";
-import { FIXED_DOCUMENT_FILES } from "../kernel/types.js";
+import { FIXED_DOCUMENT_FILES, SPEC_STATUS_VALUES } from "../kernel/types.js";
 import { extractReferenceTarget, isValidSpecSlug } from "../kernel/identity.js";
 import { validateMetadata } from "../kernel/query/extended.js";
 import { assembleRoadmap as assembleRoadmapContent } from "../kernel/roadmap/assemble.js";
@@ -20,6 +20,7 @@ import { error } from "./error-codes.js";
 
 const MAX_REASON_BYTES = 512;
 const MAX_DIFF_BYTES = 64 * 1024;
+const STATUS_FIELD_PREFIX = /^([ ]{0,3}(?:[-*][ \t]+)?(?:\*\*)?[ \t]*Status[ \t]*(?:\*\*)?[ \t]*:(?:\*\*)?)/u;
 
 // Definition-integrity diagnostic classes a proposal must not introduce.
 // Compared as per-(code, path) counts before/after so pre-existing violations
@@ -124,6 +125,25 @@ export function applyOperation(text, operation) {
     return { ok: true, text: operation.content };
   }
   if (kind === "delete_document") return { ok: true, text: "", delete: true };
+  if (kind === "replace_spec_status") {
+    if (!SPEC_STATUS_VALUES.includes(operation.status))
+      return { ok: false, code: "INVALID_REQUEST", message: "specification status must be active or backlog" };
+    const lines = text.split(/\r?\n/u);
+    let statusIndex = -1;
+    for (let index = 0; index < lines.length; index += 1) {
+      if (!STATUS_FIELD_PREFIX.test(lines[index])) continue;
+      if (statusIndex >= 0)
+        return { ok: false, code: "VALIDATION_FAILED", message: "specification has multiple lifecycle status fields" };
+      statusIndex = index;
+    }
+    if (statusIndex >= 0) {
+      lines[statusIndex] = `${lines[statusIndex].match(STATUS_FIELD_PREFIX)[1]} ${operation.status}`;
+    } else {
+      const heading = lines.findIndex((line) => /^#\s+/u.test(line));
+      lines.splice(heading + 1, 0, "", `Status: ${operation.status}`);
+    }
+    return { ok: true, text: lines.join("\n") };
+  }
   if (kind === "replace_task_status") {
     if (typeof operation.entity !== "string" || typeof operation.status !== "string")
       return { ok: false, code: "INVALID_REQUEST", message: "replace_task_status needs entity and status" };
@@ -147,12 +167,11 @@ export function applyOperation(text, operation) {
     // bulleted forms; matching only `- **Status:**` would fail to patch the
     // corpus's dominant plain/bold forms. The matched prefix is preserved so
     // the task keeps its authored field shape.
-    const STATUS_PREFIX = /^([ ]{0,3}(?:[-*][ \t]+)?(?:\*\*)?[ \t]*Status[ \t]*(?:\*\*)?[ \t]*:(?:\*\*)?)/u;
-    const status = lines.slice(heading + 1, end).findIndex((line) => STATUS_PREFIX.test(line));
+    const status = lines.slice(heading + 1, end).findIndex((line) => STATUS_FIELD_PREFIX.test(line));
     if (status < 0)
       return { ok: false, code: "VALIDATION_FAILED", message: `task status field not found: ${operation.entity}` };
     const index = heading + 1 + status;
-    lines[index] = `${lines[index].match(STATUS_PREFIX)[1]} ${operation.status}`;
+    lines[index] = `${lines[index].match(STATUS_FIELD_PREFIX)[1]} ${operation.status}`;
     return { ok: true, text: lines.join("\n") };
   }
   if (kind === "create_task") {
@@ -507,21 +526,10 @@ export function operationForFacade(name, input) {
     };
   }
   if (name === "setSpecStatus") {
-    const heading =
-      typeof input.heading === "string" && input.heading.trim()
-        ? input.heading.trim()
-        : ["Public states", "Current product status", "Status", "Readiness rule", "Scope"];
     return {
       spec,
       reason,
-      operations: [
-        {
-          kind: "append_to_section",
-          document: "README.md",
-          heading,
-          text: `\n- **Status:** ${input.status}\n`,
-        },
-      ],
+      operations: [{ kind: "replace_spec_status", document: "README.md", status: input.status }],
     };
   }
 

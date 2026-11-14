@@ -11,8 +11,8 @@ import {
 import { buildKernelGraph } from "../kernel/index.js";
 import { readRepositorySpecs } from "../kernel/adapters/fs.js";
 import { detectSecret } from "./secrets.js";
-import { FIXED_DOCUMENT_FILES } from "../kernel/types.js";
-import { isValidSpecSlug } from "../kernel/identity.js";
+import { FIXED_DOCUMENT_FILES, SPEC_STATUS_VALUES } from "../kernel/types.js";
+import { extractReferenceTarget, isValidSpecSlug } from "../kernel/identity.js";
 import { validateMetadata } from "../kernel/query/extended.js";
 import { assembleRoadmap as assembleRoadmapContent } from "../kernel/roadmap/assemble.js";
 import { validateDesignReviewForChanges } from "./design-review.js";
@@ -20,6 +20,7 @@ import { error } from "./error-codes.js";
 
 const MAX_REASON_BYTES = 512;
 const MAX_DIFF_BYTES = 64 * 1024;
+const STATUS_FIELD_PREFIX = /^([ ]{0,3}(?:[-*][ \t]+)?(?:\*\*)?[ \t]*Status[ \t]*(?:\*\*)?[ \t]*:(?:\*\*)?)/u;
 
 // Definition-integrity diagnostic classes a proposal must not introduce.
 // Compared as per-(code, path) counts before/after so pre-existing violations
@@ -28,7 +29,13 @@ const MAX_DIFF_BYTES = 64 * 1024;
 const DEFINITION_INTEGRITY_DIAGNOSTIC_CODES = new Set([
   "INVALID_LOCAL_ID",
   "MALFORMED_HEADING",
+  "FORBIDDEN_EDGE_ENDPOINT",
   "DUPLICATE_DEFINITION",
+  // A reference the write itself introduces must resolve in the same corpus;
+  // otherwise "FR-999" would be written now and only fail a later validation.
+  "BROKEN_REFERENCE",
+  "MALFORMED_REFERENCE",
+  "AMBIGUOUS_REFERENCE",
 ]);
 
 function success(data) {
@@ -118,6 +125,25 @@ export function applyOperation(text, operation) {
     return { ok: true, text: operation.content };
   }
   if (kind === "delete_document") return { ok: true, text: "", delete: true };
+  if (kind === "replace_spec_status") {
+    if (!SPEC_STATUS_VALUES.includes(operation.status))
+      return { ok: false, code: "INVALID_REQUEST", message: "specification status must be active or backlog" };
+    const lines = text.split(/\r?\n/u);
+    let statusIndex = -1;
+    for (let index = 0; index < lines.length; index += 1) {
+      if (!STATUS_FIELD_PREFIX.test(lines[index])) continue;
+      if (statusIndex >= 0)
+        return { ok: false, code: "VALIDATION_FAILED", message: "specification has multiple lifecycle status fields" };
+      statusIndex = index;
+    }
+    if (statusIndex >= 0) {
+      lines[statusIndex] = `${lines[statusIndex].match(STATUS_FIELD_PREFIX)[1]} ${operation.status}`;
+    } else {
+      const heading = lines.findIndex((line) => /^#\s+/u.test(line));
+      lines.splice(heading + 1, 0, "", `Status: ${operation.status}`);
+    }
+    return { ok: true, text: lines.join("\n") };
+  }
   if (kind === "replace_task_status") {
     if (typeof operation.entity !== "string" || typeof operation.status !== "string")
       return { ok: false, code: "INVALID_REQUEST", message: "replace_task_status needs entity and status" };
@@ -141,12 +167,11 @@ export function applyOperation(text, operation) {
     // bulleted forms; matching only `- **Status:**` would fail to patch the
     // corpus's dominant plain/bold forms. The matched prefix is preserved so
     // the task keeps its authored field shape.
-    const STATUS_PREFIX = /^([ ]{0,3}(?:[-*][ \t]+)?(?:\*\*)?[ \t]*Status[ \t]*(?:\*\*)?[ \t]*:(?:\*\*)?)/u;
-    const status = lines.slice(heading + 1, end).findIndex((line) => STATUS_PREFIX.test(line));
+    const status = lines.slice(heading + 1, end).findIndex((line) => STATUS_FIELD_PREFIX.test(line));
     if (status < 0)
       return { ok: false, code: "VALIDATION_FAILED", message: `task status field not found: ${operation.entity}` };
     const index = heading + 1 + status;
-    lines[index] = `${lines[index].match(STATUS_PREFIX)[1]} ${operation.status}`;
+    lines[index] = `${lines[index].match(STATUS_FIELD_PREFIX)[1]} ${operation.status}`;
     return { ok: true, text: lines.join("\n") };
   }
   if (kind === "create_task") {
@@ -178,6 +203,15 @@ export function applyOperation(text, operation) {
     return { ok: true, text: `${body}${body.length === 0 ? "" : "\n"}${block}` };
   }
 
+  // The application writes owner and link replacements as their own operation
+  // kinds; they land in the same canonical fields, so they share one writer.
+  if (kind === "replace_task_owner" || kind === "replace_task_links") {
+    return applyOperation(text, {
+      ...operation,
+      kind: "update_task",
+      clearOwner: kind === "replace_task_owner" && operation.owner === null ? true : operation.clearOwner,
+    });
+  }
   if (kind === "update_task") {
     if (typeof operation.entity !== "string")
       return { ok: false, code: "INVALID_REQUEST", message: "update_task needs entity" };
@@ -238,6 +272,19 @@ export function applyOperation(text, operation) {
     if (operation.clearOwner === true) writeField("Owner", "");
     else if (typeof operation.owner === "string") writeField("Owner", operation.owner.trim());
     if (typeof operation.description === "string") writeField("Done When", operation.description.trim());
+    if (typeof operation.review === "string") writeField("Review", operation.review);
+    if (Array.isArray(operation.refs))
+      writeField("Refs", [...new Set(operation.refs.map((ref) => String(ref).trim()))].filter(Boolean).join(", "));
+    if (Array.isArray(operation.dependsOn))
+      writeField(
+        "Depends On",
+        [...new Set(operation.dependsOn.map((ref) => String(ref).trim()))].filter(Boolean).join(", ")
+      );
+    if (Array.isArray(operation.requirements))
+      writeField(
+        "Requirements",
+        [...new Set(operation.requirements.map((ref) => String(ref).trim()))].filter(Boolean).join(", ")
+      );
     return { ok: true, text: lines.join("\n") };
   }
 
@@ -479,21 +526,10 @@ export function operationForFacade(name, input) {
     };
   }
   if (name === "setSpecStatus") {
-    const heading =
-      typeof input.heading === "string" && input.heading.trim()
-        ? input.heading.trim()
-        : ["Public states", "Current product status", "Status", "Readiness rule", "Scope"];
     return {
       spec,
       reason,
-      operations: [
-        {
-          kind: "append_to_section",
-          document: "README.md",
-          heading,
-          text: `\n- **Status:** ${input.status}\n`,
-        },
-      ],
+      operations: [{ kind: "replace_spec_status", document: "README.md", status: input.status }],
     };
   }
 
@@ -571,9 +607,12 @@ export function operationForFacade(name, input) {
       input.status === undefined &&
       input.owner === undefined &&
       input.description === undefined &&
-      input.clearOwner !== true
+      input.clearOwner !== true &&
+      input.review === undefined &&
+      input.refs === undefined &&
+      input.dependsOn === undefined
     )
-      return error("INVALID_REQUEST", "updateTask requires status, owner or description");
+      return error("INVALID_REQUEST", "updateTask requires status, owner, description, review or links");
     return {
       spec,
       reason,
@@ -587,6 +626,9 @@ export function operationForFacade(name, input) {
           description: input.description,
           expectedStatus: input.expectedStatus,
           clearOwner: input.clearOwner,
+          review: input.review,
+          refs: input.refs,
+          dependsOn: input.dependsOn,
         },
       ],
     };
@@ -871,6 +913,162 @@ export class ProposalCompiler {
       rawOperations = compiled.operations;
     }
 
+    // Every reference field a proposal writes must point at an entity the
+    // corpus actually has. The kernel would otherwise store the id as prose,
+    // and the dangling edge would surface only later — or never, for fields
+    // whose edges nobody reads. Task links, requirement links and design-level
+    // references (AC, DECISION, USER_STORY, SCENARIO, USE_CASE, ...) all pass
+    // through the same resolution.
+    const canonicalIds = new Set(graph.nodes.map((node) => node.canonicalId));
+    const localIdsBySpec = new Map();
+    const specsByLocalId = new Map();
+    for (const node of graph.nodes) {
+      if (typeof node.localId !== "string" || node.localId === "") continue;
+      let localSet = localIdsBySpec.get(node.specSlug);
+      if (!localSet) {
+        localSet = new Set();
+        localIdsBySpec.set(node.specSlug, localSet);
+      }
+      localSet.add(node.localId);
+      let slugSet = specsByLocalId.get(node.localId);
+      if (!slugSet) {
+        slugSet = new Set();
+        specsByLocalId.set(node.localId, slugSet);
+      }
+      slugSet.add(node.specSlug);
+    }
+    const LINK_ARRAY_FIELDS = ["requirements", "refs", "dependsOn", "implements", "covers", "related"];
+    // Same allowlist the kernel parser uses for structured reference fields,
+    // so the guard and the edge builder cannot disagree about what a link is.
+    const REFERENCE_FIELD_LINE =
+      /^ {0,3}(?:[-*][ \t]+)?(?:\*\*)?(Refs|Related|Covers|Implements|Depends On|Requirements)(?:\*\*)?[ \t]*:[ \t]*(?:\*\*)?(.+)$/u;
+    const ownLocalIds = new Set(localIdsBySpec.get(spec) ?? []);
+    // A proposal may define what it references in the same call (add an FR and
+    // a task that implements it). Those ids are not in the pre-write snapshot,
+    // so they are collected from the operations themselves.
+    const HEADING_LOCAL_ID = /^##\s+([^\s:]+)/u;
+    for (const rawOperation of rawOperations) {
+      if (!rawOperation) continue;
+      if (typeof rawOperation.entity === "string" && rawOperation.entity.trim() !== "")
+        ownLocalIds.add(rawOperation.entity.trim());
+      for (const field of [rawOperation.text, rawOperation.content, rawOperation.newText]) {
+        if (typeof field !== "string") continue;
+        for (const line of field.split(/\r?\n/u)) {
+          const heading = line.match(HEADING_LOCAL_ID);
+          if (heading) ownLocalIds.add(heading[1]);
+        }
+      }
+    }
+    // Lines already present in the document are not this write's business: an
+    // old dangling reference must not block an unrelated edit of the same file.
+    const currentDocumentLines = new Map();
+    const existingLinesOf = async (document) => {
+      if (typeof document !== "string" || document === "") return null;
+      if (currentDocumentLines.has(document)) return currentDocumentLines.get(document);
+      const read = await readDocumentBytes(this.root, spec, document);
+      const lines =
+        read && read.ok !== false && read.bytes
+          ? new Set(Buffer.from(read.bytes).toString("utf8").split(/\r?\n/u))
+          : null;
+      currentDocumentLines.set(document, lines);
+      return lines;
+    };
+    const writtenTargets = new Set();
+    const addTarget = (value) => {
+      if (typeof value !== "string") return;
+      for (const token of value.split(/[,;\s]+/u)) {
+        const cleaned = token.replace(/[*`]/gu, "").replace(/[.,;:)\]]+$/u, "").trim();
+        if (cleaned === "" || /^none$/iu.test(cleaned)) continue;
+        const target = extractReferenceTarget(cleaned);
+        if (target === null) continue;
+        writtenTargets.add(target.target);
+      }
+    };
+    for (const rawOperation of rawOperations) {
+      if (!rawOperation) continue;
+      for (const field of LINK_ARRAY_FIELDS) {
+        const value = rawOperation[field];
+        if (Array.isArray(value)) for (const entry of value) addTarget(entry);
+        else if (typeof value === "string") addTarget(value);
+      }
+      const existingLines = await existingLinesOf(rawOperation.document);
+      for (const field of [rawOperation.text, rawOperation.content, rawOperation.newText]) {
+        if (typeof field !== "string") continue;
+        // Fenced content is sample code and documentation, not corpus edges:
+        // the kernel skips it when it builds references, and a guard that read
+        // it would refuse legitimate examples. Fences close only with the same
+        // character, at least as long as the opener.
+        let fence = null;
+        for (const line of field.split(/\r?\n/u)) {
+          const marker = /^ {0,3}(`{3,}|~{3,})/u.exec(line);
+          if (fence === null) {
+            if (marker) {
+              fence = { char: marker[1][0], length: marker[1].length };
+              continue;
+            }
+            if (existingLines?.has(line)) continue;
+            const match = line.match(REFERENCE_FIELD_LINE);
+            if (match) addTarget(match[2]);
+            continue;
+          }
+          if (marker && marker[1][0] === fence.char && marker[1].length >= fence.length) fence = null;
+        }
+      }
+    }
+    // Intents that name one entity directly (amend requirement, acceptance
+    // criterion, metadata) must name one that exists even when the id never
+    // reaches a reference line.
+    if (typeof input.requirement === "string" && input.requirement.trim())
+      addTarget(input.requirement.trim());
+    const dangling = [];
+    for (const target of writtenTargets) {
+      if (canonicalIds.has(target) || ownLocalIds.has(target)) continue;
+      if (target.includes(":")) {
+        const [targetSpec, targetLocalId] = target.split(":", 2);
+        if (targetSpec === spec && ownLocalIds.has(targetLocalId)) continue;
+        dangling.push({ target, reason: "MISSING" });
+        continue;
+      }
+      const otherSpecs = [...(specsByLocalId.get(target) ?? [])].sort();
+      dangling.push({ target, reason: otherSpecs.length > 0 ? "CROSS_SPEC" : "MISSING", candidates: otherSpecs });
+    }
+    if (dangling.length > 0) {
+      const findingFor = (entry) => {
+        if (/^(?:FR(?:-[A-Z0-9]+)?|NFR(?:-[A-Z0-9]+)?)-\d+$/u.test(entry.target))
+          return {
+            code: "REQUIREMENT_NOT_FOUND",
+            message: `requirement ${entry.target} does not exist in this specification`,
+            requirement: entry.target,
+          };
+        if (/^TASK-\d+$/u.test(entry.target))
+          return {
+            code: "TASK_NOT_FOUND",
+            message: `task ${entry.target} does not exist in this specification`,
+            task: entry.target,
+          };
+        if (entry.reason === "CROSS_SPEC")
+          return {
+            code: "UNQUALIFIED_CROSS_SPEC_REFERENCE",
+            message: `${entry.target} exists only in another specification; qualify it as <spec-slug>:${entry.target}`,
+            reference: entry.target,
+            candidates: entry.candidates.slice(0, 16).map((slug) => `${slug}:${entry.target}`),
+          };
+        return {
+          code: "REFERENCE_NOT_FOUND",
+          message: `reference ${entry.target} does not exist anywhere in the corpus`,
+          reference: entry.target,
+        };
+      };
+      const unknown = dangling.map((entry) => entry.target);
+      const known = [...(localIdsBySpec.get(spec) ?? [])].sort().slice(0, 20);
+      return error(
+        "VALIDATION_FAILED",
+        `unknown reference ids: ${[...new Set(unknown)].join(", ")}; read the corpus first ` +
+          `(spec_entities) and reference ids that exist${known.length > 0 ? `, for example ${known.join(", ")}` : ""}`,
+        { findings: dangling.map(findingFor) }
+      );
+    }
+
     const normalizedOperations = [];
     const documents = new Map();
     const addChange = (document, beforeBytes, afterBytes, operation, deleteAfter = false, beforeMissing = false) => {
@@ -1029,7 +1227,7 @@ export class ProposalCompiler {
         (left, right) =>
           (left.path ?? "").localeCompare(right.path ?? "") || left.code.localeCompare(right.code),
       );
-      return error("VALIDATION_FAILED", "proposal introduces malformed definition headings", {
+      return error("VALIDATION_FAILED", "proposal introduces malformed definitions or references that do not resolve", {
         findings: introducedFindings,
       });
     }

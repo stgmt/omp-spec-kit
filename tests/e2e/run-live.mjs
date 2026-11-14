@@ -23,6 +23,11 @@ const execFileAsync = promisify(execFile);
 const ARTIFACTS = path.join(E2E_DIR, "artifacts");
 const CONFIG_PATH = path.join(ARTIFACTS, "projects.json");
 
+// The stack is incremental — the wizard volume and the specs repo persist across runs — so a
+// rerun writes into the same corpus. A canonical id that repeats makes the next compile refuse
+// a duplicate definition, so task-writing probes take a per-run numeric suffix.
+const runTaskId = (base) => `${base}${String(Date.now()).slice(-6)}`;
+
 const results = [];
 function record(id, title, ok, detail = "") {
   results.push({ id, title, ok, detail });
@@ -104,6 +109,14 @@ async function main() {
   } else {
     console.log("wizard: already configured (volume persists)");
   }
+  // `--reset` wipes the volumes: right after the wizard the HTTP port answers while the API
+  // still replies 503 with its warming-up page, and the first authenticated bootstrap call
+  // would fail. Warmth is visible as "no longer 503" (401 without a token once it is up).
+  await waitFor(`${YT_URL}/api/users/me`, {
+    label: "YouTrack API readiness",
+    timeoutMs: 300_000,
+    accept: (response) => response.status !== 503,
+  });
 
   console.log("phase 2: bootstrap fixture (live APIs)");
   const fixture = await bootstrapFixture({ deployApp: !skipApp, logger: (message) => console.log(`  bootstrap: ${message}`) });
@@ -150,13 +163,24 @@ async function main() {
       await browserLogin(page, "alice", USERS.alice.password);
       await page.goto(`${YT_URL}/issue/${fixture.issue.idReadable}`, { waitUntil: "domcontentloaded" });
       const frame = await appFrame(page);
-      await frame.locator('[data-testid="apply-patch"]').click();
+      // Headless Chrome 157 on this YouTrack build delivers no pointer events to the app page:
+      // a synthetic mouse click reaches neither the widget frame nor the page header, while the
+      // widget's own handler runs from a DOM click on the same element. Activate the element and
+      // keep proving the whole browser -> app -> service -> git path through the APPLIED result.
+      const applyPatch = frame.locator('[data-testid="apply-patch"]');
+      await applyPatch.waitFor({ state: "visible" });
+      // Specs live on per-spec branches (`spec-<slug>`, src/service/spec-migration.js); `main`
+      // stays unborn, so the clone has no local branches and the commit to assert is the remote
+      // tracking ref of the branch the widget actually patched.
+      const patchedSpec = await frame.locator('[data-testid="verify-spec"]').inputValue();
+      await applyPatch.evaluate((element) => element.click());
       await frame.locator('[data-testid="apply-result"][data-outcome="APPLIED"]').waitFor({ timeout: 60_000 });
       await page.screenshot({ path: path.join(ARTIFACTS, "s2-alice-applied.png"), fullPage: true }).catch(() => {});
-      const { work } = await remoteLog(gitUrl, ["log", "--format=%an|%B", "-1", "main"]);
-      const body = (await execFileAsync("git", ["log", "--format=%B", "-1", "main"], { cwd: work })).stdout;
+      const branch = `origin/spec-${patchedSpec}`;
+      const { work } = await remoteLog(gitUrl, ["log", "--format=%an|%B", "-1", branch]);
+      const body = (await execFileAsync("git", ["log", "--format=%B", "-1", branch], { cwd: work })).stdout;
       assert.match(body, /Spec-Author: alice/, "verified login must land in the trailer");
-      return "widget apply -> bot commit with Spec-Author: alice";
+      return `widget apply -> bot commit on ${branch} with Spec-Author: alice`;
     } finally {
       await browser.close();
     }
@@ -221,7 +245,7 @@ async function main() {
   await scenario("S7", "owner force over alice's claim lands and is logged", async () => {
     const forced = await callTool(users.carol.token, "spec_patch", {
       intent: "patch", spec: "alpha-spec", reason: "owner force", dryRun: false, force: true,
-      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-92 — carol forced\n" }], requestId: "s7",
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: `\n## ${runTaskId("TASK-92")} — carol forced\n` }], requestId: "s7",
     });
     assert.equal(forced.isError, false, JSON.stringify(forced.structuredContent?.error ?? {}));
     assert.equal(forced.structuredContent.data.outcome, "APPLIED");
@@ -315,7 +339,8 @@ print(db.execute("SELECT holder FROM claims WHERE spec_key = 'stgmt/alpha/alpha-
     });
     const envelope = ambiguous.json?.result?.structuredContent;
     assert.equal(envelope?.ok, false, "two matched tenants must refuse an omitted project");
-    assert.match(envelope.error.message, /project is required/, `unexpected refusal: ${envelope.error.message}`);
+    assert.equal(envelope.error.code, "PROJECT_SELECTION_REQUIRED", `unexpected refusal: ${envelope.error.message}`);
+    assert.match(envelope.error.message, /none is selected/, "the refusal must name the ambiguity");
     const single = await callTool(users.alice.token, "spec_catalog", { view: "specs" });
     assert.equal(single.isError, false, "a single matched tenant resolves its default project");
     assert.ok(single.structuredContent.data.specs.includes("alpha-spec"));
@@ -323,7 +348,7 @@ print(db.execute("SELECT holder FROM claims WHERE spec_key = 'stgmt/alpha/alpha-
   });
 
   await scenario("S15", "AC-6 proposal parity: the app path matches the agent path; a stale apply is refused", async () => {
-    const operations = [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-93 — parity probe\n" }];
+    const operations = [{ kind: "insert_at_eof", document: "TASKS.md", text: `\n## ${runTaskId("TASK-93")} — parity probe\n` }];
     const reason = "proposal parity probe";
     // The proposal hash covers the requestId, so "the same call" means the
     // same arguments on both paths; a dryRun preview is never replayed, so
@@ -345,7 +370,7 @@ print(db.execute("SELECT holder FROM claims WHERE spec_key = 'stgmt/alpha/alpha-
     assert.equal(appEnvelope.data.baseGenerationSha256, agent.structuredContent.data.baseGenerationSha256);
     const drifted = await callTool(users.alice.token, "spec_patch", {
       intent: "patch", spec: "alpha-spec", reason: "drift the snapshot", dryRun: false, requestId: "s15-drift",
-      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-94 — drift probe\n" }],
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: `\n## ${runTaskId("TASK-94")} — drift probe\n` }],
     });
     assert.equal(drifted.structuredContent.data.outcome, "APPLIED", JSON.stringify(drifted.structuredContent?.error ?? {}));
     const stale = await callTool(users.alice.token, "spec_patch", {

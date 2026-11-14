@@ -4,6 +4,7 @@
 export const KERNEL_SCHEMA_VERSION = "spec-kernel@2";
 export const ANCHOR_ALGORITHM_VERSION = "glfm-anchor@2";
 export const DIST_MANIFEST_SCHEMA = "omp-spec-kit-dist-manifest@1";
+export const SPEC_STATUS_VALUES = Object.freeze(["active", "backlog"]);
 
 // DocumentKind -> required filename (fixed names only; FEATURE/SCHEMA are slug-derived).
 export const FIXED_DOCUMENT_FILES = Object.freeze({
@@ -271,6 +272,9 @@ export const ROLE_HEADING_PRODUCTION = Object.freeze({
 export const REFERENCE_FIELD_EDGE_TYPES = Object.freeze({
   Refs: "REFS",
   Related: "REFS",
+  // A task names the requirements it serves; without this mapping the field was
+  // prose and a dangling FR id could be written without any diagnostic.
+  Requirements: "REFS",
   Covers: "COVERS",
   Implements: "IMPLEMENTS",
   "Depends On": "DEPENDS_ON",
@@ -281,6 +285,15 @@ export const TABLE_REFERENCE_DOCUMENT_KINDS = Object.freeze([
   "REQUIREMENTS",
   "TASKS",
   "FILE_CHANGES",
+]);
+
+// Review verdicts a canonical task may carry. One list, so the parser, the
+// query layer and the tool contract cannot drift apart.
+export const TASK_REVIEW_VALUES = Object.freeze([
+  "none",
+  "requested",
+  "approved",
+  "changes-requested",
 ]);
 
 export const TASK_STATUSES = Object.freeze([

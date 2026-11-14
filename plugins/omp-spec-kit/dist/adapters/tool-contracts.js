@@ -10,6 +10,8 @@ import {
   ENTITY_TYPE_DESCRIPTORS,
   LINK_OUTCOMES,
   NODE_KINDS,
+  SPEC_STATUS_VALUES,
+  TASK_REVIEW_VALUES,
 } from "../kernel/types.js";
 import {
   ELICITATION_HINT,
@@ -64,7 +66,7 @@ export const VERIFICATION_METHOD_VALUES = Object.freeze([
 
 export const SAFETY_CLASS_VALUES = Object.freeze(["critical", "major", "minor"]);
 export const DELIVERY_VALUES = Object.freeze(["NOT_DECLARED", "DELIVERED", "INCOMPLETE"]);
-export const SPEC_STATUS_VALUES = Object.freeze(["active", "backlog"]);
+export { SPEC_STATUS_VALUES, TASK_REVIEW_VALUES };
 export const READINESS_VIEW_VALUES = Object.freeze(["status", "summary", "counts", "coverage"]);
 
 export const PATCH_OPERATION_KINDS = Object.freeze([
@@ -75,6 +77,8 @@ export const PATCH_OPERATION_KINDS = Object.freeze([
   "replace_task_status",
   "create_task",
   "update_task",
+  "replace_task_owner",
+  "replace_task_links",
   "append_task_comment",
   "replace_document",
   "delete_document",
@@ -397,7 +401,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         ]),
       }),
       updateTask: Object.freeze({
-        description: "Update one canonical task: status, owner or description.",
+        description: "Update one canonical task: status, owner, description, review state or links.",
         fields: Object.freeze([
           field("entity", "string"),
           optionalField("status", "enum", TASK_STATUS_VALUES),
@@ -406,6 +410,9 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("description", "string"),
           optionalField("clearOwner", "boolean"),
           optionalField("force", "boolean"),
+          optionalField("review", "enum", TASK_REVIEW_VALUES),
+          optionalField("refs", "stringArray"),
+          optionalField("dependsOn", "stringArray"),
         ]),
       }),
       addTaskComment: Object.freeze({
@@ -616,8 +623,10 @@ export const OPERATIONS_SCHEMA = Object.freeze({
       subject: { type: "string" },
       requirements: { type: "array", items: { type: "string" } },
       creationToken: { type: "string" },
-      text: { type: "string" },
       actor: { type: "string" },
+      review: { type: "string", enum: TASK_REVIEW_VALUES },
+      refs: { type: "array", items: { type: "string" } },
+      dependsOn: { type: "array", items: { type: "string" } },
       newDocument: { type: "string" },
       expectedSha: { type: "string" },
     },
@@ -774,8 +783,17 @@ const TASK_ONLY_FIELDS = Object.freeze([
   "subject",
   "requirements",
   "creationToken",
+  "review",
+  "refs",
+  "dependsOn",
 ]);
-const TASK_OPERATION_KINDS = Object.freeze(["create_task", "update_task", "replace_task_status"]);
+const TASK_OPERATION_KINDS = Object.freeze([
+  "create_task",
+  "update_task",
+  "replace_task_status",
+  "replace_task_owner",
+  "replace_task_links",
+]);
 
 function validateOperationObject(op) {
   if (op === null || typeof op !== "object" || Array.isArray(op)) return false;
@@ -807,6 +825,11 @@ function validateOperationObject(op) {
         typeof op.entity === "string" &&
         typeof op.subject === "string" &&
         op.subject.trim() !== "" &&
+        // Creation writes requirements, owner, status and description only; a
+        // link or verdict handed to it would be accepted and then dropped.
+        op.review === undefined &&
+        op.refs === undefined &&
+        op.dependsOn === undefined &&
         (op.owner === undefined || op.owner === null || typeof op.owner === "string") &&
         (op.description === undefined || typeof op.description === "string") &&
         (op.status === undefined || TASK_STATUS_VALUES.includes(op.status)) &&
@@ -825,10 +848,30 @@ function validateOperationObject(op) {
     case "update_task":
       return (
         typeof op.entity === "string" &&
+        (op.review === undefined || TASK_REVIEW_VALUES.includes(op.review)) &&
+        (op.refs === undefined || (Array.isArray(op.refs) && op.refs.every((item) => typeof item === "string"))) &&
+        (op.dependsOn === undefined ||
+          (Array.isArray(op.dependsOn) && op.dependsOn.every((item) => typeof item === "string"))) &&
         (op.status === undefined || TASK_STATUS_VALUES.includes(op.status)) &&
         (op.owner === undefined || op.owner === null || typeof op.owner === "string") &&
         (op.description === undefined || typeof op.description === "string") &&
         (op.expectedStatus === undefined || TASK_STATUS_VALUES.includes(op.expectedStatus))
+      );
+    case "replace_task_owner":
+      return (
+        typeof op.entity === "string" &&
+        (op.owner === undefined || op.owner === null || typeof op.owner === "string")
+      );
+    case "replace_task_links":
+      return (
+        typeof op.entity === "string" &&
+        (op.requirements === undefined ||
+          (Array.isArray(op.requirements) && op.requirements.every((item) => typeof item === "string"))) &&
+        (op.dependsOn === undefined ||
+          (Array.isArray(op.dependsOn) && op.dependsOn.every((item) => typeof item === "string"))) &&
+        (op.refs === undefined ||
+          (Array.isArray(op.refs) && op.refs.every((item) => typeof item === "string"))) &&
+        (op.expectedSha === undefined || typeof op.expectedSha === "string")
       );
     case "replace_document":
       return typeof op.content === "string";

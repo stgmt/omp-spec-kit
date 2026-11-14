@@ -10,6 +10,7 @@ import {
   ENTITY_TYPE_DESCRIPTORS,
   LINK_OUTCOMES,
   NODE_KINDS,
+  SPEC_STATUS_VALUES,
   TASK_REVIEW_VALUES,
 } from "../kernel/types.js";
 import {
@@ -65,8 +66,7 @@ export const VERIFICATION_METHOD_VALUES = Object.freeze([
 
 export const SAFETY_CLASS_VALUES = Object.freeze(["critical", "major", "minor"]);
 export const DELIVERY_VALUES = Object.freeze(["NOT_DECLARED", "DELIVERED", "INCOMPLETE"]);
-export const SPEC_STATUS_VALUES = Object.freeze(["active", "backlog"]);
-export { TASK_REVIEW_VALUES };
+export { SPEC_STATUS_VALUES, TASK_REVIEW_VALUES };
 export const READINESS_VIEW_VALUES = Object.freeze(["status", "summary", "counts", "coverage"]);
 
 export const PATCH_OPERATION_KINDS = Object.freeze([

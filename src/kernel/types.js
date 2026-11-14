@@ -4,6 +4,7 @@
 export const KERNEL_SCHEMA_VERSION = "spec-kernel@2";
 export const ANCHOR_ALGORITHM_VERSION = "glfm-anchor@2";
 export const DIST_MANIFEST_SCHEMA = "omp-spec-kit-dist-manifest@1";
+export const SPEC_STATUS_VALUES = Object.freeze(["active", "backlog"]);
 
 // DocumentKind -> required filename (fixed names only; FEATURE/SCHEMA are slug-derived).
 export const FIXED_DOCUMENT_FILES = Object.freeze({
