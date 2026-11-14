@@ -112,7 +112,11 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
         // Only a repair that changed the tracker can explain a partial boot
         // board: when the schema was already complete the boot sync is the one
         // and only projection pass.
-        if ((state?.created?.length ?? 0) > 0 || (state?.attached?.length ?? 0) > 0) {
+        if (
+          (state?.created?.length ?? 0) > 0 ||
+          (state?.attached?.length ?? 0) > 0 ||
+          (state?.linkTypesCreated?.length ?? 0) > 0
+        ) {
           projection?.syncNow?.();
         }
       })
@@ -257,6 +261,8 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
       conflicts: state.conflicts ?? [],
       created: state.created ?? [],
       attached: state.attached ?? [],
+      missingLinkTypes: state.missingLinkTypes ?? [],
+      linkTypesCreated: state.linkTypesCreated ?? [],
       message: state.message ?? null,
     };
   };

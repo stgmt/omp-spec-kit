@@ -15,20 +15,35 @@ const ALL_FIELDS = [...TRACKER_TEXT_FIELDS, ...Object.keys(TRACKER_ENUM_FIELDS)]
  * Minimal YouTrack double: keeps global fields, project attachments and enum
  * bundles, and records every call so the tests can prove what was (not) touched.
  */
-function trackerDouble({ project = { id: "0-1", shortName: "SPEC" }, fields = [], attached = [], bundles = [] } = {}) {
+function trackerDouble({
+  project = { id: "0-1", shortName: "SPEC" },
+  fields = [],
+  attached = [],
+  bundles = [],
+  linkTypes = [],
+} = {}) {
   const state = {
     fields: new Map(fields.map((row) => [row.name, row])),
     attached: new Map(attached.map((row) => [row.name, row])),
     bundles: new Map(bundles.map((row) => [row.name, row])),
+    linkTypes: new Map(linkTypes.map((row) => [row.name, row])),
   };
   const calls = [];
   let nextId = 100;
   const client = {
     calls,
     state,
+    async delete(path) {
+      calls.push(["DELETE", path]);
+      const id = path.split("/").pop();
+      for (const [name, row] of state.linkTypes) if (row.id === id) state.linkTypes.delete(name);
+    },
     async get(path) {
       calls.push(["GET", path]);
       if (path.startsWith("/api/admin/projects?")) return project ? [project] : [];
+      if (path === "/api/issueLinkTypes?fields=id,name,directed,sourceToTarget,targetToSource") {
+        return [...state.linkTypes.values()];
+      }
       if (path.startsWith("/api/admin/customFieldSettings/customFields")) {
         return [...state.fields.values()].map((row) => ({ id: row.id, name: row.name, fieldType: { id: row.type } }));
       }
@@ -47,6 +62,11 @@ function trackerDouble({ project = { id: "0-1", shortName: "SPEC" }, fields = []
     },
     async post(path, body) {
       calls.push(["POST", path, body]);
+      if (path.startsWith("/api/issueLinkTypes?")) {
+        const row = { id: `lt-${nextId++}`, name: body.name, directed: body.directed, sourceToTarget: body.sourceToTarget, targetToSource: body.targetToSource };
+        state.linkTypes.set(row.name, row);
+        return row;
+      }
       if (path.startsWith("/api/admin/customFieldSettings/customFields")) {
         const row = { id: `cf-${nextId++}`, name: body.name, type: body.fieldType?.id };
         state.fields.set(body.name, row);
@@ -134,6 +154,24 @@ describe("tracker schema provisioning", () => {
       state.enumValuesAdded.filter((entry) => entry.startsWith("SpecKind values:")).length,
       TRACKER_ENUM_FIELDS.SpecKind.values.length - 1
     );
+  });
+
+  it("creates the directed link types the projection needs", async () => {
+    const client = trackerDouble();
+    const state = await repairTrackerSchema({ client, projectShortName: "SPEC" });
+    assert.equal(state.code, "TRACKER_READY");
+    assert.deepEqual(state.linkTypesCreated.sort(), ["constrains", "contains", "covers", "depends-on", "implements", "satisfies", "verifies"]);
+    for (const row of client.state.linkTypes.values()) assert.equal(row.directed, true);
+  });
+
+  it("reports an undirected link type as a conflict and writes nothing", async () => {
+    const client = trackerDouble({
+      linkTypes: [{ id: "lt-1", name: "implements", directed: false, sourceToTarget: "implements", targetToSource: "implemented by" }],
+    });
+    const state = await repairTrackerSchema({ client, projectShortName: "SPEC" });
+    assert.equal(state.code, "TRACKER_FIELD_CONFLICT");
+    assert.equal(state.conflicts.some((row) => row.linkType === "implements"), true);
+    assert.equal(client.state.linkTypes.get("implements").directed, false);
   });
 
   it("reports a missing admin right instead of throwing", async () => {

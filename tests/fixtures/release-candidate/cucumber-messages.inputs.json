@@ -1,17 +1,17 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "223058a904463e2f4abfe4a403a7768c369f001e88577075e6fe2e27deb3a98b",
+  "aggregateSha256": "7a6eb63f3002afe735321f18cc30a54352baa4784c3bfc227c92806176fc00c4",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
       "bytes": 733,
-      "sha256": "a7d546ff3e3d6f02e4894d858304f6a40d264ccb22429a1dedefc67543ad5f43"
+      "sha256": "be6e6832e36b0d82bb11f15437df83a512d4a24c6514b1983d13e74d925bb686"
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 83609,
-      "sha256": "0237404e76b80204bcb9d669b0b6ed63304a7b038781f283be41f352a0b33c19"
+      "bytes": 84595,
+      "sha256": "9aee39e73e02a5ab7a0c2477628f76b0ba07140fa09f62e721e38335856f8979"
     },
     {
       "path": "LICENSE",
@@ -36,12 +36,12 @@
     {
       "path": "package.json",
       "bytes": 6939,
-      "sha256": "a5dbce56ff028bd45ed2ab06e82a5ae4b6973c3fb264354d7b3d764b82cc18b4"
+      "sha256": "602e16473156b635649d24d89f463641716058cdd0301f814792cb0a00382e86"
     },
     {
       "path": "plugins/omp-spec-kit/.claude-plugin/plugin.json",
       "bytes": 402,
-      "sha256": "17b18aa384187cac4008b6808245df54a00e61c0b4493a6c576fe28bb30c95bf"
+      "sha256": "5546ba411ee2356f86ac1ce5f1e0ebbf773d0cb36cbaeeed914e9494815c699f"
     },
     {
       "path": "plugins/omp-spec-kit/.mcp.json",
@@ -81,7 +81,7 @@
     {
       "path": "plugins/omp-spec-kit/package.json",
       "bytes": 647,
-      "sha256": "eecedcacd78e87297c2cb21ce777c4d831f85a99d5314e5a34ec4a0ae659d4cb"
+      "sha256": "9a370449dd2220a3c42862e87506f0364b249dc0a2e964c94342fcdf8ae442ed"
     },
     {
       "path": "plugins/omp-spec-kit/skills/engineering-anti-bike/SKILL.md",
@@ -290,8 +290,8 @@
     },
     {
       "path": "scripts/refresh-cucumber-fixture.mjs",
-      "bytes": 6695,
-      "sha256": "8216ad36274fe765511eb77ebbd6361f4f513626a96d4ba1fae8ba53a451d70c"
+      "bytes": 7027,
+      "sha256": "4ccacd12f75939b64aaee543d6ffad20f2d31cb708673c01995148f6d632a225"
     },
     {
       "path": "scripts/refresh-real-corpus-manifest.mjs",
@@ -340,8 +340,8 @@
     },
     {
       "path": "scripts/spec-graph-sync.mjs",
-      "bytes": 37071,
-      "sha256": "fc81962008541802935173fe22c15c002a5b732e90ceec3e5ca8ec28789b99b4"
+      "bytes": 33507,
+      "sha256": "c21977da8ee648526cf758679706fbf400dff8e450e54a1bfd9b3a2cb0395086"
     },
     {
       "path": "scripts/spec-listener-ensure.mjs",
@@ -401,7 +401,7 @@
     {
       "path": "src/adapters/plugin-version.js",
       "bytes": 112,
-      "sha256": "ba66510b781a7c51b25617386954af69ee66ea271097dce56d8726e71804eed3"
+      "sha256": "4c755e6cecf736850b3609e67f46b5621c8fe8d25f6bf96db05fc5f7a2612528"
     },
     {
       "path": "src/adapters/query-service.js",
@@ -700,8 +700,8 @@
     },
     {
       "path": "src/service/index.js",
-      "bytes": 23832,
-      "sha256": "845c5f0add2f1f96c7181201ced9132ced7cf9281a6a3df1e63783b05b00812c"
+      "bytes": 24026,
+      "sha256": "b80c463a51b4b763db5a7a830fbf56f9fbeedeb43c1408d0c4d2b4610c5d733a"
     },
     {
       "path": "src/service/ledger.js",
@@ -820,8 +820,8 @@
     },
     {
       "path": "src/service/tracker-provision.js",
-      "bytes": 9819,
-      "sha256": "f9722676fdb32aa0b35c0b0eeab9d168bb4c66a8d4478aa3e86b696ab1a359d0"
+      "bytes": 11005,
+      "sha256": "3b012ede9edc79f96cc604f5861179909c79272f76445771a71b93ee50dea8c0"
     },
     {
       "path": "src/service/versioned.js",
@@ -851,7 +851,7 @@
     {
       "path": "src/v0.1/extension.js",
       "bytes": 1134,
-      "sha256": "98e214692316a3787810df9ca2e7c65d2d848a67f63c23619f63e5d7bc4da818"
+      "sha256": "8bc3737711d059cfcefc41b2b08c7566ecbab210abc4e530376ff408e6e8bfe2"
     },
     {
       "path": "tests/.rev-tmp/board.mjs",
@@ -2240,8 +2240,8 @@
     },
     {
       "path": "tests/unit/service/tracker-provision.test.mjs",
-      "bytes": 7910,
-      "sha256": "b68dfb6fcd4d2924c175a90feda93743357171c0c96c6bba3aa5e70d09d830be"
+      "bytes": 9702,
+      "sha256": "117f2e7712a4d43be4e21659b700c637a6e5c88b9ca1f25405540f7775a3fd84"
     },
     {
       "path": "tests/validation-observable-matrix.test.mjs",

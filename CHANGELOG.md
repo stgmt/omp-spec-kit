@@ -2,9 +2,13 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
-## 3.6.0 — unreleased
+## 3.6.1 — unreleased
 
 ### Added
+
+- **Link types are provisioned with the fields, from one contract.** A tracker without the seven directed spec link types fails the projection with `cannot materialize link implements|…` — the field repair alone did not cover it. `src/adapters/youtrack-links.js` is now the single owner of the link contract; the service repair provisions them at boot (idempotent, relabels drifted labels in place, refuses an undirected or legacy-inverse type as `TRACKER_FIELD_CONFLICT` and writes nothing), and `scripts/spec-graph-sync.mjs` imports the same module instead of carrying a copy.
+- **A refused link type no longer aborts the field repair.** Both halves are reported together: the operator sees the link conflict and still gets the fields.
+- **`refresh-cucumber-fixture.mjs` is idempotent.** Re-running it on an unchanged capture rewrites identical rows and used to fail with "README evidence table did not match" as a false alarm; it now only fails when the table shape is unknown.
 
 - **The tracker schema is part of the integration, and the service guarantees it at boot.** Card creation needs `SpecId`, `ContentHash`, `Evidence` (text) and `SpecKind`, `Type` (single enums with their bundles) attached to the tracker project; without them every create failed `incompatible-issue-custom-field-name-<Field>`, the board marker was never published and the widget stayed empty with no reason. `src/service/tracker-provision.js` now checks and repairs that schema before the first projection: idempotent, never deletes, never retypes an existing field (a type mismatch is reported as `TRACKER_FIELD_CONFLICT`), never touches workflows or other projects. `mcp_preflight` reports `tracker.code` with the created/attached/missing lists, and `SPEC_REGISTRY_TRACKER_PROVISION=0` turns the repair off for installations that provision the tracker themselves.
 

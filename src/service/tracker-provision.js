@@ -1,5 +1,6 @@
 import { KIND_LABELS, TYPE_PER_KIND } from "../adapters/youtrack-projection.js";
 import { YouTrackClient } from "../adapters/youtrack-store.js";
+import { inspectLinkTypes, provisionLinkTypes } from "../adapters/youtrack-links.js";
 
 /**
  * The tracker schema the projection writes. These fields are prerequisites of a
@@ -22,6 +23,7 @@ const AUTHORIZATION_PATTERN = /=>\s*(401|403)\b/u;
 /** A refusal that is about rights is not a bug: it must be reported, not thrown. */
 function classify(error) {
   const message = String(error?.message ?? error);
+  if (/rerun with --migrate/u.test(message)) return "TRACKER_FIELD_CONFLICT";
   if (AUTHORIZATION_PATTERN.test(message)) return "TRACKER_NOT_AUTHORIZED";
   if (/=>\s*404\b/u.test(message)) return "TRACKER_PROJECT_MISSING";
   return "TRACKER_UNAVAILABLE";
@@ -82,6 +84,7 @@ export async function checkTrackerSchema({ client, projectShortName }) {
     const project = await resolveProject(client, projectShortName);
     const global = await readGlobalFields(client);
     const attached = await readProjectFields(client, project.id);
+    const links = await inspectLinkTypes(client);
     const missing = [];
     const conflicts = [];
     for (const name of [...TRACKER_TEXT_FIELDS, ...Object.keys(TRACKER_ENUM_FIELDS)]) {
@@ -98,15 +101,25 @@ export async function checkTrackerSchema({ client, projectShortName }) {
       const attachment = attached.get(name);
       if (!attachment) missing.push(name);
     }
+    const linkMissing = links.missing;
+    const linkConflicts = links.conflicts;
+    const code =
+      conflicts.length > 0 || linkConflicts.length > 0
+        ? "TRACKER_FIELD_CONFLICT"
+        : missing.length > 0 || linkMissing.length > 0
+          ? "TRACKER_FIELDS_MISSING"
+          : "TRACKER_READY";
     return {
-      code: missing.length > 0 ? "TRACKER_FIELDS_MISSING" : conflicts.length > 0 ? "TRACKER_FIELD_CONFLICT" : "TRACKER_READY",
+      code,
       project: projectShortName,
       projectId: project.id,
       missing,
-      conflicts,
+      missingLinkTypes: linkMissing,
+      conflicts: [...conflicts, ...linkConflicts],
       created: [],
       attached: [],
       enumValuesAdded: [],
+      linkTypesCreated: [],
     };
   } catch (error) {
     return {
@@ -135,8 +148,19 @@ export async function repairTrackerSchema({ client, projectShortName, log = () =
   const attached = [];
   const enumValuesAdded = [];
   const conflicts = [];
+  let linkTypesCreated = [];
   try {
     const project = await resolveProject(client, projectShortName);
+    // Link types are as much a prerequisite as the fields: an edge the tracker
+    // has no type for fails the whole projection with "cannot materialize link".
+    // A refusal here must not stop the fields from being created — the final
+    // verification reports the link conflict and the operator decides.
+    let linkError = null;
+    try {
+      linkTypesCreated = (await provisionLinkTypes(client, { log })).created;
+    } catch (error) {
+      linkError = error;
+    }
     const global = await readGlobalFields(client);
     const alreadyAttached = await readProjectFields(client, project.id);
 
@@ -205,6 +229,7 @@ export async function repairTrackerSchema({ client, projectShortName, log = () =
       created,
       attached,
       enumValuesAdded,
+      linkTypesCreated,
       message: String(error?.message ?? error).slice(0, 300),
     };
   }
@@ -217,6 +242,8 @@ export async function repairTrackerSchema({ client, projectShortName, log = () =
     created,
     attached,
     enumValuesAdded,
+    linkTypesCreated,
+    message: typeof linkError !== "undefined" && linkError ? String(linkError.message ?? linkError).slice(0, 300) : null,
   };
 }
 
