@@ -1,4 +1,9 @@
 * text=auto eol=lf
+src/service/tracker-provision.js text eol=lf
+tests/unit/service/tracker-provision.test.mjs text eol=lf
+src/service/index.js text eol=lf
+CHANGELOG.md text eol=lf
+
 
 docs/upstream/dev-pomogator/spec-generator-v4/** -text
 docs/upstream/dev-pomogator/LICENSE -text

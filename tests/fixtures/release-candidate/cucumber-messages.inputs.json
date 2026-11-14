@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "9603aaca2fc785f53cfb7affae97e783c6833ba517c647181cfa816d69251b44",
+  "aggregateSha256": "223058a904463e2f4abfe4a403a7768c369f001e88577075e6fe2e27deb3a98b",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -700,8 +700,8 @@
     },
     {
       "path": "src/service/index.js",
-      "bytes": 24299,
-      "sha256": "c37b7775b5c38aa8f6ab6a07101655e49481ed9492205636d0c59cb7d59f2270"
+      "bytes": 23832,
+      "sha256": "845c5f0add2f1f96c7181201ced9132ced7cf9281a6a3df1e63783b05b00812c"
     },
     {
       "path": "src/service/ledger.js",
@@ -817,6 +817,11 @@
       "path": "src/service/tenants.js",
       "bytes": 2336,
       "sha256": "354cc94e9a6f9f12d58e775a525b373cb6358a8249b742029498398258d1bd59"
+    },
+    {
+      "path": "src/service/tracker-provision.js",
+      "bytes": 9819,
+      "sha256": "f9722676fdb32aa0b35c0b0eeab9d168bb4c66a8d4478aa3e86b696ab1a359d0"
     },
     {
       "path": "src/service/versioned.js",
@@ -2232,6 +2237,11 @@
       "path": "tests/unit/service/tenants-claims.test.mjs",
       "bytes": 5527,
       "sha256": "0f56be09b63b26f996674c93ab5a5c1a73bbf4c68749a93a8cbd0681ef70c41a"
+    },
+    {
+      "path": "tests/unit/service/tracker-provision.test.mjs",
+      "bytes": 7910,
+      "sha256": "b68dfb6fcd4d2924c175a90feda93743357171c0c96c6bba3aa5e70d09d830be"
     },
     {
       "path": "tests/validation-observable-matrix.test.mjs",
