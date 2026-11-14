@@ -700,10 +700,16 @@ export function jsonSchemaFor(contract) {
     }
   }
 
+  const conflictingFieldNames = new Set();
   for (const variant of Object.values(contract.variants)) {
     for (const f of variant.fields) {
-      if (!topProperties[f.name]) {
-        topProperties[f.name] = {};
+      const declared = topProperties[f.name];
+      if (!declared) {
+        topProperties[f.name] = branchSchemaType(f);
+        continue;
+      }
+      if (JSON.stringify(declared) !== JSON.stringify(branchSchemaType(f))) {
+        conflictingFieldNames.add(f.name);
       }
     }
   }
@@ -720,9 +726,12 @@ export function jsonSchemaFor(contract) {
 
     for (const f of [...(contract.commonFields ?? []), ...variant.fields]) {
       if (!f.optional) required.push(f.name);
+      // A name that means something different per branch keeps its own schema
+      // in the branch: the shared root entry cannot describe both meanings.
+      if (conflictingFieldNames.has(f.name)) vProps[f.name] = branchSchemaType(f);
     }
 
-    // The root declares every field's type and closes unknown keys, so a
+    // The root declares every other field's type and closes unknown keys, so a
     // branch only has to pin its discriminator and its own required names.
     // Repeating the field schemas per branch added nothing the request path
     // checks and cost kilobytes of catalog on every call.
@@ -733,6 +742,10 @@ export function jsonSchemaFor(contract) {
       properties: vProps,
       required,
     });
+  }
+
+  for (const name of conflictingFieldNames) {
+    if (topProperties[name]) topProperties[name] = {};
   }
 
   addTransportContextFields(topProperties);

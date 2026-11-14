@@ -2,9 +2,11 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
-## 3.5.0 — unreleased
+## 3.5.1 — unreleased
 
 ### Added
+
+- **The catalog keeps every field's meaning.** 3.5.0 moved field schemas out of the `oneOf` branches to shrink the catalog, which left fields the root did not declare as `{}` — enums, nullability and array item types were lost from the model-facing schema. The root now declares the real schema for every field, and only a name that genuinely means something different per branch keeps a per-branch schema; the catalog is 24 158 bytes instead of 29 129 while carrying the same information.
 
 - **A registry on this machine can hand an agent its token through `POST /local/token`.** The route answers 403 to any caller that is not loopback (the Docker gateway address is allowed so a host process can reach a container), 409 unless `SPEC_REGISTRY_LOCAL_BOOTSTRAP_LOGIN` names the operator login, and otherwise mints an agent token through the same onboarding path as a user request — nothing is logged and no credential value is returned. It exists so an app on the same machine can offer one button instead of asking a user to paste a token.
 - **`spec_patch` accepts `replace_spec_status`.** A specification's `Status` line is rewritten in place for operations that only flip the lifecycle state, instead of round-tripping the whole document.

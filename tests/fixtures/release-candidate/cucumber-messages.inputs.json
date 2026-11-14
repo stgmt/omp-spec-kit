@@ -1,17 +1,17 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "5cb1a10b8903a58f5dbc8d1fe8b3f0ec9980d09ffcd1abaf262064704e47a6d3",
+  "aggregateSha256": "2a7426b68109e6e1e92b1011ca869593ed802d4289d665c509fe602478282153",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
       "bytes": 733,
-      "sha256": "c77840ac2cb4805f156e6f6fc9782b8620610a13949a328df9b90f88df2413b7"
+      "sha256": "97e16c7a2221124a14901ba3135455690ac99a4b187e8f83383c68017e7b5b61"
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 82250,
-      "sha256": "993c2de117fc70296a7381cd11ecf4b4c4687869aaf474379a011bcb1cb7d7fc"
+      "bytes": 83506,
+      "sha256": "ebdc41cbc9b73ea4b69de83a9294d21362fd27ebfe79730f651b2aad1184d458"
     },
     {
       "path": "LICENSE",
@@ -36,12 +36,12 @@
     {
       "path": "package.json",
       "bytes": 6893,
-      "sha256": "9f64450286d83fb1f74c4ac5e9533de888a0862566e07d5b99ae5297b9e5d39f"
+      "sha256": "6c3c7fe960b23dbfc0d538eb312b0d432de2e025ff3167c91e31a43a72c562cd"
     },
     {
       "path": "plugins/omp-spec-kit/.claude-plugin/plugin.json",
       "bytes": 402,
-      "sha256": "7d6100a21b16feffaaa8ce5140d98ff233c299422e26bcf374f45f7f876378f0"
+      "sha256": "8a5eff089409df737ee13c8fa9808761b175a914b552dad3b05ed4d924cb5761"
     },
     {
       "path": "plugins/omp-spec-kit/.mcp.json",
@@ -81,7 +81,7 @@
     {
       "path": "plugins/omp-spec-kit/package.json",
       "bytes": 647,
-      "sha256": "2ba0af32c60e5c526c2c37c1f423b07676ee9f2fe2e56449ed8103b9a07f4c93"
+      "sha256": "6d1153c1e99fac4d1562f72dd0853ca750fbd1e2303bb0592f4fc44c88edf2a1"
     },
     {
       "path": "plugins/omp-spec-kit/skills/engineering-anti-bike/SKILL.md",
@@ -401,7 +401,7 @@
     {
       "path": "src/adapters/plugin-version.js",
       "bytes": 112,
-      "sha256": "4cc0e963c34d923236e15c4f20714334c7ea7ae86d90f2d3806996a149464c03"
+      "sha256": "543728d2a685de537203af38dccde90eb57ea161f59d3829b433c14345185c8a"
     },
     {
       "path": "src/adapters/query-service.js",
@@ -410,8 +410,8 @@
     },
     {
       "path": "src/adapters/tool-contracts.js",
-      "bytes": 44667,
-      "sha256": "d36ef06a322827e545cdd5454efc58090cb7a9fe161c1607d34d9c7225bc1b45"
+      "bytes": 45258,
+      "sha256": "12ef3a4cf8dcbe4b1a60bd106155d52e5fdbd35eacc1c1658bf4711444e60daa"
     },
     {
       "path": "src/adapters/youtrack-projection.js",
@@ -846,7 +846,7 @@
     {
       "path": "src/v0.1/extension.js",
       "bytes": 1134,
-      "sha256": "f9ff57efaad8001a81fe1516b7f46cab862bb36fc5f1b09ec4e093a70a64ef25"
+      "sha256": "095753c20cea5ce54ccc305c801197315ff87a9586e9f42719d46a02d8230eeb"
     },
     {
       "path": "tests/.rev-tmp/board.mjs",
