@@ -2,9 +2,12 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
-## 3.6.2 — unreleased
+## 3.6.3 — unreleased
 
 ### Added
+
+- **`mcp_preflight` reports live tracker state.** It used to return the boot snapshot, so a field removed after start still read `TRACKER_READY`. The read is a few GETs on a diagnostic call, which is the right price for a status that cannot lie.
+- **Turning the repair off no longer blinds the status.** `SPEC_REGISTRY_TRACKER_PROVISION=0` now skips only the writes; `mcp_preflight` still reads the schema, so an installation that prepares the tracker itself still sees what is missing.
 
 - **One owner for the tracker contract.** The enum values are no longer added by two implementations: `src/adapters/youtrack-schema.js` owns the fields, their bundles and the values, and `scripts/spec-graph-sync.mjs --provision` calls it instead of carrying a copy.
 - **Enum values go into the bundle the project field is attached to.** A hand-provisioned tracker often has the field attached to a bundle with another name; the repair now tops up that bundle (read from the project field) instead of creating a second one beside it. A field attached without a bundle is reported as `TRACKER_FIELD_CONFLICT` and left alone.

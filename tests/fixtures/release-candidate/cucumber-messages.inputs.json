@@ -1,17 +1,17 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "ad0221a50219ed59148ad51620e14defa6b87707714471ef50116e23b7ffedff",
+  "aggregateSha256": "89743af3e226a25dcc24ec45e2ba24e94a98e2fca0ff52c87667069d3f4b6c90",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
       "bytes": 733,
-      "sha256": "708dec13cdda24a20f5cd5f0f925eaecc66f9b2cbc1453a6c17a7ce074ef0dbe"
+      "sha256": "5ca2f834a152010a4fdb0fbfafdbc9a6664994b8f5f080dd23638e2b1ecc900f"
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 85453,
-      "sha256": "31d92b4a66f36d5c57f489f6ca8b558c8b370b53945d82df00e054210dc5bc11"
+      "bytes": 85941,
+      "sha256": "84c99e7f91edec6331dccaf625a7f9e9e5066248d1af6155247b4b28e0850931"
     },
     {
       "path": "LICENSE",
@@ -36,12 +36,12 @@
     {
       "path": "package.json",
       "bytes": 6939,
-      "sha256": "399396d9263eb25e4172c71ab5ab0d1e53f478a4fdb16b6f963f08b307d13906"
+      "sha256": "860a80d6270159a40231f8114deb36f69c383d2c76e490bfcac2d1ad94d39828"
     },
     {
       "path": "plugins/omp-spec-kit/.claude-plugin/plugin.json",
       "bytes": 402,
-      "sha256": "2bceb18ce6136373beea8daaccc3c5d21c77e844b505fd4dd1b487c9ec69fdbb"
+      "sha256": "398cb74c0f21aed98469430b46c7ae2e7b49b89e928c990f87dd76d1ebad6db4"
     },
     {
       "path": "plugins/omp-spec-kit/.mcp.json",
@@ -81,7 +81,7 @@
     {
       "path": "plugins/omp-spec-kit/package.json",
       "bytes": 647,
-      "sha256": "b0ce494fd1572e41d6a9e2fbd2e69809c07769a830d1d20b0dbcf292f033646a"
+      "sha256": "87642dedd51f8f5201b39e92b4d9ccdaa1e4b0582558abdac280305bfc574edd"
     },
     {
       "path": "plugins/omp-spec-kit/skills/engineering-anti-bike/SKILL.md",
@@ -401,7 +401,7 @@
     {
       "path": "src/adapters/plugin-version.js",
       "bytes": 112,
-      "sha256": "0ea476ef88559fd7cc39ca6db1a6a68bcc6e5bb4317548e8e2fad264ae998fbf"
+      "sha256": "834e31bdf8f83c279c2ae3a8d476233a6deba3994bd9570051f5775a01074fe4"
     },
     {
       "path": "src/adapters/query-service.js",
@@ -422,6 +422,11 @@
       "path": "src/adapters/youtrack-projection.js",
       "bytes": 35180,
       "sha256": "f274edd87cc4c36990006a5e36dee2125394092e23476f5a03acb54c4ce006af"
+    },
+    {
+      "path": "src/adapters/youtrack-schema.js",
+      "bytes": 7456,
+      "sha256": "79ea612b06fc2ebfb68f342702295fa19d3168dcf5ba8438cff7c0332da115b2"
     },
     {
       "path": "src/adapters/youtrack-status-sweep.js",
@@ -705,8 +710,8 @@
     },
     {
       "path": "src/service/index.js",
-      "bytes": 23787,
-      "sha256": "783028c35464f4a24cb435e507aa5e7a662d7b90361dc8eb54bd543c872cdbbc"
+      "bytes": 23889,
+      "sha256": "7a7fd503d89113db11f69a221271461e8cea5490f7f08b1442651f55c34c16bc"
     },
     {
       "path": "src/service/ledger.js",
@@ -825,8 +830,8 @@
     },
     {
       "path": "src/service/tracker-provision.js",
-      "bytes": 5403,
-      "sha256": "f05171e9e896a824eb6155ff65a7c52c7523d0a88f8e67ce196de0e578a85a90"
+      "bytes": 5575,
+      "sha256": "c25348abf656e77da40436dcedfcdd031721500be8c3d3a4506c021cfa6bb7b0"
     },
     {
       "path": "src/service/versioned.js",
@@ -856,7 +861,7 @@
     {
       "path": "src/v0.1/extension.js",
       "bytes": 1134,
-      "sha256": "3986e0d67121d70dcea827c0419a7f9dd6806fc1bcac10da90e30ef8d7b54cc9"
+      "sha256": "a8dfc7ab86b353e55845ee2739be8607160f0240bcdb1e5714081081084fb554"
     },
     {
       "path": "tests/.rev-tmp/board.mjs",
@@ -2245,8 +2250,8 @@
     },
     {
       "path": "tests/unit/service/tracker-provision.test.mjs",
-      "bytes": 11129,
-      "sha256": "902231e39a95aa533feea08954db4c7fe774704182a7e3dfa73e13d82a359828"
+      "bytes": 11774,
+      "sha256": "37f0473427ec522a40e2f7e127e47bf5ff1ae6edb3d9e8dac8003eb0f04f2382"
     },
     {
       "path": "tests/validation-observable-matrix.test.mjs",

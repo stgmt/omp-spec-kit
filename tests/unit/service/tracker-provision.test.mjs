@@ -226,13 +226,28 @@ describe("tracker schema provisioning", () => {
     );
   });
 
-  it("keeps the last state so a preflight read needs no tracker call", async () => {
+  it("reports live state, so a tracker edited after boot is not reported ready", async () => {
     const client = trackerDouble();
     const provisioner = createTrackerProvisioner({ baseUrl: "http://tracker", token: "t", projectShortName: "SPEC" }).useClient(client);
     await provisioner.ensure();
-    const readsBefore = client.calls.length;
-    const cached = provisioner.lastState();
-    assert.equal(cached.code, "TRACKER_READY");
-    assert.equal(client.calls.length, readsBefore);
+    assert.equal(provisioner.lastState().code, "TRACKER_READY");
+    // Someone removes a field on the tracker afterwards.
+    client.state.attached.delete("Type");
+    const live = await provisioner.check();
+    assert.equal(live.code, "TRACKER_FIELDS_MISSING");
+    assert.deepEqual(live.missing, ["Type"]);
+  });
+
+  it("still reports the state when the repair is switched off", async () => {
+    const client = trackerDouble();
+    const provisioner = createTrackerProvisioner({
+      baseUrl: "http://tracker",
+      token: "t",
+      projectShortName: "SPEC",
+      enabled: false,
+    }).useClient(client);
+    const state = await provisioner.ensure();
+    assert.equal(state.code, "TRACKER_FIELDS_MISSING");
+    assert.equal(client.calls.filter(([method]) => method === "POST").length, 0, "no repair when disabled");
   });
 });

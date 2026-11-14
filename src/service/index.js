@@ -243,7 +243,9 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     if (!trackerProvisioner) {
       return { code: "TRACKER_DISABLED", project: null, missing: [], conflicts: [], created: [], attached: [] };
     }
-    const state = trackerProvisioner.lastState() ?? (await trackerProvisioner.check());
+    // Always read live: a tracker edited after boot must not report a stale
+    // 'ready', and the boot snapshot would do exactly that.
+    const state = await trackerProvisioner.check();
     return {
       code: state.code,
       project: state.project,

@@ -119,7 +119,7 @@ export async function repairTrackerSchema({ client, projectShortName, log = () =
  * wait for the schema instead of racing it.
  */
 export function createTrackerProvisioner({ baseUrl, token, projectShortName, enabled = true, log = () => {} }) {
-  let client = enabled && baseUrl && token ? new YouTrackClient({ host: baseUrl, token }) : null;
+  let client = baseUrl && token ? new YouTrackClient({ host: baseUrl, token }) : null;
   let state = null;
   return {
     /** Replace the transport (tests inject a fake; the service passes the real one). */
@@ -139,6 +139,9 @@ export function createTrackerProvisioner({ baseUrl, token, projectShortName, ena
       return state;
     },
     async ensure() {
+      // `enabled: false` means "the operator prepares the tracker themselves":
+      // the state is still read, only the repair is skipped.
+      if (!enabled) return this.check();
       if (!client?.get) return this.check();
       state = await repairTrackerSchema({ client, projectShortName, log });
       log(JSON.stringify({
