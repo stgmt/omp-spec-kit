@@ -718,26 +718,14 @@ export function jsonSchemaFor(contract) {
     };
     const required = [disc];
 
-    if (Array.isArray(contract.commonFields)) {
-      for (const f of contract.commonFields) {
-        vProps[f.name] = branchSchemaType(f);
-        if (!f.optional) required.push(f.name);
-      }
-    }
-
-    for (const f of variant.fields) {
-      vProps[f.name] = branchSchemaType(f);
+    for (const f of [...(contract.commonFields ?? []), ...variant.fields]) {
       if (!f.optional) required.push(f.name);
     }
 
-    // Transport context is declared once on the root schema. Branches stay
-    // open: the root already rejects an unknown key, and repeating the
-    // transport fields per branch would grow the catalog without adding a
-    // single check the runtime performs.
-
-    // The root closes unknown keys; a branch only constrains its own fields.
-    // Declaring transport context per branch would not add an enforcement the
-    // runtime lacks (the root already rejects it) and would double the schema.
+    // The root declares every field's type and closes unknown keys, so a
+    // branch only has to pin its discriminator and its own required names.
+    // Repeating the field schemas per branch added nothing the request path
+    // checks and cost kilobytes of catalog on every call.
     oneOf.push({
       type: "object",
       title: `${disc}: ${vName}`,
