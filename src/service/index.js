@@ -17,6 +17,7 @@ import { startSync } from "./sync.js";
 import { createOnboarding } from "./onboarding.js";
 import { resolveMarkerSecret } from "../adapters/marker-secret.js";
 import { createProjection } from "./projection.js";
+import { createTrackerProvisioner } from "./tracker-provision.js";
 import { createPublisher } from "./publish.js";
 import { createVersionedReads } from "./versioned.js";
 import { createRepoManager } from "./repos.js";
@@ -91,6 +92,34 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
         logger,
       })
     : null;
+  // The tracker schema is a prerequisite of every projected card. With the
+  // projection enabled the service ensures it at boot: idempotent, never
+  // retypes or deletes an existing field, and a refusal (no admin rights) is
+  // reported through mcp_preflight instead of failing the start.
+  const trackerProvisioner = projection
+    ? createTrackerProvisioner({
+        baseUrl: env.SPEC_REGISTRY_YT_URL ?? config.auth.youtrack.baseUrl,
+        token: env.SPEC_REGISTRY_YT_SERVICE_TOKEN ?? config.auth.youtrack.serviceToken,
+        projectShortName: env.SPEC_REGISTRY_YT_PROJECT ?? "SPEC",
+        enabled: env.SPEC_REGISTRY_TRACKER_PROVISION !== "0",
+        log: logger,
+      })
+    : null;
+  if (trackerProvisioner) {
+    void trackerProvisioner
+      .ensure()
+      .then((state) => {
+        // Only a repair that changed the tracker can explain a partial boot
+        // board: when the schema was already complete the boot sync is the one
+        // and only projection pass.
+        if ((state?.created?.length ?? 0) > 0 || (state?.attached?.length ?? 0) > 0) {
+          projection?.syncNow?.();
+        }
+      })
+      .catch((error) => {
+        logger(`tracker provision failed: ${String(error?.message ?? error)}`);
+      });
+  }
   const repos = createRepoManager({ mounts, store, config, identity, secretsKey, logger, afterRepoChange: () => projection?.syncNow() });
   // Registration clones in the background: the tool call queues it and reports
   // the phase, so nothing waits on a repository clone inside a request.
@@ -216,6 +245,21 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   // selected project, repository binding, corpus availability and write
   // readiness are reported separately. The served project is carried by the
   // response provenance (withServedProject) instead of a second data field.
+  const trackerBlock = async () => {
+    if (!trackerProvisioner) {
+      return { code: "TRACKER_DISABLED", project: null, missing: [], conflicts: [], created: [], attached: [] };
+    }
+    const state = trackerProvisioner.lastState() ?? (await trackerProvisioner.check());
+    return {
+      code: state.code,
+      project: state.project,
+      missing: state.missing ?? [],
+      conflicts: state.conflicts ?? [],
+      created: state.created ?? [],
+      attached: state.attached ?? [],
+      message: state.message ?? null,
+    };
+  };
   const preflightSetup = async ({ args, project, projectSource = null, requestId, schemaVersion }) => {
     const row = store?.getBinding?.(project) ?? null;
     const registrationRow = store?.getRegistration?.(project) ?? null;
@@ -255,6 +299,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
             status: registrationRow === null ? "not-registered" : "registered-without-active-binding",
             registeredBy: registrationRow?.registeredBy ?? null,
           },
+          tracker: await trackerBlock(),
           mutationReady: false,
         }),
       };
@@ -273,6 +318,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
         data: {
           ...(base.data ?? {}),
           setup: { required: false, code: null, action: null, operator: null, command: null },
+          tracker: await trackerBlock(),
           credential: { repository: "verified", repair: null },
           registration: {
             status: registrationRow === null ? "operator-configured" : "self-registered",

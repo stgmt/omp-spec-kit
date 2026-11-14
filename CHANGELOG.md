@@ -2,9 +2,11 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
-## 3.5.1 — unreleased
+## 3.6.0 — unreleased
 
 ### Added
+
+- **The tracker schema is part of the integration, and the service guarantees it at boot.** Card creation needs `SpecId`, `ContentHash`, `Evidence` (text) and `SpecKind`, `Type` (single enums with their bundles) attached to the tracker project; without them every create failed `incompatible-issue-custom-field-name-<Field>`, the board marker was never published and the widget stayed empty with no reason. `src/service/tracker-provision.js` now checks and repairs that schema before the first projection: idempotent, never deletes, never retypes an existing field (a type mismatch is reported as `TRACKER_FIELD_CONFLICT`), never touches workflows or other projects. `mcp_preflight` reports `tracker.code` with the created/attached/missing lists, and `SPEC_REGISTRY_TRACKER_PROVISION=0` turns the repair off for installations that provision the tracker themselves.
 
 - **The catalog keeps every field's meaning.** 3.5.0 moved field schemas out of the `oneOf` branches to shrink the catalog, which left fields the root did not declare as `{}` — enums, nullability and array item types were lost from the model-facing schema. The root now declares the real schema for every field, and only a name that genuinely means something different per branch keeps a per-branch schema; the catalog is 24 158 bytes instead of 29 129 while carrying the same information.
 
