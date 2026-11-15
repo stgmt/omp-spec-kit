@@ -520,8 +520,8 @@ export async function runToolE2E({
         requirements: { items: ["FR-1"] },
       }),
     );
-    assert.equal(addBacklogRes.ok, true);
-    assert.equal(addBacklogRes.data.outcome, "PREVIEW");
+    assert.equal(addBacklogRes.ok, false);
+    assert.equal(addBacklogRes.error?.code, "BACKLOG_FORBIDDEN");
 
     // 14. registerIncidentBacklog
     const regIncidentRes = structured(
@@ -536,8 +536,8 @@ export async function runToolE2E({
         requirements: { items: ["FR-1"] },
       }),
     );
-    assert.equal(regIncidentRes.ok, true);
-    assert.equal(regIncidentRes.data.outcome, "PREVIEW");
+    assert.equal(regIncidentRes.ok, false);
+    assert.equal(regIncidentRes.error?.code, "BACKLOG_FORBIDDEN");
 
     // Check tree unchanged after all 14 proposal calls
     const afterState = await snapshotTree(projectRoot);

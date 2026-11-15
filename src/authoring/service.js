@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { detectSecret } from "./secrets.js";
-import { error, isRetryable, safeErrorCode } from "./error-codes.js";
+import { error, safeErrorCode } from "./error-codes.js";
 import { ProposalCompiler, publicOperationKind } from "./proposals.js";
 import {
   canonicalJson,
@@ -15,8 +15,12 @@ import {
   ELICITATION_SKILL_URI,
   FirstWriteElicitationGuard,
 } from "./elicitation-guard.js";
+import { READINESS_REFUSALS } from "../kernel/readiness.js";
 
 export const AUTHORING_OPERATIONS = Object.freeze(["specPatch"]);
+// The refusals NFR-OBS-1 makes durable: admission verdicts from the readiness
+// gate, not the transport-level answers the same path can also return.
+const ADMISSION_REFUSAL_CODES = new Set(Object.keys(READINESS_REFUSALS));
 
 
 function compileRefusalCode(code) {
@@ -49,6 +53,35 @@ export class SpecPatchService {
     this.operations = AUTHORING_OPERATIONS;
   }
 
+  // NFR-OBS-1: an operator can see a team stuck at a level without reading an
+  // agent transcript. Logging never changes the refusal and never throws.
+  auditRefusal(code, input, details = {}) {
+    if (typeof this.options.audit !== "function") return;
+    // The guard lives here so every caller is covered: only the five admission
+    // refusals are durable, never a compile error or a transport answer.
+    if (!ADMISSION_REFUSAL_CODES.has(code)) return;
+    try {
+      const blockers = Array.isArray(details?.blockers) ? details.blockers : [];
+      const identities = blockers
+        .map((entry) => (typeof entry === "string" ? entry : entry?.code))
+        .filter((entry) => typeof entry === "string");
+      // The durable access log keeps five shared columns only, and `result` is
+      // the one free-text column every driver preserves and listAccess can
+      // query. The slug, code, level and blocker identities therefore live in
+      // that row, prefixed so an operator can select refusals alone.
+      const level = typeof details?.level === "string" ? details.level : "unknown";
+      this.options.audit({
+        ts: new Date().toISOString(),
+        op: "spec_patch",
+        spec: typeof input?.spec === "string" ? input.spec : null,
+        requestId: typeof input?.requestId === "string" ? input.requestId : null,
+        result: `admission-refused:${code}:${level}:${identities.join(",") || "none"}`,
+      });
+    } catch {
+      // The durable log is best-effort; a refusal must still be returned.
+    }
+  }
+
   async execute(input = {}) {
     const requestId = input.requestId;
 
@@ -68,25 +101,27 @@ export class SpecPatchService {
 
     const dryRun = input.dryRun ?? true;
 
-    const refusal = (code, message, findings = [], proposalHash = "") => ({
-      ok: true,
-      data: {
-        schemaVersion: "spec-mcp-operations-patch@1",
+    const refusal = (code, message, findings = [], proposalHash = "", details = {}) => {
+      this.auditRefusal(code, input, details);
+      // The refused answer carries the same QueryError record every other
+      // path builds: one builder, so a field never goes missing here.
+      const built = error(code, message, {
+        findings,
         requestId: typeof requestId === "string" ? requestId : "",
-        dryRun: false,
         proposalHash,
-        outcome: "REFUSED",
-        error: {
-          code,
-          message,
-          retryable: isRetryable(code),
+      });
+      return {
+        ok: true,
+        data: {
+          schemaVersion: "spec-mcp-operations-patch@1",
           requestId: typeof requestId === "string" ? requestId : "",
+          dryRun: false,
           proposalHash,
-          changedPaths: [],
-          ...(findings.length > 0 ? { findings } : {}),
+          outcome: "REFUSED",
+          error: built.error,
         },
-      },
-    });
+      };
+    };
 
     if (!dryRun) {
       if (this.options.authorityAllowed === false) {
@@ -130,8 +165,17 @@ export class SpecPatchService {
     const compileRes = await this.compiler.compile(input, graph);
     if (!compileRes.ok) {
       if (!dryRun && compileRefusalCode(compileRes.error?.code)) {
-        return refusal(compileRes.error.code, compileRes.error.message, compileRes.error.findings, compileRes.error.proposalHash);
+        // The envelope refusal logs once, with the blockers and level the
+        // compiler reported.
+        return refusal(
+          compileRes.error.code,
+          compileRes.error.message,
+          compileRes.error.findings,
+          compileRes.error.proposalHash,
+          compileRes.error,
+        );
       }
+      this.auditRefusal(compileRes.error?.code ?? "VALIDATION_FAILED", input, compileRes.error);
       return compileRes;
     }
     const proposal = compileRes.data;
@@ -148,6 +192,8 @@ export class SpecPatchService {
           outcome: "PREVIEW",
           spec: proposal.spec,
           baseGenerationSha256: proposal.baseSnapshotSha256,
+          // AC-1.1: a preview reports the level and blockers before any write.
+          ...(proposal.readiness ? { readiness: proposal.readiness } : {}),
           operations: proposal.changes.map((change) => ({
             path: "." + "specs/" + change.spec + "/" + change.document,
             operation: publicOperationKind(change.operation),

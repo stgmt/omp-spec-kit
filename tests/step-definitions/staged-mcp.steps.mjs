@@ -718,23 +718,31 @@ When("all consolidated branches and all 15 spec patch intents are exercised", { 
     ["spec_patch", { intent: "renameSpecDoc", spec: "temp-e2e-spec", doc: "TASKS.md", newDoc: "FIXTURES.md", reason: "rename doc reason", requestId: "bdd-int-ren" }, "specPatch", null],
     ["spec_patch", { intent: "createSpec", spec: "temp-spec-123", title: "Temp Spec", reason: "create reason", requestId: "bdd-int-create" }, "specPatch", null],
     ["spec_patch", { intent: "archiveSpec", spec: "temp-e2e-spec", reason: "archive reason", requestId: "bdd-int-archive" }, "specPatch", null],
-    ["spec_patch", { intent: "addBacklogTask", spec: "product", title: "Backlog Task", reason: "backlog reason", requestId: "bdd-int-backlog" }, "specPatch", null],
-    ["spec_patch", { intent: "registerIncidentBacklog", spec: "product", summary: "Incident Task", reason: "incident reason", requestId: "bdd-int-incident" }, "specPatch", null],
+    ["spec_patch", { intent: "addBacklogTask", spec: "product", title: "Backlog Task", reason: "backlog reason", requestId: "bdd-int-backlog" }, "specPatch", null, "BACKLOG_FORBIDDEN"],
+    ["spec_patch", { intent: "registerIncidentBacklog", spec: "product", summary: "Incident Task", reason: "incident reason", requestId: "bdd-int-incident" }, "specPatch", null, "BACKLOG_FORBIDDEN"],
     // Roadmap intents (dryRun to avoid mutating the temp corpus)
     ["spec_patch", { intent: "createRoadmap", spec: "roadmap-e2e", reason: "roadmap create reason", requestId: "bdd-int-create-roadmap", dryRun: true }, "specPatch", null],
     ["spec_patch", { intent: "assembleRoadmap", spec: "roadmap-e2e", reason: "roadmap assemble reason", requestId: "bdd-int-assemble-roadmap", dryRun: true }, "specPatch", null],
   ];
   this.branchResults = [];
-  for (const [tool, args, expectedOp, expectedKind] of calls) {
+  for (const [tool, args, expectedOp, expectedKind, expectedError] of calls) {
     const res = await freshServer.request("tools/call", { name: tool, arguments: args });
-    this.branchResults.push({ tool, args, expectedOp, expectedKind, res });
+    this.branchResults.push({ tool, args, expectedOp, expectedKind, expectedError, res });
   }
 });
 
 Then("every branch returns its declared operation, data kind, and valid envelope", function () {
-  for (const { tool, args, expectedOp, expectedKind, res } of this.branchResults) {
+  for (const { tool, args, expectedOp, expectedKind, expectedError, res } of this.branchResults) {
     const struct = res.result?.structuredContent;
     assert.ok(struct, "Tool " + tool + " must return structuredContent: " + JSON.stringify(res));
+    if (expectedError) {
+      // FR-3: the backlog intents are declared so the refusal is typed, never
+      // so the write succeeds.
+      assert.equal(struct.ok, false, "Tool " + tool + " must be refused");
+      assert.equal(struct.error?.code, expectedError, "Tool " + tool + " refusal code mismatch: " + JSON.stringify(struct.error));
+      assert.ok(struct.provenance, "Tool " + tool + " must include provenance");
+      continue;
+    }
     assert.equal(struct.ok, true, "Tool " + tool + " args=" + JSON.stringify(args) + " failed: " + JSON.stringify(struct.error));
     assert.equal(struct.operation, expectedOp, "Tool " + tool + " operation mismatch");
     if (expectedKind) {

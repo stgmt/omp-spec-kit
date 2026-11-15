@@ -651,6 +651,28 @@ async function seedTenantCorpus(mcp, issueId) {
       await patch(spec, "patch", { operations: [{ kind: "replace_document", document, content: `# ${title}\n\nStatus: DRAFT\n${text}` }] });
     }
   };
+  // AC-3.1: task definitions enter TASKS.md only through the canonical
+  // operation, and admission needs L2 (criteria plus a non-stub design).
+  const createTask = async (spec, { entity, subject, requirements, description }) => {
+    try {
+      await patch(spec, "patch", {
+        operations: [{ kind: "create_task", document: "TASKS.md", entity, subject, requirements, description }],
+      });
+    } catch (e) {
+      // A re-run finds the definition already there; that is not a failure.
+      if (!/already exists|CONFLICT/u.test(e.message)) throw e;
+    }
+  };
+  const writeDesign = (spec, text) =>
+    patch(spec, "patch", {
+      operations: [
+        {
+          kind: "replace_document",
+          document: "DESIGN.md",
+          content: `# ${spec} — дизайн\n\nStatus: DRAFT\n\n${text}\n`,
+        },
+      ],
+    });
   // Idempotent: a re-run may find leftovers — skip what already exists.
   // The catalog returns { kind: "specs", specs: ["slug", ...] }.
   const cat = await mcp.callTool({ name: "spec_catalog", arguments: { view: "specs" } });
@@ -668,8 +690,18 @@ async function seedTenantCorpus(mcp, issueId) {
       "\n## NFR-SEC-1 — Журнал не редактируется\n\nЗаписи аудита ДОЛЖНЫ быть append-only: ни администратор, ни сама система не могут изменить или удалить запись задним числом.\n", "Acme Portal");
     await appendDoc("acme-portal", "ACCEPTANCE_CRITERIA.md",
       "\n## AC-1.1 — Видимость записи\n\n**Given** админ изменил настройку, **when** открыт журнал аудита, **then** запись содержит автора, время и diff изменения.\n", "Acme Portal");
-    await appendDoc("acme-portal", "TASKS.md",
-      "\n## TASK-1 — Аудит-лог в админке\n\n- **Status:** todo\n\n**Implements:** FR-1\n\n**Refs:** NFR-SEC-1\n\n- **Done When:** действия админов видны в журнале аудита\n", "Acme Portal");
+    await writeDesign(
+      "acme-portal",
+      "Журнал аудита пишется в append-only таблицу: каждая запись хранит автора, время, тип действия и diff настройки. " +
+        "Чтение журнала идёт через отдельный эндпоинт с ролевым фильтром; редактирование запрещено на уровне прав базы. " +
+        "Ретенция — три года, экспорт раз в сутки, целостность проверяется хэшем каждой записи.",
+    );
+    await createTask("acme-portal", {
+      entity: "TASK-1",
+      subject: "Аудит-лог в админке",
+      requirements: ["FR-1"],
+      description: "действия админов видны в журнале аудита",
+    });
     await release("acme-portal");
   }
 
@@ -683,8 +715,22 @@ async function seedTenantCorpus(mcp, issueId) {
     try { await patch("roadmap-growth", "createRoadmap", { title: "Growth roadmap" }); }
     catch (e) { if (!/already|exist|marker/i.test(e.message)) throw e; }
     await appendDoc("roadmap-growth", "ROADMAP.md", `\n## Scope\n\n**Refs:** acme-portal:FR-1\n`, "Growth roadmap");
-    await appendDoc("roadmap-growth", "TASKS.md",
-      "\n## TASK-1 — Портал: аудит и контроль\n\n- **Status:** todo\n\n**Refs:** acme-portal:FR-1\n\n- **Done When:** аудит выкачен на портал\n", "Growth roadmap");
+    await appendDoc("roadmap-growth", "FR.md",
+      "\n## FR-1 — Портал показывает аудит и выкат\n\nПортал ДОЛЖЕН показывать администраторам журнал аудита и статус выката изменений.\n", "Growth roadmap");
+    await appendDoc("roadmap-growth", "ACCEPTANCE_CRITERIA.md",
+      "\n## AC-1.1 — Аудит виден в портале\nCovers: FR-1\n\nGiven админ открыл портал, when он смотрит журнал аудита, then записи читаются из Acme Portal без ручной выгрузки.\n", "Growth roadmap");
+    await writeDesign(
+      "roadmap-growth",
+      "Роадмап держит только вехи: каждая веха ссылается на требование покрываемой спеки и не дублирует её формулировку. " +
+        "Скоуп собирается из REFS/IMPLEMENTS рёбер узлов самого роадмапа, поэтому ручной список специй не ведётся. " +
+        "Порядок вех задаётся milestone-полями, а выкат отмечается сменой статуса задачи, а не правкой документа.",
+    );
+    await createTask("roadmap-growth", {
+      entity: "TASK-1",
+      subject: "Портал: аудит и контроль",
+      requirements: ["acme-portal:FR-1"],
+      description: "аудит выкачен на портал",
+    });
     try { await patch("roadmap-growth", "assembleRoadmap"); }
     catch (e) { log(`assembleRoadmap skipped: ${e.message.slice(0, 100)}`); }
     await release("roadmap-growth");
@@ -1241,9 +1287,18 @@ async function main() {
         await patch("acme-sso", "patch", { operations: [{ kind: "insert_at_eof", document: "FR.md",
             text: `\n## FR-1 — ${issue.summary}\n\nСистема ДОЛЖНА пускать пользователей портала через корпоративный SSO — без отдельного пароля.\n` }] },
           `<span style="color:#6fb4ff">→ spec_patch</span>  FR.md += «FR-1 — ${issue.summary}»  <span style="color:#5fd98a">// committed</span>`);
-        await patch("acme-sso", "patch", { operations: [{ kind: "insert_at_eof", document: "TASKS.md",
-            text: `\n## TASK-1 — ${issueId}: ${issue.summary}\n\n- **Status:** todo\n\n**Implements:** FR-1\n\n- **Done When:** вход через корпоративный IdP работает от начала до конца\n` }] },
-          `<span style="color:#6fb4ff">→ spec_patch</span>  TASKS.md += «TASK-1 — ${issueId}: …» · Implements FR-1  <span style="color:#5fd98a">// committed</span>`);
+        // AC-3.1: the definition enters through create_task, and admission
+        // needs criteria plus a non-stub design — so all three land in one patch.
+        await patch("acme-sso", "patch", { operations: [
+            { kind: "insert_at_eof", document: "ACCEPTANCE_CRITERIA.md",
+              text: `\n## AC-1.1 — Вход через корпоративный IdP\nCovers: FR-1\n\nGiven сотрудник без активной сессии, when он открывает портал, then он входит через корпоративный IdP и попадает на главную страницу.\n` },
+            { kind: "replace_document", document: "DESIGN.md",
+              content: `# SSO для портала — дизайн\n\nStatus: DRAFT\n\nПортал делегирует аутентификацию корпоративному IdP по OIDC: браузерная сессия живёт в cookie с SameSite=Lax, сервер хранит только identity claims и признак повторной аутентификации. Локальные пароли не используются, выход из IdP инвалидирует сессию портала через back-channel logout.\n` },
+            { kind: "create_task", document: "TASKS.md", entity: "TASK-1",
+              subject: `${issueId}: ${issue.summary}`, requirements: ["FR-1"],
+              description: "вход через корпоративный IdP работает от начала до конца" },
+          ] },
+          `<span style="color:#6fb4ff">→ spec_patch</span>  AC-1.1 + DESIGN + TASKS.md += «TASK-1 — ${issueId}: …»  <span style="color:#5fd98a">// committed</span>`);
         // Depth for the board's right lanes — a real NFR node, not decoration.
         const nfrText = `\n## NFR-SEC-1 — Сессия SSO не вечна\n\nСессия SSO НЕ ДОЛЖНА жить дольше 8 часов без повторной аутентификации у корпоративного IdP.\n`;
         const nfrRender = `<span style="color:#6fb4ff">→ spec_patch</span>  NFR.md += «NFR-SEC-1 — сессия ≤ 8ч»  <span style="color:#5fd98a">// committed</span>`;
@@ -1264,8 +1319,9 @@ async function main() {
         await agentAppend(page, "tool", `<span style="color:#6fb4ff">→ spec_claim</span>  roadmap-growth`);
         const claimRm = await agent.callTool({ name: "spec_claim", arguments: { spec: "roadmap-growth" } });
         assert.ok(JSON.parse(claimRm.content[0].text).ok !== false, "claim roadmap-growth failed");
-        await patch("roadmap-growth", "patch", { operations: [{ kind: "insert_at_eof", document: "TASKS.md",
-            text: `\n## TASK-2 — SSO-роллаут\n\n- **Status:** todo\n\n**Refs:** acme-sso:FR-1\n\n- **Done When:** SSO включён для всех пользователей портала\n` }] },
+        await patch("roadmap-growth", "patch", { operations: [{ kind: "create_task", document: "TASKS.md",
+            entity: "TASK-2", subject: "SSO-роллаут", requirements: ["acme-sso:FR-1"],
+            description: "SSO включён для всех пользователей портала" }] },
           `<span style="color:#6fb4ff">→ spec_patch</span>  roadmap-growth · TASK-2 «SSO-роллаут» Refs acme-sso:FR-1  <span style="color:#5fd98a">// committed</span>`);
         await patch("roadmap-growth", "assembleRoadmap", {},
           `<span style="color:#6fb4ff">→ spec_patch</span>  assembleRoadmap → scope += acme-sso  <span style="color:#5fd98a">// committed</span>`);

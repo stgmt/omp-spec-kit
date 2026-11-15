@@ -14,6 +14,13 @@ export const WRITE_ERROR_CODES = new Set([
   "VERSION_EXISTS",
   "DESIGN_REVIEW_REQUIRED",
   "DESIGN_REVIEW_INVALID",
+  // Admission refusals. Without an entry here safeErrorCode collapses every one
+  // of them to VALIDATION_FAILED and the caller loses the fix plan.
+  "SPEC_NOT_READY",
+  "TASK_NOT_TRACEABLE",
+  "TASK_DOCUMENT_BYPASS",
+  "BACKLOG_FORBIDDEN",
+  "SCENARIO_NOT_TRACEABLE",
 ]);
 
 export function isRetryable(code) {

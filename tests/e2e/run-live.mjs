@@ -204,14 +204,14 @@ async function main() {
     assert.equal(claim.isError, false, JSON.stringify(claim.structuredContent?.error ?? {}));
     const blocked = await callTool(users.erin.token, "spec_patch", {
       intent: "patch", spec: "alpha-spec", reason: "claim check", dryRun: false,
-      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-91 — erin\n" }], requestId: "s6-erin",
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\nerin claim probe\n" }], requestId: "s6-erin",
     });
     assert.equal(blocked.isError, true);
     assert.equal(blocked.structuredContent.error.code, "CLAIM_HELD");
     assert.equal(blocked.structuredContent.error.holder, "alice");
     const forcedByWriter = await callTool(users.erin.token, "spec_patch", {
       intent: "patch", spec: "alpha-spec", reason: "writer force attempt", dryRun: false, force: true,
-      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-91b — erin forced\n" }], requestId: "s6-erin-force",
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\nerin forced probe\n" }], requestId: "s6-erin-force",
     });
     assert.equal(forcedByWriter.isError, true);
     assert.match(forcedByWriter.structuredContent.error.message, /force requires owner role/);
@@ -221,7 +221,7 @@ async function main() {
   await scenario("S7", "owner force over alice's claim lands and is logged", async () => {
     const forced = await callTool(users.carol.token, "spec_patch", {
       intent: "patch", spec: "alpha-spec", reason: "owner force", dryRun: false, force: true,
-      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-92 — carol forced\n" }], requestId: "s7",
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\ncarol forced marker\n" }], requestId: "s7",
     });
     assert.equal(forced.isError, false, JSON.stringify(forced.structuredContent?.error ?? {}));
     assert.equal(forced.structuredContent.data.outcome, "APPLIED");
@@ -323,7 +323,7 @@ print(db.execute("SELECT holder FROM claims WHERE spec_key = 'stgmt/alpha/alpha-
   });
 
   await scenario("S15", "AC-6 proposal parity: the app path matches the agent path; a stale apply is refused", async () => {
-    const operations = [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-93 — parity probe\n" }];
+    const operations = [{ kind: "insert_at_eof", document: "TASKS.md", text: "\nparity probe marker\n" }];
     const reason = "proposal parity probe";
     // The proposal hash covers the requestId, so "the same call" means the
     // same arguments on both paths; a dryRun preview is never replayed, so
@@ -345,7 +345,7 @@ print(db.execute("SELECT holder FROM claims WHERE spec_key = 'stgmt/alpha/alpha-
     assert.equal(appEnvelope.data.baseGenerationSha256, agent.structuredContent.data.baseGenerationSha256);
     const drifted = await callTool(users.alice.token, "spec_patch", {
       intent: "patch", spec: "alpha-spec", reason: "drift the snapshot", dryRun: false, requestId: "s15-drift",
-      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-94 — drift probe\n" }],
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\ndrift probe marker\n" }],
     });
     assert.equal(drifted.structuredContent.data.outcome, "APPLIED", JSON.stringify(drifted.structuredContent?.error ?? {}));
     const stale = await callTool(users.alice.token, "spec_patch", {

@@ -46,7 +46,9 @@ describe("Definition-integrity write gate", () => {
       reason: "gate test",
       dryRun: true,
       operations: [
-        { kind: "insert_at_eof", document: "TASKS.md", text: "\n### TASK-99: Wrong level heading\n" },
+        // A raw TASKS.md insert is now the bypass case; the integrity gate is
+        // exercised on a requirement heading instead.
+        { kind: "insert_at_eof", document: "FR.md", text: "\n### FR-99: Wrong level heading\n" },
       ],
     });
     assert.equal(result.ok, false);
@@ -54,7 +56,7 @@ describe("Definition-integrity write gate", () => {
     assert.match(result.error?.message ?? "", /malformed definitions or references that do not resolve/u);
     const finding = result.error?.findings?.find((entry) => entry.code === "MALFORMED_HEADING");
     assert.ok(finding, "expected a MALFORMED_HEADING finding");
-    assert.match(finding.path ?? "", /TASKS\.md$/u);
+    assert.match(finding.path ?? "", /FR\.md$/u);
   });
 
   it("accepts a proposal adding a well-formed definition heading", async () => {
@@ -65,7 +67,7 @@ describe("Definition-integrity write gate", () => {
       reason: "gate test",
       dryRun: true,
       operations: [
-        { kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-99: Well formed heading\n" },
+        { kind: "insert_at_eof", document: "FR.md", text: "\n## FR-99 — Well formed heading\n" },
       ],
     });
     assert.equal(result.ok, true);
@@ -98,7 +100,7 @@ describe("Definition-integrity write gate", () => {
       reason: "gate test",
       dryRun: true,
       operations: [
-        { kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-1: Duplicate identity\n" },
+        { kind: "insert_at_eof", document: "FR.md", text: "\n## FR-1: Duplicate identity\n" },
       ],
     });
     assert.equal(result.ok, false);

@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it, after } from "node:test";
-import { MountManager, parseProjectsConfig, validateProjectId } from "../../../src/service/mounts.js";
+import { MountManager, durableAudit, parseProjectsConfig, validateProjectId } from "../../../src/service/mounts.js";
 import { ConfigError } from "../../../src/service/mounts.js";
 
 const tempDirs = [];
@@ -272,5 +272,27 @@ describe("materialised corpus cache", () => {
     assert.equal(await mounts.ensureProjectCorpus("acme/widgets"), "acme/widgets", "the read proceeds and reports its own problem");
     assert.equal(logged.length, 1);
     assert.match(logged[0], /corpus repair skipped for acme\/widgets/u);
+  });
+});
+
+describe("durable admission log wiring", () => {
+  it("hands each refusal to the store's access log", () => {
+    const rows = [];
+    const audit = durableAudit({ logAccess: (entry) => rows.push(entry) });
+    audit({ result: "admission-refused:SPEC_NOT_READY:L0:NO_REQUIREMENTS" });
+    assert.equal(rows.length, 1);
+    assert.match(rows[0].result, /^admission-refused:SPEC_NOT_READY/u);
+  });
+
+  it("survives a store without the log and a log that throws", () => {
+    assert.doesNotThrow(() => durableAudit(undefined)({ result: "admission-refused:X" }));
+    assert.doesNotThrow(() => durableAudit({})({ result: "admission-refused:X" }));
+    assert.doesNotThrow(() =>
+      durableAudit({
+        logAccess: () => {
+          throw new Error("disk full");
+        },
+      })({ result: "admission-refused:X" }),
+    );
   });
 });

@@ -17,6 +17,10 @@ import {
   ELICITATION_REQUIRED,
   ELICITATION_SKILL_URI,
 } from "../authoring/elicitation-guard.js";
+import {
+  READINESS_REFUSALS,
+  READINESS_RULE_TEXT,
+} from "../kernel/readiness.js";
 
 export { ELICITATION_HINT, ELICITATION_REQUIRED, ELICITATION_SKILL_URI };
 
@@ -238,9 +242,13 @@ export const TOOL_CONTRACTS = Object.freeze([
     tool: "spec_inspect",
     label: "Spec Inspect",
     operation: "inspect",
-    description: "Run validation, orphans, anchors, and policy checks.",
+    description: `Run validation, orphans, anchors, readiness, and policy checks.\n${READINESS_RULE_TEXT}`,
     discriminator: "check",
     variants: Object.freeze({
+      readiness: Object.freeze({
+        description: "Report the readiness level and the blockers that keep one specification from the next level.",
+        fields: Object.freeze([field("spec", "string")]),
+      }),
       scenariosByTags: Object.freeze({
         description: "List scenarios whose tag set contains every requested tag.",
         fields: Object.freeze([field("tags", "stringArray")]),
@@ -348,7 +356,7 @@ export const TOOL_CONTRACTS = Object.freeze([
     label: "Spec Patch",
     operation: "specPatch",
     mutating: true,
-    description: "Preview or apply spec patches in memory or atomically to disk.",
+    description: `Preview or apply spec patches in memory or atomically to disk.\n${READINESS_RULE_TEXT}`,
     discriminator: "intent",
     commonFields: Object.freeze([
       field("requestId", "string"),
@@ -477,14 +485,14 @@ export const TOOL_CONTRACTS = Object.freeze([
         fields: Object.freeze([optionalField("designReview", "json")]),
       }),
       addBacklogTask: Object.freeze({
-        description: "Add a traced backlog task.",
+        description: `Refused: ${READINESS_REFUSALS.BACKLOG_FORBIDDEN}.`,
         fields: Object.freeze([
           field("title", "string"),
           optionalField("requirements", "json"),
         ]),
       }),
       registerIncidentBacklog: Object.freeze({
-        description: "Preview or apply a traced incident task.",
+        description: `Refused: ${READINESS_REFUSALS.BACKLOG_FORBIDDEN}.`,
         fields: Object.freeze([
           field("summary", "string"),
           optionalField("requirements", "json"),
@@ -1163,7 +1171,7 @@ export function annotationsFor(contract, action = null) {
   return contractIsMutating(contract) ? MUTATING_TOOL_ANNOTATIONS : READ_TOOL_ANNOTATIONS;
 }
 
-export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts an optional project (owner/project) that selects the project serving that call only; when it is omitted the host's session project or your default scope applies, and an unresolved or unauthorized project is refused instead of falling back. declaredWorktree (absolute path) selects a corpus only on the local stdio/test transport; the hosted HTTP transport refuses it, so select a project there instead. ${ELICITATION_HINT}`;
+export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts an optional project (owner/project) that selects the project serving that call only; when it is omitted the host's session project or your default scope applies, and an unresolved or unauthorized project is refused instead of falling back. declaredWorktree (absolute path) selects a corpus only on the local stdio/test transport; the hosted HTTP transport refuses it, so select a project there instead. ${READINESS_RULE_TEXT} ${ELICITATION_HINT}`;
 
 export const KERNEL_ENVELOPE_OUTPUT_SCHEMA = Object.freeze({
   type: "object",

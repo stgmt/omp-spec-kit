@@ -362,6 +362,9 @@ export function createSpecService(root, context = {}) {
         if (state.status === "error") throw Object.assign(new Error(state.readerError.message || state.readerError.code), { code: state.readerError.code });
         return state.graph;
       },
+      // NFR-OBS-1: the durable log belongs to the host, not the kernel; the
+      // adapter forwards it when the transport supplies one.
+      typeof context.audit === "function" ? { audit: context.audit } : {},
     );
     return authoring;
   }
@@ -599,6 +602,7 @@ export function createSpecService(root, context = {}) {
 
       let extOp = check;
       if (check === "scenariosByTags") extOp = "findByTags";
+      else if (check === "readiness") extOp = "getSpecReadiness";
       else if (check === "orphans") extOp = "findOrphans";
       else if (check === "anchor") extOp = "validateAnchor";
       else if (check === "requirementMetadata") extOp = "validateRequirementMetadata";

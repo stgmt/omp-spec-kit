@@ -2,14 +2,17 @@ import {
   DIAGNOSTIC_SEVERITIES,
   EDGE_TYPES,
   NODE_KINDS,
+  TASK_REVIEW_VALUES,
   TASK_STATUSES,
 } from "../types.js";
 import { isValidSpecSlug } from "../identity.js";
+import { specReadiness } from "../readiness.js";
 
 export const EXTENDED_OPERATIONS = Object.freeze([
   "findByTags",
   "listTasks",
   "listPhaseTasks",
+  "getSpecReadiness",
   "findOrphans",
   "validateAnchor",
   "listSpecs",
@@ -85,6 +88,26 @@ function taskPhase(task) {
   return match?.[1]?.trim() ?? null;
 }
 
+function taskLinks(graph, canonicalId) {
+  const links = new Set();
+  for (const edge of graph.edges ?? []) {
+    if (edge.from !== canonicalId) continue;
+    if (edge.type !== "REFS" && edge.type !== "DEPENDS_ON") continue;
+    const target = graph.nodes.find((node) => node.canonicalId === edge.to);
+    // Canonical ids keep the spec qualifier: a bare local id would silently
+    // point at this spec's own task when the link is cross-spec.
+    if (target?.kind === "TASK") links.add(target.canonicalId);
+  }
+  return [...links].sort();
+}
+
+function taskReview(task) {
+  const raw = task.attributes?.review;
+  if (typeof raw !== "string") return "none";
+  const normalized = raw.trim().toLowerCase();
+  return TASK_REVIEW_VALUES.includes(normalized) ? normalized : "none";
+}
+
 function taskStatus(task) {
   let raw = typeof task.attributes?.status === "string" ? task.attributes.status : undefined;
   if (!raw || raw.trim().toLowerCase() === "unknown") raw = typeof task.body === "string" ? task.body.match(/\*\*Status:\*\*\s*([^\n]+)/u)?.[1] : undefined;
@@ -104,6 +127,22 @@ function taskRequirements(graph, taskId) {
   return [...new Set(refs)].sort(compareStrings);
 }
 
+const TASK_COMMENT_RE = /^\s*[-*]\s+\*\*Comment\s*\(([^,]+),\s*([^)]+)\):\*\*\s*(.*)$/u;
+
+// Comments are authored as bullet lines inside the task block, so the task
+// body is the single source. The listing exposes them structured instead of
+// leaving callers to re-parse the authored markup.
+function taskComments(body) {
+  if (typeof body !== "string") return [];
+  const comments = [];
+  for (const line of body.split(/\r?\n/u)) {
+    const match = TASK_COMMENT_RE.exec(line);
+    if (!match) continue;
+    comments.push({ actor: match[1].trim(), text: match[3].trim(), at: match[2].trim() });
+  }
+  return comments;
+}
+
 function taskEntry(graph, task, includeComments) {
   const entry = {
     canonicalId: task.canonicalId,
@@ -112,10 +151,19 @@ function taskEntry(graph, task, includeComments) {
     title: task.title,
     status: taskStatus(task),
     phase: taskPhase(task),
+    owner:
+      typeof task.attributes?.owner === "string" && task.attributes.owner.trim() !== ""
+        ? task.attributes.owner.trim()
+        : null,
     source: nodeSource(task),
     requirements: taskRequirements(graph, task.canonicalId),
+    links: taskLinks(graph, task.canonicalId),
+    review: taskReview(task),
   };
-  if (includeComments) entry.body = task.body;
+  if (includeComments) {
+    entry.body = task.body;
+    entry.comments = taskComments(task.body);
+  }
   return entry;
 }
 
@@ -294,6 +342,16 @@ function runFindOrphans(graph) {
   return operationSuccess({ kind: "orphans", findings, count: findings.length });
 }
 
+function runSpecReadiness(graph, args) {
+  if (typeof args.spec !== "string" || !isValidSpecSlug(args.spec)) {
+    return operationError("INVALID_PARAMETER", "spec must be a valid specification slug", { parameter: "spec" });
+  }
+  if (!specSlugs(graph).includes(args.spec)) {
+    return operationError("NOT_FOUND", `specification not found: ${args.spec}`, { specSlug: args.spec });
+  }
+  return operationSuccess({ kind: "readiness", ...specReadiness(graph, args.spec) });
+}
+
 function runValidateAnchor(graph, args) {
   if (typeof args.anchor !== "string" || args.anchor.trim() === "") return operationError("INVALID_PARAMETER", "anchor is required", { parameter: "anchor" });
   const anchor = args.anchor.trim();
@@ -392,6 +450,7 @@ export function executeExtendedQuery(graph, operation, args = {}) {
     case "findByTags": return runFindByTags(graph, args);
     case "listTasks": return runListTasks(graph, args);
     case "listPhaseTasks": return runListTasks(graph, args, true);
+    case "getSpecReadiness": return runSpecReadiness(graph, args);
     case "findOrphans": return runFindOrphans(graph);
     case "validateAnchor": return runValidateAnchor(graph, args);
     case "listSpecs": return runListSpecs(graph);

@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { TOOL_CONTRACTS } from "../adapters/tool-contracts.js";
+import { SPEC_WRITE_ROUTE_HINT } from "../kernel/readiness.js";
 import { hasGherkinScenarioHeader } from "../kernel/gherkin-syntax.js";
 import { isValidSpecSlug } from "../kernel/identity.js";
 import { decidePathPolicy } from "./resolve-targets.js";
@@ -197,7 +198,7 @@ function resolveAuthority(toolName, allTools, familyA, familyB, expectedCount) {
   return { ok: true, logicalName: activeFamily.get(toolName) };
 }
 
-const TARGET_RECOVERY = "Recovery: provide one explicit repository-relative target, or use spec_patch with dryRun: true for preview or dryRun: false to apply.";
+const TARGET_RECOVERY = `Recovery: provide one explicit repository-relative target, or ${SPEC_WRITE_ROUTE_HINT}.`;
 
 function specReadRecovery(relativePath) {
   const parts = typeof relativePath === "string" ? relativePath.split("/") : [];
@@ -214,7 +215,7 @@ function boundedReason(code, relativePath = null) {
   const recovery = code === "TARGET_INDETERMINATE" ? " " + TARGET_RECOVERY
     : code === "SPEC_READ_REDIRECT" ? specReadRecovery(relativePath)
     : code === "DESIGN_REVIEW_REQUIRED" ? " attach designReview (schema omp-spec-kit/design-review@1; template in skill engineering-anti-bike) to the spec_patch call"
-    : " use spec_patch with dryRun: true for preview or dryRun: false to apply";
+    : ` ${SPEC_WRITE_ROUTE_HINT}`;
   const reason = code + ":" + target + recovery;
   if (Buffer.byteLength(reason, "utf8") <= 512) return reason;
   let boundedTarget = target;

@@ -21,6 +21,21 @@ export class ConfigError extends Error {}
  * service and passed to git out-of-band. Embedded userinfo would otherwise be
  * persisted, echoed by `/me`/`/status`, and written into committed metadata.
  */
+/**
+ * NFR-OBS-1: the durable log belongs to the host. This is the one wiring of
+ * the admission-refusal sink, and it never throws: a broken log must not turn
+ * a refusal into a crash.
+ */
+export function durableAudit(store) {
+  return (entry) => {
+    try {
+      store?.logAccess?.(entry);
+    } catch {
+      // The durable log is best-effort and never blocks a refusal.
+    }
+  };
+}
+
 export function repoUrlHasCredentials(repoUrl) {
   try {
     const parsed = new URL(repoUrl);
@@ -719,7 +734,9 @@ export class MountManager {
     const key = `${mount.repoUrl}:${projectId}`;
     let service = this.services.get(key);
     if (!service) {
-      service = createSpecService(this.cacheRootFor(projectId, mount));
+      service = createSpecService(this.cacheRootFor(projectId, mount), {
+        audit: durableAudit(this.store),
+      });
       this.services.set(key, service);
     }
     return service;

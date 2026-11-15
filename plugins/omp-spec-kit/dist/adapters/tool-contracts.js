@@ -10,12 +10,17 @@ import {
   ENTITY_TYPE_DESCRIPTORS,
   LINK_OUTCOMES,
   NODE_KINDS,
+  TASK_REVIEW_VALUES,
 } from "../kernel/types.js";
 import {
   ELICITATION_HINT,
   ELICITATION_REQUIRED,
   ELICITATION_SKILL_URI,
 } from "../authoring/elicitation-guard.js";
+import {
+  READINESS_REFUSALS,
+  READINESS_RULE_TEXT,
+} from "../kernel/readiness.js";
 
 export { ELICITATION_HINT, ELICITATION_REQUIRED, ELICITATION_SKILL_URI };
 
@@ -65,6 +70,7 @@ export const VERIFICATION_METHOD_VALUES = Object.freeze([
 export const SAFETY_CLASS_VALUES = Object.freeze(["critical", "major", "minor"]);
 export const DELIVERY_VALUES = Object.freeze(["NOT_DECLARED", "DELIVERED", "INCOMPLETE"]);
 export const SPEC_STATUS_VALUES = Object.freeze(["active", "backlog"]);
+export { TASK_REVIEW_VALUES };
 export const READINESS_VIEW_VALUES = Object.freeze(["status", "summary", "counts", "coverage"]);
 
 export const PATCH_OPERATION_KINDS = Object.freeze([
@@ -75,6 +81,8 @@ export const PATCH_OPERATION_KINDS = Object.freeze([
   "replace_task_status",
   "create_task",
   "update_task",
+  "replace_task_owner",
+  "replace_task_links",
   "append_task_comment",
   "replace_document",
   "delete_document",
@@ -234,9 +242,13 @@ export const TOOL_CONTRACTS = Object.freeze([
     tool: "spec_inspect",
     label: "Spec Inspect",
     operation: "inspect",
-    description: "Run validation, orphans, anchors, and policy checks.",
+    description: `Run validation, orphans, anchors, readiness, and policy checks.\n${READINESS_RULE_TEXT}`,
     discriminator: "check",
     variants: Object.freeze({
+      readiness: Object.freeze({
+        description: "Report the readiness level and the blockers that keep one specification from the next level.",
+        fields: Object.freeze([field("spec", "string")]),
+      }),
       scenariosByTags: Object.freeze({
         description: "List scenarios whose tag set contains every requested tag.",
         fields: Object.freeze([field("tags", "stringArray")]),
@@ -344,7 +356,7 @@ export const TOOL_CONTRACTS = Object.freeze([
     label: "Spec Patch",
     operation: "specPatch",
     mutating: true,
-    description: "Preview or apply spec patches in memory or atomically to disk.",
+    description: `Preview or apply spec patches in memory or atomically to disk.\n${READINESS_RULE_TEXT}`,
     discriminator: "intent",
     commonFields: Object.freeze([
       field("requestId", "string"),
@@ -397,7 +409,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         ]),
       }),
       updateTask: Object.freeze({
-        description: "Update one canonical task: status, owner or description.",
+        description: "Update one canonical task: status, owner, description, review state or links.",
         fields: Object.freeze([
           field("entity", "string"),
           optionalField("status", "enum", TASK_STATUS_VALUES),
@@ -406,6 +418,9 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("description", "string"),
           optionalField("clearOwner", "boolean"),
           optionalField("force", "boolean"),
+          optionalField("review", "enum", TASK_REVIEW_VALUES),
+          optionalField("refs", "stringArray"),
+          optionalField("dependsOn", "stringArray"),
         ]),
       }),
       addTaskComment: Object.freeze({
@@ -470,14 +485,14 @@ export const TOOL_CONTRACTS = Object.freeze([
         fields: Object.freeze([optionalField("designReview", "json")]),
       }),
       addBacklogTask: Object.freeze({
-        description: "Add a traced backlog task.",
+        description: `Refused: ${READINESS_REFUSALS.BACKLOG_FORBIDDEN}.`,
         fields: Object.freeze([
           field("title", "string"),
           optionalField("requirements", "json"),
         ]),
       }),
       registerIncidentBacklog: Object.freeze({
-        description: "Preview or apply a traced incident task.",
+        description: `Refused: ${READINESS_REFUSALS.BACKLOG_FORBIDDEN}.`,
         fields: Object.freeze([
           field("summary", "string"),
           optionalField("requirements", "json"),
@@ -616,8 +631,10 @@ export const OPERATIONS_SCHEMA = Object.freeze({
       subject: { type: "string" },
       requirements: { type: "array", items: { type: "string" } },
       creationToken: { type: "string" },
-      text: { type: "string" },
       actor: { type: "string" },
+      review: { type: "string", enum: TASK_REVIEW_VALUES },
+      refs: { type: "array", items: { type: "string" } },
+      dependsOn: { type: "array", items: { type: "string" } },
       newDocument: { type: "string" },
       expectedSha: { type: "string" },
     },
@@ -774,8 +791,17 @@ const TASK_ONLY_FIELDS = Object.freeze([
   "subject",
   "requirements",
   "creationToken",
+  "review",
+  "refs",
+  "dependsOn",
 ]);
-const TASK_OPERATION_KINDS = Object.freeze(["create_task", "update_task", "replace_task_status"]);
+const TASK_OPERATION_KINDS = Object.freeze([
+  "create_task",
+  "update_task",
+  "replace_task_status",
+  "replace_task_owner",
+  "replace_task_links",
+]);
 
 function validateOperationObject(op) {
   if (op === null || typeof op !== "object" || Array.isArray(op)) return false;
@@ -807,6 +833,11 @@ function validateOperationObject(op) {
         typeof op.entity === "string" &&
         typeof op.subject === "string" &&
         op.subject.trim() !== "" &&
+        // Creation writes requirements, owner, status and description only; a
+        // link or verdict handed to it would be accepted and then dropped.
+        op.review === undefined &&
+        op.refs === undefined &&
+        op.dependsOn === undefined &&
         (op.owner === undefined || op.owner === null || typeof op.owner === "string") &&
         (op.description === undefined || typeof op.description === "string") &&
         (op.status === undefined || TASK_STATUS_VALUES.includes(op.status)) &&
@@ -825,10 +856,30 @@ function validateOperationObject(op) {
     case "update_task":
       return (
         typeof op.entity === "string" &&
+        (op.review === undefined || TASK_REVIEW_VALUES.includes(op.review)) &&
+        (op.refs === undefined || (Array.isArray(op.refs) && op.refs.every((item) => typeof item === "string"))) &&
+        (op.dependsOn === undefined ||
+          (Array.isArray(op.dependsOn) && op.dependsOn.every((item) => typeof item === "string"))) &&
         (op.status === undefined || TASK_STATUS_VALUES.includes(op.status)) &&
         (op.owner === undefined || op.owner === null || typeof op.owner === "string") &&
         (op.description === undefined || typeof op.description === "string") &&
         (op.expectedStatus === undefined || TASK_STATUS_VALUES.includes(op.expectedStatus))
+      );
+    case "replace_task_owner":
+      return (
+        typeof op.entity === "string" &&
+        (op.owner === undefined || op.owner === null || typeof op.owner === "string")
+      );
+    case "replace_task_links":
+      return (
+        typeof op.entity === "string" &&
+        (op.requirements === undefined ||
+          (Array.isArray(op.requirements) && op.requirements.every((item) => typeof item === "string"))) &&
+        (op.dependsOn === undefined ||
+          (Array.isArray(op.dependsOn) && op.dependsOn.every((item) => typeof item === "string"))) &&
+        (op.refs === undefined ||
+          (Array.isArray(op.refs) && op.refs.every((item) => typeof item === "string"))) &&
+        (op.expectedSha === undefined || typeof op.expectedSha === "string")
       );
     case "replace_document":
       return typeof op.content === "string";
@@ -1120,7 +1171,7 @@ export function annotationsFor(contract, action = null) {
   return contractIsMutating(contract) ? MUTATING_TOOL_ANNOTATIONS : READ_TOOL_ANNOTATIONS;
 }
 
-export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts an optional project (owner/project) that selects the project serving that call only; when it is omitted the host's session project or your default scope applies, and an unresolved or unauthorized project is refused instead of falling back. declaredWorktree (absolute path) selects a corpus only on the local stdio/test transport; the hosted HTTP transport refuses it, so select a project there instead. ${ELICITATION_HINT}`;
+export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts an optional project (owner/project) that selects the project serving that call only; when it is omitted the host's session project or your default scope applies, and an unresolved or unauthorized project is refused instead of falling back. declaredWorktree (absolute path) selects a corpus only on the local stdio/test transport; the hosted HTTP transport refuses it, so select a project there instead. ${READINESS_RULE_TEXT} ${ELICITATION_HINT}`;
 
 export const KERNEL_ENVELOPE_OUTPUT_SCHEMA = Object.freeze({
   type: "object",

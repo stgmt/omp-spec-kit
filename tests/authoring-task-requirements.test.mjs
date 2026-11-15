@@ -34,7 +34,7 @@ describe("task creation requirement integrity", () => {
     await rm(tempRoot, { recursive: true, force: true });
   });
 
-  it("refuses a task whose requirement does not exist in the corpus", async () => {
+  it("refuses a task whose requirement does not exist in the specification", async () => {
     const result = await serviceAt(tempRoot).execute({
       requestId: "task-req-unknown-1",
       intent: "confirmTaskCreation",
@@ -46,10 +46,11 @@ describe("task creation requirement integrity", () => {
       requirements: ["FR-999"],
     });
     assert.equal(result.ok, false);
-    assert.equal(result.error?.code, "VALIDATION_FAILED");
-    assert.equal(result.error?.findings?.[0]?.code, "REQUIREMENT_NOT_FOUND");
-    assert.match(result.error?.message ?? "", /FR-999/u);
-    assert.match(result.error?.message ?? "", /spec_entities/u);
+    // FR-2: the link, not the shape, is what is missing.
+    assert.equal(result.error?.code, "TASK_NOT_TRACEABLE");
+    assert.equal(result.error?.retryable, false);
+    assert.equal(result.error?.fix?.[0]?.tool, "spec_patch");
+    assert.equal(result.error?.fix?.[0]?.arguments?.requirements?.length, 1);
   });
 
   it("accepts a task whose requirement exists in the corpus", async () => {
@@ -102,7 +103,7 @@ describe("dangling references are refused at write time", () => {
     assert.equal(result.error?.code, "VALIDATION_FAILED");
   });
 
-  it("refuses a backlog task that names an unknown requirement", async () => {
+  it("refuses every backlog intent, including one naming an unknown requirement", async () => {
     const result = await serviceAt(tempRoot).execute({
       requestId: "backlog-unknown-1",
       intent: "addBacklogTask",
@@ -113,10 +114,10 @@ describe("dangling references are refused at write time", () => {
       requirements: ["FR-999"],
     });
     assert.equal(result.ok, false, JSON.stringify(result.error ?? {}).slice(0, 300));
-    assert.equal(result.error?.code, "VALIDATION_FAILED");
+    assert.equal(result.error?.code, "BACKLOG_FORBIDDEN");
   });
 
-  it("refuses a raw patch that writes an unknown requirement into TASKS.md", async () => {
+  it("refuses a raw patch that writes a task into TASKS.md", async () => {
     const result = await serviceAt(tempRoot).execute({
       requestId: "patch-unknown-ref-1",
       intent: "patch",
@@ -132,11 +133,6 @@ describe("dangling references are refused at write time", () => {
       ],
     });
     assert.equal(result.ok, false, JSON.stringify(result.error ?? {}).slice(0, 300));
-    assert.equal(result.error?.code, "VALIDATION_FAILED");
-    const codes = (result.error?.findings ?? []).map((finding) => finding.code);
-    assert.ok(
-      codes.includes("REQUIREMENT_NOT_FOUND") || codes.includes("BROKEN_REFERENCE"),
-      `expected a requirement finding, got ${codes.join(",")}`
-    );
+    assert.equal(result.error?.code, "TASK_DOCUMENT_BYPASS");
   });
 });

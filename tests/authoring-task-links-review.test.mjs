@@ -171,7 +171,9 @@ describe("design-level reference integrity", () => {
       spec: "spec-mcp-access-gate",
       reason: "refs",
       dryRun: true,
-      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text }],
+      // Task creation is canonical-only now, so reference integrity is
+      // exercised on a design decision instead of a raw TASKS.md insert.
+      operations: [{ kind: "insert_at_eof", document: "DESIGN.md", text }],
     };
   }
 
@@ -181,9 +183,20 @@ describe("design-level reference integrity", () => {
       (node) => node.kind === "ACCEPTANCE_CRITERION" && node.specSlug === "spec-mcp-access-gate"
     );
     assert.ok(criterion);
-    const result = await serviceAt(tempRoot).execute(
-      appendOperation(`\n## TASK-96 — Проба критерия\n\n- **Status:** todo\n- **Implements:** ${criterion.localId}\n`)
-    );
+    const result = await serviceAt(tempRoot).execute({
+      requestId: "refs-design-exists",
+      intent: "patch",
+      spec: "spec-mcp-access-gate",
+      reason: "design-level reference",
+      dryRun: true,
+      operations: [
+        {
+          kind: "insert_at_eof",
+          document: "DESIGN.md",
+          text: `\n## DEC-96 — Проба критерия\n\n- **Refs:** ${criterion.localId}\n`,
+        },
+      ],
+    });
     assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
   });
 
@@ -218,8 +231,8 @@ describe("design-level reference integrity", () => {
         { kind: "insert_at_eof", document: "FR.md", text: "\n## FR-50 — Probe requirement\n" },
         {
           kind: "insert_at_eof",
-          document: "TASKS.md",
-          text: "\n## TASK-96 — Probe task\n\n- **Status:** todo\n- **Requirements:** FR-50\n",
+          document: "DESIGN.md",
+          text: "\n## DEC-50 — Probe decision\n\n- **Refs:** FR-50\n",
         },
       ],
     });
@@ -232,17 +245,14 @@ describe("design-level reference integrity", () => {
     await writeFile(tasksPath, `${original}\n## TASK-90 — Legacy\n\n- **Status:** todo\n- **Refs:** TASK-777\n`);
     const result = await serviceAt(tempRoot).execute({
       requestId: "refs-legacy",
-      intent: "patch",
+      // A raw TASKS.md replacement would now be refused by the document-bypass
+      // gate; the canonical intent is the only way to touch a task block.
+      intent: "updateTask",
       spec: "spec-mcp-access-gate",
-      reason: "rename only",
+      reason: "owner only",
       dryRun: true,
-      operations: [
-        {
-          kind: "replace_document",
-          document: "TASKS.md",
-          content: `${original}\n## TASK-90 — Legacy renamed\n\n- **Status:** todo\n- **Refs:** TASK-777\n`,
-        },
-      ],
+      entity: "TASK-90",
+      owner: "BALANSER",
     });
     assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
   });
@@ -271,7 +281,7 @@ describe("design-level reference integrity", () => {
 
   it("refuses a design entity that exists nowhere", async () => {
     const result = await serviceAt(tempRoot).execute(
-      appendOperation("\n## TASK-96 — Проба критерия\n\n- **Status:** todo\n- **Implements:** AC-99.9\n")
+      appendOperation("\n## DEC-96 — Проба критерия\n\n- **Refs:** AC-99.9\n")
     );
     assert.equal(result.ok, false);
     assert.equal(result.error.code, "VALIDATION_FAILED");
@@ -280,7 +290,7 @@ describe("design-level reference integrity", () => {
 
   it("refuses a qualified reference to a missing entity", async () => {
     const result = await serviceAt(tempRoot).execute(
-      appendOperation("\n## TASK-96 — Проба критерия\n\n- **Status:** todo\n- **Refs:** plugin-distribution:DEC-404\n")
+      appendOperation("\n## DEC-96 — Проба критерия\n\n- **Refs:** plugin-distribution:DEC-404\n")
     );
     assert.equal(result.ok, false);
     assert.equal(result.error.findings?.[0]?.code, "REFERENCE_NOT_FOUND");
@@ -302,7 +312,7 @@ describe("design-level reference integrity", () => {
     );
     assert.ok(foreign, "fixture corpus must carry an entity outside the target spec");
     const result = await serviceAt(tempRoot).execute(
-      appendOperation(`\n## TASK-96 — Проба критерия\n\n- **Status:** todo\n- **Refs:** ${foreign.localId}\n`)
+      appendOperation(`\n## DEC-96 — Проба критерия\n\n- **Refs:** ${foreign.localId}\n`)
     );
     assert.equal(result.ok, false);
     assert.equal(result.error.findings?.[0]?.code, "UNQUALIFIED_CROSS_SPEC_REFERENCE");

@@ -6,11 +6,13 @@ import {
   TASK_STATUSES,
 } from "../types.js";
 import { isValidSpecSlug } from "../identity.js";
+import { specReadiness } from "../readiness.js";
 
 export const EXTENDED_OPERATIONS = Object.freeze([
   "findByTags",
   "listTasks",
   "listPhaseTasks",
+  "getSpecReadiness",
   "findOrphans",
   "validateAnchor",
   "listSpecs",
@@ -340,6 +342,16 @@ function runFindOrphans(graph) {
   return operationSuccess({ kind: "orphans", findings, count: findings.length });
 }
 
+function runSpecReadiness(graph, args) {
+  if (typeof args.spec !== "string" || !isValidSpecSlug(args.spec)) {
+    return operationError("INVALID_PARAMETER", "spec must be a valid specification slug", { parameter: "spec" });
+  }
+  if (!specSlugs(graph).includes(args.spec)) {
+    return operationError("NOT_FOUND", `specification not found: ${args.spec}`, { specSlug: args.spec });
+  }
+  return operationSuccess({ kind: "readiness", ...specReadiness(graph, args.spec) });
+}
+
 function runValidateAnchor(graph, args) {
   if (typeof args.anchor !== "string" || args.anchor.trim() === "") return operationError("INVALID_PARAMETER", "anchor is required", { parameter: "anchor" });
   const anchor = args.anchor.trim();
@@ -438,6 +450,7 @@ export function executeExtendedQuery(graph, operation, args = {}) {
     case "findByTags": return runFindByTags(graph, args);
     case "listTasks": return runListTasks(graph, args);
     case "listPhaseTasks": return runListTasks(graph, args, true);
+    case "getSpecReadiness": return runSpecReadiness(graph, args);
     case "findOrphans": return runFindOrphans(graph);
     case "validateAnchor": return runValidateAnchor(graph, args);
     case "listSpecs": return runListSpecs(graph);
