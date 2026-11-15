@@ -53,3 +53,5 @@ Status: done
 Done When: the acceptance criteria for this task pass on the fixture corpus.
 Requirements: FR-6
 Implements: FR-6
+
+- **Comment (implementer, 2026-11-15 03:06):** single ProposalCompiler admission point; stdio-vs-dispatch parity test
