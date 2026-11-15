@@ -27,6 +27,8 @@ Done When: the acceptance criteria for this task pass on the fixture corpus.
 Requirements: FR-3
 Implements: FR-3
 
+- **Comment (implementer, 2026-11-15 03:05):** TASK_DOCUMENT_BYPASS and BACKLOG_FORBIDDEN gates + tests; tool-e2e and staged BDD updated
+
 ## TASK-4 — Scenario traceability
 
 Status: todo
