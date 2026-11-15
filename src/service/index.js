@@ -17,6 +17,7 @@ import { startSync } from "./sync.js";
 import { createOnboarding } from "./onboarding.js";
 import { resolveMarkerSecret } from "../adapters/marker-secret.js";
 import { createProjection } from "./projection.js";
+import { createTrackerProvisioner } from "./tracker-provision.js";
 import { createPublisher } from "./publish.js";
 import { createVersionedReads } from "./versioned.js";
 import { createRepoManager } from "./repos.js";
@@ -75,10 +76,31 @@ function seedInitialBindings({ config, store, secretsKey, env }) {
 }
 
 export function buildServiceStack({ mounts, config, identity = botIdentityFromEnv(), logger = () => {}, store, secretsKey = null, syncIntervalMs = 0, env = process.env }) {
+  // The tracker schema (fields, bundles, link types) is a prerequisite of every
+  // projected card. It is provisioned at boot — idempotent, never retyping or
+  // deleting an existing field, and a refusal (no admin rights) is reported
+  // through mcp_preflight instead of failing the start. The promise is the
+  // projection's gate: the first pass waits for it instead of racing it.
+  const projectionEnabled = env.SPEC_REGISTRY_PROJECTION === "1" || env.SPEC_REGISTRY_PROJECTION === "true";
+  const trackerProvisioner = projectionEnabled
+    ? createTrackerProvisioner({
+        baseUrl: env.SPEC_REGISTRY_YT_URL ?? config.auth.youtrack.baseUrl,
+        token: env.SPEC_REGISTRY_YT_SERVICE_TOKEN ?? config.auth.youtrack.serviceToken,
+        projectShortName: env.SPEC_REGISTRY_YT_PROJECT ?? "SPEC",
+        enabled: env.SPEC_REGISTRY_TRACKER_PROVISION !== "0",
+        log: logger,
+      })
+    : null;
+  const trackerReady = trackerProvisioner
+    ? trackerProvisioner.ensure().catch((error) => {
+        logger(`tracker provision failed: ${String(error?.message ?? error)}`);
+        return null;
+      })
+    : null;
   // Tracker projection is opt-in: deployments without a YouTrack write target
   // (pure MCP service) leave it off; the demo stack enables it via env.
   // Created before repos: bind/unbind callbacks below trigger re-projection.
-  const projection = env.SPEC_REGISTRY_PROJECTION === "1" || env.SPEC_REGISTRY_PROJECTION === "true"
+  const projection = projectionEnabled
     ? createProjection({
         mounts,
         baseUrl: env.SPEC_REGISTRY_YT_URL ?? config.auth.youtrack.baseUrl,
@@ -88,6 +110,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
         // sign the committed marker with the same secret (env → key file →
         // derived) or writeback ownership checks silently never verify.
         markerSecret: resolveMarkerSecret({ env, secretsKey, logger }),
+        readyGate: trackerReady,
         logger,
       })
     : null;
@@ -216,6 +239,25 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   // selected project, repository binding, corpus availability and write
   // readiness are reported separately. The served project is carried by the
   // response provenance (withServedProject) instead of a second data field.
+  const trackerBlock = async () => {
+    if (!trackerProvisioner) {
+      return { code: "TRACKER_DISABLED", project: null, missing: [], conflicts: [], created: [], attached: [] };
+    }
+    // Always read live: a tracker edited after boot must not report a stale
+    // 'ready', and the boot snapshot would do exactly that.
+    const state = await trackerProvisioner.check();
+    return {
+      code: state.code,
+      project: state.project,
+      missing: state.missing ?? [],
+      conflicts: state.conflicts ?? [],
+      created: state.created ?? [],
+      attached: state.attached ?? [],
+      missingLinkTypes: state.missingLinkTypes ?? [],
+      linkTypesCreated: state.linkTypesCreated ?? [],
+      message: state.message ?? null,
+    };
+  };
   const preflightSetup = async ({ args, project, projectSource = null, requestId, schemaVersion }) => {
     const row = store?.getBinding?.(project) ?? null;
     const registrationRow = store?.getRegistration?.(project) ?? null;
@@ -255,6 +297,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
             status: registrationRow === null ? "not-registered" : "registered-without-active-binding",
             registeredBy: registrationRow?.registeredBy ?? null,
           },
+          tracker: await trackerBlock(),
           mutationReady: false,
         }),
       };
@@ -273,6 +316,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
         data: {
           ...(base.data ?? {}),
           setup: { required: false, code: null, action: null, operator: null, command: null },
+          tracker: await trackerBlock(),
           credential: { repository: "verified", repair: null },
           registration: {
             status: registrationRow === null ? "operator-configured" : "self-registered",
@@ -340,6 +384,15 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
         return onboarding.issueToken(input);
       },
       idpBindings: (ctx) => idpManager.bindings(ctx),
+      // Loopback bootstrap: the route has already proven the caller is on this
+      // host and that the operator opted in. The login is resolved through the
+      // same IdP lookup an authenticated request uses, then the ordinary
+      // onboarding issuer mints that user's agent token.
+      localToken: async ({ login, serviceUrl }) => {
+        const ctx = await auth.resolveLogin(login);
+        const issued = await onboarding.issueToken({ ctx, serviceUrl });
+        return { token: issued.token, login: issued.login };
+      },
       idpBind: (input) => idpManager.bind(input),
       idpProbe: (input) => idpManager.probe(input),
       idpUnbind: (input) => idpManager.unbind(input),
@@ -361,7 +414,7 @@ export async function startService({ configPath, cloneDir, storeFile, syncInterv
   const store = await createStore({ file: storeFile ?? env.SPEC_REGISTRY_STORE ?? path.join(path.dirname(resolvedCloneDir), "registry.db") });
   const { config, mounts } = await bootService({ configPath, cloneDir: resolvedCloneDir, git, identity, store, secretsKey, logger });
   const stack = buildServiceStack({ mounts, config, identity, logger, store, secretsKey, syncIntervalMs, env });
-  const app = createServiceApp({ mounts, ...stack, webhookSecret: env.SPEC_REGISTRY_WEBHOOK_SECRET ?? null });
+  const app = createServiceApp({ mounts, ...stack, webhookSecret: env.SPEC_REGISTRY_WEBHOOK_SECRET ?? null, env });
   const server = app.listen(port, host);
   await new Promise((resolve, reject) => {
     server.once("listening", () => {

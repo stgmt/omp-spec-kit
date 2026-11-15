@@ -262,6 +262,20 @@ export function createYouTrackAuth({ youtrack, appBridgeToken, tenants, roleGrou
     },
     cacheSize: () => cache.size,
     clearCache: () => cache.clear(),
+    /**
+     * Resolve a caller context for a login that presents no credential of its
+     * own. Only the loopback local bootstrap uses it, and only after its own
+     * address/opt-in gates: the resolution path is the authenticated one — the
+     * operator's YouTrack service token proves the user, then groups -> tenant
+     * -> scopes -> role. Nothing here widens authorization.
+     */
+    async resolveLogin(login) {
+      if (typeof login !== "string" || login.length === 0) {
+        throw new AuthError(400, "MISSING_USER", "a login is required to resolve a caller context");
+      }
+      const user = await fetchUserWithServiceToken(login, defaultIdp);
+      return resolveContext(user, defaultIdp);
+    },
   };
 }
 

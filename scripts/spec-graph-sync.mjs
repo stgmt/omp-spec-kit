@@ -6,6 +6,8 @@
  * sync decisions live in src/adapters/youtrack-projection.js. The source graph
  * is read through MCP; this process never imports or rebuilds the kernel graph.
  */
+import { LEGACY_INVERSE_LINK_TYPES, LINK_TYPE_LABELS, provisionLinkTypes } from "../src/adapters/youtrack-links.js";
+import { provisionProjectSchema } from "../src/adapters/youtrack-schema.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import http from "node:http";
@@ -17,8 +19,6 @@ import { createHmac } from "node:crypto";
 import { createInterface } from "node:readline";
 import {
   BUTTON_TRANSITIONS,
-  KIND_LABELS,
-  TYPE_PER_KIND,
   STATUS_MAP,
   SYNC_STATE_SPEC_ID,
   YouTrackProjectionService,
@@ -708,113 +708,6 @@ export function startServe({
   return server;
 }
 
-const LINK_TYPE_LABELS = Object.freeze({
-  satisfies: ["satisfies", "satisfied by"],
-  verifies: ["verifies", "verified by"],
-  covers: ["covers", "covered by"],
-  implements: ["implements", "implemented by"],
-  // Direction labels must be unique across ALL tracker link types: a label
-  // another type already owns makes the workflow scripting accessor
-  // (issue.links['...']) a duplicate property and every on-change rule
-  // touching links throws TypeError. "depends on" is the stock Depend type's
-  // target label, so ours stay namespaced.
-  "depends-on": ["depends-on", "required-by"],
-  constrains: ["constrains", "constrained by"],
-  contains: ["contains", "contained by"],
-});
-
-/**
- * Mirrored inverse types (satisfied-by, implemented-by) predate the
- * canonical+flip emission: each one re-declares a direction label its
- * canonical sibling already owns, which is exactly the duplicate-accessor
- * crash above. They are deleted under --migrate; the next sync recreates the
- * links under the canonical type.
- */
-const LEGACY_INVERSE_LINK_TYPES = Object.freeze(["satisfied-by", "implemented-by"]);
-
-/**
- * Ensures the spec link types exist as directed link types with unique
- * direction labels. An existing undirected type is only replaced under
- * --migrate: deleting a type drops its links, and the next sync recreates
- * them from the spec projection. Directed types whose labels drifted
- * (older contour provisioning) are updated in place — links survive.
- */
-export async function provisionLinkTypes(client, { migrate = false, log = console.log } = {}) {
-  const rows = await client.get("/api/issueLinkTypes?fields=id,name,directed,sourceToTarget,targetToSource");
-  const byName = new Map((rows ?? []).map((row) => [row.name, row]));
-  // Validate before writing: a refusal must not leave the tracker half
-  // provisioned (some types created, then the throw).
-  for (const legacy of LEGACY_INVERSE_LINK_TYPES) {
-    if (byName.has(legacy) && !migrate) {
-      throw new Error(
-        "link type " + legacy + " is a legacy inverse type whose direction labels collide with its canonical sibling; rerun with --migrate to delete it (its links are dropped, sync recreates them canonically)",
-      );
-    }
-  }
-  for (const name of Object.keys(LINK_TYPE_LABELS)) {
-    const existing = byName.get(name);
-    if (existing && existing.directed !== true && !migrate) {
-      throw new Error(
-        "link type " + name + " exists but is undirected; rerun with --migrate to recreate it directed (its links are dropped, sync recreates them)",
-      );
-    }
-  }
-  for (const legacy of LEGACY_INVERSE_LINK_TYPES) {
-    const existing = byName.get(legacy);
-    if (!existing) continue;
-    await client.delete("/api/issueLinkTypes/" + existing.id);
-    log(JSON.stringify({ op: "delete-legacy-link-type", name: legacy }));
-  }
-  for (const name of Object.keys(LINK_TYPE_LABELS)) {
-    const [sourceToTarget, targetToSource] = LINK_TYPE_LABELS[name];
-    const existing = byName.get(name);
-    if (existing && existing.directed === true) {
-      if (existing.sourceToTarget !== sourceToTarget || existing.targetToSource !== targetToSource) {
-        await client.post("/api/issueLinkTypes/" + existing.id + "?fields=id,name", { sourceToTarget, targetToSource });
-        log(JSON.stringify({ op: "relabel-link-type", name, sourceToTarget, targetToSource }));
-      }
-      continue;
-    }
-    if (existing) await client.delete("/api/issueLinkTypes/" + existing.id);
-    await client.post("/api/issueLinkTypes?fields=id,name", {
-      name,
-      directed: true,
-      sourceToTarget,
-      targetToSource,
-    });
-    log(JSON.stringify({ op: "provision-link-type", name, directed: true }));
-  }
-}
-
-/**
- * Ensures the project enum bundles hold every SpecKind/Type value the
- * projection can emit (e.g. SpecKind=ROADMAP, Type=Roadmap). Bundle edits
- * apply to the bundle wherever it is shared, so this runs only under the
- * explicit --provision flag.
- */
-async function provisionEnumValues(client, projectId, { log = console.log } = {}) {
-  const fields = await client.get(
-    "/api/admin/projects/" + projectId + "/customFields?fields=field(name),bundle(id,values(name))",
-  );
-  const wanted = {
-    SpecKind: Object.keys(KIND_LABELS).map((kind) => KIND_LABELS[kind]),
-    Type: [...new Set(Object.values(TYPE_PER_KIND))],
-  };
-  for (const row of fields ?? []) {
-    const required = wanted[row.field?.name];
-    if (!required || !row.bundle?.id) continue;
-    const existing = new Set((row.bundle.values ?? []).map((value) => value.name));
-    for (const name of required) {
-      if (existing.has(name)) continue;
-      await client.post(
-        "/api/admin/customFieldSettings/bundles/enum/" + row.bundle.id + "/values?fields=id,name",
-        { name, $type: "EnumBundleElement" },
-      );
-      log(JSON.stringify({ op: "provision-enum-value", field: row.field.name, value: name }));
-    }
-  }
-}
-
 /**
  * The canonical corpus is served by the spec registry and no longer lives in
  * this repository, so projecting the working tree would read an EMPTY board
@@ -838,7 +731,7 @@ async function main() {
   if (!project) fail("project missing on server: " + args.project);
   if (args.provision) {
     await provisionLinkTypes(client, { migrate: args.migrate });
-    await provisionEnumValues(client, project.id);
+    await provisionProjectSchema({ client, projectShortName: project.shortName, log: (line) => console.log(line) });
   }
   const state = new YouTrackSyncStateStore({
     client,
@@ -906,3 +799,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 }
 
 export { BUTTON_TRANSITIONS, YouTrackProjectionStore, YouTrackSyncStateStore, buildProjectionPlan, desiredDescription, desiredSummary, fieldValue, specStatusForTrackerState, validateWritebackEvent, HttpMcpClient };
+
+export { provisionLinkTypes };

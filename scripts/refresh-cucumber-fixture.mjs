@@ -134,9 +134,13 @@ const main = () => {
     `| Executed scenarios | \`${parsed.scenarioCount}\` |`,
     `| Completed steps | \`${parsed.stepCount}\` |`,
   ].join("\n");
-  const updated = readme.replace(/\| Fixture SHA-256.*?\| Completed steps \|[^\n]*\|/us, table);
-  if (updated === readme) throw new Error("README evidence table did not match the expected rows");
-  writeFileSync(readmePath, updated);
+  const tablePattern = /\| Fixture SHA-256.*?\| Completed steps \|[^\n]*\|/us;
+  if (!tablePattern.test(readme)) throw new Error("README evidence table did not match the expected rows");
+  const updated = readme.replace(tablePattern, table);
+  // Re-running on an unchanged capture rewrites the same rows: that is a
+  // no-op, not a stale README. Only a table the pattern cannot find is fatal.
+  if (updated === readme) process.stderr.write("[cucumber-fixture] README evidence table already current\n");
+  if (updated !== readme) writeFileSync(readmePath, updated);
 
   console.log(`[cucumber-fixture] ${parsed.scenarioCount} scenarios / ${parsed.stepCount} steps, ${entries.length} inputs, stream ${parsed.sha256.slice(0, 12)}…`);
 };

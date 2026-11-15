@@ -1,5 +1,6 @@
 import express from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, InitializeRequestSchema, ListToolsRequestSchema, PingRequestSchema } from "@modelcontextprotocol/sdk/types.js";
@@ -14,7 +15,7 @@ import { scopeFromContext, requireScope } from "./scope.js";
  * reach the kernel. Auth failures map to HTTP: 401/403 from the verifier,
  * 503 (retryable) when YouTrack cannot be reached.
  */
-export function createServiceApp({ mounts, authenticate, serviceOps = {}, serviceContracts = [], wrappers = {}, endpoints = {}, audit, sync = null, webhookSecret = null }) {
+export function createServiceApp({ mounts, authenticate, serviceOps = {}, serviceContracts = [], wrappers = {}, endpoints = {}, audit, sync = null, webhookSecret = null, env = process.env }) {
   // The hosted transport selects a corpus by project only: a local worktree
   // path is refused rather than silently routed.
   const dispatcher = createDispatcher({ mounts, serviceOps, serviceContracts, wrappers, allowDeclaredWorktree: false });
@@ -112,6 +113,46 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
       // and the registry doctor can verify identity before trusting a URL.
       fingerprint: mounts?.config?.fingerprint ?? process.env.SPEC_REGISTRY_INSTANCE ?? null,
     });
+  });
+
+  // Machine-local agent onboarding. A caller on the registry's own host asks
+  // for its own agent credential instead of hunting one down in YouTrack. Two
+  // gates, both fail-closed, decided before any minting work: the request must
+  // arrive from this host (nothing is presented, so the peer address IS the
+  // authorization) and the operator must have named the login to mint for.
+  app.post("/local/token", async (req, res) => {
+    if (!isLocalBootstrapPeer(req.socket?.remoteAddress)) {
+      res.status(403).json({
+        error: "LOCAL_BOOTSTRAP_FORBIDDEN",
+        message: "local token bootstrap is only available to callers on this host",
+      });
+      return;
+    }
+    const login = typeof env.SPEC_REGISTRY_LOCAL_BOOTSTRAP_LOGIN === "string" ? env.SPEC_REGISTRY_LOCAL_BOOTSTRAP_LOGIN.trim() : "";
+    if (login.length === 0) {
+      res.status(409).json({
+        error: "LOCAL_BOOTSTRAP_DISABLED",
+        message: "set SPEC_REGISTRY_LOCAL_BOOTSTRAP_LOGIN to the login the local bootstrap may mint for",
+      });
+      return;
+    }
+    if (typeof endpoints.localToken !== "function") {
+      res.status(501).json({ error: "local token bootstrap is not wired" });
+      return;
+    }
+    try {
+      // The value goes back to the caller that asked for it and nowhere else:
+      // no log line, no audit row — only the fact of issuance is recorded.
+      const issued = await endpoints.localToken({ login, serviceUrl: `${req.protocol}://${req.get("host")}` });
+      res.json({ token: issued.token, login: issued.login ?? login });
+    } catch (error) {
+      const status = Number.isSafeInteger(error?.status) ? error.status : 500;
+      res.status(status).json({
+        error: error?.code ?? "LOCAL_BOOTSTRAP_FAILED",
+        message: String(error?.message ?? error),
+        ...(error?.retryable === true ? { retryable: true } : {}),
+      });
+    }
   });
 
   app.get("/status", authGate, async (req, res) => {
@@ -294,6 +335,55 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
   });
 
   return app;
+}
+
+/**
+ * Addresses that mean "this very machine". Only literals are accepted: a
+ * hostname would have to be resolved, and `req.socket.remoteAddress` already
+ * reports the connected address (IPv4 peers arrive as `::ffff:127.0.0.1`).
+ */
+const LOOPBACK_ADDRESSES = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+
+/** The strict form: the peer really is the loopback interface. */
+export function isLoopbackAddress(remoteAddress) {
+  return typeof remoteAddress === "string" && LOOPBACK_ADDRESSES.has(remoteAddress);
+}
+
+/**
+ * Where a *containerized* service sees its own host. Docker publishes a bound
+ * port by NAT, so a request from the host arrives from the container's default
+ * gateway (measured: 172.18.0.1 inside the e2e compose network), never from
+ * 127.0.0.1. Sibling containers keep their own addresses and are still refused.
+ * Read from the kernel rather than assumed, because the bridge subnet is not
+ * fixed. Outside a container (no /.dockerenv, e.g. Windows or macOS) the answer
+ * is null and locality means loopback only.
+ */
+export function containerHostAddress(readFile = (path) => readFileSync(path, "utf8"), exists = (path) => existsSync(path)) {
+  try {
+    if (!exists("/.dockerenv")) return null;
+    const defaultRoute = readFile("/proc/net/route")
+      .split("\n")
+      .slice(1)
+      .map((line) => line.trim().split(/\s+/u))
+      .find((columns) => columns[1] === "00000000");
+    const gateway = defaultRoute?.[2];
+    if (typeof gateway !== "string" || !/^[0-9a-fA-F]{8}$/u.test(gateway)) return null;
+    // The kernel writes the IPv4 address little-endian in hex.
+    const octets = gateway.match(/../gu).map((pair) => parseInt(pair, 16)).reverse();
+    return octets.join(".");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The local bootstrap's whole authorization: the caller is on this host — the
+ * loopback interface itself, or the container gateway that *is* the host when
+ * the registry runs in a container.
+ */
+export function isLocalBootstrapPeer(remoteAddress, hostAddress = containerHostAddress()) {
+  if (isLoopbackAddress(remoteAddress)) return true;
+  return typeof hostAddress === "string" && hostAddress.length > 0 && remoteAddress === hostAddress;
 }
 
 /**

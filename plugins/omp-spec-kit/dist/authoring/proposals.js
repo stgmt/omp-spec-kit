@@ -11,26 +11,16 @@ import {
 import { buildKernelGraph } from "../kernel/index.js";
 import { readRepositorySpecs } from "../kernel/adapters/fs.js";
 import { detectSecret } from "./secrets.js";
-import { FIXED_DOCUMENT_FILES } from "../kernel/types.js";
+import { FIXED_DOCUMENT_FILES, SPEC_STATUS_VALUES } from "../kernel/types.js";
 import { extractReferenceTarget, isValidSpecSlug } from "../kernel/identity.js";
 import { validateMetadata } from "../kernel/query/extended.js";
-import {
-  READINESS_LEVELS,
-  READINESS_REFUSALS,
-  confirmTaskStep,
-  specPatchStep,
-  specReadiness,
-  taskAdmissionBlockers,
-  taskAdmissionFixSteps,
-} from "../kernel/readiness.js";
-import { parseGherkinDocument } from "../kernel/parsers/gherkin.js";
-import { scanBlocks } from "../kernel/parsers/md-blocks.js";
 import { assembleRoadmap as assembleRoadmapContent } from "../kernel/roadmap/assemble.js";
 import { validateDesignReviewForChanges } from "./design-review.js";
 import { error } from "./error-codes.js";
 
 const MAX_REASON_BYTES = 512;
 const MAX_DIFF_BYTES = 64 * 1024;
+const STATUS_FIELD_PREFIX = /^([ ]{0,3}(?:[-*][ \t]+)?(?:\*\*)?[ \t]*Status[ \t]*(?:\*\*)?[ \t]*:(?:\*\*)?)/u;
 
 // Definition-integrity diagnostic classes a proposal must not introduce.
 // Compared as per-(code, path) counts before/after so pre-existing violations
@@ -78,72 +68,6 @@ function normalizeOperation(operation) {
   if (!isObject(operation) || typeof operation.kind !== "string") return null;
   const kind = operation.kind.replace(/([A-Z])/gu, (match) => `_${match.toLowerCase()}`);
   return { ...operation, kind };
-}
-
-// Every operation kind that may touch a task definition. Anything else that
-// writes one through TASKS.md is the raw bypass FR-3 closes.
-const CANONICAL_TASK_OPERATION_KINDS = new Set([
-  "create_task",
-  "update_task",
-  "replace_task_status",
-  "replace_task_owner",
-  "replace_task_links",
-  "append_task_comment",
-]);
-
-function introducedTaskIds(operation, knownTaskIds) {
-  const text = [operation.text, operation.content, operation.newText]
-    .filter((value) => typeof value === "string")
-    .join("\n");
-  const introduced = [];
-  // Both gates read headings through the kernel's own block scanner, so a
-  // fenced or indented sample line is never mistaken for a definition: the
-  // corpus does not register it, and neither may the gate that guards it.
-  const { lines, codeLineFlags } = scanBlocks(text);
-  for (let i = 0; i < lines.length; i += 1) {
-    if (codeLineFlags[i]) continue;
-    const heading = /^##\s+([^\s:]+)/u.exec(lines[i].text);
-    if (!heading) continue;
-    if (!/^TASK-[0-9]+$/u.test(heading[1])) continue;
-    if (knownTaskIds.has(heading[1])) continue;
-    introduced.push(heading[1]);
-  }
-  return introduced;
-}
-
-// Task definitions inside TASKS.md, keyed by local id and reduced to their
-// body (heading excluded). The admission gate compares these maps before and
-// after a raw document operation, so an annotation inside an existing
-// definition is allowed and an introduced definition is refused.
-function taskBlocks(text) {
-  const blocks = new Map();
-  const source = String(text ?? "");
-  const { lines, codeLineFlags } = scanBlocks(source);
-  let current = null;
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i].text;
-    const heading = codeLineFlags[i] ? null : /^##\s+([^\s:]+)/u.exec(line);
-    if (heading) {
-      current = /^TASK-[0-9]+$/u.test(heading[1]) ? { id: heading[1], lines: [] } : null;
-      if (current) blocks.set(current.id, current);
-      continue;
-    }
-    if (current) current.lines.push(line);
-  }
-  return new Map([...blocks].map(([id, block]) => [id, block.lines.join("\n")]));
-}
-
-// Scenarios declared by a .feature document, keyed by local id. Rejected
-// scenarios (missing or malformed id tags) are handled by the kernel parser and
-// never reach the traceability gate.
-function scenariosByLocalId(text, spec) {
-  const parsed = parseGherkinDocument({ path: "", specSlug: spec, text: String(text ?? "") });
-  const scenarios = new Map();
-  for (const scenario of parsed.scenarios ?? []) {
-    if (scenario.rejected === true || typeof scenario.localId !== "string") continue;
-    scenarios.set(scenario.localId, scenario);
-  }
-  return scenarios;
 }
 
 function headingRange(text, selector) {
@@ -201,6 +125,25 @@ export function applyOperation(text, operation) {
     return { ok: true, text: operation.content };
   }
   if (kind === "delete_document") return { ok: true, text: "", delete: true };
+  if (kind === "replace_spec_status") {
+    if (!SPEC_STATUS_VALUES.includes(operation.status))
+      return { ok: false, code: "INVALID_REQUEST", message: "specification status must be active or backlog" };
+    const lines = text.split(/\r?\n/u);
+    let statusIndex = -1;
+    for (let index = 0; index < lines.length; index += 1) {
+      if (!STATUS_FIELD_PREFIX.test(lines[index])) continue;
+      if (statusIndex >= 0)
+        return { ok: false, code: "VALIDATION_FAILED", message: "specification has multiple lifecycle status fields" };
+      statusIndex = index;
+    }
+    if (statusIndex >= 0) {
+      lines[statusIndex] = `${lines[statusIndex].match(STATUS_FIELD_PREFIX)[1]} ${operation.status}`;
+    } else {
+      const heading = lines.findIndex((line) => /^#\s+/u.test(line));
+      lines.splice(heading + 1, 0, "", `Status: ${operation.status}`);
+    }
+    return { ok: true, text: lines.join("\n") };
+  }
   if (kind === "replace_task_status") {
     if (typeof operation.entity !== "string" || typeof operation.status !== "string")
       return { ok: false, code: "INVALID_REQUEST", message: "replace_task_status needs entity and status" };
@@ -224,12 +167,11 @@ export function applyOperation(text, operation) {
     // bulleted forms; matching only `- **Status:**` would fail to patch the
     // corpus's dominant plain/bold forms. The matched prefix is preserved so
     // the task keeps its authored field shape.
-    const STATUS_PREFIX = /^([ ]{0,3}(?:[-*][ \t]+)?(?:\*\*)?[ \t]*Status[ \t]*(?:\*\*)?[ \t]*:(?:\*\*)?)/u;
-    const status = lines.slice(heading + 1, end).findIndex((line) => STATUS_PREFIX.test(line));
+    const status = lines.slice(heading + 1, end).findIndex((line) => STATUS_FIELD_PREFIX.test(line));
     if (status < 0)
       return { ok: false, code: "VALIDATION_FAILED", message: `task status field not found: ${operation.entity}` };
     const index = heading + 1 + status;
-    lines[index] = `${lines[index].match(STATUS_PREFIX)[1]} ${operation.status}`;
+    lines[index] = `${lines[index].match(STATUS_FIELD_PREFIX)[1]} ${operation.status}`;
     return { ok: true, text: lines.join("\n") };
   }
   if (kind === "create_task") {
@@ -559,7 +501,7 @@ async function compileDeleteEntity({ graph, root, spec, input }) {
   return { ok: true, operations: [{ kind: "replace_document", document, content }] };
 }
 
-export function operationForFacade(name, input, context = {}) {
+export function operationForFacade(name, input) {
   const spec = input.spec;
   if (typeof spec !== "string" || !isValidSpecSlug(spec))
     return error("PATH_FORBIDDEN", "spec must be a valid specification slug");
@@ -584,21 +526,10 @@ export function operationForFacade(name, input, context = {}) {
     };
   }
   if (name === "setSpecStatus") {
-    const heading =
-      typeof input.heading === "string" && input.heading.trim()
-        ? input.heading.trim()
-        : ["Public states", "Current product status", "Status", "Readiness rule", "Scope"];
     return {
       spec,
       reason,
-      operations: [
-        {
-          kind: "append_to_section",
-          document: "README.md",
-          heading,
-          text: `\n- **Status:** ${input.status}\n`,
-        },
-      ],
+      operations: [{ kind: "replace_spec_status", document: "README.md", status: input.status }],
     };
   }
 
@@ -787,29 +718,31 @@ export function operationForFacade(name, input, context = {}) {
   }
 
   if (name === "addBacklogTask" || name === "registerIncidentBacklog") {
-    // A task that cannot be traced is not created at all: an untraced
-    // backlog entry is the bypass this gate exists to close. The plan names the
-    // requirement the corpus has and a free task id, so replaying it succeeds;
-    // on a scaffold it starts with the readiness steps instead.
-    const subject = typeof (input.title ?? input.summary) === "string" ? input.title ?? input.summary : "Task";
-    // A traced task is only an applicable plan once the ladder lets one exist;
-    // below that the plan has to clear the rungs first, or replaying it would
-    // only earn a different refusal.
-    const admitsTask = context.readiness ? taskAdmissionBlockers(context.readiness).length === 0 : false;
-    const fix =
-      context.requirementId && admitsTask
-        ? [
-            confirmTaskStep(spec, {
-              entity: context.taskId ?? "TASK-1",
-              subject,
-              requirements: [context.requirementId],
-              reason: "create a traced task instead of a backlog entry",
-            }),
-          ]
-        : context.readiness
-          ? taskAdmissionFixSteps(spec, context.readiness)
-          : [];
-    return error("BACKLOG_FORBIDDEN", READINESS_REFUSALS.BACKLOG_FORBIDDEN, { intent: name, fix });
+    const title = input.title ?? input.summary;
+    if (typeof title !== "string" || title.trim() === "")
+      return error("INVALID_REQUEST", `${name} requires title or summary`);
+    let reqLines = "";
+    if (Array.isArray(input.requirements) && input.requirements.length > 0) {
+      const normalizedReqs = [
+        ...new Set(input.requirements.filter((r) => typeof r === "string" && r.trim()).map((r) => r.trim())),
+      ].sort();
+      if (normalizedReqs.length > 0) {
+        reqLines = `\n- **Requirements:** ${normalizedReqs.join(", ")}`;
+      }
+    } else if (typeof input.requirements === "string" && input.requirements.trim()) {
+      reqLines = `\n- **Requirements:** ${input.requirements.trim()}`;
+    }
+    return {
+      spec,
+      reason,
+      operations: [
+        {
+          kind: "insert_at_eof",
+          document: "TASKS.md",
+          text: `\n## Backlog — ${title.trim()}\n\n- **Status:** todo\n- **Done When:** ${reason}${reqLines}\n`,
+        },
+      ],
+    };
   }
 
   if (name === "createSpec") {
@@ -952,27 +885,6 @@ export class ProposalCompiler {
       });
     }
 
-    // The facade refusals name real ids: the requirement this corpus has and a
-    // task id that is still free, so replaying a fix plan succeeds.
-    const specNodes = graph.nodes.filter((node) => node.specSlug === spec);
-    // Both requirement kinds are traceable, so a fix plan on an NFR-only corpus
-    // names the requirement the specification actually has instead of nothing.
-    const requirementNodes = specNodes.filter(
-      (node) => node.kind === "FUNCTIONAL_REQUIREMENT" || node.kind === "NON_FUNCTIONAL_REQUIREMENT",
-    );
-    const firstRequirementId =
-      (requirementNodes.find((node) => node.kind === "FUNCTIONAL_REQUIREMENT") ?? requirementNodes[0])?.localId ?? null;
-    const usedTaskNumbers = new Set(
-      specNodes.filter((node) => node.kind === "TASK").map((node) => Number(String(node.localId).slice("TASK-".length))),
-    );
-    let freeTaskNumber = 1;
-    while (usedTaskNumbers.has(freeTaskNumber)) freeTaskNumber += 1;
-    const facadeContext = {
-      requirementId: firstRequirementId,
-      taskId: `TASK-${freeTaskNumber}`,
-      readiness: specReadiness(graph, spec),
-    };
-
     let rawOperations;
     if (intent === "deleteEntity") {
       const compiled = await compileDeleteEntity({ graph, root: this.root, spec, input });
@@ -996,119 +908,9 @@ export class ProposalCompiler {
       if (compiled.ok === false) return compiled;
       rawOperations = compiled.operations;
     } else {
-      const compiled = operationForFacade(intent, input, facadeContext);
+      const compiled = operationForFacade(intent, input);
       if (compiled.ok === false) return compiled;
       rawOperations = compiled.operations;
-    }
-
-    // ---- Task admission (compiler stage) ----
-    // A task exists only inside a specification that is actually assembled. The
-    // verdict and both refusals come from the kernel readiness function, so the
-    // preview, the write and every transport answer with the same plan.
-    const readiness = specReadiness(graph, spec);
-    const readinessIndex = READINESS_LEVELS.indexOf(readiness.level);
-    const requirementIds = new Set(
-      graph.nodes
-        .filter(
-          (node) =>
-            node.specSlug === spec &&
-            (node.kind === "FUNCTIONAL_REQUIREMENT" || node.kind === "NON_FUNCTIONAL_REQUIREMENT"),
-        )
-        .map((node) => node.localId)
-        .filter((id) => typeof id === "string" && id !== ""),
-    );
-    // A proposal may define what it references in the same call (add an FR and
-    // the task that implements it); those ids are not in the snapshot yet.
-    const proposalDefinedIds = new Set();
-    for (const rawOperation of rawOperations) {
-      if (!rawOperation) continue;
-      if (typeof rawOperation.entity === "string" && rawOperation.entity.trim() !== "")
-        proposalDefinedIds.add(rawOperation.entity.trim());
-      for (const field of [rawOperation.text, rawOperation.content, rawOperation.newText]) {
-        if (typeof field !== "string") continue;
-        for (const line of field.split(/\r?\n/u)) {
-          const heading = line.match(/^##\s+([^\s:]+)/u);
-          if (heading) proposalDefinedIds.add(heading[1]);
-        }
-      }
-    }
-    const taskCreations = rawOperations
-      .map((rawOperation) => normalizeOperation(rawOperation))
-      .filter(
-        (operation) =>
-          operation?.kind === "create_task" &&
-          typeof operation.entity === "string" &&
-          operation.entity.trim() !== "",
-      );
-    if (taskCreations.length > 0) {
-      if (readinessIndex < READINESS_LEVELS.indexOf("L2")) {
-        return error("SPEC_NOT_READY", READINESS_REFUSALS.SPEC_NOT_READY, {
-          spec,
-          level: readiness.level,
-          blockers: taskAdmissionBlockers(readiness),
-          fix: taskAdmissionFixSteps(spec, readiness),
-        });
-      }
-      for (const operation of taskCreations) {
-        const declared = Array.isArray(operation.requirements)
-          ? operation.requirements.filter((requirement) => typeof requirement === "string" && requirement.trim() !== "")
-          : [];
-        const traced = declared.some(
-          (requirement) =>
-            requirementIds.has(requirement) ||
-            proposalDefinedIds.has(requirement) ||
-            (requirement.startsWith(`${spec}:`) && requirementIds.has(requirement.slice(spec.length + 1))),
-        );
-        if (!traced) {
-          const firstRequirement = [...requirementIds].sort()[0] ?? "FR-1";
-          return error("TASK_NOT_TRACEABLE", READINESS_REFUSALS.TASK_NOT_TRACEABLE, {
-            spec,
-            entity: operation.entity,
-            blockers: [],
-            fix: [
-              confirmTaskStep(spec, {
-                entity: operation.entity,
-                subject: operation.subject,
-                requirements: [firstRequirement],
-                reason: `trace ${operation.entity} to an existing requirement`,
-              }),
-            ],
-          });
-        }
-      }
-    }
-
-    // A raw operation may not introduce a task definition: the canonical
-    // intent is the only writer. This runs before reference resolution so the
-    // caller sees the bypass code, not a downstream dangling-reference failure.
-    const knownTaskIds = new Set(
-      graph.nodes.filter((node) => node.specSlug === spec && node.kind === "TASK").map((node) => node.localId),
-    );
-    const rawTaskIntroductions = [];
-    for (const rawOperation of rawOperations) {
-      const operation = normalizeOperation(rawOperation);
-      if (!operation || operation.document !== "TASKS.md") continue;
-      if (CANONICAL_TASK_OPERATION_KINDS.has(operation.kind)) continue;
-      rawTaskIntroductions.push(...introducedTaskIds(operation, knownTaskIds));
-    }
-    if (rawTaskIntroductions.length > 0) {
-      return error("TASK_DOCUMENT_BYPASS", READINESS_REFUSALS.TASK_DOCUMENT_BYPASS, {
-        spec,
-        document: "TASKS.md",
-        tasks: [...new Set(rawTaskIntroductions)].sort(),
-        // AC-3.1: the fix names the canonical create_task operation.
-        fix: [
-          specPatchStep(spec, "create the task through the canonical operation", [
-            {
-              kind: "create_task",
-              document: "TASKS.md",
-              entity: [...new Set(rawTaskIntroductions)].sort()[0],
-              subject: "Task subject",
-              requirements: [[...requirementIds].sort()[0] ?? "FR-1"],
-            },
-          ]),
-        ],
-      });
     }
 
     // Every reference field a proposal writes must point at an entity the
@@ -1349,65 +1151,6 @@ export class ProposalCompiler {
       addChange(operation.document, current.bytes, Buffer.from(transformedText, "utf8"), operation, transformed.delete === true, current.missing === true);
     }
 
-    // ---- Raw-path gates (compiler stage) ----
-    // DEC-2: one place decides. Both transports reach this method, so a hook
-    // never needs a second implementation of the cycle.
-    const tasksDocument = documents.get("TASKS.md");
-    if (tasksDocument) {
-      const operation = tasksDocument.operation;
-      const allowedEntity = CANONICAL_TASK_OPERATION_KINDS.has(operation?.kind) ? operation.entity ?? null : null;
-      const beforeTasks = taskBlocks(tasksDocument.beforeBytes.toString("utf8"));
-      const afterTasks = taskBlocks(tasksDocument.afterBytes.toString("utf8"));
-      // AC-3.1 refuses an inserted task heading, not an annotation written
-      // inside an existing definition: only ids absent from the snapshot count.
-      const touched = new Set([...afterTasks.keys()].filter((id) => !beforeTasks.has(id)));
-      if (allowedEntity !== null) touched.delete(allowedEntity);
-      if (touched.size > 0) {
-        return error("TASK_DOCUMENT_BYPASS", READINESS_REFUSALS.TASK_DOCUMENT_BYPASS, {
-          spec,
-          document: "TASKS.md",
-          tasks: [...touched].sort(),
-          fix: [
-            specPatchStep(spec, "create the task through the canonical operation", [
-              {
-                kind: "create_task",
-                document: "TASKS.md",
-                entity: [...touched].sort()[0],
-                subject: "Task subject",
-                requirements: [requirementIds.values().next().value ?? "FR-1"],
-              },
-            ]),
-          ],
-        });
-      }
-    }
-
-    // Scenarios enter the corpus through Gherkin tags only; a scenario with no
-    // requirement or criterion tag has no incoming edge and cannot be traced.
-    const beforeScenarios = new Set();
-    const afterScenarios = new Map();
-    for (const change of documents.values()) {
-      if (!/\.feature$/iu.test(change.document)) continue;
-      for (const [localId] of scenariosByLocalId(change.beforeBytes.toString("utf8"), spec)) beforeScenarios.add(localId);
-      for (const [localId, scenario] of scenariosByLocalId(change.afterBytes.toString("utf8"), spec)) {
-        afterScenarios.set(localId, { ...scenario, document: change.document });
-      }
-    }
-    for (const [localId, scenario] of afterScenarios) {
-      if (beforeScenarios.has(localId)) continue;
-      // Only a tag that names this specification's requirement or criterion
-      // traces the scenario into it (@featureN and @AC-N.M, both TESTED_BY).
-      // A qualified tag such as @other-spec:FR-1 also parses as a reference,
-      // but it points outside the specification this scenario is written into.
-      if (scenario.traceRefs.some((ref) => ref.requestedEdgeType === "TESTED_BY")) continue;
-      return error("SCENARIO_NOT_TRACEABLE", `${READINESS_REFUSALS.SCENARIO_NOT_TRACEABLE}: ${localId}`, {
-        spec,
-        scenario: localId,
-        document: scenario.document,
-        acceptedTags: ["@featureN", "@AC-N.M"],
-      });
-    }
-
     const snapshot = await readRepositorySpecs({ root: this.root });
     if (snapshot.error) return error("PATH_FORBIDDEN", "specification repository could not be read");
     const replacements = new Map();
@@ -1509,7 +1252,6 @@ export class ProposalCompiler {
       proposalHash: proposalSha256,
       spec,
       baseSnapshotSha256: graph.fingerprint,
-      readiness,
       normalizedOperations,
       documents: previews,
       affectedNodeIds: [],

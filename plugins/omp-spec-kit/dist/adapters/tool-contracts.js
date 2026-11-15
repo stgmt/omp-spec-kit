@@ -10,6 +10,7 @@ import {
   ENTITY_TYPE_DESCRIPTORS,
   LINK_OUTCOMES,
   NODE_KINDS,
+  SPEC_STATUS_VALUES,
   TASK_REVIEW_VALUES,
 } from "../kernel/types.js";
 import {
@@ -17,10 +18,6 @@ import {
   ELICITATION_REQUIRED,
   ELICITATION_SKILL_URI,
 } from "../authoring/elicitation-guard.js";
-import {
-  READINESS_REFUSALS,
-  READINESS_RULE_TEXT,
-} from "../kernel/readiness.js";
 
 export { ELICITATION_HINT, ELICITATION_REQUIRED, ELICITATION_SKILL_URI };
 
@@ -69,8 +66,7 @@ export const VERIFICATION_METHOD_VALUES = Object.freeze([
 
 export const SAFETY_CLASS_VALUES = Object.freeze(["critical", "major", "minor"]);
 export const DELIVERY_VALUES = Object.freeze(["NOT_DECLARED", "DELIVERED", "INCOMPLETE"]);
-export const SPEC_STATUS_VALUES = Object.freeze(["active", "backlog"]);
-export { TASK_REVIEW_VALUES };
+export { SPEC_STATUS_VALUES, TASK_REVIEW_VALUES };
 export const READINESS_VIEW_VALUES = Object.freeze(["status", "summary", "counts", "coverage"]);
 
 export const PATCH_OPERATION_KINDS = Object.freeze([
@@ -242,13 +238,9 @@ export const TOOL_CONTRACTS = Object.freeze([
     tool: "spec_inspect",
     label: "Spec Inspect",
     operation: "inspect",
-    description: `Run validation, orphans, anchors, readiness, and policy checks.\n${READINESS_RULE_TEXT}`,
+    description: "Run validation, orphans, anchors, and policy checks.",
     discriminator: "check",
     variants: Object.freeze({
-      readiness: Object.freeze({
-        description: "Report the readiness level and the blockers that keep one specification from the next level.",
-        fields: Object.freeze([field("spec", "string")]),
-      }),
       scenariosByTags: Object.freeze({
         description: "List scenarios whose tag set contains every requested tag.",
         fields: Object.freeze([field("tags", "stringArray")]),
@@ -356,7 +348,7 @@ export const TOOL_CONTRACTS = Object.freeze([
     label: "Spec Patch",
     operation: "specPatch",
     mutating: true,
-    description: `Preview or apply spec patches in memory or atomically to disk.\n${READINESS_RULE_TEXT}`,
+    description: "Preview or apply spec patches in memory or atomically to disk.",
     discriminator: "intent",
     commonFields: Object.freeze([
       field("requestId", "string"),
@@ -485,14 +477,14 @@ export const TOOL_CONTRACTS = Object.freeze([
         fields: Object.freeze([optionalField("designReview", "json")]),
       }),
       addBacklogTask: Object.freeze({
-        description: `Refused: ${READINESS_REFUSALS.BACKLOG_FORBIDDEN}.`,
+        description: "Add a traced backlog task.",
         fields: Object.freeze([
           field("title", "string"),
           optionalField("requirements", "json"),
         ]),
       }),
       registerIncidentBacklog: Object.freeze({
-        description: `Refused: ${READINESS_REFUSALS.BACKLOG_FORBIDDEN}.`,
+        description: "Preview or apply a traced incident task.",
         fields: Object.freeze([
           field("summary", "string"),
           optionalField("requirements", "json"),
@@ -708,10 +700,16 @@ export function jsonSchemaFor(contract) {
     }
   }
 
+  const conflictingFieldNames = new Set();
   for (const variant of Object.values(contract.variants)) {
     for (const f of variant.fields) {
-      if (!topProperties[f.name]) {
-        topProperties[f.name] = {};
+      const declared = topProperties[f.name];
+      if (!declared) {
+        topProperties[f.name] = branchSchemaType(f);
+        continue;
+      }
+      if (JSON.stringify(declared) !== JSON.stringify(branchSchemaType(f))) {
+        conflictingFieldNames.add(f.name);
       }
     }
   }
@@ -726,26 +724,17 @@ export function jsonSchemaFor(contract) {
     };
     const required = [disc];
 
-    if (Array.isArray(contract.commonFields)) {
-      for (const f of contract.commonFields) {
-        vProps[f.name] = branchSchemaType(f);
-        if (!f.optional) required.push(f.name);
-      }
-    }
-
-    for (const f of variant.fields) {
-      vProps[f.name] = branchSchemaType(f);
+    for (const f of [...(contract.commonFields ?? []), ...variant.fields]) {
       if (!f.optional) required.push(f.name);
+      // A name that means something different per branch keeps its own schema
+      // in the branch: the shared root entry cannot describe both meanings.
+      if (conflictingFieldNames.has(f.name)) vProps[f.name] = branchSchemaType(f);
     }
 
-    // Transport context is declared once on the root schema. Branches stay
-    // open: the root already rejects an unknown key, and repeating the
-    // transport fields per branch would grow the catalog without adding a
-    // single check the runtime performs.
-
-    // The root closes unknown keys; a branch only constrains its own fields.
-    // Declaring transport context per branch would not add an enforcement the
-    // runtime lacks (the root already rejects it) and would double the schema.
+    // The root declares every other field's type and closes unknown keys, so a
+    // branch only has to pin its discriminator and its own required names.
+    // Repeating the field schemas per branch added nothing the request path
+    // checks and cost kilobytes of catalog on every call.
     oneOf.push({
       type: "object",
       title: `${disc}: ${vName}`,
@@ -753,6 +742,10 @@ export function jsonSchemaFor(contract) {
       properties: vProps,
       required,
     });
+  }
+
+  for (const name of conflictingFieldNames) {
+    if (topProperties[name]) topProperties[name] = {};
   }
 
   addTransportContextFields(topProperties);
@@ -1171,7 +1164,7 @@ export function annotationsFor(contract, action = null) {
   return contractIsMutating(contract) ? MUTATING_TOOL_ANNOTATIONS : READ_TOOL_ANNOTATIONS;
 }
 
-export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts an optional project (owner/project) that selects the project serving that call only; when it is omitted the host's session project or your default scope applies, and an unresolved or unauthorized project is refused instead of falling back. declaredWorktree (absolute path) selects a corpus only on the local stdio/test transport; the hosted HTTP transport refuses it, so select a project there instead. ${READINESS_RULE_TEXT} ${ELICITATION_HINT}`;
+export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts an optional project (owner/project) that selects the project serving that call only; when it is omitted the host's session project or your default scope applies, and an unresolved or unauthorized project is refused instead of falling back. declaredWorktree (absolute path) selects a corpus only on the local stdio/test transport; the hosted HTTP transport refuses it, so select a project there instead. ${ELICITATION_HINT}`;
 
 export const KERNEL_ENVELOPE_OUTPUT_SCHEMA = Object.freeze({
   type: "object",
