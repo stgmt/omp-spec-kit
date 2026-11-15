@@ -9,6 +9,8 @@ Done When: the acceptance criteria for this task pass on the fixture corpus.
 Requirements: FR-1
 Implements: FR-1
 
+- **Comment (implementer, 2026-11-15 03:04):** src/kernel/readiness.js + tests/readiness-gate.test.mjs (verdict, L0/L2, blockers)
+
 ## TASK-2 — Task admission in the compiler
 
 Status: todo
