@@ -31,7 +31,7 @@ Implements: FR-3
 
 ## TASK-4 — Scenario traceability
 
-Status: todo
+Status: done
 Done When: the acceptance criteria for this task pass on the fixture corpus.
 Requirements: FR-4
 Implements: FR-4
