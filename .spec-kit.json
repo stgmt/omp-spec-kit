@@ -1,0 +1,9 @@
+{
+  "schema": "omp-spec-kit/spec-binding@1",
+  "project": "stgmt/omp-spec-kit",
+  "spec": "spec-readiness-gate",
+  "repo": "https://github.com/stgmt/omp-spec-kit.git",
+  "branch": "spec-spec-readiness-gate",
+  "createdAt": "2026-11-15T03:02:44.578Z",
+  "owner": "stgmt"
+}
