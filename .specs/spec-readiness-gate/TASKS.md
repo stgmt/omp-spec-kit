@@ -45,6 +45,8 @@ Done When: the acceptance criteria for this task pass on the fixture corpus.
 Requirements: FR-5
 Implements: FR-5
 
+- **Comment (implementer, 2026-11-15 03:06):** READINESS_RULE_TEXT rendered into contracts and MCP instructions; tests/readiness-drift.test.mjs
+
 ## TASK-6 — Transport parity
 
 Status: todo
