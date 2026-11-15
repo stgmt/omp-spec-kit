@@ -18,6 +18,8 @@ Done When: the acceptance criteria for this task pass on the fixture corpus.
 Requirements: FR-1
 Implements: FR-1
 
+- **Comment (implementer, 2026-11-15 03:04):** src/authoring/proposals.js admission gate (SPEC_NOT_READY/TASK_NOT_TRACEABLE) + tests
+
 ## TASK-3 — Close the document and backlog bypasses
 
 Status: todo
