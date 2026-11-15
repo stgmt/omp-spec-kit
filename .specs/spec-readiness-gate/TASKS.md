@@ -22,7 +22,7 @@ Implements: FR-1
 
 ## TASK-3 — Close the document and backlog bypasses
 
-Status: todo
+Status: done
 Done When: the acceptance criteria for this task pass on the fixture corpus.
 Requirements: FR-3
 Implements: FR-3
