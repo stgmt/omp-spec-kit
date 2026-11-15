@@ -13,7 +13,7 @@ Implements: FR-1
 
 ## TASK-2 — Task admission in the compiler
 
-Status: todo
+Status: done
 Done When: the acceptance criteria for this task pass on the fixture corpus.
 Requirements: FR-1
 Implements: FR-1
