@@ -4,7 +4,7 @@ Status: DRAFT
 
 ## TASK-1 — Readiness function in the kernel
 
-Status: todo
+Status: done
 Done When: the acceptance criteria for this task pass on the fixture corpus.
 Requirements: FR-1
 Implements: FR-1
