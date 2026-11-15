@@ -40,7 +40,7 @@ Implements: FR-4
 
 ## TASK-5 — Generated rule text and drift test
 
-Status: todo
+Status: done
 Done When: the acceptance criteria for this task pass on the fixture corpus.
 Requirements: FR-5
 Implements: FR-5
