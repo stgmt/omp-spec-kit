@@ -49,7 +49,7 @@ Implements: FR-5
 
 ## TASK-6 — Transport parity
 
-Status: todo
+Status: done
 Done When: the acceptance criteria for this task pass on the fixture corpus.
 Requirements: FR-6
 Implements: FR-6
