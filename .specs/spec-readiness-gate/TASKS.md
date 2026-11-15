@@ -36,6 +36,8 @@ Done When: the acceptance criteria for this task pass on the fixture corpus.
 Requirements: FR-4
 Implements: FR-4
 
+- **Comment (implementer, 2026-11-15 03:05):** SCENARIO_NOT_TRACEABLE gate over Gherkin traceRefs + tests
+
 ## TASK-5 — Generated rule text and drift test
 
 Status: todo
