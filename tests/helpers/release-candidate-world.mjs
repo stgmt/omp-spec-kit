@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createReleaseCandidate } from "../../scripts/create-release-candidate.mjs";
-import { sha256 } from "../../scripts/release-candidate-utils.mjs";
+import { releaseIdentity as identity, sha256 } from "../../scripts/release-candidate-utils.mjs";
 import { evaluateRelease } from "../../scripts/verify-release.mjs";
 import { verifyPublicTree } from "../../scripts/verify-public-tree.mjs";
 
@@ -76,6 +76,12 @@ export async function readVerifiedCucumberFixture(repositoryRoot) {
   assert.match(provenance.repositoryCommit, /^[0-9a-f]{40}$/u);
   assert.equal(provenance.sourceState, "working-tree-content-addressed");
   assert.match(provenance.parentFixtureSha256, /^[0-9a-f]{64}$/u);
+  // The parent names the capture this one replaced, never the capture itself.
+  assert.notEqual(
+    provenance.parentFixtureSha256,
+    provenance.sha256,
+    "Cucumber fixture provenance must not record the new capture as its own parent",
+  );
   assert.match(provenance.dockerImageDigest, /^sha256:[0-9a-f]{64}$/u);
   assert.equal(provenance.cucumberVersion, "13.2.1");
   assert.equal(provenance.captureCommand, "bash scripts/docker-bdd.sh");
@@ -118,7 +124,6 @@ export async function readVerifiedCucumberFixture(repositoryRoot) {
 function resolveTagCommit(tag) { if (tag === "v0.3.2") return CANDIDATE_COMMIT; if (tag === "v0.3.0") return PRIOR_COMMIT; throw new Error(`unexpected test tag ${tag}`); }
 async function writeBytes(directory, name, bytes) { const relative = `receipts/${name}`; const absolute = path.join(directory, relative); await mkdir(path.dirname(absolute), { recursive: true }); await writeFile(absolute, bytes); return { status: "present", path: relative, digest: sha256(bytes) }; }
 async function writeReceipt(directory, name, value) { return writeBytes(directory, `${name}.json`, Buffer.from(`${JSON.stringify(value, null, 2)}\n`)); }
-function identity(candidate, catalogDigest) { return { version: candidate.version, tag: candidate.tag, commit: candidate.commit, candidateDigest: candidate.candidateDigest, packageTreeDigest: candidate.packageTreeDigest, archiveSha256: candidate.archive.sha256, catalogDigest }; }
 function placeholderClaim(candidate, catalogDigest, requirement) { return { schema: "omp-spec-kit-distribution-evidence-receipt@1", status: "passed", ...identity(candidate, catalogDigest), requirement, claims: ["candidate-evidence"], ompRevision: "@oh-my-pi/pi-coding-agent@18.0.10#33cc6b9a043a74e00a157e72ca909272796d8461", platform: structuredClone(PLATFORM), fixtureDigest: "d".repeat(64), applicability: structuredClone(APPLICABILITY), lifecycle: lifecycleForClaim("candidate-evidence", APPLICABILITY) }; }
 
 export async function createCandidateWorld(repositoryRoot, tempRoot, verifiedMessageBytes, tag = "v0.3.2") {

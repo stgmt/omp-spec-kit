@@ -1,8 +1,8 @@
 {
   "schema": "omp-spec-kit-mutation-gate@1",
-  "timestamp": "2026-11-14T21:16:19.604Z",
-  "totalMutants": 173,
-  "killed": 173,
+  "timestamp": "2026-11-15T16:15:59.639Z",
+  "totalMutants": 175,
+  "killed": 175,
   "survivors": 0,
   "passed": true,
   "receipts": [
@@ -511,6 +511,12 @@
       "killerAssertion": "Deleted variant attachment must be rejected\n\nfalse !== true\n"
     },
     {
+      "id": "delete-branch-spec_inspect-readiness",
+      "status": "KILLED",
+      "description": "Delete variant branch readiness from spec_inspect",
+      "killerAssertion": "Deleted variant readiness must be rejected\n\nfalse !== true\n"
+    },
+    {
       "id": "delete-branch-spec_inspect-scenariosByTags",
       "status": "KILLED",
       "description": "Delete variant branch scenariosByTags from spec_inspect",
@@ -703,10 +709,10 @@
       "killerAssertion": "oneOf length changed\n\n4 !== 3\n"
     },
     {
-      "id": "duplicate-branch-spec_inspect-scenariosByTags",
+      "id": "duplicate-branch-spec_inspect-readiness",
       "status": "KILLED",
       "description": "Duplicate branch in spec_inspect",
-      "killerAssertion": "oneOf length changed\n\n8 !== 7\n"
+      "killerAssertion": "oneOf length changed\n\n9 !== 8\n"
     },
     {
       "id": "duplicate-branch-spec_evidence-result",
@@ -737,6 +743,12 @@
       "status": "KILLED",
       "description": "Call spec_documents with variant list and field doc from read",
       "killerAssertion": "field doc belongs to another variant, not list"
+    },
+    {
+      "id": "cross-branch-spec_inspect-readiness-with-tags",
+      "status": "KILLED",
+      "description": "Call spec_inspect with variant readiness and field tags from scenariosByTags",
+      "killerAssertion": "field tags belongs to another variant, not readiness"
     },
     {
       "id": "cross-branch-spec_patch-patch-with-requirement",

@@ -68,7 +68,7 @@ function patchArgs(overrides = {}) {
     spec: "spec-kernel",
     reason: "e2e write path",
     dryRun: false,
-    operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-99 — e2e write\n" }],
+    operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\ne2e write marker\n" }],
     requestId: "w1",
     ...overrides,
   };
@@ -99,7 +99,7 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     assert.equal(await git(bare, ["log", "--format=%an", "-1", SPEC_BRANCH]), "spec-bot");
 
     const remoteTasks = await git(bare, ["show", `${SPEC_BRANCH}:.specs/spec-kernel/TASKS.md`]);
-    assert.match(remoteTasks, /TASK-99 — e2e write/u);
+    assert.match(remoteTasks, /e2e write marker/u);
   });
 
   it("reconciles a diverged clone so a moved remote never blocks the next write", async () => {
@@ -129,7 +129,7 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     assert.match(log, /operator break-glass note/u, "the out-of-band commit must stay on the remote");
     assert.match(log, /local-only: simulated rejected push/u, "the local commit must be replayed, not dropped");
     assert.match(log, /apply/u, "the bot commit must land on top of both");
-    assert.match(await git(bare, ["show", `${SPEC_BRANCH}:.specs/spec-kernel/TASKS.md`]), /TASK-99/u);
+    assert.match(await git(bare, ["show", `${SPEC_BRANCH}:.specs/spec-kernel/TASKS.md`]), /e2e write marker/u);
   });
 
   it("keeps the local commit and stays up when a break-glass rewrite conflicts", async () => {
@@ -255,7 +255,10 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     const attempt = (i) =>
       callTool(url, tokens.alice, "spec_patch", patchArgs({
         requestId: `w-concurrent-${i}`,
-        operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: `\n## TASK-${200 + i} — concurrent write ${i}\n` }],
+        // A plain marker, not a task heading: the admission gate refuses a raw
+        // heading in TASKS.md, and this case is about the write queue, not the
+        // corpus rules.
+        operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: `concurrent write ${i}\n` }],
       }));
     const results = await Promise.all(Array.from({ length: N }, (_, i) => attempt(i)));
 
@@ -284,7 +287,7 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     }
     const remoteTasks = await git(bare, ["show", `${SPEC_BRANCH}:.specs/spec-kernel/TASKS.md`]);
     for (let i = 0; i < N; i += 1) {
-      assert.match(remoteTasks, new RegExp(`TASK-${200 + i} — concurrent write ${i}`, "u"), `write ${i} must reach the remote`);
+      assert.match(remoteTasks, new RegExp(`concurrent write ${i}`, "u"), `write ${i} must reach the remote`);
     }
   });
 

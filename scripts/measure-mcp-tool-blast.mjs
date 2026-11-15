@@ -64,7 +64,12 @@ export const LIMITS = Object.freeze({
   toolCount: 10,
   readOnlyCount: 9,
   mutatingCount: 1,
-  maxTotalCatalogBytes: 27000, // 63.5% of baseline 42499; +deleteSpec intent
+  // The ten-tool surface carries every spec_patch intent and the readiness
+  // selector; the budget is a growth cap, not a target. The gate measures
+  // 25375 bytes on the shipped server after the readiness gate, against 24158
+  // at v3.6.3 and 42499 for the 38-tool baseline it replaced, so 32000 is 75%
+  // of that baseline and leaves the surface about 6.6 KB of headroom.
+  maxTotalCatalogBytes: 32000,
   maxDescriptionChars: 2000,
 });
 

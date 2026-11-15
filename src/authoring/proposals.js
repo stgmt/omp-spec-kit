@@ -92,22 +92,32 @@ const CANONICAL_TASK_OPERATION_KINDS = new Set([
   "append_task_comment",
 ]);
 
+// Level-two headings as the kernel reads them: ATX and Setext are the same
+// definition to the parser, so a gate that matched only `## ` would miss the
+// underline form entirely. Fenced and indented lines are code, never headings.
+function levelTwoHeadings(text) {
+  // The kernel normalizes CRLF/CR to LF before it parses (normalize.js), so the
+  // gate must read the same text: an unnormalized `\r` makes every anchored
+  // heading pattern miss, which would blind the gate on a CRLF document.
+  const { lines, headings } = scanBlocks(String(text ?? "").replace(/\r\n?/gu, "\n"));
+  const lineIndex = new Map(lines.map((line, index) => [line.start, index]));
+  return headings
+    .filter((heading) => heading.level === 2)
+    .map((heading) => ({ heading, index: lineIndex.get(heading.blockLineStart) }))
+    .filter((entry) => entry.index !== undefined)
+    .sort((left, right) => left.index - right.index);
+}
+
 function introducedTaskIds(operation, knownTaskIds) {
   const text = [operation.text, operation.content, operation.newText]
     .filter((value) => typeof value === "string")
     .join("\n");
   const introduced = [];
-  // Both gates read headings through the kernel's own block scanner, so a
-  // fenced or indented sample line is never mistaken for a definition: the
-  // corpus does not register it, and neither may the gate that guards it.
-  const { lines, codeLineFlags } = scanBlocks(text);
-  for (let i = 0; i < lines.length; i += 1) {
-    if (codeLineFlags[i]) continue;
-    const heading = /^##\s+([^\s:]+)/u.exec(lines[i].text);
-    if (!heading) continue;
-    if (!/^TASK-[0-9]+$/u.test(heading[1])) continue;
-    if (knownTaskIds.has(heading[1])) continue;
-    introduced.push(heading[1]);
+  for (const { heading } of levelTwoHeadings(text)) {
+    const id = /^([^\s:]+)/u.exec(heading.rawText ?? "")?.[1];
+    if (!id || !/^TASK-[0-9]+$/u.test(id)) continue;
+    if (knownTaskIds.has(id)) continue;
+    introduced.push(id);
   }
   return introduced;
 }
@@ -118,20 +128,23 @@ function introducedTaskIds(operation, knownTaskIds) {
 // definition is allowed and an introduced definition is refused.
 function taskBlocks(text) {
   const blocks = new Map();
-  const source = String(text ?? "");
-  const { lines, codeLineFlags } = scanBlocks(source);
-  let current = null;
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i].text;
-    const heading = codeLineFlags[i] ? null : /^##\s+([^\s:]+)/u.exec(line);
-    if (heading) {
-      current = /^TASK-[0-9]+$/u.test(heading[1]) ? { id: heading[1], lines: [] } : null;
-      if (current) blocks.set(current.id, current);
-      continue;
-    }
-    if (current) current.lines.push(line);
+  // One normalized stream for headings and bodies: the parser's line indices and
+  // the lines sliced here must come from the same text, or a lone CR (which the
+  // kernel also collapses) would shift every body off its definition.
+  const source = String(text ?? "").replace(/\r\n?/gu, "\n");
+  const { lines } = scanBlocks(source);
+  const lineText = (index) => (index < lines.length ? lines[index].text : "");
+  const headings = levelTwoHeadings(source);
+  for (let n = 0; n < headings.length; n += 1) {
+    const { heading, index } = headings[n];
+    const id = /^([^\s:]+)/u.exec(heading.rawText ?? "")?.[1];
+    if (!id || !/^TASK-[0-9]+$/u.test(id)) continue;
+    const end = n + 1 < headings.length ? headings[n + 1].index : lines.length;
+    const body = [];
+    for (let line = index + 1; line < end; line += 1) body.push(lineText(line));
+    blocks.set(id, body.join("\n"));
   }
-  return new Map([...blocks].map(([id, block]) => [id, block.lines.join("\n")]));
+  return blocks;
 }
 
 // Scenarios declared by a .feature document, keyed by local id. Rejected
@@ -1032,11 +1045,13 @@ export class ProposalCompiler {
       if (!rawOperation) continue;
       if (typeof rawOperation.entity === "string" && rawOperation.entity.trim() !== "")
         proposalDefinedIds.add(rawOperation.entity.trim());
+      // The kernel accepts ATX and Setext level-two headings alike, so a
+      // requirement defined in the same proposal is a definition in either form.
       for (const field of [rawOperation.text, rawOperation.content, rawOperation.newText]) {
         if (typeof field !== "string") continue;
-        for (const line of field.split(/\r?\n/u)) {
-          const heading = line.match(/^##\s+([^\s:]+)/u);
-          if (heading) proposalDefinedIds.add(heading[1]);
+        for (const { heading } of levelTwoHeadings(field)) {
+          const id = /^([^\s:]+)/u.exec(heading.rawText ?? "")?.[1];
+          if (id) proposalDefinedIds.add(id);
         }
       }
     }
@@ -1152,16 +1167,18 @@ export class ProposalCompiler {
     // A proposal may define what it references in the same call (add an FR and
     // a task that implements it). Those ids are not in the pre-write snapshot,
     // so they are collected from the operations themselves.
-    const HEADING_LOCAL_ID = /^##\s+([^\s:]+)/u;
     for (const rawOperation of rawOperations) {
       if (!rawOperation) continue;
       if (typeof rawOperation.entity === "string" && rawOperation.entity.trim() !== "")
         ownLocalIds.add(rawOperation.entity.trim());
+      // The kernel treats ATX and Setext level-two headings as the same
+      // definition, so a proposal that defines its own reference in either
+      // form must resolve here.
       for (const field of [rawOperation.text, rawOperation.content, rawOperation.newText]) {
         if (typeof field !== "string") continue;
-        for (const line of field.split(/\r?\n/u)) {
-          const heading = line.match(HEADING_LOCAL_ID);
-          if (heading) ownLocalIds.add(heading[1]);
+        for (const { heading } of levelTwoHeadings(field)) {
+          const id = /^([^\s:]+)/u.exec(heading.rawText ?? "")?.[1];
+          if (id) ownLocalIds.add(id);
         }
       }
     }

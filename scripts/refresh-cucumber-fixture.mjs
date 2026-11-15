@@ -59,6 +59,14 @@ const isProducerInput = (repoPath, singles) => {
 const main = () => {
   const streamBytes = readFileSync(CANONICAL_STREAM);
   const prior = JSON.parse(readFileSync(path.join(FIXTURE_DIR, PROVENANCE_NAME), "utf8"));
+  const streamSha256 = sha256(streamBytes);
+  // The parent is the capture this one replaced. A refresh over an unchanged
+  // capture must not relabel it as its own parent: the lineage only moves when
+  // the stream itself changed.
+  const parentFixtureSha256 = prior.sha256 === streamSha256 ? prior.parentFixtureSha256 : prior.sha256;
+  if (typeof parentFixtureSha256 !== "string" || parentFixtureSha256 === streamSha256) {
+    throw new Error("fixture provenance cannot name the new capture as its own parent");
+  }
   const singles = dockerfileSingles();
   const entries = tracked()
     .filter((repoPath) => isProducerInput(repoPath, singles))
@@ -94,10 +102,10 @@ const main = () => {
     {
       schema: "omp-spec-kit-cucumber-fixture-provenance@2",
       fixture: FIXTURE_NAME,
-      sha256: sha256(streamBytes),
+      sha256: streamSha256,
       repositoryCommit: execFileSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8" }).trim(),
       sourceState: "working-tree-content-addressed",
-      parentFixtureSha256: prior.sha256,
+      parentFixtureSha256,
       sourceManifest: MANIFEST_NAME,
       sourceManifestSha256: sha256(Buffer.from(manifest, "utf8")),
       sourceInputsSha256: aggregateSha256,

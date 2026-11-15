@@ -18,6 +18,22 @@ export function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+// The release-identity block every eligibility record and evidence receipt
+// carries. One owner: the candidate producer, the verifier and the test double
+// all read the same seven fields from here, so a new identity field cannot land
+// in one copy and be rejected by another.
+export function releaseIdentity(candidate, catalogDigest) {
+  return {
+    version: candidate.version,
+    tag: candidate.tag,
+    commit: candidate.commit,
+    candidateDigest: candidate.candidateDigest,
+    packageTreeDigest: candidate.packageTreeDigest,
+    archiveSha256: candidate.archive.sha256,
+    catalogDigest,
+  };
+}
+
 export function isSha256(value) {
   return typeof value === "string" && SHA256_RE.test(value);
 }

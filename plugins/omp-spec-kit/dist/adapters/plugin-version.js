@@ -1,2 +1,2 @@
 // The release process bumps this together with the other version sites.
-export const PLUGIN_VERSION = "3.6.3";
+export const PLUGIN_VERSION = "3.7.0";

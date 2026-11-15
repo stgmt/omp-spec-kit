@@ -6,7 +6,7 @@ import { peelTagCommit } from "./create-release-candidate.mjs";
 import { cucumberMessages, requiredScenarioMultiplicity } from "./create-release-evidence.mjs";
 import { PLUGIN_VERSION, repositoryRoot as defaultRepositoryRoot } from "./verify-marketplace.mjs";
 import { TOOL_CONTRACTS } from "../src/adapters/tool-contracts.js";
-import { assertCandidateShape, canonicalJson, collectRegularFiles, isCommit, isSha256, packageTreeDigest, parseArgs, readStrictJson, resolveContainedRegularFile, sha256, toPublicFileRows } from "./release-candidate-utils.mjs";
+import { assertCandidateShape, canonicalJson, collectRegularFiles, isCommit, isSha256, packageTreeDigest, parseArgs, readStrictJson, releaseIdentity, resolveContainedRegularFile, sha256, toPublicFileRows } from "./release-candidate-utils.mjs";
 import { corpusPath } from "./corpus-root.mjs";
 
 const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, i) => `plugin-distribution:FR-${i + 19}`));
@@ -33,12 +33,11 @@ const DISTRIBUTION_CLAIM_MATRIX = Object.freeze({
 function asObject(value) { return value !== null && typeof value === "object" && !Array.isArray(value) ? value : null; }
 function exact(value, keys) { return asObject(value) !== null && JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort()); }
 function add(list, value) { if (!list.includes(value)) list.push(value); }
-function identity(candidate, catalogDigest) { return { version: candidate.version, tag: candidate.tag, commit: candidate.commit, candidateDigest: candidate.candidateDigest, packageTreeDigest: candidate.packageTreeDigest, archiveSha256: candidate.archive.sha256, catalogDigest }; }
 function matches(value, expected) { return Object.entries(expected).every(([key, field]) => value?.[key] === field); }
 function profile(version) { return version === "0.1.0" ? { releasePosition: "first", upgrade: "inapplicable", rollback: "inapplicable", reinstall: "mandatory" } : { releasePosition: "subsequent", upgrade: "mandatory", rollback: "mandatory", reinstall: "mandatory" }; }
-function mriResult(candidate, catalogDigest, blocking, discoveryReceiptDigest = null) { return { schema: "mri-release-eligibility@1", eligible: blocking.length === 0, ...identity(candidate, catalogDigest), mandatoryRequirements: MRI_REQUIREMENTS, discoveryReceiptDigest, blocking: [...new Set(blocking)].sort() }; }
+function mriResult(candidate, catalogDigest, blocking, discoveryReceiptDigest = null) { return { schema: "mri-release-eligibility@1", eligible: blocking.length === 0, ...releaseIdentity(candidate, catalogDigest), mandatoryRequirements: MRI_REQUIREMENTS, discoveryReceiptDigest, blocking: [...new Set(blocking)].sort() }; }
 function distributionResult(candidate, catalogDigest, blocking, evidenceByRequirement = Object.create(null), applicability = profile(candidate.version), ompRevision = null, platform = null) { return { schema: "distribution-release-eligibility@1", outcome: blocking.length === 0 ? "eligible" : "blocked", candidateVersion: candidate.version, commit: candidate.commit, ompRevision, platform, catalogDigest, artifactDigest: candidate.archive.sha256, mandatoryRequirements: DISTRIBUTION_REQUIREMENTS, evidenceByRequirement, applicability, blockingReasons: [...new Set(blocking)].sort() }; }
-function publicResult(candidate, catalogDigest, mri, distribution, preflight = []) { const blocking = [...preflight, ...mri.blocking.map((x) => `mri:${x}`), ...distribution.blockingReasons.map((x) => `distribution:${x}`)]; return { schema: "public-release-eligibility@1", eligible: blocking.length === 0, ...identity(candidate, catalogDigest), mri, distribution, blocking: [...new Set(blocking)].sort() }; }
+function publicResult(candidate, catalogDigest, mri, distribution, preflight = []) { const blocking = [...preflight, ...mri.blocking.map((x) => `mri:${x}`), ...distribution.blockingReasons.map((x) => `distribution:${x}`)]; return { schema: "public-release-eligibility@1", eligible: blocking.length === 0, ...releaseIdentity(candidate, catalogDigest), mri, distribution, blocking: [...new Set(blocking)].sort() }; }
 
 async function readReceipt(ref, name, evidenceDirectory, blocking, parseJson = true) {
   if (!asObject(ref) || ref.status !== "present" || typeof ref.path !== "string" || !isSha256(ref.digest)) { add(blocking, `missing-receipt:${name}`); return null; }
@@ -311,7 +310,7 @@ export async function evaluateRelease({ candidatePath, evidencePath, tag, reposi
   const preflight = []; let candidate;
   try { candidate = assertCandidateShape(await readStrictJson(candidatePath, "candidate manifest"), "candidate manifest"); } catch (error) { return { schema: "public-release-eligibility@1", eligible: false, blocking: [`invalid-candidate:${error.message}`] }; }
   let catalogDigest; try { catalogDigest = sha256(await readFile(path.join(repositoryRoot, ".claude-plugin", "marketplace.json"))); } catch (error) { return { schema: "public-release-eligibility@1", eligible: false, blocking: [`catalog-digest-unavailable:${error.message}`] }; }
-  const id = identity(candidate, catalogDigest);
+  const id = releaseIdentity(candidate, catalogDigest);
   if (candidate.version !== PLUGIN_VERSION || candidate.tag !== tag) add(preflight, "candidate-version-or-tag-mismatch");
   try { if (candidate.commit !== resolveTagCommit(tag, repositoryRoot)) add(preflight, "peeled-tag-commit-mismatch"); } catch (error) { add(preflight, `unverifiable-peeled-tag:${error.message}`); }
   const candidateDirectory = path.dirname(candidatePath); const archivePath = path.resolve(candidateDirectory, candidate.archive.file);

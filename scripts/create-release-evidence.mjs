@@ -1,7 +1,7 @@
 import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertCandidateShape, canonicalJson, fail, isSha256, parseArgs, readStrictJson, resolveContainedRegularFile, sha256 } from "./release-candidate-utils.mjs";
+import { assertCandidateShape, canonicalJson, fail, isSha256, parseArgs, readStrictJson, releaseIdentity, resolveContainedRegularFile, sha256 } from "./release-candidate-utils.mjs";
 import { corpusPath } from "./corpus-root.mjs";
 
 const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, index) => `plugin-distribution:FR-${index + 19}`));
@@ -16,18 +16,6 @@ export class CucumberEvidenceError extends Error {
 
 function cucumberEvidenceFail(code, message) {
   throw new CucumberEvidenceError(code, message);
-}
-
-function identity(candidate, catalogDigest) {
-  return {
-    version: candidate.version,
-    tag: candidate.tag,
-    commit: candidate.commit,
-    candidateDigest: candidate.candidateDigest,
-    packageTreeDigest: candidate.packageTreeDigest,
-    archiveSha256: candidate.archive.sha256,
-    catalogDigest,
-  };
 }
 
 async function copyReceipt(source, outputDirectory, outputName) {
@@ -265,7 +253,7 @@ export async function createReleaseEvidence({
   const bddReceipt = {
     schema: "omp-spec-kit-bdd-receipt@1",
     status: "passed",
-    ...identity(candidate, catalogDigest),
+    ...releaseIdentity(candidate, catalogDigest),
     messagePath: messageRelativePath,
     messageDigest: sha256(messageBytes),
     scenarioIds,
@@ -289,7 +277,7 @@ export async function createReleaseEvidence({
   const untrustedDistributionEvidence = await copyUntrustedDistributionEvidenceBundle(distributionEvidencePath, outputDirectory);
   const evidence = {
     schema: "omp-spec-kit-release-evidence@3",
-    ...identity(candidate, catalogDigest),
+    ...releaseIdentity(candidate, catalogDigest),
     mri: { schema: "omp-spec-kit-mri-evidence@1", checks, frReceipts, discovery: mriDiscovery },
     distribution: { schema: "omp-spec-kit-distribution-evidence-input@1", trust: distributionTrust, receipt: untrustedDistributionEvidence },
   };

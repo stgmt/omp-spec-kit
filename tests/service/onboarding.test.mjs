@@ -114,7 +114,7 @@ describe("onboarding over POST /onboarding/token (live-verified identity)", () =
 
     const write = await toolCall(url, issued.token, "spec_patch", {
       intent: "patch", spec: "spec-kernel", reason: "write with the onboarding-issued token", dryRun: false, requestId: "onb-1",
-      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-98 — written with an issued token\n" }],
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\nwritten with an issued token\n" }],
     });
     assert.equal(write.structuredContent.data.outcome, "APPLIED", JSON.stringify(write.structuredContent?.error ?? {}));
     const body = await git(bare, ["log", "--format=%B", "-1", "spec-spec-kernel"]);

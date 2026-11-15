@@ -235,6 +235,39 @@ describe("task admission", () => {
     }
   });
 
+  it("accepts a task whose requirement is defined in the same proposal", async () => {
+    // A proposal may define what it references. The definition is written here
+    // as a Setext heading, which the kernel reads exactly like `## FR-5`.
+    const assembled = await mkdtemp(path.join(tmpdir(), "omp-readiness-batch-"));
+    try {
+      await cpFixtureCorpus(assembled);
+      const result = await serviceAt(assembled).execute({
+        requestId: "readiness-batch-setext",
+        intent: "patch",
+        spec: SPEC,
+        reason: "define and trace in one call",
+        dryRun: true,
+        operations: [
+          {
+            kind: "insert_at_eof",
+            document: "FR.md",
+            text: "\nFR-99 — Latency budget\n-\n\nReads stay inside the budget.\n",
+          },
+          {
+            kind: "create_task",
+            document: "TASKS.md",
+            entity: "TASK-91",
+            subject: "Batch task",
+            requirements: ["FR-99"],
+          },
+        ],
+      });
+      assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
+    } finally {
+      await rm(assembled, { recursive: true, force: true });
+    }
+  });
+
   it("gives a backlog refusal a plan that applies as written", async () => {
     const assembled = await mkdtemp(path.join(tmpdir(), "omp-readiness-backlog-plan-"));
     try {
@@ -426,6 +459,140 @@ describe("bypass closure", () => {
     assert.equal(result.error.code, "TASK_DOCUMENT_BYPASS");
     assert.deepEqual(result.error.tasks, ["TASK-9"]);
     assert.equal(result.error.fix[0].arguments.operations[0].kind, "create_task");
+  });
+
+  it("refuses a task heading smuggled inside a canonical comment", async () => {
+    // The pre-resolution gate skips canonical task operations, so the body of
+    // an allowed comment is the one path a heading can still arrive by: it is
+    // spliced after the comment prefix, and a multi-line body starts a line.
+    await cpFixtureCorpus(root);
+    const result = await serviceAt(root).execute({
+      requestId: "readiness-comment-heading",
+      intent: "patch",
+      spec: SPEC,
+      reason: "bypass in a comment",
+      dryRun: true,
+      operations: [
+        {
+          kind: "append_task_comment",
+          document: "TASKS.md",
+          entity: "TASK-1",
+          text: "first line\n## TASK-99 — Raw\n- **Status:** todo",
+        },
+      ],
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, "TASK_DOCUMENT_BYPASS");
+    assert.deepEqual(result.error.tasks, ["TASK-99"]);
+  });
+
+  it("refuses a rename that brings task headings into TASKS.md", async () => {
+    // A rename onto a missing TASKS.md is the other route the pre-resolution
+    // gate cannot see: there is no before-bytes to compare, so the headings
+    // arrive as the after-state of a document that did not exist.
+    const dir = path.join(root, specsDirName, "rename-probe");
+    await mkdir(dir, { recursive: true });
+    for (const [name, content] of [
+      ["README.md", "# Rename probe\n\nStatus: DRAFT\n"],
+      ["DESIGN.md", "# Design\n\nStatus: DRAFT\n"],
+      ["FR.md", "# Functional requirements\n\n## FR-1 — Something\n\nIt must work.\n"],
+      ["ACCEPTANCE_CRITERIA.md", "# Acceptance criteria\n\n## AC-1.1 — FR-1\n\nGiven a caller, when it asks, then it works.\n"],
+      ["FIXTURES.md", "# Fixtures\n\n## TASK-98 — Raw fixture\n\n- **Status:** todo\n"],
+      ["rename-probe.feature", "Feature: Rename probe\n"],
+    ]) {
+      await writeFile(path.join(dir, name), content);
+    }
+    const result = await serviceAt(root).execute({
+      requestId: "readiness-rename-heading",
+      intent: "patch",
+      spec: "rename-probe",
+      reason: "bypass by rename",
+      dryRun: true,
+      operations: [{ kind: "rename_document", document: "FIXTURES.md", newDocument: "TASKS.md" }],
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, "TASK_DOCUMENT_BYPASS");
+    assert.deepEqual(result.error.tasks, ["TASK-98"]);
+  });
+
+  it("refuses a task heading smuggled into a CRLF document", async () => {
+    // The kernel normalizes CRLF to LF before parsing, so a `\r` must not make
+    // the gate blind to the definitions it is guarding.
+    await cpFixtureCorpus(root);
+    const file = path.join(root, specsDirName, SPEC, "TASKS.md");
+    const crlf = (await readFile(file, "utf8")).replace(/\r?\n/gu, "\r\n");
+    await writeFile(file, crlf);
+    const result = await serviceAt(root).execute({
+      requestId: "readiness-crlf-heading",
+      intent: "patch",
+      spec: SPEC,
+      reason: "bypass in a CRLF document",
+      dryRun: true,
+      operations: [
+        {
+          kind: "append_task_comment",
+          document: "TASKS.md",
+          entity: "TASK-1",
+          text: "first line\n## TASK-98 — Raw\n- **Status:** todo",
+        },
+      ],
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, "TASK_DOCUMENT_BYPASS");
+    assert.deepEqual(result.error.tasks, ["TASK-98"]);
+  });
+
+  it("refuses a task heading smuggled into a lone-CR document", async () => {
+    // The kernel collapses every line ending, not just CRLF. A document that uses
+    // a bare `\r` must be read as the parser reads it, or the definitions the gate
+    // guards would sit on different line numbers than the ones it slices.
+    await cpFixtureCorpus(root);
+    const file = path.join(root, specsDirName, SPEC, "TASKS.md");
+    const cr = (await readFile(file, "utf8")).replace(/\r?\n/gu, "\r");
+    await writeFile(file, cr);
+    // A canonical task operation cannot locate an entity in a lone-CR document
+    // (its own scans split on `\r?\n`), so the heading arrives as raw document
+    // text: the gate must still see the definition it is adding.
+    const result = await serviceAt(root).execute({
+      requestId: "readiness-cr-heading",
+      intent: "patch",
+      spec: SPEC,
+      reason: "bypass in a lone-CR document",
+      dryRun: true,
+      operations: [
+        {
+          kind: "replace_document",
+          document: "TASKS.md",
+          text: `${cr}\r## TASK-97 — Raw\r- **Status:** todo\r`,
+        },
+      ],
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, "TASK_DOCUMENT_BYPASS");
+    assert.deepEqual(result.error.tasks, ["TASK-97"]);
+  });
+
+  it("refuses a task definition written as a Setext heading", async () => {
+    // The kernel reads `## TASK-1` and `TASK-1` over a `-` underline as the
+    // same definition, so a gate that matched only the ATX form would let the
+    // underline form through and admit an untraced task.
+    const result = await serviceAt(root).execute({
+      requestId: "readiness-setext-task",
+      intent: "patch",
+      spec: "stub-spec",
+      reason: "bypass by setext",
+      dryRun: true,
+      operations: [
+        {
+          kind: "insert_at_eof",
+          document: "TASKS.md",
+          text: "\nTASK-77 — Raw bypass\n-\n\n- **Status:** todo\n",
+        },
+      ],
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, "TASK_DOCUMENT_BYPASS");
+    assert.deepEqual(result.error.tasks, ["TASK-77"]);
   });
 
   it("refuses both backlog intents", async () => {

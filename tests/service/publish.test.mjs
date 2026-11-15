@@ -130,7 +130,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
   it("leaves DRAFT specs unpublished", async () => {
     const { bare, service, url, tokens } = await setup();
     const result = await callTool(url, tokens.alice, "spec_patch", patchArgs({
-      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-900 — draft edit\n" }],
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\ndraft edit marker\n" }],
       requestId: "draft-1",
     }));
     assert.equal(result.structuredContent.data.outcome, "APPLIED");
@@ -190,17 +190,17 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
 
     // Move the document after publishing.
     const moved = await callTool(url, tokens.alice, "spec_patch", patchArgs({
-      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-88 — after publish\n" }],
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\nafter publish marker\n" }],
       requestId: "after-publish",
     }));
     assert.equal(moved.structuredContent.data.outcome, "APPLIED");
 
     const live = await callTool(url, tokens.alice, "spec_documents", { action: "read", spec: "spec-kernel", doc: "TASKS.md" });
-    assert.match(live.structuredContent.data.content, /TASK-88 — after publish/u, "live read sees the moved HEAD");
+    assert.match(live.structuredContent.data.content, /after publish marker/u, "live read sees the moved HEAD");
 
     const frozen = await callTool(url, tokens.alice, "spec_documents", { action: "read", spec: "spec-kernel", doc: "TASKS.md", version: "1.0.0" });
     assert.equal(frozen.isError, false, JSON.stringify(frozen.structuredContent?.error ?? {}));
-    assert.ok(!frozen.structuredContent.data.content.includes("TASK-88"), "versioned read returns the published snapshot");
+    assert.ok(!frozen.structuredContent.data.content.includes("after publish marker"), "versioned read returns the published snapshot");
     assert.equal(frozen.structuredContent.data.published.version, "1.0.0");
     assert.equal(frozen.structuredContent.data.published.commit, service.store.getLedger(SPEC_KEY)[0].commitSha);
 

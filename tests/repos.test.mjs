@@ -230,14 +230,14 @@ describe("BYO specs repo (TASK-17): bindings, migration, routing", () => {
       spec: "spec-kernel",
       reason: "byo write",
       dryRun: false,
-      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\n## TASK-900: bound-repo write marker\n" }],
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\nbound-repo write marker\n" }],
       requestId: "byo-write-1",
     });
     assert.equal(write.structuredContent.data.outcome, "APPLIED");
     const after = await gitDir(byoBare, ["rev-list", "--count", `refs/heads/${SPEC_BRANCH}`]);
     assert.ok(Number(after) > Number(before), "the write pushed to the bound repo");
     const tasks = await gitDir(byoBare, ["show", `${SPEC_BRANCH}:.specs/spec-kernel/TASKS.md`]);
-    assert.match(tasks, /TASK-900/u);
+    assert.match(tasks, /bound-repo write marker/u);
     const defaultLog = await gitDir(bare, ["log", "--format=%s", `refs/heads/${SPEC_BRANCH}`]);
     assert.ok(!defaultLog.includes("apply"), "the default repo got no write");
   });

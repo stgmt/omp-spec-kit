@@ -1,0 +1,89 @@
+{
+  "schema": "omp-spec-kit-tool-surface-blast@1",
+  "timestamp": "2026-11-15T16:15:59.392Z",
+  "serverPath": "plugins/omp-spec-kit/dist/mcp/server.js",
+  "baseline": {
+    "sha256": "c00fb06179047427e9ba43cc5df312a0740df04ff9a0087e35462bd7804c28ef",
+    "metrics": {
+      "toolCount": 38,
+      "readOnlyCount": 37,
+      "mutatingCount": 1,
+      "totalCatalogBytes": 42499,
+      "schemaBytes": 12881,
+      "descriptionChars": 3362,
+      "nameChars": 598
+    }
+  },
+  "candidate": {
+    "sha256": "1dc6404109277425cbc5bb0c244b771a25e05f64f58eaaf7d87f3e812b5726d3",
+    "metrics": {
+      "sha256": "1dc6404109277425cbc5bb0c244b771a25e05f64f58eaaf7d87f3e812b5726d3",
+      "toolCount": 10,
+      "readOnlyCount": 9,
+      "mutatingCount": 1,
+      "totalCatalogBytes": 25375,
+      "schemaBytes": 18342,
+      "descriptionChars": 1344,
+      "nameChars": 120
+    }
+  },
+  "deltas": {
+    "toolCount": {
+      "baseline": 38,
+      "candidate": 10,
+      "absolute": -28,
+      "percentage": -73.68
+    },
+    "readOnlyCount": {
+      "baseline": 37,
+      "candidate": 9,
+      "absolute": -28,
+      "percentage": -75.68
+    },
+    "mutatingCount": {
+      "baseline": 1,
+      "candidate": 1,
+      "absolute": 0,
+      "percentage": 0
+    },
+    "totalCatalogBytes": {
+      "baseline": 42499,
+      "candidate": 25375,
+      "absolute": -17124,
+      "percentage": -40.29
+    },
+    "schemaBytes": {
+      "baseline": 12881,
+      "candidate": 18342,
+      "absolute": 5461,
+      "percentage": 42.4
+    },
+    "descriptionChars": {
+      "baseline": 3362,
+      "candidate": 1344,
+      "absolute": -2018,
+      "percentage": -60.02
+    },
+    "nameChars": {
+      "baseline": 598,
+      "candidate": 120,
+      "absolute": -478,
+      "percentage": -79.93
+    }
+  },
+  "gates": {
+    "passed": true,
+    "toolCountIs10": true,
+    "readOnlyCountIs9": true,
+    "mutatingCountIs1": true,
+    "noRetiredNames": true,
+    "retiredPresent": [],
+    "catalogBytesWithinLimit": true,
+    "maxAllowedCatalogBytes": 32000,
+    "descriptionCharsWithinLimit": true,
+    "maxAllowedDescriptionChars": 2000,
+    "exactToolsMatch": true,
+    "missingExpected": [],
+    "unexpected": []
+  }
+}
