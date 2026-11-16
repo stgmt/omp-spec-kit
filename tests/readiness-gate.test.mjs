@@ -71,21 +71,37 @@ async function writeStubSpec(root, slug) {
 }
 
 describe("readiness verdict", () => {
-  it("reports L2, the top rung the corpus can prove, for an assembled specification", async () => {
+  it("keeps an assembled specification at L2 until execution evidence is proven", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "omp-readiness-l2-"));
     try {
       await cpFixtureCorpus(root);
       const verdict = specReadiness(await graphAt(root), SPEC);
       assert.equal(verdict.level, "L2");
-      assert.equal(verdict.nextLevel, null, "the ladder stops where the corpus stops");
+      assert.equal(verdict.nextLevel, "L3", "FR-1 requires an execution-evidence rung after criteria and design");
       assert.equal(verdict.reached.design, true);
+      assert.equal(verdict.reached.evidence, false);
       assert.deepEqual(
         verdict.blockers.map((entry) => entry.code),
-        [],
-        "an assembled specification is not held back by a rung the corpus cannot supply",
+        ["NO_EXECUTION_EVIDENCE"],
+        "task documents alone must not prove execution or advance to L4",
       );
     } finally {
-      await rm(root, { recursive: true, force: true });
+      await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    }
+  });
+
+  it("does not accept authored pass attributes as execution evidence", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "omp-readiness-authored-pass-"));
+    try {
+      await cpFixtureCorpus(root);
+      const graph = await graphAt(root);
+      const forged = { ...graph, nodes: graph.nodes.map((node) => ({
+        ...node, attributes: { ...node.attributes, result: "PASSED", evidence: true, executionStatus: "passed" },
+      })) };
+      assert.equal(specReadiness(forged, SPEC).level, "L2");
+      assert.equal(specReadiness(forged, SPEC).reached.evidence, false);
+    } finally {
+      await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
     }
   });
 
@@ -123,7 +139,7 @@ describe("readiness verdict", () => {
       const step = taskAdmissionFixSteps("nfr-spec", verdict)[0];
       assert.equal(step.arguments.operations[0].document, "FR.md");
     } finally {
-      await rm(root, { recursive: true, force: true });
+      await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
     }
   });
 
@@ -135,7 +151,7 @@ describe("readiness verdict", () => {
       assert.equal(verdict.level, "L0");
       assert.equal(verdict.blockers[0].code, "NO_REQUIREMENTS");
     } finally {
-      await rm(root, { recursive: true, force: true });
+      await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
     }
   });
 });
@@ -149,7 +165,7 @@ describe("task admission", () => {
   });
 
   afterEach(async () => {
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   });
 
   it("refuses a task on a scaffold with SPEC_NOT_READY and a fix plan", async () => {
@@ -169,8 +185,8 @@ describe("task admission", () => {
     assert.equal(result.error.level, "L0");
     assert.deepEqual(
       result.error.blockers.map((entry) => entry.level),
-      ["L1"],
-      "blockers arrive in level order",
+      ["L1", "L2", "L2"],
+      "AC-2.1 names missing requirements, criteria and design in level order",
     );
     assert.equal(result.error.fix[0].tool, "spec_patch");
     // The first step must be executable on the state that produced the
@@ -178,6 +194,29 @@ describe("task admission", () => {
     assert.equal(result.error.fix[0].arguments.intent, "patch");
     assert.equal(result.error.fix[0].arguments.operations[0].document, "FR.md");
     assert.match(result.error.fix[0].arguments.operations[0].text, /^\n## FR-1 — /u);
+  });
+
+  it("replays the whole scaffold fix plan without duplicate requirement definitions", async () => {
+    const service = serviceAt(root);
+    const refused = await service.execute({
+      requestId: "readiness-complete-plan",
+      intent: "confirmTaskCreation",
+      spec: "stub-spec",
+      reason: "admission plan",
+      dryRun: true,
+      entity: "TASK-1",
+      subject: "Replay every fix",
+      requirements: ["FR-1"],
+    });
+    assert.equal(refused.ok, false);
+    assert.deepEqual(refused.error.blockers.map((entry) => entry.code), ["NO_REQUIREMENTS", "NO_ACCEPTANCE_CRITERIA", "NO_DESIGN"]);
+    for (const [index, step] of refused.error.fix.entries()) {
+      const applied = await service.execute({ ...step.arguments, dryRun: false, requestId: `readiness-complete-fix-${index}` });
+      assert.equal(applied.ok, true, JSON.stringify(applied.error));
+    }
+    const verdict = specReadiness(await graphAt(root), "stub-spec");
+    assert.equal(verdict.level, "L2");
+    assert.deepEqual(verdict.blockers.map((entry) => entry.code), ["NO_EXECUTION_EVIDENCE"]);
   });
 
   it("clears the ladder with the fix calls its own refusals return", async () => {
@@ -231,7 +270,7 @@ describe("task admission", () => {
       assert.equal(result.error.code, "TASK_NOT_TRACEABLE");
       assert.equal(result.error.fix[0].arguments.requirements.length, 1);
     } finally {
-      await rm(assembled, { recursive: true, force: true });
+      await rm(assembled, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
     }
   });
 
@@ -264,7 +303,7 @@ describe("task admission", () => {
       });
       assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
     } finally {
-      await rm(assembled, { recursive: true, force: true });
+      await rm(assembled, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
     }
   });
 
@@ -293,7 +332,7 @@ describe("task admission", () => {
       const applied = await service.execute({ ...step.arguments, dryRun: true, requestId: "backlog-plan-2" });
       assert.equal(applied.ok, true, JSON.stringify(applied.error ?? {}).slice(0, 300));
     } finally {
-      await rm(assembled, { recursive: true, force: true });
+      await rm(assembled, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
     }
   });
 
@@ -365,7 +404,7 @@ describe("task admission", () => {
     // has to fit them: the slug in `spec`, the rest selectable in `result`.
     assert.equal(entries[0].op, "spec_patch");
     assert.equal(entries[0].spec, "stub-spec");
-    assert.equal(entries[0].result, "admission-refused:SPEC_NOT_READY:L0:NO_REQUIREMENTS");
+    assert.equal(entries[0].result, "admission-refused:SPEC_NOT_READY:L0:NO_REQUIREMENTS,NO_ACCEPTANCE_CRITERIA,NO_DESIGN");
   });
 
   it("keeps the refusal readable through the store's own reader", async () => {
@@ -402,7 +441,7 @@ describe("bypass closure", () => {
   });
 
   afterEach(async () => {
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   });
 
   it("allows an annotation inside an existing task definition", async () => {
@@ -624,7 +663,7 @@ describe("scenario traceability", () => {
   });
 
   afterEach(async () => {
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   });
 
   it("refuses a scenario that carries no requirement or criterion tag", async () => {
@@ -700,7 +739,7 @@ describe("transport parity", () => {
   });
 
   afterEach(async () => {
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   });
 
   const ARGS = {

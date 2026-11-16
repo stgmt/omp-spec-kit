@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,6 +59,17 @@ run("verify public tree", nodeCommand, ["scripts/verify-public-tree.mjs", "--can
 const candidate = readJson(`${candidateDir}/candidate.json`);
 const archivePath = path.join(candidateDir, candidate.archive.file);
 run("smoke default archive", nodeCommand, ["scripts/smoke-release-archive.mjs", "--archive", archivePath]);
+run("smoke safe-authoring archive", nodeCommand, ["scripts/smoke-release-archive.mjs", "--archive", archivePath, "--stage", "safe-authoring"]);
+const evidenceSources = [
+  ".omp-spec-kit/evidence/last-test-run.ndjson",
+  ".omp-spec-kit/evidence/bdd-results/run.ndjson",
+  "tests/fixtures/release-candidate/cucumber-messages.ndjson",
+].map((source) => {
+  const bytes = readFileSync(path.join(repositoryRoot, source));
+  if (bytes.length === 0) throw new Error(`required evidence source is empty: ${source}`);
+  return { path: source, bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
+});
+if (evidenceSources[0].sha256 !== evidenceSources[1].sha256) throw new Error("runtime evidence sources do not identify the same validated Docker run");
 
 const result = {
   schema: "omp-spec-kit-release-preflight@1",
@@ -68,7 +80,8 @@ const result = {
   candidateDigest: candidate.candidateDigest,
   packageTreeDigest: candidate.packageTreeDigest,
   archive: candidate.archive,
-  checks: ["clean-worktree", "peeled-tag", "npm-test", "delivery-live", "release-integrity", "candidate", "app-placement", "public-safety", "archive-default"],
+  evidenceSources,
+  checks: ["clean-worktree", "peeled-tag", "npm-test", "delivery-live", "release-integrity", "candidate", "app-placement", "public-safety", "archive-default", "archive-safe-authoring", "repository-evidence-sources"],
   note: "GitHub attestation, publication, and installed dogfood remain separate post-preflight gates."
 };
 console.log(`\n${JSON.stringify(result, null, 2)}`);

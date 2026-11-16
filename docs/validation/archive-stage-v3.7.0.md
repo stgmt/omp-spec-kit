@@ -1,6 +1,6 @@
 # Archive smoke stage regression proof — 3.7.0
 
-Captured 2026-11-16 on Windows with Node 24.17.0. This is a focused regression/mutation proof, not a replacement for the tagged candidate's archive check or the MCP tool-surface mutation gate.
+Captured 2026-11-16 on Windows with Node 24.17.0 and committed in `c28aa17490f3b7c04020a21c382b0a208fea5e30`. This is a historical, focused regression/mutation proof, not a replacement for the final tagged candidate's archive check or the MCP tool-surface mutation gate. The smoke script and archive regression test below are unchanged by the subsequent readiness fix; the matrix helper has since gained source-bound L3/L4 checks, so its hash below identifies this capture, not the final helper. Current archive checks run again in release preflight; the additional readiness proof is recorded in `readiness-evidence-v3.7.0.md`.
 
 ## Bound inputs
 

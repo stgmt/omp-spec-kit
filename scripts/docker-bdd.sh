@@ -131,5 +131,10 @@ if ! MSYS_NO_PATHCONV=1 docker run --rm \
   exit 2
 fi
 
+# Publish both repository-owned runtime sources only after the unfiltered run
+# and its message validation passed. Each rename exposes a complete file.
+HOST_PUBLISHED_COPY="$(mktemp "$RESULTS_DIR/publish.XXXXXX.ndjson")"
+cp "$HOST_RUN_FILE" "$HOST_PUBLISHED_COPY"
+mv -f "$HOST_PUBLISHED_COPY" "$RESULTS_DIR/run.ndjson"
 mv -f "$HOST_RUN_FILE" "$CANONICAL_RESULT"
-echo "[docker-bdd] Published canonical Cucumber Messages: $CANONICAL_RESULT" >&2
+echo "[docker-bdd] Published canonical Cucumber Messages: $CANONICAL_RESULT and $RESULTS_DIR/run.ndjson" >&2

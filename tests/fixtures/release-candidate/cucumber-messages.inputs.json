@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "e2c0283b990a6e9b1c91f6590d7dc127445f8604d261ef6576f7cde2a870bb4d",
+  "aggregateSha256": "171aa4005a50723550ffb05fee9b50fbb0a41b2cc3600a764e2e44213ab79140",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -10,8 +10,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 89211,
-      "sha256": "690c683d32fd011d0726d4371cd106c14d01e42299ae014dff99a78cb791f431"
+      "bytes": 90154,
+      "sha256": "c21e775a35526fc7447f74820ec89fc80189ee056eba8dbf2a49fae0dd6b575d"
     },
     {
       "path": "LICENSE",
@@ -35,8 +35,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 7069,
-      "sha256": "aa5f7d9cf47e3f051ceee128f1fc0e2763f5f1f47342c2b413368cfc2bdd9e8c"
+      "bytes": 7186,
+      "sha256": "7ccbdfa047d40994cd2eb6907e571c3f1f01d4cb7560507d6a9fee68ca4593f7"
     },
     {
       "path": "plugins/omp-spec-kit/.claude-plugin/plugin.json",
@@ -185,8 +185,8 @@
     },
     {
       "path": "scripts/docker-bdd.sh",
-      "bytes": 4436,
-      "sha256": "845ac4a2ca941c850c8eb54c598511cae165e9d0c585f8c0169eccac9e38e1e1"
+      "bytes": 4783,
+      "sha256": "5c4b6b7154734e145d99a7a243d07d8d32d946d0bb5e9f2518d53209f7114944"
     },
     {
       "path": "scripts/dogfood-mcp.mjs",
@@ -305,8 +305,8 @@
     },
     {
       "path": "scripts/release-preflight.mjs",
-      "bytes": 3973,
-      "sha256": "efc780ee0f26c479d4346c069baf7b299ed509cfebc65e65e77663565b06f99a"
+      "bytes": 4862,
+      "sha256": "aeaae90fe983c8d231dac68b1297fc0580102c82568b264e917f87714730fff1"
     },
     {
       "path": "scripts/render-release-notes.mjs",
@@ -379,6 +379,11 @@
       "sha256": "4975224416e398884aa4d011443ef06817aa6e29a2c7963b745b64f189ebf04b"
     },
     {
+      "path": "scripts/verify-readiness-mutations.mjs",
+      "bytes": 6174,
+      "sha256": "20d2a9490e4c8eba0566076a60aa722f764d3d30dfbdb92524ac23f3bed0dfa0"
+    },
+    {
       "path": "scripts/verify-release.mjs",
       "bytes": 31334,
       "sha256": "97c4408ea5aca77be6072515441ef840948d7754860a71e9e4286fb5ce07ce09"
@@ -405,8 +410,8 @@
     },
     {
       "path": "src/adapters/query-service.js",
-      "bytes": 30716,
-      "sha256": "00d94f9dcb23a0491c173b520162b19fdc39a9ea71a66ba350bab21ac312c294"
+      "bytes": 31075,
+      "sha256": "dc332369c603db99c5d59c9049024787fdede8aad8a8e25b4cea59bcecb63ce1"
     },
     {
       "path": "src/adapters/tool-contracts.js",
@@ -500,8 +505,8 @@
     },
     {
       "path": "src/evidence/service.js",
-      "bytes": 9484,
-      "sha256": "56e7e622ff072e292894d88811e668edf06de1a1613408b4e42dec9c6ef6cf60"
+      "bytes": 14506,
+      "sha256": "45bdb812e33a08171454a8677fb78788093bb04aca54a8ecd357a27981c3276f"
     },
     {
       "path": "src/gate/automatic-adapter.js",
@@ -650,8 +655,8 @@
     },
     {
       "path": "src/kernel/readiness.js",
-      "bytes": 11637,
-      "sha256": "b468a355619ec28ec6b9c00cebd5a38d445e5c17ba82c4f512134e567559e02b"
+      "bytes": 12439,
+      "sha256": "a14c13c0c6ff1b8add36e7e9f9251f4905e8eea4e98475b3130e0e7293cbce60"
     },
     {
       "path": "src/kernel/roadmap/assemble.js",
@@ -1105,8 +1110,8 @@
     },
     {
       "path": "tests/features/staged-mcp.feature",
-      "bytes": 13100,
-      "sha256": "2ec42a6ed358fb40fa5f5cf0d824397a4130622b6979e1a24f16434e235d891b"
+      "bytes": 13487,
+      "sha256": "8ec2378717bbdda141bc6380fab549d8e1bb64223288de14d930de02be689352"
     },
     {
       "path": "tests/features/youtrack-spec-delivery.feature",
@@ -1854,14 +1859,24 @@
       "sha256": "310bd497ce585e200af2c1403f37eafd60edf5a49cf1d0e31fb36fbe6e8d1fc4"
     },
     {
+      "path": "tests/helpers/readiness-e2e.mjs",
+      "bytes": 9973,
+      "sha256": "bb5134918e41f4a5d37db1808aba12519b44a7adf46e7a922acee84763734988"
+    },
+    {
+      "path": "tests/helpers/readiness-mutation-driver.mjs",
+      "bytes": 4812,
+      "sha256": "29a26372f6970891d757a0058b0c98e745c468a0221032181b14f1ecaf7e6b72"
+    },
+    {
       "path": "tests/helpers/release-candidate-world.mjs",
       "bytes": 18105,
       "sha256": "8a8adb40313b8e8188c9d829c446f9960ae0c3061b9aa95af0b4dc05cc9f487e"
     },
     {
       "path": "tests/helpers/tool-e2e.mjs",
-      "bytes": 27019,
-      "sha256": "572ae16325de7398aa68ff348ef6c28b75c31cd25da3dd4897d9d39b51db7029"
+      "bytes": 27144,
+      "sha256": "4269e8fad5adeb2e9044d6f1336cf712f5ef6867a6989435c90b42713623eae0"
     },
     {
       "path": "tests/host-delivery.test.mjs",
@@ -1925,13 +1940,13 @@
     },
     {
       "path": "tests/readiness-gate.test.mjs",
-      "bytes": 31394,
-      "sha256": "80d04c7ff324a2131c67187d94e333c7b4a3b43076c55e61bd34176f0203291a"
+      "bytes": 33677,
+      "sha256": "b671f04c81eef10f5f9e5331cbf4d0a81ec077a925bdf795e6f06254d11a46d7"
     },
     {
       "path": "tests/readiness-surface.test.mjs",
-      "bytes": 11338,
-      "sha256": "259ff33a5199f67cc9ad2d9e96701e87e1d12729d4cc0db4ff08490e281ac1e7"
+      "bytes": 12513,
+      "sha256": "ae8bb4a345b15a1e1a6af626b433216403fb137d5ac12e2b680f77af65b6bd53"
     },
     {
       "path": "tests/release-status-candidate.test.mjs",
@@ -2120,8 +2135,8 @@
     },
     {
       "path": "tests/step-definitions/staged-mcp.steps.mjs",
-      "bytes": 49166,
-      "sha256": "3025e63ac37c1283d41191e05c85a41960ba223f7925d4a7c2d589ada571f4a2"
+      "bytes": 50143,
+      "sha256": "e5909edd25302e5fd6a38daebbd3c1c8ecb771aa9376d74311c37e5d66cd2de0"
     },
     {
       "path": "tests/step-definitions/youtrack-spec-delivery.steps.mjs",

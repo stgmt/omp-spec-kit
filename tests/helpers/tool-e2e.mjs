@@ -4,6 +4,7 @@ import { readFile, rm, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { snapshotTree } from "../support/world.mjs";
 import { prepareEvidenceFixtures } from "./evidence-e2e.mjs";
+import { runReadinessE2E } from "./readiness-e2e.mjs";
 import {
   annotationsFor,
   KERNEL_ENVELOPE_OUTPUT_SCHEMA,
@@ -300,6 +301,7 @@ export async function runToolE2E({
     assert.equal(preflightRes.ok, true);
     assert.equal(preflightRes.operation, "mcpPreflight");
     assert.equal(preflightRes.data.kind, "mcp-preflight");
+    await runReadinessE2E({ callTool, projectRoot, repositoryRoot });
     completedPhases.push("queries");
   }
 

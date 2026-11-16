@@ -48,6 +48,12 @@ Feature: Exercise the single-surface MCP server through the packaged server
     When MCP envelope recovery cases are exercised
     Then stale cursor, conflict, and target indeterminate recoveries are bounded and actionable
 
+  @tool-e2e @id:SCEN-readiness-execution-proof @AC-1.1
+  Scenario: Readiness requires source-bound execution before L3 and admitted tasks before L4
+    Given a real staged MCP corpus and packaged server
+    When genuine readiness execution evidence and its copied-state mutations are exercised
+    Then inspection and preview agree on L3 and L4 and refuse incomplete or stale execution
+
   @tool-e2e
   Scenario: v0.5 exposes the exact tool inventory and schemas
     Given a real staged MCP corpus and packaged server

@@ -11,6 +11,8 @@ import { MountManager, parseProjectsConfig } from "../src/service/mounts.js";
 import { executeExtendedQuery } from "../src/kernel/query/extended.js";
 import { buildKernelGraph } from "../src/kernel/graph/build.js";
 import { readRepositorySpecs } from "../src/kernel/adapters/fs.js";
+import { runReadinessE2E } from "./helpers/readiness-e2e.mjs";
+import { spawnMcpServer } from "./helpers/mcp-world.mjs";
 
 const repositoryRoot = process.cwd();
 const specsDirName = "." + "specs";
@@ -53,7 +55,7 @@ describe("readiness through the kernel query", () => {
   });
 
   afterEach(async () => {
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   });
 
   it("answers a readiness verdict for an assembled specification", async () => {
@@ -63,10 +65,10 @@ describe("readiness through the kernel query", () => {
     assert.equal(result.data.level, "L2");
     assert.deepEqual(
       result.data.blockers.map((entry) => entry.code),
-      [],
-      "an assembled specification has no rung left to block",
+      ["NO_EXECUTION_EVIDENCE"],
+      "criteria and design do not stand in for execution evidence",
     );
-    assert.equal(result.data.nextLevel, null);
+    assert.equal(result.data.nextLevel, "L3");
   });
 
   it("names an invalid slug and an absent specification apart", async () => {
@@ -90,7 +92,7 @@ describe("readiness through spec_inspect", () => {
   });
 
   afterEach(async () => {
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   });
 
   it("serves check:readiness from the same verdict", async () => {
@@ -99,7 +101,25 @@ describe("readiness through spec_inspect", () => {
     assert.equal(envelope.ok, true, JSON.stringify(envelope.error ?? {}));
     assert.equal(envelope.data.kind, "readiness");
     assert.equal(envelope.data.level, "L2");
-    assert.deepEqual(envelope.data.blockers.map((entry) => entry.code), []);
+    assert.deepEqual(envelope.data.blockers.map((entry) => entry.code), ["NO_EXECUTION_EVIDENCE"]);
+  });
+
+  it("shares genuine L3/L4 execution proof with preview and refreshes evidence without a restart", async () => {
+    const server = spawnMcpServer({
+      serverPath: path.join(repositoryRoot, "plugins", "omp-spec-kit", "dist", "mcp", "server.js"),
+      root, cwd: root,
+    });
+    try {
+      await server.request("initialize", { protocolVersion: "2025-03-26" });
+      const proof = await runReadinessE2E({
+        projectRoot: root, repositoryRoot,
+        callTool: (name, args) => server.request("tools/call", { name, arguments: args }),
+      });
+      assert.deepEqual(proof.levels, ["L3", "L4"]);
+      assert.equal(proof.negativeCases, 11);
+    } finally {
+      await server.close();
+    }
   });
 
   it("refuses an absent specification instead of inventing a verdict", async () => {
@@ -119,7 +139,7 @@ describe("readiness in the spec_patch preview", () => {
   });
 
   afterEach(async () => {
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   });
 
   it("carries the verdict on an assembled corpus", async () => {
@@ -139,7 +159,7 @@ describe("readiness in the spec_patch preview", () => {
     assert.equal(envelope.ok, true, JSON.stringify(envelope.error ?? {}));
     assert.equal(envelope.data.outcome, "PREVIEW");
     assert.equal(envelope.data.readiness.level, "L2");
-    assert.deepEqual(envelope.data.readiness.blockers.map((entry) => entry.code), []);
+    assert.deepEqual(envelope.data.readiness.blockers.map((entry) => entry.code), ["NO_EXECUTION_EVIDENCE"]);
   });
 
   it("reports L0 for a scaffold", async () => {
@@ -161,9 +181,9 @@ describe("readiness in the spec_patch preview", () => {
       );
       assert.equal(envelope.ok, true, JSON.stringify(envelope.error ?? {}));
       assert.equal(envelope.data.readiness.level, "L0");
-      assert.deepEqual(envelope.data.readiness.blockers.map((entry) => entry.code), ["NO_REQUIREMENTS"]);
+      assert.deepEqual(envelope.data.readiness.blockers.map((entry) => entry.code), ["NO_REQUIREMENTS", "NO_ACCEPTANCE_CRITERIA", "NO_DESIGN"]);
     } finally {
-      await rm(stubRoot, { recursive: true, force: true });
+      await rm(stubRoot, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
     }
   });
 });
@@ -179,7 +199,7 @@ describe("the durable log through the adapter", () => {
   });
 
   afterEach(async () => {
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   });
 
   it("forwards an admission refusal to the host log", async () => {
@@ -233,7 +253,7 @@ describe("the durable log through the adapter", () => {
       assert.equal(second.data.error.code, "CONFLICT");
       assert.equal(entries.length, 0, JSON.stringify(entries));
     } finally {
-      await rm(assembled, { recursive: true, force: true });
+      await rm(assembled, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
     }
   });
 });
@@ -251,7 +271,7 @@ describe("the durable log through the mount manager", () => {
   });
 
   afterEach(async () => {
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   });
 
   function mountsWith(rows) {

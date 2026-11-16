@@ -9,6 +9,7 @@ import { annotationsFor, MCP_SERVER_INSTRUCTIONS, TOOL_CONTRACTS } from "../../s
 import { createTempRepo, loadFrozenRealCorpus, writeCorpus } from "../helpers/kernel-world.mjs";
 import { runEvidenceE2E, prepareEvidenceFixtures } from "../helpers/evidence-e2e.mjs";
 import { runToolE2E, ALL_TOOL_NAMES, prepareToolE2EFixtures } from "../helpers/tool-e2e.mjs";
+import { runReadinessE2E } from "../helpers/readiness-e2e.mjs";
 import { runExtensionProbe, spawnMcpServer } from "../helpers/mcp-world.mjs";
 
 const REPOSITORY_ROOT = path.resolve(import.meta.dirname, "..", "..");
@@ -52,6 +53,22 @@ async function startWorld() {
 
 Given("a real staged MCP corpus and packaged server", async function () {
   this.stagedMcp = await startWorld();
+});
+
+When("genuine readiness execution evidence and its copied-state mutations are exercised", { timeout: 60000 }, async function () {
+  await this.stagedMcp.server.request("initialize", { protocolVersion: "2025-03-26" });
+  const listed = await this.stagedMcp.server.request("tools/list");
+  assert.equal(listed.result.tools.find((tool) => tool.name === "spec_inspect").inputSchema.additionalProperties, false);
+  this.stagedMcp.readinessProof = await runReadinessE2E({
+    projectRoot: this.stagedMcp.root,
+    repositoryRoot: REPOSITORY_ROOT,
+    callTool: (name, arguments_) => this.stagedMcp.server.request("tools/call", { name, arguments: arguments_ }),
+  });
+});
+
+Then("inspection and preview agree on L3 and L4 and refuse incomplete or stale execution", function () {
+  assert.deepEqual(this.stagedMcp.readinessProof.levels, ["L3", "L4"]);
+  assert.equal(this.stagedMcp.readinessProof.negativeCases, 11);
 });
 
 When("the registry and every handler are called", { timeout: 30000 }, async function () {

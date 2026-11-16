@@ -12,7 +12,7 @@
       "sha256": "ea6cd2ea072150e081650c0d8ffa70caa5c9954b54e31aef2291792005d33b79"
     },
     "adapters/query-service.js": {
-      "sha256": "00d94f9dcb23a0491c173b520162b19fdc39a9ea71a66ba350bab21ac312c294"
+      "sha256": "dc332369c603db99c5d59c9049024787fdede8aad8a8e25b4cea59bcecb63ce1"
     },
     "adapters/tool-contracts.js": {
       "sha256": "60ac33238ddf705e53bad1b3c06b9baedda8388fc285b8af63d66e84d6ecf92a"
@@ -69,7 +69,7 @@
       "sha256": "fd9156ef9ed8289f680f933ceaf5435b68ded956445ec24183416c3116cc4c49"
     },
     "evidence/service.js": {
-      "sha256": "56e7e622ff072e292894d88811e668edf06de1a1613408b4e42dec9c6ef6cf60"
+      "sha256": "45bdb812e33a08171454a8677fb78788093bb04aca54a8ecd357a27981c3276f"
     },
     "extension.js": {
       "sha256": "90d5de56d69c3f9e54ec4d5388d52df414a13832560bba42e986a1b5afe3fc4c"
@@ -135,7 +135,7 @@
       "sha256": "0d8e70c82a59df1c7ecef240e6dc6ed9aa00ceb759ec8dcc6b0d904b100ce11b"
     },
     "kernel/readiness.js": {
-      "sha256": "b468a355619ec28ec6b9c00cebd5a38d445e5c17ba82c4f512134e567559e02b"
+      "sha256": "a14c13c0c6ff1b8add36e7e9f9251f4905e8eea4e98475b3130e0e7293cbce60"
     },
     "kernel/roadmap/assemble.js": {
       "sha256": "dd06b9b873b773d4c4af9762429f67cfdebfe44354c49f15bcaeb9903a59b980"

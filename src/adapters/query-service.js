@@ -3,7 +3,8 @@
 // root, lazily builds the kernel graph once per service from
 // readRepositorySpecs({ root }), and projects every answer through the pure
 // kernel query() so each caller receives exactly one canonical QueryEnvelope.
-// This module adds no parsing, filtering, or resolution semantics.
+// Readiness additionally receives a fresh, read-only projection from the shared
+// evidence reader; authored graph identity and query semantics stay unchanged.
 
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -13,7 +14,7 @@ import { ENTITY_TYPE_DESCRIPTORS, EDGE_TYPE_DESCRIPTORS } from "../kernel/types.
 import { readRepositorySpecs } from "../kernel/adapters/fs.js";
 import { EXTENDED_OPERATIONS, executeExtendedQuery } from "../kernel/query/extended.js";
 import { DOCUMENT_OPERATIONS, executeDocumentOperation } from "./document-service.js";
-import { EVIDENCE_OPERATIONS, executeEvidenceOperation } from "../evidence/service.js";
+import { EVIDENCE_OPERATIONS, executeEvidenceOperation, withReadinessEvidence } from "../evidence/service.js";
 import { createAuthoringService } from "../authoring/service.js";
 import { readConsistentRepositorySpecs } from "../authoring/transactions.js";
 
@@ -354,7 +355,7 @@ export function createSpecService(root, context = {}) {
         refresh();
         const state = await ensure();
         if (state.status === "error") throw Object.assign(new Error(state.readerError.message || state.readerError.code), { code: state.readerError.code });
-        return state.graph;
+        return withReadinessEvidence(resolvedRoot, state.graph);
       },
       async () => {
         refresh();
@@ -585,6 +586,7 @@ export function createSpecService(root, context = {}) {
     // 6. inspect
     if (operation === "inspect") {
       const check = effectiveArgs.check;
+      if (check === "readiness") refresh();
       const state = await ensure();
       if (state.status === "error") return handleReaderError(state.readerError, "inspect", requestId);
 
@@ -609,7 +611,10 @@ export function createSpecService(root, context = {}) {
       else if (check === "requirementsPolicy") extOp = "policyQueryRequirements";
       else if (check === "archivalProof") extOp = "getArchivalProof";
 
-      const ext = executeExtendedQuery(state.graph, extOp, effectiveArgs);
+      const inspectedGraph = check === "readiness"
+        ? await withReadinessEvidence(resolvedRoot, state.graph, effectiveArgs.spec)
+        : state.graph;
+      const ext = executeExtendedQuery(inspectedGraph, extOp, effectiveArgs);
       return withProvenance(
         ext.ok
           ? makeSuccessEnvelope({ graph: state.graph, operation: "inspect", requestId, data: ext.data })

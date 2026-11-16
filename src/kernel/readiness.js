@@ -9,9 +9,9 @@
 // tool descriptions, the MCP instructions and hook messages render. A copy that
 // diverges from these constants is a build failure (tests/readiness-drift).
 
-// The rungs the corpus itself can prove. Execution evidence arrives through
-// the evidence pipeline, not through a document, so it is not a rung here.
-export const READINESS_LEVELS = Object.freeze(["L0", "L1", "L2"]);
+// The full canonical ladder. Execution evidence is supplied by the existing
+// evidence pipeline; authored status text cannot prove the execution rung.
+export const READINESS_LEVELS = Object.freeze(["L0", "L1", "L2", "L3", "L4"]);
 
 // A design document below this size is the scaffold `createSpec` writes
 // (`# Title` plus `Status: DRAFT`), not an assembled design. The threshold is
@@ -22,6 +22,8 @@ export const READINESS_BLOCKER_CODES = Object.freeze({
   REQUIREMENTS: "NO_REQUIREMENTS",
   CRITERIA: "NO_ACCEPTANCE_CRITERIA",
   DESIGN: "NO_DESIGN",
+  EVIDENCE: "NO_EXECUTION_EVIDENCE",
+  TASKS: "NO_TASKS",
 });
 
 // Refusal codes the compiler emits. They are part of the tool contract, so the
@@ -42,7 +44,7 @@ export const SPEC_WRITE_ROUTE_HINT =
 // The whole cycle in one block. Tool descriptions, the MCP server instructions
 // and hook messages render this constant instead of keeping a copy.
 export const READINESS_RULE_TEXT = [
-  "Readiness ladder: L0 scaffold, L1 requirements, L2 criteria and design.",
+  "Readiness ladder: L0 scaffold, L1 requirements, L2 criteria and design, L3 execution evidence, L4 tasks.",
   "A task is created only on a specification that reached L2 and names at least one requirement from the same specification.",
   "A scenario is added only with @featureN or @AC-N.M; a raw operation that inserts a task heading in TASKS.md is refused.",
   "The preview and the write report the same blockers and the same fix calls.",
@@ -107,6 +109,12 @@ export function specReadiness(graph, specSlug) {
   const criteria = criteriaUnderRequirements(graph, nodes, requirementIds, requirementCanonicalIds);
   const design = designIsAssembled(nodes);
   const tasks = nodes.some((node) => node.kind === "TASK");
+  const scenarios = nodes.filter((node) => node.kind === "SCENARIO");
+  const evidence = scenarios.length > 0 && scenarios.every((node) => {
+    const proof = graph.executionEvidence?.[node.canonicalId];
+    return proof?.result === "PASSED" && proof.graphFingerprint === graph.fingerprint &&
+      proof.scenarioContentHash === node.contentHash;
+  });
   // A decision id already taken by the design. A design can be short and still
   // declare a decision, so the fix step must extend it with a free id instead
   // of inserting a second definition of one that exists.
@@ -122,13 +130,24 @@ export function specReadiness(graph, specSlug) {
     blockers.push(blocker(READINESS_BLOCKER_CODES.REQUIREMENTS, "L1", "specification has no requirement"));
   } else {
     level = "L1";
-    if (criteria.length === 0) {
-      blockers.push(blocker(READINESS_BLOCKER_CODES.CRITERIA, "L2", "no acceptance criterion is attached to a requirement"));
+  }
+  // Report every missing admission prerequisite, including the missing
+  // criteria on a scaffold (AC-2.1), in ladder order.
+  if (criteria.length === 0) {
+    blockers.push(blocker(READINESS_BLOCKER_CODES.CRITERIA, "L2", "no acceptance criterion is attached to a requirement"));
+  }
+  if (!design) {
+    blockers.push(blocker(READINESS_BLOCKER_CODES.DESIGN, "L2", "DESIGN.md is still the scaffold"));
+  }
+  if (requirements.length > 0 && criteria.length > 0 && design) {
+    level = "L2";
+    if (!evidence) {
+      blockers.push(blocker(READINESS_BLOCKER_CODES.EVIDENCE, "L3", "no complete passing execution evidence matches every scenario source"));
+    } else {
+      level = "L3";
+      if (tasks) level = "L4";
+      else blockers.push(blocker(READINESS_BLOCKER_CODES.TASKS, "L4", "specification has no task"));
     }
-    if (!design) {
-      blockers.push(blocker(READINESS_BLOCKER_CODES.DESIGN, "L2", "DESIGN.md is still the scaffold"));
-    }
-    if (criteria.length > 0 && design) level = "L2";
   }
 
   const index = READINESS_LEVELS.indexOf(level);
@@ -149,9 +168,7 @@ export function specReadiness(graph, specSlug) {
       requirements: requirements.length,
       criteria: criteria.length,
       design: design,
-      // Execution evidence lives in the evidence pipeline, not in the corpus
-      // graph, so the ladder stops where the corpus can prove a rung and the
-      // task count is reported without being a rung of its own.
+      evidence,
       tasks: tasks,
     },
     blockers,
@@ -189,6 +206,7 @@ export function confirmTaskStep(spec, { entity, subject, requirements, reason })
 
 export function taskAdmissionFixSteps(spec, readiness) {
   const steps = [];
+  let criterionParent = readiness.firstFunctionalRequirement;
   for (const entry of taskAdmissionBlockers(readiness)) {
     if (entry.code === READINESS_BLOCKER_CODES.REQUIREMENTS) {
       steps.push(fixStep(spec, "readiness: add the first functional requirement", {
@@ -196,27 +214,27 @@ export function taskAdmissionFixSteps(spec, readiness) {
         document: "FR.md",
         text: "\n## FR-1 — First functional requirement\n\nDescribe what the system must do for its first user-visible behaviour.\n",
       }));
+      criterionParent = "FR-1";
     } else if (entry.code === READINESS_BLOCKER_CODES.CRITERIA) {
       // An acceptance criterion is parented by its id (AC-<n>.<m> to FR-<n>),
       // so the step must reuse the functional requirement the specification
       // already has. An NFR-only specification gets the requirement first:
       // a plan that attached a criterion to a missing FR-1 would not apply.
-      const parent = readiness.firstFunctionalRequirement;
-      if (!parent) {
+      if (!criterionParent) {
         steps.push(fixStep(spec, "readiness: a criterion attaches to a functional requirement", {
           kind: "insert_at_eof",
           document: "FR.md",
           text: "\n## FR-1 — First functional requirement\n\nDescribe what the system must do for its first user-visible behaviour.\n",
         }));
-      } else {
-        steps.push(fixStep(spec, "readiness: attach an acceptance criterion", {
-          kind: "insert_at_eof",
-          document: "ACCEPTANCE_CRITERIA.md",
-          text:
-            `\n## AC-${parent.slice(3)}.1 — ${parent}\n\n` +
-            "Given the requirement is exercised, when the caller sends the request, then the expected outcome holds.\n",
-        }));
+        criterionParent = "FR-1";
       }
+      steps.push(fixStep(spec, "readiness: attach an acceptance criterion", {
+        kind: "insert_at_eof",
+        document: "ACCEPTANCE_CRITERIA.md",
+        text:
+          `\n## AC-${criterionParent.slice(3)}.1 — ${criterionParent}\n\n` +
+          "Given the requirement is exercised, when the caller sends the request, then the expected outcome holds.\n",
+      }));
     } else if (entry.code === READINESS_BLOCKER_CODES.DESIGN) {
       // Long enough that the document clears DESIGN_STUB_MAX_BYTES once it is
       // appended to the scaffold, which is the state that produced the blocker,
