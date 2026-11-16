@@ -11,6 +11,8 @@ Implements: FR-1
 
 - **Comment (implementer, 2026-11-15 03:04):** src/kernel/readiness.js + tests/readiness-gate.test.mjs (verdict, L0/L2, blockers)
 
+- **Comment (implementer, 2026-11-16 00:49):** 2026-11-16 release audit: FR-1 requires L0-L4, but candidate c28aa174 caps the graph at L2. Focused regression fails ERR_ASSERTION: nextLevel null !== L3. TASK-1 reopened; publication blocked pending genuine execution-evidence integration and L3/L4 transport/preview coverage. Full preflight and archive safe-authoring passed but do not cover this requirement.
+
 ## TASK-2 — Task admission in the compiler
 
 Status: done
