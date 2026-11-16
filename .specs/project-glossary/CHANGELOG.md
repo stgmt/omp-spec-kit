@@ -1,8 +1,8 @@
 # История изменений
 ## 2026-11-16 — решения по хранению и контракту
 - Хранение: одна ветка `spec-glossary` на репозиторий, файл по пути `glossary/<owner>/<project>/GLOSSARY.md`; перизоляция проектов в общем репозитории сохранена.
-- Контракт: отдельный инструмент `spec_glossary`; существующий `spec_patch` получает параметр `glossarySha256`.
-- Гейт допуска без автосоздания файла: отказ называет `spec_glossary {action:"create"}`; ссылка на механизм появляется в MCP-инструкциях и в `AGENTS.md` проекта.
+- Контракт: новый инструмент не вводится. Чтение — `spec_documents {action:"glossary"}`, запись — варианты `spec_patch` (`createGlossary`, `upsertGlossaryTerm`, `deleteGlossaryTerm`), проверка — `spec_inspect {check:"glossary"}`; `spec_patch` получает общее поле `glossarySha256`. Поверхность остаётся 10 инструментов, единственный пишущий — `spec_patch`.
+- Гейт допуска без автосоздания файла: отказ называет `spec_patch {intent:"createGlossary"}`; ссылка на механизм появляется в MCP-инструкциях и в `AGENTS.md` проекта.
 - Нормализация текста: Unicode NFC и `toLowerCase()` JavaScript; полный case folding не применяется, `ß`/`İ` закреплены фикстурой.
 - Сняты ссылки на отсутствующие в корпусе документы `spec-readiness-gate` и `spec-local-corpus-mode`.
 - Открыто: защита новой ветки, поведение при нескольких процессах, порядок поставки вместе с планом `docs/plans/corpus-outline-and-decisions-2026-11-16.md`.
