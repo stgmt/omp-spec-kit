@@ -13,6 +13,8 @@ Implements: FR-1
 
 - **Comment (implementer, 2026-11-16 00:49):** 2026-11-16 release audit: FR-1 requires L0-L4, but candidate c28aa174 caps the graph at L2. Focused regression fails ERR_ASSERTION: nextLevel null !== L3. TASK-1 reopened; publication blocked pending genuine execution-evidence integration and L3/L4 transport/preview coverage. Full preflight and archive safe-authoring passed but do not cover this requirement.
 
+- **Comment (implementer, 2026-11-16 02:40):** FR-1 implemented in 8fb001c102bfb92f72b4665113721fe8a1b16f4e: canonical L0–L4, source-bound complete execution and inspect/preview parity. Review PASS; full local preflight PASS; 57 tool-E2E scenarios, 44 focused checks and four guard mutants killed. OMP and Claude installed server matrices PASS; Codex installed guard behavior PASS. GitHub release/attestation workflow remains in progress; separately, deployed registry remains 3.3.0 by current delivery scope.
+
 ## TASK-2 — Task admission in the compiler
 
 Status: done
