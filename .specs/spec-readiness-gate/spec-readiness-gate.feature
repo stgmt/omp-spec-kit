@@ -43,3 +43,14 @@ Feature: Specification readiness gate
     Given the same refused request
     When it is sent through stdio and through the hosted service
     Then both answers carry the same code and the same fix list
+
+  @id:SCEN-readiness-execution-proof
+  @feature1
+  @AC-1.1
+  Scenario: Readiness requires source-bound execution before L3 and admitted tasks before L4
+    Given an assembled specification and a complete successful capture matching every scenario source
+    When inspection and a patch preview report readiness
+    Then both report L3 without changing project bytes
+    When a traced task is created through confirmTaskCreation
+    Then both report L4
+    And incomplete failed retry-only wrong-source wrong-run malformed or stale execution keeps readiness at L2
