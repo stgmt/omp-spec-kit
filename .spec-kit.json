@@ -1,0 +1,9 @@
+{
+  "schema": "omp-spec-kit/spec-binding@1",
+  "project": "stgmt/omp-spec-kit",
+  "spec": "project-glossary",
+  "repo": "https://github.com/stgmt/omp-spec-kit.git",
+  "branch": "spec-project-glossary",
+  "createdAt": "2026-11-16T01:07:39.747Z",
+  "owner": "stgmt"
+}
