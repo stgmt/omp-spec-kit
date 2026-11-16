@@ -2,7 +2,7 @@ import { YT_URL } from "./compose.mjs";
 
 /**
  * Operator-path helpers for the UI-driven app installation BDD suite. Every
- * action goes through the real YouTrack 2025.3 admin UI in headless Chrome —
+ * action goes through the real YouTrack 2025.3 admin UI in Playwright-pinned Chromium —
  * selectors verified live against jetbrains/youtrack:2025.3.161254:
  *  - "Add app…" dropdown -> "Upload ZIP file…" fires a NATIVE filechooser
  *    (no dropzone, no input[type=file] in the DOM).
@@ -35,9 +35,13 @@ export async function openAppsPage(page) {
  */
 export async function uploadAppZip(page, zipPath) {
   await page.getByRole("button", { name: /add app/i }).first().click();
+  const upload = page.getByRole("button", { name: /upload zip file/i });
+  // Distinguish a menu that never opened from an upload that never produced a
+  // native chooser; do not mask the former behind a filechooser timeout.
+  await upload.waitFor({ state: "visible", timeout: 15_000 });
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser", { timeout: 15_000 }),
-    page.getByRole("button", { name: /upload zip file/i }).click(),
+    upload.click(),
   ]);
   await chooser.setFiles(zipPath);
   await page.waitForURL(/[?&]selected=\d+-/, { timeout: 60_000 });

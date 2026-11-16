@@ -44,6 +44,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install the Playwright-pinned Chromium runtime
+        run: npx --no-install playwright-core install --with-deps chromium
       - run: npm run build
       # Several publish tests create real annotated tags; the runner has no
       # ambient identity.

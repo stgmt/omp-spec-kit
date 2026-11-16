@@ -126,7 +126,7 @@ async function main() {
   const { users } = fixture;
 
   await scenario("S1", "browser: alice sees only her project's specs (service data)", async () => {
-    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    const browser = await chromium.launch({ headless: true });
     try {
       const page = await browser.newPage();
       page.setDefaultTimeout(60_000);
@@ -143,7 +143,7 @@ async function main() {
   });
 
   await scenario("S2", "browser: alice applies a patch -> remote commit Spec-Author: alice", async () => {
-    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    const browser = await chromium.launch({ headless: true });
     try {
       const page = await browser.newPage();
       page.setDefaultTimeout(60_000);
@@ -163,7 +163,7 @@ async function main() {
   });
 
   await scenario("S3", "browser: dave (no groups) is refused by the service", async () => {
-    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    const browser = await chromium.launch({ headless: true });
     try {
       const page = await browser.newPage();
       page.setDefaultTimeout(60_000);

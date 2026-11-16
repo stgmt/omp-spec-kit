@@ -15,6 +15,7 @@ import { attachAppToProjectViaUI, fillAppSettings, openAppsPage, openAppTab, upl
 import { loadLiveFixture } from "../e2e/lib/live-fixture.mjs";
 import { digest } from "../../src/adapters/youtrack-projection.js";
 import { OmpSpecKitSetup } from "../../src/hosts/opencode/setup.mjs";
+import { writeProjectBinding } from "../../src/enforcement/project-binding.js";
 
 const execFileAsync = promisify(execFile);
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
@@ -77,7 +78,7 @@ if (LIVE) BeforeAll({ timeout: 1_200_000 }, async () => {
   assert.ok(Array.isArray(issues) && issues.length > 0, "no anchor issue in project SPEC");
   live.issue = issues[0];
 
-  live.browser = await chromium.launch({ channel: "chrome", headless: true });
+  live.browser = await chromium.launch({ headless: true });
 });
 
 if (LIVE) AfterAll(async () => {
@@ -510,7 +511,13 @@ const DEMO_DOCS = Object.freeze({
   "FR.md": "# Functional Requirements\n\n## FR-1: Demo requirement\n\nThe demo SHALL expose one requirement.\n",
   "NFR.md": "# Non-Functional Requirements\n\n## NFR-DEMO-1: Demo constraint\n\nThe demo SHALL stay bounded.\n",
   "ACCEPTANCE_CRITERIA.md": "# Acceptance Criteria\n\n## AC-1.1: Demo criterion\n\n**EARS:** WHEN the demo is loaded THEN it is visible.\n",
-  "TASKS.md": "# Tasks\n\n## TASK-1: Demo task\n\n**Status:** todo\n\n**Requirements:** [FR-1](FR.md#fr-1-demo-requirement)\n\n**Done When:** the demo is deletable.\n",
+  // The demo has to carry a design, not just a stub: the admission gate admits a
+  // task only on a specification whose documented rungs are all reached.
+  "DESIGN.md": "# Design\n\n## DEC-1: The demo is written through the document path\n\nThe demo specification is assembled from the same document operations every other corpus entry uses, so loading it proves the projection path rather than a seed script. It declares one requirement with its criterion, one constraint and one task; the task is created through the canonical task intent because a raw task heading in TASKS.md is refused by admission.\n",
+  // Only the empty document is scaffolded here: a task definition needs an
+  // existing TASKS.md and is added by the canonical intent below, never as raw
+  // document text.
+  "TASKS.md": "# Tasks\n",
 });
 
 const DEMO_REVIEW = Object.freeze({
@@ -564,6 +571,18 @@ Given("an explicit demo spec is created through MCP", { timeout: 300_000 }, asyn
       operations: [{ kind: "replace_document", document, content }],
     });
   }
+  // TASKS.md is never written as a raw document: the demo's task enters through
+  // the canonical intent, which is also the only way admission admits one.
+  await mutateWithRetry(alice, "stgmt/alpha", "spec_patch", {
+    intent: "confirmTaskCreation",
+    spec: live.demoSpec,
+    entity: "TASK-1",
+    subject: "Demo task",
+    requirements: ["FR-1"],
+    dryRun: false,
+    reason: "live delivery demo",
+    requestId: "delivery-demo-task",
+  });
   const featureDocument = `${live.demoSpec}.feature`;
   await mutateWithRetry(alice, "stgmt/alpha", "spec_patch", {
     intent: "patch",
@@ -574,7 +593,7 @@ Given("an explicit demo spec is created through MCP", { timeout: 300_000 }, asyn
     operations: [{
       kind: "replace_document",
       document: featureDocument,
-      content: "Feature: Delivery demo\n\n  @id:SCEN-delivery-demo-live\n  Scenario: the demo is readable\n    Given the demo exists\n    Then an authorized caller reads it\n",
+      content: "Feature: Delivery demo\n\n  @id:SCEN-delivery-demo-live @AC-1.1\n  Scenario: the demo is readable\n    Given the demo exists\n    Then an authorized caller reads it\n",
     }],
     designReview: DEMO_REVIEW,
   });
@@ -673,12 +692,7 @@ Then("a configured endpoint warns until the workspace is bound", async function 
 });
 
 Then("a configured and bound project stays silent", async function () {
-  const bindingDirectory = path.join(this.emptyRoot, ".omp-spec-kit");
-  await mkdir(bindingDirectory, { recursive: true });
-  await writeFile(
-    path.join(bindingDirectory, "project.json"),
-    JSON.stringify({ schema: "omp-spec-kit/project-binding@1", project: "demo/foo" }),
-  );
+  writeProjectBinding(this.emptyRoot, "demo/foo");
   const plugin = await OmpSpecKitSetup({ directory: this.emptyRoot, home: this.configuredHome });
   const parts = [];
   await plugin["chat.message"]({}, { parts });

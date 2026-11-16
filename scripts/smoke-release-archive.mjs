@@ -14,8 +14,9 @@ const execFile = promisify(execFileCallback);
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const EXPECTED_TOOLS = Object.freeze([...ALL_TOOL_NAMES].sort());
 
-const { values } = parseArgs({ options: { archive: { type: "string" } }, strict: true });
+const { values } = parseArgs({ options: { archive: { type: "string" }, stage: { type: "string", default: "default" } }, strict: true });
 if (!values.archive) throw new Error("--archive is required");
+if (!["default", "safe-authoring"].includes(values.stage)) throw new Error(`unsupported smoke stage: ${values.stage}`);
 const expectedTools = EXPECTED_TOOLS;
 const archivePath = path.resolve(values.archive);
 const tempRoot = await mkdtemp(path.join(tmpdir(), "omp-spec-kit-release-smoke-"));
@@ -97,24 +98,42 @@ try {
   const toolNames = listed.result.tools.map((tool) => tool.name).sort();
   assert.deepEqual(toolNames, expectedTools, "the archived server must expose the single 10-tool surface");
 
+  const matrix = { completedPhases: [], calls: [] };
   {
     const listTools = async () => client.send("tools/list", {});
     const callTool = async (name, arguments_) => {
       const response = await client.send("tools/call", { name, arguments: arguments_ });
       assert.equal(response.error, undefined, JSON.stringify(response));
+      const envelope = response.result?.structuredContent;
+      // Record semantic witnesses, never request payloads or response messages:
+      // the secret-rejection row deliberately contains secret-looking content.
+      matrix.calls.push({
+        tool: name,
+        requestId: arguments_.requestId ?? null,
+        ok: envelope?.ok ?? null,
+        outcome: envelope?.data?.outcome ?? null,
+        errorCode: envelope?.error?.code ?? null,
+      });
       return response;
     };
-    await runToolE2E({
-      listTools,
-      callTool,
-      projectRoot,
-      repositoryRoot,
-    });
+    // Compatibility smoke is a subset of the same shipped tool surface, not
+    // an alternate server mode. The default still runs every matrix row.
+    const phases = values.stage === "safe-authoring" ? ["inventory", "proposals", "apply", "secrets"] : ["all"];
+    for (const phase of phases) {
+      const result = await runToolE2E({
+        listTools,
+        callTool,
+        projectRoot,
+        repositoryRoot,
+        phase,
+      });
+      matrix.completedPhases.push(...result.completedPhases);
+    }
   }
   assert.equal(client.unsolicited.length, 0, "the archived server must not emit unsolicited stdout frames");
-  console.log(JSON.stringify({ result: "passed", packageVersion: packageManifest.version, toolCount: toolNames.length, toolNames }));
+  console.log(JSON.stringify({ result: "passed", stage: values.stage, packageVersion: packageManifest.version, toolCount: toolNames.length, toolNames, matrix }));
 } finally {
   if (client) await client.close().catch(() => {});
-  if (outsideRoot) await rm(outsideRoot, { recursive: true, force: true });
-  await rm(tempRoot, { recursive: true, force: true, maxRetries: 3 });
+  if (outsideRoot) await rm(outsideRoot, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+  await rm(tempRoot, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
 }

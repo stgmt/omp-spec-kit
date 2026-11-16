@@ -153,8 +153,15 @@ Everything is idempotent: re-running converges (find-or-create groups/project,
 
 - Docker with compose v2
 - Node.js ≥ 22
-- A system Chrome (the one-time YouTrack wizard runs via `playwright-core`
-  `channel: "chrome"` — only when a fresh volume needs it)
+- The Chromium revision pinned by `playwright-core` for the one-time wizard
+  on a fresh volume; install it from this checkout with:
+
+  ```bash
+  npx --no-install playwright-core install chromium
+  ```
+
+  CI installs the same revision with `--with-deps`. Do not substitute an
+  auto-updated system Chrome: protocol drift can discard native UI input.
 
 ## Ports
 

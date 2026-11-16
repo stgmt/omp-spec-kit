@@ -69,7 +69,7 @@ if (hostOnly) BeforeAll({ timeout: 900_000 }, async () => {
   assert.ok(Array.isArray(issues) && issues.length > 0, "no anchor issue in project SPEC");
   live.issue = issues[0];
 
-  live.browser = await chromium.launch({ channel: "chrome", headless: true });
+  live.browser = await chromium.launch({ headless: true });
 });
 
 if (hostOnly) Before(async function () {

@@ -1,8 +1,6 @@
 import { chromium } from "playwright-core";
 import { containerLogs, waitFor, YT_URL } from "./compose.mjs";
 
-const CHROME_CHANNEL = "chrome";
-
 function wizardTokenFromLogs(logs) {
   const match = logs.match(/wizard_token=([A-Za-z0-9_-]+)/);
   return match ? match[1] : null;
@@ -39,8 +37,8 @@ async function clickWhenEnabled(page, locator, timeoutMs = 30_000) {
 }
 
 /**
- * Completes the YouTrack Configuration Wizard in a real browser (system
- * Chrome, no bundled browsers). One-time per volume; the wizard token is
+ * Completes the YouTrack Configuration Wizard in the Chromium revision pinned
+ * by playwright-core. One-time per volume; the wizard token is
  * printed in the container logs. Flow verified live on 2025.3:
  * welcome link -> base URL (Next + Continue dialog) -> admin credentials ->
  * license (Finish) -> setup wait page -> /api/config serves JSON.
@@ -48,7 +46,7 @@ async function clickWhenEnabled(page, locator, timeoutMs = 30_000) {
 export async function completeWizard({ adminPassword, url = YT_URL, serviceName = "youtrack", getLogs, logger = console.log }) {
   const token = await waitForWizardToken({ serviceName, getLogs });
   logger(`wizard: completing setup in browser (token ${token.slice(0, 6)}…)`);
-  const browser = await chromium.launch({ channel: CHROME_CHANNEL, headless: true });
+  const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
     page.setDefaultTimeout(60_000);

@@ -27,6 +27,8 @@ tmp/
 .cache/
 
 # Logs, test evidence, and mutable state
+# Operator scratch, mutation workers' receipts, and local release logs are not artifacts.
+/.omp-spec-kit/release-logs/
 *.log
 *.ndjson
 !tests/fixtures/evidence/

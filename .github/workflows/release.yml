@@ -35,6 +35,8 @@ jobs:
       - name: Install the pinned OMP discovery runtime
         run: cd tests/fixtures/omp-discovery-runtime && bun install --frozen-lockfile --ignore-scripts --no-progress
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install the Playwright-pinned Chromium runtime
+        run: npx --no-install playwright-core install --with-deps chromium
       - name: Verify frozen corpus provenance before release execution
         run: |
           node scripts/refresh-real-corpus-manifest.mjs --check

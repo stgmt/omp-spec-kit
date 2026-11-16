@@ -17,6 +17,7 @@
  * the store, the access log or the service log.
  */
 import { assertHostReachableUrl } from "./endpoint-url.js";
+import { PROJECT_BINDING_SCHEMA } from "../enforcement/project-binding.js";
 
 export const ONBOARDING_TOKEN_NAME = "omp-spec-kit agent";
 const UPSTREAM_TIMEOUT_MS = 15_000;
@@ -57,7 +58,7 @@ export function buildManagedSnippet(serviceUrl, token, project = null, idp = nul
         argument: "project",
         record: {
           path: "<workspace>/.omp-spec-kit/project.json",
-          schema: "omp-spec-kit/project-binding@1",
+          schema: PROJECT_BINDING_SCHEMA,
           writeWith: "scripts/install-host.mjs --project <owner/project>",
         },
         project: single,

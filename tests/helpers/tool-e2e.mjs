@@ -12,6 +12,7 @@ import {
 } from "../../src/adapters/tool-contracts.js";
 
 export const ALL_TOOL_NAMES = Object.freeze(TOOL_CONTRACTS.map((contract) => contract.tool));
+export const TOOL_E2E_PHASES = Object.freeze(["inventory", "queries", "proposals", "apply", "secrets"]);
 
 function assertEnvelopeSchema(value) {
   assert.deepEqual(Object.keys(value).sort(), [...KERNEL_ENVELOPE_OUTPUT_SCHEMA.required].sort());
@@ -88,6 +89,8 @@ export async function runToolE2E({
   phase = "all",
   restart = null,
 }) {
+  assert.ok(phase === "all" || TOOL_E2E_PHASES.includes(phase), `unknown tool E2E phase: ${phase}`);
+  const completedPhases = [];
   // Phase 1: Inventory
   if (phase === "all" || phase === "inventory") {
     if (initialize) {
@@ -111,6 +114,7 @@ export async function runToolE2E({
       assert.equal(tool.description.split(/\r?\n/u, 1)[0].trim().length <= 200, true, tool.name);
       assert.deepEqual(tool.annotations, annotationsFor(contract), `annotations mismatch for ${tool.name}`);
     }
+    completedPhases.push("inventory");
   }
 
   // Phase 2: Query and Read tools
@@ -296,6 +300,7 @@ export async function runToolE2E({
     assert.equal(preflightRes.ok, true);
     assert.equal(preflightRes.operation, "mcpPreflight");
     assert.equal(preflightRes.data.kind, "mcp-preflight");
+    completedPhases.push("queries");
   }
 
   // Phase 3: Proposal preview tools (dryRun: true or omitted must not mutate files on disk)
@@ -542,6 +547,7 @@ export async function runToolE2E({
     // Check tree unchanged after all 14 proposal calls
     const afterState = await snapshotTree(projectRoot);
     assert.deepEqual(afterState, beforeState, "all proposal operations must be strictly read-only");
+    completedPhases.push("proposals");
   }
 
   // Phase 4: Apply operations and Replay Verification
@@ -606,6 +612,7 @@ export async function runToolE2E({
     const optionalApplyVal = structured(optionalApplyRes);
     assert.equal(optionalApplyVal.ok, true);
     assert.equal(optionalApplyVal.data.outcome, "APPLIED");
+    completedPhases.push("apply");
   }
 
   // Phase 5: Secret rejection test
@@ -627,7 +634,8 @@ export async function runToolE2E({
     assert.equal(secretVal.ok, false);
     assert.equal(secretVal.error?.code, "VALIDATION_FAILED");
     assert.ok(secretVal.error?.message?.includes("secret-like content"));
+    completedPhases.push("secrets");
   }
 
-  return { ok: true, toolsCount: 10 };
+  return { ok: true, toolsCount: 10, completedPhases };
 }

@@ -901,7 +901,7 @@ async function main() {
     await seedMcp.close();
   }
 
-  const browser = await chromium.launch({ channel: "chrome", headless: false, slowMo: 160 });
+  const browser = await chromium.launch({ headless: false, slowMo: 160 });
   const parts = [];
   try {
     // ══ Part 1 — install the app ZIP into the customer's own YouTrack ════

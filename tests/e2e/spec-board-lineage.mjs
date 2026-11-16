@@ -30,7 +30,7 @@ async function litState(widget) {
 }
 
 async function main() {
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await chromium.launch({ headless: true });
   try {
     // mia's REST client: mint a YouTrack-scoped permanent token via admin
     // (Basic auth is only enabled for the admin bootstrap, verified live).

@@ -69,10 +69,7 @@ const pointers = {
 };
 
 let preference = "ALL";
-const browser = await chromium.launch({
-  headless: true,
-  executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
-});
+const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const consoleErrors = [];
 page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
