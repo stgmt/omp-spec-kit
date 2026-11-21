@@ -170,8 +170,8 @@ export async function loadAuthoringRealCorpus(repositoryRoot) {
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   const fixtureRoot = path.join(repositoryRoot, "tests", "fixtures", "kernel", "authoring-real-corpus");
   const entries = manifest.documents;
-  if (manifest.schema !== "omp-spec-kit-authoring-real-corpus@1" || manifest.documentCount !== 45 || !Array.isArray(entries) || entries.length !== 45) {
-    throw new Error("authoring corpus manifest must contain exactly 45 documents");
+  if (manifest.schema !== "omp-spec-kit-authoring-real-corpus@2" || manifest.documentCount !== 42 || !Array.isArray(entries) || entries.length !== 42) {
+    throw new Error("authoring corpus manifest must contain exactly 42 documents");
   }
   const paths = entries.map((entry) => entry.path);
   if (new Set(paths).size !== paths.length || JSON.stringify(paths) !== JSON.stringify([...paths].sort())) throw new Error("authoring corpus manifest paths are not unique and sorted");
@@ -187,6 +187,18 @@ export async function loadAuthoringRealCorpus(repositoryRoot) {
   if (built.graph.valid !== true) throw new Error("authoring corpus graph is invalid");
   return { manifest, fixtureRoot, files, graph: built.graph };
 }
+export async function writeStagedCorpus(root, repositoryRoot) {
+  const current = await loadAuthoringRealCorpus(repositoryRoot);
+  const historical = await loadFrozenRealCorpus(repositoryRoot);
+  const productDocs = historical.files.filter(({ path }) => /^\.specs\/product\//u.test(path) &&
+    !/(?:USER_STORIES\.md|USE_CASES\.md|product\.feature)$/u.test(path));
+  await writeCorpus(root, [...current.files, ...productDocs]);
+  const source = path.join(repositoryRoot, "tests", "fixtures", "kernel", "staged-product");
+  for (const doc of ["product-use-cases.feature", "product-user-stories.feature"]) {
+    await writeFile(path.join(root, ".specs", "product", doc), await readFile(path.join(source, doc)));
+  }
+}
+
 export async function createTempRepo() {
   return mkdtemp(path.join(tmpdir(), "omp-spec-kit-kernel-"));
 }

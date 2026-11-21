@@ -33,11 +33,11 @@ async function sourceFiles(directory) {
 }
 
 describe("one source for the rule text", () => {
-  it("renders the generated block into the tool descriptions", () => {
+  it("renders the generated block in authoring and the readiness branch", () => {
     const patch = TOOL_CONTRACTS.find((contract) => contract.tool === "spec_patch");
     const inspect = TOOL_CONTRACTS.find((contract) => contract.tool === "spec_inspect");
     assert.ok(patch.description.includes(READINESS_RULE_TEXT));
-    assert.ok(inspect.description.includes(READINESS_RULE_TEXT));
+    assert.ok(inspect.variants.readiness.description.includes(READINESS_RULE_TEXT));
   });
 
   it("renders the generated block into the MCP server instructions", () => {

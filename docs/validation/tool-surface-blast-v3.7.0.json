@@ -1,6 +1,6 @@
 {
   "schema": "omp-spec-kit-tool-surface-blast@1",
-  "timestamp": "2026-11-15T16:15:59.392Z",
+  "timestamp": "2026-11-21T06:02:22.235Z",
   "serverPath": "plugins/omp-spec-kit/dist/mcp/server.js",
   "baseline": {
     "sha256": "c00fb06179047427e9ba43cc5df312a0740df04ff9a0087e35462bd7804c28ef",
@@ -15,15 +15,15 @@
     }
   },
   "candidate": {
-    "sha256": "1dc6404109277425cbc5bb0c244b771a25e05f64f58eaaf7d87f3e812b5726d3",
+    "sha256": "701f365c4200766584e6977b9792879532eedbf8cdf55585250d7c2538c62deb",
     "metrics": {
-      "sha256": "1dc6404109277425cbc5bb0c244b771a25e05f64f58eaaf7d87f3e812b5726d3",
+      "sha256": "701f365c4200766584e6977b9792879532eedbf8cdf55585250d7c2538c62deb",
       "toolCount": 10,
       "readOnlyCount": 9,
       "mutatingCount": 1,
-      "totalCatalogBytes": 25375,
-      "schemaBytes": 18342,
-      "descriptionChars": 1344,
+      "totalCatalogBytes": 27760,
+      "schemaBytes": 20563,
+      "descriptionChars": 1509,
       "nameChars": 120
     }
   },
@@ -48,21 +48,21 @@
     },
     "totalCatalogBytes": {
       "baseline": 42499,
-      "candidate": 25375,
-      "absolute": -17124,
-      "percentage": -40.29
+      "candidate": 27760,
+      "absolute": -14739,
+      "percentage": -34.68
     },
     "schemaBytes": {
       "baseline": 12881,
-      "candidate": 18342,
-      "absolute": 5461,
-      "percentage": 42.4
+      "candidate": 20563,
+      "absolute": 7682,
+      "percentage": 59.64
     },
     "descriptionChars": {
       "baseline": 3362,
-      "candidate": 1344,
-      "absolute": -2018,
-      "percentage": -60.02
+      "candidate": 1509,
+      "absolute": -1853,
+      "percentage": -55.12
     },
     "nameChars": {
       "baseline": 598,

@@ -1,3 +1,4 @@
+import { serviceKernelFixture } from "./lib/service-kernel-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -12,7 +13,6 @@ import { seedSpecBranch } from "./lib/spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
-const FIXTURE_SPEC = path.resolve("tests/fixtures/kernel/real-corpus/.specs/spec-kernel");
 const SPEC_BRANCH = "spec-spec-kernel";
 const servers = [];
 const services = [];
@@ -44,8 +44,7 @@ async function setup({ syncIntervalMs = 0 } = {}) {
   await seedSpecBranch(bare, {
     project: "stgmt/alpha",
     spec: "spec-kernel",
-    sourceDir: FIXTURE_SPEC,
-    files: { "README.md": "# Spec Kernel\n\nStatus: DRAFT\n\nSeeded fixture corpus for service tests.\n" },
+    files: { ...await serviceKernelFixture(), "README.md": "# Spec Kernel\n\nStatus: DRAFT\n\nSeeded fixture corpus for service tests.\n" },
   });
 
   const configPath = await fixture.writeServiceConfig(bare);

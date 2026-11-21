@@ -1,4 +1,82 @@
 {
   "slug": "spec-stack-skill",
-  "title": "Spec Stack Setup Skill"
+  "title": "Spec Stack Setup Skill",
+  "bddCoverage": {
+    "schema": "omp-spec-kit/bdd-coverage@1",
+    "outcomes": {
+      "services": {
+        "requirements": [
+          "FR-1"
+        ],
+        "criteria": [
+          "AC-1.1"
+        ],
+        "rule": "US-1",
+        "outcome": "services"
+      },
+      "portable-windows": {
+        "requirements": [
+          "NFR-PORT-1"
+        ],
+        "criteria": [],
+        "rule": "US-1",
+        "outcome": "portable-windows"
+      },
+      "portable-macos": {
+        "requirements": [
+          "NFR-PORT-1"
+        ],
+        "criteria": [],
+        "rule": "US-1",
+        "outcome": "portable-macos"
+      },
+      "portable-linux": {
+        "requirements": [
+          "NFR-PORT-1"
+        ],
+        "criteria": [],
+        "rule": "US-1",
+        "outcome": "portable-linux"
+      },
+      "repeatable": {
+        "requirements": [
+          "NFR-IDEM-2"
+        ],
+        "criteria": [],
+        "rule": "US-1",
+        "outcome": "repeatable"
+      },
+      "app": {
+        "requirements": [
+          "FR-2"
+        ],
+        "criteria": [
+          "AC-2.1"
+        ],
+        "rule": "UC-1",
+        "outcome": "app"
+      },
+      "board": {
+        "requirements": [
+          "FR-3"
+        ],
+        "criteria": [
+          "AC-3.1"
+        ],
+        "rule": "UC-1",
+        "outcome": "board"
+      },
+      "seed": {
+        "requirements": [
+          "FR-4"
+        ],
+        "criteria": [
+          "AC-4.1"
+        ],
+        "rule": "UC-1",
+        "outcome": "seed"
+      }
+    },
+    "scopes": {}
+  }
 }

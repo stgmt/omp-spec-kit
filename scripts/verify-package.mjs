@@ -22,6 +22,7 @@ const sourceTrees = Object.freeze([
   { source: path.join(repositoryRoot, "src", "authoring"), output: "authoring" },
   { source: path.join(repositoryRoot, "src", "enforcement"), output: "enforcement" },
   { source: path.join(repositoryRoot, "src", "gate"), output: "gate" },
+  { source: path.join(repositoryRoot, "src", "service"), output: "service", files: ["proposal-review.js"] },
 ]);
 
 function fail(message) {
@@ -51,7 +52,7 @@ async function collectTreeSources(rootDirectory, label) {
 
 const treeSources = [];
 for (const tree of sourceTrees) {
-  const files = await collectTreeSources(tree.source, path.relative(repositoryRoot, tree.source));
+  const files = tree.files ?? await collectTreeSources(tree.source, path.relative(repositoryRoot, tree.source));
   treeSources.push({ ...tree, files });
 }
 
@@ -192,7 +193,8 @@ function assertRuntimeImports(relativePath, source) {
         relativePath.startsWith("dist/evidence/") ||
         relativePath.startsWith("dist/authoring/") ||
         relativePath.startsWith("dist/enforcement/") ||
-        relativePath.startsWith("dist/gate/")) &&
+        relativePath.startsWith("dist/gate/") ||
+        relativePath.startsWith("dist/service/")) &&
       (specifier.startsWith("./") || specifier.startsWith("../"))
     ) {
       continue;

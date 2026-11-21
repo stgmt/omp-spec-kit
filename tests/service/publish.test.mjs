@@ -1,6 +1,7 @@
+import { serviceKernelFixture, copyServiceKernelFixture } from "./lib/service-kernel-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -12,7 +13,6 @@ import { seedSpecBranch } from "./lib/spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
-const FIXTURE_SPEC = path.resolve("tests/fixtures/kernel/real-corpus/.specs/spec-kernel");
 const SPEC_KEY = "stgmt/alpha/spec-kernel";
 const SPEC_BRANCH = "spec-spec-kernel";
 const servers = [];
@@ -47,7 +47,7 @@ async function setup({ syncIntervalMs = 0 } = {}) {
   const base = await tempDir("spec-publish-");
   const bare = path.join(base, "specs.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
-  await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", sourceDir: FIXTURE_SPEC });
+  await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", files: await serviceKernelFixture() });
 
   const configPath = await fixture.writeServiceConfig(bare);
   const service = await startService({ configPath, cloneDir: path.join(base, "clone"), port: 0, identity: IDENTITY, logger: () => {}, syncIntervalMs });
@@ -218,7 +218,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     await cloneSpec(bare, work);
     await git(work, ["config", "user.email", "operator@example.invalid"]);
     await git(work, ["config", "user.name", "operator"]);
-    await cp(FIXTURE_SPEC, path.join(work, ".specs", "spec-kernel"), { recursive: true });
+    await copyServiceKernelFixture(path.join(work, ".specs", "spec-kernel"));
     await writeFile(path.join(work, ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 1.0.0\n");
     await execFileAsync("git", ["-C", work, "add", "."]);
     await execFileAsync("git", ["-C", work, "commit", "-m", "break-glass: activate spec-kernel"]);
@@ -308,7 +308,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     await cloneSpec(bare, wc);
     await git(wc, ["config", "user.email", "operator@example.invalid"]);
     await git(wc, ["config", "user.name", "operator"]);
-    await cp(FIXTURE_SPEC, path.join(wc, ".specs", "spec-kernel"), { recursive: true });
+    await copyServiceKernelFixture(path.join(wc, ".specs", "spec-kernel"));
     await writeFile(path.join(wc, ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 1.0.0\n");
     await execFileAsync("git", ["-C", wc, "add", "."]);
     await execFileAsync("git", ["-C", wc, "commit", "-m", "activate"]);
@@ -333,7 +333,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     await cloneSpec(bare, work);
     await git(work, ["config", "user.email", "operator@example.invalid"]);
     await git(work, ["config", "user.name", "operator"]);
-    await cp(FIXTURE_SPEC, path.join(work, ".specs", "spec-kernel"), { recursive: true });
+    await copyServiceKernelFixture(path.join(work, ".specs", "spec-kernel"));
     await writeFile(path.join(work, ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 1.0.0\n");
     await execFileAsync("git", ["-C", work, "add", "."]);
     await execFileAsync("git", ["-C", work, "commit", "-m", "activate"]);
@@ -381,7 +381,7 @@ describe("publish pipeline (TASK-9): ACTIVE → immutable tag + ledger", () => {
     await cloneSpec(bare, work);
     await git(work, ["config", "user.email", "operator@example.invalid"]);
     await git(work, ["config", "user.name", "operator"]);
-    await cp(FIXTURE_SPEC, path.join(work, ".specs", "spec-kernel"), { recursive: true });
+    await copyServiceKernelFixture(path.join(work, ".specs", "spec-kernel"));
     await writeFile(path.join(work, ".specs", "spec-kernel", "README.md"), "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 2.0.0\n");
     await execFileAsync("git", ["-C", work, "add", "."]);
     await execFileAsync("git", ["-C", work, "commit", "-m", "break-glass: activate spec-kernel 2.0.0"]);

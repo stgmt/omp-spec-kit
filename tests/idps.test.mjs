@@ -1,3 +1,4 @@
+import { serviceKernelFixture } from "./service/lib/service-kernel-fixture.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -15,7 +16,6 @@ import { seedSpecBranch } from "./service/lib/spec-repo.mjs";
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
 const SECRETS_KEY = "suite-secrets-key-0123456789";
-const FIXTURE_SPEC = path.resolve("tests/fixtures/kernel/real-corpus/.specs/spec-kernel");
 const servers = [];
 const services = [];
 const tempDirs = [];
@@ -57,7 +57,7 @@ async function setup() {
   const byoUrl = pathToFileURL(byoBare).href;
   // 3.0.0: the customer repo is the source of truth from day one — no
   // operator-side staging copy to migrate out of.
-  await seedSpecBranch(byoBare, { project: "acme/gamma", spec: "gamma-spec", sourceDir: FIXTURE_SPEC, repoUrl: byoUrl });
+  await seedSpecBranch(byoBare, { project: "acme/gamma", spec: "gamma-spec", files: await serviceKernelFixture("gamma-spec"), repoUrl: byoUrl });
   const config = fixture.serviceConfigFor(bare);
   config.repoPolicy = { allowedHosts: ["file"] };
   const configPath = path.join(base, "projects.json");

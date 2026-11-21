@@ -1,330 +1,324 @@
-// English Gherkin parsing for `<spec-slug>.feature` documents.
-// Produces Scenario definition candidates with typed attributes and trace
-// reference projections (@featureN -> FR-N, @AC-N.M -> AC-N.M, structured
-// `Refs:` description lines). Pure; line-oriented with exact spans.
-
-import { isValidSpecSlug, localIdKind } from "../identity.js";
-import {
-  GHERKIN_EXAMPLES_RE,
-  GHERKIN_SCENARIO_HEADER_RE,
-  GHERKIN_TAG_LINE_RE,
-  getGherkinDocstringMarker,
-} from "../gherkin-syntax.js";
+import { AstBuilder, compile, GherkinClassicTokenMatcher, IdGenerator, Parser } from "../vendor/gherkin.js";
+import { canonicalJson, sha256Bytes } from "../normalize.js";
+import { localIdKind } from "../identity.js";
+import { canonicalDocumentKind } from "../types.js";
 import { Positions } from "./markdown.js";
 
-const SCEN_ID_RE = /^SCEN-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
-const STEP_RE = /^(Given|When|Then|And|But|\*)[ \t]+(.*)$/u;
+const keyPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+const scenarioIdPattern = /^SCEN-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+const scenarioRefPattern = /^(SCEN-[a-z0-9]+(?:-[a-z0-9]+)*)(?:#([a-z0-9]+(?:-[a-z0-9]+)*))?$/u;
+const ruleTag = /^@(?:story:|case:|contract$)/u;
 
-// Common non-English Gherkin keywords that mark an unsupported dialect.
-const FOREIGN_KEYWORDS = [
-  "Funktion",
-  "Funktionalität",
-  "Eigenschaft",
-  "Funcionalidade",
-  "Característica",
-  "Escenario",
-  "Scénario",
-  "Fonctionnalité",
-  "Funzionalità",
-  "Сценарий",
-  "Функция",
-  "Функционал",
-];
-
-function bound(value, max) {
-  return value.length > max ? `${value.slice(0, max)}...` : value;
+export function parseFeature(text, path = "") {
+  const ids = IdGenerator.incrementing();
+  const ast = new Parser(new AstBuilder(ids), new GherkinClassicTokenMatcher()).parse(text);
+  ast.uri = path;
+  return { ast, ids };
 }
 
-function spanForLine(positions, text, zeroBasedLine) {
-  const lineStartChar = positionOfLineStart(text, zeroBasedLine);
-  const start = positions.positionOf(lineStartChar);
-  const nl = text.indexOf("\n", lineStartChar);
-  const end = positions.positionOf(nl < 0 ? text.length : nl);
-  return {
-    startLine: start.line,
-    startColumn: start.column,
-    endLine: end.line,
-    endColumn: end.column,
-    startOffset: start.startOffset,
-    endOffset: end.startOffset,
-  };
+export function missingScenarioSteps(scenario) {
+  const types = new Set(scenario.steps.map((step) => step.keywordType));
+  return [["Context", "Given"], ["Action", "When"], ["Outcome", "Then"]]
+    .filter(([type]) => !types.has(type)).map(([, name]) => name);
 }
 
-function positionOfLineStart(text, zeroBasedLine) {
-  let index = 0;
-  for (let i = 0; i < zeroBasedLine; i += 1) {
-    const nl = text.indexOf("\n", index);
-    if (nl < 0) return index;
-    index = nl + 1;
+function sourceLocations(text) {
+  const positions = new Positions(text);
+  const offsets = [0];
+  for (let index = text.indexOf("\n"); index >= 0; index = text.indexOf("\n", index + 1)) {
+    offsets.push(index + 1);
   }
-  return index;
+  const offset = (line) => offsets[line - 1] ?? text.length;
+  function span(line, endLine = line) {
+    const start = positions.positionOf(offset(line));
+    const end = positions.positionOf(offset(endLine + 1));
+    return {
+      startLine: start.line, startColumn: start.column, startOffset: start.startOffset,
+      endLine: end.line, endColumn: end.column, endOffset: end.startOffset,
+    };
+  }
+  return { positions, offset, span, lines: text.split(/\r?\n/u) };
+}
+
+function lastLine(node, lines) {
+  if (!node) return 0;
+  let last = (node.location?.line ?? 0) + (node.description ? node.description.split("\n").length : 0);
+  if (node.delimiter) {
+    for (let index = last; index < lines.length; index += 1) {
+      if (lines[index].trimStart().startsWith(node.delimiter)) return index + 1;
+    }
+  }
+  for (const field of ["steps", "examples", "tableBody", "rows"]) {
+    for (const child of node[field] ?? []) last = Math.max(last, lastLine(child, lines));
+  }
+  for (const field of ["docString", "dataTable", "tableHeader", "background", "scenario"]) {
+    if (node[field]) last = Math.max(last, lastLine(node[field], lines));
+  }
+  for (const child of node.children ?? []) {
+    last = Math.max(last, lastLine(child.background ?? child.scenario, lines));
+  }
+  return last;
+}
+
+function sourceRange(node, source) {
+  const start = Math.min(node.location.line, ...(node.tags ?? []).map((tag) => tag.location.line));
+  return source.span(start, lastLine(node, source.lines));
+}
+
+const storyFields = { Actor: "actor", Goal: "goal", Benefit: "benefit" };
+const caseFields = {
+  Actor: "actor", Boundary: "boundary", Trigger: "trigger", Precondition: "precondition", Success: "success",
+};
+
+function parseRuleDescription(rule, isCase, issue) {
+  const expected = isCase ? caseFields : storyFields;
+  const fields = {};
+  const outcomes = {};
+  const steps = {};
+  const refs = {};
+  let covers = null;
+  const malformed = (message) => issue(rule.location.line, message);
+  for (const line of rule.description.split("\n").map((line) => line.trim()).filter(Boolean)) {
+    const separator = line.indexOf(":");
+    const name = line.slice(0, separator);
+    const value = line.slice(separator + 1).trim();
+    if (separator >= 0 && name === "Context") break;
+    if (separator >= 0 && name === "Covers") {
+      const targets = value.split(",").map((target) => target.trim());
+      if (covers !== null || new Set(targets).size !== targets.length ||
+          targets.some((target) => !["FUNCTIONAL_REQUIREMENT", "NON_FUNCTIONAL_REQUIREMENT"].includes(localIdKind(target)))) {
+        malformed(`Rule ${rule.name} requires a list of local FR/NFR identifiers in Covers`);
+      } else covers = targets;
+      continue;
+    }
+    if (separator >= 0 && Object.hasOwn(expected, name)) {
+      const key = expected[name];
+      if (!value || Object.hasOwn(fields, key)) malformed(`Rule ${rule.name} requires exactly one nonempty ${name} field`);
+      else fields[key] = value;
+      continue;
+    }
+    const parts = value.split(" | ");
+    const [id, ...values] = parts;
+    const declaration = name === "ScenarioRef" ? [refs, 1]
+      : isCase && name === "Step" ? [steps, 1]
+      : isCase && name === "Branch" ? [outcomes, 4]
+      : !isCase && name === "Outcome" ? [outcomes, 1]
+      : null;
+    if (separator < 0 || !declaration || !keyPattern.test(id) ||
+        values.length !== declaration[1] || values.some((part) => part.trim() !== part || part === "" || part.includes(" | ")) ||
+        Object.hasOwn(declaration[0], id) || id === "constructor") {
+      malformed(`invalid or duplicate structured field on Rule ${rule.name}: ${line.slice(0, 120)}`);
+      continue;
+    }
+    declaration[0][id] = name === "ScenarioRef" ? values[0] : values;
+  }
+  for (const [name, key] of Object.entries(expected)) {
+    if (!Object.hasOwn(fields, key)) malformed(`Rule ${rule.name} is missing ${name}`);
+  }
+  for (const [id, ref] of Object.entries(refs)) {
+    if (!Object.hasOwn(outcomes, id) || !scenarioRefPattern.test(ref)) malformed(`Rule ${rule.name} has an invalid ScenarioRef for ${id}`);
+  }
+  if (isCase && Object.keys(steps).length === 0) malformed(`Rule ${rule.name} needs a Step`);
+  if (isCase) for (const [id, [decision, , , exit]] of Object.entries(outcomes)) {
+    if (!Object.hasOwn(steps, decision) || (exit !== "end" && !Object.hasOwn(steps, exit))) {
+      malformed(`Branch ${id} of ${rule.name} names an undefined step`);
+    }
+  }
+  return { ...fields, outcomes, steps, refs, covers: covers ?? [] };
+}
+
+function referenceTags(tags, locations) {
+  const result = [];
+  for (const { name, location } of tags) {
+    if (name.startsWith("@id:")) continue;
+    const feature = /^@feature([1-9][0-9]*)$/u.exec(name);
+    const tag = name.slice(1);
+    const qualified = /^([a-z0-9]+(?:-[a-z0-9]+)*):([A-Za-z][A-Za-z0-9.-]*)$/u.exec(tag);
+    if (feature || /^AC-[1-9][0-9]*\.[1-9][0-9]*$/u.test(tag)) {
+      result.push({ rawTarget: feature ? `FR-${feature[1]}` : tag, requestedEdgeType: "TESTED_BY", span: locations.span(location.line) });
+    } else if (!ruleTag.test(name) && qualified && localIdKind(qualified[2]) !== null) {
+      result.push({ rawTarget: tag, requestedEdgeType: "REFS", span: locations.span(location.line) });
+    }
+  }
+  return result;
 }
 
 export function parseGherkinDocument({ path, specSlug, text }) {
-  void path;
-  if (!isValidSpecSlug(specSlug)) {
-    return { positions: new Positions(text), diagnostics: [], scenarios: [] };
-  }
-  const positions = new Positions(text);
-  const lines = text.split("\n");
+  const source = sourceLocations(text);
   const diagnostics = [];
-  const scenarios = [];
-  let dialectReported = false;
-  let malformedReported = 0;
-
-  let featureName = "";
-  let featureTags = [];
-  let pendingTags = [];
-  let current = null;
-  let inExamples = false;
-  let examplesCurrent = null;
-  let docstringMarker = null;
-
-  const flushScenario = () => {
-    if (!current) return;
-    finalizeScenario(current, specSlug, featureName, positions, text);
-    scenarios.push(current);
-    current = null;
-    inExamples = false;
-    examplesCurrent = null;
+  const result = { positions: source.positions, diagnostics, scenarios: [], rules: [] };
+  const issue = (line, message, code = "MALFORMED_GHERKIN") => {
+    if (diagnostics.length < 30) diagnostics.push({ code, message: message.slice(0, 512), specSlug, span: source.span(line ?? 1) });
   };
-
-  for (let i = 0; i < lines.length; i += 1) {
-    const rawLine = lines[i];
-    const trimmed = rawLine.trim();
-
-    // Foreign-dialect detection on keyword-shaped lines (once per document).
-    if (!dialectReported && !trimmed.startsWith("#")) {
-      for (const keyword of FOREIGN_KEYWORDS) {
-        if (trimmed.startsWith(keyword)) {
-          dialectReported = true;
-          diagnostics.push({
-            code: "UNSUPPORTED_GHERKIN_DIALECT",
-            message: `non-English Gherkin keyword "${bound(keyword, 32)}" is not supported`,
-            span: spanForLine(positions, text, i),
-          });
-          break;
-        }
-      }
-      if (dialectReported) continue;
-    }
-
-    if (docstringMarker !== null) {
-      if (trimmed.startsWith(docstringMarker)) docstringMarker = null;
+  let parsed;
+  try {
+    parsed = parseFeature(text, path);
+  } catch (error) {
+    for (const item of error.errors ?? [error]) issue(item.location?.line, item.message);
+    return result;
+  }
+  const feature = parsed.ast.feature;
+  if (!feature) {
+    issue(1, "expected one Feature");
+    return result;
+  }
+  if (feature.language !== "en") {
+    issue(feature.location.line, "use English Gherkin keywords", "UNSUPPORTED_GHERKIN_DIALECT");
+    return result;
+  }
+  const enforce = canonicalDocumentKind(path.split("/").at(-1), specSlug);
+  const rows = new Map();
+  const scenariosByAstId = new Map();
+  let compilationSteps = 0;
+  let compilationBytes = 0;
+  const declaredTags = (node) => node.tags ?? [];
+  const misplaced = (tags) => tags.find(({ name }) => ruleTag.test(name) || name.startsWith("@id:") || name === "@spec-ready");
+  const invalidFeatureTag = misplaced(feature.tags);
+  if (invalidFeatureTag) issue(invalidFeatureTag.location.line, `${invalidFeatureTag.name} cannot be declared on Feature`);
+  const featureBackground = feature.children.find((child) => child.background)?.background;
+  for (const child of feature.children) {
+    if (child.background) continue;
+    if (!child.rule) {
+      issue(child.scenario.location.line, "scenarios belong to a story, use case or contract Rule");
       continue;
     }
-    const docstring = getGherkinDocstringMarker(rawLine);
-    if (docstring !== null) {
-      docstringMarker = docstring;
+    const { rule } = child;
+    const stories = rule.tags.filter(({ name }) => name.startsWith("@story:"));
+    const cases = rule.tags.filter(({ name }) => name.startsWith("@case:"));
+    const contracts = rule.tags.filter(({ name }) => name === "@contract");
+    const story = stories[0]?.name.slice(7) ?? null;
+    const useCase = cases[0]?.name.slice(6) ?? null;
+    const isCase = enforce === "USE_CASES";
+    const isContract = !isCase && contracts.length === 1 && stories.length === 0 && cases.length === 0;
+    const validStory = stories.length === 1 && /^US-[1-9]\d*$/u.test(story);
+    const valid = isContract || (validStory && contracts.length === 0 &&
+      (isCase ? cases.length === 1 && /^UC-[1-9]\d*$/u.test(useCase) : cases.length === 0));
+    if (!valid || rule.tags.some(({ name }) => name === "@spec-ready" || name.startsWith("@id:"))) {
+      issue(rule.location.line, isCase ? "use case Rule requires direct @case:UC-N and @story:US-N tags" : "story Rule requires @story:US-N or @contract");
       continue;
     }
-
-    if (trimmed === "" || trimmed.startsWith("#")) continue;
-    if (trimmed.startsWith("|") && !(current !== null && inExamples)) continue;
-
-    if (!current) {
-      const tagLine = GHERKIN_TAG_LINE_RE.exec(rawLine);
-      if (tagLine) {
-        for (const tag of tagLine[1].split(/[ \t]+/)) {
-          if (tag.startsWith("@")) pendingTags.push({ tag: tag.slice(1), line: i + 1 });
-        }
+    const localId = isCase ? useCase : story;
+    const fields = isContract ? null : parseRuleDescription(rule, isCase, issue);
+    const ownScenarios = rule.children.filter((item) => item.scenario).map((item) => item.scenario);
+    if (!isCase && ownScenarios.length === 0) issue(rule.location.line, "story or contract Rule needs its own scenario");
+    if (fields) result.rules.push({
+      localId, kind: isCase ? "USE_CASE" : "USER_STORY", name: rule.name, body: rule.description,
+      span: sourceRange(rule, source), attributes: { ...fields, storyId: story },
+    });
+    const background = rule.children.find((item) => item.background)?.background;
+    for (const scenario of ownScenarios) {
+      const line = scenario.location.line;
+      const idTags = scenario.tags.filter(({ name }) => name.startsWith("@id:"));
+      const scenarioId = idTags[0]?.name.slice(4);
+      if (idTags.length !== 1 || !scenarioIdPattern.test(scenarioId ?? "")) {
+        issue(line, "declare exactly one @id:SCEN-<slug> on the scenario", idTags.length > 1 ? "DUPLICATE_SCENARIO_ID_TAG" : "MISSING_SCENARIO_ID");
         continue;
       }
-    }
-
-    const featureMatch = /^[ ]*Feature:[ \t]*(.*)$/u.exec(rawLine);
-    if (featureMatch) {
-      featureName = featureMatch[1].trim();
-      // Gherkin semantics: feature-level tags are inherited by every scenario.
-      featureTags = pendingTags;
-      pendingTags = [];
-      continue;
-    }
-
-    if (/^[ ]*(Background|Rule):/u.test(rawLine)) {
-      flushScenario();
-      pendingTags = [];
-      continue;
-    }
-
-    const scenarioMatch = GHERKIN_SCENARIO_HEADER_RE.exec(rawLine);
-
-    if (scenarioMatch) {
-      flushScenario();
-      const header = scenarioMatch;
-      current = {
-        name: bound(header[2].trim(), 512),
-        keyword: header[1],
-        nameSpan: spanForLine(positions, text, i),
-        tags: [...featureTags, ...pendingTags],
-        steps: [],
-        examples: [],
-        refs: [],
-        descriptionLines: [],
+      if (scenario.tags.some(({ name }) => ruleTag.test(name))) issue(line, "story, case and contract tags belong to Rule");
+      const missing = missingScenarioSteps(scenario);
+      if (missing.length) issue(line, `${scenarioId} needs explicit ${missing.join("/")}`);
+      const tags = [...feature.tags, ...rule.tags, ...scenario.tags];
+      const traceRefs = referenceTags(tags, source);
+      const ready = scenario.tags.some(({ name }) => name === "@spec-ready");
+      if ((ready || isContract) && !traceRefs.some(({ requestedEdgeType }) => requestedEdgeType === "TESTED_BY")) {
+        issue(line, `${scenarioId} requires an FR or AC trace tag`);
+      }
+      const examples = [];
+      const exampleIds = new Set();
+      let substitutions = 0;
+      for (const example of scenario.examples) {
+        const tag = misplaced(declaredTags(example));
+        if (tag) issue(tag.location.line, `${tag.name} cannot be declared on Examples`);
+        const headers = example.tableHeader?.cells.map(({ value }) => value) ?? [];
+        const idIndex = headers.indexOf("example_id");
+        if (idIndex < 0 || headers.lastIndexOf("example_id") !== idIndex || !example.tableBody.length) {
+          issue(example.location.line, `${scenarioId} needs an Examples table with an example_id column and rows`);
+        }
+        const table = [];
+        for (const row of example.tableBody) {
+          const values = row.cells.map(({ value }) => value);
+          substitutions += values.reduce((bytes, value) => bytes + Buffer.byteLength(value), 0);
+          const id = values[idIndex] ?? "";
+          if (!keyPattern.test(id) || exampleIds.has(id)) issue(row.location.line, `invalid or duplicate example_id for ${scenarioId}`);
+          exampleIds.add(id);
+          rows.set(row.id, id);
+          table.push(values);
+        }
+        examples.push({ headers, rows: table });
+      }
+      if (scenario.keyword === "Scenario Outline" && exampleIds.size === 0) issue(line, `${scenarioId} needs Examples`);
+      const refs = [];
+      for (const match of scenario.description.matchAll(/^\s*Refs:[ \t]*([^\n]+)/gmu)) {
+        for (const rawTarget of match[1].trim().split(/[\s,]+/u)) refs.push({ rawTarget, requestedEdgeType: "REFS", span: source.span(line) });
+      }
+      const entry = {
+        localId: scenarioId, name: scenario.name, keyword: scenario.keyword, featureName: feature.name,
+        nameSpan: sourceRange(scenario, source), steps: scenario.steps.map(({ keyword, text }) => ({ keyword: keyword.trim(), text })),
+        tags: tags.map((tag) => ({ tag: tag.name.slice(1), line: tag.location.line })),
+        traceRefs, refs, storyId: story, caseId: useCase, contract: isContract, ready, examples, pickles: [],
       };
-      pendingTags = [];
-      inExamples = false;
-      continue;
-    }
-
-    if (current === null) continue;
-
-    if (GHERKIN_EXAMPLES_RE.test(rawLine)) {
-      inExamples = true;
-      examplesCurrent = null;
-      continue;
-    }
-
-    if (!inExamples) {
-      const step = STEP_RE.exec(trimmed);
-      if (step) {
-        current.steps.push({ keyword: step[1], text: bound(step[2].trim(), 1024) });
-        continue;
-      }
-    } else if (trimmed.startsWith("|")) {
-      const cells = splitTableRow(trimmed);
-      if (!examplesCurrent) {
-        examplesCurrent = { headers: cells.map((cell) => cell.text), rows: [] };
-        current.examples.push(examplesCurrent);
-      } else if (examplesCurrent.rows.length < 10000) {
-        examplesCurrent.rows.push(cells.map((cell) => cell.text));
-      }
-      continue;
-    }
-
-    // Scenario description prose; structured `Refs:` lines create references.
-    const refsField = /^(?:\*\*)?\s*Refs\s*(?:\*\*)?\s*:[ \t]*(.*)$/u.exec(trimmed);
-    if (refsField) {
-      for (const token of refsField[1].split(/[\s,]+/u)) {
-        if (token !== "") {
-          current.refs.push({
-            rawTarget: token,
-            requestedEdgeType: "REFS",
-            span: spanForLine(positions, text, i),
-          });
-        }
-      }
-      continue;
-    }
-    if (/^@/.test(trimmed)) {
-      // Mid-scenario tag lines attach to the next scenario.
-      for (const tag of trimmed.split(/[ \t]+/)) {
-        if (tag.startsWith("@")) pendingTags.push({ tag: tag.slice(1), line: i + 1 });
-      }
-      continue;
-    }
-    if (!inExamples && malformedReported < 20 && /^[A-Za-zÀ-ÿ]+[ \t]*:/u.test(trimmed)) {
-      malformedReported += 1;
-      diagnostics.push({
-        code: "MALFORMED_GHERKIN",
-        message: `unrecognized Gherkin block "${bound(trimmed, 96)}"`,
-        span: spanForLine(positions, text, i),
-      });
-    }
-    current.descriptionLines.push(trimmed);
-  }
-  flushScenario();
-
-  return { positions, diagnostics, scenarios };
-}
-
-// Split one Gherkin table row at pipes; boundary empties are dropped and cell
-// text is trimmed (matches markdown.js splitPipeCells semantics without spans).
-function splitTableRow(lineText) {
-  const cells = [];
-  let cellStart = 0;
-  let escaped = false;
-  const pushCell = (endIndex) => {
-    cells.push({ text: lineText.slice(cellStart, endIndex).trim() });
-  };
-  for (let i = 0; i < lineText.length; i += 1) {
-    const ch = lineText[i];
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    if (ch === "\\") {
-      escaped = true;
-      continue;
-    }
-    if (ch === "|") {
-      pushCell(i);
-      cellStart = i + 1;
+      compilationSteps += Math.max(1, exampleIds.size) *
+        (scenario.steps.length + (featureBackground?.steps.length ?? 0) + (background?.steps.length ?? 0));
+      const staticSteps = [...(featureBackground?.steps ?? []), ...(background?.steps ?? []), ...scenario.steps]
+        .map(({ text, docString, dataTable }) => [text, docString?.content, dataTable?.rows.map((row) => row.cells.map(({ value }) => value))]);
+      const stepText = JSON.stringify(staticSteps);
+      const placeholders = (stepText.match(/<[^<>]+>/gu) ?? []).length;
+      compilationBytes += Buffer.byteLength(stepText) * Math.max(1, exampleIds.size) + placeholders * substitutions;
+      scenariosByAstId.set(scenario.id, entry);
+      result.scenarios.push(entry);
     }
   }
-  pushCell(lineText.length);
-  if (cells.length > 1 && cells[0].text === "") cells.shift();
-  if (cells.length > 1 && cells[cells.length - 1].text === "") cells.pop();
-  return cells;
+  if (compilationSteps > 100_000 || compilationBytes > 16 * 1024 * 1024) {
+    issue(feature.location.line, "expanded Gherkin examples exceed the step or byte budget");
+  }
+  if (diagnostics.length) return result;
+  for (const pickle of compile(parsed.ast, path, parsed.ids)) {
+    const scenario = scenariosByAstId.get(pickle.astNodeIds[0]);
+    if (!scenario) continue;
+    const rowId = rows.get(pickle.astNodeIds[1]) ?? null;
+    const steps = pickle.steps.map(({ text, type, argument }) => ({ text, type, argument: argument ?? null }));
+    const sha256 = sha256Bytes(Buffer.from(canonicalJson(steps), "utf8"));
+    scenario.pickles.push({ rowId, sha256 });
+  }
+  return result;
 }
 
-const QUALIFIED_TAG_RE =
-  /^([a-z0-9]+(?:-[a-z0-9]+)*):([A-Za-z][A-Za-z0-9.-]*)$/u;
-
-function finalizeScenario(scenario, specSlug, featureName, positions, text) {
-  scenario.specSlug = specSlug;
-  scenario.featureName = featureName;
-  const idTags = scenario.tags.filter((entry) => entry.tag.startsWith("id:"));
-  if (idTags.length === 0) {
-    scenario.rejected = true;
-    scenario.rejectionCode = "MISSING_SCENARIO_ID";
-    scenario.localId = null;
-  } else if (idTags.length > 1) {
-    scenario.rejected = true;
-    scenario.rejectionCode = "DUPLICATE_SCENARIO_ID_TAG";
-    scenario.localId = null;
-  } else {
-    const candidate = idTags[0].tag.slice("id:".length);
-    if (!SCEN_ID_RE.test(candidate)) {
-      scenario.rejected = true;
-      scenario.rejectionCode = "MISSING_SCENARIO_ID";
-      scenario.localId = null;
-    } else {
-      scenario.rejected = false;
-      scenario.localId = candidate;
+export function gherkinPairFindings(stories, cases) {
+  const documents = [stories, cases].filter(Boolean);
+  const scenarios = documents.flatMap((doc) => doc.scenarios);
+  const knownStories = new Set((stories?.rules ?? []).map(({ localId }) => localId));
+  const findings = [];
+  const definitions = new Set();
+  for (const doc of documents) {
+    const entries = [...doc.rules.map((rule) => ({ localId: rule.localId, span: rule.span })),
+      ...doc.scenarios.map((scenario) => ({ localId: scenario.localId, span: scenario.nameSpan }))];
+    for (const { localId, span } of entries) {
+      if (definitions.has(localId)) findings.push({ code: "MALFORMED_GHERKIN", span, document: doc, message: `duplicate Gherkin ID ${localId} in the specification` });
+      definitions.add(localId);
     }
   }
-
-  // Tag-derived trace references with full spans.
-  scenario.traceRefs = [];
-  for (const entry of scenario.tags) {
-    if (entry.tag.startsWith("id:")) continue;
-    const featureRef = /^feature([1-9][0-9]*)$/u.exec(entry.tag);
-    if (featureRef) {
-      scenario.traceRefs.push({
-        rawTarget: `FR-${featureRef[1]}`,
-        requestedEdgeType: "TESTED_BY",
-        span: spanForLine(positions, text, entry.line - 1),
-      });
-      continue;
-    }
-    if (acTagRef(entry.tag)) {
-      scenario.traceRefs.push({
-        rawTarget: entry.tag,
-        requestedEdgeType: "TESTED_BY",
-        span: spanForLine(positions, text, entry.line - 1),
-      });
-      continue;
-    }
-    const qualified = QUALIFIED_TAG_RE.exec(entry.tag);
-    if (qualified && localIdShaped(qualified[2])) {
-      scenario.traceRefs.push({
-        rawTarget: entry.tag,
-        requestedEdgeType: "REFS",
-        span: spanForLine(positions, text, entry.line - 1),
-      });
+  for (const doc of documents) for (const rule of doc.rules) {
+    const { storyId, refs } = rule.attributes;
+    const fail = (message) => findings.push({ code: "MALFORMED_GHERKIN", span: rule.span, message, rule: rule.localId, document: doc });
+    if (rule.kind === "USE_CASE" && !knownStories.has(storyId)) fail(`${rule.localId} must reference an existing story in this specification: ${storyId}`);
+    for (const ref of Object.values(refs)) {
+      const match = scenarioRefPattern.exec(ref);
+      if (!match) continue;
+      const [, scenarioId, rowId] = match;
+      const candidates = scenarios.filter((entry) => entry.localId === scenarioId);
+      const candidate = candidates[0];
+      if (candidates.length !== 1 || candidate.storyId !== storyId ||
+          (rule.kind === "USE_CASE" && candidate.caseId !== null && candidate.caseId !== rule.localId) ||
+          !candidate.pickles.some((pickle) => pickle.rowId === (rowId ?? null))) {
+        fail(`${rule.localId} has an unresolved or out-of-scope ScenarioRef: ${ref}`);
+      }
     }
   }
+  return findings;
 }
 
-function acTagRef(tag) {
-  return /^AC-[1-9][0-9]*\.[1-9][0-9]*$/u.test(tag);
-}
-
-function localIdShaped(localPart) {
-  return (
-    localIdKind(localPart) !== null ||
-    localPart.startsWith("DOC:") ||
-    localPart.startsWith("FILE:")
-  );
+export function protectedScenarios(document) {
+  return document.scenarios.filter(({ ready }) => ready).map(({ localId, pickles, tags }) => ({
+    localId, pickles, tags: tags.map(({ tag }) => tag),
+  }));
 }

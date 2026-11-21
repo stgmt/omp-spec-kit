@@ -2,9 +2,9 @@
 /**
  * Live corpus check through the spec registry (consumer view).
  *
- * The canonical corpus is not present in this repository and no consumer gets
- * git access to the specs repository — the service is the only writer and the
- * only reader path. This gate therefore asks the service what it serves and
+ * The canonical corpus is not present on this code branch (it lives on the
+ * orphan `spec-<slug>` branches) and no consumer gets git access to those
+ * branches — the service is the only writer and the only reader path. This gate therefore asks the service what it serves and
  * asserts the invariants a consumer depends on: the expected specification set,
  * the expected document count, a valid graph, and zero error diagnostics.
  *

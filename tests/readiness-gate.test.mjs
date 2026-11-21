@@ -33,32 +33,6 @@ async function cpFixtureCorpus(root) {
   );
 }
 
-const DESIGN_REVIEW = {
-  schemaVersion: "omp-spec-kit/design-review@1",
-  decision: "proceed",
-  boundary: {
-    kind: "user-visible-contract",
-    name: "scenario traceability gate",
-    claim: "a scenario enters the corpus only with @featureN or @AC-N.M",
-  },
-  evidence: [
-    { kind: "test", reference: "tests/readiness-gate.test.mjs", observation: "this suite drives both an untagged and a tagged scenario" },
-    { kind: "source", reference: "src/authoring/proposals.js", observation: "the compiler reads scenario tags before any write" },
-  ],
-  alternatives: [{ option: "allow untagged scenarios", reasonRejected: "a scenario with no incoming edge cannot be traced to a requirement" }],
-  selfTestCheck: {
-    status: "passed",
-    mutation: "failed-as-expected",
-    command: "node --test tests/readiness-gate.test.mjs",
-    hypothesis: "an untagged scenario is refused while a criterion-tagged one is accepted",
-    answer: "the untagged scenario is refused with SCENARIO_NOT_TRACEABLE",
-    positiveCase: "scenario tagged @AC-1.1",
-    negativeCase: "scenario tagged only @id:",
-    expectedFailure: "SCENARIO_NOT_TRACEABLE when the traceability rule is removed",
-    observedFailure: "untagged scenario accepted when the rule is removed",
-  },
-};
-
 async function writeStubSpec(root, slug) {
   const dir = path.join(root, specsDirName, slug);
   await mkdir(dir, { recursive: true });
@@ -67,16 +41,17 @@ async function writeStubSpec(root, slug) {
   await writeFile(path.join(dir, "FR.md"), "# Functional requirements\n\nStatus: DRAFT\n");
   await writeFile(path.join(dir, "ACCEPTANCE_CRITERIA.md"), "# Acceptance criteria\n\nStatus: DRAFT\n");
   await writeFile(path.join(dir, "TASKS.md"), "# Tasks\n\nStatus: DRAFT\n");
-  await writeFile(path.join(dir, `${slug}.feature`), "Feature: Stub\n");
+  await writeFile(path.join(dir, `${slug}-user-stories.feature`), "Feature: Stub stories\n");
+  await writeFile(path.join(dir, `${slug}-use-cases.feature`), "Feature: Stub cases\n");
 }
 
 describe("readiness verdict", () => {
-  it("reports L2, the top rung the corpus can prove, for an assembled specification", async () => {
+  it("reports L3, the top rung the corpus can prove, for an assembled specification", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "omp-readiness-l2-"));
     try {
       await cpFixtureCorpus(root);
       const verdict = specReadiness(await graphAt(root), SPEC);
-      assert.equal(verdict.level, "L2");
+      assert.equal(verdict.level, "L3");
       assert.equal(verdict.nextLevel, null, "the ladder stops where the corpus stops");
       assert.equal(verdict.reached.design, true);
       assert.deepEqual(
@@ -109,7 +84,7 @@ describe("readiness verdict", () => {
       );
       await writeFile(path.join(dir, "DESIGN.md"), `# Design\n\nStatus: DRAFT\n\n${"Assembled design context. ".repeat(20)}\n`);
       await writeFile(path.join(dir, "TASKS.md"), "# Tasks\n\nStatus: DRAFT\n");
-      await writeFile(path.join(dir, "nfr-spec.feature"), "Feature: NFR spec\n");
+      await writeFile(path.join(dir, "nfr-spec-user-stories.feature"), "Feature: NFR spec\n");
       const verdict = specReadiness(await graphAt(root), "nfr-spec");
       // L1 is reached: a non-functional requirement is a requirement, and the
       // admission gate accepts its id as a traceable parent.
@@ -180,7 +155,7 @@ describe("task admission", () => {
     assert.match(result.error.fix[0].arguments.operations[0].text, /^\n## FR-1 — /u);
   });
 
-  it("clears the ladder with the fix calls its own refusals return", async () => {
+  it("replays returned fixes until domain-authored documents are needed", async () => {
     const service = serviceAt(root);
     let refusals = 0;
     for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -197,13 +172,20 @@ describe("task admission", () => {
       if (result.ok) break;
       assert.equal(result.error.code, "SPEC_NOT_READY", JSON.stringify(result.error ?? {}));
       const step = result.error.fix[0];
+      if (!step) break;
       assert.equal(step.tool, "spec_patch");
-      const applied = await service.execute({
-        ...step.arguments,
-        dryRun: false,
-        requestId: `readiness-fix-${attempt}`,
-      });
+      assert.ok(step.arguments.requestId);
+      const file = path.join(root, specsDirName, "stub-spec", step.arguments.operations[0].document);
+      const before = await readFile(file, "utf8");
+      const preview = await service.execute(step.arguments);
+      assert.equal(preview.ok, true, JSON.stringify(preview.error ?? {}).slice(0, 300));
+      assert.equal(preview.data.outcome, "PREVIEW");
+      assert.equal(await readFile(file, "utf8"), before, "replaying a suggestion must not write");
+      // An explicit apply exercises the existing compiler path, not a recommendation
+      // to accept the suggested scaffold as domain-authored content.
+      const applied = await service.execute({ ...step.arguments, dryRun: false });
       assert.equal(applied.ok, true, JSON.stringify(applied.error ?? {}).slice(0, 300));
+      assert.equal(applied.data.outcome, "APPLIED");
       refusals += 1;
     }
     // Three rungs, three calls: the plan is not advisory.
@@ -211,6 +193,85 @@ describe("task admission", () => {
     const verdict = specReadiness(await graphAt(root), "stub-spec");
     assert.equal(verdict.level, "L2", JSON.stringify(verdict.blockers));
     assert.equal(verdict.firstRequirement, "FR-1");
+  });
+
+  it("refuses a functional requirement while REQUIREMENTS.md is the scaffold", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "omp-readiness-chain-"));
+    try {
+      await cpFixtureCorpus(root);
+      const requirements = path.join(root, specsDirName, SPEC, "REQUIREMENTS.md");
+      await writeFile(requirements, "# Requirements Summary\n\nStatus: DRAFT\n", "utf8");
+      const attempt = await serviceAt(root).execute({
+        requestId: "readiness-chain-fr-first",
+        intent: "patch",
+        spec: SPEC,
+        reason: "add an FR before the requirement index",
+        dryRun: true,
+        operations: [
+          {
+            kind: "insert_at_eof",
+            document: "FR.md",
+            text: "\n## FR-77 — Ordered write\n\nA requirement written before its index.\n",
+          },
+        ],
+      });
+      assert.equal(attempt.ok, false, "an FR on a scaffold requirement index must be refused");
+      assert.equal(attempt.error.code, "REQUIREMENTS_DOC_REQUIRED", JSON.stringify(attempt.error ?? {}).slice(0, 300));
+      const step = attempt.error.fix.find(
+        (entry) => entry.arguments?.operations?.[0]?.document === "REQUIREMENTS.md",
+      );
+      assert.equal(step, undefined, "an authored index must not be replaced by a generic template");
+      assert.equal(await readFile(requirements, "utf8"), "# Requirements Summary\n\nStatus: DRAFT\n");
+      await writeFile(requirements, `# Requirements Summary\n\n${"The owner maintains this requirement index and its traceability. ".repeat(5)}\n`);
+      const retried = await serviceAt(root).execute({
+        requestId: "readiness-chain-fr-after",
+        intent: "patch",
+        spec: SPEC,
+        reason: "add an FR after the requirement index exists",
+        dryRun: true,
+        operations: [
+          {
+            kind: "insert_at_eof",
+            document: "FR.md",
+            text: "\n## FR-77 — Ordered write\n\nA requirement written after its index.\n",
+          },
+        ],
+      });
+      assert.equal(retried.ok, true, JSON.stringify(retried.error ?? {}).slice(0, 300));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not replace short authored indexes or schemas with placeholder content", async () => {
+    await cpFixtureCorpus(root);
+    const dir = path.join(root, specsDirName, SPEC);
+    const index = "# Requirements\n\nBoundary: preserve the owner's payment rules.\n";
+    const schema = "# Schema\n\nReceipt: signed by the owner.\n";
+    await writeFile(path.join(dir, "REQUIREMENTS.md"), index);
+    await writeFile(path.join(dir, `${SPEC}_SCHEMA.md`), schema);
+    const service = serviceAt(root);
+    const result = await service.execute({ requestId: "authored-docs", intent: "confirmTaskCreation", spec: SPEC,
+      reason: "admission", dryRun: true, entity: "TASK-900", subject: "Test", requirements: ["FR-1"] });
+    assert.equal(result.error.code, "SPEC_NOT_READY");
+    assert.ok(result.error.blockers.some((entry) => entry.code === "NO_REQUIREMENTS_DOC"));
+    assert.ok(result.error.blockers.some((entry) => entry.code === "NO_SCHEMA"));
+    assert.ok(result.error.fix.every((step) => !["REQUIREMENTS.md", `${SPEC}_SCHEMA.md`].includes(step.arguments.operations[0].document)));
+    assert.equal(await readFile(path.join(dir, "REQUIREMENTS.md"), "utf8"), index);
+    assert.equal(await readFile(path.join(dir, `${SPEC}_SCHEMA.md`), "utf8"), schema);
+  });
+
+  it("refuses a stale returned fix without changing the author's edit", async () => {
+    const file = path.join(root, specsDirName, "stub-spec", "FR.md");
+    const service = serviceAt(root);
+    const result = await service.execute({ requestId: "stale-plan", intent: "confirmTaskCreation", spec: "stub-spec",
+      reason: "admission", dryRun: true, entity: "TASK-1", subject: "Test", requirements: ["FR-1"] });
+    const step = result.error.fix[0];
+    const authored = "# Functional requirements\n\nOwner's new text.\n";
+    await writeFile(file, authored);
+    const replay = await service.execute(step.arguments);
+    assert.equal(replay.error?.code ?? replay.data?.error?.code, "CONFLICT", JSON.stringify(replay));
+    assert.equal(await readFile(file, "utf8"), authored);
   });
 
   it("refuses a task that names no requirement of this specification", async () => {
@@ -235,7 +296,7 @@ describe("task admission", () => {
     }
   });
 
-  it("accepts a task whose requirement is defined in the same proposal", async () => {
+  it("sees a requirement defined in the same proposal and still requires approved task coverage", async () => {
     // A proposal may define what it references. The definition is written here
     // as a Setext heading, which the kernel reads exactly like `## FR-5`.
     const assembled = await mkdtemp(path.join(tmpdir(), "omp-readiness-batch-"));
@@ -262,13 +323,13 @@ describe("task admission", () => {
           },
         ],
       });
-      assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
+      assert.equal(result.error?.code, "BDD_COVERAGE_INCOMPLETE", JSON.stringify(result.error));
     } finally {
       await rm(assembled, { recursive: true, force: true });
     }
   });
 
-  it("gives a backlog refusal a plan that applies as written", async () => {
+  it("gives a traced task proposal that still needs coverage approval", async () => {
     const assembled = await mkdtemp(path.join(tmpdir(), "omp-readiness-backlog-plan-"));
     try {
       await cpFixtureCorpus(assembled);
@@ -286,12 +347,13 @@ describe("task admission", () => {
       const step = refused.error.fix[0];
       assert.equal(step.tool, "spec_patch");
       assert.equal(step.arguments.intent, "confirmTaskCreation");
-      // The plan names a free id and a requirement that exists, so replaying it
-      // is admitted instead of colliding with TASK-1 or naming a missing FR.
+      // The plan names a free id and an existing requirement. Admission also
+      // requires the owner to approve examples for that requirement.
       assert.match(step.arguments.entity, /^TASK-[1-9][0-9]*$/u);
       assert.equal(step.arguments.requirements.length, 1);
-      const applied = await service.execute({ ...step.arguments, dryRun: true, requestId: "backlog-plan-2" });
-      assert.equal(applied.ok, true, JSON.stringify(applied.error ?? {}).slice(0, 300));
+      assert.ok(step.arguments.requestId);
+      const applied = await service.execute(step.arguments);
+      assert.equal(applied.error?.code, "BDD_COVERAGE_INCOMPLETE", JSON.stringify(applied.error));
     } finally {
       await rm(assembled, { recursive: true, force: true });
     }
@@ -326,8 +388,11 @@ describe("task admission", () => {
     assert.deepEqual(refused.error.blockers.map((entry) => entry.code), ["NO_DESIGN"]);
     const step = refused.error.fix[0];
     assert.match(step.arguments.operations[0].text, /^\n## DEC-2 — /u);
-    const applied = await service.execute({ ...step.arguments, dryRun: false, requestId: "design-fix-2" });
+    const preview = await service.execute(step.arguments);
+    assert.equal(preview.data?.outcome, "PREVIEW", JSON.stringify(preview));
+    const applied = await service.execute({ ...step.arguments, dryRun: false });
     assert.equal(applied.ok, true, JSON.stringify(applied.error ?? {}).slice(0, 300));
+    assert.equal(applied.data.outcome, "APPLIED");
   });
 
   it("gives a backlog refusal the ladder plan while the corpus cannot admit a task", async () => {
@@ -627,67 +692,29 @@ describe("scenario traceability", () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it("refuses a scenario that carries no requirement or criterion tag", async () => {
-    const result = await serviceAt(root).execute({
-      requestId: "readiness-scenario-untagged",
-      intent: "patch",
-      spec: SPEC,
-      reason: "traceability",
-      dryRun: true,
-      designReview: DESIGN_REVIEW,
-      operations: [
-        {
-          kind: "insert_at_eof",
-          document: `${SPEC}.feature`,
-          text: "\n  @id:SCEN-untagged\n  Scenario: Untagged\n    Given nothing\n",
-        },
-      ],
-    });
-    assert.equal(result.ok, false);
-    assert.equal(result.error.code, "SCENARIO_NOT_TRACEABLE");
-    assert.equal(result.error.scenario, "SCEN-untagged");
-    assert.deepEqual(result.error.acceptedTags, ["@featureN", "@AC-N.M"]);
+  const contract = (tag = "") => ({
+    kind: "insert_at_eof",
+    document: `${SPEC}-user-stories.feature`,
+    text: `\n  @contract\n  Rule: Traceable contract\n    @id:SCEN-contract ${tag}\n    Scenario: Traceable result\n      Given a request\n      When the caller submits it\n      Then the result is visible\n`,
   });
 
-  it("refuses a scenario whose only tag points at another specification", async () => {
-    const result = await serviceAt(root).execute({
-      requestId: "readiness-scenario-foreign",
-      intent: "patch",
-      spec: SPEC,
-      reason: "traceability",
-      dryRun: true,
-      designReview: DESIGN_REVIEW,
-      operations: [
-        {
-          kind: "insert_at_eof",
-          document: `${SPEC}.feature`,
-          text: "\n  @id:SCEN-foreign\n  @other-spec:FR-1\n  Scenario: Foreign\n    Given nothing\n",
-        },
-      ],
+  for (const tag of ["", "@other-spec:FR-1"]) {
+    it(`refuses a contract with only "${tag}" as its trace`, async () => {
+      const result = await serviceAt(root).execute({
+        requestId: "readiness-contract-refused", intent: "patch", spec: SPEC,
+        reason: "Verify local trace", dryRun: true, operations: [contract(tag)],
+      });
+      assert.equal(result.error?.code, "VALIDATION_FAILED");
+      assert.match(JSON.stringify(result.error.findings), /requires an FR or AC trace tag/u);
     });
-    // A qualified tag parses as a reference, but not to this specification's
-    // requirement or criterion, so it is not a trace into this spec.
-    assert.equal(result.ok, false);
-    assert.equal(result.error.code, "SCENARIO_NOT_TRACEABLE");
-  });
+  }
 
-  it("accepts a scenario that carries a criterion tag", async () => {
+  it("accepts a draft contract that carries a local criterion tag", async () => {
     const result = await serviceAt(root).execute({
-      requestId: "readiness-scenario-tagged",
-      intent: "patch",
-      spec: SPEC,
-      reason: "traceability",
-      dryRun: true,
-      designReview: DESIGN_REVIEW,
-      operations: [
-        {
-          kind: "insert_at_eof",
-          document: `${SPEC}.feature`,
-          text: "\n  @id:SCEN-tagged\n  @AC-1.1\n  Scenario: Tagged\n    Given nothing\n",
-        },
-      ],
+      requestId: "readiness-contract-linked", intent: "patch", spec: SPEC,
+      reason: "Verify local trace", dryRun: true, operations: [contract("@AC-1.1")],
     });
-    assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
+    assert.equal(result.ok, true, JSON.stringify(result.error));
   });
 });
 

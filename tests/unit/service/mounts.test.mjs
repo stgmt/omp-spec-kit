@@ -83,7 +83,8 @@ describe("mount manager", () => {
     const store = storeWith(project);
     const mounts = new MountManager({ config: config(), cloneDir: dir, store });
     const mount = mounts.for(project);
-    assert.equal(mounts.cacheRootFor(project, mount), path.join(mount.cwd, "projects", "stgmt__omp-spec-kit"));
+    assert.equal(path.dirname(mounts.cacheRootFor(project, mount)), path.join(mount.cwd, "projects"));
+    assert.notEqual(mounts.cacheRootFor("a__/b", mount), mounts.cacheRootFor("a/__b", mount));
     await assert.rejects(() => mounts.resolveProjectRoot("../outside"), ConfigError);
   });
 

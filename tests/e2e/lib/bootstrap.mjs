@@ -29,7 +29,20 @@ export const APP_NAME = "spec-graph-app";
 
 const SEED_FILES = Object.freeze({
   "README.md": "# Alpha Spec\n\nStatus: DRAFT\n\nSeeded corpus for the live auth E2E.\n",
-  "alpha-spec.feature": "Feature: Alpha seeded corpus\n\n  @id:SCEN-alpha-seeded\n  Scenario: seeded corpus is readable\n    Given the seeded corpus exists\n    Then an authorized caller can read it\n",
+  "alpha-spec-user-stories.feature": `Feature: Alpha seeded corpus
+  @story:US-1
+  Rule: Read the specification
+    Actor: Authorized caller
+    Goal: Read the seeded specification
+    Benefit: Verify access to the selected project
+    Covers: FR-1
+    @feature1 @id:SCEN-alpha-seeded
+    Scenario: Seeded corpus is readable
+      Given the seeded corpus exists
+      When an authorized caller reads the project
+      Then the caller receives the Alpha specification
+`,
+  "alpha-spec-use-cases.feature": "Feature: Alpha access cases\n",
   "CHANGELOG.md": "# Changelog\n\nStatus: DRAFT\n\n- seeded corpus for the live auth E2E.\n",
   "TASKS.md": "# Tasks\n\nStatus: DRAFT\n\n## TASK-1 - seed task\n- **Status:** todo\n- **Done When:** seeded corpus is readable.\n- **Requirements:** FR-1\n",
   "FR.md": "# Functional requirements\n\nStatus: DRAFT\n\n## FR-1 — seeded requirement\n\nThe system SHALL expose the seeded spec to authorized callers only.\n",

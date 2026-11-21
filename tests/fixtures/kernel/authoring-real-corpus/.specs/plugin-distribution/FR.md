@@ -225,7 +225,7 @@ contract:
     evidence_policy: {source: runtime, freshness: current, independent: true}
 ```
 
-**Related AC:** [AC-19.1](ACCEPTANCE_CRITERIA.md#ac-191-active-project-and-contained-override). **Use Case:** [UC-11](USE_CASES.md#uc-11-launch-from-the-active-project).
+**Related AC:** [AC-19.1](ACCEPTANCE_CRITERIA.md#ac-191-active-project-and-contained-override). **Use Case:** `UC-11`.
 
 ## FR-20: Terminal protocol errors and recovery
 
@@ -260,7 +260,7 @@ contract:
     evidence_policy: {source: runtime, freshness: current, independent: true}
 ```
 
-**Related AC:** [AC-20.1](ACCEPTANCE_CRITERIA.md#ac-201-one-error-and-process-recovery). **Use Case:** [UC-12](USE_CASES.md#uc-12-recover-after-an-invalid-protocol-frame).
+**Related AC:** [AC-20.1](ACCEPTANCE_CRITERIA.md#ac-201-one-error-and-process-recovery). **Use Case:** `UC-12`.
 
 ## FR-21: Historical eight-tool installed surface
 
@@ -295,7 +295,7 @@ contract:
     evidence_policy: {source: runtime, freshness: current, independent: true}
 ```
 
-**Related AC:** [AC-21.1](ACCEPTANCE_CRITERIA.md#ac-211-eight-installed-handlers-and-zero-writes). **Use Case:** [UC-13](USE_CASES.md#uc-13-exercise-the-historical-v032-surface).
+**Related AC:** [AC-21.1](ACCEPTANCE_CRITERIA.md#ac-211-eight-installed-handlers-and-zero-writes). **Use Case:** `UC-13`.
 
 ## FR-22: One real candidate run
 
@@ -330,7 +330,7 @@ contract:
     evidence_policy: {source: runtime, freshness: current, independent: true}
 ```
 
-**Related AC:** [AC-22.1](ACCEPTANCE_CRITERIA.md#ac-221-unfiltered-run-and-observed-lifecycle). **Use Case:** [UC-14](USE_CASES.md#uc-14-run-a-future-candidate-journey).
+**Related AC:** [AC-22.1](ACCEPTANCE_CRITERIA.md#ac-221-unfiltered-run-and-observed-lifecycle). **Use Case:** `UC-14`.
 
 ## FR-23: Contained deterministic candidate and same-byte publication
 
@@ -365,7 +365,7 @@ contract:
     evidence_policy: {source: external, freshness: current, independent: true}
 ```
 
-**Related AC:** [AC-23.1](ACCEPTANCE_CRITERIA.md#ac-231-publish-only-the-attested-candidate-bytes). **Use Case:** [UC-15](USE_CASES.md#uc-15-publish-the-verified-archive).
+**Related AC:** [AC-23.1](ACCEPTANCE_CRITERIA.md#ac-231-publish-only-the-attested-candidate-bytes). **Use Case:** `UC-15`.
 
 ## FR-24: Public guidance and immutable v0.3.2 evidence
 
@@ -400,7 +400,7 @@ contract:
     evidence_policy: {source: external, freshness: current, independent: true}
 ```
 
-**Related AC:** [AC-24.1](ACCEPTANCE_CRITERIA.md#ac-241-public-history-remains-honest). **Use Case:** [UC-16](USE_CASES.md#uc-16-read-immutable-v032-evidence).
+**Related AC:** [AC-24.1](ACCEPTANCE_CRITERIA.md#ac-241-public-history-remains-honest). **Use Case:** `UC-16`.
 
 ## FR-25: Response source identity and root consistency
 
@@ -439,7 +439,7 @@ contract:
     evidence_policy: {source: runtime, freshness: current, independent: true}
 ```
 
-**Related AC:** [AC-25.1](ACCEPTANCE_CRITERIA.md#ac-251-response-source-identity-and-root-consistency). **Use Case:** [UC-17](USE_CASES.md#uc-17-distinguish-the-active-and-overridden-project).
+**Related AC:** [AC-25.1](ACCEPTANCE_CRITERIA.md#ac-251-response-source-identity-and-root-consistency). **Use Case:** `UC-17`.
 
 ## FR-26: Consolidated 10-tool MCP discovery and release evidence
 
@@ -474,4 +474,4 @@ contract:
     evidence_policy: {source: runtime, freshness: current, independent: true}
 ```
 
-**Related AC:** [AC-26.1](ACCEPTANCE_CRITERIA.md#ac-261-consolidated-10-tool-mcp-discovery-and-release-evidence). **Use Case:** [UC-18](USE_CASES.md#uc-18-discover-consolidated-10-tool-surface).
+**Related AC:** [AC-26.1](ACCEPTANCE_CRITERIA.md#ac-261-consolidated-10-tool-mcp-discovery-and-release-evidence). **Use Case:** `UC-18`.

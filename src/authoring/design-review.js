@@ -1,4 +1,5 @@
-import { hasGherkinScenarioHeader } from "../kernel/gherkin-syntax.js";
+import { parseGherkinDocument, protectedScenarios } from "../kernel/parsers/gherkin.js";
+import { canonicalJson } from "../kernel/normalize.js";
 
 const DESIGN_REVIEW_SCHEMA = "omp-spec-kit/design-review@1";
 const REVIEW_KEYS = new Set(["schemaVersion", "decision", "boundary", "evidence", "alternatives", "selfTestCheck"]);
@@ -173,7 +174,9 @@ function scenarioDocumentChange(change) {
   if (!change || typeof change.document !== "string" || !/\.feature$/iu.test(change.document)) return false;
   const before = asText(change.beforeBytes);
   const after = asText(change.afterBytes);
-  return before !== after && (hasGherkinScenarioHeader(before) || hasGherkinScenarioHeader(after));
+  if (before === after) return false;
+  const selected = (text) => protectedScenarios(parseGherkinDocument({ path: change.document, specSlug: change.spec, text }));
+  return canonicalJson(selected(before)) !== canonicalJson(selected(after));
 }
 
 export const DESIGN_REVIEW_SCHEMA_VERSION = DESIGN_REVIEW_SCHEMA;

@@ -46,7 +46,9 @@ export async function prepareToolE2EFixtures(projectRoot) {
     "utf8",
   );
   await writeFile(path.join(testSpecDir, "ACCEPTANCE_CRITERIA.md"), "# Acceptance Criteria\n", "utf8");
-  await writeFile(path.join(testSpecDir, "e2e-spec.feature"), "Feature: E2E\n", "utf8");
+  for (const kind of ["user-stories", "use-cases"]) {
+    await writeFile(path.join(testSpecDir, `e2e-spec-${kind}.feature`), "Feature: E2E\n", "utf8");
+  }
   await writeFile(path.join(testSpecDir, "e2e-spec_SCHEMA.md"), "# Schema\n", "utf8");
 }
 

@@ -6,7 +6,7 @@
 
 import { lstat, readdir, realpath, readFile } from "node:fs/promises";
 import path from "node:path";
-import { FIXED_DOCUMENT_FILES } from "../types.js";
+import { canonicalDocumentKind, isLegacySpecificationDocument } from "../types.js";
 import { isValidSpecSlug } from "../identity.js";
 
 export class AdapterContainmentError extends Error {
@@ -123,7 +123,7 @@ export async function readRepositorySpecs({ root, limits } = {}) {
         return adapterFailure(error, diagnostics, "ADAPTER_CONTAINMENT_ERROR");
       }
       const filename = docEntry.name;
-      if (!isCanonicalDocumentName(filename, slug)) continue;
+      if (!isCanonicalDocumentName(filename, slug) && !isLegacySpecificationDocument(filename, slug)) continue;
       const relativePath = `${relativeSpecDir}/${filename}`;
       if (Buffer.byteLength(relativePath, "utf8") > budgets.maxPathBytes) {
         diagnostics.push(sanitizedDiagnostic("PATH_ESCAPE", relativePath));
@@ -202,13 +202,5 @@ function adapterFailure(error, diagnostics, fallbackCode) {
 // ROADMAP.md is conditional: only canonical for roadmap-* specs (slug-prefix
 // detection is authoritative; see .specs/roadmap-roadmaps/REQUIREMENTS.md).
 export function isCanonicalDocumentName(filename, specSlug) {
-  for (const kind of Object.keys(FIXED_DOCUMENT_FILES)) {
-    if (FIXED_DOCUMENT_FILES[kind] === filename) {
-      if (kind === "ROADMAP") {
-        return typeof specSlug === "string" && specSlug.startsWith("roadmap-");
-      }
-      return true;
-    }
-  }
-  return filename === `${specSlug}.feature` || filename === `${specSlug}_SCHEMA.md`;
+  return canonicalDocumentKind(filename, specSlug) !== null;
 }

@@ -17,6 +17,7 @@ const SOURCE_TREES = Object.freeze([
   { source: "src/authoring", output: "authoring" },
   { source: "src/enforcement", output: "enforcement" },
   { source: "src/gate", output: "gate" },
+  { source: "src/service", output: "service", files: ["proposal-review.js"] },
 ]);
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -134,7 +135,7 @@ for (const name of SOURCE_FILES) {
 for (const tree of SOURCE_TREES) {
   const sourceTreeRoot = path.join(repositoryRoot, tree.source);
   const outputTreeRoot = path.join(distRoot, tree.output);
-  const treeSources = await collectTree(sourceTreeRoot, tree.source);
+  const treeSources = tree.files ?? await collectTree(sourceTreeRoot, tree.source);
   for (const relative of treeSources) {
     const absoluteSource = path.join(sourceTreeRoot, relative);
     await requireRegularFile(absoluteSource, `${tree.source}/${relative}`);

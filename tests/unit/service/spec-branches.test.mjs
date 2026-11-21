@@ -11,6 +11,14 @@ import { scopeFromContext } from "../../../src/service/scope.js";
 import { BRANCH_CONTRACTS, createBranchOps } from "../../../src/service/ops/branch.js";
 import { createSpecBranchManager } from "../../../src/service/spec-branches.js";
 import { publishTagName } from "../../../src/service/publish.js";
+import { buildServiceStack } from "../../../src/service/index.js";
+import { seedDemo } from "../../../skills/spec-stack-setup/seed-demo.mjs";
+import { fileURLToPath } from "node:url";
+import { once } from "node:events";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { createServiceApp } from "../../../src/service/http.js";
+import { createStore } from "../../../src/service/ledger.js";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
@@ -48,7 +56,7 @@ async function setup() {
   };
   const mounts = new MountManager({ config, cloneDir: path.join(base, "clone"), store, identity: IDENTITY, logger: () => {} });
   const manager = createSpecBranchManager({ mounts, identity: IDENTITY, logger: () => {}, store: { getLedger: () => [] }, dependents: async () => [] });
-  return { base, bare, mounts, manager };
+  return { base, bare, mounts, manager, config };
 }
 
 /** Two projects bound to the SAME repository: the branch namespace is shared. */
@@ -97,6 +105,59 @@ async function markDemo(bare, manager, { project = PROJECT, spec = "demo-spec", 
 }
 
 describe("spec_branch", () => {
+  it("seeds and reruns the shipped demo through HTTP MCP and Git", async (t) => {
+    const { base, bare, mounts, config } = await setup();
+    const store = await createStore({ file: path.join(base, "demo.db") });
+    t.after(() => store.close());
+    const stack = buildServiceStack({ mounts, config, identity: IDENTITY, store, env: {} });
+    const identity = { role: "owner", scopes: [PROJECT], identity: { login: "alice" }, defaultScope: PROJECT };
+    const app = createServiceApp({ mounts, ...stack, authenticate: async () => identity });
+    const server = app.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    t.after(() => new Promise((resolve) => server.close(resolve)));
+    const mcp = new Client({ name: "demo-seed-test", version: "1.0.0" }, { capabilities: {} });
+    await mcp.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${server.address().port}/mcp`)));
+    t.after(() => mcp.close());
+    const templateDir = fileURLToPath(new URL("../../../skills/spec-stack-setup/template", import.meta.url));
+    await seedDemo({ mcp, templateDir, project: PROJECT });
+    const branches = ["roadmap-demo", "spec-stack-skill", "roadmap-stack"];
+    const tips = () => Promise.all(branches.map((spec) => git(bare, ["rev-parse", `spec-${spec}`])));
+    const before = await tips();
+    await seedDemo({ mcp, templateDir, project: PROJECT });
+    assert.deepEqual(await tips(), before);
+    for (const spec of branches.slice(0, 2)) {
+      const prefix = `.specs/${spec}/`;
+      const files = (await git(bare, ["ls-tree", "-r", "--name-only", `spec-${spec}`, prefix])).split("\n");
+      assert.deepEqual(files.filter((file) => file.endsWith(".feature")).sort(), [
+        `${prefix}${spec}-use-cases.feature`, `${prefix}${spec}-user-stories.feature`,
+      ]);
+      const tasks = await git(bare, ["show", `spec-${spec}:${prefix}TASKS.md`]);
+      assert.match(tasks, /^## TASK-1\b/mu);
+    }
+  });
+
+  it("refuses a topic that introduces any legacy specification file and preserves both refs", async () => {
+    const { bare, manager } = await setup();
+    const spec = "cutover-merge";
+    const topic = "legacy";
+    const run = (action, extra = {}) => manager.run({
+      args: { action, spec, ...extra }, project: PROJECT, requestId: `legacy-${action}`, login: "alice", role: "writer",
+    });
+    assert.equal((await run("create")).ok, true);
+    assert.equal((await run("create", { topic })).ok, true);
+    const canonical = `spec-${spec}`;
+    const work = `${canonical}--${topic}`;
+    const previous = await git(bare, ["rev-parse", canonical]);
+    const files = ["USER_STORIES.md", "USE_CASES.md", `${spec}.feature`].map((file) => `.specs/${spec}/${file}`);
+    await pushToWork(bare, { spec, topic, files: Object.fromEntries(files.map((file) => [file, "legacy\n"])) });
+    const pushed = await git(bare, ["rev-parse", work]);
+    const refused = await run("merge", { topic });
+    assert.equal(refused.error?.code, "UNSUPPORTED_DOCUMENT");
+    assert.deepEqual(refused.error.findings.map(({ path }) => path).sort(), files.sort());
+    assert.equal(await git(bare, ["rev-parse", canonical]), previous);
+    assert.equal(await git(bare, ["rev-parse", work]), pushed);
+  });
+
   it("creates an orphan canonical branch with valid metadata and a work branch", async () => {
     const { bare, mounts, manager } = await setup();
     const created = await manager.run({ args: { action: "create", spec: "demo-spec" }, project: PROJECT, requestId: "b1", login: "alice" });
@@ -133,6 +194,24 @@ describe("spec_branch", () => {
     assert.match(await git(bare, ["log", "--format=%s", "-2", "spec-demo-spec"]), /merge spec-demo-spec--rewrite/u);
     const listed = await mounts.listBranches(PROJECT);
     assert.deepEqual(listed.branches.map((entry) => entry.branch), ["spec-demo-spec"], "merged work branch is gone");
+  });
+
+  it("refuses a work merge that changes the protected BDD coverage section before updating either ref", async () => {
+    const { bare, manager } = await setup();
+    const spec = "demo-spec";
+    const topic = "coverage-edit";
+    await manager.run({ args: { action: "create", spec }, project: PROJECT, requestId: "cov1", login: "alice" });
+    await manager.run({ args: { action: "create", spec, topic }, project: PROJECT, requestId: "cov2", login: "alice" });
+    await pushToWork(bare, { spec, topic, files: {
+      [`.specs/${spec}/ACCEPTANCE_CRITERIA.md`]: "# Criteria\n\n## BDD coverage\n\n```json\n{}\n```\n",
+    } });
+    const refs = [`refs/heads/spec-${spec}`, `refs/heads/spec-${spec}--${topic}`];
+    const before = await git(bare, ["rev-parse", ...refs]);
+    const merge = await manager.run({
+      args: { action: "merge", spec, topic }, project: PROJECT, requestId: "cov3", login: "alice", role: "writer",
+    });
+    assert.equal(merge.error?.code, "BDD_COVERAGE_PROTECTED", JSON.stringify(merge));
+    assert.equal(await git(bare, ["rev-parse", ...refs]), before);
   });
 
   it("deletes only a spec explicitly marked Demo: true", async () => {

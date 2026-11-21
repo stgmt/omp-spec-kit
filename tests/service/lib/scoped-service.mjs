@@ -1,3 +1,4 @@
+import { serviceKernelFixture } from "./service-kernel-fixture.mjs";
 import { execFile } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -10,7 +11,6 @@ import { seedSpecBranch } from "./spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
-const FIXTURE_SPEC = path.resolve("tests/fixtures/kernel/real-corpus/.specs/spec-kernel");
 const SECRETS_KEY = "suite-secrets-key-0123456789";
 
 const servers = [];
@@ -49,9 +49,8 @@ export async function setupScopedService({ projects = ["stgmt/alpha", "stgmt/bet
     await seedSpecBranch(bare, {
       project,
       spec: slug,
-      sourceDir: FIXTURE_SPEC,
       repoUrl: pathToFileURL(bare).href,
-      files: { "README.md": `# ${project}\n\nStatus: ACTIVE\nVersion: 1.0.0\n` },
+      files: { ...await serviceKernelFixture(slug), "README.md": `# ${project}\n\nStatus: ACTIVE\nVersion: 1.0.0\n` },
     });
     repos[project] = { bare, url: pathToFileURL(bare).href, spec: slug };
   }

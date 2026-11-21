@@ -2,7 +2,7 @@ import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertCandidateShape, canonicalJson, fail, isSha256, parseArgs, readStrictJson, releaseIdentity, resolveContainedRegularFile, sha256 } from "./release-candidate-utils.mjs";
-import { corpusPath } from "./corpus-root.mjs";
+import { readReleaseScenarios } from "./release-gherkin.mjs";
 
 const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, index) => `plugin-distribution:FR-${index + 19}`));
 
@@ -65,55 +65,6 @@ export async function copyUntrustedDistributionEvidenceBundle(source, outputDire
   await writeFile(target, canonicalJson(copied), "utf8");
   const bytes = await readFile(target);
   return { status: "present", path: targetRelative, digest: sha256(bytes) };
-}
-
-export function requiredScenarioMultiplicity(featureSource) {
-  const required = new Map();
-  let pendingTags = [];
-  let current = null;
-
-  const finish = () => {
-    if (current === null) return;
-    const count = current.outline ? current.exampleRows : 1;
-    if (count < 1) fail(`release-evidence outline ${current.scenarioId} has no example rows`);
-    if (required.has(current.scenarioId)) fail(`duplicate release-evidence scenario id ${current.scenarioId}`);
-    required.set(current.scenarioId, count);
-    current = null;
-  };
-
-  for (const rawLine of featureSource.split(/\r?\n/u)) {
-    const trimmed = rawLine.trim();
-    const indent = rawLine.length - rawLine.trimStart().length;
-    if (trimmed.startsWith("@") && indent <= 2) {
-      finish();
-      pendingTags = trimmed.split(/\s+/u).filter((tag) => tag.startsWith("@"));
-      continue;
-    }
-    const scenario = trimmed.match(/^Scenario( Outline)?:/u);
-    if (scenario) {
-      finish();
-      if (pendingTags.includes("@release-evidence")) {
-        const scenarioId = pendingTags.find((tag) => tag.startsWith("@id:"))?.slice(4);
-        if (!scenarioId) fail(`release-evidence scenario has no id near ${trimmed}`);
-        current = { scenarioId, outline: scenario[1] !== undefined, exampleRows: 0, inExamples: false, headerSeen: false };
-      }
-      pendingTags = [];
-      continue;
-    }
-    if (current === null || !current.outline) continue;
-    if (/^Examples:/u.test(trimmed)) {
-      current.inExamples = true;
-      current.headerSeen = false;
-      continue;
-    }
-    if (current.inExamples && trimmed.startsWith("|")) {
-      if (current.headerSeen) current.exampleRows += 1;
-      else current.headerSeen = true;
-    }
-  }
-  finish();
-  if (required.size === 0) fail("release BDD feature must contain release-evidence scenarios");
-  return new Map([...required.entries()].sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0));
 }
 
 export function cucumberMessages(bytes, requiredScenarioCounts) {
@@ -242,7 +193,7 @@ export async function createReleaseEvidence({
   const candidate = assertCandidateShape(await readStrictJson(candidatePath, "candidate manifest"), "candidate manifest");
   await mkdir(outputDirectory, { recursive: true });
   const catalogDigest = sha256(await readFile(path.join(repositoryRoot, ".claude-plugin", "marketplace.json")));
-  const requiredScenarios = requiredScenarioMultiplicity(await readFile(corpusPath(path.join("plugin-distribution", "plugin-distribution.feature"), { baseDir: repositoryRoot }), "utf8"));
+  const { multiplicities: requiredScenarios } = await readReleaseScenarios();
   const sourceMessageBytes = await readFile(cucumberMessagesPath);
   const scenarioIds = cucumberMessages(sourceMessageBytes, requiredScenarios);
   const messageRelativePath = "messages/cucumber.ndjson";

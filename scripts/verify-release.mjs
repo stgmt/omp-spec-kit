@@ -3,11 +3,11 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { peelTagCommit } from "./create-release-candidate.mjs";
-import { cucumberMessages, requiredScenarioMultiplicity } from "./create-release-evidence.mjs";
+import { cucumberMessages } from "./create-release-evidence.mjs";
 import { PLUGIN_VERSION, repositoryRoot as defaultRepositoryRoot } from "./verify-marketplace.mjs";
 import { TOOL_CONTRACTS } from "../src/adapters/tool-contracts.js";
 import { assertCandidateShape, canonicalJson, collectRegularFiles, isCommit, isSha256, packageTreeDigest, parseArgs, readStrictJson, releaseIdentity, resolveContainedRegularFile, sha256, toPublicFileRows } from "./release-candidate-utils.mjs";
-import { corpusPath } from "./corpus-root.mjs";
+import { readReleaseScenarios } from "./release-gherkin.mjs";
 
 const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, i) => `plugin-distribution:FR-${i + 19}`));
 const DISTRIBUTION_REQUIREMENTS = Object.freeze(Array.from({ length: 12 }, (_, i) => `plugin-distribution:FR-${i + 1}`));
@@ -66,31 +66,6 @@ function verifyMriFr(receipt, requirement, id, scenarioIds, requirementsByScenar
   const keys = ["archiveSha256", "candidateDigest", "catalogDigest", "commit", "packageTreeDigest", "requirement", "scenarioId", "schema", "status", "tag", "version"];
   if (!exact(receipt, keys) || receipt.schema !== "omp-spec-kit-fr-receipt@1" || receipt.status !== "passed" || !matches(receipt, id) || receipt.requirement !== requirement || typeof receipt.scenarioId !== "string" || !scenarioIds.includes(receipt.scenarioId) || requirementsByScenario.get(receipt.scenarioId) !== requirement) add(blocking, `invalid-mri-fr-receipt:${requirement}`);
 }
-async function scenarioRequirements(repositoryRoot) {
-  const text = await readFile(corpusPath(path.join("plugin-distribution", "plugin-distribution.feature"), { baseDir: repositoryRoot }), "utf8");
-  const multiplicities = requiredScenarioMultiplicity(text);
-  const requirements = new Map();
-  let tags = [];
-  for (const line of text.split(/\r?\n/u)) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("@")) { tags = trimmed.split(/\s+/u).filter((tag) => tag.startsWith("@")); continue; }
-    if (!/^Scenario(?: Outline)?:/u.test(trimmed)) continue;
-    if (tags.includes("@release-evidence")) {
-      const scenarioId = tags.find((tag) => tag.startsWith("@id:"))?.slice(4);
-      const local = tags.find((tag) => /^@FR-\d+$/u.test(tag))?.slice(1);
-      if (!scenarioId || !local || requirements.has(scenarioId)) throw new Error(`invalid MRI scenario tags near ${trimmed}`);
-      requirements.set(scenarioId, `plugin-distribution:${local}`);
-    }
-    tags = [];
-  }
-  if (
-    requirements.size === 0 ||
-    JSON.stringify([...requirements.keys()].sort()) !== JSON.stringify([...multiplicities.keys()].sort())
-  ) {
-    throw new Error("MRI requirement and release-evidence multiplicity sets differ");
-  }
-  return { requirements, multiplicities };
-}
 export function expectedManagerToolCount(version) {
   // The release being verified answers to the tool surface it actually ships,
   // so a version bump never needs an edit here. Older releases stay pinned
@@ -119,7 +94,7 @@ async function evaluateMri(evidence, evidenceDirectory, id, repositoryRoot, reso
   if (!mri || !exact(mri, ["schema", "checks", "frReceipts", "discovery"]) || mri.schema !== "omp-spec-kit-mri-evidence@1") return { blocking: ["mri-evidence-shape-mismatch"], discoveryDigest: null };
   const discovery = await readReceipt(mri.discovery, "mri-discovery", evidenceDirectory, blocking, false);
   const discoveryDigest = discovery?.digest ?? null; if (discovery) validDiscovery(discovery.bytes, blocking, expectedManagerToolCount(id.version));
-  let required = { requirements: new Map(), multiplicities: new Map() }; try { required = await scenarioRequirements(repositoryRoot); } catch (error) { add(blocking, `invalid-mri-scenario-map:${error.message}`); }
+  let required = { requirements: new Map(), multiplicities: new Map() }; try { required = await readReleaseScenarios(); } catch (error) { add(blocking, `invalid-mri-scenario-map:${error.message}`); }
   const checks = asObject(mri.checks); let dockerBdd = null;
   if (!checks || !exact(checks, REQUIRED_CHECKS)) add(blocking, "mri-check-set-mismatch");
   else {

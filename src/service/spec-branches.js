@@ -8,6 +8,12 @@ import { listSpecRefs, readSpecBinding } from "./spec-discovery.js";
 import { specBranchName, specWorkBranchName, validateSpecBinding } from "./spec-binding.js";
 import { publishTagName } from "./publish.js";
 import { isValidSpecSlug } from "../kernel/identity.js";
+import { changedTaskCoverageFindings, coverageRegion } from "../authoring/bdd-coverage.js";
+import { readRepositorySpecs } from "../kernel/adapters/fs.js";
+import { buildKernelGraph } from "../kernel/graph/build.js";
+import { canonicalDocumentFilename, GHERKIN_DOCUMENT_KINDS, isLegacySpecificationDocument } from "../kernel/types.js";
+import { gherkinPairFindings, parseGherkinDocument, protectedScenarios } from "../kernel/parsers/gherkin.js";
+import { canonicalJson } from "../kernel/normalize.js";
 
 const SPEC_BINDING_FILE = ".spec-kit.json";
 
@@ -193,12 +199,76 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
       await worktree.git.fetch({ cwd: worktree.cwd }).catch(() => {});
       const behind = await worktree.git.revCount(`HEAD..${canonicalRef}`, { cwd: worktree.cwd });
       if (behind > 0) await worktree.git.mergeFF(canonicalRef, { cwd: worktree.cwd });
+      const criteria = `.specs/${spec}/ACCEPTANCE_CRITERIA.md`;
+      const workOptions = { cwd: worktree.cwd };
+      const headText = async (name) => {
+        const files = await worktree.git.run(["ls-tree", "--name-only", "HEAD", "--", name], workOptions);
+        return files.stdout.trim() === "" ? "" : worktree.git.show("HEAD", name, workOptions);
+      };
+      const indexText = async (name) => {
+        const files = await worktree.git.run(["ls-files", "--stage", "--", name], workOptions);
+        return files.stdout.trim() === "" ? "" : (await worktree.git.run(["show", `:${name}`], workOptions)).stdout;
+      };
+      const before = coverageRegion(await headText(criteria));
+      await worktree.git.run([
+        "-c", `user.name=${identity.name}`, "-c", `user.email=${identity.email}`,
+        "merge", "--no-ff", "--no-commit", topicRef,
+      ], workOptions);
+      if (!(await worktree.git.revParse("MERGE_HEAD", workOptions).catch(() => null))) {
+        return serviceSuccess("specBranch", requestId, { action: "merge", kind: "work", branch, spec, topic, commit: null, noop: true });
+      }
+      const prefix = `.specs/${spec}/`;
+      const indexed = await worktree.git.run(["ls-files", "-z", "--", prefix], workOptions);
+      const legacy = indexed.stdout.split("\u0000").filter((filename) =>
+        filename.startsWith(prefix) && isLegacySpecificationDocument(filename.slice(prefix.length), spec));
+      if (legacy.length > 0) {
+        await worktree.git.run(["merge", "--abort"], workOptions);
+        return failure(requestId, "UNSUPPORTED_DOCUMENT", "Merge must remove legacy specification documents before updating the canonical branch", {
+          findings: legacy.map((filename) => ({ path: filename, message: "Migrate to the canonical Gherkin pair" })),
+        });
+      }
+      const after = coverageRegion(await indexText(criteria));
+      if (before.material !== after.material) {
+        await worktree.git.run(["merge", "--abort"], { cwd: worktree.cwd });
+        return failure(requestId, "BDD_COVERAGE_PROTECTED", "Merge changes the approved BDD coverage. Approve it as project owner on the canonical branch.");
+      }
+      const gherkinPaths = GHERKIN_DOCUMENT_KINDS.map((kind) => `.specs/${spec}/${canonicalDocumentFilename(kind, spec)}`);
+      const changedGherkin = await worktree.git.run(["diff", "--cached", "--name-only", "--", ...gherkinPaths], workOptions);
+      if (changedGherkin.stdout.trim() !== "") {
+        const parse = async (read, filename) => {
+          const text = await read(filename);
+          return text ? parseGherkinDocument({ path: filename, specSlug: spec, text }) : null;
+        };
+        const prior = await Promise.all(gherkinPaths.map((filename) => parse(headText, filename)));
+        const next = await Promise.all(gherkinPaths.map((filename) => parse(indexText, filename)));
+        if (next.some((doc) => !doc || doc.diagnostics.length) || gherkinPairFindings(...next).length) {
+          await worktree.git.run(["merge", "--abort"], workOptions);
+          return failure(requestId, "VALIDATION_FAILED", "Merge must preserve a valid story and use case Gherkin pair");
+        }
+        const selected = (docs) => docs.map((doc) => doc ? protectedScenarios(doc) : []);
+        if (canonicalJson(selected(prior)) !== canonicalJson(selected(next))) {
+          await worktree.git.run(["merge", "--abort"], workOptions);
+          return failure(requestId, "DESIGN_REVIEW_REQUIRED", "Submit changes to executable scenarios through spec_patch with designReview on the canonical branch");
+        }
+      }
+      const tasksPath = `.specs/${spec}/TASKS.md`;
+      const staged = await worktree.git.run(["diff", "--cached", "--name-only", "--", tasksPath], workOptions);
+      if (staged.stdout.trim() !== "") {
+        const baseline = buildKernelGraph({ files: [{ path: tasksPath, bytes: Buffer.from(await headText(tasksPath), "utf8") }] }).graph;
+        const repository = await readRepositorySpecs({ root: worktree.cwd });
+        if (repository.error) throw new Error("Cannot read the merged specification for task admission");
+        const graph = buildKernelGraph(repository).graph;
+        const findings = changedTaskCoverageFindings({ baseline, graph, spec, proposed: after.map, approved: before.map });
+        if (findings.length) {
+          await worktree.git.run(["merge", "--abort"], workOptions);
+          return failure(requestId, "BDD_COVERAGE_INCOMPLETE", "Merged task scope requires approved BDD coverage", { findings });
+        }
+      }
       await worktree.git.run([
         "-c", `user.name=${identity.name}`,
         "-c", `user.email=${identity.email}`,
-        "merge", "--no-ff", "--no-edit", "-m",
+        "commit", "--no-edit", "-m",
         commitMessage({ subject: `merge ${branch}`, trailers: { "Spec-Author": login ?? "service" } }),
-        topicRef,
       ], { cwd: worktree.cwd });
       const commit = await worktree.git.revParse("HEAD", { cwd: worktree.cwd });
       await worktree.git.push({ refspec: `HEAD:refs/heads/${canonical}` }, { cwd: worktree.cwd });

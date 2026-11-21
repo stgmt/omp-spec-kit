@@ -12,6 +12,9 @@ concurrency:
   group: verify-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  OMP_SPEC_KIT_CORPUS_ROOT: ${{ github.workspace }}/tests/fixtures/kernel/authoring-real-corpus
+
 jobs:
   plugin:
     runs-on: ubuntu-latest

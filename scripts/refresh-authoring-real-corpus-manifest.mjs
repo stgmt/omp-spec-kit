@@ -1,129 +1,53 @@
 #!/usr/bin/env node
-import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readRepositorySpecs } from "../src/kernel/adapters/fs.js";
+import { buildKernelGraph } from "../src/kernel/graph/build.js";
+import { sha256Bytes } from "../src/kernel/normalize.js";
+import { canonicalDocumentKind, GHERKIN_DOCUMENT_KINDS, canonicalDocumentFilename } from "../src/kernel/types.js";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const fixtureRoot = path.join(root, "tests", "fixtures", "kernel", "authoring-real-corpus");
-const manifestPath = path.join(root, "tests", "fixtures", "kernel", "authoring-real-corpus-manifest.json");
-const specs = ["plugin-distribution", "spec-mcp-access-gate", "spec-mcp-operations"];
-const fixedDocuments = [
-  "README.md",
-  "USER_STORIES.md",
-  "USE_CASES.md",
-  "RESEARCH.md",
-  "FR.md",
-  "NFR.md",
-  "ACCEPTANCE_CRITERIA.md",
-  "REQUIREMENTS.md",
-  "DESIGN.md",
-  "TASKS.md",
-  "FILE_CHANGES.md",
-  "FIXTURES.md",
-  "CHANGELOG.md",
-];
-
-function sha256(bytes) {
-  return createHash("sha256").update(bytes).digest("hex");
+const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
+const fixtureDirectory = "tests/fixtures/kernel/authoring-real-corpus/.specs";
+const selectedSpecs = ["plugin-distribution", "spec-mcp-access-gate", "spec-mcp-operations"];
+const manifestPath = path.join(repositoryRoot, "tests/fixtures/kernel/authoring-real-corpus-manifest.json");
+const result = await readRepositorySpecs({ root: path.join(repositoryRoot, fixtureDirectory, "..") });
+if (result.error) throw new Error(`authoring corpus is unreadable: ${result.error.code}`);
+const files = result.files.sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
+if (files.length !== 42 || files.some(({ path: filename }) => {
+  const [, spec, name, extra] = filename.split("/");
+  return extra !== undefined || !selectedSpecs.includes(spec) || !canonicalDocumentKind(name, spec);
+})) {
+  throw new Error("authoring corpus must contain 42 canonical documents across the three selected specifications");
 }
-
-function fail(message) {
-  throw new Error(`refresh-authoring-real-corpus-manifest: ${message}`);
-}
-
-function gitShow(commit, relativePath) {
-  try {
-    return execFileSync("git", ["show", `${commit}:${relativePath}`], { cwd: root });
-  } catch (error) {
-    fail(`git show failed for ${relativePath}: ${error instanceof Error ? error.message : String(error)}`);
+const selectedPaths = files.map((file) => file.path);
+for (const spec of selectedSpecs) {
+  if (!GHERKIN_DOCUMENT_KINDS.every((kind) => selectedPaths.includes(`.specs/${spec}/${canonicalDocumentFilename(kind, spec)}`))) {
+    throw new Error(`missing canonical Gherkin pair for ${spec}`);
   }
 }
+const { graph, diagnostics } = buildKernelGraph({ files });
+if (!graph.valid) throw new Error(`invalid authoring corpus: ${diagnostics.filter(({ severity }) => severity === "ERROR").map(({ message }) => message).join("; ")}`);
 
-/**
- * Default source commit: the most recent commit that still carried `.specs/`.
- * The corpus no longer lives in the working tree, so HEAD is not a usable
- * default any more — the frozen bytes stay reachable through history.
- */
-function lastCorpusCommit() {
-  const commit = execFileSync("git", ["log", "-1", "--format=%H", "--diff-filter=d", "--", ".specs"], { cwd: root, encoding: "utf8" }).trim();
-  if (!/^[0-9a-f]{40}$/u.test(commit)) fail("no commit carrying .specs/ found in history");
-  return commit;
-}
-
-function sourcePaths() {
-  return specs.flatMap((spec) => [
-    ...fixedDocuments.map((document) => `.specs/${spec}/${document}`),
-    `.specs/${spec}/${spec}.feature`,
-    `.specs/${spec}/${spec}_SCHEMA.md`,
-  ]);
-}
-
-function aggregateDigest(files) {
-  const material = files.map((file) => `${file.path}\u0000${file.bytes}\u0000${file.sha256}\n`).join("");
-  return sha256(Buffer.from(material, "utf8"));
-}
-
-async function loadManifest() {
-  try {
-    return JSON.parse(await readFile(manifestPath, "utf8"));
-  } catch (error) {
-    fail(`manifest is unavailable or invalid: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-async function verifyFixture(manifest) {
-  if (manifest.schema !== "omp-spec-kit-authoring-real-corpus@1") fail("manifest schema mismatch");
-  if (manifest.documentCount !== 45 || manifest.documents?.length !== 45) fail("manifest must contain exactly 45 documents");
-  if (manifest.fixtureDirectory !== "tests/fixtures/kernel/authoring-real-corpus/.specs") fail("fixture directory mismatch");
-  const paths = manifest.documents.map((file) => file.path);
-  if (new Set(paths).size !== paths.length) fail("manifest document paths are not unique");
-  if (JSON.stringify(paths) !== JSON.stringify([...sourcePaths()].sort())) fail("manifest paths differ from the three canonical specs");
-  for (const file of manifest.documents) {
-    const absolute = path.join(root, manifest.fixtureDirectory, file.path.slice(".specs/".length));
-    const bytes = await readFile(absolute);
-    if (bytes.length !== file.bytes || sha256(bytes) !== file.sha256) fail(`fixture digest mismatch: ${file.path}`);
-  }
-  if (aggregateDigest(manifest.documents) !== manifest.aggregateSha256) fail("aggregate fixture digest mismatch");
-}
-
-async function refresh(commit) {
-  const documents = sourcePaths().sort().map((relativePath) => {
-    const bytes = gitShow(commit, relativePath);
-    return { path: relativePath, bytes: bytes.length, sha256: sha256(bytes), content: bytes };
-  });
-  await rm(fixtureRoot, { recursive: true, force: true });
-  for (const file of documents) {
-    const relative = file.path.slice(".specs/".length);
-    const destination = path.join(fixtureRoot, ".specs", relative);
-    await mkdir(path.dirname(destination), { recursive: true });
-    await writeFile(destination, file.content);
-  }
-  const manifest = {
-    schema: "omp-spec-kit-authoring-real-corpus@1",
-    sourceCommit: commit,
-    sourceCommand: "git show <commit>:.specs/<spec>/<document>",
-    fixtureDirectory: "tests/fixtures/kernel/authoring-real-corpus/.specs",
-    selectedSpecs: specs,
-    selectedPaths: documents.map(({ path: relativePath }) => relativePath),
-    documentCount: documents.length,
-    documents: documents.map(({ path: relativePath, bytes, sha256: digest }) => ({ path: relativePath, bytes, sha256: digest })),
-    aggregateSha256: aggregateDigest(documents),
-    licenseDisposition: "Copied from the repository's MIT-licensed specification corpus for release verification; no external content added.",
-  };
-  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-  return manifest;
-}
-
-const check = process.argv.includes("--check");
-const commitArgument = process.argv.find((argument) => argument.startsWith("--commit="));
-const commit = commitArgument?.slice("--commit=".length) ?? lastCorpusCommit();
-if (!/^[0-9a-f]{40}$/u.test(commit)) fail(`commit must be a full 40-hex id: ${commit}`);
-if (check) {
-  await verifyFixture(await loadManifest());
-  console.log(`verified authoring corpus: documents=45; aggregate=${(await loadManifest()).aggregateSha256}`);
+const documents = files.map(({ path: filename, bytes }) => ({ path: filename, bytes: bytes.length, sha256: sha256Bytes(bytes) }));
+const material = documents.map(({ path: filename, bytes, sha256 }) => `${filename}\0${bytes}\0${sha256}\n`).join("");
+const manifest = {
+  schema: "omp-spec-kit-authoring-real-corpus@2",
+  sourceCommit: "70468cc40f391d8fc8ecacc7a144b82328e62e03",
+  sourceCommand: "Historical .specs from sourceCommit, migrated to the canonical Gherkin pair in this fixture",
+  fixtureDirectory,
+  selectedSpecs,
+  selectedPaths,
+  documentCount: documents.length,
+  documents,
+  aggregateSha256: sha256Bytes(Buffer.from(material, "utf8")),
+  licenseDisposition: "Derived from the repository's MIT-licensed specification corpus for release verification.",
+};
+const expected = `${JSON.stringify(manifest, null, 2)}\n`;
+if (process.argv.includes("--check")) {
+  if (await readFile(manifestPath, "utf8") !== expected) throw new Error("authoring corpus manifest drifted");
+  console.log(`verified authoring corpus: documents=${documents.length}; aggregate=${manifest.aggregateSha256}`);
 } else {
-  const manifest = await refresh(commit);
-  console.log(`refreshed authoring corpus: commit=${commit}; documents=${manifest.documentCount}; aggregate=${manifest.aggregateSha256}`);
+  await writeFile(manifestPath, expected, "utf8");
+  console.log(`refreshed authoring corpus: documents=${documents.length}; aggregate=${manifest.aggregateSha256}`);
 }

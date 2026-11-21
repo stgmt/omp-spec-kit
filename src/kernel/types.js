@@ -6,11 +6,9 @@ export const ANCHOR_ALGORITHM_VERSION = "glfm-anchor@2";
 export const DIST_MANIFEST_SCHEMA = "omp-spec-kit-dist-manifest@1";
 export const SPEC_STATUS_VALUES = Object.freeze(["active", "backlog"]);
 
-// DocumentKind -> required filename (fixed names only; FEATURE/SCHEMA are slug-derived).
+// DocumentKind -> required filename (fixed names only).
 export const FIXED_DOCUMENT_FILES = Object.freeze({
   README: "README.md",
-  USER_STORIES: "USER_STORIES.md",
-  USE_CASES: "USE_CASES.md",
   RESEARCH: "RESEARCH.md",
   REQUIREMENTS: "REQUIREMENTS.md",
   FUNCTIONAL_REQUIREMENTS: "FR.md",
@@ -37,16 +35,35 @@ export const DOCUMENT_KINDS = Object.freeze([
   "TASKS",
   "FILE_CHANGES",
   "CHANGELOG",
-  "FEATURE",
   "FIXTURES",
   "SCHEMA",
   "ROADMAP",
 ]);
 
-// Document kinds that contribute Markdown heading/link inventories (everything except FEATURE).
+export const GHERKIN_DOCUMENT_KINDS = Object.freeze(["USER_STORIES", "USE_CASES"]);
+
 export const MARKDOWN_DOCUMENT_KINDS = Object.freeze(
-  DOCUMENT_KINDS.filter((kind) => kind !== "FEATURE"),
+  DOCUMENT_KINDS.filter((kind) => !GHERKIN_DOCUMENT_KINDS.includes(kind)),
 );
+
+export function canonicalDocumentFilename(kind, spec) {
+  if (kind === "USER_STORIES") return `${spec}-user-stories.feature`;
+  if (kind === "USE_CASES") return `${spec}-use-cases.feature`;
+  if (kind === "SCHEMA") return `${spec}_SCHEMA.md`;
+  if (kind === "ROADMAP" && !spec?.startsWith("roadmap-")) return null;
+  return Object.hasOwn(FIXED_DOCUMENT_FILES, kind) ? FIXED_DOCUMENT_FILES[kind] : null;
+}
+
+export function canonicalDocumentKind(filename, spec) {
+  if (typeof filename !== "string") return null;
+  return DOCUMENT_KINDS.find((kind) => canonicalDocumentFilename(kind, spec) === filename) ?? null;
+}
+
+export function isLegacySpecificationDocument(filename, spec) {
+  if (typeof filename !== "string") return false;
+  const key = filename.toLowerCase();
+  return key === "user_stories.md" || key === "use_cases.md" || key === `${spec}.feature`;
+}
 
 export const ENTITY_TYPE_DESCRIPTORS = Object.freeze([
   Object.freeze({
@@ -233,8 +250,8 @@ export const LOCAL_ID_ROLES = Object.freeze({
 // DocumentKind -> definition roles allowed (empty = no authored definitions).
 export const DOCUMENT_DEFINITION_ROLES = Object.freeze({
   README: [],
-  USER_STORIES: ["USER_STORY"],
-  USE_CASES: ["USE_CASE"],
+  USER_STORIES: [],
+  USE_CASES: [],
   RESEARCH: ["RESEARCH_FINDING", "RISK"],
   REQUIREMENTS: [],
   FUNCTIONAL_REQUIREMENTS: ["FUNCTIONAL_REQUIREMENT"],
@@ -244,7 +261,6 @@ export const DOCUMENT_DEFINITION_ROLES = Object.freeze({
   TASKS: ["TASK"],
   FILE_CHANGES: ["FILE_CHANGE"],
   CHANGELOG: [],
-  FEATURE: [],
   FIXTURES: ["FIXTURE"],
   SCHEMA: ["SCHEMA_ENTITY"],
   ROADMAP: [],
@@ -361,6 +377,7 @@ export const REF_UNRESOLVED_REASONS = Object.freeze([
 
 export const DIAGNOSTIC_CODES = Object.freeze([
   "UNSUPPORTED_DOCUMENT",
+  "LEGACY_SPEC_LAYOUT",
   "INVALID_UTF8",
   "HASH_MISMATCH",
   "FILE_TOO_LARGE",
@@ -396,6 +413,7 @@ export const DIAGNOSTIC_SEVERITIES = Object.freeze(["ERROR", "WARNING", "INFO"])
 // Default severity per diagnostic code (builder may not widen the union).
 export const DIAGNOSTIC_DEFAULT_SEVERITY = Object.freeze({
   UNSUPPORTED_DOCUMENT: "INFO",
+  LEGACY_SPEC_LAYOUT: "WARNING",
   INVALID_UTF8: "ERROR",
   HASH_MISMATCH: "ERROR",
   FILE_TOO_LARGE: "ERROR",
@@ -429,6 +447,7 @@ export const DIAGNOSTIC_DEFAULT_SEVERITY = Object.freeze({
 // Closed remediation keys.
 export const REMEDIATIONS = Object.freeze({
   UNSUPPORTED_DOCUMENT: "rename-to-canonical-document",
+  LEGACY_SPEC_LAYOUT: "migrate-to-gherkin-pair",
   INVALID_UTF8: "re-encode-as-utf8",
   HASH_MISMATCH: "refresh-source-bytes",
   FILE_TOO_LARGE: "reduce-document-size",

@@ -88,18 +88,16 @@ async function collectInstalledResults(state) {
   return results;
 }
 
-Before({ tags: "@mcp-release-integrity" }, function () {
-  this.mri = { server: null, tempRoot: null };
-});
+const releaseTags = "@release-evidence or @id:SCEN-mri-malformed-json-recovery";
 
-After({ tags: "@mcp-release-integrity" }, async function () {
+After({ tags: releaseTags }, async function () {
   if (this.mri?.server !== null && this.mri?.server !== undefined) await this.mri.server.close();
   if (this.mri?.tempRoot !== null && this.mri?.tempRoot !== undefined) {
     await rm(this.mri.tempRoot, { recursive: true, force: true, maxRetries: 3 });
   }
 });
 
-Given("an isolated v0.3.2 package and manifest-verified corpus exist", async function () {
+Before({ tags: releaseTags }, async function () {
   const repositoryRoot = path.resolve(import.meta.dirname, "..", "..");
   const pinned = await loadPinnedCorpusGraph(repositoryRoot);
   const tempRoot = await mkdtemp(path.join(tmpdir(), "omp-spec-kit-mri-"));

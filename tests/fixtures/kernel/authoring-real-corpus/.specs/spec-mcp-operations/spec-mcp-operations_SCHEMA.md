@@ -6,7 +6,7 @@ This is one core schema. Historical released carriers are decode-only compatibil
 
 ## SCHEMA-1: Source and occurrence model
 
-`SourceDocument` is `{path, specSlug, documentKind, bytes, sha256}`. The fifteen canonical document names are `README.md`, `USER_STORIES.md`, `USE_CASES.md`, `RESEARCH.md`, `REQUIREMENTS.md`, `FR.md`, `NFR.md`, `ACCEPTANCE_CRITERIA.md`, `DESIGN.md`, `TASKS.md`, `FILE_CHANGES.md`, `CHANGELOG.md`, `<spec-slug>.feature`, `FIXTURES.md`, and `<spec-slug>_SCHEMA.md`.
+`SourceDocument` is `{path, specSlug, documentKind, bytes, sha256}`. The fourteen canonical document names are `README.md`, `<spec-slug>-user-stories.feature`, `<spec-slug>-use-cases.feature`, `RESEARCH.md`, `REQUIREMENTS.md`, `FR.md`, `NFR.md`, `ACCEPTANCE_CRITERIA.md`, `DESIGN.md`, `TASKS.md`, `FILE_CHANGES.md`, `CHANGELOG.md`, `FIXTURES.md`, and `<spec-slug>_SCHEMA.md`.
 
 Each parsed source produces occurrence records before indexes:
 

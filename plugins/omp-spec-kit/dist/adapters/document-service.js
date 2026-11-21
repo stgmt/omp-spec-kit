@@ -3,7 +3,7 @@ import { statSync } from "node:fs";
 import { lstat, readdir, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { isValidSpecSlug } from "../kernel/identity.js";
-import { KERNEL_SCHEMA_VERSION } from "../kernel/types.js";
+import { isLegacySpecificationDocument, KERNEL_SCHEMA_VERSION } from "../kernel/types.js";
 import { PLUGIN_VERSION } from "./plugin-version.js";
 
 const MAX_DOCUMENT_BYTES = 2 * 1024 * 1024;
@@ -125,14 +125,6 @@ async function resolveSpecFile(root, spec, relative) {
   }
 }
 
-function documentKind(relative) {
-  const extension = path.extname(relative).toLowerCase();
-  if (extension === ".feature") return "FEATURE";
-  if (extension === ".json") return "JSON";
-  if (extension === ".md") return "MARKDOWN";
-  return "BINARY";
-}
-
 async function listSpecDocs(root, args) {
   const directory = await containedSpecDirectory(root, args.spec);
   if (!directory.ok) return directory;
@@ -142,6 +134,8 @@ async function listSpecDocs(root, args) {
   } catch (error) {
     return operationError("PATH_FORBIDDEN", "specification inventory encountered a linked path", { spec: args.spec, causeCode: String(error.message).split(":", 1)[0] });
   }
+  const legacy = files.filter((file) => isLegacySpecificationDocument(file.relative, args.spec)).map((file) => file.relative);
+  if (legacy.length) return operationError("UNSUPPORTED_DOCUMENT", "Migrate the legacy specification documents before reading the active specification", { spec: args.spec, paths: legacy });
   const docs = files.filter((file) => TEXT_EXTENSIONS.has(path.extname(file.relative).toLowerCase())).map((file) => file.relative).sort();
   const attachments = files.filter((file) => !TEXT_EXTENSIONS.has(path.extname(file.relative).toLowerCase())).map((file) => file.relative).sort();
   return operationSuccess({ kind: "spec-documents", spec: args.spec, docs, count: docs.length, attachments });
@@ -175,6 +169,9 @@ function sectionWindow(text, section) {
 }
 
 async function readSpecDoc(root, args) {
+  if (isLegacySpecificationDocument(args.doc, args.spec)) {
+    return operationError("UNSUPPORTED_DOCUMENT", "Use the canonical story or case feature document", { spec: args.spec, doc: args.doc });
+  }
   const resolved = await resolveSpecFile(root, args.spec, args.doc);
   if (!resolved.ok) return resolved;
   const extension = path.extname(resolved.relative).toLowerCase();

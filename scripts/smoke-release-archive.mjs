@@ -7,7 +7,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
-import { loadFrozenRealCorpus, writeCorpus } from "../tests/helpers/kernel-world.mjs";
+import { writeStagedCorpus } from "../tests/helpers/kernel-world.mjs";
 import { ALL_TOOL_NAMES, runToolE2E, prepareToolE2EFixtures } from "../tests/helpers/tool-e2e.mjs";
 
 const execFile = promisify(execFileCallback);
@@ -25,8 +25,7 @@ await mkdir(packageRoot, { recursive: true });
 await mkdir(projectRoot, { recursive: true });
 let outsideRoot = null;
 {
-  const frozen = await loadFrozenRealCorpus(repositoryRoot);
-  await writeCorpus(projectRoot, frozen.files);
+  await writeStagedCorpus(projectRoot, repositoryRoot);
   await prepareToolE2EFixtures(projectRoot);
   outsideRoot = path.join(path.dirname(projectRoot), path.basename(projectRoot) + "-outside");
   await mkdir(outsideRoot, { recursive: true });

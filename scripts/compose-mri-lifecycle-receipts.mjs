@@ -19,8 +19,8 @@ import {
 	isCommit,
 	readStrictJson,
 } from "./release-candidate-utils.mjs";
-import { cucumberMessages, requiredScenarioMultiplicity } from "./create-release-evidence.mjs";
-import { corpusPath } from "./corpus-root.mjs";
+import { cucumberMessages } from "./create-release-evidence.mjs";
+import { readReleaseScenarios } from "./release-gherkin.mjs";
 
 const MRI_REQUIREMENTS = Object.freeze(Array.from({ length: 6 }, (_, index) => `plugin-distribution:FR-${index + 19}`));
 const PRIOR_TAG = "v0.3.2";
@@ -63,34 +63,6 @@ function parseArgs(argv) {
 
 // Parses the FR ↔ scenario-id map and exact Scenario Outline multiplicities
 // from the same source bytes consumed by release assembly.
-async function scenarioRequirements(repositoryRoot) {
-	const text = await readFile(corpusPath(path.join("plugin-distribution", "plugin-distribution.feature"), { baseDir: repositoryRoot }), "utf8");
-	const multiplicities = requiredScenarioMultiplicity(text);
-	const requirements = new Map();
-	let tags = [];
-	for (const line of text.split(/\r?\n/u)) {
-		const trimmed = line.trim();
-		if (trimmed.startsWith("@")) {
-			tags = trimmed.split(/\s+/u).filter((tag) => tag.startsWith("@"));
-			continue;
-		}
-		if (!/^Scenario(?: Outline)?:/u.test(trimmed)) continue;
-		if (tags.includes("@release-evidence")) {
-			const scenarioId = tags.find((tag) => tag.startsWith("@id:"))?.slice(4);
-			const local = tags.find((tag) => /^@FR-\d+$/u.test(tag))?.slice(1);
-			if (!scenarioId || !local || requirements.has(scenarioId)) throw new Error(`invalid MRI scenario tags near ${trimmed}`);
-			requirements.set(scenarioId, `plugin-distribution:${local}`);
-		}
-		tags = [];
-	}
-	if (
-		requirements.size === 0 ||
-		JSON.stringify([...requirements.keys()].sort()) !== JSON.stringify([...multiplicities.keys()].sort())
-	) {
-		throw new Error("MRI requirement and release-evidence multiplicity sets differ");
-	}
-	return { requirements, multiplicities };
-}
 
 function requireKeys(value, keys, label) {
 	exactKeys(
@@ -141,7 +113,7 @@ async function main() {
 	};
 
 	// 2. FR ↔ SCEN mapping from the feature file.
-	const required = await scenarioRequirements(repositoryRoot);
+	const required = await readReleaseScenarios();
 
 	// 3. Cucumber messages validated through the same semantic chain the
 	// evidence assembler uses; receipts may only cite passing required ids.

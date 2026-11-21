@@ -1,3 +1,4 @@
+import { serviceKernelFixture } from "./lib/service-kernel-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -12,7 +13,6 @@ import { seedSpecBranch } from "./lib/spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
-const FIXTURE_SPEC = path.resolve("tests/fixtures/kernel/real-corpus/.specs/spec-kernel");
 const servers = [];
 const services = [];
 const tempDirs = [];
@@ -37,9 +37,9 @@ async function setup({ projects = ["stgmt/alpha"], unbound = [], extraSpecs = []
   const base = await tempDir("spec-http-");
   const bare = path.join(base, "specs.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
-  await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", sourceDir: FIXTURE_SPEC });
+  await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", files: await serviceKernelFixture() });
   for (const { project, spec } of extraSpecs) {
-    await seedSpecBranch(bare, { project, spec, sourceDir: FIXTURE_SPEC });
+    await seedSpecBranch(bare, { project, spec, files: await serviceKernelFixture(spec) });
   }
 
   const configPath = await fixture.writeServiceConfig(bare, { projects });

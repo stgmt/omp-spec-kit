@@ -1,7 +1,7 @@
 // Regenerate tests/fixtures/release-candidate/cucumber-messages.* from the
 // canonical stream produced by `bash scripts/docker-bdd.sh`
-// (.omp-spec-kit/evidence/last-test-run.ndjson). Rebuilds the source-input
-// manifest (every tracked producer input under the Dockerfile COPY roots,
+// (.omp-spec-kit/evidence/release-test-run.ndjson). Rebuilds the source-input
+// manifest (producer inputs under the Dockerfile COPY roots,
 // minus this fixture directory, generated build output, and vendored trees
 // pinned by their lockfiles) and the closed v2 provenance receipt, then
 // refreshes the README evidence table. Run after any producer-side change;
@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FIXTURE_DIR = path.join(ROOT, "tests", "fixtures", "release-candidate");
-const CANONICAL_STREAM = path.join(ROOT, ".omp-spec-kit", "evidence", "last-test-run.ndjson");
+const CANONICAL_STREAM = path.join(ROOT, ".omp-spec-kit", "evidence", "release-test-run.ndjson");
 const FIXTURE_NAME = "cucumber-messages.ndjson";
 const MANIFEST_NAME = "cucumber-messages.inputs.json";
 const PROVENANCE_NAME = "cucumber-messages.provenance.json";
@@ -23,9 +23,9 @@ const CAPTURE_COMMAND = "bash scripts/docker-bdd.sh";
 
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
-const tracked = () =>
-  execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" })
-    .split("\0")
+const repositoryFiles = () =>
+  [...new Set(execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], { cwd: ROOT, encoding: "utf8" })
+    .split("\0"))]
     .filter(Boolean)
     .filter((repoPath) => existsSync(path.join(ROOT, repoPath)));
 
@@ -35,9 +35,9 @@ const dockerfileSingles = () => {
   const dockerfile = readFileSync(path.join(ROOT, "tests", "distribution", "Dockerfile"), "utf8");
   const singles = new Set();
   for (const line of dockerfile.split(/\r?\n/)) {
-    const match = /^COPY\s+(.+?)\s+\.\/?(.*)$/u.exec(line.trim());
-    if (!match || line.startsWith("COPY --from=")) continue;
-    for (const source of match[1].split(/\s+/u)) {
+    const parts = line.trim().split(/\s+/u);
+    if (parts[0] !== "COPY" || parts[1]?.startsWith("--from=")) continue;
+    for (const source of parts.slice(1, -1)) {
       if (source.endsWith("/")) continue;
       singles.add(source);
     }
@@ -68,7 +68,7 @@ const main = () => {
     throw new Error("fixture provenance cannot name the new capture as its own parent");
   }
   const singles = dockerfileSingles();
-  const entries = tracked()
+  const entries = repositoryFiles()
     .filter((repoPath) => isProducerInput(repoPath, singles))
     .sort()
     .map((repoPath) => {

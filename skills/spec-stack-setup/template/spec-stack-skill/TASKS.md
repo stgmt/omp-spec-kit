@@ -6,7 +6,7 @@
 
 **Implements:** FR-1
 
-**Refs:** NFR-2
+**Refs:** NFR-IDEM-2
 
 - **Done When:** `docker compose up -d` из директории скила поднимает ровно три сервиса на портах 8089/9419/8644.
 
@@ -16,7 +16,7 @@
 
 **Implements:** FR-2, FR-3
 
-**Refs:** NFR-1, NFR-2
+**Refs:** NFR-PORT-1, NFR-IDEM-2
 
 - **Done When:** один запуск доводит стек до рабочего состояния и печатает ссылку на дашборд.
 
@@ -26,7 +26,7 @@
 
 **Implements:** FR-4
 
-**Refs:** AC-2.1
+**Refs:** AC-4.1
 
 - **Done When:** документы `template/spec-stack-skill/` загружаются в реестр через MCP-вызовы без прямых коммитов.
 
@@ -36,6 +36,6 @@
 
 **Implements:** FR-1
 
-**Refs:** NFR-1
+**Refs:** NFR-PORT-1
 
 - **Done When:** инструкция одинаково читается агентскими CLI и не требует знания внутренностей.

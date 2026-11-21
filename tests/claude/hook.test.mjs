@@ -15,7 +15,7 @@ const normalizeUrl = pathToFileURL(path.join(repositoryRoot, "plugins", "omp-spe
 const { toClassifierEvent } = await import(normalizeUrl);
 
 const OWN_MCP = "mcp__plugin_omp-spec-kit_omp-spec-kit__";
-const SCENARIO_FEATURE = "Feature: Foo\n  Scenario: Foo works\n    Given a foo\n";
+const SCENARIO_FEATURE = "Feature: Foo\n  @story:US-1\n  Rule: Foo\n    Actor: Reader\n    Goal: Read Foo\n    Benefit: See the result\n    @spec-ready @feature1 @id:SCEN-foo\n    Scenario: Foo works\n      Given a foo\n      When it is opened\n      Then the result is visible\n";
 
 let projectDir;
 let specFile;
@@ -26,7 +26,7 @@ before(() => {
   mkdirSync(path.join(projectDir, ".specs", "foo"), { recursive: true });
   specFile = path.join(projectDir, ".specs", "foo", "foo.md");
   writeFileSync(specFile, "# Foo\n");
-  writeFileSync(path.join(projectDir, ".specs", "foo", "foo.feature"), SCENARIO_FEATURE);
+  writeFileSync(path.join(projectDir, ".specs", "foo", "foo-user-stories.feature"), SCENARIO_FEATURE);
   writeFileSync(path.join(projectDir, "README.md"), "# Project\n");
   // The session's project comes from this workspace record, never from cwd.
   mkdirSync(path.join(projectDir, ".omp-spec-kit"), { recursive: true });
@@ -240,7 +240,7 @@ describe("PreToolUse hook allows ordinary work", () => {
 
 describe("PreToolUse hook gates spec_patch", () => {
   it("blocks a scenario-bearing .feature patch without designReview", () => {
-    const operations = [{ kind: "create_document", document: "foo.feature", content: SCENARIO_FEATURE }];
+    const operations = [{ kind: "replace_document", document: "foo-user-stories.feature", content: SCENARIO_FEATURE.replace("the result is visible", "the updated result is visible") }];
     const result = runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", operations, dryRun: true }));
     assertBlocked(result, /DESIGN_REVIEW_REQUIRED/u);
   });
@@ -256,7 +256,7 @@ describe("PreToolUse hook gates spec_patch", () => {
   });
 
   it("allows the same patch once designReview is attached", () => {
-    const operations = [{ kind: "create_document", document: "foo.feature", content: SCENARIO_FEATURE }];
+    const operations = [{ kind: "replace_document", document: "foo-user-stories.feature", content: SCENARIO_FEATURE.replace("the result is visible", "the updated result is visible") }];
     const designReview = { schema: "omp-spec-kit/design-review@1" };
     assertAllowedWithProject(
       runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", operations, designReview })),
@@ -266,7 +266,7 @@ describe("PreToolUse hook gates spec_patch", () => {
   });
 
   it("leaves an explicit per-call project untouched", () => {
-    const operations = [{ kind: "create_document", document: "foo.feature", content: SCENARIO_FEATURE }];
+    const operations = [{ kind: "replace_document", document: "foo-user-stories.feature", content: SCENARIO_FEATURE.replace("the result is visible", "the updated result is visible") }];
     const designReview = { schema: "omp-spec-kit/design-review@1" };
     assertAllowed(
       runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", operations, designReview, project: "acme/gamma" })),

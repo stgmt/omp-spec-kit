@@ -149,8 +149,9 @@ IdP URLs or tokens.
   returned **once** in `install.serviceBridgeToken` together with
   `install.serviceUrl` (`config.publicUrl`, else the request host).
   The optional `repo {url, token, branch?, username?, migrate?}` block binds
-  every declared project to the customer's own specs repository in the same
-  call — per-project results are reported under `repos`.
+  every declared project to its own repository (the specs live on that
+  repository's `spec-<slug>` branches) in the same call — per-project results
+  are reported under `repos`.
 - `POST /idp/unbind` `{tenant}` — the binder or an owner. Revokes external
   access on the next auth check (the token cache expires in ≤ `SPEC_REGISTRY_AUTH_CACHE_MS`)
   and drops the tenant's repo bindings with it.

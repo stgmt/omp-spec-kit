@@ -1,7 +1,7 @@
 @safe-authoring @integration
 Feature: safe specification authoring
   The live packaged MCP server exposes one safe spec_patch mutation tool over the
-  current three-spec, 45-document corpus and never permits raw .specs writes.
+  current three-spec, 42-document corpus and never permits raw .specs writes.
 
   Scenario: Exact single-surface public inventory
     Given a disposable real authoring corpus and live MCP server

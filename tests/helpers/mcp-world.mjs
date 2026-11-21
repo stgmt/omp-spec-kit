@@ -74,8 +74,8 @@ function sameBytes(left, right) {
  */
 export async function loadPinnedCorpusGraph(repositoryRoot) {
   const manifest = JSON.parse(await readFile(path.join(repositoryRoot, "tests", "fixtures", "kernel", "authoring-real-corpus-manifest.json"), "utf8"));
-  if (manifest.schema !== "omp-spec-kit-authoring-real-corpus@1" || manifest.documentCount !== 45) {
-    throw new Error("current authoring corpus manifest must contain 45 documents");
+  if (manifest.schema !== "omp-spec-kit-authoring-real-corpus@2" || manifest.documentCount !== 42) {
+    throw new Error("current authoring corpus manifest must contain 42 documents");
   }
   const fixtureRoot = path.join(repositoryRoot, "tests", "fixtures", "kernel", "authoring-real-corpus");
   const read = await readRepositorySpecs({ root: fixtureRoot });

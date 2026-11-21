@@ -23,6 +23,9 @@ concurrency:
   group: distribution-evidence-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  OMP_SPEC_KIT_CORPUS_ROOT: ${{ github.workspace }}/tests/fixtures/kernel/authoring-real-corpus
+
 jobs:
   attest-distribution-evidence:
     runs-on: ubuntu-latest
@@ -73,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$DISCOVERY_PROJECT/.specs" "$DISCOVERY_HOME" "$GITHUB_WORKSPACE/dist-evidence/mri-discovery"
-          cp -r tests/fixtures/kernel/authoring-real-corpus/.specs/. "$DISCOVERY_PROJECT/.specs/"
+          cp -r "$OMP_SPEC_KIT_CORPUS_ROOT/.specs/." "$DISCOVERY_PROJECT/.specs/"
           dist_manifest_sha="$(sha256sum plugins/omp-spec-kit/dist/manifest.json | cut -d ' ' -f1)"
           mcp_config_sha="$(sha256sum plugins/omp-spec-kit/.mcp.json | cut -d ' ' -f1)"
           cd "$DISCOVERY_PROJECT"
@@ -116,7 +119,7 @@ jobs:
           LIFECYCLE_AGENT_DIR: ${{ runner.temp }}/omp-lifecycle-agent
         run: |
           mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
-          cp -r tests/fixtures/kernel/authoring-real-corpus/.specs/. "$LIFECYCLE_PROJECT_DIR/.specs/"
+          cp -r "$OMP_SPEC_KIT_CORPUS_ROOT/.specs/." "$LIFECYCLE_PROJECT_DIR/.specs/"
           cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CONFIG_DIR=.omp-lifecycle-producer OMP_PROFILE=lifecycle-producer \
             bun "$GITHUB_WORKSPACE/scripts/lifecycle/run-lifecycle-install-reload-fresh-session.mjs" \
             --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
@@ -134,7 +137,7 @@ jobs:
         run: |
           # Reuse the single v0.3.2 extraction from dist-evidence/prior.
           mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
-          cp -r tests/fixtures/kernel/authoring-real-corpus/.specs/. "$LIFECYCLE_PROJECT_DIR/.specs/"
+          cp -r "$OMP_SPEC_KIT_CORPUS_ROOT/.specs/." "$LIFECYCLE_PROJECT_DIR/.specs/"
           cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CONFIG_DIR=.omp-lifecycle-producer OMP_PROFILE=lifecycle-producer \
             bun "$GITHUB_WORKSPACE/scripts/lifecycle/run-lifecycle-upgrade.mjs" \
             --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \
@@ -153,7 +156,7 @@ jobs:
           LIFECYCLE_AGENT_DIR: ${{ runner.temp }}/omp-fr8-agent
         run: |
           mkdir -p "$LIFECYCLE_PROJECT_DIR/.specs" "$LIFECYCLE_HOME" "$LIFECYCLE_AGENT_DIR"
-          cp -r tests/fixtures/kernel/authoring-real-corpus/.specs/. "$LIFECYCLE_PROJECT_DIR/.specs/"
+          cp -r "$OMP_SPEC_KIT_CORPUS_ROOT/.specs/." "$LIFECYCLE_PROJECT_DIR/.specs/"
           cd "$LIFECYCLE_PROJECT_DIR" && HOME="$LIFECYCLE_HOME" USERPROFILE="$LIFECYCLE_HOME" PI_CONFIG_DIR=.omp-lifecycle-producer OMP_PROFILE=lifecycle-producer \
             bun "$GITHUB_WORKSPACE/scripts/lifecycle/run-lifecycle-uninstall-reinstall.mjs" \
             --runtime-root "$GITHUB_WORKSPACE/tests/fixtures/omp-discovery-runtime/node_modules/@oh-my-pi/pi-coding-agent" \

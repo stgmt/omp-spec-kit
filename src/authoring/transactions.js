@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { lstat, mkdir, open, readFile, readdir, realpath, rename, rm, rmdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { FIXED_DOCUMENT_FILES } from "../kernel/types.js";
+import { canonicalDocumentKind } from "../kernel/types.js";
 import { isValidSpecSlug } from "../kernel/identity.js";
 import { readRepositorySpecs } from "../kernel/adapters/fs.js";
 import { buildKernelGraph } from "../kernel/index.js";
@@ -36,10 +36,7 @@ export function isCanonicalDocument(document, spec) {
   if (typeof document !== "string" || document.length === 0 || path.isAbsolute(document)) return false;
   const segments = document.split(/[\\/]/u);
   if (segments.some((segment) => segment === "" || segment === "." || segment === ".." || segment.includes("\u0000"))) return false;
-  const fixed = Object.values(FIXED_DOCUMENT_FILES);
-  // ROADMAP.md is only canonical for roadmap-* specs.
-  if (document === FIXED_DOCUMENT_FILES.ROADMAP && !(typeof spec === "string" && spec.startsWith("roadmap-"))) return false;
-  return segments.length === 1 && (fixed.includes(document) || document === `${spec}.feature` || document === `${spec}_SCHEMA.md`);
+  return segments.length === 1 && canonicalDocumentKind(document, spec) !== null;
 }
 
 export function validateSpecDocument(spec, document) {
@@ -122,9 +119,8 @@ function documentNotFound(message, extra = {}) {
   return { ok: false, code: "DOC_NOT_FOUND", message, ...extra };
 }
 
-async function inspectAuthoringTarget(root, spec, document, { allowMissing = false } = {}) {
-  const resolved = documentAbsolute(root, spec, document);
-  if (!resolved.ok) return resolved;
+async function inspectSpecificationDirectory(root, spec, document, allowMissing) {
+  if (!isValidSpecSlug(spec)) return pathForbidden("spec must be a valid specification slug", { spec });
   let rootReal;
   try {
     rootReal = await realpath(root);
@@ -154,7 +150,7 @@ async function inspectAuthoringTarget(root, spec, document, { allowMissing = fal
   } catch (error) {
     if (error?.code === "ENOENT") {
       return allowMissing
-        ? { ...resolved, rootReal, specsDir, specDir, missing: true }
+        ? { ok: true, rootReal, specsDir, specDir, missing: true }
         : documentNotFound(`specification does not exist: ${spec}`, { spec, document });
     }
     return pathForbidden("specification directory cannot be inspected", { spec, document });
@@ -170,6 +166,16 @@ async function inspectAuthoringTarget(root, spec, document, { allowMissing = fal
   if (!isInsidePath(specsReal, specReal) || (process.platform === "win32" ? relativeSpec.toLowerCase() : relativeSpec) !== (process.platform === "win32" ? spec.toLowerCase() : spec)) {
     return pathForbidden("specification directory resolves outside its canonical parent", { spec, document });
   }
+  return { ok: true, rootReal, specsDir, specDir, specReal, missing: false };
+}
+
+async function inspectAuthoringTarget(root, spec, document, { allowMissing = false } = {}) {
+  const resolved = documentAbsolute(root, spec, document);
+  if (!resolved.ok) return resolved;
+  const directory = await inspectSpecificationDirectory(root, spec, document, allowMissing);
+  if (!directory.ok) return directory;
+  if (directory.missing) return { ...resolved, ...directory };
+  const { rootReal, specsDir, specDir, specReal } = directory;
   const target = resolved.absolute;
   let targetStat;
   try {
@@ -194,7 +200,7 @@ async function inspectAuthoringTarget(root, spec, document, { allowMissing = fal
 }
 
 export async function specificationDirectoryExists(root, spec) {
-  const checked = await inspectAuthoringTarget(root, spec, `${spec}.feature`, { allowMissing: true });
+  const checked = await inspectSpecificationDirectory(root, spec, null, true);
   if (!checked.ok) return checked;
   return { ok: true, exists: checked.specReal !== undefined, specDir: checked.specDir };
 }
@@ -221,7 +227,7 @@ async function collectDirectoryFiles(directory, rootReal, relative = "", files =
 }
 
 export async function specificationDirectoryDigest(root, spec) {
-  const checked = await inspectAuthoringTarget(root, spec, `${spec}.feature`);
+  const checked = await inspectSpecificationDirectory(root, spec, null, false);
   if (!checked.ok) return checked;
   const collected = await collectDirectoryFiles(checked.specDir, checked.rootReal);
   if (!collected.ok) return collected;

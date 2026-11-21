@@ -243,11 +243,11 @@ export const TOOL_CONTRACTS = Object.freeze([
     tool: "spec_inspect",
     label: "Spec Inspect",
     operation: "inspect",
-    description: `Run validation, orphans, anchors, readiness, and policy checks.\n${READINESS_RULE_TEXT}`,
+    description: "Run validation, orphans, anchors, readiness, and policy checks.",
     discriminator: "check",
     variants: Object.freeze({
       readiness: Object.freeze({
-        description: "Report the readiness level and the blockers that keep one specification from the next level.",
+        description: `Report readiness and its blockers.\n${READINESS_RULE_TEXT}`,
         fields: Object.freeze([field("spec", "string")]),
       }),
       scenariosByTags: Object.freeze({
@@ -368,7 +368,13 @@ export const TOOL_CONTRACTS = Object.freeze([
     ]),
     variants: Object.freeze({
       patch: Object.freeze({
-        description: "Patch operations on one spec.",
+        description: [
+          "Patch operations on one spec. Write the two canonical Gherkin documents with replace_document.",
+          "In <slug>-user-stories.feature, declare @story:US-N on each Rule and supply Actor, Goal, Benefit and at least one Scenario.",
+          "In <slug>-use-cases.feature, declare @case:UC-N and @story:US-N on the same Rule. Supply Actor, Boundary, Trigger, Precondition, Success and Step/Branch declarations.",
+          "Use ScenarioRef: <branch-id> | SCEN-<id> or SCEN-<id>#<example_id> for an Examples row. Use complete Given/When/Then in drafts.",
+          "Add @spec-ready only on the scenario and provide designReview when promoting or changing a protected example.",
+        ].join("\n"),
         fields: Object.freeze([
           optionalField("repositoryRootFingerprint", "string"),
           optionalField("designReview", "json"),
@@ -397,12 +403,17 @@ export const TOOL_CONTRACTS = Object.freeze([
         description: "Add a task phase.",
         fields: Object.freeze([field("title", "string")]),
       }),
+      approveBddCoverage: Object.freeze({
+        description: "Project owner approves the BDD outcome map and exact current examples on the canonical specification. Preview first, then pass baseGenerationSha256 as repositoryRootFingerprint to apply.",
+        fields: Object.freeze([field("map", "json"), optionalField("repositoryRootFingerprint", "string")]),
+      }),
       confirmTaskCreation: Object.freeze({
-        description: "Create one canonical task in TASKS.md.",
+        description: "Create a task when its approved requirements and BDD examples are current. coverageScope selects an owner-approved subset.",
         fields: Object.freeze([
           field("entity", "string"),
           field("subject", "string"),
           field("requirements", "stringArray"),
+          optionalField("coverageScope", "string"),
           optionalField("owner", "nullableString"),
           optionalField("description", "string"),
           optionalField("status", "enum", TASK_STATUS_VALUES),
@@ -792,6 +803,7 @@ const TASK_ONLY_FIELDS = Object.freeze([
   "description",
   "subject",
   "requirements",
+  "coverageScope",
   "creationToken",
   "review",
   "refs",
@@ -840,6 +852,7 @@ function validateOperationObject(op) {
         op.review === undefined &&
         op.refs === undefined &&
         op.dependsOn === undefined &&
+        (op.coverageScope === undefined || (typeof op.coverageScope === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(op.coverageScope))) &&
         (op.owner === undefined || op.owner === null || typeof op.owner === "string") &&
         (op.description === undefined || typeof op.description === "string") &&
         (op.status === undefined || TASK_STATUS_VALUES.includes(op.status)) &&
@@ -875,6 +888,8 @@ function validateOperationObject(op) {
     case "replace_task_links":
       return (
         typeof op.entity === "string" &&
+        (op.coverageScope === undefined || op.coverageScope === null ||
+          (typeof op.coverageScope === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(op.coverageScope))) &&
         (op.requirements === undefined ||
           (Array.isArray(op.requirements) && op.requirements.every((item) => typeof item === "string"))) &&
         (op.dependsOn === undefined ||

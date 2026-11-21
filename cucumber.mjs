@@ -1,3 +1,6 @@
+import { resolveCorpusRoot } from "./scripts/corpus-root.mjs";
+import { releaseFeaturePaths } from "./scripts/release-gherkin.mjs";
+
 const messagePath = process.env.OMP_SPEC_KIT_BDD_MESSAGE_PATH;
 const stdoutMessages = process.env.OMP_SPEC_KIT_BDD_MESSAGE_STDOUT === "1";
 
@@ -15,10 +18,7 @@ if (process.argv.some((arg) => /release-evidence|release-candidate|lifecycle-pro
   process.env.OMP_SPEC_KIT_RC_BDD = "1";
 }
 
-export default {
-  // Host scripts pass their feature explicitly; the Docker producer keeps the
-  // release-evidence projection isolated from host-only lifecycle scenarios.
-  paths: process.env.OMP_SPEC_KIT_BDD_CONTAINER === "1" ? ["tests/features/release-evidence.feature"] : [],
+const options = {
   import: ["tests/support/**/*.mjs", "tests/step-definitions/**/*.mjs"],
   format: stdoutMessages
     ? messagePath
@@ -30,3 +30,13 @@ export default {
   parallel: 1,
   strict: true,
 };
+
+const dockerRelease = process.env.OMP_SPEC_KIT_BDD_CONTAINER === "1";
+const releaseRequested = dockerRelease || process.argv.includes("release") || process.argv.includes("--profile=release");
+export const release = releaseRequested ? {
+  ...options,
+  paths: [...releaseFeaturePaths(resolveCorpusRoot()), "tests/features/release-evidence.feature"],
+  tags: "@release-evidence or @id:SCEN-mri-malformed-json-recovery",
+} : {};
+
+export default dockerRelease ? release : { ...options, paths: [] };

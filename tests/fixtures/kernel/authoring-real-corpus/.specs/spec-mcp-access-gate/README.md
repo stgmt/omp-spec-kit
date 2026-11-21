@@ -26,7 +26,6 @@ The installed OMP contract is grounded in OMP v18.0.11 pinned at commit 33cc6b9a
 - [Acceptance criteria](ACCEPTANCE_CRITERIA.md)
 - [Schema](spec-mcp-access-gate_SCHEMA.md)
 - [Design](DESIGN.md)
-- [Scenarios](spec-mcp-access-gate.feature)
 - [Tasks](TASKS.md)
 - [Real fixture contract](FIXTURES.md)
 

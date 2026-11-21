@@ -37,6 +37,7 @@ Feature: Exercise the single-surface MCP server through the packaged server
     When the staged OMP extension registry is inspected
     Then spec patch is marked as mutating and 9 tools remain read-only
 
+  @tool-e2e
   Scenario: Single surface keeps safe authoring and binds producer evidence
     Given a real staged MCP corpus and packaged server
     When the additive registry, evidence states, and safe authoring are exercised

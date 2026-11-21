@@ -82,8 +82,11 @@ export class SpecPatchService {
     }
   }
 
-  async execute(input = {}) {
+  async execute(input = {}, context = {}) {
     const requestId = input.requestId;
+    if (input.intent === "approveBddCoverage" && context.coverageOwner !== true) {
+      return error("BDD_COVERAGE_PROTECTED", "Approval requires the hosted project owner");
+    }
 
     const actorValidation = validateActorRef(input.actorRef);
     if (!actorValidation.ok) {
@@ -100,6 +103,7 @@ export class SpecPatchService {
     }
 
     const dryRun = input.dryRun ?? true;
+    const requestKey = canonicalJson({ ...input, intent: input.intent ?? "patch", dryRun: false });
 
     const refusal = (code, message, findings = [], proposalHash = "", details = {}) => {
       this.auditRefusal(code, input, details);
@@ -129,27 +133,6 @@ export class SpecPatchService {
       }
 
       // Replay detection using canonical request key before compile
-      const identity = {
-        requestId,
-        spec: input.spec,
-        intent: input.intent ?? "patch",
-        reason: input.reason,
-        operations: input.operations ?? null,
-        requirement: input.requirement ?? null,
-        body: input.body ?? null,
-        criterion: input.criterion ?? null,
-        title: input.title ?? null,
-        summary: input.summary ?? null,
-        entity: input.entity ?? null,
-        status: input.status ?? null,
-        metadata: input.metadata ?? null,
-        contract: input.contract ?? null,
-        doc: input.doc ?? input.document ?? null,
-        newDoc: input.newDoc ?? null,
-        actorRef: input.actorRef ?? null,
-        designReview: input.designReview ?? null,
-      };
-      const requestKey = canonicalJson(identity);
       const prior = this.applied.get(requestId);
       if (prior) {
         if (prior.requestKey === requestKey) {
@@ -162,7 +145,7 @@ export class SpecPatchService {
     if (typeof this.refreshGraph === "function") await this.refreshGraph();
     const graph = await this.getGraph();
 
-    const compileRes = await this.compiler.compile(input, graph);
+    const compileRes = await this.compiler.compile(input, graph, context);
     if (!compileRes.ok) {
       if (!dryRun && compileRefusalCode(compileRes.error?.code)) {
         // The envelope refusal logs once, with the blockers and level the
@@ -210,28 +193,6 @@ export class SpecPatchService {
 
     // Mode 2: dryRun: false transactional commit
     const proposalHash = proposal.proposalHash;
-
-    const identity = {
-      requestId,
-      spec: input.spec,
-      intent: input.intent ?? "patch",
-      reason: input.reason,
-      operations: input.operations ?? null,
-      requirement: input.requirement ?? null,
-      body: input.body ?? null,
-      criterion: input.criterion ?? null,
-      title: input.title ?? null,
-      summary: input.summary ?? null,
-      entity: input.entity ?? null,
-      status: input.status ?? null,
-      metadata: input.metadata ?? null,
-      contract: input.contract ?? null,
-      doc: input.doc ?? input.document ?? null,
-      newDoc: input.newDoc ?? null,
-      actorRef: input.actorRef ?? null,
-      designReview: input.designReview ?? null,
-    };
-    const requestKey = canonicalJson(identity);
 
     try {
       const result = await withWriteLock(this.root, requestId, async () => {
@@ -324,6 +285,21 @@ export class SpecPatchService {
       const code = safeErrorCode(caught?.code ?? "INTERNAL_ERROR");
       return refusal(code, caught?.message || "specification transaction was refused", [], proposalHash);
     }
+  }
+
+  /**
+   * The hosted write pipeline commits to the spec branch after the kernel
+   * applies the change. When that commit fails, the memoized APPLIED response
+   * describes a write that never landed; dropping it lets the same requestId
+   * compile again against the restored corpus instead of replaying a lie.
+   */
+  forgetApplied(requestId) {
+    this.applied.delete(requestId);
+  }
+
+  /** True when this requestId already produced an APPLIED response. */
+  hasApplied(requestId) {
+    return this.applied.has(requestId);
   }
 }
 

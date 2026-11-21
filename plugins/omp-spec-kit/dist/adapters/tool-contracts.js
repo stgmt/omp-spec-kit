@@ -133,8 +133,8 @@ export const TOOL_CONTRACTS = Object.freeze([
         ]),
       }),
       branches: Object.freeze({
-        description: "List spec branches.",
-        fields: Object.freeze([]),
+        description: "List spec branches. Archived specs are hidden unless includeArchived is true.",
+        fields: Object.freeze([optionalField("includeArchived", "boolean")]),
       }),
     }),
   },
@@ -218,7 +218,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         fields: Object.freeze([field("spec", "string")]),
       }),
       read: Object.freeze({
-        description: "Read one specification document, optionally by section or window.",
+        description: "Read one specification document, optionally by section or window. Archived documents require includeArchived: true.",
         fields: Object.freeze([
           field("spec", "string"),
           field("doc", "string"),
@@ -227,6 +227,7 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("limit", "integer"),
           optionalField("readForEdit", "boolean"),
           optionalField("version", "nullableString"),
+          optionalField("includeArchived", "boolean"),
         ]),
       }),
       attachment: Object.freeze({
@@ -242,11 +243,11 @@ export const TOOL_CONTRACTS = Object.freeze([
     tool: "spec_inspect",
     label: "Spec Inspect",
     operation: "inspect",
-    description: `Run validation, orphans, anchors, readiness, and policy checks.\n${READINESS_RULE_TEXT}`,
+    description: "Run validation, orphans, anchors, readiness, and policy checks.",
     discriminator: "check",
     variants: Object.freeze({
       readiness: Object.freeze({
-        description: "Report the readiness level and the blockers that keep one specification from the next level.",
+        description: `Report readiness and its blockers.\n${READINESS_RULE_TEXT}`,
         fields: Object.freeze([field("spec", "string")]),
       }),
       scenariosByTags: Object.freeze({
@@ -367,7 +368,13 @@ export const TOOL_CONTRACTS = Object.freeze([
     ]),
     variants: Object.freeze({
       patch: Object.freeze({
-        description: "Patch operations on one spec.",
+        description: [
+          "Patch operations on one spec. Write the two canonical Gherkin documents with replace_document.",
+          "In <slug>-user-stories.feature, declare @story:US-N on each Rule and supply Actor, Goal, Benefit and at least one Scenario.",
+          "In <slug>-use-cases.feature, declare @case:UC-N and @story:US-N on the same Rule. Supply Actor, Boundary, Trigger, Precondition, Success and Step/Branch declarations.",
+          "Use ScenarioRef: <branch-id> | SCEN-<id> or SCEN-<id>#<example_id> for an Examples row. Use complete Given/When/Then in drafts.",
+          "Add @spec-ready only on the scenario and provide designReview when promoting or changing a protected example.",
+        ].join("\n"),
         fields: Object.freeze([
           optionalField("repositoryRootFingerprint", "string"),
           optionalField("designReview", "json"),
@@ -396,12 +403,17 @@ export const TOOL_CONTRACTS = Object.freeze([
         description: "Add a task phase.",
         fields: Object.freeze([field("title", "string")]),
       }),
+      approveBddCoverage: Object.freeze({
+        description: "Project owner approves the BDD outcome map and exact current examples on the canonical specification. Preview first, then pass baseGenerationSha256 as repositoryRootFingerprint to apply.",
+        fields: Object.freeze([field("map", "json"), optionalField("repositoryRootFingerprint", "string")]),
+      }),
       confirmTaskCreation: Object.freeze({
-        description: "Create one canonical task in TASKS.md.",
+        description: "Create a task when its approved requirements and BDD examples are current. coverageScope selects an owner-approved subset.",
         fields: Object.freeze([
           field("entity", "string"),
           field("subject", "string"),
           field("requirements", "stringArray"),
+          optionalField("coverageScope", "string"),
           optionalField("owner", "nullableString"),
           optionalField("description", "string"),
           optionalField("status", "enum", TASK_STATUS_VALUES),
@@ -791,6 +803,7 @@ const TASK_ONLY_FIELDS = Object.freeze([
   "description",
   "subject",
   "requirements",
+  "coverageScope",
   "creationToken",
   "review",
   "refs",
@@ -839,6 +852,7 @@ function validateOperationObject(op) {
         op.review === undefined &&
         op.refs === undefined &&
         op.dependsOn === undefined &&
+        (op.coverageScope === undefined || (typeof op.coverageScope === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(op.coverageScope))) &&
         (op.owner === undefined || op.owner === null || typeof op.owner === "string") &&
         (op.description === undefined || typeof op.description === "string") &&
         (op.status === undefined || TASK_STATUS_VALUES.includes(op.status)) &&
@@ -874,6 +888,8 @@ function validateOperationObject(op) {
     case "replace_task_links":
       return (
         typeof op.entity === "string" &&
+        (op.coverageScope === undefined || op.coverageScope === null ||
+          (typeof op.coverageScope === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(op.coverageScope))) &&
         (op.requirements === undefined ||
           (Array.isArray(op.requirements) && op.requirements.every((item) => typeof item === "string"))) &&
         (op.dependsOn === undefined ||
@@ -1172,7 +1188,7 @@ export function annotationsFor(contract, action = null) {
   return contractIsMutating(contract) ? MUTATING_TOOL_ANNOTATIONS : READ_TOOL_ANNOTATIONS;
 }
 
-export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts an optional project (owner/project) that selects the project serving that call only; when it is omitted the host's session project or your default scope applies, and an unresolved or unauthorized project is refused instead of falling back. declaredWorktree (absolute path) selects a corpus only on the local stdio/test transport; the hosted HTTP transport refuses it, so select a project there instead. ${READINESS_RULE_TEXT} ${ELICITATION_HINT}`;
+export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts an optional project (owner/project) that selects the project serving that call only; when it is omitted the host's session project or your default scope applies, and an unresolved or unauthorized project is refused instead of falling back. declaredWorktree (absolute path) selects a corpus only on the local stdio/test transport; the hosted HTTP transport refuses it, so select a project there instead. Archived specifications are read-only and hidden from normal lists; request them explicitly with spec_catalog view: "branches" and spec_documents action: "read", both with includeArchived: true. ${READINESS_RULE_TEXT} ${ELICITATION_HINT}`;
 
 export const KERNEL_ENVELOPE_OUTPUT_SCHEMA = Object.freeze({
   type: "object",

@@ -2,6 +2,8 @@
 node_modules
 **/node_modules/
 .omp
+.omp-spec-kit
+tests/e2e/artifacts/
 .tmp
 tmp
 coverage

@@ -188,7 +188,9 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
         };
       }
       const root = spec === null ? null : await mounts.projectRoot(project);
-      envelope = await mounts.serviceFor(project).runQuery("specPatch", args, { requestId, schemaVersion });
+      envelope = await mounts.serviceFor(project).runQuery("specPatch", args, {
+        requestId, schemaVersion, hostedCoverage: true, coverageOwner: ctx.role === "owner",
+      });
       if (!(envelope.ok && envelope.data?.outcome === "APPLIED")) return { envelope };
       if (worktree === null) return { envelope };
       const { git, cwd, branch } = worktree;

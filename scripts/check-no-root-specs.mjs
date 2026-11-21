@@ -3,8 +3,9 @@
  * Boundary check (FR-2): code branches must not carry a repository-root
  * `.specs/` corpus.
  *
- * The canonical corpus lives in the specs repository, is written only by the
- * spec registry service, and is read by consumers through MCP. Code gates in
+ * The canonical corpus lives on orphan `spec-<slug>` branches of the project
+ * repository, is written only by the spec registry service, and is read by
+ * consumers through MCP. Code gates in
  * this repository run against the frozen fixture under
  * `tests/fixtures/kernel/authoring-real-corpus`; a root `.specs/` would be a
  * third copy that agents could silently read or edit outside the service.

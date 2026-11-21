@@ -81,7 +81,7 @@ Given("an isolated temp project containing one valid spec corpus", async functio
 	// Copy every manifest-selected document from the current three-spec corpus.
 	const manifest = await readJson(path.join(REPOSITORY_ROOT, "tests", "fixtures", "kernel", "authoring-real-corpus-manifest.json"));
 	const documents = manifest.documents.map((entry) => entry.path);
-	assert.equal(documents.length, 45, "authoring corpus manifest must select all 45 documents");
+	assert.equal(documents.length, 42, "authoring corpus manifest must select all 42 documents");
 	for (const relative of documents) {
 		const target = path.join(this.lifecycle.projectDir, ...relative.split("/"));
 		await mkdir(path.dirname(target), { recursive: true });

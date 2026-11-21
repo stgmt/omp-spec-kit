@@ -65,6 +65,7 @@ async function runCandidateManagerE2E() {
     const digest = async (file) => createHash("sha256").update(await readFile(file)).digest("hex");
     const env = { ...process.env, HOME: probeHome, USERPROFILE: probeHome, PI_CODING_AGENT_DIR: path.join(probeHome, "agent"), OMP_PROFILE: "safe-authoring-e2e" };
     delete env.OMP_SPEC_KIT_STAGE;
+    delete env.OMP_SPEC_KIT_ROOT;
     const result = spawnSync("bun", [
       path.join(REPOSITORY_ROOT, "scripts", "probe-omp-discovery-v18.0.11.mjs"),
       "--runtime-root", runtimeRoot,
@@ -203,9 +204,9 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     return;
   }
   if (scenario === "provenance") {
-    assert.equal(this.corpus.manifest.schema, "omp-spec-kit-authoring-real-corpus@1");
-    assert.equal(this.corpus.manifest.documentCount, 45);
-    assert.equal(this.corpus.files.length, 45);
+    assert.equal(this.corpus.manifest.schema, "omp-spec-kit-authoring-real-corpus@2");
+    assert.equal(this.corpus.manifest.documentCount, 42);
+    assert.equal(this.corpus.files.length, 42);
     assert.equal(this.corpus.graph.valid, true);
     this.result = true;
     return;
@@ -571,7 +572,8 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     const onDisk = await readdir(path.join(this.root, ".specs", "retry-feature"));
     assert.ok(onDisk.includes("README.md"));
     assert.ok(onDisk.includes("FR.md"));
-    assert.ok(onDisk.includes("retry-feature.feature"));
+    assert.ok(onDisk.includes("retry-feature-user-stories.feature"));
+    assert.ok(onDisk.includes("retry-feature-use-cases.feature"));
     assert.ok(onDisk.includes("retry-feature_SCHEMA.md"));
 
     const third = await call(this, "spec_patch", {
@@ -664,8 +666,8 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     assert.equal(multidoc.ok, true, JSON.stringify(multidoc));
     assert.equal(multidoc.data?.outcome, "REFUSED", JSON.stringify(multidoc));
     assert.equal(multidoc.data?.error?.code, "ELICITATION_REQUIRED", JSON.stringify(multidoc));
-    assert.equal(multidoc.data?.error?.documents?.length, 14, "refusal covers all 14 markdown targets");
-    assert.ok(!multidoc.data?.error?.documents?.includes("multidoc-feature.feature"), "does not include .feature");
+    assert.equal(multidoc.data?.error?.documents?.length, 12, "refusal covers all 12 markdown targets");
+    assert.ok(multidoc.data?.error?.documents?.every((doc) => doc.endsWith(".md")));
 
     const digestAfter = await computeSpecsDigest();
     assert.equal(digestAfter, digestBefore, "refusal preserves exact bytes in .specs");
@@ -680,7 +682,7 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     assert.equal(retryMultidoc.ok, true, JSON.stringify(retryMultidoc));
     assert.equal(retryMultidoc.data?.outcome, "APPLIED", JSON.stringify(retryMultidoc));
     const createdFiles = await readdir(path.join(this.root, ".specs", "multidoc-feature"));
-    assert.equal(createdFiles.length, 15, "all 15 documents created on single retry");
+    assert.equal(createdFiles.length, 14, "the retry creates all Markdown documents and the Gherkin pair");
     this.result = true;
     return;
   }
@@ -773,9 +775,21 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
       spec: "feature-only",
       reason: "feature boundary",
       dryRun: false,
-      operations: [{ kind: "replace_document", document: "feature-only.feature", content: "Feature: Feature only\n" }],
+      operations: [{ kind: "replace_document", document: "feature-only-user-stories.feature", content: "Feature: Feature only\n" }],
     });
-    assert.equal(featureOnly.data?.outcome, "APPLIED", JSON.stringify(featureOnly));
+    assert.equal(featureOnly.error?.code, "VALIDATION_FAILED", JSON.stringify(featureOnly));
+    assert.match(JSON.stringify(featureOnly.error?.findings), /documents must exist together/u);
+    const pair = await call(this, "spec_patch", {
+      requestId: "safe-feature-pair",
+      intent: "patch",
+      spec: "feature-only",
+      reason: "create the complete Gherkin pair",
+      dryRun: false,
+      operations: ["user-stories", "use-cases"].map((kind) => ({
+        kind: "replace_document", document: `feature-only-${kind}.feature`, content: "Feature: Feature only\n",
+      })),
+    });
+    assert.equal(pair.data?.outcome, "APPLIED", JSON.stringify(pair));
     const noncanonical = await call(this, "spec_patch", {
       requestId: "safe-noncanonical-1",
       intent: "patch",
@@ -814,9 +828,26 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     return;
   }
   if (scenario === "design-review-gate") {
-    const featureDoc = "plugin-distribution.feature";
-    const featurePath = path.join(this.root, "." + "specs", "plugin-distribution", featureDoc);
-    const scenarioContent = "Feature: plugin distribution\n\n  @feature1 @FR-1 @AC-1.1 @id:SCEN-design-review-gate-proof\n  Scenario: gate proof\n    Then it holds\n";
+    const featureDoc = "plugin-distribution-user-stories.feature";
+    const featurePath = path.join(this.root, ".specs", "plugin-distribution", featureDoc);
+    const before = await readFile(featurePath, "utf8");
+    const draft = `\n  @contract
+  Rule: Preview isolates the proposed write
+    @feature1 @AC-1.1 @id:SCEN-design-review-gate-proof
+    Scenario: Preview displays the proposed document change
+      Given a current specification document
+      When the author previews a change
+      Then the preview includes the proposed edit
+      And the existing document keeps its original bytes
+`;
+    const proposal = await call(this, "spec_patch", {
+      intent: "patch", spec: "plugin-distribution", reason: "store the draft example",
+      dryRun: false, requestId: "safe-dr-draft", operations: [{ kind: "insert_at_eof", document: featureDoc, text: draft }],
+    });
+    assert.equal(proposal.data?.outcome, "APPLIED", JSON.stringify(proposal));
+    const stored = await readFile(featurePath, "utf8");
+    assert.equal(stored, before + draft);
+    const scenarioContent = stored.replace("@id:SCEN-design-review-gate-proof", "@id:SCEN-design-review-gate-proof @spec-ready");
     const baseArgs = {
       intent: "patch",
       spec: "plugin-distribution",
@@ -838,7 +869,7 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     const review = {
       schemaVersion: "omp-spec-kit/design-review@1",
       decision: "proceed",
-      boundary: { kind: "external-contract", name: "spec_patch scenario-authoring gate", claim: "a .feature change containing a Scenario header must carry a design review receipt" },
+      boundary: { kind: "external-contract", name: "spec_patch scenario-authoring gate", claim: "promoting a draft example to @spec-ready requires a design review receipt" },
       evidence: [
         { kind: "test", reference: "tests/features/safe-authoring.feature", observation: "this scenario exercises the gate through the live MCP server" },
         { kind: "source", reference: "src/authoring/design-review.js", observation: "validateDesignReviewForChanges enforces the closed review schema and mutation claim" },
@@ -849,7 +880,7 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
         mutation: "failed-as-expected",
         command: "cucumber-js tests/features/safe-authoring.feature --tags @design-review",
         hypothesis: "the gate refuses scenario-authoring patches without a valid designReview",
-        answer: "missing and malformed reviews are refused; a valid review applies and returns a receipt",
+        answer: "missing and malformed reviews are refused; a valid review reaches the coverage approval gate",
         positiveCase: "valid designReview attached to a scenario patch",
         negativeCase: "same patch without designReview",
         expectedFailure: "DESIGN_REVIEW_INVALID when the mutation claim is weakened",
@@ -859,13 +890,9 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     const mutated = await call(this, "spec_patch", { ...baseArgs, requestId: "safe-dr-mutated", designReview: { ...review, selfTestCheck: { ...review.selfTestCheck, mutation: "passed" } } });
     assert.equal(mutated.data?.outcome, "REFUSED", JSON.stringify(mutated));
     assert.equal(mutated.data?.error?.code, "DESIGN_REVIEW_INVALID", JSON.stringify(mutated));
-    const applied = await call(this, "spec_patch", { ...baseArgs, requestId: "safe-dr-applied", designReview: review });
-    assert.equal(applied.data?.outcome, "APPLIED", JSON.stringify(applied));
-    const reviewed = applied.data?.receipt?.designReview?.reviewedDocuments;
-    assert.ok(Array.isArray(reviewed), JSON.stringify(applied));
-    const entry = reviewed.find((item) => item.path === featureDoc);
-    assert.ok(entry, JSON.stringify(reviewed));
-    assert.equal(entry.afterSha256, sha256Hex(await readFile(featurePath)));
+    const reviewed = await call(this, "spec_patch", { ...baseArgs, requestId: "safe-dr-reviewed", designReview: review });
+    assert.equal(reviewed.error?.code, "BDD_COVERAGE_INCOMPLETE", JSON.stringify(reviewed));
+    assert.equal(await readFile(featurePath, "utf8"), stored);
     this.result = true;
     return;
   }

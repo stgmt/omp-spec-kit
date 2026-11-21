@@ -1,0 +1,80 @@
+import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { cp, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+import { test } from "node:test";
+import { MountManager } from "../../src/service/mounts.js";
+import { createServiceApp } from "../../src/service/http.js";
+import { uploadGherkinEvidence } from "../../scripts/capture-gherkin-evidence.mjs";
+import { captureProductEvidence } from "../helpers/evidence-e2e.mjs";
+import { writeStagedCorpus } from "../helpers/kernel-world.mjs";
+import { seedSpecBranch } from "./lib/spec-repo.mjs";
+
+const exec = promisify(execFile);
+const repo = fileURLToPath(new URL("../..", import.meta.url));
+
+test("producer artifact reaches only the authorized hosted project, atomically and bounded", async () => {
+  const base = await mkdtemp(path.join(tmpdir(), "host-evidence-"));
+  let server;
+  try {
+    const staged = path.join(base, "staged");
+    await writeStagedCorpus(staged, repo);
+    const bare = path.join(base, "repo.git");
+    await exec("git", ["init", "--bare", "--initial-branch=main", bare]);
+    await seedSpecBranch(bare, { project: "a/project", spec: "product", sourceDir: path.join(staged, ".specs", "product") });
+    const store = { getBinding: (project) => ["a/project", "b/project"].includes(project) ? { project, repoUrl: bare, status: "active" } : null, getCredential: () => null };
+    const mounts = new MountManager({ config: { projects: ["a/project", "b/project"] }, cloneDir: path.join(base, "clone"), store });
+    const authenticate = async (req) => {
+      const token = req.get("authorization");
+      if (token === "Bearer writer") return { role: "writer", scopes: ["a/project"] };
+      if (token === "Bearer reader") return { role: "reader", scopes: ["a/project"] };
+      throw Object.assign(new Error("unauthorized"), { status: 401 });
+    };
+    server = createServiceApp({ mounts, authenticate }).listen(0, "127.0.0.1");
+    await new Promise((resolve) => server.once("listening", resolve));
+    const url = `http://127.0.0.1:${server.address().port}`;
+    const root = await mounts.resolveProjectRoot("a/project");
+    const local = path.join(base, "producer");
+    await cp(path.join(root, ".specs"), path.join(local, ".specs"), { recursive: true });
+    const messages = await captureProductEvidence({ projectRoot: local, repositoryRoot: repo });
+    const endpoint = `${url}/evidence?project=a%2Fproject`;
+    const post = (token, body = messages, target = endpoint) => fetch(target, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/x-ndjson" }, body });
+    assert.equal((await post("reader")).status, 403);
+    assert.equal((await post("writer", messages, `${url}/evidence?project=b%2Fproject`)).status, 403);
+    assert.equal((await post("none")).status, 401);
+    assert.equal((await post("writer", "bad\n")).status, 400);
+    assert.equal((await post("writer", "x".repeat(16 * 1024 * 1024 + 1))).status, 413);
+    await uploadGherkinEvidence({ baseUrl: url, project: "a/project", token: "writer", messages });
+    const artifact = path.join(root, ".omp-spec-kit", "evidence", "last-test-run.ndjson");
+    assert.equal(await readFile(artifact, "utf8"), messages);
+    const rpc = async (method, params, id) => (await fetch(`${url}/mcp`, { method: "POST", headers: { authorization: "Bearer writer", "content-type": "application/json", accept: "application/json, text/event-stream" }, body: JSON.stringify({ jsonrpc: "2.0", id, method, params }) })).json();
+    const initialized = await rpc("initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "evidence-test", version: "1" } }, 1);
+    assert.ok(initialized.result?.protocolVersion);
+    const listed = await rpc("tools/list", {}, 2);
+    assert.ok(listed.result.tools.some((tool) => tool.name === "spec_evidence"));
+    const result = await rpc("tools/call", { name: "spec_evidence", arguments: { project: "a/project", view: "result", scenarioId: "product:SCEN-specification-only-init" } }, 3);
+    assert.equal(result.result.structuredContent.data.result, "PASSED", JSON.stringify(result));
+    mounts.projectRoots.delete("a/project");
+    assert.equal(await mounts.resolveProjectRoot("a/project"), root);
+    assert.equal(await readFile(artifact, "utf8"), messages);
+    const stale = messages.replace(/"graphFingerprint":"[^"]+"/u, '"graphFingerprint":"stale"');
+    const rejected = await post("writer", stale);
+    assert.equal(rejected.status, 409);
+    assert.equal((await rejected.json()).error, "EVIDENCE_STALE");
+    assert.equal(await readFile(artifact, "utf8"), messages);
+    await rm(path.join(root, ".omp-spec-kit"), { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    const outside = path.join(base, "outside");
+    await import("node:fs/promises").then(({ mkdir }) => mkdir(outside));
+    await symlink(outside, path.join(root, ".omp-spec-kit"), "junction");
+    const unsafe = await post("writer");
+    assert.equal(unsafe.status, 409);
+    assert.equal((await unsafe.json()).error, "EVIDENCE_PATH_UNSAFE");
+    await assert.rejects(readFile(path.join(outside, "evidence", "last-test-run.ndjson")), { code: "ENOENT" });
+  } finally {
+    if (server) await new Promise((resolve) => server.close(resolve));
+    await rm(base, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+  }
+});

@@ -39,7 +39,7 @@ is_unfiltered_run() {
 }
 
 RESULTS_DIR="$ROOT/.omp-spec-kit/evidence/bdd-results"
-CANONICAL_RESULT="$ROOT/.omp-spec-kit/evidence/last-test-run.ndjson"
+CANONICAL_RESULT="$ROOT/.omp-spec-kit/evidence/release-test-run.ndjson"
 CONTAINER_RESULTS_DIR="/omp-spec-kit-bdd-results"
 mkdir -p "$RESULTS_DIR"
 HOST_RUN_FILE="$(mktemp "$RESULTS_DIR/run.XXXXXX.ndjson")"

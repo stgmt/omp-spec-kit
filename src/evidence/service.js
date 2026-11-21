@@ -1,14 +1,13 @@
 import { createHash } from "node:crypto";
-import { readdir, readFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
+import { canonicalJson } from "../kernel/normalize.js";
+import { parseFeature } from "../kernel/parsers/gherkin.js";
+import { compile } from "../kernel/vendor/gherkin.js";
 
-const MAX_EVIDENCE_FILES = 32;
 const MAX_EVIDENCE_BYTES = 16 * 1024 * 1024;
-const EVIDENCE_NAMES = Object.freeze([
-  ".omp-spec-kit/evidence/last-test-run.ndjson",
-  ".omp-spec-kit/evidence/bdd-results/run.ndjson",
-  "tests/fixtures/release-candidate/cucumber-messages.ndjson",
-]);
+export const EVIDENCE_PATH = ".omp-spec-kit/evidence/last-test-run.ndjson";
+export const EVIDENCE_SCHEMA = "omp-spec-kit/gherkin-run@1";
 
 export const EVIDENCE_OPERATIONS = Object.freeze(["getTestResult", "getScenarioTrace"]);
 
@@ -35,19 +34,14 @@ function scenarioLocalId(value) {
   return separator >= 0 ? trimmed.slice(separator + 1) : trimmed;
 }
 
-async function evidenceFiles(root) {
-  const files = [];
-  for (const relative of EVIDENCE_NAMES) {
-    const absolute = path.join(root, ...relative.split("/"));
-    try {
-      const bytes = await readFile(absolute);
-      if (bytes.length <= MAX_EVIDENCE_BYTES) files.push({ relative, bytes, sha256: sha256(bytes) });
-    } catch {
-      // Evidence is optional. Missing files become an explicit NOT_RUN result.
-    }
-    if (files.length >= MAX_EVIDENCE_FILES) break;
+async function readEvidence(root) {
+  try {
+    const bytes = await readFile(path.join(root, ...EVIDENCE_PATH.split("/")));
+    return bytes.length <= MAX_EVIDENCE_BYTES ? bytes : Buffer.alloc(0);
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    return Buffer.alloc(0);
   }
-  return files;
 }
 
 function timestampOf(frame) {
@@ -68,80 +62,171 @@ function parseMessages(bytes) {
     if (!line.trim()) continue;
     try {
       const frame = JSON.parse(line);
-      if (isObject(frame)) frames.push(frame);
+      if (!isObject(frame)) return [];
+      frames.push(frame);
     } catch {
-      // A malformed line cannot become evidence; keep other producer frames available.
+      return [];
     }
   }
   return frames;
 }
 
-function resultForScenario(frames, localId) {
-  const pickles = new Map();
-  const testCases = new Map();
-  const starts = new Map();
-  const stepResults = new Map();
-  const finished = new Map();
-  let captureBinding = null;
-  for (const frame of frames) {
-    if (isObject(frame.ompSpecKitEvidence) && isObject(frame.ompSpecKitEvidence.binding)) captureBinding = frame.ompSpecKitEvidence.binding;
-    if (isObject(frame.pickle)) {
-      const id = scenarioIdFromTags(frame.pickle.tags);
-      if (id === localId && typeof frame.pickle.id === "string") pickles.set(frame.pickle.id, frame.pickle);
-    }
-    if (isObject(frame.testCase) && typeof frame.testCase.id === "string") testCases.set(frame.testCase.id, frame.testCase);
-    if (isObject(frame.testCaseStarted) && typeof frame.testCaseStarted.id === "string") starts.set(frame.testCaseStarted.id, frame.testCaseStarted);
-    if (isObject(frame.testStepFinished) && typeof frame.testStepFinished.testCaseStartedId === "string") {
-      const list = stepResults.get(frame.testStepFinished.testCaseStartedId) ?? [];
-      list.push(frame.testStepFinished);
-      stepResults.set(frame.testStepFinished.testCaseStartedId, list);
-    }
-    if (isObject(frame.testCaseFinished) && typeof frame.testCaseFinished.testCaseStartedId === "string") finished.set(frame.testCaseFinished.testCaseStartedId, frame.testCaseFinished);
+function emptyResult(result) {
+  return { result, stale: true, runId: null, lastRunAt: null, failingStep: null, traceStatus: "missing", source: null, binding: null };
+}
+
+export function evidenceUri(value) {
+  return typeof value === "string" ? value.replaceAll("\\", "/").replace(/^\.\//u, "") : null;
+}
+
+// Resolve both the root and the file to prevent traversal through symlinks.
+export async function readContainedEvidenceSource(root, uri) {
+  if (typeof uri !== "string" || !uri || uri.includes("\\") || path.posix.isAbsolute(uri) ||
+      uri.split("/").some((part) => !part || part === "." || part === "..") || /^[A-Za-z]:/u.test(uri)) return null;
+  try {
+    const base = await realpath(root);
+    const file = await realpath(path.join(base, ...uri.split("/")));
+    const relative = path.relative(base, file);
+    if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return null;
+    const bytes = await readFile(file);
+    return bytes.length <= MAX_EVIDENCE_BYTES ? bytes : null;
+  } catch {
+    return null;
   }
-  const pickleIds = new Set(pickles.keys());
-  const matchingCases = [...testCases.values()].filter((testCase) => pickleIds.has(testCase.pickleId));
-  const matchingCaseIds = new Set(matchingCases.map((testCase) => testCase.id));
-  const matchingStarts = [...starts.values()].filter((start) => matchingCaseIds.has(start.testCaseId));
-  if (matchingStarts.length === 0) return { result: "NOT_RUN", stale: true, runId: null, lastRunAt: null, failingStep: null, traceStatus: "missing", source: null, captureBinding };
-  const latest = matchingStarts[matchingStarts.length - 1];
-  const results = stepResults.get(latest.id) ?? [];
-  const finishedRecord = finished.get(latest.id);
-  const matchingCase = matchingCases.find((testCase) => testCase.id === latest.testCaseId);
-  const expectedStepIds = Array.isArray(matchingCase?.testSteps)
-    ? matchingCase.testSteps.map((step) => step?.id).filter((id) => typeof id === "string")
-    : [];
-  const actualStepIds = results.map((entry) => entry.testStepId).filter((id) => typeof id === "string");
-  const expectedStepsComplete =
-    expectedStepIds.length > 0 &&
-    actualStepIds.length === expectedStepIds.length &&
-    new Set(actualStepIds).size === expectedStepIds.length &&
-    expectedStepIds.every((id) => actualStepIds.includes(id));
-  const complete =
-    finishedRecord !== undefined &&
-    finishedRecord.willBeRetried !== true &&
-    expectedStepsComplete &&
-    frames.some((frame) => frame.testRunFinished !== undefined);
-  const statuses = results.map((entry) => entry.testStepResult?.status);
-  const failed = results.find((entry) => entry.testStepResult?.status === "FAILED");
-  const hasUndefined = statuses.includes("UNDEFINED");
-  const hasSkipped = statuses.includes("SKIPPED");
-  const allPassed = complete && statuses.length > 0 && statuses.every((status) => status === "PASSED");
-  const result = failed ? "FAILED" : hasUndefined ? "UNDEFINED" : hasSkipped ? "SKIPPED" : allPassed ? "PASSED" : "UNKNOWN";
+}
+function exampleRows(doc) {
+  const rows = new Map();
+  const children = doc?.feature?.children ?? [];
+  for (const item of children.flatMap((child) => child.rule ? child.rule.children : [child])) {
+    for (const example of item.scenario?.examples ?? []) {
+      const column = example.tableHeader?.cells?.findIndex(({ value }) => value === "example_id") ?? -1;
+      if (column >= 0) for (const row of example.tableBody ?? []) rows.set(row.id, row.cells?.[column]?.value);
+    }
+  }
+  return rows;
+}
+
+function sourceMatchesScenario(bytes, uri, scenario, expected, reportedDefinition) {
+  try {
+    const { ast, ids } = parseFeature(bytes.toString("utf8"), uri);
+    const children = ast.feature?.children ?? [];
+    const definitions = children.flatMap((child) => child.rule ? child.rule.children : [child])
+      .map((child) => child.scenario).filter((item) => item?.tags?.some(({ name }) => name === `@id:${scenario.localId}`));
+    if (definitions.length !== 1 || definitions[0].tags.filter(({ name }) => name.startsWith("@id:")).length !== 1) return false;
+    const exampleValues = (definition) => (definition.examples ?? []).map((example) => ({
+      header: example.tableHeader?.cells.map(({ value }) => value) ?? null,
+      rows: (example.tableBody ?? []).map((row) => row.cells.map(({ value }) => value)),
+    }));
+    if (canonicalJson(exampleValues(definitions[0])) !== canonicalJson(exampleValues(reportedDefinition))) return false;
+    const rows = exampleRows({ feature: { children: [{ scenario: definitions[0] }] } });
+    const actual = new Map();
+    for (const pickle of compile(ast, uri, ids).filter((item) => item.astNodeIds[0] === definitions[0].id)) {
+      const row = pickle.astNodeIds.length < 2 ? null : rows.get(pickle.astNodeIds[1]);
+      const steps = pickle.steps.map(({ text, type, argument }) => ({ text, type, argument: argument ?? null }));
+      if (actual.has(row) || !expected.has(row) || expected.get(row) !== sha256(Buffer.from(canonicalJson(steps)))) return false;
+      actual.set(row, true);
+    }
+    return expected.size > 0 && actual.size === expected.size;
+  } catch {
+    return false;
+  }
+}
+function groupBy(items, key) {
+  const groups = new Map();
+  for (const item of items) {
+    const id = key(item);
+    const existing = groups.get(id) ?? [];
+    existing.push(item);
+    groups.set(id, existing);
+  }
+  return groups;
+}
+
+async function resultForScenario(root, frames, graph, scenario) {
+  const uri = scenario.span.path;
+  const rawCandidates = frames.map((f) => f.pickle).filter((p) => scenarioIdFromTags(p?.tags) === scenario.localId);
+  if (!rawCandidates.length) return emptyResult("NOT_RUN");
+  const bindings = frames.map(({ ompSpecKitEvidence }) => ompSpecKitEvidence?.binding).filter(Boolean);
+  const captured = bindings[0]?.scenarios?.[scenario.canonicalId];
+  const executionUri = captured?.executionPath;
+  const sources = frames.map((f) => f.source).filter((item) => evidenceUri(item?.uri) === executionUri);
+  const sourceHash = graph.documents.find(({ path }) => path === uri)?.sha256;
+  const executionBytes = await readContainedEvidenceSource(root, executionUri);
+  if (bindings.length !== 1 || bindings[0].schemaVersion !== EVIDENCE_SCHEMA || bindings[0].graphFingerprint !== graph.fingerprint ||
+      captured?.path !== uri || captured?.scenarioContentHash !== scenario.contentHash ||
+      !sourceHash || captured?.sourceSha256 !== sourceHash || !executionBytes ||
+      sha256(executionBytes) !== captured?.executionSourceSha256 || sources.length !== 1 || typeof sources[0].data !== "string" ||
+      sha256(Buffer.from(sources[0].data, "utf8")) !== captured.executionSourceSha256) return emptyResult("UNKNOWN");
+
+  const binding = { graphFingerprint: bindings[0].graphFingerprint, ...captured };
+  const unknown = { ...emptyResult("UNKNOWN"), binding };
+  const docs = frames.map((f) => f.gherkinDocument).filter((item) => evidenceUri(item?.uri) === executionUri);
+  if (docs.length !== 1) return unknown;
+  const children = docs[0].feature?.children ?? [];
+  const definitions = children.flatMap((child) => child.rule ? child.rule.children : [child])
+    .map((child) => child.scenario).filter((item) => item?.tags?.some(({ name }) => name === `@id:${scenario.localId}`));
+  if (definitions.length !== 1 || definitions[0].tags.filter(({ name }) => name.startsWith("@id:")).length !== 1) return unknown;
+  const rows = exampleRows({ feature: { children: [{ scenario: definitions[0] }] } });
+  const expected = new Map((scenario.attributes.pickles ?? []).map(({ rowId, sha256 }) => [rowId, sha256]));
+  if (!sourceMatchesScenario(executionBytes, executionUri, scenario, expected, definitions[0])) return unknown;
+  const pickles = new Map();
+  if (rawCandidates.some((p) => evidenceUri(p.uri) !== executionUri)) return unknown;
+  for (const p of rawCandidates) {
+    if (!Array.isArray(p.astNodeIds) || p.astNodeIds[0] !== definitions[0].id || !Array.isArray(p.steps)) return unknown;
+    const row = p.astNodeIds.length < 2 ? null : rows.get(p.astNodeIds[1]);
+    const steps = p.steps.map(({ text, type, argument }) => ({ text, type, argument: argument ?? null }));
+    if (pickles.has(row) || !expected.has(row) || expected.get(row) !== sha256(Buffer.from(canonicalJson(steps)))) return unknown;
+    pickles.set(row, p);
+  }
+  if (expected.size === 0 || pickles.size !== expected.size) return unknown;
+  const testCases = groupBy(frames.map((f) => f.testCase).filter(Boolean), (f) => f.pickleId);
+  const starts = groupBy(frames.map((f) => f.testCaseStarted).filter(Boolean), (f) => f.testCaseId);
+  const results = groupBy(frames.map((f) => f.testStepFinished).filter(Boolean), (f) => f.testCaseStartedId);
+  const completions = groupBy(frames.map((f) => f.testCaseFinished).filter(Boolean), (f) => f.testCaseStartedId);
+  const runs = frames.map((f) => f.testRunFinished).filter(Boolean);
+  if (runs.length !== 1 || runs[0].testRunStartedId !== bindings[0].testRunStartedId ||
+      frames.filter((f) => f.testRunStarted?.id === runs[0].testRunStartedId).length !== 1) return unknown;
+  let lastRunAt = null;
+  let status = "PASSED";
+  let failingStep = null;
+  for (const pickle of pickles.values()) {
+    const cases = testCases.get(pickle.id) ?? [];
+    if (cases.length !== 1 || cases[0].testRunStartedId !== runs[0].testRunStartedId) return unknown;
+    const test = cases[0];
+    const terminal = (starts.get(test.id) ?? []).filter(({ id }) => {
+      const records = completions.get(id);
+      return records?.length === 1 && records[0].willBeRetried === false;
+    });
+    if (terminal.length !== 1) return unknown;
+    const attempt = terminal[0];
+    const at = timestampOf(attempt);
+    if (at !== null) lastRunAt = Math.max(lastRunAt ?? at, at);
+    const found = results.get(attempt.id) ?? [];
+    const expectedIds = new Set(test.testSteps?.map(({ id }) => id));
+    if (!expectedIds.size || found.length !== expectedIds.size ||
+        new Set(found.map(({ testStepId }) => testStepId)).size !== expectedIds.size ||
+        found.some(({ testStepId }) => !expectedIds.has(testStepId))) return unknown;
+    for (const entry of found) {
+      const current = entry.testStepResult?.status;
+      if (current === "FAILED") {
+        status = "FAILED";
+        failingStep ??= { stepId: entry.testStepId, message: "Cucumber reported a failed step" };
+      } else if (status !== "FAILED" && current === "UNDEFINED") status = "UNDEFINED";
+      else if (status === "PASSED" && current !== "PASSED") status = current === "SKIPPED" ? "SKIPPED" : "UNKNOWN";
+    }
+  }
+  if (status === "PASSED" && runs[0].success !== true) return unknown;
   return {
-    result,
-    stale: result !== "PASSED",
-    runId: latest.testCaseStartedId ?? latest.id,
-    lastRunAt: timestampOf(latest),
-    failingStep: failed ? { stepId: failed.testStepId ?? null, message: failed.testStepResult?.message ?? null } : null,
-    traceStatus: results.length > 0 ? "available" : "missing",
-    source: { scenarioId: localId, pickleId: matchingCases[matchingCases.length - 1]?.pickleId ?? null },
-    captureBinding,
+    result: status, stale: status !== "PASSED", runId: runs[0].testRunStartedId, lastRunAt, failingStep,
+    traceStatus: "available", source: { scenarioId: scenario.canonicalId, uri }, binding,
   };
 }
 
 function findScenario(graph, rawId, spec) {
   const localId = scenarioLocalId(rawId);
-  const candidates = graph.nodes.filter((node) => node.kind === "SCENARIO" && node.localId === localId && (!spec || node.specSlug === spec));
+  const scope = rawId.includes(":") ? rawId.split(":", 1)[0] : spec;
+  const candidates = graph.nodes.filter((node) => node.kind === "SCENARIO" && node.localId === localId &&
+    (!scope || node.specSlug === scope) && (!spec || node.specSlug === spec));
   if (candidates.length === 0) return { error: error("SCENARIO_NOT_FOUND", `scenario not found: ${rawId}`, { scenarioId: rawId }) };
   if (candidates.length > 1) return { error: error("AMBIGUOUS_ID", `scenario identifier is ambiguous: ${rawId}`, { candidates: candidates.map((node) => node.canonicalId).sort() }) };
   return { node: candidates[0] };
@@ -152,27 +237,11 @@ export async function executeEvidenceOperation(root, graph, operation, args = {}
   if (typeof args.scenarioId !== "string" || args.scenarioId.trim() === "") return error("INVALID_PARAMETER", "scenarioId is required", { parameter: "scenarioId" });
   const resolved = findScenario(graph, args.scenarioId, args.spec ?? undefined);
   if (resolved.error) return resolved.error;
-  const files = await evidenceFiles(root);
-  const parsedFiles = files.map((file) => {
-    const frames = parseMessages(file.bytes);
-    const result = frames.length === 0
-      ? { result: "UNKNOWN", stale: true, runId: null, lastRunAt: null, failingStep: null, traceStatus: "missing", source: null, captureBinding: null }
-      : resultForScenario(frames, resolved.node.localId);
-    return { ...file, result };
-  });
-  const withSource = (entry, file) => {
-    const captureBinding = entry.result.captureBinding;
-    const bindingMismatch = captureBinding && (
-      captureBinding.graphFingerprint !== graph.fingerprint ||
-      captureBinding.scenarioContentHash !== resolved.node.contentHash
-    );
-    const result = bindingMismatch ? { ...entry.result, result: "UNKNOWN", stale: true, traceStatus: "missing" } : entry.result;
-    const { captureBinding: _captureBinding, ...withoutBinding } = result;
-    return { ...withoutBinding, source: { ...(result.source ?? {}), path: file.relative, sha256: file.sha256 } };
-  };
-  const evidence = parsedFiles.length === 0
-    ? { result: "NOT_RUN", stale: true, runId: null, lastRunAt: null, failingStep: null, traceStatus: "missing", source: null }
-    : parsedFiles.map((entry) => withSource(entry, entry)).find((item) => item.result !== "NOT_RUN") ?? withSource(parsedFiles[parsedFiles.length - 1], parsedFiles[parsedFiles.length - 1]);
+  const bytes = await readEvidence(root);
+  const frames = bytes === null ? [] : parseMessages(bytes);
+  const evidence = bytes === null ? emptyResult("NOT_RUN")
+    : frames.length === 0 ? emptyResult("UNKNOWN") : await resultForScenario(root, frames, graph, resolved.node);
+  if (bytes !== null) evidence.source = { ...evidence.source, path: EVIDENCE_PATH, sha256: sha256(bytes) };
   const data = {
     kind: operation === "getScenarioTrace" ? "scenario-trace" : "test-result",
     scenarioId: resolved.node.canonicalId,
@@ -183,7 +252,7 @@ export async function executeEvidenceOperation(root, graph, operation, args = {}
     failingStep: evidence.failingStep,
     traceStatus: evidence.traceStatus,
     source: evidence.source,
-    evidenceBinding: { graphFingerprint: graph.fingerprint, scenarioContentHash: resolved.node.contentHash },
+    evidenceBinding: evidence.binding,
   };
   if (operation === "getScenarioTrace") data.trace = evidence.traceStatus === "available"
     ? { status: "bounded", path: evidence.source?.path ?? null, artifactSha256: evidence.source?.sha256 ?? null, failingStep: evidence.failingStep }

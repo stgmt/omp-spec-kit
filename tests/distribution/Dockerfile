@@ -13,9 +13,6 @@ RUN npm ci --ignore-scripts --no-audit --no-fund \
  && bun install --frozen-lockfile --ignore-scripts --no-progress
 
 COPY .claude-plugin/ .claude-plugin/
-# The canonical corpus moved to the spec registry; the retired repository
-# corpus is frozen under tests/fixtures and still provides the BDD worktree.
-COPY tests/fixtures/kernel/real-corpus/.specs/ .specs/
 COPY docs/validation/omp-discovery-v18.0.10.md docs/validation/omp-discovery-v18.0.10.md
 COPY docs/validation/release-status-v0.3.2.json docs/validation/release-status-v0.3.2.json
 COPY docs/validation/release-status-v0.5.0.json docs/validation/release-status-v0.5.0.json
@@ -29,5 +26,6 @@ RUN node scripts/build-plugin.mjs \
  && node scripts/verify-package.mjs \
  && cp scripts/probe-omp-discovery-v18.0.11.mjs tests/fixtures/omp-discovery-runtime/probe-omp-discovery-v18.0.11.mjs
 
-ENV OMP_SPEC_KIT_BDD_CONTAINER=1
+ENV OMP_SPEC_KIT_BDD_CONTAINER=1 \
+    OMP_SPEC_KIT_CORPUS_ROOT=/workspace/tests/fixtures/kernel/authoring-real-corpus
 CMD ["node", "scripts/run-bdd-container.mjs"]

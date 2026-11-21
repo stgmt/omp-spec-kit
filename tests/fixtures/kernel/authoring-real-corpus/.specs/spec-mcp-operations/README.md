@@ -27,6 +27,5 @@ One canonical root, one containment model, bounded deterministic envelopes, reda
 - [Acceptance criteria](ACCEPTANCE_CRITERIA.md)
 - [Schema](spec-mcp-operations_SCHEMA.md)
 - [Design](DESIGN.md)
-- [Scenarios](spec-mcp-operations.feature)
 - [Tasks](TASKS.md)
 - [Real fixture contract](FIXTURES.md)

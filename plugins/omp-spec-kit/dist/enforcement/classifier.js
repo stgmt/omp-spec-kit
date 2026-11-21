@@ -1,8 +1,10 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { TOOL_CONTRACTS } from "../adapters/tool-contracts.js";
 import { SPEC_WRITE_ROUTE_HINT } from "../kernel/readiness.js";
-import { hasGherkinScenarioHeader } from "../kernel/gherkin-syntax.js";
+import { canonicalDocumentFilename, GHERKIN_DOCUMENT_KINDS } from "../kernel/types.js";
+import { parseGherkinDocument, protectedScenarios } from "../kernel/parsers/gherkin.js";
+import { canonicalJson } from "../kernel/normalize.js";
 import { isValidSpecSlug } from "../kernel/identity.js";
 import { decidePathPolicy } from "./resolve-targets.js";
 
@@ -13,30 +15,28 @@ const MUTATING_SHORT_NAMES = Object.freeze(new Set([
 const DIRECT_PATH_MUTATION_TOOLS = Object.freeze(new Set(["write", "edit", "apply_patch", "delete", "rename"]));
 const DIRECT_PATH_READ_TOOLS = Object.freeze(new Set(["read", "grep", "glob"]));
 const PATH_KEYS = Object.freeze(new Set(["path", "paths", "file", "files", "document", "documents"]));
-const FEATURE_CONTENT_FIELDS = Object.freeze(["content", "text", "newText"]);
 const FEATURE_BYTE_OPS = Object.freeze(new Set(["delete_document", "rename_document", "deleteDocument", "renameDocument"]));
 
-function featureFileHasScenario(root, spec, document) {
-  // Canonical-form check before any filesystem access: a .feature document is
-  // canonical only as <spec>.feature, so anything else (incl. traversal) is
-  // never probed.
-  if (typeof root !== "string" || root === "") return false;
-  if (!isValidSpecSlug(spec) || document !== spec + ".feature") return false;
+function selectedScenarios(document, spec, text) {
+  return protectedScenarios(parseGherkinDocument({ path: document, specSlug: spec, text }));
+}
+
+function featureFileScenarios(root, spec, document) {
+  if (typeof root !== "string" || root === "") return [];
+  if (!isValidSpecSlug(spec) || !GHERKIN_DOCUMENT_KINDS.some((kind) => canonicalDocumentFilename(kind, spec) === document)) return [];
   try {
     const filePath = path.join(root, "." + "specs", spec, document);
-    return hasGherkinScenarioHeader(readFileSync(filePath, "utf8"));
+    return selectedScenarios(document, spec, readFileSync(filePath, "utf8"));
   } catch {
-    return false;
+    return [];
   }
 }
 
 function specDirHasScenarioFeature(root, spec) {
   if (typeof root !== "string" || root === "" || !isValidSpecSlug(spec)) return false;
   try {
-    const dir = path.join(root, "." + "specs", spec);
-    for (const name of readdirSync(dir)) {
-      if (name === spec + ".feature" && hasGherkinScenarioHeader(readFileSync(path.join(dir, name), "utf8"))) return true;
-    }
+    return GHERKIN_DOCUMENT_KINDS.some((kind) =>
+      featureFileScenarios(root, spec, canonicalDocumentFilename(kind, spec)).length > 0);
   } catch {
     return false;
   }
@@ -52,17 +52,18 @@ function featurePatchNeedsDesignReview(input, root) {
   if (intent === "archiveSpec") return specDirHasScenarioFeature(root, spec);
   if (intent === "deleteSpecDoc" || intent === "renameSpecDoc") {
     const doc = typeof input?.doc === "string" ? input.doc : "";
-    return doc.toLowerCase().endsWith(".feature") && featureFileHasScenario(root, spec, doc);
+    return featureFileScenarios(root, spec, doc).length > 0;
   }
   const operations = Array.isArray(input?.operations) ? input.operations : [];
   return operations.some((op) => {
     if (op === null || typeof op !== "object") return false;
     const document = typeof op.document === "string" ? op.document : typeof op.doc === "string" ? op.doc : "";
     if (!document.toLowerCase().endsWith(".feature")) return false;
-    if (FEATURE_CONTENT_FIELDS.some((field) => typeof op[field] === "string" && hasGherkinScenarioHeader(op[field]))) return true;
-    // delete/rename carry no content fields; the server gate inspects before
-    // bytes, so preflight reads the file the same way (fail-open to the server).
-    if (FEATURE_BYTE_OPS.has(op.kind) && spec !== "" && featureFileHasScenario(root, spec, document)) return true;
+    const before = featureFileScenarios(root, spec, document);
+    if (FEATURE_BYTE_OPS.has(op.kind)) return before.length > 0;
+    if ((op.kind === "replace_document" || op.kind === "replaceDocument") && typeof op.content === "string") {
+      return canonicalJson(before) !== canonicalJson(selectedScenarios(document, spec, op.content));
+    }
     return false;
   });
 }

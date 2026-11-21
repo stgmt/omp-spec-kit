@@ -1,3 +1,4 @@
+import { serviceKernelFixture } from "./service/lib/service-kernel-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -12,7 +13,6 @@ import { seedSpecBranch } from "./service/lib/spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
-const FIXTURE_SPEC = path.resolve("tests/fixtures/kernel/real-corpus/.specs/spec-kernel");
 const SPEC_KEY = "stgmt/alpha/spec-kernel";
 const SPEC_BRANCH = "spec-spec-kernel";
 const SECRETS_KEY = "suite-secrets-key-0123456789";
@@ -55,7 +55,7 @@ async function setup({ projects = ["stgmt/alpha"], tenants = null, extraSeed = n
   const base = await tempDir("spec-repos-");
   const bare = path.join(base, "specs.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
-  await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", sourceDir: FIXTURE_SPEC });
+  await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", files: await serviceKernelFixture() });
 
   const byoBare = path.join(base, "byo.git");
   await execFileAsync("git", ["init", "--bare", "--initial-branch=main", byoBare]);
@@ -63,9 +63,8 @@ async function setup({ projects = ["stgmt/alpha"], tenants = null, extraSeed = n
   await seedSpecBranch(byoBare, {
     project: "stgmt/alpha",
     spec: "spec-kernel",
-    sourceDir: FIXTURE_SPEC,
     repoUrl: byoUrl,
-    files: { "README.md": "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 1.0.0\n" },
+    files: { ...await serviceKernelFixture(), "README.md": "# Spec Kernel\n\nStatus: ACTIVE\nVersion: 1.0.0\n" },
   });
 
   const config = fixture.serviceConfigFor(bare, { projects });

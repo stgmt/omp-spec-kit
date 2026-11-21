@@ -1,0 +1,32 @@
+{
+  "SCEN-product-authoring-tools-are-bounded": {
+    "beforeSha256": "393675b25888dcae4af8e9a4e5c4d82b71a79fe046ae7b93beacf871ae6045d3",
+    "afterSha256": "c94e08797864948c687a7b2180128b02f5674fe75925d6510b0a9ef58e2f4e23",
+    "reason": "Supply a premise and classify inspection of the mutation inventory as the action. Preserve the assertions about the public names."
+  },
+  "SCEN-product-roadmap-has-three-buckets": {
+    "beforeSha256": "0194a6bc902edb6d623205010434a660cad616d2530022320ec0514925220b77",
+    "afterSha256": "4c1c27009c334b4a27fe72a05e40d1808f437d5de728b175d5f2835c48e8f852",
+    "reason": "State the presence of a roadmap before the manager reads it. Preserve the bucket and row assertions."
+  },
+  "SCEN-mri-all-tool-parity": {
+    "beforeSha256": "111d162b67fab64a0643f106b9371df17711c6b949a76b705d6e074eb801151d",
+    "afterSha256": "21840dbee2639e99fa8100d1db476297b7e1ba3ffbcd804e4c8e39c120160b46",
+    "reason": "Use the existing executable SCHEMA-11 contract inventory so the runner exercises the shipped tool list. Preserve result parity and read-only assertions."
+  },
+  "SCEN-mri-public-eligibility-separation": {
+    "beforeSha256": "b53e53faeb3e130443235c3ce4cde1d607442e91a0d8f23d104b08bc292b21c3",
+    "afterSha256": "f84122f11f5e9405b2c8b56881e0b95bbab7431013cac90876e4336103ca339c",
+    "reason": "Use the executable candidate harness version and retain the rejection of a stream containing only Cucumber metadata."
+  },
+  "SCEN-mri-artifact-mismatch-refusal": {
+    "beforeSha256": "9a6e252ec1f94b6c86067c5f5631a56fb8a081e8bef213e62aabe2568155e872",
+    "afterSha256": "5cd5e980cd6987156bc71989cc11c4dcf708a1a2740482ca334ea82a152bca4c",
+    "reason": "Use the executable release checks for the historical predecessor archive and the refusal of the current candidate before publication."
+  },
+  "SCEN-mri-public-communication-proof": {
+    "beforeSha256": "f92499bb5087b2f5a2fc95f98ab89bdc038bc437bad6ae46bb76afc6a32ea385",
+    "afterSha256": "a4e5cc6533d5fd9535d76b14cb671c516ba3910424904f52b99e3b0ec7e52a71",
+    "reason": "Use the executable checks that reconcile the predecessor archive and verify its published advisory."
+  }
+}

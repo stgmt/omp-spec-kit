@@ -1,5 +1,31 @@
 {
   "slug": "roadmap-demo",
   "title": "Spec Graph Demo",
-  "demo": true
+  "demo": true,
+  "bddCoverage": {
+    "schema": "omp-spec-kit/bdd-coverage@1",
+    "outcomes": {
+      "first-card": {
+        "requirements": [
+          "FR-1"
+        ],
+        "criteria": [
+          "AC-1.1"
+        ],
+        "rule": "US-1",
+        "outcome": "first-card"
+      },
+      "second-card": {
+        "requirements": [
+          "FR-2"
+        ],
+        "criteria": [
+          "AC-2.1"
+        ],
+        "rule": "UC-1",
+        "outcome": "second-card"
+      }
+    },
+    "scopes": {}
+  }
 }

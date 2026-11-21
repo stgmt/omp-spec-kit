@@ -72,22 +72,6 @@ function fieldList(fields, ...names) {
   return [];
 }
 
-const STORY_RE =
-  /^[^A-Za-z]*As an?\s+(.{1,200}?),?\s+I want\s+(.{1,400}?)(?:\s+so that\s+(.{1,400}?))?$/is;
-
-function parseStorySentence(text) {
-  if (typeof text !== "string" || text.trim() === "") {
-    return { actor: null, goal: null, benefit: null };
-  }
-  const match = STORY_RE.exec(text.trim());
-  if (!match) return { actor: null, goal: null, benefit: null };
-  return {
-    actor: match[1]?.trim() || null,
-    goal: match[2]?.trim() || null,
-    benefit: match[3]?.trim() || null,
-  };
-}
-
 function normativeBody(bodyText) {
   // Body text without field markup noise, trimmed and bounded.
   return bodyText.trim();
@@ -106,21 +90,6 @@ export function extractAttributes(documentKind, role, localId, title, bodyText, 
   const fields = parseFields(bodyText);
 
   switch (role) {
-    case "USER_STORY": {
-      const story = parseStorySentence(fields.get("Story")?.value ?? "");
-      return {
-        priority: fieldValue(fields, "Priority"),
-        actor: story.actor,
-        goal: story.goal,
-        benefit: story.benefit,
-      };
-    }
-    case "USE_CASE":
-      return {
-        actors: fieldList(fields, "Actors", "Actor"),
-        preconditions: fieldList(fields, "Preconditions", "Precondition"),
-        postconditions: fieldList(fields, "Postconditions", "Postcondition"),
-      };
     case "RESEARCH_FINDING":
       return {
         evidenceRefs: fieldList(fields, "Evidence", "Evidence Refs", "EvidenceRefs"),
@@ -170,6 +139,8 @@ export function extractAttributes(documentKind, role, localId, title, bodyText, 
         status,
         estimate: fieldValue(fields, "Estimate"),
         owner: fieldValue(fields, "Owner"),
+        requirements: fieldList(fields, "Requirements"),
+        coverageScope: fieldValue(fields, "Coverage scope"),
         doneWhen: fieldList(fields, "Done When", "DoneWhen"),
         review,
       };

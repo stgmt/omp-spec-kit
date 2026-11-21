@@ -12,16 +12,16 @@ IDs are local here and qualified as `spec-stack-skill:<id>` outside this specifi
 
 Скилл ДОЛЖЕН от имени администратора установить ZIP приложения через REST, применить `serviceUrl` и `serviceBridgeToken` и подключить приложение к проекту — без участия пользователя в браузере.
 
-**Acceptance:** AC-1.2
+**Acceptance:** AC-2.1
 
 ## FR-3 — Провиженинг дашборда и ссылка
 
 Скилл ДОЛЖЕН создать дашборд с виджетом Spec Board на всю ширину сетки и напечатать рабочую ссылку, по которой спека уже открывается.
 
-**Acceptance:** AC-1.3
+**Acceptance:** AC-3.1
 
 ## FR-4 — Загрузка шаблонной спеки через MCP
 
 Скилл ДОЛЖЕН поставлять шаблон спеки в комплекте и загружать её в реестр вызовами MCP (`spec_claim` → `spec_patch` → `spec_release`), а не прямыми коммитами в репозиторий.
 
-**Acceptance:** AC-2.1
+**Acceptance:** AC-4.1

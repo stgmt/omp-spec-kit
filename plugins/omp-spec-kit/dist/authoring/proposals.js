@@ -11,7 +11,10 @@ import {
 import { buildKernelGraph } from "../kernel/index.js";
 import { readRepositorySpecs } from "../kernel/adapters/fs.js";
 import { detectSecret } from "./secrets.js";
-import { FIXED_DOCUMENT_FILES, SPEC_STATUS_VALUES } from "../kernel/types.js";
+import {
+  canonicalDocumentFilename, DOCUMENT_KINDS, FIXED_DOCUMENT_FILES, GHERKIN_DOCUMENT_KINDS,
+  isLegacySpecificationDocument, SPEC_STATUS_VALUES,
+} from "../kernel/types.js";
 import { extractReferenceTarget, isValidSpecSlug } from "../kernel/identity.js";
 import { validateMetadata } from "../kernel/query/extended.js";
 import {
@@ -28,6 +31,9 @@ import { scanBlocks } from "../kernel/parsers/md-blocks.js";
 import { assembleRoadmap as assembleRoadmapContent } from "../kernel/roadmap/assemble.js";
 import { validateDesignReviewForChanges } from "./design-review.js";
 import { error } from "./error-codes.js";
+import {
+  approvedCoverageMap, changedReadyCoverageFindings, changedTaskCoverageFindings, coverageRegion, localApprovedCoverage, replaceCoverageRegion,
+} from "./bdd-coverage.js";
 
 const MAX_REASON_BYTES = 512;
 const MAX_DIFF_BYTES = 64 * 1024;
@@ -38,6 +44,10 @@ const STATUS_FIELD_PREFIX = /^([ ]{0,3}(?:[-*][ \t]+)?(?:\*\*)?[ \t]*Status[ \t]
 // elsewhere (or line shifts within an edited document) never block a write,
 // while any net-new occurrence fails the proposal.
 const DEFINITION_INTEGRITY_DIAGNOSTIC_CODES = new Set([
+  "MALFORMED_GHERKIN",
+  "UNSUPPORTED_GHERKIN_DIALECT",
+  "MISSING_SCENARIO_ID",
+  "DUPLICATE_SCENARIO_ID_TAG",
   "INVALID_LOCAL_ID",
   "MALFORMED_HEADING",
   "FORBIDDEN_EDGE_ENDPOINT",
@@ -150,16 +160,6 @@ function taskBlocks(text) {
 // Scenarios declared by a .feature document, keyed by local id. Rejected
 // scenarios (missing or malformed id tags) are handled by the kernel parser and
 // never reach the traceability gate.
-function scenariosByLocalId(text, spec) {
-  const parsed = parseGherkinDocument({ path: "", specSlug: spec, text: String(text ?? "") });
-  const scenarios = new Map();
-  for (const scenario of parsed.scenarios ?? []) {
-    if (scenario.rejected === true || typeof scenario.localId !== "string") continue;
-    scenarios.set(scenario.localId, scenario);
-  }
-  return scenarios;
-}
-
 function headingRange(text, selector) {
   if (Array.isArray(selector)) {
     for (const s of selector) {
@@ -284,6 +284,7 @@ export function applyOperation(text, operation) {
     const fields = [`- **Status:** ${operation.status ?? "todo"}`];
     if (Array.isArray(operation.requirements) && operation.requirements.length > 0)
       fields.push(`- **Requirements:** ${[...new Set(operation.requirements)].sort().join(", ")}`);
+    if (typeof operation.coverageScope === "string") fields.push(`- **Coverage scope:** ${operation.coverageScope}`);
     if (typeof operation.owner === "string" && operation.owner.trim())
       fields.push(`- **Owner:** ${operation.owner.trim()}`);
     if (typeof operation.description === "string" && operation.description.trim())
@@ -375,6 +376,7 @@ export function applyOperation(text, operation) {
         "Requirements",
         [...new Set(operation.requirements.map((ref) => String(ref).trim()))].filter(Boolean).join(", ")
       );
+    if (Object.hasOwn(operation, "coverageScope")) writeField("Coverage scope", operation.coverageScope ?? "");
     return { ok: true, text: lines.join("\n") };
   }
 
@@ -503,10 +505,7 @@ function markdownLinkTargets(text) {
 }
 
 async function inboundDocumentLinks(root, spec, targetDocument) {
-  const documents = new Set([...Object.values(FIXED_DOCUMENT_FILES), `${spec}.feature`, `${spec}_SCHEMA.md`]);
-  // ROADMAP.md is only canonical for roadmap-* specs; skip it otherwise
-  // so isCanonicalDocument does not reject the inbound scan.
-  if (!spec.startsWith("roadmap-")) documents.delete(FIXED_DOCUMENT_FILES.ROADMAP);
+  const documents = DOCUMENT_KINDS.map((kind) => canonicalDocumentFilename(kind, spec)).filter(Boolean);
   const links = [];
   for (const document of documents) {
     const current = await loadDocument(root, spec, document, true);
@@ -558,15 +557,9 @@ export function publicOperationKind(operation) {
 
 function removeEntityBlock(text, node) {
   const lines = text.split(/\r?\n/u);
-  const feature = node.kind === "SCENARIO";
-  let start = Math.max(0, (node.span?.startLine ?? 1) - 1);
-  if (feature && start > 0 && /^\s*@/u.test(lines[start - 1])) start -= 1;
+  const start = Math.max(0, (node.span?.startLine ?? 1) - 1);
   let end = start + 1;
-  if (feature) {
-    while (end < lines.length && !/^\s*(?:@|Scenario:|Scenario Outline:|Feature:)/u.test(lines[end])) end += 1;
-  } else {
-    while (end < lines.length && !/^#{1,2}\s/u.test(lines[end])) end += 1;
-  }
+  while (end < lines.length && !/^#{1,2}\s/u.test(lines[end])) end += 1;
   return [...lines.slice(0, start), ...lines.slice(end)].join("\n");
 }
 
@@ -579,15 +572,26 @@ async function compileDeleteEntity({ graph, root, spec, input }) {
   if (["DOCUMENT", "ROADMAP", "FILE"].includes(node.kind)) {
     return error("ENTITY_NOT_DELETABLE", `entity kind ${node.kind} cannot be deleted directly`);
   }
-  const incident = graph.edges.filter((edge) => edge.from === node.canonicalId || edge.to === node.canonicalId);
+  const incident = graph.edges.filter((edge) =>
+    (edge.from === node.canonicalId || edge.to === node.canonicalId) && edge.type !== "DECLARES");
   if (incident.length > 0 && input.forceDelete !== true) {
     return error("ENTITY_HAS_DEPENDENTS", `entity ${node.canonicalId} has ${incident.length} graph reference(s); pass forceDelete: true to remove it anyway`);
   }
   const document = String(node.span?.path ?? "").replace(`.specs/${spec}/`, "");
   if (document === "") return error("ENTITY_NOT_FOUND", `entity ${node.canonicalId} has no owning document`);
   const current = await loadDocument(root, spec, document, false);
-  if (current.missing) return error("DOC_NOT_FOUND", `document is missing: ${document}`);
-  const content = removeEntityBlock(current.bytes.toString("utf8"), node);
+  if (!current.ok) return error(current.code, current.message);
+  let content;
+  if (GHERKIN_DOCUMENT_KINDS.includes(node.documentKind)) {
+    const parsed = parseGherkinDocument({ path: document, specSlug: spec, text: current.bytes.toString("utf8") });
+    const target = node.kind === "SCENARIO"
+      ? parsed.scenarios.find(({ localId }) => localId === node.localId)?.nameSpan
+      : parsed.rules.find(({ localId }) => localId === node.localId)?.span;
+    if (parsed.diagnostics.length || !target) return error("VALIDATION_FAILED", `cannot locate a valid range for ${entity}`);
+    content = Buffer.concat([current.bytes.subarray(0, target.startOffset), current.bytes.subarray(target.endOffset)]).toString("utf8");
+  } else {
+    content = removeEntityBlock(current.bytes.toString("utf8"), node);
+  }
   return { ok: true, operations: [{ kind: "replace_document", document, content }] };
 }
 
@@ -662,6 +666,7 @@ export function operationForFacade(name, input, context = {}) {
           entity: input.entity,
           subject: input.subject,
           requirements: input.requirements,
+          coverageScope: input.coverageScope,
           owner: input.owner ?? null,
           description: input.description,
           status: input.status,
@@ -836,13 +841,14 @@ export function operationForFacade(name, input, context = {}) {
   if (name === "createSpec") {
     const title = typeof input.title === "string" && input.title.trim() ? input.title.trim() : spec;
     const docs = [];
-    for (const doc of Object.values(FIXED_DOCUMENT_FILES)) {
-      // ROADMAP.md is only canonical for roadmap-* specs.
-      if (doc === FIXED_DOCUMENT_FILES.ROADMAP && !spec.startsWith("roadmap-")) continue;
-      docs.push({ kind: "replace_document", document: doc, content: `# ${title}\n\nStatus: DRAFT\n` });
+    for (const kind of DOCUMENT_KINDS) {
+      const document = canonicalDocumentFilename(kind, spec);
+      if (!document) continue;
+      const content = GHERKIN_DOCUMENT_KINDS.includes(kind)
+        ? `Feature: ${title.replace(/\s+/gu, " ")}\n`
+        : `# ${title}${kind === "SCHEMA" ? " Schema" : ""}\n\nStatus: DRAFT\n`;
+      docs.push({ kind: "replace_document", document, content });
     }
-    docs.push({ kind: "replace_document", document: `${spec}.feature`, content: `Feature: ${title}\n` });
-    docs.push({ kind: "replace_document", document: `${spec}_SCHEMA.md`, content: `# ${title} Schema\n\nStatus: DRAFT\n` });
     return { spec, reason, operations: docs };
   }
 
@@ -874,7 +880,7 @@ export class ProposalCompiler {
     this.root = root;
   }
 
-  async compile(input = {}, graph) {
+  async compile(input = {}, graph, context = {}) {
     const requestId = input.requestId;
     const spec = input.spec;
     const reason = input.reason;
@@ -995,7 +1001,22 @@ export class ProposalCompiler {
     };
 
     let rawOperations;
-    if (intent === "deleteEntity") {
+    if (intent === "approveBddCoverage") {
+      if (!context.coverageOwner) return error("BDD_COVERAGE_PROTECTED", "Approval requires the hosted project owner");
+      if ((input.dryRun === false || input.repositoryRootFingerprint !== undefined) &&
+          input.repositoryRootFingerprint !== graph.fingerprint) {
+        return error("CONFLICT", "Preview coverage approval and pass its current baseGenerationSha256 as repositoryRootFingerprint");
+      }
+      const approved = approvedCoverageMap(input.map, graph, spec);
+      if (approved.problem) return error("VALIDATION_FAILED", approved.problem);
+      const current = await readDocumentBytes(this.root, spec, FIXED_DOCUMENT_FILES.ACCEPTANCE_CRITERIA);
+      if (!current.ok) return error(current.code, current.message);
+      rawOperations = [{
+        kind: "replace_document", document: FIXED_DOCUMENT_FILES.ACCEPTANCE_CRITERIA,
+        expectedSha: current.sha256,
+        content: replaceCoverageRegion(current.bytes.toString("utf8"), approved.map),
+      }];
+    } else if (intent === "deleteEntity") {
       const compiled = await compileDeleteEntity({ graph, root: this.root, spec, input });
       if (compiled.ok === false) return compiled;
       rawOperations = compiled.operations;
@@ -1063,8 +1084,28 @@ export class ProposalCompiler {
           typeof operation.entity === "string" &&
           operation.entity.trim() !== "",
       );
+    const writesFunctionalRequirements = rawOperations
+      .map((rawOperation) => normalizeOperation(rawOperation))
+      .some(
+        (operation) =>
+          operation !== null &&
+          operation.document === "FR.md" &&
+          [operation.text, operation.content, operation.newText].some(
+            (field) => typeof field === "string" && /^#{2}\s*FR-/mu.test(field),
+          ),
+      );
+    if (
+      writesFunctionalRequirements &&
+      readiness.blockers.some((entry) => entry.code === "NO_REQUIREMENTS_DOC")
+    ) {
+      return error("REQUIREMENTS_DOC_REQUIRED", READINESS_REFUSALS.REQUIREMENTS_DOC_REQUIRED, {
+        spec,
+        blockers: readiness.blockers,
+        fix: taskAdmissionFixSteps(spec, readiness),
+      });
+    }
     if (taskCreations.length > 0) {
-      if (readinessIndex < READINESS_LEVELS.indexOf("L2")) {
+      if (taskAdmissionBlockers(readiness).length > 0 || readinessIndex < READINESS_LEVELS.indexOf("L3")) {
         return error("SPEC_NOT_READY", READINESS_REFUSALS.SPEC_NOT_READY, {
           spec,
           level: readiness.level,
@@ -1407,34 +1448,12 @@ export class ProposalCompiler {
       }
     }
 
-    // Scenarios enter the corpus through Gherkin tags only; a scenario with no
-    // requirement or criterion tag has no incoming edge and cannot be traced.
-    const beforeScenarios = new Set();
-    const afterScenarios = new Map();
-    for (const change of documents.values()) {
-      if (!/\.feature$/iu.test(change.document)) continue;
-      for (const [localId] of scenariosByLocalId(change.beforeBytes.toString("utf8"), spec)) beforeScenarios.add(localId);
-      for (const [localId, scenario] of scenariosByLocalId(change.afterBytes.toString("utf8"), spec)) {
-        afterScenarios.set(localId, { ...scenario, document: change.document });
-      }
-    }
-    for (const [localId, scenario] of afterScenarios) {
-      if (beforeScenarios.has(localId)) continue;
-      // Only a tag that names this specification's requirement or criterion
-      // traces the scenario into it (@featureN and @AC-N.M, both TESTED_BY).
-      // A qualified tag such as @other-spec:FR-1 also parses as a reference,
-      // but it points outside the specification this scenario is written into.
-      if (scenario.traceRefs.some((ref) => ref.requestedEdgeType === "TESTED_BY")) continue;
-      return error("SCENARIO_NOT_TRACEABLE", `${READINESS_REFUSALS.SCENARIO_NOT_TRACEABLE}: ${localId}`, {
-        spec,
-        scenario: localId,
-        document: scenario.document,
-        acceptedTags: ["@featureN", "@AC-N.M"],
-      });
-    }
-
     const snapshot = await readRepositorySpecs({ root: this.root });
     if (snapshot.error) return error("PATH_FORBIDDEN", "specification repository could not be read");
+    const prefix = `.specs/${spec}/`;
+    if (snapshot.files.some(({ path }) => path.startsWith(prefix) && isLegacySpecificationDocument(path.slice(prefix.length), spec))) {
+      return error("VALIDATION_FAILED", "Migrate the legacy specification documents offline before writing");
+    }
     const replacements = new Map();
     for (const change of documents.values()) {
       const key = `.${'specs'}/${change.spec}/${change.document}`;
@@ -1444,6 +1463,13 @@ export class ProposalCompiler {
       .filter((file) => !replacements.has(file.path))
       .concat([...replacements.entries()].filter(([, bytes]) => bytes !== null).map(([path, bytes]) => ({ path, bytes })))
       .sort((left, right) => left.path.localeCompare(right.path));
+    const criteriaPath = `${prefix}${FIXED_DOCUMENT_FILES.ACCEPTANCE_CRITERIA}`;
+    const coverage = (files) => coverageRegion(Buffer.from(files.find(({ path }) => path === criteriaPath)?.bytes ?? "").toString("utf8"));
+    const beforeCoverage = coverage(snapshot.files);
+    const afterCoverage = coverage(resultingFiles);
+    if (intent !== "approveBddCoverage" && beforeCoverage.material !== afterCoverage.material) {
+      return error("BDD_COVERAGE_PROTECTED", "Only approveBddCoverage can change the approved coverage section");
+    }
     const resulting = buildKernelGraph({ files: resultingFiles });
     if (resulting.graph.valid !== true) {
       const findings = resulting.diagnostics
@@ -1485,6 +1511,13 @@ export class ProposalCompiler {
       return counts;
     };
     const baseline = buildKernelGraph({ files: snapshot.files });
+    if (tasksDocument) {
+      const approved = context.hostedCoverage ? beforeCoverage.map : await localApprovedCoverage(this.root, spec);
+      const findings = changedTaskCoverageFindings({
+        baseline: baseline.graph, graph: resulting.graph, spec, proposed: afterCoverage.map, approved,
+      });
+      if (findings.length) return error("BDD_COVERAGE_INCOMPLETE", "Task scope requires current approved BDD examples", { spec, findings });
+    }
     const beforeCounts = multisetOf(baseline.diagnostics);
     const afterCounts = multisetOf(resulting.diagnostics);
     const firstAfter = new Map();
@@ -1517,6 +1550,11 @@ export class ProposalCompiler {
     const reviewCheck = validateDesignReviewForChanges(input.designReview, [...documents.values()]);
     if (!reviewCheck.ok) {
       return error(reviewCheck.code, reviewCheck.message, { findings: reviewCheck.findings });
+    }
+    if (reviewCheck.receipt?.required === true) {
+      const approved = context.hostedCoverage ? beforeCoverage.map : await localApprovedCoverage(this.root, spec);
+      const findings = changedReadyCoverageFindings({ baseline: baseline.graph, graph: resulting.graph, spec, proposed: afterCoverage.map, approved });
+      if (findings.length) return error("BDD_COVERAGE_INCOMPLETE", "Executable examples require current approval", { spec, findings });
     }
     const previews = [...documents.values()].map((entry) => entry.preview).sort((left, right) => left.document.localeCompare(right.document));
     const proposalMaterial = {

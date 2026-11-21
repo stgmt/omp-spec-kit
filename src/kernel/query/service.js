@@ -9,7 +9,7 @@ import {
   DIAGNOSTIC_SEVERITIES,
   DOCUMENT_KINDS,
   EDGE_TYPES,
-  FIXED_DOCUMENT_FILES,
+  canonicalDocumentFilename,
   KERNEL_SCHEMA_VERSION,
   LINK_OUTCOMES,
   NODE_KINDS,
@@ -933,20 +933,10 @@ function sum(values) {
   return values.reduce((total, value) => total + value, 0);
 }
 
-function expectedFilename(kind, slug) {
-  if (kind === "FEATURE") return `${slug}.feature`;
-  if (kind === "SCHEMA") return `${slug}_SCHEMA.md`;
-  // ROADMAP.md is a conditional canonical document: only for roadmap-* specs.
-  if (kind === "ROADMAP") {
-    return typeof slug === "string" && slug.startsWith("roadmap-") ? FIXED_DOCUMENT_FILES.ROADMAP : null;
-  }
-  return FIXED_DOCUMENT_FILES[kind] ?? null;
-}
-
 function missingCanonicalKinds(slug, acceptedKinds) {
   const missing = [];
   for (const kind of DOCUMENT_KINDS) {
-    const filename = expectedFilename(kind, slug);
+    const filename = canonicalDocumentFilename(kind, slug);
     if (filename !== null && !acceptedKinds.has(kind)) missing.push(kind);
   }
   return missing;

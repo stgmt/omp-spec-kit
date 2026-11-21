@@ -16,7 +16,7 @@ The criteria describe the standalone graph core and its compatibility boundary. 
 
 ## AC-2.1: Canonical documents and qualified IDs
 
-**EARS:** WHEN the fifteen canonical document names are supplied THEN role-aware parsing SHALL emit only owning-document definitions, qualify every identity by spec slug, and preserve duplicate occurrences without cross-spec collision.
+**EARS:** WHEN the fourteen canonical document names are supplied THEN role-aware parsing SHALL emit only owning-document definitions, qualify every identity by spec slug, and preserve duplicate occurrences without cross-spec collision.
 
 **Requirement:** [FR-2](FR.md#fr-2-canonical-documents-and-qualified-ids)
 

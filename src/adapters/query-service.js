@@ -16,6 +16,9 @@ import { DOCUMENT_OPERATIONS, executeDocumentOperation } from "./document-servic
 import { EVIDENCE_OPERATIONS, executeEvidenceOperation } from "../evidence/service.js";
 import { createAuthoringService } from "../authoring/service.js";
 import { readConsistentRepositorySpecs } from "../authoring/transactions.js";
+import { addedLines } from "../kernel/proposal-review.js";
+import { createProposalReviewService, findDraftDraft } from "../service/proposal-review.js";
+import { createDecisionsReviewer, createEmbeddingsEmbedder, readReviewerConfig } from "./openai-decisions.js";
 
 export { KERNEL_SCHEMA_VERSION };
 
@@ -343,6 +346,69 @@ export function createSpecService(root, context = {}) {
     return settled;
   }
   let authoring;
+  let proposalReview;
+  let proposalReviewReady = false;
+
+  /**
+   * The reviewer is built once per service and only when the deployment opted
+   * in: external evaluation is off by default. A missing key with the flag on
+   * is not a crash — the service reports REVIEWER_NOT_CONFIGURED instead.
+   */
+  function getProposalReview() {
+    if (proposalReviewReady) return proposalReview;
+    proposalReviewReady = true;
+    const config = readReviewerConfig(context.env ?? process.env);
+    if (!config.enabled) {
+      proposalReview = null;
+      return null;
+    }
+    const reviewer = config.configured
+      ? createDecisionsReviewer({
+          apiKey: config.apiKey,
+          model: config.model,
+          endpoint: config.endpoint,
+          fetchImpl: context.fetchImpl,
+          timeoutMs: context.reviewTimeoutMs,
+        })
+      : null;
+    const embedder = config.configured
+      ? createEmbeddingsEmbedder({
+          apiKey: config.apiKey,
+          endpoint: config.endpoint,
+          fetchImpl: context.fetchImpl,
+          timeoutMs: context.reviewTimeoutMs,
+        })
+      : null;
+    proposalReview = createProposalReviewService({
+      root: resolvedRoot,
+      readCorpus: () => readConsistentRepositorySpecs({ root: resolvedRoot }),
+      reviewer,
+      embedder,
+      model: config.model,
+    });
+    return proposalReview;
+  }
+
+  /**
+   * H2: on a read, notice the newest plan draft and attach its review to the
+   * same envelope. Cheap after the first call — results are cached by proposal
+   * hash, so repeated reads cost nothing.
+   */
+  async function attachDraftReview(operation, envelope) {
+    if (operation !== "catalog" && operation !== "inspect") return envelope;
+    const service = getProposalReview();
+    if (!service || envelope?.ok !== true || !envelope.data) return envelope;
+    try {
+      const draft = await findDraftDraft(resolvedRoot);
+      if (!draft) return envelope;
+      const reviewed = await service.reviewDraft({ draft: draft.text, scope: [draft.path], kind: `auto:${operation}` });
+      if (!reviewed.ok) return envelope;
+      return { ...envelope, data: { ...envelope.data, review: { ...reviewed.data, draftPath: draft.path } } };
+    } catch {
+      return envelope;
+    }
+  }
+
   function refresh() {
     settled = null;
   }
@@ -390,7 +456,10 @@ export function createSpecService(root, context = {}) {
 
   // spec-kernel@2 accepts @1 callers unchanged (shape-compatible; the new
   // optional `project` scope rule is transport-level), so both are legal here.
-  async function runQuery(operation, args, { requestId = null, schemaVersion, project = null, projectSource = null, transport = null, bindingStatus = null } = {}) {
+  async function runQueryInner(operation, args, {
+    requestId = null, schemaVersion, project = null, projectSource = null, transport = null, bindingStatus = null,
+    hostedCoverage = false, coverageOwner = false,
+  } = {}) {
     if (schemaVersion !== undefined && schemaVersion !== "spec-kernel@1" && schemaVersion !== KERNEL_SCHEMA_VERSION) {
       return withProvenance(
         makeErrorEnvelope({
@@ -641,6 +710,8 @@ export function createSpecService(root, context = {}) {
     // 8. evidence
     if (operation === "evidence") {
       const view = effectiveArgs.view ?? "result";
+      // Bind evidence to the current corpus, not a graph cached by an earlier read.
+      refresh();
       const state = await ensure();
       if (state.status === "error") return handleReaderError(state.readerError, "evidence", requestId);
 
@@ -686,13 +757,46 @@ export function createSpecService(root, context = {}) {
       if (requestId !== null && authoredInput.requestId === undefined) authoredInput.requestId = requestId;
 
       try {
-        const authored = await getAuthoring().execute(authoredInput);
+        // H1: the text this patch would write is reviewed before it lands. A
+        // preview compile gives the proposed lines without touching disk; a
+        // conflict refuses the commit. Infrastructure failures never block.
+        const reviewService = getProposalReview();
+        let review = null;
+        if (reviewService) {
+          try {
+            const preview = await getAuthoring().execute({ ...authoredInput, dryRun: true }, { hostedCoverage, coverageOwner });
+            const proposed = preview.ok
+              ? (preview.data?.operations ?? []).map((entry) => addedLines(entry.diff)).filter(Boolean).join("\n\n")
+              : "";
+            if (proposed !== "") {
+              const reviewed = await reviewService.reviewDraft({ draft: proposed, scope: [String(effectiveArgs.spec ?? "")], kind: "spec-patch" });
+              if (reviewed.ok) {
+                review = reviewed.data;
+                if (review.verdict === "conflict" && effectiveArgs.dryRun === false) {
+                  return withProvenance(
+                    makeErrorEnvelope({
+                      operation: "specPatch",
+                      requestId,
+                      code: "PROPOSAL_CONFLICT",
+                      message: "the proposed specification change contradicts an accepted decision; nothing was written",
+                      extra: { review },
+                    }),
+                  );
+                }
+              }
+            }
+          } catch {
+            review = null;
+          }
+        }
+
+        const authored = await getAuthoring().execute(authoredInput, { hostedCoverage, coverageOwner });
         const envelope = authored.ok
           ? makeSuccessEnvelope({
               graph: freshState.graph,
               operation: "specPatch",
               requestId,
-              data: authored.data,
+              data: review ? { ...authored.data, review } : authored.data,
             })
           : makeErrorEnvelope({
               operation: "specPatch",
@@ -758,6 +862,11 @@ export function createSpecService(root, context = {}) {
         makeErrorEnvelope({ operation, requestId, code: "INTERNAL_INVARIANT_ERROR", message: "unexpected adapter failure while executing the query" })
       );
     }
+  }
+
+  async function runQuery(operation, args, options) {
+    const envelope = await runQueryInner(operation, args, options);
+    return attachDraftReview(operation, envelope);
   }
 
   /**

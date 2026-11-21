@@ -6,17 +6,17 @@
 
 | Field | Value |
 |---|---|
-| Fixture SHA-256 | `88ef21e0261418cd2b9a538c2d268008c899b37bdeb32a4ae093d40359001770` |
-| Repository base commit | `a1008ba87ca41e4eeacdafc9a56b891055580862` |
+| Fixture SHA-256 | `29df25867b3fdcdce7980bf18e81e879886fd1a07e78f84657d06de2c79f8b6c` |
+| Repository base commit | `ba6853ca9bc62a372b9fafc3299c3b1f0aae6f5f` |
 | Source state | `working-tree-content-addressed` |
-| Parent fixture SHA-256 | `b6b61b275b5d14f52687bc039f7c261f2d644fab2c2b73a9b03f21add0ee50fc` |
-| Source inputs | 455 files; aggregate `6e3e72289300db04d2b1d73b771049078d7057a499c9913f3747b6b184908e34` |
-| Source manifest SHA-256 | `b63127ac0257eff2d9ede3cd1ead2e8bf91a1e54e6afbca0682b80a14e033fb7` |
-| Docker image digest | `sha256:e1a114222796aef2b98857dbc801bd8eea472196ba8b14daa47d4c4d891216b5` |
+| Parent fixture SHA-256 | `c5528985146bf1ff9838963a31c33e8157b39cf6304c4c61df880bb6256d9843` |
+| Source inputs | 485 files; aggregate `717cb04de94e37bf2159141fdd215ec90b40b0a02c60cf1d720b8b8ab60eff2e` |
+| Source manifest SHA-256 | `40be11c4e1541877844c26c947038d364ad501cc91cba3f10bcff87cc6656fa4` |
+| Docker image digest | `sha256:9376adfbc0c4c5943ab5dfc1b396638ecd0111a4165f5a8419c388e1fe733e34` |
 | Cucumber version | `@cucumber/cucumber` `13.2.1` |
 | Capture command | `bash scripts/docker-bdd.sh` |
-| Capture date | `2026-11-15` |
-| Executed scenarios | `8` |
-| Completed steps | `77` |
+| Capture date | `2026-11-21` |
+| Executed scenarios | `35` |
+| Completed steps | `69` |
 
 Ground truth: the stream contains all 11 MRI scenario IDs and all 12 source-derived MRI pickle executions. Every required pickle has one test case and a complete passing terminal chain; the stream has one final successful `testRunFinished`. The evaluator rejects malformed/meta-only, missing or duplicate chain members, missing non-first outline expansions, retry-only and non-passing evidence with named `CucumberEvidenceError` codes.

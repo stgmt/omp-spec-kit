@@ -717,7 +717,7 @@ export function startServe({
 function requireCorpusRoot() {
   const raw = process.env.OMP_SPEC_KIT_ROOT;
   if (typeof raw === "string" && raw.length > 0 && path.isAbsolute(raw) && existsSync(path.join(raw, ".specs"))) return raw;
-  fail("set OMP_SPEC_KIT_ROOT to a corpus checkout: the canonical corpus lives in the specs repository and is served by the registry");
+  fail("set OMP_SPEC_KIT_ROOT to a corpus checkout (a `spec-<slug>` branch worktree): the canonical corpus lives on the project's spec branches and is served by the registry");
 }
 
 async function main() {

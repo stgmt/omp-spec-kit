@@ -474,7 +474,8 @@ export class MountManager {
    * spans several branches, so the cache is materialised instead of linked.
    */
   cacheRootFor(projectId, mount) {
-    return path.join(mount.cwd, "projects", projectId.split("/").join("__"));
+    // A delimiter-based encoding collides for ids such as a__/b and a/__b.
+    return path.join(mount.cwd, "projects", createHash("sha256").update(projectId).digest("hex"));
   }
 
   /** Signature of the last materialised corpus, or null when never built. */

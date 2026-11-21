@@ -6,7 +6,9 @@ import { createHash } from "node:crypto";
 import {
   ANCHOR_ALGORITHM_VERSION,
   DOCUMENT_KINDS,
-  FIXED_DOCUMENT_FILES,
+  canonicalDocumentFilename,
+  GHERKIN_DOCUMENT_KINDS,
+  isLegacySpecificationDocument,
   NODE_KINDS,
   EDGE_TYPES,
   KERNEL_SCHEMA_VERSION,
@@ -31,7 +33,7 @@ import { makeDiagnostic, sortDiagnostics } from "../diagnostics.js";
 import { localIdKind, splitCanonicalId, makeCanonicalId } from "../identity.js";
 import { LOCAL_ID_ROLES } from "../types.js";
 import { parseMarkdownDocument, resolveLinkOutcomes } from "../parsers/markdown.js";
-import { parseGherkinDocument } from "../parsers/gherkin.js";
+import { gherkinPairFindings, parseGherkinDocument } from "../parsers/gherkin.js";
 import { resolveReference, endpointAllowed } from "./resolve-edges.js";
 import { checkInvariants } from "./invariants.js";
 
@@ -49,37 +51,6 @@ function stripPrivate(record) {
     if (!key.startsWith("_")) clean[key] = record[key];
   }
   return clean;
-}
-
-// Filename -> DocumentKind for the fixed-name documents; slug-derived names
-// are resolved by deriveDocumentKind.
-function fixedDocumentKind(filename) {
-  for (const kind of Object.keys(FIXED_DOCUMENT_FILES)) {
-    if (FIXED_DOCUMENT_FILES[kind] === filename) return kind;
-  }
-  return null;
-}
-
-function canonicalNameMatches(filename, specSlug) {
-  if (fixedDocumentKind(filename) !== null) return "exact";
-  if (filename === `${specSlug}.feature` || filename === `${specSlug}_SCHEMA.md`) return "exact";
-  const lower = filename.toLowerCase();
-  for (const fixed of Object.values(FIXED_DOCUMENT_FILES)) {
-    if (lower === fixed.toLowerCase() && filename !== fixed) return "case-variant";
-  }
-  if (filename === `${specSlug}.feature` || filename === `${specSlug}_SCHEMA.md`) return "exact";
-  const featureLower = `${specSlug}.feature`.toLowerCase();
-  const schemaLower = `${specSlug}_schema.md`.toLowerCase();
-  if (lower === featureLower || lower === schemaLower) return "case-variant";
-  return "unrelated";
-}
-
-function deriveDocumentKind(filename, specSlug) {
-  const fixed = fixedDocumentKind(filename);
-  if (fixed !== null) return fixed;
-  if (filename === `${specSlug}.feature`) return "FEATURE";
-  if (filename === `${specSlug}_SCHEMA.md`) return "SCHEMA";
-  return null;
 }
 
 export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {}) {
@@ -156,13 +127,19 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
       continue;
     }
 
-    const match = canonicalNameMatches(filename, specSlug);
-    const documentKind = deriveDocumentKind(filename, specSlug);
-    if (match === "unrelated" || documentKind === null) {
-      // Not a canonical candidate at all; the kernel ignores it silently.
+    if (isLegacySpecificationDocument(filename, specSlug)) {
+      diagnostics.push(makeDiagnostic({
+        code: "LEGACY_SPEC_LAYOUT",
+        message: `legacy specification document ${filename} requires offline migration to the story and case feature pair`,
+        specSlug,
+        span: emptySpan(normalizedPath),
+      }));
       continue;
     }
-    const acceptedName = match === "exact";
+    const documentKind = DOCUMENT_KINDS.find((kind) =>
+      canonicalDocumentFilename(kind, specSlug)?.toLowerCase() === filename.toLowerCase());
+    if (!documentKind) continue;
+    const acceptedName = canonicalDocumentFilename(documentKind, specSlug) === filename;
 
     const rawSha256 = sha256Bytes(bytes);
     const rejectedRow = (code, message, extra = {}) => {
@@ -273,15 +250,14 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
   // ---- Phase 2: parsing ----
   const parsedByPath = new Map();
   const globalAnchorIndex = new Map();
-  // FEATURE documents contribute no headings/anchors but remain valid link
-  // targets (sibling `<spec>.feature` links), so their paths stay in the index.
+  // Gherkin files remain link targets, without Markdown anchors.
   const acceptedPaths = new Set(usableEntries.map((e) => e.row.path));
 
   usableEntries.forEach((entry, index) => {
     checkCancelled();
     if ((index & 0x3ff) === 0x3ff) checkCancelled();
-    if (entry.documentKind === "FEATURE") {
-      parsedByPath.set(entry.row.path, { kind: "FEATURE", parsed: parseGherkinDocument({
+    if (GHERKIN_DOCUMENT_KINDS.includes(entry.documentKind)) {
+      parsedByPath.set(entry.row.path, { kind: "GHERKIN", parsed: parseGherkinDocument({
         path: entry.row.path,
         specSlug: entry.specSlug,
         text: entry.text,
@@ -292,6 +268,22 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
     parsedByPath.set(entry.row.path, { kind: "MARKDOWN", parsed });
     globalAnchorIndex.set(entry.row.path, parsed.anchorIndex);
   });
+
+  const gherkinSpecs = new Set(usableEntries.filter(({ documentKind }) => GHERKIN_DOCUMENT_KINDS.includes(documentKind)).map(({ specSlug }) => specSlug));
+  for (const specSlug of gherkinSpecs) {
+    const [storyPath, casePath] = GHERKIN_DOCUMENT_KINDS.map((kind) => `.specs/${specSlug}/${canonicalDocumentFilename(kind, specSlug)}`);
+    const stories = parsedByPath.get(storyPath)?.parsed;
+    const cases = parsedByPath.get(casePath)?.parsed;
+    if (!stories || !cases) {
+      diagnostics.push(makeDiagnostic({
+        code: "MALFORMED_GHERKIN", message: "the story and use case Gherkin documents must exist together",
+        specSlug, span: emptySpan(stories ? casePath : storyPath),
+      }));
+    }
+    for (const { document, span, ...finding } of gherkinPairFindings(stories, cases)) {
+      diagnostics.push(makeDiagnostic({ ...finding, specSlug, span: { ...span, path: document === stories ? storyPath : casePath } }));
+    }
+  }
 
   const corpus = { paths: acceptedPaths, anchorIndex: globalAnchorIndex };
   for (const [docPath, holder] of parsedByPath) {
@@ -882,7 +874,7 @@ function assembleDefinitionOccurrences(entry, holder, definitionOccurrences, gro
     return;
   }
 
-  // FEATURE documents.
+  // Gherkin Rule and Scenario definitions share the duplicate election.
   for (const scenarioDiagnostic of holder.parsed.diagnostics) {
     diagnostics.push(
       makeDiagnostic({
@@ -891,40 +883,15 @@ function assembleDefinitionOccurrences(entry, holder, definitionOccurrences, gro
       }),
     );
   }
+  for (const rule of holder.parsed.rules) {
+    const canonicalId = `${specSlug}:${rule.localId}`;
+    pushCandidate(definitionOccurrences, groups, { path: docPath, startOffset: rule.span.startOffset, canonicalId }, {
+      specSlug, localId: rule.localId, canonicalId, nodeKind: rule.kind, title: rule.name,
+      body: rule.body, span: withPath(rule.span), attributes: rule.attributes,
+      outcome: "PENDING", diagnosticIds: [], documentKind: entry.documentKind,
+    }, canonicalId);
+  }
   for (const scenario of holder.parsed.scenarios) {
-    if (scenario.rejected) {
-      const diagnostic = makeDiagnostic({
-        code: scenario.rejectionCode,
-        message:
-          scenario.rejectionCode === "DUPLICATE_SCENARIO_ID_TAG"
-            ? "scenario carries more than one @id tag"
-            : "scenario is missing a valid @id:SCEN-<slug> tag",
-        span: withPath(scenario.nameSpan),
-        specSlug,
-        expected: "exactly one @id:SCEN-<lower-kebab> tag",
-      });
-      diagnostics.push(diagnostic);
-      definitionOccurrences.push({
-        occurrenceId: hashIdentity({
-          path: docPath,
-          startOffset: scenario.nameSpan.startOffset,
-          ordinal: definitionOccurrences.length,
-          kind: "definition",
-          rawIdOrTarget: "",
-        }),
-        specSlug,
-        localId: null,
-        canonicalId: null,
-        nodeKind: null,
-        title: "",
-        body: "",
-        span: withPath(scenario.nameSpan),
-        attributes: {},
-        outcome: "REJECTED",
-        diagnosticIds: [diagnostic.diagnosticId],
-      });
-      continue;
-    }
     const localId = scenario.localId;
     const canonicalId = `${specSlug}:${localId}`;
     pushCandidate(
@@ -953,10 +920,15 @@ function assembleDefinitionOccurrences(entry, holder, definitionOccurrences, gro
             headers: block.headers,
             rows: block.rows,
           })),
+          storyId: scenario.storyId,
+          caseId: scenario.caseId,
+          contract: scenario.contract,
+          ready: scenario.ready,
+          pickles: scenario.pickles.map(({ rowId, sha256 }) => ({ rowId, sha256 })),
         },
         outcome: "PENDING",
         diagnosticIds: [],
-        documentKind: "FEATURE",
+        documentKind: entry.documentKind,
       },
       canonicalId,
     );
@@ -1037,6 +1009,18 @@ function collectReferences(parsedByPath, usableEntries, definitionOccurrences, n
         });
       }
     } else {
+      const reference = (record, rawTarget, requestedEdgeType, span) => pending.push({
+        rank: 4, startOffset: span.startOffset, sourceCanonicalId: record, rawTarget,
+        requestedEdgeType, span, specSlug: entry.specSlug,
+      });
+      for (const rule of holder.parsed.rules) {
+        const id = `${entry.specSlug}:${rule.localId}`;
+        if (!nodeById.has(id)) continue;
+        reference(documentCanonicalId, id, "DECLARES", rule.span);
+        if (rule.kind === "USE_CASE") reference(id, rule.attributes.storyId, "REFS", rule.span);
+        for (const target of rule.attributes.covers) reference(id, target, "COVERS", rule.span);
+        for (const target of Object.values(rule.attributes.refs)) reference(id, target.split("#")[0], "REFS", rule.span);
+      }
       for (const scenario of holder.parsed.scenarios) {
         const scenarioRecord = findDefinitionRecord(definitionOccurrences, docPath, scenario.nameSpan.startOffset);
         if (scenarioRecord === null) continue;

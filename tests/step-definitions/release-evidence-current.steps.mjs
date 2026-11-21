@@ -3,12 +3,12 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Given, Then, When } from "@cucumber/cucumber";
 import { candidateDigest, canonicalJson, collectRegularFiles, createDeterministicTar, packageTreeDigest, sha256, toPublicFileRows } from "../../scripts/release-candidate-utils.mjs";
-import { cucumberMessages, requiredScenarioMultiplicity } from "../../scripts/create-release-evidence.mjs";
+import { cucumberMessages } from "../../scripts/create-release-evidence.mjs";
+import { readReleaseScenarios } from "../../scripts/release-gherkin.mjs";
 import { evaluateRelease } from "../../scripts/verify-release.mjs";
 
 const REPOSITORY_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const PREDECESSOR_STATUS = path.join(REPOSITORY_ROOT, "docs", "validation", "release-status-v0.3.2.json");
-const RELEASE_FEATURE = path.join(REPOSITORY_ROOT, "tests", "features", "release-evidence.feature");
 async function createGitFreeCandidate(outputDirectory) {
   const files = await collectRegularFiles(path.join(REPOSITORY_ROOT, "plugins", "omp-spec-kit"));
   const archiveBytes = await createDeterministicTar(files);
@@ -35,8 +35,7 @@ Given("a v0.4.1 candidate and complete evidence record", async function () {
 });
 
 When("the current candidate message artifact contains only meta", async function () {
-  const featureSource = await readFile(RELEASE_FEATURE, "utf8");
-  const required = requiredScenarioMultiplicity(featureSource);
+  const { multiplicities: required } = await readReleaseScenarios();
   try {
     cucumberMessages(Buffer.from(JSON.stringify({ meta: { protocolVersion: "22.0.0" } }) + "\n", "utf8"), required);
     assert.fail("meta-only Cucumber input must be rejected");

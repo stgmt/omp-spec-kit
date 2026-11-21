@@ -20,7 +20,7 @@ The kernel SHALL consume caller-supplied canonical source documents, parser sche
 
 ## FR-2: Canonical documents and qualified IDs
 
-The kernel SHALL recognize exactly these fifteen canonical names inside each spec: `README.md`, `USER_STORIES.md`, `USE_CASES.md`, `RESEARCH.md`, `REQUIREMENTS.md`, `FR.md`, `NFR.md`, `ACCEPTANCE_CRITERIA.md`, `DESIGN.md`, `TASKS.md`, `FILE_CHANGES.md`, `CHANGELOG.md`, `<spec-slug>.feature`, `FIXTURES.md`, and `<spec-slug>_SCHEMA.md`. Role-aware parsing SHALL define FR only in FR.md, AC only in ACCEPTANCE_CRITERIA.md, and TASK only in TASKS.md; other authored kinds use their owning roles. Every local ID becomes `<spec-slug>:<local-id>`; duplicates remain candidate occurrences and identical IDs in different specs do not collide.
+The kernel SHALL recognize exactly these fourteen canonical names inside each spec: `README.md`, `<spec-slug>-user-stories.feature`, `<spec-slug>-use-cases.feature`, `RESEARCH.md`, `REQUIREMENTS.md`, `FR.md`, `NFR.md`, `ACCEPTANCE_CRITERIA.md`, `DESIGN.md`, `TASKS.md`, `FILE_CHANGES.md`, `CHANGELOG.md`, `FIXTURES.md`, and `<spec-slug>_SCHEMA.md`. Role-aware parsing SHALL define FR only in FR.md, AC only in ACCEPTANCE_CRITERIA.md, and TASK only in TASKS.md; other authored kinds use their owning roles. Every local ID becomes `<spec-slug>:<local-id>`; duplicates remain candidate occurrences and identical IDs in different specs do not collide.
 
 **Acceptance:** [AC-2.1](ACCEPTANCE_CRITERIA.md#ac-21-canonical-documents-and-qualified-ids)
 
@@ -237,7 +237,7 @@ The MCP authoring surface SHALL expose `spec_patch` as the single public authori
 **Contract card:** kind `api`; subject `pure-proposal`; observables: Proposal and unchanged tree hashes; negative cases: mixed specs, duplicate target, invalid operation, exceeded preview bound; verification: deterministic no-write tests, pending.
 **Acceptance:** [AC-24.1](ACCEPTANCE_CRITERIA.md#ac-241), [AC-24.2](ACCEPTANCE_CRITERIA.md#ac-242)
 **Scenario:** `@feature24`
-**Story / use case:** [US-10](USER_STORIES.md#us-10-review-exact-changes-before-mutation), [UC-9](USE_CASES.md#uc-9-propose-one-traced-change)
+**Story / use case:** `US-10`, `UC-9`
 
 ## FR-25: Containment, anchors, and resulting-spec validation
 
@@ -246,7 +246,7 @@ Both public tools SHALL require one explicit canonical repository root and root-
 **Contract card:** kind `filesystem`; subject `contained-valid-result`; observables: canonical targets and ordered findings; negative cases: path escape, linked component, broken anchor, trace loss, unavailable validator; verification: real platform and corpus fixtures, pending.
 **Acceptance:** [AC-25.1](ACCEPTANCE_CRITERIA.md#ac-251), [AC-25.2](ACCEPTANCE_CRITERIA.md#ac-252)
 **Scenario:** `@feature25`
-**Story / use case:** [US-13](USER_STORIES.md#us-13-contain-the-write-boundary), [US-14](USER_STORIES.md#us-14-preserve-anchors-and-bytes), [UC-12](USE_CASES.md#uc-12-reject-an-escaping-or-raw-write), [UC-13](USE_CASES.md#uc-13-rename-a-heading-safely)
+**Story / use case:** `US-13`, `US-14`, `UC-12`, `UC-13`
 
 ## FR-26: Exact-proposal apply with CAS and revalidation
 
@@ -255,7 +255,7 @@ Both public tools SHALL require one explicit canonical repository root and root-
 **Contract card:** kind `behavior`; subject `cas-apply`; observables: one exact result or structured refusal; negative cases: missing/extra hash, stale base, proposal mismatch, concurrent change, request reuse with different content; verification: two-writer and replay tests, pending.
 **Acceptance:** [AC-26.1](ACCEPTANCE_CRITERIA.md#ac-261), [AC-26.2](ACCEPTANCE_CRITERIA.md#ac-262)
 **Scenario:** `@feature26`
-**Story / use case:** [US-11](USER_STORIES.md#us-11-reject-stale-edits), [UC-10](USE_CASES.md#uc-10-apply-the-exact-proposal), [UC-11](USE_CASES.md#uc-11-resolve-a-concurrent-edit)
+**Story / use case:** `US-11`, `UC-10`, `UC-11`
 
 ## FR-27: Atomic one-spec commit and internal rollback
 
@@ -264,7 +264,7 @@ After successful revalidation, the writer SHALL stage a complete result generati
 **Contract card:** kind `filesystem`; subject `atomic-generation`; atomicity: one spec generation; rollback: internal old/new hash selection; terminal failure: `RECOVERY_REQUIRED` plus manual restore; verification: fault injection and concurrent reader tests, pending.
 **Acceptance:** [AC-27.1](ACCEPTANCE_CRITERIA.md#ac-271), [AC-27.2](ACCEPTANCE_CRITERIA.md#ac-272)
 **Scenario:** `@feature27`
-**Story / use case:** [US-12](USER_STORIES.md#us-12-commit-related-documents-together), [US-16](USER_STORIES.md#us-16-recover-without-another-public-repair-api), [UC-14](USE_CASES.md#uc-14-survive-a-writer-fault), [UC-15](USE_CASES.md#uc-15-stop-at-unrecoverable-storage)
+**Story / use case:** `US-12`, `US-16`, `UC-14`, `UC-15`
 
 ## FR-28: Byte conservation and compact redacted outcomes
 
@@ -273,7 +273,7 @@ Every accepted edit SHALL preserve untouched bytes, source EOL style, encoding, 
 **Contract card:** kind `data`; subject `conservation-and-receipt`; observables: byte hashes, EOL/final-newline state, compact receipt; negative cases: accidental normalization, secret/body leak, stack trace; verification: byte corpus and redaction tests, pending.
 **Acceptance:** [AC-28.1](ACCEPTANCE_CRITERIA.md#ac-281), [AC-28.2](ACCEPTANCE_CRITERIA.md#ac-282)
 **Scenario:** `@feature28`
-**Story / use case:** [US-14](USER_STORIES.md#us-14-preserve-anchors-and-bytes), [US-15](USER_STORIES.md#us-15-receive-a-useful-private-receipt), [UC-10](USE_CASES.md#uc-10-apply-the-exact-proposal)
+**Story / use case:** `US-14`, `US-15`, `UC-10`
 
 ## FR-29: Real correctness evidence
 
@@ -282,7 +282,7 @@ Implementation SHALL be verified with provenance-recorded real kernel corpus cap
 **Contract card:** kind `verification`; subject `authoring-correctness`; observables: producer provenance, reconciled hashes, race/fault outcomes; negative cases: synthetic producer shape, source-text assertion, zero-scenario pass, disabled guard surviving; verification: integration and targeted fault/mutation tests, pending.
 **Acceptance:** [AC-29.1](ACCEPTANCE_CRITERIA.md#ac-291), [AC-29.2](ACCEPTANCE_CRITERIA.md#ac-292)
 **Scenario:** `@feature29`
-**Story / use case:** [US-11](USER_STORIES.md#us-11-reject-stale-edits), [US-12](USER_STORIES.md#us-12-commit-related-documents-together), [UC-11](USE_CASES.md#uc-11-resolve-a-concurrent-edit), [UC-14](USE_CASES.md#uc-14-survive-a-writer-fault)
+**Story / use case:** `US-11`, `US-12`, `UC-11`, `UC-14`
 
 
 ## FR-30: MCP discovery metadata and handshake

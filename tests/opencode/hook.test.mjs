@@ -13,7 +13,7 @@ const { createGuard } = await import(pluginUrl);
 const { OmpSpecKitSetup, opencodeConfigured } = await import(setupUrl);
 const { classifyToolCall } = await import(classifierUrl);
 
-const SCENARIO_FEATURE = "Feature: Foo\n  Scenario: Foo works\n    Given a foo\n";
+const SCENARIO_FEATURE = "Feature: Foo\n  @story:US-1\n  Rule: Foo\n    Actor: Reader\n    Goal: Read Foo\n    Benefit: See the result\n    @spec-ready @feature1 @id:SCEN-foo\n    Scenario: Foo works\n      Given a foo\n      When it is opened\n      Then the result is visible\n";
 
 let projectDir;
 let opencodeConfig;
@@ -23,7 +23,7 @@ before(() => {
   mkdirSync(path.join(projectDir, ".specs", "foo"), { recursive: true });
   mkdirSync(path.join(projectDir, "src"), { recursive: true });
   writeFileSync(path.join(projectDir, ".specs", "foo", "foo.md"), "# Foo\n");
-  writeFileSync(path.join(projectDir, ".specs", "foo", "foo.feature"), SCENARIO_FEATURE);
+  writeFileSync(path.join(projectDir, ".specs", "foo", "foo-user-stories.feature"), SCENARIO_FEATURE);
   writeFileSync(path.join(projectDir, "src", "app.js"), "export const x = 1;\n");
   mkdirSync(path.join(projectDir, ".omp-spec-kit"), { recursive: true });
   writeFileSync(
@@ -130,7 +130,7 @@ describe("OpenCode spec guard", () => {
 
   it("requires a design review for a scenario-authoring patch", async () => {
     const operations = [
-      { kind: "replace_document", document: "foo/foo.feature", content: "Feature: Foo\n  Scenario: Bar\n    Given b\n" },
+      { kind: "replace_document", document: "foo-user-stories.feature", content: SCENARIO_FEATURE.replace("the result is visible", "the updated result is visible") },
     ];
     await assert.rejects(
       call(guard(), "spec-registry_spec_patch", { spec: "foo", intent: "patch", operations }),

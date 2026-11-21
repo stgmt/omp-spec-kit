@@ -25,6 +25,7 @@ import { waitFor } from "../../tests/e2e/lib/compose.mjs";
 import { completeWizard, youtrackNeedsWizard } from "../../tests/e2e/lib/wizard.mjs";
 import { createYouTrackAdmin } from "../../tests/e2e/lib/youtrack.mjs";
 import { ensureWidget, findDashboard } from "../../scripts/spec-dashboard-setup.mjs";
+import { seedDemo } from "./seed-demo.mjs";
 import { installCodexGuard, installOpenCodeGuard } from "./guards.mjs";
 import { provisionSpecProjection, verifyAppPlacement, verifyProjection } from "./provision-spec.mjs";
 
@@ -42,40 +43,6 @@ const APP_NAME = "spec-graph-app";
 // Demo seeding is explicit. The release/fresh-install path runs with
 // --no-demo: the dashboard exists but the board has zero valid specs.
 const WITH_DEMO = !process.argv.includes("--no-demo");
-
-// The demo .feature carries two scenarios, so the same design-review gate as
-// every other scenario-authoring patch applies. The review pins the demo
-// boundary (opt-in fixture, zero specs on a fresh install) and records the
-// mutation that would make the assertion fail.
-const DEMO_DESIGN_REVIEW = Object.freeze({
-  schemaVersion: "omp-spec-kit/design-review@1",
-  decision: "proceed",
-  boundary: {
-    kind: "user-visible-contract",
-    name: "Spec Graph demo board",
-    claim: "an explicit demo load shows every entity kind; a fresh install shows zero demo specs",
-  },
-  evidence: [
-    { kind: "test", reference: "tests/features/app-install-live.feature", observation: "the live app-install journey exercises the installed package and the Spec Service page" },
-    { kind: "source", reference: "skills/spec-stack-setup/template/roadmap-demo/README.md", observation: "the demo template is marked Demo: true and is loaded only by the demo contour" },
-    { kind: "documentation", reference: "skills/spec-stack-setup/SKILL.md", observation: "--no-demo is the fresh-install path and seeds no specifications" },
-  ],
-  alternatives: [
-    { option: "auto-seed the demo in every install", reasonRejected: "a fresh install must have zero valid specs in the dashboard" },
-    { option: "hide the demo behind a separate app", reasonRejected: "the demo is a specification fixture and must exercise the same projection and delete path" },
-  ],
-  selfTestCheck: {
-    status: "passed",
-    mutation: "failed-as-expected",
-    command: "node skills/spec-stack-setup/setup.mjs --no-demo",
-    hypothesis: "the fresh-install path must not create any demo specification",
-    answer: "--no-demo leaves the registry and dashboard without demo specs",
-    positiveCase: "--no-demo is the fresh-install path and seeds nothing",
-    negativeCase: "the demo template directory is present and the default demo path loads it",
-    expectedFailure: "a fresh install that seeds the demo would show a valid demo spec",
-    observedFailure: "the demo spec appears only when the demo loader is enabled, not on --no-demo",
-  },
-});
 
 // Preferred host ports; a busy or foreign-held candidate is remapped through
 // a generated compose.override.yml rather than silently diverging configs.
@@ -232,79 +199,13 @@ async function mcpClient(token) {
   return client;
 }
 
-function patchOutcome(result) {
-  const j = JSON.parse(result.content?.[0]?.text ?? "{}");
-  const refused = j.data?.outcome === "REFUSED" ? j.data.error ?? { code: "REFUSED" } : j.ok === false ? j.error ?? { code: "ERR" } : null;
-  return { j, refused };
-}
-
-/* Loads every template/{slug}/spec.json corpus through real MCP calls — the
- * skill ships the spec, the loader never hand-builds one. */
 async function loadTemplateSpec(token) {
-  const metas = readdirSync(TEMPLATE_DIR, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && existsSync(path.join(TEMPLATE_DIR, e.name, "spec.json")))
-    .map((e) => {
-      const meta = JSON.parse(readFileSync(path.join(TEMPLATE_DIR, e.name, "spec.json"), "utf8"));
-      const docs = readdirSync(path.join(TEMPLATE_DIR, e.name))
-        .filter((f) => /\.(md|feature)$/.test(f))
-        .sort()
-        .map((f) => ({ document: f, content: readFileSync(path.join(TEMPLATE_DIR, e.name, f), "utf8") }));
-      return { ...meta, docs };
-    });
   const mcp = await mcpClient(token);
-  let n = 0;
-  const stamp = Date.now();
   try {
-    // Idempotent re-run: specs that already exist skip createSpec/createRoadmap
-    // (a create on an existing slug is a CONFLICT, not an "exists" error).
-    const cat = await mcp.callTool({ name: "spec_catalog", arguments: { project: SCOPE, view: "specs" } });
-    const have = new Set(JSON.parse(cat.content?.[0]?.text ?? "{}").data?.specs ?? []);
-    for (const meta of metas) {
-      const patch = async (intent, extra = {}) => {
-        const args = { intent, requestId: `stack-${stamp}-${++n}`, reason: "spec-stack-setup template load", spec: meta.slug, dryRun: false, ...extra };
-        let { j, refused } = patchOutcome(await mcp.callTool({ name: "spec_patch", arguments: { project: SCOPE, ...args } }));
-        for (const code of ["ELICITATION_REQUIRED", "CONFLICT"]) {
-          if (refused?.code !== code) continue;
-          await new Promise((r) => setTimeout(r, 1_500));
-          ({ j, refused } = patchOutcome(await mcp.callTool({ name: "spec_patch", arguments: { project: SCOPE, ...args, requestId: `stack-${stamp}-${++n}-${code}` } })));
-        }
-        if (j.ok === false || refused) throw new Error(`${intent} ${meta.slug}: ${refused?.code ?? j.error?.message}`);
-        return j;
-      };
-      await mcp.callTool({ name: "spec_claim", arguments: { project: SCOPE, spec: meta.slug } });
-      if (!have.has(meta.slug)) {
-        const created = await mcp.callTool({ name: "spec_branch", arguments: { project: SCOPE, action: "create", spec: meta.slug, demo: meta.demo === true } });
-        const branch = JSON.parse(created.content?.[0]?.text ?? "{}");
-        if (branch.ok === false && branch.error?.code !== "SPEC_EXISTS") {
-          throw new Error(`create branch ${meta.slug}: ${branch.error?.code ?? "unknown"}`);
-        }
-        try {
-          await patch("createSpec", { title: meta.title });
-        } catch (e) {
-          if (!/already exists|SPEC_EXISTS|EXISTS/i.test(e.message)) throw e;
-        }
-        if (meta.docs.some((d) => d.document === "ROADMAP.md")) {
-          try {
-            await patch("createRoadmap", { title: meta.title });
-          } catch (e) {
-            if (!/already|exist|marker/i.test(e.message)) throw e;
-          }
-        }
-      }
-      for (const { document, content } of meta.docs) {
-        // replace_document = idempotent overwrite; a re-run converges to the
-        // template instead of appending duplicates. Scenario-bearing files
-        // carry the demo design review.
-        const review = /\.feature$/iu.test(document) ? { designReview: DEMO_DESIGN_REVIEW } : {};
-        await patch("patch", { operations: [{ kind: "replace_document", document, content }], ...review });
-        log(`seeded ${meta.slug}/${document}`);
-      }
-      await mcp.callTool({ name: "spec_release", arguments: { project: SCOPE, spec: meta.slug } }).catch(() => {});
-    }
+    return await seedDemo({ mcp, project: SCOPE, templateDir: TEMPLATE_DIR, log });
   } finally {
     await mcp.close();
   }
-  return metas.map((m) => `${m.slug} — ${m.title}`).join(", ");
 }
 
 async function provisionDashboard(admin) {

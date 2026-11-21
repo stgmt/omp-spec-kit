@@ -1,4 +1,6 @@
 import { KERNEL_SCHEMA_VERSION } from "../../src/kernel/index.js";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import assert from "node:assert/strict";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -101,15 +103,32 @@ async function callInvalid({ callTool, name, args, expected, projectRoot, reposi
   return value;
 }
 
-async function writeEvidence({ projectRoot, repositoryRoot, fixtureName, graphFingerprint, scenarioContentHash }) {
-  const source = await readFile(path.join(repositoryRoot, "tests", "fixtures", "evidence", fixtureName), "utf8");
-  const evidenceRoot = path.join(projectRoot, EVIDENCE_DIR);
-  await mkdir(evidenceRoot, { recursive: true });
-  await writeFile(
-    path.join(evidenceRoot, "last-test-run.ndjson"),
-    source.replaceAll("__GRAPH_FINGERPRINT__", graphFingerprint).replaceAll("__SCENARIO_CONTENT_HASH__", scenarioContentHash),
-    "utf8",
-  );
+const exec = promisify(execFile);
+const evidencePathFor = (root) => path.join(root, EVIDENCE_DIR, "last-test-run.ndjson");
+
+export async function captureProductEvidence({ projectRoot, repositoryRoot, fail = false }) {
+  const args = [
+    path.join(repositoryRoot, "scripts", "capture-gherkin-evidence.mjs"),
+    projectRoot, "product",
+    path.join(repositoryRoot, "tests", "fixtures", "kernel", "staged-product", "product-evidence.steps.mjs"),
+  ];
+  const archive = path.join(projectRoot, "release-candidate");
+  if (fail) await writeFile(archive, "An unexpected release artifact");
+  try {
+    const output = await exec(process.execPath, args, { cwd: projectRoot });
+    assert.equal(fail, false, "a release artifact should fail the public-init example");
+    return output.stdout;
+  } catch (error) {
+    if (!fail || error.code !== 1) throw error;
+    assert.match(error.stderr, /1 scenario \(1 failed\)/u);
+    return error.stdout;
+  } finally {
+    if (fail) await rm(archive, { force: true });
+  }
+}
+
+export function incompleteEvidence(messages) {
+  return messages.trimEnd().split("\n").filter((line) => !JSON.parse(line).testRunFinished).join("\n") + "\n";
 }
 
 async function runSuccessMatrix({ callTool, projectRoot, repositoryRoot }) {
@@ -317,11 +336,7 @@ async function runMutationMatrix({ callTool, projectRoot, repositoryRoot, surfac
   assert.equal(staleCursor.error.code, "STALE_CURSOR");
   await writeFile(taskPath, originalTasks, "utf8");
   await restart();
-  const overview = await callRow({ callTool, name: "spec_catalog", args: { view: "overview", specSlugs: [] }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-overview" });
-  const node = await callRow({ callTool, name: "spec_entities", args: { mode: "get", canonicalId: SCENARIO_ID, projection: "summary", includeIncidentCounts: false }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-node" });
-  const graphFingerprint = overview.graph.fingerprint;
-  const scenarioContentHash = node.data.node.contentHash;
-  const evidencePath = path.join(projectRoot, EVIDENCE_DIR, "last-test-run.ndjson");
+  const evidencePath = evidencePathFor(projectRoot);
   await rm(evidencePath, { force: true });
   const notRun = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-not-run" });
   assert.equal(notRun.data.result, "NOT_RUN");
@@ -329,21 +344,22 @@ async function runMutationMatrix({ callTool, projectRoot, repositoryRoot, surfac
   const notRunTrace = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-not-run-trace" });
   assert.equal(notRunTrace.data.result, "NOT_RUN");
   assert.equal(notRunTrace.data.trace, null);
-  await writeEvidence({ projectRoot, repositoryRoot, fixtureName: "v05-passing.ndjson", graphFingerprint, scenarioContentHash });
+  const green = await captureProductEvidence({ projectRoot, repositoryRoot });
+  await writeFile(evidencePath, green);
   const passing = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-passing" });
   assert.equal(passing.data.result, "PASSED");
   assert.equal(passing.data.stale, false);
   const trace = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-trace" });
   assert.equal(trace.data.result, "PASSED");
 
-  await writeEvidence({ projectRoot, repositoryRoot, fixtureName: "v05-failed.ndjson", graphFingerprint, scenarioContentHash });
+  await writeFile(evidencePath, await captureProductEvidence({ projectRoot, repositoryRoot, fail: true }));
   const failed = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-failed" });
   assert.equal(failed.data.result, "FAILED");
   assert.equal(failed.data.stale, true);
   const failedTrace = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-failed-trace" });
   assert.equal(failedTrace.data.result, "FAILED");
   assert.ok(failedTrace.data.trace && failedTrace.data.trace.status);
-  await writeEvidence({ projectRoot, repositoryRoot, fixtureName: "v05-incomplete.ndjson", graphFingerprint, scenarioContentHash });
+  await writeFile(evidencePath, incompleteEvidence(green));
   const incomplete = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-incomplete" });
   assert.equal(incomplete.data.result, "UNKNOWN");
   assert.equal(incomplete.data.stale, true);
@@ -352,7 +368,7 @@ async function runMutationMatrix({ callTool, projectRoot, repositoryRoot, surfac
   assert.ok(incompleteTrace.data.trace === null || !incompleteTrace.data.trace.status);
   const scenarioPath = path.join(projectRoot, ".specs", "product", "FR.md");
   const originalScenario = await readFile(scenarioPath, "utf8");
-  await writeEvidence({ projectRoot, repositoryRoot, fixtureName: "v05-passing.ndjson", graphFingerprint, scenarioContentHash });
+  await writeFile(evidencePath, green);
   await writeFile(scenarioPath, originalScenario + "\n\nTool E2E corpus mutation.\n", "utf8");
   await restart();
   const changed = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-scenario" });
@@ -361,9 +377,9 @@ async function runMutationMatrix({ callTool, projectRoot, repositoryRoot, surfac
   await writeFile(scenarioPath, originalScenario, "utf8");
   await restart();
 
-  const featurePath = path.join(projectRoot, ".specs", "product", "product.feature");
+  const featurePath = path.join(projectRoot, ".specs", "product", "product-user-stories.feature");
   const originalFeature = await readFile(featurePath, "utf8");
-  await writeEvidence({ projectRoot, repositoryRoot, fixtureName: "v05-passing.ndjson", graphFingerprint, scenarioContentHash });
+  await writeFile(evidencePath, green);
   await writeFile(featurePath, originalFeature.replace("Scenario: Specification-only init reports no installable plugin", "Scenario: Specification-only init reports no installable plugin changed"), "utf8");
   await restart();
   const scenarioMutation = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-scenario" });
@@ -380,9 +396,9 @@ async function runMutationMatrix({ callTool, projectRoot, repositoryRoot, surfac
   const largeEvidence = Buffer.alloc(16 * 1024 * 1024 + 1, 1);
   await writeFile(evidencePath, largeEvidence);
   const oversizedResult = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-large-result" });
-  assert.equal(oversizedResult.data.result, "NOT_RUN");
+  assert.equal(oversizedResult.data.result, "UNKNOWN");
   const oversizedTrace = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-large-trace" });
-  assert.equal(oversizedTrace.data.result, "NOT_RUN");
+  assert.equal(oversizedTrace.data.result, "UNKNOWN");
   await rm(evidencePath, { force: true });
 }
 

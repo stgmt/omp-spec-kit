@@ -2,92 +2,49 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { parseGherkinDocument } from "../src/kernel/parsers/gherkin.js";
 
-function parse(text) {
-  return parseGherkinDocument({ path: "spec.feature", specSlug: "dupe-lab", text });
+const rule = [
+  "@f1", "Feature: F", "  @story:US-1", "  Rule: One story",
+  "    Actor: Author", "    Goal: Preview", "    Benefit: See the impact",
+].join("\n");
+const boundSteps = ["      Given a step", "      When it happens", "      Then the result is known"];
+function parse(source) {
+  return parseGherkinDocument({ path: "dupe-lab-user-stories.feature", specSlug: "dupe-lab", text: `${rule}\n${source}\n` });
 }
 
-describe("gherkin scenario keyword forms", () => {
-  it("indexes plain space-indented Scenario", () => {
-    const doc = parse("Feature: F\n  Scenario: plain\n    Given a step\n");
-    assert.equal(doc.scenarios.length, 1);
-    assert.equal(doc.scenarios[0].keyword, "Scenario");
-    assert.equal(doc.scenarios[0].name, "plain");
-    assert.equal(doc.scenarios[0].steps.length, 1);
-  });
+describe("native Gherkin inside canonical story Rules", () => {
+  for (const [keyword, indent] of [
+    ["Scenario", "    "], ["Scenario Outline", "    "], ["Example", "\t"], ["Scenario Template", "\t"], ["Scenario", "\t"],
+  ]) {
+    it(`indexes ${JSON.stringify(indent)}-indented ${keyword} and its inherited tags`, () => {
+      const outline = keyword.endsWith("Outline") || keyword.endsWith("Template");
+      const lines = [indent + "@feature1 @id:SCEN-x-001", `${indent}${keyword}: Example title`, ...boundSteps];
+      if (outline) lines.push("\tExamples:", "\t  | example_id | a |", "\t  | first | 1 |");
+      const doc = parse(lines.join("\n"));
+      assert.deepEqual(doc.diagnostics, []);
+      assert.equal(doc.scenarios.length, 1);
+      const [scenario] = doc.scenarios;
+      assert.equal(scenario.keyword, keyword);
+      assert.equal(scenario.name, "Example title");
+      assert.equal(scenario.localId, "SCEN-x-001");
+      assert.deepEqual(scenario.tags.map(({ tag }) => tag), ["f1", "story:US-1", "feature1", "id:SCEN-x-001"]);
+      assert.deepEqual(scenario.steps.map(({ keyword: step }) => step), ["Given", "When", "Then"]);
+      if (outline) {
+        assert.deepEqual(scenario.examples, [{ headers: ["example_id", "a"], rows: [["first", "1"]] }]);
+        assert.equal(scenario.pickles[0].rowId, "first");
+      }
+    });
+  }
 
-  it("indexes Scenario Outline and preserves its name", () => {
-    const doc = parse("Feature: F\n  Scenario Outline: outline\n    Given a step\n");
-    assert.equal(doc.scenarios.length, 1);
-    assert.equal(doc.scenarios[0].keyword, "Scenario Outline");
-    assert.equal(doc.scenarios[0].name, "outline");
-  });
-
-  it("indexes Example: with tab indent", () => {
-    const doc = parse("Feature: F\n\tExample: quick\n    Given a step\n");
-    assert.equal(doc.scenarios.length, 1);
-    assert.equal(doc.scenarios[0].keyword, "Example");
-    assert.equal(doc.scenarios[0].name, "quick");
-  });
-
-  it("indexes Scenario Template: and preserves its name", () => {
-    const doc = parse("Feature: F\n  Scenario Template: templ\n    Given a step\n");
-    assert.equal(doc.scenarios.length, 1);
-    assert.equal(doc.scenarios[0].keyword, "Scenario Template");
-    assert.equal(doc.scenarios[0].name, "templ");
-  });
-
-  it("indexes tab-indented Scenario: (cucumber parity with the design-review gate)", () => {
-    const doc = parse("Feature: F\n\tScenario: tabbed\n    Given a step\n");
-    assert.equal(doc.scenarios.length, 1);
-    assert.equal(doc.scenarios[0].keyword, "Scenario");
-    assert.equal(doc.scenarios[0].steps.length, 1);
-  });
-
-  it("keeps docstring-quoted scenario headers un-indexed", () => {
-    const doc = parse('Feature: F\n  """\n  Scenario: quoted\n  """\n');
-    assert.equal(doc.scenarios.length, 0);
-  });
-
-  it("inherits feature-level and local tags on Example", () => {
-    const doc = parse("Feature: F\n  @f1\n  @id:SCEN-x-001\n  Example: tagged\n    Given a step\n");
-    const tags = doc.scenarios[0].tags.map((t) => t.tag);
-    assert.ok(tags.includes("id:SCEN-x-001"));
-    assert.ok(tags.includes("f1"));
-  });
-
-  it("parses Examples rows on Scenario Template", () => {
-    const doc = parse(
-      "Feature: F\n  Scenario Template: templ\n    Given <a>\n    Examples:\n      | a |\n      | 1 |\n",
-    );
-    const scenario = doc.scenarios[0];
-    assert.equal(scenario.keyword, "Scenario Template");
-    assert.equal(scenario.examples.length, 1);
-    assert.deepEqual(scenario.examples[0].headers, ["a"]);
-    assert.deepEqual(scenario.examples[0].rows, [["1"]]);
-  });
-
-
-  it("accepts tab-indented scenario tags and keeps the scenario valid", () => {
-    const doc = parse("Feature: F\n\t@feature1 @id:SCEN-tab-001\n\tScenario: tabbed\n\t  Given a step\n");
-    assert.equal(doc.scenarios.length, 1);
-    assert.equal(doc.scenarios[0].rejected, false);
-    assert.equal(doc.scenarios[0].localId, "SCEN-tab-001");
-    assert.deepEqual(doc.scenarios[0].tags.map((tag) => tag.tag), ["feature1", "id:SCEN-tab-001"]);
-  });
-
-  it("captures tab-indented Examples rows", () => {
-    const doc = parse(
-      "Feature: F\n  Scenario Template: templ\n    Given <a>\n\tExamples:\n\t  | a |\n\t  | 1 |\n",
-    );
-    assert.deepEqual(doc.scenarios[0].examples, [{ headers: ["a"], rows: [["1"]] }]);
-  });
-
-  it("skips scenario-looking text inside tab-indented docstrings", () => {
-    const doc = parse(
-      "Feature: F\n\t@id:SCEN-doc-001\n\tScenario: doc\n\t  Given a step\n\t\"\"\"\n\t  Scenario: quoted\n\t\"\"\"\n",
-    );
-    assert.equal(doc.scenarios.length, 1);
-    assert.equal(doc.scenarios[0].localId, "SCEN-doc-001");
-    assert.deepEqual(doc.scenarios[0].steps, [{ keyword: "Given", text: "a step" }]);
+  it("keeps scenario-looking text inside tab-indented docstrings out of the graph", () => {
+    const source = [
+      "\t@id:SCEN-doc-001", "\tScenario: doc", boundSteps[0],
+      '\t"""', "\t  Scenario: quoted", '\t"""', ...boundSteps.slice(1),
+    ].join("\n");
+    const doc = parse(source);
+    assert.deepEqual(doc.diagnostics, []);
+    assert.deepEqual(doc.scenarios.map(({ localId }) => localId), ["SCEN-doc-001"]);
+    assert.equal(doc.scenarios[0].steps[0].text, "a step");
+    const changed = parse(source.replace("Scenario: quoted", "Scenario: changed"));
+    assert.notEqual(doc.scenarios[0].pickles[0].sha256, changed.scenarios[0].pickles[0].sha256);
   });
 });

@@ -27,7 +27,7 @@ Unrelated catalog entries or packages are outside this specification. The select
 
 ## Documents
 
-[Stories](USER_STORIES.md) · [Use cases](USE_CASES.md) · [Research](RESEARCH.md) · [Requirements](REQUIREMENTS.md) · [FR](FR.md) · [NFR](NFR.md) · [AC](ACCEPTANCE_CRITERIA.md) · [Design](DESIGN.md) · [Tasks](TASKS.md) · [Files](FILE_CHANGES.md) · [Changelog](CHANGELOG.md) · [BDD](plugin-distribution.feature) · [Fixtures](FIXTURES.md) · [Schemas](plugin-distribution_SCHEMA.md)
+[Stories](plugin-distribution-user-stories.feature) · [Use cases](plugin-distribution-use-cases.feature) · [Research](RESEARCH.md) · [Requirements](REQUIREMENTS.md) · [FR](FR.md) · [NFR](NFR.md) · [AC](ACCEPTANCE_CRITERIA.md) · [Design](DESIGN.md) · [Tasks](TASKS.md) · [Files](FILE_CHANGES.md) · [Changelog](CHANGELOG.md) · [Fixtures](FIXTURES.md) · [Schemas](plugin-distribution_SCHEMA.md)
 
 Local IDs become qualified outside this directory, for example `plugin-distribution:FR-10`.
 

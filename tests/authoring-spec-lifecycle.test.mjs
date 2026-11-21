@@ -118,16 +118,27 @@ describe("first specification authoring lifecycle", () => {
       }],
     });
     assert.equal(requirement.data?.outcome, "APPLIED", JSON.stringify(requirement));
-    const task = await patch({
-      intent: "confirmTaskCreation",
-      spec,
-      entity: "TASK-1",
-      subject: "Verify retained project scope",
-      requirements: ["FR-1"],
-      reason: "verify draft task visibility",
-      dryRun: false,
-    });
-    assert.equal(task.data?.outcome, "APPLIED", JSON.stringify(task));
+    const createTask = () =>
+      patch({
+        intent: "confirmTaskCreation",
+        spec,
+        entity: "TASK-1",
+        subject: "Verify retained project scope",
+        requirements: ["FR-1"],
+        reason: "verify draft task visibility",
+        dryRun: false,
+      });
+    let task = await createTask();
+    // TASKS is the last entity in the chain: walk the readiness fix steps the
+    // refusal carries instead of asserting the task appears on a scaffold.
+    for (let attempt = 0; attempt < 8 && task.ok === false && task.error?.code === "SPEC_NOT_READY"; attempt += 1) {
+      const step = task.error.fix?.[0];
+      assert.ok(step, JSON.stringify(task.error ?? {}).slice(0, 300));
+      const applied = await patch({ ...step.arguments, dryRun: false });
+      assert.equal(applied.data?.outcome, "APPLIED", JSON.stringify(applied).slice(0, 300));
+      task = await createTask();
+    }
+    assert.equal(task.data?.outcome, "APPLIED", JSON.stringify(task).slice(0, 300));
     const listed = await service.runQuery("tasks", { spec, statuses: ["todo"] });
     assert.equal(listed.ok, true, JSON.stringify(listed));
     const entry = listed.data.tasks.find((candidate) => candidate.localId === "TASK-1");

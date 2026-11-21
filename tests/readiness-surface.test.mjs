@@ -38,7 +38,8 @@ async function writeStubSpec(root, slug) {
     ["FR.md", "# Functional requirements\n\nStatus: DRAFT\n"],
     ["ACCEPTANCE_CRITERIA.md", "# Acceptance criteria\n\nStatus: DRAFT\n"],
     ["TASKS.md", "# Tasks\n\nStatus: DRAFT\n"],
-    [`${slug}.feature`, "Feature: Stub\n"],
+    [`${slug}-user-stories.feature`, "Feature: Stub stories\n"],
+    [`${slug}-use-cases.feature`, "Feature: Stub cases\n"],
   ]) {
     await writeFile(path.join(dir, name), content);
   }
@@ -60,7 +61,7 @@ describe("readiness through the kernel query", () => {
     const result = executeExtendedQuery(await graphAt(root), "getSpecReadiness", { spec: SPEC });
     assert.equal(result.ok, true, JSON.stringify(result.error ?? {}));
     assert.equal(result.data.kind, "readiness");
-    assert.equal(result.data.level, "L2");
+    assert.equal(result.data.level, "L3");
     assert.deepEqual(
       result.data.blockers.map((entry) => entry.code),
       [],
@@ -98,7 +99,7 @@ describe("readiness through spec_inspect", () => {
     const envelope = await service.runQuery("inspect", { check: "readiness", spec: SPEC }, { schemaVersion: SCHEMA });
     assert.equal(envelope.ok, true, JSON.stringify(envelope.error ?? {}));
     assert.equal(envelope.data.kind, "readiness");
-    assert.equal(envelope.data.level, "L2");
+    assert.equal(envelope.data.level, "L3");
     assert.deepEqual(envelope.data.blockers.map((entry) => entry.code), []);
   });
 
@@ -138,7 +139,7 @@ describe("readiness in the spec_patch preview", () => {
     );
     assert.equal(envelope.ok, true, JSON.stringify(envelope.error ?? {}));
     assert.equal(envelope.data.outcome, "PREVIEW");
-    assert.equal(envelope.data.readiness.level, "L2");
+    assert.equal(envelope.data.readiness.level, "L3");
     assert.deepEqual(envelope.data.readiness.blockers.map((entry) => entry.code), []);
   });
 

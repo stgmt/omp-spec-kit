@@ -157,7 +157,9 @@ An unregistered project never leaves the caller guessing: any refusal names the 
 
 The read and evidence tools share one bounded graph and return structured results with current-project provenance. Evidence is content-addressed and stale when its captured graph or scenario binding no longer matches. `spec_patch` defaults to an in-memory preview; only `dryRun: false` can change a specification through hash-checked atomic transactions.
 
-`spec_evidence` reads cucumber-message NDJSON from fixed locations (`.omp-spec-kit/evidence/last-test-run.ndjson`, `.omp-spec-kit/evidence/bdd-results/run.ndjson`, `tests/fixtures/release-candidate/cucumber-messages.ndjson`) and matches scenarios by their `@id:` tag. With no BDD runner producing that stream, every scenario reports `NOT_RUN` — an expected empty state, not an error.
+`node scripts/capture-gherkin-evidence.mjs <root> <spec> <step-module>` runs the `@spec-ready` scenarios in the specification's two canonical files. Save its NDJSON output to `.omp-spec-kit/evidence/last-test-run.ndjson` under that root. `spec_evidence` verifies the starting graph fingerprint, source hashes and executed Examples rows. A stale or unbound result reports `UNKNOWN`.
+
+For a hosted registry, opt in to uploading that same artifact by setting `SPEC_EVIDENCE_UPLOAD_URL` to the registry base URL, `SPEC_EVIDENCE_PROJECT` to the authorized `owner/project`, and `SPEC_EVIDENCE_TOKEN` to a writer or owner bearer token before running the capture command. The token is read from the environment, not the command line. The registry accepts at most 16 MiB, checks the project scope and current graph fingerprint, and atomically replaces that project's last run; failed test runs are uploaded too. Use HTTPS except for loopback HTTP. The upload is an assertion by the authenticated writer, not an independently verified CI attestation.
 
 ## Typical use
 

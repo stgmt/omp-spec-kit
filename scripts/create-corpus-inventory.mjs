@@ -14,7 +14,7 @@ import { parseArgs } from "./release-candidate-utils.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CURRENT_CORPUS_SOURCE_COMMIT = "70468cc40f391d8fc8ecacc7a144b82328e62e03";
-const CURRENT_CORPUS_MANIFEST_SCHEMA = "omp-spec-kit-authoring-real-corpus@1";
+const CURRENT_CORPUS_MANIFEST_SCHEMA = "omp-spec-kit-authoring-real-corpus@2";
 
 function sha256Hex(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
@@ -38,8 +38,8 @@ async function main() {
   const manifestPath = path.join(repositoryRoot, "tests", "fixtures", "kernel", "authoring-real-corpus-manifest.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   const paths = Array.isArray(manifest.documents) ? manifest.documents.map((entry) => entry.path) : [];
-  if (paths.length !== 45 || new Set(paths).size !== paths.length) {
-    fail("authoring corpus manifest must contain exactly 45 unique paths");
+  if (paths.length !== 42 || new Set(paths).size !== paths.length) {
+    fail("authoring corpus manifest must contain exactly 42 unique paths");
   }
   if (
     manifest.schema !== CURRENT_CORPUS_MANIFEST_SCHEMA ||

@@ -46,20 +46,20 @@ Each row is a complete FR ↔ AC ↔ scenario ↔ check ↔ task trace. Status d
 
 | Requirement | Acceptance | Scenario | Story / Use case | State |
 |---|---|---|---|---|
-| [FR-9](FR.md#fr-9-pure-evaluation-boundary) | [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-pure-evaluator-has-no-side-effects) | `@feature9` | [US-6](USER_STORIES.md#us-6-release-owner-who-trusts-evidence), [UC-5](USE_CASES.md#uc-5-evaluate-task-evidence) | NEXT |
-| [FR-10](FR.md#fr-10-supported-execution-artifacts) | [AC-10.1](ACCEPTANCE_CRITERIA.md#ac-101-closed-producer-artifact-set) | `@feature10` | [US-9](USER_STORIES.md#us-9-multi-runner-team), [UC-7](USE_CASES.md#uc-7-capture-a-real-run) | NEXT |
-| [FR-11](FR.md#fr-11-trusted-capture-run-envelope) | [AC-11.1](ACCEPTANCE_CRITERIA.md#ac-111-one-run-has-one-capture-owned-envelope) | `@feature11` | [US-6](USER_STORIES.md#us-6-release-owner-who-trusts-evidence), [UC-7](USE_CASES.md#uc-7-capture-a-real-run) | NEXT |
-| [FR-12](FR.md#fr-12-scenario-result-join) | [AC-12.1](ACCEPTANCE_CRITERIA.md#ac-121-only-stable-identity-can-join) | `@feature12` | [US-7](USER_STORIES.md#us-7-engineer-diagnosing-evidence), [UC-5](USE_CASES.md#uc-5-evaluate-task-evidence) | NEXT |
-| [FR-13](FR.md#fr-13-full-run-scope-authority) | [AC-13.1](ACCEPTANCE_CRITERIA.md#ac-131-only-capture-owned-full-scope-is-authoritative) | `@feature13` | [US-6](USER_STORIES.md#us-6-release-owner-who-trusts-evidence), [UC-5](USE_CASES.md#uc-5-evaluate-task-evidence) | NEXT |
-| [FR-14](FR.md#fr-14-freshness-and-staleness) | [AC-14.1](ACCEPTANCE_CRITERIA.md#ac-141-current-content-bindings-determine-freshness) | `@feature14` | [US-6](USER_STORIES.md#us-6-release-owner-who-trusts-evidence), [UC-6](USE_CASES.md#uc-6-diagnose-stale-or-partial-evidence) | NEXT |
-| [FR-15](FR.md#fr-15-fail-closed-status-truth) | [AC-15.1](ACCEPTANCE_CRITERIA.md#ac-151-every-required-scenario-needs-fresh-passed-full-evidence) | `@feature15` | [US-6](USER_STORIES.md#us-6-release-owner-who-trusts-evidence), [UC-5](USE_CASES.md#uc-5-evaluate-task-evidence) | NEXT |
-| [FR-16](FR.md#fr-16-waiver-honesty) | [AC-16.1](ACCEPTANCE_CRITERIA.md#ac-161-waived-tasks-remain-open) | `@feature16` | [US-8](USER_STORIES.md#us-8-author-whose-waiver-stays-open), [UC-5](USE_CASES.md#uc-5-evaluate-task-evidence) | NEXT |
-| [FR-17](FR.md#fr-17-internal-row-accounting) | [AC-17.1](ACCEPTANCE_CRITERIA.md#ac-171-no-row-or-required-scenario-is-silently-lost) | `@feature17` | [US-7](USER_STORIES.md#us-7-engineer-diagnosing-evidence), [UC-6](USE_CASES.md#uc-6-diagnose-stale-or-partial-evidence) | NEXT |
-| [FR-18](FR.md#fr-18-anti-false-green-invariants) | [AC-18.1](ACCEPTANCE_CRITERIA.md#ac-181-no-verdict-without-trusted-captured-bytes) | `@feature18` | [US-6](USER_STORIES.md#us-6-release-owner-who-trusts-evidence), [UC-6](USE_CASES.md#uc-6-diagnose-stale-or-partial-evidence) | NEXT |
-| [FR-19](FR.md#fr-19-real-fixtures-per-read-core-discipline) | [AC-19.1](ACCEPTANCE_CRITERIA.md#ac-191-fixtures-are-real-hashed-and-reviewed) | `@feature19` | [US-9](USER_STORIES.md#us-9-multi-runner-team), [UC-7](USE_CASES.md#uc-7-capture-a-real-run) | NEXT |
-| [FR-20](FR.md#fr-20-budgets) | [AC-20.1](ACCEPTANCE_CRITERIA.md#ac-201-budgets-are-enforced) | `@feature20` | [US-7](USER_STORIES.md#us-7-engineer-diagnosing-evidence), [UC-6](USE_CASES.md#uc-6-diagnose-stale-or-partial-evidence) | NEXT |
-| [FR-21](FR.md#fr-21-release-eligibility-contribution) | [AC-21.1](ACCEPTANCE_CRITERIA.md#ac-211-release-uses-ordinary-fresh-full-evidence) | `@feature21` | [US-6](USER_STORIES.md#us-6-release-owner-who-trusts-evidence), [UC-8](USE_CASES.md#uc-8-contribute-to-product-readiness) | NEXT |
-| [FR-22](FR.md#fr-22-mcp-projection-of-gettestresult-and-getscenariotrace) | [AC-22.1](ACCEPTANCE_CRITERIA.md#ac-221-result-returns-evidence-and-trace-uses-its-reference) | `@feature22` | [US-7](USER_STORIES.md#us-7-engineer-diagnosing-evidence), [UC-6](USE_CASES.md#uc-6-diagnose-stale-or-partial-evidence) | NEXT |
+| [FR-9](FR.md#fr-9-pure-evaluation-boundary) | [AC-9.1](ACCEPTANCE_CRITERIA.md#ac-91-pure-evaluator-has-no-side-effects) | `@feature9` | `US-6`, `UC-5` | NEXT |
+| [FR-10](FR.md#fr-10-supported-execution-artifacts) | [AC-10.1](ACCEPTANCE_CRITERIA.md#ac-101-closed-producer-artifact-set) | `@feature10` | `US-9`, `UC-7` | NEXT |
+| [FR-11](FR.md#fr-11-trusted-capture-run-envelope) | [AC-11.1](ACCEPTANCE_CRITERIA.md#ac-111-one-run-has-one-capture-owned-envelope) | `@feature11` | `US-6`, `UC-7` | NEXT |
+| [FR-12](FR.md#fr-12-scenario-result-join) | [AC-12.1](ACCEPTANCE_CRITERIA.md#ac-121-only-stable-identity-can-join) | `@feature12` | `US-7`, `UC-5` | NEXT |
+| [FR-13](FR.md#fr-13-full-run-scope-authority) | [AC-13.1](ACCEPTANCE_CRITERIA.md#ac-131-only-capture-owned-full-scope-is-authoritative) | `@feature13` | `US-6`, `UC-5` | NEXT |
+| [FR-14](FR.md#fr-14-freshness-and-staleness) | [AC-14.1](ACCEPTANCE_CRITERIA.md#ac-141-current-content-bindings-determine-freshness) | `@feature14` | `US-6`, `UC-6` | NEXT |
+| [FR-15](FR.md#fr-15-fail-closed-status-truth) | [AC-15.1](ACCEPTANCE_CRITERIA.md#ac-151-every-required-scenario-needs-fresh-passed-full-evidence) | `@feature15` | `US-6`, `UC-5` | NEXT |
+| [FR-16](FR.md#fr-16-waiver-honesty) | [AC-16.1](ACCEPTANCE_CRITERIA.md#ac-161-waived-tasks-remain-open) | `@feature16` | `US-8`, `UC-5` | NEXT |
+| [FR-17](FR.md#fr-17-internal-row-accounting) | [AC-17.1](ACCEPTANCE_CRITERIA.md#ac-171-no-row-or-required-scenario-is-silently-lost) | `@feature17` | `US-7`, `UC-6` | NEXT |
+| [FR-18](FR.md#fr-18-anti-false-green-invariants) | [AC-18.1](ACCEPTANCE_CRITERIA.md#ac-181-no-verdict-without-trusted-captured-bytes) | `@feature18` | `US-6`, `UC-6` | NEXT |
+| [FR-19](FR.md#fr-19-real-fixtures-per-read-core-discipline) | [AC-19.1](ACCEPTANCE_CRITERIA.md#ac-191-fixtures-are-real-hashed-and-reviewed) | `@feature19` | `US-9`, `UC-7` | NEXT |
+| [FR-20](FR.md#fr-20-budgets) | [AC-20.1](ACCEPTANCE_CRITERIA.md#ac-201-budgets-are-enforced) | `@feature20` | `US-7`, `UC-6` | NEXT |
+| [FR-21](FR.md#fr-21-release-eligibility-contribution) | [AC-21.1](ACCEPTANCE_CRITERIA.md#ac-211-release-uses-ordinary-fresh-full-evidence) | `@feature21` | `US-6`, `UC-8` | NEXT |
+| [FR-22](FR.md#fr-22-mcp-projection-of-gettestresult-and-getscenariotrace) | [AC-22.1](ACCEPTANCE_CRITERIA.md#ac-221-result-returns-evidence-and-trace-uses-its-reference) | `@feature22` | `US-7`, `UC-6` | NEXT |
 
 ## Contract checks
 

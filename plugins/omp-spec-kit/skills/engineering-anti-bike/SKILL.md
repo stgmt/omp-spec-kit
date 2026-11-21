@@ -20,7 +20,7 @@ Operating discipline that prevents two failure modes: bikeshedding (debating tas
 
 ## Self-test / fake-green check at BDD scenario authoring
 
-When a `spec_patch` operation writes `Scenario:` or `Scenario Outline:` content into a `.feature` document, the call MUST carry a `designReview` field (schema `omp-spec-kit/design-review@1`). The MCP server refuses the patch with `DESIGN_REVIEW_REQUIRED` when it is absent and `DESIGN_REVIEW_INVALID` when it is malformed.
+Draft scenarios require complete Given/When/Then steps and valid links. To add `@spec-ready` or change a protected scenario, send `spec_patch` with a `designReview` field (schema `omp-spec-kit/design-review@1`). This includes moving or deleting the scenario and changing its effective background or examples. The server reports `DESIGN_REVIEW_REQUIRED` for a missing review and `DESIGN_REVIEW_INVALID` for a malformed review. Approval of the scenario text for task scope is handled separately through the owner's BDD coverage map.
 
 The review must answer, with evidence:
 
@@ -29,7 +29,7 @@ The review must answer, with evidence:
 - **alternatives** — 1–5 rejected approaches with a reason each.
 - **selfTestCheck** — proof the scenario is not vacuous: `status:"passed"`, `mutation:"failed-as-expected"`, plus the command run, the hypothesis, the answer, the positive case, the negative case, the expected failure, and the observed failure.
 
-A scenario that cannot name a mutation that makes it fail is decoration, not a test. Do not author it.
+Before marking a scenario executable, verify that it fails for the specific wrong behavior it claims to catch.
 
 ## Hypothesis Q&A
 

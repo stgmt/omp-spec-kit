@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { After, Before, Given, Then, When } from "@cucumber/cucumber";
 import { renderReleaseNotes } from "../../scripts/render-release-notes.mjs";
-import { CucumberEvidenceError, cucumberMessages, requiredScenarioMultiplicity } from "../../scripts/create-release-evidence.mjs";
+import { CucumberEvidenceError, cucumberMessages } from "../../scripts/create-release-evidence.mjs";
+import { readReleaseScenarios } from "../../scripts/release-gherkin.mjs";
 import { verifyPublicTree } from "../../scripts/verify-public-tree.mjs";
 import { sha256 } from "../../scripts/release-candidate-utils.mjs";
 import { loadPinnedCorpusGraph, spawnMcpServer, writeCorpus } from "../helpers/mcp-world.mjs";
@@ -263,9 +264,7 @@ Then("the candidate is refused for nonsemantic Cucumber evidence", function () {
 
 Given("the captured real Cucumber message fixture", async function () {
   this.cucumberFixture = this.verifiedCucumberFixture;
-  this.mriScenarioMultiplicities = requiredScenarioMultiplicity(
-    await readFile(path.join(repositoryRoot(), ".specs", "plugin-distribution", "plugin-distribution.feature"), "utf8"),
-  );
+  this.mriScenarioMultiplicities = (await readReleaseScenarios()).multiplicities;
 });
 
 When("the Cucumber evidence stream is {string}", function (fault) {

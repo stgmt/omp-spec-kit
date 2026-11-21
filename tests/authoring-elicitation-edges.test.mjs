@@ -47,7 +47,7 @@ describe("FirstWriteElicitationGuard unit edges", () => {
   it("returns sorted candidate documents on first refusal", () => {
     const guard = new FirstWriteElicitationGuard();
     const result = guard.checkAndRecord("spec-a", [
-      { document: "USER_STORIES.md", beforeMissing: true, deleteAfter: false },
+      { document: "spec-a-user-stories.feature", beforeMissing: true, deleteAfter: false },
       { document: "ACCEPTANCE_CRITERIA.md", beforeMissing: true, deleteAfter: false },
       { document: "FR.md", beforeMissing: true, deleteAfter: false },
     ]);
@@ -55,7 +55,6 @@ describe("FirstWriteElicitationGuard unit edges", () => {
     assert.deepEqual(result.documents, [
       "ACCEPTANCE_CRITERIA.md",
       "FR.md",
-      "USER_STORIES.md",
     ]);
   });
 

@@ -29,10 +29,14 @@ The plugin ships through `.claude-plugin/marketplace.json` and `plugins/omp-spec
 npm ci
 npm run build          # regenerates plugins/omp-spec-kit/dist (verify-package fails when it is stale)
 npm run verify         # hermetic: code gates only, no corpus and no network
+export OMP_SPEC_KIT_CORPUS_ROOT="$PWD/tests/fixtures/kernel/authoring-real-corpus"
 npm test               # build + verify + dogfood + BDD suites + unit
 ```
 
-Two prerequisites are not covered by `npm ci`:
+Release and dogfood commands require an explicit absolute `OMP_SPEC_KIT_CORPUS_ROOT` containing `.specs`.
+Set it to the fixture above for the repository's local checks.
+
+Additional prerequisites are not covered by `npm ci`:
 
 - **OMP runtime fixture** — `test:safe-authoring` (and therefore `npm test`) drives a real OMP
   manager against `tests/fixtures/omp-discovery-runtime`, which needs its own dependencies:

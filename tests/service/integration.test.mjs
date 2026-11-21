@@ -1,3 +1,4 @@
+import { serviceKernelFixture } from "./lib/service-kernel-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
@@ -10,7 +11,6 @@ import { readLiveConfig } from "../e2e/lib/live-fixture.mjs";
 import { seedSpecBranch } from "./lib/spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
-const FIXTURE_SPEC = path.resolve("tests/fixtures/kernel/real-corpus/.specs/spec-kernel");
 const tempDirs = [];
 const stores = [];
 after(async () => {
@@ -47,7 +47,7 @@ describe("service boot on a local bare remote", () => {
     const base = await tempDir("spec-service-");
     const bare = path.join(base, "specs.git");
     await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
-    await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", sourceDir: FIXTURE_SPEC });
+    await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", files: await serviceKernelFixture() });
     const cloneDir = path.join(base, "clone");
     const configPath = await configFor(base, bare);
 
@@ -66,7 +66,7 @@ describe("service boot on a local bare remote", () => {
     const base = await tempDir("spec-service-");
     const bare = path.join(base, "specs.git");
     await execFileAsync("git", ["init", "--bare", "--initial-branch=main", bare]);
-    await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", sourceDir: FIXTURE_SPEC });
+    await seedSpecBranch(bare, { project: "stgmt/alpha", spec: "spec-kernel", files: await serviceKernelFixture() });
     const cloneDir = path.join(base, "clone");
     const configPath = await configFor(base, bare);
     const { mounts, store } = await bootService({ configPath, cloneDir, identity: IDENTITY, logger: () => {} });
