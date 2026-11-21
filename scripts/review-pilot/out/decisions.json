@@ -1,0 +1,778 @@
+{
+  "generatedAt": "2026-11-16T04:18:21.045Z",
+  "model": "gpt-6-luna",
+  "calls": 32,
+  "ms": 1615,
+  "msPerDecision": 85,
+  "tokens": {
+    "input": 94267,
+    "output": 0
+  },
+  "costUsd": 0.0236,
+  "costPerCaseUsd": 0.00214,
+  "sweep": {
+    "0.5": {
+      "total": "9/11",
+      "conflict": "6/7",
+      "clean": "2/2"
+    },
+    "0.6": {
+      "total": "8/11",
+      "conflict": "5/7",
+      "clean": "2/2"
+    },
+    "0.7": {
+      "total": "8/11",
+      "conflict": "5/7",
+      "clean": "2/2"
+    },
+    "0.8": {
+      "total": "8/11",
+      "conflict": "5/7",
+      "clean": "2/2"
+    },
+    "0.9": {
+      "total": "9/11",
+      "conflict": "5/7",
+      "clean": "2/2"
+    },
+    "0.95": {
+      "total": "9/11",
+      "conflict": "5/7",
+      "clean": "2/2"
+    }
+  },
+  "probabilities": [
+    {
+      "id": "D1-conflict-tools",
+      "expect": "conflict",
+      "claims": [
+        {
+          "forbids": 0.01,
+          "supports": 0.12,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 0.01
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0.12
+              }
+            ],
+            "usage": {
+              "input_tokens": 2295,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 1883,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1883,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2295
+            }
+          }
+        },
+        {
+          "forbids": 0.56,
+          "supports": 0.01,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 0.56
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0.01
+              }
+            ],
+            "usage": {
+              "input_tokens": 2763,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 2351,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 2351,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2763
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "D2-conflict-fallback",
+      "expect": "conflict",
+      "claims": [
+        {
+          "forbids": 0.63,
+          "supports": 0.01,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 0.63
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0.01
+              }
+            ],
+            "usage": {
+              "input_tokens": 2087,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 1675,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1675,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2087
+            }
+          }
+        },
+        {
+          "forbids": 1,
+          "supports": 0,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 1
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0
+              }
+            ],
+            "usage": {
+              "input_tokens": 2313,
+              "input_tokens_details": {
+                "cached_tokens": 0,
+                "cache_write_tokens": 1932,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1932,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2313
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "D3-conflict-registry",
+      "expect": "conflict",
+      "claims": [
+        {
+          "forbids": 0.31,
+          "supports": 0.99,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 0.31
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0.99
+              }
+            ],
+            "usage": {
+              "input_tokens": 2271,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 1859,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1859,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2271
+            }
+          }
+        },
+        {
+          "forbids": 1,
+          "supports": 0,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 1
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0
+              }
+            ],
+            "usage": {
+              "input_tokens": 2279,
+              "input_tokens_details": {
+                "cached_tokens": 0,
+                "cache_write_tokens": 1898,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1898,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2279
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "D4-conflict-cache",
+      "expect": "conflict",
+      "claims": [
+        {
+          "forbids": 0,
+          "supports": 0.98,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 0
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0.98
+              }
+            ],
+            "usage": {
+              "input_tokens": 2539,
+              "input_tokens_details": {
+                "cached_tokens": 0,
+                "cache_write_tokens": 2158,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 2158,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2539
+            }
+          }
+        },
+        {
+          "forbids": 0.03,
+          "supports": 0,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 0.03
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0
+              }
+            ],
+            "usage": {
+              "input_tokens": 2245,
+              "input_tokens_details": {
+                "cached_tokens": 0,
+                "cache_write_tokens": 1864,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1864,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2245
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "D5-conflict-date",
+      "expect": "conflict",
+      "claims": [
+        {
+          "forbids": 1,
+          "supports": 0,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 1
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0
+              }
+            ],
+            "usage": {
+              "input_tokens": 2066,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 1654,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1654,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2066
+            }
+          }
+        },
+        {
+          "forbids": 1,
+          "supports": 0,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 1
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0
+              }
+            ],
+            "usage": {
+              "input_tokens": 2093,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 1681,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1681,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2093
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "D6-conflict-empty",
+      "expect": "conflict",
+      "claims": [
+        {
+          "forbids": 0.19,
+          "supports": 1,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 0.19
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 1
+              }
+            ],
+            "usage": {
+              "input_tokens": 2226,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 1814,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1814,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2226
+            }
+          }
+        },
+        {
+          "forbids": 1,
+          "supports": 0,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 1
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0
+              }
+            ],
+            "usage": {
+              "input_tokens": 2100,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 1688,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1688,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2100
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "D7-consistent-extract",
+      "expect": "consistent",
+      "claims": [
+        {
+          "forbids": 0.03,
+          "supports": 1,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 0.03
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 1
+              }
+            ],
+            "usage": {
+              "input_tokens": 2372,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 1960,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1960,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2372
+            }
+          }
+        },
+        {
+          "forbids": 0,
+          "supports": 1,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 0
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 1
+              }
+            ],
+            "usage": {
+              "input_tokens": 2262,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 1850,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1850,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2262
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "D8-consistent-hash",
+      "expect": "consistent",
+      "claims": [
+        {
+          "forbids": 0.7,
+          "supports": 1,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 0.7
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 1
+              }
+            ],
+            "usage": {
+              "input_tokens": 2199,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 1787,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1787,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2199
+            }
+          }
+        },
+        {
+          "forbids": 0,
+          "supports": 0.99,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 0
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0.99
+              }
+            ],
+            "usage": {
+              "input_tokens": 2404,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 1992,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1992,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2404
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "D9-insufficient-latency",
+      "expect": "insufficient",
+      "claims": [
+        {
+          "forbids": 0.22,
+          "supports": 0,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 0.22
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0
+              }
+            ],
+            "usage": {
+              "input_tokens": 2070,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 1658,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1658,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2070
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "D10-conflict-policy",
+      "expect": "conflict",
+      "claims": [
+        {
+          "forbids": 0.99,
+          "supports": 0,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 0.99
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0
+              }
+            ],
+            "usage": {
+              "input_tokens": 2127,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 1715,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1715,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2127
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "D11-insufficient-limits",
+      "expect": "insufficient",
+      "claims": [
+        {
+          "forbids": 0.81,
+          "supports": 0,
+          "raw": {
+            "model": "gpt-6-luna",
+            "answers": [
+              {
+                "type": "predicate",
+                "name": "forbids",
+                "probability": 0.81
+              },
+              {
+                "type": "predicate",
+                "name": "supports",
+                "probability": 0
+              }
+            ],
+            "usage": {
+              "input_tokens": 2219,
+              "input_tokens_details": {
+                "cached_tokens": 31,
+                "cache_write_tokens": 1807,
+                "cache_write_tokens_details": {
+                  "ttl_30m_tokens": 1807,
+                  "ttl_12h_tokens": 0
+                }
+              },
+              "output_tokens": 0,
+              "output_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "total_tokens": 2219
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

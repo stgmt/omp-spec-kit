@@ -9,6 +9,8 @@
 /.mcp.json.bak
 # The per-workspace project selection record written by `install-host`.
 /.omp-spec-kit/project.json
+# Local release worktrees are working copies; only captured evidence is kept.
+/.omp-spec-kit/release-worktree-*/
 
 # Dependencies and generated output
 node_modules/
@@ -31,6 +33,9 @@ tmp/
 *.ndjson
 !tests/fixtures/evidence/
 !tests/fixtures/evidence/*.ndjson
+# Historical dogfood BDD streams (the canonical input for the fixture refresh).
+!/.omp-spec-kit/evidence/
+!/.omp-spec-kit/evidence/*.ndjson
 *.sqlite
 *.sqlite3
 .dev-*/
