@@ -325,6 +325,16 @@ export class SpecPatchService {
       return refusal(code, caught?.message || "specification transaction was refused", [], proposalHash);
     }
   }
+
+  /**
+   * The hosted write pipeline commits to the spec branch after the kernel
+   * applies the change. When that commit fails, the memoized APPLIED response
+   * describes a write that never landed; dropping it lets the same requestId
+   * compile again against the restored corpus instead of replaying a lie.
+   */
+  forgetApplied(requestId) {
+    this.applied.delete(requestId);
+  }
 }
 
 export function createAuthoringService(root, getGraph, refreshGraph, options = {}) {

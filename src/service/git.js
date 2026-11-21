@@ -195,6 +195,20 @@ export class GitClient {
     return stdout;
   }
 
+  /**
+   * True when the index differs from HEAD. A replay of a write that already
+   * landed stages nothing, so the pipeline skips the empty commit.
+   */
+  async hasStagedChanges({ cwd } = {}) {
+    try {
+      await this.run(["diff", "--cached", "--quiet"], { cwd });
+      return false;
+    } catch (error) {
+      if (error?.exitCode === 1) return true;
+      throw error;
+    }
+  }
+
   async log({ cwd, maxCount = 1, format = "%H%x00%an%x00%ae%x00%s" } = {}) {
     const { stdout } = await this.run(["log", `--max-count=${maxCount}`, `--format=${format}`], { cwd });
     return stdout.split("\n").filter(Boolean).map((line) => {

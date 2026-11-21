@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { after, describe, it } from "node:test";
 import { startService } from "../../src/service/index.js";
+import { createWritePipeline } from "../../src/service/writepath.js";
 import { loadLiveFixture } from "../e2e/lib/live-fixture.mjs";
 import { seedSpecBranch } from "./lib/spec-repo.mjs";
 
@@ -62,6 +63,34 @@ async function setup() {
   };
 }
 
+const ARCHIVE_REVIEW = Object.freeze({
+  schemaVersion: "omp-spec-kit/design-review@1",
+  decision: "proceed",
+  boundary: {
+    kind: "user-visible-contract",
+    name: "Spec registry archive move",
+    claim: "archiving a specification removes its source tree and keeps the archived documents addressable",
+  },
+  evidence: [
+    { kind: "test", reference: "tests/service/writepath.test.mjs", observation: "the archive write lands as one bot commit on the spec branch" },
+    { kind: "source", reference: "src/service/writepath.js", observation: "the write path commits after the kernel applies the change" },
+  ],
+  alternatives: [
+    { option: "leave the source directory in place", reasonRejected: "an archived spec must not stay live in the corpus" },
+  ],
+  selfTestCheck: {
+    status: "passed",
+    mutation: "failed-as-expected",
+    command: "node --test tests/service/writepath.test.mjs",
+    hypothesis: "archiveSpec must land as a remote commit",
+    answer: "the remote branch gains the archive move",
+    positiveCase: "the archive commit carries the moved documents",
+    negativeCase: "the source directory still exists on the branch",
+    expectedFailure: "APPLIED without a commit leaves the source tree live",
+    observedFailure: "the source tree stays on the remote branch",
+  },
+});
+
 function patchArgs(overrides = {}) {
   return {
     intent: "patch",
@@ -100,6 +129,67 @@ describe("write path over POST /mcp (live-verified identity)", () => {
 
     const remoteTasks = await git(bare, ["show", `${SPEC_BRANCH}:.specs/spec-kernel/TASKS.md`]);
     assert.match(remoteTasks, /e2e write marker/u);
+  });
+
+  it("lands archiveSpec as a bot commit that removes the source tree", async () => {
+    const { bare, url, tokens } = await setup();
+    const result = await callTool(url, tokens.alice, "spec_patch", {
+      intent: "archiveSpec",
+      spec: "spec-kernel",
+      reason: "archive the fixture",
+      dryRun: false,
+      requestId: "w-archive",
+      designReview: ARCHIVE_REVIEW,
+    });
+    assert.equal(result.isError, false, JSON.stringify(result.structuredContent?.error ?? result.structuredContent?.data?.error ?? {}));
+    assert.equal(result.structuredContent.data.outcome, "APPLIED");
+
+    const body = await git(bare, ["log", "--format=%B", "-1", SPEC_BRANCH]);
+    assert.match(body, /spec\(stgmt\/alpha\): apply/u, "the archive must land as a bot commit");
+    assert.match(body, /Spec-Author: alice/u);
+    const tree = await git(bare, ["ls-tree", "-r", "--name-only", SPEC_BRANCH, ".specs"]);
+    assert.ok(!tree.split("\n").includes(".specs/spec-kernel/README.md"), "the source tree must be removed on the branch");
+    assert.ok(tree.split("\n").includes(".specs/archive/spec-kernel/README.md"), "the archived documents must be committed");
+  });
+
+  it("replays a successful patch with the same requestId without a second effect", async () => {
+    const { bare, url, tokens } = await setup();
+    const args = patchArgs({
+      requestId: "w-patch-replay",
+      operations: [{ kind: "insert_at_eof", document: "TASKS.md", text: "\nreplay marker\n" }],
+    });
+    const first = await callTool(url, tokens.alice, "spec_patch", args);
+    assert.equal(first.isError, false, JSON.stringify(first.structuredContent?.error ?? first.structuredContent?.data?.error ?? {}));
+    assert.equal(first.structuredContent.data.outcome, "APPLIED");
+    const before = await git(bare, ["rev-parse", SPEC_BRANCH]);
+
+    const replay = await callTool(url, tokens.alice, "spec_patch", args);
+    assert.equal(replay.isError, false, JSON.stringify(replay.structuredContent ?? {}).slice(0, 1000));
+    assert.equal(replay.structuredContent.data.outcome, "APPLIED");
+    assert.equal(await git(bare, ["rev-parse", SPEC_BRANCH]), before, "a replay must not create another commit");
+    const remoteTasks = await git(bare, ["show", `${SPEC_BRANCH}:.specs/spec-kernel/TASKS.md`]);
+    assert.equal(remoteTasks.split("replay marker").length - 1, 1, "a replay must not apply the patch twice");
+  });
+
+  it("replays a successful archive with the same requestId as APPLIED", async () => {
+    const { bare, url, tokens } = await setup();
+    const args = {
+      intent: "archiveSpec",
+      spec: "spec-kernel",
+      reason: "archive the fixture",
+      dryRun: false,
+      requestId: "w-archive-replay",
+      designReview: ARCHIVE_REVIEW,
+    };
+    const first = await callTool(url, tokens.alice, "spec_patch", args);
+    assert.equal(first.isError, false, JSON.stringify(first.structuredContent?.error ?? first.structuredContent?.data?.error ?? {}));
+    assert.equal(first.structuredContent.data.outcome, "APPLIED");
+    const before = await git(bare, ["rev-parse", SPEC_BRANCH]);
+
+    const replay = await callTool(url, tokens.alice, "spec_patch", args);
+    assert.equal(replay.isError, false, JSON.stringify(replay.structuredContent ?? {}).slice(0, 1000));
+    assert.equal(replay.structuredContent.data.outcome, "APPLIED");
+    assert.equal(await git(bare, ["rev-parse", SPEC_BRANCH]), before, "a replay must not create another commit");
   });
 
   it("reconciles a diverged clone so a moved remote never blocks the next write", async () => {
@@ -329,5 +419,122 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     assert.equal(result.structuredContent.error.causeCode, "GIT_PUSH_FAILED");
     assert.equal(result.structuredContent.error.retryable, true);
     assert.match(await git(cloneDir, ["log", "--format=%s", "-1"]), /spec\(stgmt\/alpha\): apply/u);
+  });
+});
+
+const ARCHIVE_RECEIPT = Object.freeze({
+  proposalHash: "a".repeat(64),
+  archive: { spec: "demo", destination: ".specs/archive/demo", fileCount: 1 },
+});
+
+async function pipelineFixture({
+  receipt = ARCHIVE_RECEIPT,
+  commitError = null,
+  staged = true,
+  branchArchived = false,
+  readArchive = true,
+} = {}) {
+  const base = await tempDir("spec-pipeline-");
+  const readRoot = path.join(base, "read");
+  const worktreeDir = path.join(base, "worktree");
+  if (readArchive) {
+    await mkdir(path.join(readRoot, ".specs", "archive", "demo"), { recursive: true });
+    await writeFile(path.join(readRoot, ".specs", "archive", "demo", "README.md"), "# archived\n");
+  }
+  await mkdir(path.join(worktreeDir, ".specs", "demo"), { recursive: true });
+  await writeFile(path.join(worktreeDir, ".specs", "demo", "README.md"), "# live\n");
+  const calls = [];
+  const refreshes = [];
+  const forgotten = [];
+  const git = {
+    add: async (paths) => { calls.push({ op: "add", paths }); },
+    commit: async () => {
+      calls.push({ op: "commit" });
+      if (commitError) throw commitError;
+    },
+    commitAuthors: async () => [],
+    revParse: async () => null,
+    objectType: async (_revision, filePath) => (
+      branchArchived && filePath === ".specs/archive/demo" ? "tree" : null
+    ),
+    hasStagedChanges: async () => staged,
+    push: async () => { calls.push({ op: "push" }); },
+  };
+  const pipeline = createWritePipeline({
+    mounts: {
+      acquireWriteLock: async () => () => {},
+      worktreeFor: async () => ({ git, cwd: worktreeDir, branch: "spec-demo" }),
+      projectRoot: async () => readRoot,
+      serviceFor: () => ({
+        runQuery: async () => ({ ok: true, data: { outcome: "APPLIED", receipt } }),
+        forgetApplied: (requestId) => { forgotten.push(requestId); },
+      }),
+      refreshProject: async () => { refreshes.push("refresh"); },
+    },
+    claims: { get: () => null },
+    identity: IDENTITY,
+    logger: () => {},
+  });
+  const result = await pipeline.specPatch({
+    args: { spec: "demo", dryRun: false, requestId: "pipeline-1" },
+    ctx: { identity: { login: "alice" }, role: "owner" },
+    project: "stgmt/alpha",
+    requestId: "pipeline-1",
+  });
+  return { result, calls, refreshes, forgotten, worktreeDir };
+}
+
+describe("write pipeline archive staging", () => {
+  it("stages the archive move instead of copying the source the kernel removed", async () => {
+    const { result, calls, worktreeDir } = await pipelineFixture();
+    assert.equal(result.envelope.ok, true, JSON.stringify(result.envelope.error ?? {}));
+    assert.deepEqual(calls[0], { op: "add", paths: [".specs/demo", ".specs/archive/demo"] });
+    assert.equal(await readFile(path.join(worktreeDir, ".specs", "archive", "demo", "README.md"), "utf8"), "# archived\n");
+    await assert.rejects(
+      readFile(path.join(worktreeDir, ".specs", "demo", "README.md")),
+      (error) => error?.code === "ENOENT",
+    );
+    assert.equal(calls.filter((call) => call.op === "commit").length, 1);
+    assert.equal(calls.filter((call) => call.op === "push").length, 1);
+  });
+
+  it("reports a failed commit instead of a successful push of an empty range", async () => {
+    const { result, calls, refreshes, forgotten } = await pipelineFixture({ commitError: new Error("index is corrupt") });
+    assert.equal(result.envelope.ok, false);
+    assert.equal(result.envelope.error.causeCode, "GIT_COMMIT_FAILED");
+    assert.equal(result.envelope.error.stage, "commit");
+    assert.equal(result.envelope.error.retryable, true);
+    assert.equal(calls.some((call) => call.op === "push"), false, "an uncommitted apply must never be pushed as success");
+    assert.deepEqual(refreshes, ["refresh"], "the materialised root must be rebuilt from the branches");
+    assert.deepEqual(forgotten, ["pipeline-1"], "a failed commit must drop the APPLIED memo so a retry can recompile");
+  });
+
+  it("reports a failed staging step with its own cause code", async () => {
+    const { result, calls, refreshes, forgotten } = await pipelineFixture({ readArchive: false });
+    assert.equal(result.envelope.ok, false);
+    assert.equal(result.envelope.error.causeCode, "WRITE_STAGING_FAILED");
+    assert.equal(result.envelope.error.stage, "sync");
+    assert.equal(calls.some((call) => call.op === "commit"), false);
+    assert.equal(calls.some((call) => call.op === "push"), false);
+    assert.deepEqual(refreshes, ["refresh"]);
+    assert.deepEqual(forgotten, ["pipeline-1"]);
+  });
+
+  it("returns APPLIED without a second commit when the archive already landed", async () => {
+    const { result, calls, forgotten } = await pipelineFixture({ branchArchived: true, staged: false });
+    assert.equal(result.envelope.ok, true, JSON.stringify(result.envelope.error ?? {}));
+    assert.equal(calls.some((call) => call.op === "commit"), false, "a replay must not create another commit");
+    assert.equal(calls.some((call) => call.op === "push"), true);
+    assert.deepEqual(forgotten, []);
+  });
+
+  it("refuses an archive receipt that names a destination outside the archive root", async () => {
+    const { result, calls, refreshes } = await pipelineFixture({
+      receipt: { proposalHash: "a".repeat(64), archive: { spec: "demo", destination: ".specs/elsewhere" } },
+    });
+    assert.equal(result.envelope.ok, false);
+    assert.equal(result.envelope.error.causeCode, "ARCHIVE_DESTINATION_INVALID");
+    assert.deepEqual(calls, []);
+    assert.deepEqual(refreshes, ["refresh"]);
   });
 });

@@ -525,7 +525,10 @@ export class MountManager {
         }
       }
       this.projectRoots.set(projectId, { signature, repoUrl: mount.repoUrl, root });
-      this.services.delete(`${mount.repoUrl}:${projectId}`);
+      // Keep the service instance: its APPLIED memo is the requestId replay
+      // contract, and a corpus rebuild must not turn a replay into a second
+      // write (or, for an archive, into a "specification not found" refusal).
+      this.services.get(`${mount.repoUrl}:${projectId}`)?.refresh();
       return root;
     } finally {
       release();

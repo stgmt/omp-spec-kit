@@ -760,5 +760,14 @@ export function createSpecService(root, context = {}) {
     }
   }
 
-  return { root: resolvedRoot, provenance, ensure, runQuery, refresh };
+  /**
+   * Hosted write path: a failed branch commit invalidates the APPLIED memo,
+   * because the change exists only in the materialised root that is about to
+   * be rebuilt from the branches.
+   */
+  function forgetApplied(requestId) {
+    if (authoring && typeof requestId === "string" && requestId.length > 0) authoring.forgetApplied(requestId);
+  }
+
+  return { root: resolvedRoot, provenance, ensure, runQuery, refresh, forgetApplied };
 }

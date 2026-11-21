@@ -49,13 +49,19 @@ function shortHash(hash) {
 /**
  * The kernel applies a patch to the project's materialised read root; the
  * authoritative copy is the spec branch's worktree. Replace that one spec
- * directory after a successful apply, never the whole worktree.
+ * directory after a successful apply, never the whole worktree. Archival moves
+ * the spec from `.specs/<spec>` to `.specs/archive/<spec>`, so both trees have
+ * to change on the branch.
  */
-async function syncSpecTree({ fromRoot, worktree, spec }) {
-  const source = path.join(fromRoot, ".specs", spec);
-  const target = path.join(worktree.cwd, ".specs", spec);
+async function syncSpecTree({ fromRoot, worktree, spec, archiveDestination = null }) {
+  const relative = archiveDestination ?? `.specs/${spec}`;
+  const source = path.join(fromRoot, relative);
+  const target = path.join(worktree.cwd, relative);
   await rm(target, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   await cp(source, target, { recursive: true });
+  if (archiveDestination !== null) {
+    await rm(path.join(worktree.cwd, ".specs", spec), { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+  }
 }
 
 /**
@@ -155,6 +161,43 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
       const { git, cwd, branch } = worktree;
 
       const receipt = envelope.data.receipt ?? {};
+      // Archival removes the live spec tree and installs it under
+      // `.specs/archive/<spec>`. Mirror that exact move on the branch; copying
+      // the source tree would read a directory the kernel already removed.
+      const archiveDestination = receipt.archive === undefined ? null : `.specs/archive/${spec}`;
+      // A replay of an archive that already landed has nothing left in the
+      // read root to copy: the branch holds the archive and the live tree is
+      // gone. Check the branch before syncSpecTree reads a missing directory.
+      const archiveLanded = async () => {
+        if (archiveDestination === null) return false;
+        for (const ref of ["HEAD", `origin/${branch}`]) {
+          const archived = await git.objectType(ref, archiveDestination, { cwd }).catch(() => null);
+          if (archived !== "tree") continue;
+          const live = await git.objectType(ref, `.specs/${spec}`, { cwd }).catch(() => null);
+          if (live === null) return true;
+        }
+        return false;
+      };
+      const forgetApplied = () => {
+        if (typeof requestId !== "string" || requestId.length === 0) return;
+        try {
+          mounts.serviceFor(project).forgetApplied?.(requestId);
+        } catch (error) {
+          logger(`could not clear the applied memo for ${project}/${spec}: ${error.message}`);
+        }
+      };
+      if (receipt.archive !== undefined && receipt.archive?.destination !== archiveDestination) {
+        release();
+        forgetApplied();
+        await mounts.refreshProject?.(project).catch((refreshError) => logger(`refresh after invalid archive receipt failed for ${project}/${spec}: ${refreshError.message}`));
+        return {
+          envelope: errorEnvelope("specPatch", requestId, "INTERNAL_ERROR", "the archive receipt names an unexpected destination", {
+            retryable: false,
+            causeCode: "ARCHIVE_DESTINATION_INVALID",
+            specSlug: spec,
+          }),
+        };
+      }
       const pushBotCommits = async () => {
         const foreign = await foreignAuthors({ git, cwd, branch, identity });
         if (foreign.length > 0) {
@@ -164,28 +207,8 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
         }
         await git.push({ refspec: `HEAD:refs/heads/${branch}` }, { cwd });
       };
-      try {
-        await syncSpecTree({ fromRoot: root, worktree, spec });
-        const changed = [`.specs/${spec}`];
-        await git.add(changed, { cwd });
-        await git.commit({
-          message: commitMessage({
-            subject: `spec(${project}): apply ${short(receipt.proposalHash)}`,
-            trailers: {
-              "Spec-Author": holder,
-              "Spec-Request-Id": String(requestId ?? ""),
-            },
-          }),
-          authorName: identity.name,
-          authorEmail: identity.email,
-          cwd,
-        });
-        // Commit is the last step that needs the write lock: everything below
-        // is remote work (push, publish, projection) and must not block reads.
-        release();
-        await pushBotCommits();
-        logger(`pushed ${project} ${short(receipt.proposalHash)}`);
-        await mounts.refreshProject?.(project);
+      const afterPush = async () => {
+        await mounts.refreshProject?.(project).catch((refreshError) => logger(`refresh after write failed for ${project}/${spec}: ${refreshError.message}`));
         // Publish is post-confirmation work (FR-11): the write already
         // succeeded, so a publish failure is logged, never reported as a
         // failed write.
@@ -198,6 +221,64 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
         // re-projects cards + the committed snapshot; failures are logged by
         // the projection loop, never reported as a failed write.
         projection?.syncNow();
+      };
+      let stage = "sync";
+      try {
+        const alreadyArchived = await archiveLanded();
+        if (!alreadyArchived) {
+          await syncSpecTree({ fromRoot: root, worktree, spec, archiveDestination });
+        }
+        const changed = alreadyArchived
+          ? []
+          : archiveDestination === null
+            ? [`.specs/${spec}`]
+            : [`.specs/${spec}`, archiveDestination];
+        stage = "add";
+        await git.add(changed, { cwd });
+        stage = "commit";
+        if (await git.hasStagedChanges({ cwd })) {
+          await git.commit({
+            message: commitMessage({
+              subject: `spec(${project}): apply ${short(receipt.proposalHash)}`,
+              trailers: {
+                "Spec-Author": holder,
+                "Spec-Request-Id": String(requestId ?? ""),
+              },
+            }),
+            authorName: identity.name,
+            authorEmail: identity.email,
+            cwd,
+          });
+        } else {
+          // A replay (or a no-op write): the branch already carries the
+          // change, so pushing below is a no-op. Creating an empty commit
+          // would rewrite the same content under a new SHA.
+          logger(`nothing to commit for ${project}/${spec}; the write is already on the branch`);
+        }
+        // Commit is the last step that needs the write lock: everything below
+        // is remote work (push, publish, projection) and must not block reads.
+        release();
+      } catch (error) {
+        // The kernel already applied the change to the read root, but the
+        // branch never received it. Drop the APPLIED memo (otherwise the same
+        // requestId replays a write that never landed), rebuild the
+        // materialised root from the committed branches, and report the
+        // failure — never let a failed commit masquerade as a successful push
+        // of an empty range.
+        release();
+        forgetApplied();
+        await mounts.refreshProject?.(project).catch((refreshError) => logger(`refresh after failed commit failed for ${project}/${spec}: ${refreshError.message}`));
+        return {
+          envelope: errorEnvelope("specPatch", requestId, "INTERNAL_ERROR", `write applied locally but the ${stage} step on the specs branch failed: ${error.message}`, {
+            retryable: true,
+            causeCode: stage === "commit" ? "GIT_COMMIT_FAILED" : "WRITE_STAGING_FAILED",
+            stage,
+            specSlug: spec,
+          }),
+        };
+      }
+      try {
+        await pushBotCommits();
       } catch (error) {
         const foreignRefusal = (caught) =>
           caught?.causeCode === "FOREIGN_COMMITS"
@@ -225,13 +306,7 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
           });
         if (recovered === true) {
           logger(`pushed ${project} ${short(receipt.proposalHash)} after reconcile`);
-          await mounts.refreshProject?.(project);
-          await publish?.publishSpec(project, spec).then((result) => {
-            if (result?.outcome === "published" || result?.outcome === "adopted") logger(`published ${result.spec}@${result.version}`);
-            if (result?.outcome === "rejected") logger(`publish rejected ${result.spec}: ${result.code}`);
-            if (result?.outcome === "skipped") logger(`publish skipped ${result.spec}: ${result.reason}`);
-          }).catch((publishError) => logger(`publish after write failed for ${project}/${spec}: ${publishError.message}`));
-          projection?.syncNow();
+          await afterPush().catch((postError) => logger(`post-write work failed for ${project}/${spec}: ${postError.message}`));
           return { envelope };
         }
         // A foreign author discovered during the retry is the same policy
@@ -246,6 +321,8 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
           }),
         };
       }
+      logger(`pushed ${project} ${short(receipt.proposalHash)}`);
+      await afterPush().catch((postError) => logger(`post-write work failed for ${project}/${spec}: ${postError.message}`));
       } finally {
         release();
       }
