@@ -335,6 +335,11 @@ export class SpecPatchService {
   forgetApplied(requestId) {
     this.applied.delete(requestId);
   }
+
+  /** True when this requestId already produced an APPLIED response. */
+  hasApplied(requestId) {
+    return this.applied.has(requestId);
+  }
 }
 
 export function createAuthoringService(root, getGraph, refreshGraph, options = {}) {

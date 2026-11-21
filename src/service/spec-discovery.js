@@ -81,7 +81,16 @@ export async function discoverSpecBindings({ git, cwd, repoUrl, refPrefix = "ref
       invalid.push({ branch, project: typeof raw?.project === "string" ? raw.project : null, errors: result.errors });
       continue;
     }
-    bindings.push({ project: raw.project, spec: raw.spec, branch, ref, repo: raw.repo });
+    bindings.push({
+      project: raw.project,
+      spec: raw.spec,
+      branch,
+      ref,
+      repo: raw.repo,
+      demo: raw.demo === true,
+      archived: raw.archive !== undefined,
+      archive: raw.archive ?? null,
+    });
   }
   return { bindings, invalid };
 }

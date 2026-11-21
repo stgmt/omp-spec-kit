@@ -769,5 +769,10 @@ export function createSpecService(root, context = {}) {
     if (authoring && typeof requestId === "string" && requestId.length > 0) authoring.forgetApplied(requestId);
   }
 
-  return { root: resolvedRoot, provenance, ensure, runQuery, refresh, forgetApplied };
+  /** Hosted write path: a requestId with a recorded APPLIED response may replay. */
+  function hasApplied(requestId) {
+    return Boolean(authoring && typeof requestId === "string" && requestId.length > 0 && authoring.hasApplied(requestId));
+  }
+
+  return { root: resolvedRoot, provenance, ensure, runQuery, refresh, forgetApplied, hasApplied };
 }

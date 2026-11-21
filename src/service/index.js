@@ -143,7 +143,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
     logger,
   });
   const claims = createClaimStore({ store });
-  const claimOps = createClaimOps({ claims });
+  const claimOps = createClaimOps({ claims, mounts });
   const registryIndex = ({ scope }) => buildRegistryIndex({ mounts, claims, ledger: store ?? { getLedger: () => [] }, scope });
   // A drift report is only honest against freshly fetched remotes — every
   // bound mirror is fetched and every canonical spec branch checked. The
@@ -227,7 +227,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   const catalogBranches = async ({ args, project, requestId }) => {
     if ((args.view ?? "specs") !== "branches") return undefined;
     try {
-      const { branches, invalid } = await mounts.listBranches(project);
+      const { branches, invalid } = await mounts.listBranches(project, { includeArchived: args.includeArchived === true });
       return { envelope: serviceSuccess("catalog", requestId, { kind: "branches", branches, invalid }) };
     } catch (error) {
       return {

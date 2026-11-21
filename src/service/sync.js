@@ -100,6 +100,9 @@ export function startSync({ mounts, identity, intervalMs = 300_000, logger = () 
         events.push({ kind: "binding-invalid", project: projectId, branch: entry.branch, detail: entry.errors.join("; "), detectedAt: new Date().toISOString() });
       }
       for (const binding of bindings) {
+        // Archived specs keep their branch and history but are not part of
+        // any active surface; their commits do not enter drift or projection.
+        if (binding.archived === true) continue;
         // The mirror is the collected remote state: a spec branch that moved
         // out of band is visible here before the cache is rebuilt.
         try {

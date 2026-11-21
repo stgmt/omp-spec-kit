@@ -133,8 +133,8 @@ export const TOOL_CONTRACTS = Object.freeze([
         ]),
       }),
       branches: Object.freeze({
-        description: "List spec branches.",
-        fields: Object.freeze([]),
+        description: "List spec branches. Archived specs are hidden unless includeArchived is true.",
+        fields: Object.freeze([optionalField("includeArchived", "boolean")]),
       }),
     }),
   },
@@ -218,7 +218,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         fields: Object.freeze([field("spec", "string")]),
       }),
       read: Object.freeze({
-        description: "Read one specification document, optionally by section or window.",
+        description: "Read one specification document, optionally by section or window. Archived documents require includeArchived: true.",
         fields: Object.freeze([
           field("spec", "string"),
           field("doc", "string"),
@@ -227,6 +227,7 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("limit", "integer"),
           optionalField("readForEdit", "boolean"),
           optionalField("version", "nullableString"),
+          optionalField("includeArchived", "boolean"),
         ]),
       }),
       attachment: Object.freeze({
@@ -1172,7 +1173,7 @@ export function annotationsFor(contract, action = null) {
   return contractIsMutating(contract) ? MUTATING_TOOL_ANNOTATIONS : READ_TOOL_ANNOTATIONS;
 }
 
-export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts an optional project (owner/project) that selects the project serving that call only; when it is omitted the host's session project or your default scope applies, and an unresolved or unauthorized project is refused instead of falling back. declaredWorktree (absolute path) selects a corpus only on the local stdio/test transport; the hosted HTTP transport refuses it, so select a project there instead. ${READINESS_RULE_TEXT} ${ELICITATION_HINT}`;
+export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts an optional project (owner/project) that selects the project serving that call only; when it is omitted the host's session project or your default scope applies, and an unresolved or unauthorized project is refused instead of falling back. declaredWorktree (absolute path) selects a corpus only on the local stdio/test transport; the hosted HTTP transport refuses it, so select a project there instead. Archived specifications are read-only and hidden from normal lists; request them explicitly with spec_catalog view: "branches" and spec_documents action: "read", both with includeArchived: true. ${READINESS_RULE_TEXT} ${ELICITATION_HINT}`;
 
 export const KERNEL_ENVELOPE_OUTPUT_SCHEMA = Object.freeze({
   type: "object",

@@ -454,7 +454,18 @@ export class MountManager {
     const worktreeDir = path.join(mount.cwd, "worktrees", branch);
     const localBranch = `work/${branch}`;
     await ensureWorktree({ git: mount.git, mirrorDir: mount.mirrorDir, worktreeDir, branch: localBranch, startPoint: ref, cwd: mount.cwd });
-    return { ...mount, key: `${mount.key}:${branch}`, branch, ref, localBranch, cwd: worktreeDir, project: projectId, spec };
+    return {
+      ...mount,
+      key: `${mount.key}:${branch}`,
+      branch,
+      ref,
+      localBranch,
+      cwd: worktreeDir,
+      project: projectId,
+      spec,
+      archived: raw.archive !== undefined,
+      archive: raw.archive ?? null,
+    };
   }
 
   /**
@@ -509,7 +520,7 @@ export class MountManager {
       // delete anything outside it.
       await rm(path.join(root, ".specs"), { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
       await mkdir(path.join(root, ".specs"), { recursive: true });
-      for (const binding of bindings) {
+      for (const binding of bindings.filter((entry) => !entry.archived)) {
         const ref = binding.ref;
         const prefix = `.specs/${binding.spec}/`;
         const { stdout } = await mount.git.run(["ls-tree", "-r", "--name-only", ref], { cwd: mount.mirrorDir });
@@ -563,14 +574,25 @@ export class MountManager {
   }
 
   /** Canonical and work branches of one project, with their current tips. */
-  async listBranches(projectId) {
+  async listBranches(projectId, { includeArchived = false } = {}) {
     const { mount, bindings, invalid } = await this.discoverProject(projectId);
     const refs = await listSpecRefs({ git: mount.git, cwd: mount.mirrorDir });
-    const bySlug = new Map(bindings.map((binding) => [binding.spec, binding]));
+    const visible = includeArchived ? bindings : bindings.filter((binding) => !binding.archived);
+    const bySlug = new Map(visible.map((binding) => [binding.spec, binding]));
     const branches = [];
-    for (const binding of bindings) {
+    for (const binding of visible) {
       const head = await mount.git.revParse(binding.ref, { cwd: mount.mirrorDir }).catch(() => null);
-      branches.push({ kind: "spec", branch: binding.branch, ref: binding.ref, spec: binding.spec, topic: null, project: projectId, head });
+      branches.push({
+        kind: "spec",
+        branch: binding.branch,
+        ref: binding.ref,
+        spec: binding.spec,
+        topic: null,
+        project: projectId,
+        head,
+        archived: binding.archived === true,
+        ...(binding.archive ? { archive: binding.archive } : {}),
+      });
     }
     for (const { ref, branch, parsed } of refs) {
       if (parsed.kind !== "work" || !bySlug.has(parsed.slug)) continue;

@@ -65,8 +65,75 @@ function isContainedPathFragment(value) {
  * may have moved on. The stored tree digest is re-verified against the commit
  * so a tampered ledger row cannot silently redirect reads.
  */
+/**
+ * Archived documents are not part of the active corpus. They are readable only
+ * by an explicit request (includeArchived: true), directly from the retained
+ * spec branch's `.specs/archive/<slug>/` tree; no live path or graph node is
+ * materialised for them.
+ */
+async function readArchivedDocuments({ mounts, project, args, requestId }) {
+  if (args.action !== "read") {
+    return errorEnvelope("documents", requestId, "INVALID_REQUEST", "includeArchived is only supported for action: read", { parameter: "includeArchived" });
+  }
+  if (args.version != null) {
+    return errorEnvelope("documents", requestId, "INVALID_REQUEST", "version and includeArchived are mutually exclusive", { parameter: "includeArchived" });
+  }
+  if (!isContainedPathFragment(args.spec) || !isContainedPathFragment(args.doc)) {
+    return errorEnvelope("documents", requestId, "PATH_FORBIDDEN", "spec/doc must be contained path fragments", {
+      parameter: !isContainedPathFragment(args.spec) ? "spec" : "doc",
+    });
+  }
+  let discovery;
+  try {
+    discovery = await mounts.discoverProject(project);
+  } catch (error) {
+    return errorEnvelope("documents", requestId, error?.code ?? "ADAPTER_READ_ERROR", String(error?.message ?? error).split("\n")[0], {
+      retryable: true,
+      causeCode: error?.code ?? null,
+    });
+  }
+  const binding = discovery.bindings.find((entry) => entry.spec === args.spec) ?? null;
+  if (!binding) {
+    return errorEnvelope("documents", requestId, "SPEC_NOT_FOUND", `specification ${args.spec} does not exist in ${project}`, { specSlug: args.spec });
+  }
+  if (binding.archived !== true) {
+    return errorEnvelope("documents", requestId, "SPEC_NOT_ARCHIVED", `specification ${args.spec} is active; read it without includeArchived`, { specSlug: args.spec });
+  }
+  const archivePath = `.specs/archive/${args.spec}`;
+  const docPath = `${archivePath}/${args.doc}`;
+  const git = discovery.mount.git;
+  const cwd = discovery.mount.mirrorDir;
+  const type = await git.objectType(binding.ref, docPath, { cwd }).catch(() => null);
+  const content = type === "blob" ? await git.show(binding.ref, docPath, { cwd }).catch(() => null) : null;
+  if (type !== "blob" || content === null || content.includes("\0")) {
+    return errorEnvelope("documents", requestId, "DOCUMENT_NOT_FOUND", `${args.doc} is absent from archived ${args.spec}`, {
+      specSlug: args.spec,
+      path: docPath,
+    });
+  }
+  const lines = content.split("\n");
+  return serviceSuccess("documents", requestId, {
+    kind: "document",
+    spec: args.spec,
+    doc: args.doc,
+    startLine: 1,
+    endLine: lines.length,
+    lines: lines.length,
+    totalLines: lines.length,
+    totalBytes: Buffer.byteLength(content, "utf8"),
+    truncated: false,
+    sha256: createHash("sha256").update(content, "utf8").digest("hex"),
+    content,
+    archived: binding.archive ?? { path: archivePath },
+    archiveRef: binding.ref,
+  });
+}
+
 export function createVersionedReads({ mounts, store }) {
   return async function documents({ args, project, requestId, schemaVersion }) {
+    if (args.includeArchived === true) {
+      return { envelope: await readArchivedDocuments({ mounts, project, args, requestId }) };
+    }
     const version = args.version;
     if (version == null) {
       const envelope = await mounts.serviceFor(project).runQuery("documents", args, { requestId, schemaVersion });

@@ -145,11 +145,73 @@ describe("write path over POST /mcp (live-verified identity)", () => {
     assert.equal(result.structuredContent.data.outcome, "APPLIED");
 
     const body = await git(bare, ["log", "--format=%B", "-1", SPEC_BRANCH]);
-    assert.match(body, /spec\(stgmt\/alpha\): apply/u, "the archive must land as a bot commit");
+    assert.match(body, /spec\(stgmt\/alpha\): archive/u, "the archive must land as a bot commit");
     assert.match(body, /Spec-Author: alice/u);
     const tree = await git(bare, ["ls-tree", "-r", "--name-only", SPEC_BRANCH, ".specs"]);
     assert.ok(!tree.split("\n").includes(".specs/spec-kernel/README.md"), "the source tree must be removed on the branch");
     assert.ok(tree.split("\n").includes(".specs/archive/spec-kernel/README.md"), "the archived documents must be committed");
+    const binding = JSON.parse(await git(bare, ["show", `${SPEC_BRANCH}:.spec-kit.json`]));
+    assert.equal(binding.archive.path, ".specs/archive/spec-kernel");
+    assert.equal(binding.archive.by, "alice");
+  });
+
+  it("hides an archived spec until includeArchived and keeps it read-only", async () => {
+    const { bare, url, tokens } = await setup();
+    const archived = await callTool(url, tokens.alice, "spec_patch", {
+      intent: "archiveSpec",
+      spec: "spec-kernel",
+      reason: "archive for visibility",
+      dryRun: false,
+      requestId: "w-archive-visibility",
+      designReview: ARCHIVE_REVIEW,
+    });
+    assert.equal(archived.isError, false, JSON.stringify(archived.structuredContent?.error ?? archived.structuredContent?.data?.error ?? {}));
+
+    const hidden = await callTool(url, tokens.alice, "spec_catalog", { view: "branches", requestId: "archive-hidden" });
+    assert.equal(hidden.isError, false, JSON.stringify(hidden.structuredContent?.error ?? {}));
+    assert.equal(hidden.structuredContent.data.branches.some((entry) => entry.spec === "spec-kernel"), false, "archived specs stay out of the normal branch list");
+
+    const shown = await callTool(url, tokens.alice, "spec_catalog", { view: "branches", includeArchived: true, requestId: "archive-shown" });
+    assert.equal(shown.isError, false, JSON.stringify(shown.structuredContent?.error ?? {}));
+    const entry = shown.structuredContent.data.branches.find((candidate) => candidate.spec === "spec-kernel");
+    assert.ok(entry, "includeArchived must expose the archived branch");
+    assert.equal(entry.archived, true);
+    assert.equal(entry.archive.path, ".specs/archive/spec-kernel");
+
+    const doc = await callTool(url, tokens.alice, "spec_documents", {
+      action: "read",
+      spec: "spec-kernel",
+      doc: "README.md",
+      includeArchived: true,
+      requestId: "archive-doc",
+    });
+    assert.equal(doc.isError, false, JSON.stringify(doc.structuredContent?.error ?? {}));
+    assert.equal(doc.structuredContent.data.archived.path, ".specs/archive/spec-kernel");
+    assert.ok(doc.structuredContent.data.content.length > 0);
+
+    const hiddenDoc = await callTool(url, tokens.alice, "spec_documents", {
+      action: "read",
+      spec: "spec-kernel",
+      doc: "README.md",
+      requestId: "archive-doc-hidden",
+    });
+    assert.equal(hiddenDoc.isError, true, "the archived document must not be readable without the flag");
+
+    const write = await callTool(url, tokens.alice, "spec_patch", patchArgs({ requestId: "archive-write" }));
+    assert.equal(write.isError, true);
+    assert.equal(write.structuredContent.error.code, "SPEC_ARCHIVED");
+
+    const claim = await callTool(url, tokens.alice, "spec_claim", { spec: "spec-kernel", requestId: "archive-claim" });
+    assert.equal(claim.isError, true);
+    assert.equal(claim.structuredContent.error.code, "SPEC_ARCHIVED");
+
+    const branchDelete = await callTool(url, tokens.carol, "spec_branch", {
+      action: "deleteSpec",
+      spec: "spec-kernel",
+      requestId: "archive-branch-delete",
+    });
+    assert.equal(branchDelete.isError, true);
+    assert.equal(branchDelete.structuredContent.error.code, "SPEC_ARCHIVED");
   });
 
   it("replays a successful patch with the same requestId without a second effect", async () => {
@@ -433,6 +495,8 @@ async function pipelineFixture({
   staged = true,
   branchArchived = false,
   readArchive = true,
+  worktreeArchived = false,
+  applied = false,
 } = {}) {
   const base = await tempDir("spec-pipeline-");
   const readRoot = path.join(base, "read");
@@ -443,6 +507,14 @@ async function pipelineFixture({
   }
   await mkdir(path.join(worktreeDir, ".specs", "demo"), { recursive: true });
   await writeFile(path.join(worktreeDir, ".specs", "demo", "README.md"), "# live\n");
+  await writeFile(path.join(worktreeDir, ".spec-kit.json"), `${JSON.stringify({
+    schema: "omp-spec-kit/spec-binding@1",
+    project: "stgmt/alpha",
+    spec: "demo",
+    repo: "stgmt/alpha",
+    branch: "spec-demo",
+    createdAt: "2026-11-21T00:00:00.000Z",
+  }, null, 2)}\n`);
   const calls = [];
   const refreshes = [];
   const forgotten = [];
@@ -463,11 +535,12 @@ async function pipelineFixture({
   const pipeline = createWritePipeline({
     mounts: {
       acquireWriteLock: async () => () => {},
-      worktreeFor: async () => ({ git, cwd: worktreeDir, branch: "spec-demo" }),
+      worktreeFor: async () => ({ git, cwd: worktreeDir, branch: "spec-demo", archived: worktreeArchived }),
       projectRoot: async () => readRoot,
       serviceFor: () => ({
         runQuery: async () => ({ ok: true, data: { outcome: "APPLIED", receipt } }),
         forgetApplied: (requestId) => { forgotten.push(requestId); },
+        hasApplied: () => applied,
       }),
       refreshProject: async () => { refreshes.push("refresh"); },
     },
@@ -476,7 +549,7 @@ async function pipelineFixture({
     logger: () => {},
   });
   const result = await pipeline.specPatch({
-    args: { spec: "demo", dryRun: false, requestId: "pipeline-1" },
+    args: { spec: "demo", dryRun: false, requestId: "pipeline-1", reason: "archive the demo" },
     ctx: { identity: { login: "alice" }, role: "owner" },
     project: "stgmt/alpha",
     requestId: "pipeline-1",
@@ -488,8 +561,12 @@ describe("write pipeline archive staging", () => {
   it("stages the archive move instead of copying the source the kernel removed", async () => {
     const { result, calls, worktreeDir } = await pipelineFixture();
     assert.equal(result.envelope.ok, true, JSON.stringify(result.envelope.error ?? {}));
-    assert.deepEqual(calls[0], { op: "add", paths: [".specs/demo", ".specs/archive/demo"] });
+    assert.deepEqual(calls[0], { op: "add", paths: [".spec-kit.json", ".specs/demo", ".specs/archive/demo"] });
     assert.equal(await readFile(path.join(worktreeDir, ".specs", "archive", "demo", "README.md"), "utf8"), "# archived\n");
+    const marker = JSON.parse(await readFile(path.join(worktreeDir, ".spec-kit.json"), "utf8"));
+    assert.equal(marker.archive.by, "alice");
+    assert.equal(marker.archive.path, ".specs/archive/demo");
+    assert.equal(marker.archive.reason, "archive the demo");
     await assert.rejects(
       readFile(path.join(worktreeDir, ".specs", "demo", "README.md")),
       (error) => error?.code === "ENOENT",
@@ -526,6 +603,14 @@ describe("write pipeline archive staging", () => {
     assert.equal(calls.some((call) => call.op === "commit"), false, "a replay must not create another commit");
     assert.equal(calls.some((call) => call.op === "push"), true);
     assert.deepEqual(forgotten, []);
+  });
+
+  it("refuses a write on an archived spec before the kernel sees it", async () => {
+    const { result, calls } = await pipelineFixture({ worktreeArchived: true, applied: false });
+    assert.equal(result.envelope.ok, false);
+    assert.equal(result.envelope.error.code, "SPEC_ARCHIVED");
+    assert.equal(result.envelope.error.retryable, false);
+    assert.deepEqual(calls, [], "an archived spec must not reach git");
   });
 
   it("refuses an archive receipt that names a destination outside the archive root", async () => {

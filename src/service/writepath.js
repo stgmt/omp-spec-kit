@@ -1,7 +1,8 @@
-import { cp, rm } from "node:fs/promises";
+import { cp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { commitMessage } from "./git.js";
 import { reconcileClone } from "./sync.js";
+import { validateSpecBinding } from "./spec-binding.js";
 
 function errorEnvelope(operation, requestId, code, message, extra = {}) {
   return {
@@ -62,6 +63,26 @@ async function syncSpecTree({ fromRoot, worktree, spec, archiveDestination = nul
   if (archiveDestination !== null) {
     await rm(path.join(worktree.cwd, ".specs", spec), { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   }
+}
+
+/**
+ * Archive keeps the branch and makes the state explicit in its binding record.
+ * The marker is committed with the move, so a later reader (the service, an
+ * operator, a future restore) never has to infer "archived" from a missing
+ * directory or an extra path.
+ */
+async function markArchived({ worktree, spec, destination, by, reason }) {
+  const file = path.join(worktree, ".spec-kit.json");
+  const binding = JSON.parse(await readFile(file, "utf8"));
+  binding.archive = {
+    at: new Date().toISOString(),
+    by: String(by || "spec-registryd").slice(0, 160),
+    path: destination,
+    ...(typeof reason === "string" && reason.trim() ? { reason: reason.trim().slice(0, 512) } : {}),
+  };
+  const checked = validateSpecBinding(binding, { branch: binding.branch, repoUrl: binding.repo });
+  if (!checked.ok) throw Object.assign(new Error(`archive marker is invalid: ${checked.errors.join("; ")}`), { code: "WRITE_STAGING_FAILED" });
+  await writeFile(file, `${JSON.stringify(binding, null, 2)}\n`, "utf8");
 }
 
 /**
@@ -154,6 +175,18 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
           }
         }
       }
+      // Archived specs are read-only. A replay of the request that archived
+      // them is still allowed through the kernel memo; every other write is
+      // refused with a pointer to the explicit archive read surface.
+      if (worktree?.archived === true && mounts.serviceFor(project).hasApplied?.(requestId) !== true) {
+        return {
+          envelope: errorEnvelope("specPatch", requestId, "SPEC_ARCHIVED", `specification ${spec} is archived and read-only; read it with spec_catalog view: "branches" with includeArchived: true and spec_documents action: "read" with includeArchived: true`, {
+            specSlug: spec,
+            retryable: false,
+            causeCode: "SPEC_ARCHIVED",
+          }),
+        };
+      }
       const root = spec === null ? null : await mounts.projectRoot(project);
       envelope = await mounts.serviceFor(project).runQuery("specPatch", args, { requestId, schemaVersion });
       if (!(envelope.ok && envelope.data?.outcome === "APPLIED")) return { envelope };
@@ -227,19 +260,25 @@ export function createWritePipeline({ mounts, claims, identity, logger = () => {
         const alreadyArchived = await archiveLanded();
         if (!alreadyArchived) {
           await syncSpecTree({ fromRoot: root, worktree, spec, archiveDestination });
+          if (archiveDestination !== null) {
+            stage = "marker";
+            await markArchived({ worktree: cwd, spec, destination: archiveDestination, by: holder, reason: args.reason });
+          }
         }
         const changed = alreadyArchived
           ? []
           : archiveDestination === null
             ? [`.specs/${spec}`]
-            : [`.specs/${spec}`, archiveDestination];
+            : [".spec-kit.json", `.specs/${spec}`, archiveDestination];
         stage = "add";
         await git.add(changed, { cwd });
         stage = "commit";
         if (await git.hasStagedChanges({ cwd })) {
           await git.commit({
             message: commitMessage({
-              subject: `spec(${project}): apply ${short(receipt.proposalHash)}`,
+              subject: archiveDestination === null
+                ? `spec(${project}): apply ${short(receipt.proposalHash)}`
+                : `spec(${project}): archive ${short(receipt.proposalHash)}`,
               trailers: {
                 "Spec-Author": holder,
                 "Spec-Request-Id": String(requestId ?? ""),

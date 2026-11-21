@@ -13,6 +13,39 @@ branch contains only `.spec-kit.json` and `.specs/<slug>/**`; work branches
 access push to a work branch with normal git credentials; hosted MCP agents have
 no git access, and `spec_patch` always writes the canonical branch.
 
+## Archived specifications
+
+Archiving is a read-only terminal state, not a branch deletion. `spec_patch`
+with `intent: "archiveSpec"` moves `.specs/<slug>/` to
+`.specs/archive/<slug>/` on the same `spec-<slug>` branch and commits the move
+with an `archive` marker in the branch's `.spec-kit.json`:
+
+```json
+"archive": {
+  "at": "2026-11-21T00:00:00.000Z",
+  "by": "alice",
+  "path": ".specs/archive/<slug>",
+  "reason": "optional request reason"
+}
+```
+
+The branch and its history are retained. An archived spec is excluded from
+every active surface: the corpus graph, catalog views, inventory, branch list,
+drift, publish, projection, and writes. Direct writes fail with
+`SPEC_ARCHIVED`; merging into or deleting an archived canonical branch is also
+refused.
+
+The only access path is explicit:
+
+- `spec_catalog` with `view: "branches"` and `includeArchived: true` returns
+  the archived branch with `archived: true` and its `archive` marker;
+- `spec_documents` with `action: "read"` and `includeArchived: true` reads a
+  document from `.specs/archive/<slug>/` on the retained branch.
+
+Without `includeArchived`, archived specs and documents are not served. A
+restore flow is not part of this surface yet; the archive commit and the
+retained branch are the source for a future restore.
+
 ## Threat model
 
 | Actor | Can write canonical? | How it is bounded |

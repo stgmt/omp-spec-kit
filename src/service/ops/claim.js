@@ -22,11 +22,23 @@ export const CLAIM_CONTRACTS = Object.freeze([
 ]);
 
 /** Listing ops treat absent `project` as "all scopes"; claim ops are targeted. */
-export function createClaimOps({ claims }) {
+export function createClaimOps({ claims, mounts = null }) {
   return {
     specClaim: { listing: false, async run({ args, ctx, project, requestId }) {
       const spec = args.spec;
       const holder = ctx.identity.login;
+      if (mounts) {
+        try {
+          const { bindings } = await mounts.discoverProject(project);
+          const binding = bindings.find((entry) => entry.spec === spec) ?? null;
+          if (binding?.archived === true) {
+            return { envelope: serviceErrorEnvelope("specClaim", requestId, "SPEC_ARCHIVED", `spec ${spec} is archived and read-only`, { specSlug: spec, retryable: false }) };
+          }
+        } catch {
+          // A discovery failure is a read-path problem, not a claim refusal;
+          // the claim below still cannot expose archived content.
+        }
+      }
       try {
         const data = claims.claim({ project, spec, holder, ttlMinutes: args.ttlMinutes });
         return { envelope: serviceSuccess("specClaim", requestId, data) };

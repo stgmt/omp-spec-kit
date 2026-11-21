@@ -47,6 +47,25 @@ describe("spec binding validation", () => {
     assert.deepEqual(validateSpecBinding(valid, { branch: valid.branch, repoUrl: "https://github.com/stgmt/omp-spec-kit.git" }), { ok: true, errors: [] });
   });
 
+  it("records an archive marker on the binding", () => {
+    const archived = {
+      ...valid,
+      archive: { at: "2026-11-21T00:00:00.000Z", by: "alice", path: ".specs/archive/teams-task-sync", reason: "done" },
+    };
+    assert.deepEqual(validateSpecBinding(archived, { branch: valid.branch, repoUrl: valid.repo }), { ok: true, errors: [] });
+    const cases = [
+      [{ ...archived, archive: { ...archived.archive, path: ".specs/other" } }, "archive.path"],
+      [{ ...archived, archive: { ...archived.archive, unknown: true } }, "unknown archive key"],
+      [{ ...archived, archive: { ...archived.archive, at: "not-a-date" } }, "archive.at"],
+      [{ ...archived, archive: { ...archived.archive, by: "" } }, "archive.by"],
+    ];
+    for (const [binding, reason] of cases) {
+      const result = validateSpecBinding(binding, { branch: valid.branch, repoUrl: valid.repo });
+      assert.equal(result.ok, false, reason);
+      assert.ok(result.errors.some((error) => error.includes(reason)), `${reason}: ${result.errors.join("; ")}`);
+    }
+  });
+
   it("rejects schema, project, spec, branch and repo mismatches", () => {
     const cases = [
       [{ ...valid, schema: "x" }, "schema must be"],

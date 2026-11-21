@@ -137,6 +137,9 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
     }
     const owned = await ownedBinding({ mount, project, spec, ref: canonicalRef });
     if (owned.error) return failure(requestId, "SPEC_BINDING_INVALID", owned.error);
+    if (owned.binding.archive !== undefined) {
+      return failure(requestId, "SPEC_ARCHIVED", `spec ${spec} is archived; its branch is read-only`, { specSlug: spec });
+    }
     const branch = specWorkBranchName(spec, topic);
     if (await branchExists(mount, branch)) {
       return failure(requestId, "BRANCH_EXISTS", `branch ${branch} already exists`);
@@ -162,6 +165,11 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
     }
     if (!(await mount.git.revParse(canonicalRef, { cwd: mount.mirrorDir }).catch(() => null))) {
       return failure(requestId, "SPEC_NOT_FOUND", `spec ${spec} has no ${canonical} branch`);
+    }
+    const canonicalOwned = await ownedBinding({ mount, project, spec, ref: canonicalRef });
+    if (canonicalOwned.error) return failure(requestId, "SPEC_BINDING_INVALID", canonicalOwned.error);
+    if (canonicalOwned.binding.archive !== undefined) {
+      return failure(requestId, "SPEC_ARCHIVED", `spec ${spec} is archived; its branch is read-only`, { specSlug: spec });
     }
     // The topic branch must carry the canonical metadata; a rewritten
     // `.spec-kit.json` would turn a merge into a silent re-binding.
@@ -284,6 +292,9 @@ export function createSpecBranchManager({ mounts, claims = null, identity, logge
     }
     const owned = await ownedBinding({ mount, project, spec, ref: canonicalRef });
     if (owned.error) return failure(requestId, "SPEC_BINDING_INVALID", owned.error);
+    if (owned.binding.archive !== undefined) {
+      return failure(requestId, "SPEC_ARCHIVED", `spec ${spec} is archived; its branch and history are retained`, { specSlug: spec });
+    }
 
     const refs = await listSpecRefs({ git: mount.git, cwd: mount.mirrorDir });
     const workBranches = refs
