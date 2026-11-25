@@ -55,7 +55,7 @@ Status: DRAFT
 - ✅ `src/service/git.js` — server-side credential for the private specs repo: `SPEC_REGISTRY_GIT_TOKEN` becomes a URL-scoped `http.extraheader` in the git child environment, never in argv or config files, and redacted from error output.
 - ✅ `deploy/Dockerfile` — `ca-certificates` added: HTTPS clones of the specs repo failed certificate verification without it.
 - ✅ `src/authoring/secrets.js` — documented header placeholders (`Bearer <credential>`, `${TOKEN}`, `{{token}}`) are no longer misreported as secret-like content; real credentials are still refused.
-- Repo settings (out-of-band): dedicated specs repo + bot account + push protection (TASK-1/2 done for the repo itself).
+- Repo settings (out-of-band, historical: the dedicated specs repo is retired): bot account + push protection on the project's spec-<slug> branches.
 - ✅ `package.json` — `build` now also builds the app package; `verify` runs `check:youtrack-app` (official `app validate`); `test:app-install` added; dev deps `yazl`/`yauzl`.
 - ✅ `.github/workflows/verify.yml` — uploads the built app package as a workflow artifact.
 - ✅ `.github/workflows/release.yml` — attaches the app zip to the GitHub Release, verifies it on re-run, and attests it.
