@@ -53,7 +53,7 @@ Status: DRAFT
 - YouTrack app — full spec view + proposal apply surface (TASK-8; the auth path and a minimal panel shipped with TASK-12).
 - ✅ (historical) Repo tooling after the TASK-14 migration: code gates resolve the corpus through `scripts/corpus-root.mjs` (frozen fixture by default, `OMP_SPEC_KIT_ROOT` override) instead of a checkout; the live corpus is checked through the registry (`scripts/check-corpus-via-mcp.mjs`); `scripts/check-no-root-specs.mjs` enforces the FR-2 boundary in `verify`. The PR #39 resolver is superseded — no consumer clones the specs repository.
 - ✅ (historical) `src/service/git.js` — server-side credential for the retired private specs repo: `SPEC_REGISTRY_GIT_TOKEN` becomes a URL-scoped `http.extraheader` in the git child environment, never in argv or config files, and redacted from error output.
-- ✅ `deploy/Dockerfile` — `ca-certificates` added: HTTPS clones of the specs repo failed certificate verification without it.
+- ✅ (historical) `deploy/Dockerfile` — `ca-certificates` added: HTTPS clones of the specs repo failed certificate verification without it.
 - ✅ `src/authoring/secrets.js` — documented header placeholders (`Bearer <credential>`, `${TOKEN}`, `{{token}}`) are no longer misreported as secret-like content; real credentials are still refused.
 - Repo settings (out-of-band, historical: the dedicated specs repo is retired): bot account + push protection on the project's spec-<slug> branches.
 - ✅ `package.json` — `build` now also builds the app package; `verify` runs `check:youtrack-app` (official `app validate`); `test:app-install` added; dev deps `yazl`/`yauzl`.
