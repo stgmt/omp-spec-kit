@@ -40,4 +40,4 @@ Because specs no longer travel in code branches, "which spec version does this c
 
 ## R-10 — Availability model
 
-Consumers deliberately have no repository access, so their read availability is the service itself — a service outage is a read outage for them (accepted in v1, recorded as a risk). The **operator** retains the ultimate fallback: cloning the specs repo always yields the full corpus.
+Consumers deliberately have no repository access, so their read availability is the service itself — a service outage is a read outage for them (accepted in v1, recorded as a risk). The **operator** retains the ultimate fallback: cloning the bound project repositories always yields the full corpus.
