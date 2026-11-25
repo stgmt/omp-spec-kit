@@ -1,8 +1,8 @@
 {
   "schema": "omp-spec-kit-mutation-gate@1",
-  "timestamp": "2026-11-15T21:58:43.901Z",
-  "totalMutants": 175,
-  "killed": 175,
+  "timestamp": "2026-11-25T09:44:12.983Z",
+  "totalMutants": 173,
+  "killed": 173,
   "survivors": 0,
   "passed": true,
   "receipts": [
@@ -10,181 +10,169 @@
       "id": "delete-tool-mcp_preflight",
       "status": "KILLED",
       "description": "Remove tool mcp_preflight from contracts",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 9"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 8"
     },
     {
       "id": "delete-tool-spec_catalog",
       "status": "KILLED",
       "description": "Remove tool spec_catalog from contracts",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 9"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 8"
     },
     {
       "id": "delete-tool-spec_entities",
       "status": "KILLED",
       "description": "Remove tool spec_entities from contracts",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 9"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 8"
     },
     {
       "id": "delete-tool-spec_graph",
       "status": "KILLED",
       "description": "Remove tool spec_graph from contracts",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 9"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 8"
     },
     {
       "id": "delete-tool-spec_documents",
       "status": "KILLED",
       "description": "Remove tool spec_documents from contracts",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 9"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 8"
     },
     {
       "id": "delete-tool-spec_inspect",
       "status": "KILLED",
       "description": "Remove tool spec_inspect from contracts",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 9"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 8"
     },
     {
       "id": "delete-tool-spec_tasks",
       "status": "KILLED",
       "description": "Remove tool spec_tasks from contracts",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 9"
-    },
-    {
-      "id": "delete-tool-spec_evidence",
-      "status": "KILLED",
-      "description": "Remove tool spec_evidence from contracts",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 9"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 8"
     },
     {
       "id": "delete-tool-spec_markdown",
       "status": "KILLED",
       "description": "Remove tool spec_markdown from contracts",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 9"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 8"
     },
     {
       "id": "delete-tool-spec_patch",
       "status": "KILLED",
       "description": "Remove tool spec_patch from contracts",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 9"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 8"
     },
     {
       "id": "duplicate-tool-name-mcp_preflight",
       "status": "KILLED",
       "description": "Duplicate tool name mcp_preflight",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-tool-name-spec_catalog",
       "status": "KILLED",
       "description": "Duplicate tool name spec_catalog",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-tool-name-spec_entities",
       "status": "KILLED",
       "description": "Duplicate tool name spec_entities",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-tool-name-spec_graph",
       "status": "KILLED",
       "description": "Duplicate tool name spec_graph",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-tool-name-spec_documents",
       "status": "KILLED",
       "description": "Duplicate tool name spec_documents",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-tool-name-spec_inspect",
       "status": "KILLED",
       "description": "Duplicate tool name spec_inspect",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-tool-name-spec_tasks",
       "status": "KILLED",
       "description": "Duplicate tool name spec_tasks",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
-    },
-    {
-      "id": "duplicate-tool-name-spec_evidence",
-      "status": "KILLED",
-      "description": "Duplicate tool name spec_evidence",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-tool-name-spec_markdown",
       "status": "KILLED",
       "description": "Duplicate tool name spec_markdown",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-tool-name-spec_patch",
       "status": "KILLED",
       "description": "Duplicate tool name spec_patch",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-operation-mcpPreflight",
       "status": "KILLED",
       "description": "Duplicate operation mcpPreflight with new tool name",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-operation-catalog",
       "status": "KILLED",
       "description": "Duplicate operation catalog with new tool name",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-operation-entities",
       "status": "KILLED",
       "description": "Duplicate operation entities with new tool name",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-operation-graph",
       "status": "KILLED",
       "description": "Duplicate operation graph with new tool name",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-operation-documents",
       "status": "KILLED",
       "description": "Duplicate operation documents with new tool name",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-operation-inspect",
       "status": "KILLED",
       "description": "Duplicate operation inspect with new tool name",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-operation-tasks",
       "status": "KILLED",
       "description": "Duplicate operation tasks with new tool name",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
-    },
-    {
-      "id": "duplicate-operation-evidence",
-      "status": "KILLED",
-      "description": "Duplicate operation evidence with new tool name",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-operation-markdown",
       "status": "KILLED",
       "description": "Duplicate operation markdown with new tool name",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
     },
     {
       "id": "duplicate-operation-specPatch",
       "status": "KILLED",
       "description": "Duplicate operation specPatch with new tool name",
-      "killerAssertion": "Invariants failed: expected exactly 10 contracts, got 11"
+      "killerAssertion": "Invariants failed: expected exactly 9 contracts, got 10"
+    },
+    {
+      "id": "reintroduce-retired-spec_evidence",
+      "status": "KILLED",
+      "description": "Reintroduce retired tool spec_evidence",
+      "killerAssertion": "Gates must fail on retired name spec_evidence\n\nfalse !== true\n"
     },
     {
       "id": "reintroduce-retired-spec_inventory",
@@ -511,6 +499,24 @@
       "killerAssertion": "Deleted variant attachment must be rejected\n\nfalse !== true\n"
     },
     {
+      "id": "delete-branch-spec_documents-glossaryStatus",
+      "status": "KILLED",
+      "description": "Delete variant branch glossaryStatus from spec_documents",
+      "killerAssertion": "Deleted variant glossaryStatus must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_documents-glossaryRead",
+      "status": "KILLED",
+      "description": "Delete variant branch glossaryRead from spec_documents",
+      "killerAssertion": "Deleted variant glossaryRead must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_documents-glossarySearch",
+      "status": "KILLED",
+      "description": "Delete variant branch glossarySearch from spec_documents",
+      "killerAssertion": "Deleted variant glossarySearch must be rejected\n\nfalse !== true\n"
+    },
+    {
       "id": "delete-branch-spec_inspect-readiness",
       "status": "KILLED",
       "description": "Delete variant branch readiness from spec_inspect",
@@ -559,22 +565,16 @@
       "killerAssertion": "Deleted variant validation must be rejected\n\nfalse !== true\n"
     },
     {
-      "id": "delete-branch-spec_evidence-result",
-      "status": "KILLED",
-      "description": "Delete variant branch result from spec_evidence",
-      "killerAssertion": "Deleted variant result must be rejected\n\nfalse !== true\n"
-    },
-    {
-      "id": "delete-branch-spec_evidence-trace",
-      "status": "KILLED",
-      "description": "Delete variant branch trace from spec_evidence",
-      "killerAssertion": "Deleted variant trace must be rejected\n\nfalse !== true\n"
-    },
-    {
       "id": "delete-branch-spec_patch-patch",
       "status": "KILLED",
       "description": "Delete variant branch patch from spec_patch",
       "killerAssertion": "Deleted variant patch must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_patch-migrateSpec",
+      "status": "KILLED",
+      "description": "Delete variant branch migrateSpec from spec_patch",
+      "killerAssertion": "Deleted variant migrateSpec must be rejected\n\nfalse !== true\n"
     },
     {
       "id": "delete-branch-spec_patch-amendRequirement",
@@ -593,6 +593,12 @@
       "status": "KILLED",
       "description": "Delete variant branch addPhase from spec_patch",
       "killerAssertion": "Deleted variant addPhase must be rejected\n\nfalse !== true\n"
+    },
+    {
+      "id": "delete-branch-spec_patch-approveBddCoverage",
+      "status": "KILLED",
+      "description": "Delete variant branch approveBddCoverage from spec_patch",
+      "killerAssertion": "Deleted variant approveBddCoverage must be rejected\n\nfalse !== true\n"
     },
     {
       "id": "delete-branch-spec_patch-confirmTaskCreation",
@@ -706,7 +712,7 @@
       "id": "duplicate-branch-spec_documents-list",
       "status": "KILLED",
       "description": "Duplicate branch in spec_documents",
-      "killerAssertion": "oneOf length changed\n\n4 !== 3\n"
+      "killerAssertion": "oneOf length changed\n\n7 !== 6\n"
     },
     {
       "id": "duplicate-branch-spec_inspect-readiness",
@@ -715,16 +721,10 @@
       "killerAssertion": "oneOf length changed\n\n9 !== 8\n"
     },
     {
-      "id": "duplicate-branch-spec_evidence-result",
-      "status": "KILLED",
-      "description": "Duplicate branch in spec_evidence",
-      "killerAssertion": "oneOf length changed\n\n3 !== 2\n"
-    },
-    {
       "id": "duplicate-branch-spec_patch-patch",
       "status": "KILLED",
       "description": "Duplicate branch in spec_patch",
-      "killerAssertion": "oneOf length changed\n\n20 !== 19\n"
+      "killerAssertion": "oneOf length changed\n\n22 !== 21\n"
     },
     {
       "id": "cross-branch-spec_entities-get-with-specSlugs",
@@ -751,10 +751,10 @@
       "killerAssertion": "field tags belongs to another variant, not readiness"
     },
     {
-      "id": "cross-branch-spec_patch-patch-with-requirement",
+      "id": "cross-branch-spec_patch-patch-with-snapshot",
       "status": "KILLED",
-      "description": "Call spec_patch with variant patch and field requirement from amendRequirement",
-      "killerAssertion": "field requirement belongs to another variant, not patch"
+      "description": "Call spec_patch with variant patch and field snapshot from migrateSpec",
+      "killerAssertion": "field snapshot belongs to another variant, not patch"
     },
     {
       "id": "unknown-field-mcp_preflight",
@@ -988,18 +988,6 @@
       "id": "missing-discriminator-description-spec_inspect",
       "status": "KILLED",
       "description": "Verify discriminator property description is present for spec_inspect",
-      "killerAssertion": "Discriminator description must be non-empty"
-    },
-    {
-      "id": "missing-oneof-metadata-spec_evidence",
-      "status": "KILLED",
-      "description": "Verify every oneOf branch has title and description for spec_evidence",
-      "killerAssertion": "Branch title must be non-empty"
-    },
-    {
-      "id": "missing-discriminator-description-spec_evidence",
-      "status": "KILLED",
-      "description": "Verify discriminator property description is present for spec_evidence",
       "killerAssertion": "Discriminator description must be non-empty"
     },
     {
