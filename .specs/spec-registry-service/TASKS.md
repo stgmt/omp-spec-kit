@@ -10,7 +10,7 @@ Status: DRAFT
 - **Requirements:** R-1, FR-1
 - **(historical, superseded; `stgmt/spec-database` archived) Evidence:** `stgmt/spec-database` (private) created 2026-09-13; `main` seeded with root `.gitignore` (`**/.omp-spec-kit-*`) + README documenting the `owner/project/.specs` layout and service-only-write rule. Bot push protection staged for TASK-2.
 
-## TASK-2 — Push protection on the specs repo + break-glass logging
+## TASK-2 — Push protection on spec-<slug> branches (historical task) + break-glass logging
 - **Status:** done
 - **Done When:** direct pushes by humans or agents are refused by repository rules; only the service's bot identity may write; the private repository carries no other collaborators; an operator break-glass path is documented and any bypass is surfaced by the drift report.
 - **Requirements:** R-2, R-3
