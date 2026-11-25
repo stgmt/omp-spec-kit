@@ -38,7 +38,7 @@ Status: DRAFT
   and deletes the work branch.
 - There is no shared default repository. A project without an active binding
   refuses spec operations with `SETUP_REQUIRED` / `REPO_BINDING_REQUIRED`.
-- **Migration**: `scripts/migrate-specs-to-branches.mjs` converts the 2.x
+- **Migration (historical)**: `scripts/migrate-specs-to-branches.mjs` converted the retired 2.x
   `<owner>/<project>/.specs/<slug>/` layout into one orphan branch per spec,
   idempotently and without rewriting existing branches.
 
