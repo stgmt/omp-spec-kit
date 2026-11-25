@@ -18,7 +18,7 @@
 
 - **2026-09-16 — TASK-9 landed: publish pipeline via immutable git tags** — an authored `Status: ACTIVE` at canonical HEAD publishes an annotated tag `spec/<project>/<slug>/<version>` at the commit plus an insert-only ledger row (version → tree digest → commit); identical content no-ops, different content under an existing version is rejected and surfaces in `GET /drift`; `spec_documents(version)` serves the frozen tagged snapshot with digest re-verified against the commit; triggers on write push, reconcile, and boot.
 
-- **2026-09-17 — TASK-17 landed (v2.1.0): bring-your-own specs repository** — a project leaves the shared specs repo for its own via `POST /repos/probe|bind|unbind`; `migrate` copies the verified `.specs` snapshot before routing flips; credentials are AES-256-GCM sealed and URL-scoped; the widget exposes the whole flow.
+- **2026-09-17 — TASK-17 landed (v2.1.0, historical transition): bring-your-own specs repository** — a project leaves the shared specs repo for its own via `POST /repos/probe|bind|unbind`; `migrate` copies the verified `.specs` snapshot before routing flips; credentials are AES-256-GCM sealed and URL-scoped; the widget exposes the whole flow.
 
 - **2026-09-17 — TASK-13 landed (v2.2.0): external YouTrack binding** — a customer's own YouTrack becomes a tenant IdP through the in-widget guided flow: `POST /idp/probe|bind|unbind`, bridge secret minted once and stored hashed, `hubGroups` gate scopes, `roleGroups` map external groups to roles, bound projects count as configured, live BDD proves the loop against a real second YouTrack.
 
