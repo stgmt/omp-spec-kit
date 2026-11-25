@@ -127,7 +127,7 @@ Boot: seed bindings → clone/fetch each mirror → discover canonical spec bran
 fetches every mirror on an interval and rebuilds only when a branch tip moved.
 Protocol carries `project` on every call; absent → caller's tenant default.
 
-Rejected alternatives: one shared specs repository (single point of failure and
+Rejected alternatives (retired, superseded by spec-per-branch-2026-10-31): one shared specs repository (single point of failure and
 a second source of truth next to the product), per-user branches (index would
 need N-branch aggregation), one flat spec pool without project metadata (loses
 the tenant boundary).
