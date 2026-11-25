@@ -48,4 +48,4 @@ Status: DRAFT
 ## UC-8 — Service outage
 
 1. Service down → consumers see `UNAVAILABLE` (`retryable: true`) on every call — they hold no repo credentials, so there is no consumer-side fallback; the caller retries when the service is back.
-2. The operator clones the specs repo → full corpus readable offline; break-glass admin push possible (drift-reported on recovery — UC-7).
+2. The operator clones the bound project repositories → full corpus readable offline; break-glass admin push possible (drift-reported on recovery — UC-7).
