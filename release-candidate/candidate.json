@@ -1,26 +1,26 @@
 {
   "schema": "omp-spec-kit-release-candidate@2",
-  "version": "3.1.0",
-  "tag": "v3.1.0",
-  "commit": "62dcba771a1ba60acbff6f6d867ec5605935636e",
-  "packageTreeDigest": "66d91cc9c8b2819f51ea9e0fa6d5ef1ecb12efb073ecd726b32fe8fc57c45d1b",
+  "version": "3.7.1",
+  "tag": "v3.7.1",
+  "commit": "76a3d6ca42f1a3f867d91136271a7c0cd8b923d8",
+  "packageTreeDigest": "76040d8a63f19656fa9dabf5bdfaa2704284f06d74e3849341e03879ef1f4f93",
   "archive": {
-    "file": "omp-spec-kit-3.1.0.tar",
-    "sha256": "d52169eddda679d01cc1558190d523dae88c105353f14c9ca814c0e9e56655d5",
-    "bytes": 626688
+    "file": "omp-spec-kit-3.7.1.tar",
+    "sha256": "1d555ec4afa66fda598c8f3dcec6d417995ec42264765c90b4bc7cc6440fb61a",
+    "bytes": 1256448
   },
   "youtrackApp": {
-    "file": "spec-graph-app-1.0.48.zip",
-    "sha256": "9551539e1ddafaa3b30866407e451ee8da62eaabe88ce40e8157795e31f50eb5",
-    "bytes": 162850,
-    "version": "1.0.48"
+    "file": "spec-graph-app-1.0.50.zip",
+    "sha256": "07df2cd2236112f6bc98d3086b6a4fcf7c0313f7815934183340669e01f4656d",
+    "bytes": 167130,
+    "version": "1.0.50"
   },
   "files": [
     {
       "path": ".claude-plugin/plugin.json",
       "mode": 420,
       "bytes": 402,
-      "sha256": "59ba703455dc1cdcb95b2e8446e255b13aa6854793da5fe54e134fccd082c932"
+      "sha256": "3374e2ae9e0daaa8356370b0915379bd92adb642335eee273d57a7f1e9c31f67"
     },
     {
       "path": ".mcp.json",
@@ -31,8 +31,8 @@
     {
       "path": "dist/adapters/document-service.js",
       "mode": 420,
-      "bytes": 13654,
-      "sha256": "7b50e5b0888e5f64c9dd780e3f91a5d2a6e1fd848640af605feefe514cc02497"
+      "bytes": 20656,
+      "sha256": "6312b9733dcd726e27f598a3ffe1ca8ed36ad8a4e39e108b0ceb36be162e9df0"
     },
     {
       "path": "dist/adapters/marker-secret.js",
@@ -41,28 +41,46 @@
       "sha256": "9fa0f9d8ce03fcf5b55aea18576227fd051aefda059e2d15b7843f9e785e41c8"
     },
     {
+      "path": "dist/adapters/openai-decisions.js",
+      "mode": 420,
+      "bytes": 6497,
+      "sha256": "86d57b54adaab2f6d8cb785451914a6d4eb6727b1c8e912a76254ddccf17381a"
+    },
+    {
       "path": "dist/adapters/plugin-version.js",
       "mode": 420,
       "bytes": 112,
-      "sha256": "d1c05043118c32c2cd1cb8c882c93b2d80e12b4fb1b9a447a92afae821576a8d"
+      "sha256": "085c6013427e25e19617111fdd4e7bbee7008574fa0f8625872ec074d6287598"
     },
     {
       "path": "dist/adapters/query-service.js",
       "mode": 420,
-      "bytes": 30436,
-      "sha256": "57ed051aa2f273fa2fb784282a3e8038f2b7dff88db8ece8fd6098e3e7012f75"
+      "bytes": 36312,
+      "sha256": "bbb1ea614b6fabf0cadb5ecc14466f26f253dc78927e8271b1595b9c12efa307"
     },
     {
       "path": "dist/adapters/tool-contracts.js",
       "mode": 420,
-      "bytes": 37491,
-      "sha256": "fd1d95b608ba07c66d1a331a99a7b6d0eeac73892019a4a906739a144f568da1"
+      "bytes": 61838,
+      "sha256": "3207674d6622174b79772a878b80624405bd823d0ad3a7c92ef95cfa44e50212"
+    },
+    {
+      "path": "dist/adapters/youtrack-links.js",
+      "mode": 420,
+      "bytes": 4743,
+      "sha256": "7974835d81b80da3ee129df08b17d91d3d527619ef3fbaeba5353a7112a7ee16"
     },
     {
       "path": "dist/adapters/youtrack-projection.js",
       "mode": 420,
-      "bytes": 32985,
-      "sha256": "93bfc7f5729ed5ede28d332c9d27056e62d8b3f0d2c1ebbfbae0daf852e28a50"
+      "bytes": 35180,
+      "sha256": "f274edd87cc4c36990006a5e36dee2125394092e23476f5a03acb54c4ce006af"
+    },
+    {
+      "path": "dist/adapters/youtrack-schema.js",
+      "mode": 420,
+      "bytes": 7456,
+      "sha256": "79ea612b06fc2ebfb68f342702295fa19d3168dcf5ba8438cff7c0332da115b2"
     },
     {
       "path": "dist/adapters/youtrack-status-sweep.js",
@@ -73,14 +91,20 @@
     {
       "path": "dist/adapters/youtrack-store.js",
       "mode": 420,
-      "bytes": 29639,
-      "sha256": "f6151f8b4759182fb1e2d7c1d4bb870c32c69572b51eeb73aa881636e1966719"
+      "bytes": 31989,
+      "sha256": "8516fbb3f05cb3e0be9f1f56695644d471f539ae5514119628b8f88e9472fdd4"
     },
     {
-      "path": "dist/authoring/design-review.js",
+      "path": "dist/authoring/bdd-coverage.js",
       "mode": 420,
-      "bytes": 10493,
-      "sha256": "ba88286f7885e217bb38f982822a8695ec6f5ce180aaab475eb435b7e804a40a"
+      "bytes": 14299,
+      "sha256": "dbe159ab1e4c54590e92c1b99d7bb28a2e5b022921c42b308ffe645f67ad82f8"
+    },
+    {
+      "path": "dist/authoring/definition-integrity.js",
+      "mode": 420,
+      "bytes": 3827,
+      "sha256": "25f9ce4e447a6e738fad397f2d0226ae256eab7a9a947eb8b023bb7ee8b18910"
     },
     {
       "path": "dist/authoring/elicitation-guard.js",
@@ -91,14 +115,20 @@
     {
       "path": "dist/authoring/error-codes.js",
       "mode": 420,
-      "bytes": 1246,
-      "sha256": "18ce9f975c4057fa215b9364cdbcf72df45d3d9f34d7c0a1bee620bb4a248dce"
+      "bytes": 1822,
+      "sha256": "36b17bddb2444017833bb18d57644bf67251646d5152d4eb504bc296e2bef586"
+    },
+    {
+      "path": "dist/authoring/migration.js",
+      "mode": 420,
+      "bytes": 43578,
+      "sha256": "1d14d8bc4bd69f2ec01b67baccceac45b1c554fb05498508b6515cc29e8650c6"
     },
     {
       "path": "dist/authoring/proposals.js",
       "mode": 420,
-      "bytes": 38375,
-      "sha256": "bd135daa73766855880484a2c29f45108620f15ee1ffee4b36fa27d5e63f6a25"
+      "bytes": 75784,
+      "sha256": "1047d0c374c810d5679610334dc46d1c3fd140db598fa6f21ab7c2d600e6642f"
     },
     {
       "path": "dist/authoring/secrets.js",
@@ -109,14 +139,14 @@
     {
       "path": "dist/authoring/service.js",
       "mode": 420,
-      "bytes": 10412,
-      "sha256": "733ddee2979a772efddb60f8937727f46b97c41472e45e7ea9a3e35675c6839d"
+      "bytes": 17007,
+      "sha256": "1f52f5efc7cfec4caff2a4f0b052cb2b06f55d91904f1f88ebd3a7f5cd77b1a6"
     },
     {
       "path": "dist/authoring/transactions.js",
       "mode": 420,
-      "bytes": 30736,
-      "sha256": "32ac6fe0b38f0e3b8ba803f5c848deec84f5ff831c74319898c07f63352b0df0"
+      "bytes": 44335,
+      "sha256": "f9c0607d5cbc2af458a00bc9fd0813d184e97707078845b268a0ecc1a6068d8c"
     },
     {
       "path": "dist/enforcement/adapter.js",
@@ -127,8 +157,8 @@
     {
       "path": "dist/enforcement/classifier.js",
       "mode": 420,
-      "bytes": 14282,
-      "sha256": "af6a0b7098d5d748207fdf20171a6994444d70219ebd542bb15228c549171968"
+      "bytes": 10924,
+      "sha256": "e58aee017ca3d5a23fb3465bb2352262a21de37a895d622889084060d526bd25"
     },
     {
       "path": "dist/enforcement/project-binding.js",
@@ -149,16 +179,10 @@
       "sha256": "fd9156ef9ed8289f680f933ceaf5435b68ded956445ec24183416c3116cc4c49"
     },
     {
-      "path": "dist/evidence/service.js",
-      "mode": 420,
-      "bytes": 9484,
-      "sha256": "56e7e622ff072e292894d88811e668edf06de1a1613408b4e42dec9c6ef6cf60"
-    },
-    {
       "path": "dist/extension.js",
       "mode": 420,
-      "bytes": 1132,
-      "sha256": "32919bf6142868b21f5d0678d36e431c1a7af2f7c1a1718d556e48db2ae7f13f"
+      "bytes": 1131,
+      "sha256": "164dedf434dfd701c82b209935d7bda16c644a4d23e031b888d5e71f4d9b4aa7"
     },
     {
       "path": "dist/gate/automatic-adapter.js",
@@ -175,8 +199,8 @@
     {
       "path": "dist/kernel/adapters/fs.js",
       "mode": 420,
-      "bytes": 8379,
-      "sha256": "0266de4ab315a693ade57897faad3a821ded3eba18c9aa9fbaf6bc568f87ecdf"
+      "bytes": 8599,
+      "sha256": "5f33dcf1d1fb8795069286fe3a51502d471e5d4193a95aaea3b88cce7f988ff0"
     },
     {
       "path": "dist/kernel/diagnostics.js",
@@ -185,16 +209,16 @@
       "sha256": "04c3778d0bcdaae9eccc277ef33004bf0012fdbe2357589452450481c1ec1687"
     },
     {
-      "path": "dist/kernel/gherkin-syntax.js",
+      "path": "dist/kernel/glossary.js",
       "mode": 420,
-      "bytes": 1161,
-      "sha256": "ed88857ef5cc48df9ffdd64a0009a47d043f02d04485ae91667647119812ef1b"
+      "bytes": 13849,
+      "sha256": "77f5eb01931425084dd76968a3428a7fee72d702a5af83e33a4de28c14fe3498"
     },
     {
       "path": "dist/kernel/graph/build.js",
       "mode": 420,
-      "bytes": 41514,
-      "sha256": "068139285af182948d32d2e126d2cd5cd4116c8f3e157b5d249ad4f13586d12c"
+      "bytes": 43912,
+      "sha256": "7978fdfecb156fb7f26eb72fe69376f489bf057312269fadba633e6e87dc4746"
     },
     {
       "path": "dist/kernel/graph/invariants.js",
@@ -223,8 +247,8 @@
     {
       "path": "dist/kernel/limits.js",
       "mode": 420,
-      "bytes": 1631,
-      "sha256": "4a18582fca95a0fe24073104d62a926580fdbfa5e661d186aa81c6f3716e1938"
+      "bytes": 2381,
+      "sha256": "2d5c84c2b0e71a6bb033d535bed325df93d519715858563f3abe06c279afa981"
     },
     {
       "path": "dist/kernel/normalize.js",
@@ -235,14 +259,14 @@
     {
       "path": "dist/kernel/parsers/attributes.js",
       "mode": 420,
-      "bytes": 7669,
-      "sha256": "923d29c3136d9f975e17058f61ec3e4b4be8ee6ccc6b11f550890b708f6cfac3"
+      "bytes": 6992,
+      "sha256": "101eb75d7b7863f3dde83ab260a7de0c342962b8a7c4e2e8a363d0e80befece4"
     },
     {
       "path": "dist/kernel/parsers/gherkin.js",
       "mode": 420,
-      "bytes": 9818,
-      "sha256": "7010498febc1c91c0ec60ef87269c3c8718b924c0eaaafb348f080a10b3aa1bc"
+      "bytes": 17243,
+      "sha256": "a618c550200ff775ad7bfc76b6c9f34ca2c46ac25e3956f0da3f2c8b77fc806e"
     },
     {
       "path": "dist/kernel/parsers/markdown.js",
@@ -253,14 +277,20 @@
     {
       "path": "dist/kernel/parsers/md-blocks.js",
       "mode": 420,
-      "bytes": 7767,
-      "sha256": "93fc7026dfc4924e09478f7e972ce4b286a63628ca12eeca96afd6da081bc8a4"
+      "bytes": 7795,
+      "sha256": "fed00a7356c89d7002febe5f88aea2e9b7404a80fee44106c8becd063b766455"
     },
     {
       "path": "dist/kernel/parsers/md-inline.js",
       "mode": 420,
       "bytes": 15534,
       "sha256": "5ed8c30c1d78e1390451fce76bbc1c7b4e2ead293d4f4c6b4e66660fc615c476"
+    },
+    {
+      "path": "dist/kernel/proposal-review.js",
+      "mode": 420,
+      "bytes": 8184,
+      "sha256": "14844142835a3f54c42b2833d9038eaf2ef13d372e2148befbb5b2ee3da886b7"
     },
     {
       "path": "dist/kernel/query/cursor.js",
@@ -271,14 +301,26 @@
     {
       "path": "dist/kernel/query/extended.js",
       "mode": 420,
-      "bytes": 20371,
-      "sha256": "21a5f0a3ccd1a90f3da3bc5981d2c2bb3eb73d6b97fe81e1e50761738b42c0cf"
+      "bytes": 24396,
+      "sha256": "d66b16579583cadbc342d8ca6cc6fd9f96b5c0a483addfbd7e8870e2ee88e55c"
+    },
+    {
+      "path": "dist/kernel/query/layout.js",
+      "mode": 420,
+      "bytes": 2022,
+      "sha256": "9b25a1de4f1c18aa20f457e8d1d70f13e0a389b342dfec00ec6bc73754c77eb9"
     },
     {
       "path": "dist/kernel/query/service.js",
       "mode": 420,
-      "bytes": 59671,
-      "sha256": "0d8e70c82a59df1c7ecef240e6dc6ed9aa00ceb759ec8dcc6b0d904b100ce11b"
+      "bytes": 61495,
+      "sha256": "ca163e912ac0367f90b3452fd2e1eaa9ffef5e1ed2800df6840cacd5fb837f4c"
+    },
+    {
+      "path": "dist/kernel/readiness.js",
+      "mode": 420,
+      "bytes": 14976,
+      "sha256": "940940f09f888341e496e9b67d2d20eaf3e03e59dfb3a8d4e8a7fdbe198ae7b3"
     },
     {
       "path": "dist/kernel/roadmap/assemble.js",
@@ -289,20 +331,38 @@
     {
       "path": "dist/kernel/types.js",
       "mode": 420,
-      "bytes": 15206,
-      "sha256": "30c291f7e8b9e164feaadace275c9a9bc6483ed50cc2e80fa305946efe69a99f"
+      "bytes": 16716,
+      "sha256": "fef70855765b055d70e5638d7e465a08b53dbe447ced2e8a4206b1b7f0a74a10"
+    },
+    {
+      "path": "dist/kernel/vendor/gherkin.js",
+      "mode": 420,
+      "bytes": 243248,
+      "sha256": "66de0e711122980d067b1b2656864895ade1ab5a8f880549346d33c1669ebce0"
+    },
+    {
+      "path": "dist/kernel/vendor/markdown-it.js",
+      "mode": 420,
+      "bytes": 154241,
+      "sha256": "a2283e9347fcaaf3a61125b64531c85dcdfce9ac20937dc929e468b67054eb94"
     },
     {
       "path": "dist/manifest.json",
       "mode": 420,
-      "bytes": 5653,
-      "sha256": "71920126f7da75bf13bfc217362effa69b808cd09f57cc8fcf15e4724953c075"
+      "bytes": 6907,
+      "sha256": "b054ed1f25db1e53b5a5a3a2edb2a34e4b4473bcb72d3bd41abb2006c2393912"
     },
     {
       "path": "dist/mcp/server.js",
       "mode": 420,
-      "bytes": 13806,
-      "sha256": "684e18a6d6bfcfec4aab14542a972a1f510bb1e636208d99e592aa08b51659e7"
+      "bytes": 14058,
+      "sha256": "58bd804fdcb3bfc2293b21bf01e56d0ffec5a2144ea97e51ccc1a9652afa8b41"
+    },
+    {
+      "path": "dist/service/proposal-review.js",
+      "mode": 420,
+      "bytes": 10701,
+      "sha256": "85682bf17c73328307da2fba233745d013499088646b223885d54d26b2dfda40"
     },
     {
       "path": "hooks/hooks.json",
@@ -338,19 +398,19 @@
       "path": "package.json",
       "mode": 420,
       "bytes": 647,
-      "sha256": "0d11f48f8a6a2922d01d16a743248384f0e790bd3b2c4948fa134fe7dca71c4b"
+      "sha256": "9a22b5a067a418bc6f7e721a7a9ff5f127472521449eae686a9e02409c6433d1"
     },
     {
       "path": "README.md",
       "mode": 420,
-      "bytes": 3972,
-      "sha256": "c54eb2c7df5dcac5f3153ea951467174581b7183b74f23d8570b258a43e0ab89"
+      "bytes": 3512,
+      "sha256": "064f0fb1790c397690e8883f2582e16d1eeb64bd50f97b98a08a025f3c3892ae"
     },
     {
       "path": "skills/engineering-anti-bike/SKILL.md",
       "mode": 420,
-      "bytes": 2558,
-      "sha256": "dea24c20b487f46e39e4cee2d17192676183dab502028b6fc7bde67ac1119b47"
+      "bytes": 3302,
+      "sha256": "0b108ab4870187c036e5c75f913d0aa1a1d69bca7f4995645146301128f42547"
     },
     {
       "path": "skills/spec-elicitation/SKILL.md",
@@ -365,5 +425,5 @@
       "sha256": "25c3f5808affc370b31b763034044a7e9cac6f54510ceda16787ef5088df6bfb"
     }
   ],
-  "candidateDigest": "7bb39cced139b057b3589b555582a709e17fe0ec178cf84ab3a5c0dcf8fb869d"
+  "candidateDigest": "7ed86aa1bf68c13bdc8419e1231d85b05e7dda03504bc3125d5340337fafb69f"
 }

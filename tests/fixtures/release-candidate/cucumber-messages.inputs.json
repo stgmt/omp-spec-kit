@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "954047294283f0a3cf39e2881438f7773f4060cca62916f7c5211571b53e7307",
+  "aggregateSha256": "25517618c584210b7e1f4f79a3fc8cbb293c1a9e9bc8625f3832d666a4ac3bd9",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -585,8 +585,8 @@
     },
     {
       "path": "src/authoring/secrets.js",
-      "bytes": 1093,
-      "sha256": "c675f88b73501829fa8ea31a1dbb7a7f5a57b57a4c05ed09beeb43470bbaec06"
+      "bytes": 1346,
+      "sha256": "c51b9ba3279a4ea769229c644596bee67279c691ed495e3f3046f55aba7ef632"
     },
     {
       "path": "src/authoring/service.js",
@@ -1065,8 +1065,8 @@
     },
     {
       "path": "tests/authoring-secrets.test.mjs",
-      "bytes": 1389,
-      "sha256": "74d943f59072604a4c2c2706fea1282cab991a4dc75851bd55ecaf7d03e7fd6d"
+      "bytes": 1918,
+      "sha256": "cb4418610795ea0cd8c375c99349d0a67fbc18f66c1141da02f3f2b43e41df6f"
     },
     {
       "path": "tests/authoring-spec-lifecycle.test.mjs",

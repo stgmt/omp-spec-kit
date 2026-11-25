@@ -20,6 +20,19 @@ describe("secret detection", () => {
     assert.equal(detectSecret("Proxy-Authorization: basic dXNlcjpwYXNzd29yZA=="), "authorization");
   });
 
+  it("does not treat code expressions as credential literals", () => {
+    for (const text of [
+      "apiKey: config.apiKey,",
+      'const apiKey = options.apiKey ?? "";',
+      'if (apiKey === "") return null;',
+      "const apiKey = typeof env.OPENAI_API_KEY === \"string\";",
+    ]) {
+      assert.equal(detectSecret(text), null, `expected no match: ${text}`);
+    }
+    assert.equal(detectSecret("api_key: 0123456789abcdef"), "generic-secret");
+    assert.equal(detectSecret("password: hunter2"), "generic-secret");
+  });
+
   it("keeps the other categories intact", () => {
     assert.equal(detectSecret(`ghp_${"A".repeat(36)}`), "known-secret");
     assert.equal(detectSecret("api_key: 0123456789abcdef"), "generic-secret");
