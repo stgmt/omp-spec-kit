@@ -24,7 +24,7 @@ All mutations for a project serialize through the existing transaction layer (jo
 
 ### FR-5 — Optimistic concurrency and publish confirmation
 
-`spec_patch` accepts `expectedSha` per document and `repositoryRootFingerprint` per request (existing semantics). Mismatch → `CONFLICT`, `retryable: true`. A write reports success only after the git push to the specs repo is confirmed; push failure returns an error and leaves the clone ahead of remote (reconciled on retry/boot — never silently dropped).
+`spec_patch` accepts `expectedSha` per document and `repositoryRootFingerprint` per request (existing semantics). Mismatch → `CONFLICT`, `retryable: true`. A write reports success only after the git push to the bound project repository's spec-<slug> branch is confirmed; push failure returns an error and leaves the clone ahead of remote (reconciled on retry/boot — never silently dropped).
 
 ### FR-6 — Attributed commits
 
