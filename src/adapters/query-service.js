@@ -12,8 +12,8 @@ import { KERNEL_SCHEMA_VERSION, buildKernelGraph, query } from "../kernel/index.
 import { ENTITY_TYPE_DESCRIPTORS, EDGE_TYPE_DESCRIPTORS } from "../kernel/types.js";
 import { readRepositorySpecs } from "../kernel/adapters/fs.js";
 import { EXTENDED_OPERATIONS, executeExtendedQuery } from "../kernel/query/extended.js";
+import { allSpecSlugs, completenessFor } from "../kernel/query/layout.js";
 import { DOCUMENT_OPERATIONS, executeDocumentOperation } from "./document-service.js";
-import { EVIDENCE_OPERATIONS, executeEvidenceOperation } from "../evidence/service.js";
 import { createAuthoringService } from "../authoring/service.js";
 import { readConsistentRepositorySpecs } from "../authoring/transactions.js";
 import { addedLines } from "../kernel/proposal-review.js";
@@ -219,7 +219,8 @@ function graphSummary(graph) {
     schemaVersion: graph.schemaVersion,
     fingerprint: graph.fingerprint,
     valid: graph.valid,
-    specCount: new Set(graph.documents.map((document) => document.specSlug)).size,
+    complete: completenessFor(graph).complete,
+    specCount: allSpecSlugs(graph).length,
     documentCount: graph.counts.discoveredDocuments,
     nodeCount: graph.nodes.length,
     edgeOccurrenceCount: graph.edges.length,
@@ -458,7 +459,7 @@ export function createSpecService(root, context = {}) {
   // optional `project` scope rule is transport-level), so both are legal here.
   async function runQueryInner(operation, args, {
     requestId = null, schemaVersion, project = null, projectSource = null, transport = null, bindingStatus = null,
-    hostedCoverage = false, coverageOwner = false,
+    hostedCoverage = false, coverageOwner = false, migrationScope = null,
   } = {}) {
     if (schemaVersion !== undefined && schemaVersion !== "spec-kernel@1" && schemaVersion !== KERNEL_SCHEMA_VERSION) {
       return withProvenance(
@@ -633,6 +634,47 @@ export function createSpecService(root, context = {}) {
     // 5. documents
     if (operation === "documents") {
       const action = effectiveArgs.action ?? "list";
+      if (action === "glossaryStatus" || action === "glossaryRead" || action === "glossarySearch") {
+        // The glossary belongs to a registered project and is read from its own
+        // branch. Only the service that resolves projects through the registry
+        // passes the provider; a corpus-only transport refuses instead of
+        // pretending the file is missing.
+        const glossary = context.glossary;
+        if (!glossary) {
+          return withProvenance(
+            makeErrorEnvelope({
+              operation: "documents",
+              requestId,
+              code: "GLOSSARY_PROJECT_REQUIRED",
+              message:
+                "the project glossary belongs to a registered project and is served by the hosted transport; this local stdio server reads one corpus folder and has no registry. Call the hosted server with project instead.",
+            })
+          );
+        }
+        try {
+          const glossaryRes =
+            action === "glossaryStatus"
+              ? await glossary.status()
+              : action === "glossaryRead"
+                ? await glossary.read()
+                : await glossary.search({ query: effectiveArgs.query, limit: effectiveArgs.limit });
+          return withProvenance(
+            glossaryRes.ok
+              ? makeAdapterSuccessEnvelope({ operation: "documents", requestId, data: glossaryRes.data })
+              : makeErrorEnvelope({
+                  operation: "documents",
+                  requestId,
+                  code: glossaryRes.error.code,
+                  message: glossaryRes.error.message,
+                  extra: glossaryRes.error,
+                })
+          );
+        } catch (err) {
+          return withProvenance(
+            makeErrorEnvelope({ operation: "documents", requestId, code: "ADAPTER_READ_ERROR", message: err?.message ?? "glossary read failed" })
+          );
+        }
+      }
       let docOp = "listSpecDocs";
       if (action === "read") docOp = "readSpecDoc";
       else if (action === "attachment") docOp = "readAttachment";
@@ -707,26 +749,6 @@ export function createSpecService(root, context = {}) {
       );
     }
 
-    // 8. evidence
-    if (operation === "evidence") {
-      const view = effectiveArgs.view ?? "result";
-      // Bind evidence to the current corpus, not a graph cached by an earlier read.
-      refresh();
-      const state = await ensure();
-      if (state.status === "error") return handleReaderError(state.readerError, "evidence", requestId);
-
-      const evOp = view === "trace" ? "getScenarioTrace" : "getTestResult";
-      const evRes = await executeEvidenceOperation(resolvedRoot, state.graph, evOp, {
-        scenarioId: effectiveArgs.scenarioId,
-        spec: effectiveArgs.spec,
-      });
-      return withProvenance(
-        evRes.ok
-          ? makeSuccessEnvelope({ graph: state.graph, operation: "evidence", requestId, data: evRes.data, page: evRes.page })
-          : makeErrorEnvelope({ operation: "evidence", requestId, code: evRes.error.code, message: evRes.error.message, extra: evRes.error })
-      );
-    }
-
     // 9. markdown
     if (operation === "markdown") {
       const state = await ensure();
@@ -764,7 +786,7 @@ export function createSpecService(root, context = {}) {
         let review = null;
         if (reviewService) {
           try {
-            const preview = await getAuthoring().execute({ ...authoredInput, dryRun: true }, { hostedCoverage, coverageOwner });
+            const preview = await getAuthoring().execute({ ...authoredInput, dryRun: true }, { hostedCoverage, coverageOwner, migrationScope });
             const proposed = preview.ok
               ? (preview.data?.operations ?? []).map((entry) => addedLines(entry.diff)).filter(Boolean).join("\n\n")
               : "";
@@ -790,7 +812,7 @@ export function createSpecService(root, context = {}) {
           }
         }
 
-        const authored = await getAuthoring().execute(authoredInput, { hostedCoverage, coverageOwner });
+        const authored = await getAuthoring().execute(authoredInput, { hostedCoverage, coverageOwner, migrationScope });
         const envelope = authored.ok
           ? makeSuccessEnvelope({
               graph: freshState.graph,
@@ -838,14 +860,6 @@ export function createSpecService(root, context = {}) {
 
     const state = await ensure();
     if (state.status === "error") return handleReaderError(state.readerError, operation, requestId);
-
-    if (EVIDENCE_OPERATIONS.includes(operation)) {
-      const evidence = await executeEvidenceOperation(resolvedRoot, state.graph, operation, effectiveArgs);
-      const envelope = evidence.ok
-        ? makeSuccessEnvelope({ graph: state.graph, operation, requestId, data: evidence.data, page: evidence.page })
-        : makeErrorEnvelope({ operation, requestId, code: evidence.error.code, message: evidence.error.message, extra: evidence.error });
-      return withProvenance({ ...envelope, requestId: requestId ?? null });
-    }
 
     try {
       if (EXTENDED_OPERATIONS.includes(operation)) {

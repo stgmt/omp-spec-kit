@@ -1,13 +1,13 @@
 import { KERNEL_SCHEMA_VERSION } from "../../src/kernel/index.js";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Given, Then, When, After } from "@cucumber/cucumber";
 import { classifyToolCall } from "../../src/enforcement/classifier.js";
 import { annotationsFor, MCP_SERVER_INSTRUCTIONS, TOOL_CONTRACTS } from "../../src/adapters/tool-contracts.js";
-import { createTempRepo, writeStagedCorpus } from "../helpers/kernel-world.mjs";
-import { runEvidenceE2E, prepareEvidenceFixtures, captureProductEvidence, incompleteEvidence } from "../helpers/evidence-e2e.mjs";
+import { createTempRepo, removeTempRepo, writeStagedCorpus } from "../helpers/kernel-world.mjs";
+import { runQueryE2E, prepareQueryFixtures } from "../helpers/query-e2e.mjs";
 import { runToolE2E, ALL_TOOL_NAMES, prepareToolE2EFixtures } from "../helpers/tool-e2e.mjs";
 import { runExtensionProbe, spawnMcpServer } from "../helpers/mcp-world.mjs";
 
@@ -32,20 +32,19 @@ const READ_COMPLETE_CALLS = Object.freeze([
   ["spec_inspect", { check: "orphans" }],
   ["spec_inspect", { check: "validation", limit: 20 }],
   ["spec_tasks", { spec: "product", limit: 20 }],
-  ["spec_evidence", { view: "result", scenarioId: "product:SCEN-specification-only-init" }],
   ["spec_markdown", { specSlugs: ["product"] }],
 ]);
 
 async function startWorld() {
   const root = await createTempRepo();
   await writeStagedCorpus(root, REPOSITORY_ROOT);
-  await prepareEvidenceFixtures(root);
+  await prepareQueryFixtures(root);
   const outsideRoot = path.join(path.dirname(root), path.basename(root) + "-outside");
   await mkdir(outsideRoot, { recursive: true });
   await writeFile(path.join(outsideRoot, "secret.md"), "outside secret", "utf8");
   await writeFile(path.join(outsideRoot, "secret.bin"), Buffer.from("outside-bytes", "utf8"));
-  await mkdir(path.join(root, ".omp-spec-kit", "evidence"), { recursive: true });
-  await symlink(outsideRoot, path.join(root, ".omp-spec-kit", "evidence", "outside-link"), "junction");
+  await mkdir(path.join(root, ".omp-spec-kit", "containment"), { recursive: true });
+  await symlink(outsideRoot, path.join(root, ".omp-spec-kit", "containment", "outside-link"), "junction");
   return { root, outsideRoot, server: spawnMcpServer({ serverPath: SERVER_PATH, root, cwd: root, env: {} }) };
 }
 
@@ -73,9 +72,9 @@ When("the registry and every handler are called", { timeout: 30000 }, async func
   }
 });
 
-Then(/the registry has exactly (?:10|11) names and every call has a bounded envelope/, function () {
-  assert.equal(this.stagedMcp.listedNames.length, 10);
-  assert.equal(new Set(this.stagedMcp.listedNames).size, 10);
+Then("the registry has exactly 9 names and every call has a bounded envelope", function () {
+  assert.equal(this.stagedMcp.listedNames.length, 9);
+  assert.equal(new Set(this.stagedMcp.listedNames).size, 9);
   for (const name of ALL_TOOL_NAMES) assert.ok(this.stagedMcp.listedNames.includes(name), `${name} must remain registered`);
   assert.equal(this.stagedMcp.results.length, READ_COMPLETE_CALLS.length);
   for (const { name, response } of this.stagedMcp.results) {
@@ -241,36 +240,6 @@ Then("aliases work, unknown fields fail, and removed tools stay unknown", functi
   }
 });
 
-When("an incomplete evidence stream is queried", { timeout: 30000 }, async function () {
-  await this.stagedMcp.server.close();
-  await mkdir(path.join(this.stagedMcp.root, ".omp-spec-kit", "evidence"), { recursive: true });
-  const frames = [
-    { pickle: { id: "bdd-pickle", tags: [{ name: "@id:SCEN-specification-only-init" }] } },
-    { testCase: { id: "bdd-case", pickleId: "bdd-pickle", testSteps: [{ id: "bdd-step" }] } },
-    { testCaseStarted: { id: "bdd-start", testCaseId: "bdd-case" } },
-    { testCaseFinished: { testCaseStartedId: "bdd-start" } },
-  ];
-  await writeFile(path.join(this.stagedMcp.root, ".omp-spec-kit", "evidence", "last-test-run.ndjson"), frames.map((frame) => JSON.stringify(frame)).join("\n") + "\n");
-  this.stagedMcp.server = spawnMcpServer({
-    serverPath: SERVER_PATH,
-    root: this.stagedMcp.root,
-    cwd: this.stagedMcp.root,
-    env: {},
-  });
-  const result = await this.stagedMcp.server.request("tools/call", {
-    name: "spec_evidence",
-    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "bdd-incomplete-evidence", view: "result", scenarioId: "product:SCEN-specification-only-init" },
-  });
-  this.stagedMcp.evidenceResult = result.result.structuredContent;
-});
-
-Then("the evidence result is unknown and stale", function () {
-  assert.equal(this.stagedMcp.evidenceResult.ok, true, JSON.stringify(this.stagedMcp.evidenceResult));
-  assert.equal(this.stagedMcp.evidenceResult.data.result, "UNKNOWN");
-  assert.equal(this.stagedMcp.evidenceResult.data.stale, true);
-  assert.equal(this.stagedMcp.evidenceResult.data.traceStatus, "missing");
-});
-
 When("a new specification is created and archived through the spec patch door", { timeout: 30000 }, async function () {
   const firstAttempt = await this.stagedMcp.server.request("tools/call", {
     name: "spec_patch",
@@ -329,11 +298,11 @@ When("the staged OMP extension registry is inspected", { timeout: 30000 }, async
   this.stagedMcp.mcpTools = listed.result.tools;
 });
 
-Then("spec patch is marked as mutating and 9 tools remain read-only", function () {
+Then("spec patch is marked as mutating and 8 tools remain read-only", function () {
   assert.equal(this.stagedMcp.extensionProbe.tools.length, 0, "extension must register 0 direct tools in MCP-only architecture");
   assert.ok(this.stagedMcp.extensionProbe.registeredEvents?.includes("tool_call"), "extension must register tool_call hook");
   const tools = new Map(this.stagedMcp.mcpTools.map((tool) => [tool.name, tool]));
-  assert.equal(tools.size, 10, "MCP server must expose the single 10-tool surface");
+  assert.equal(tools.size, 9, "MCP server must expose the single 9-tool surface");
   assert.equal(tools.get("spec_patch")?.annotations?.readOnlyHint, false);
   assert.equal(tools.get("spec_catalog")?.annotations?.readOnlyHint, true);
 });
@@ -343,8 +312,7 @@ async function runToolE2EPhase(world, phase) {
   world.server = spawnMcpServer({ serverPath: SERVER_PATH, root: world.root, cwd: world.root, env: {} });
   const initialized = await world.server.request("initialize", { protocolVersion: "2025-03-26" });
   assert.equal(initialized.result.serverInfo.name, "omp-spec-kit");
-  return runEvidenceE2E({
-    listTools: () => world.server.request("tools/list"),
+  return runQueryE2E({
     callTool: (name, args) => world.server.request("tools/call", { name, arguments: args }),
     projectRoot: world.root,
     repositoryRoot: REPOSITORY_ROOT,
@@ -372,7 +340,7 @@ When("the tool inventory matrix is exercised", { timeout: 30000 }, async functio
   this.toolE2E = listed.result.tools.map((tool) => tool.name);
 });
 
-Then("the inventory contains the exact 10-tool surface", async function () {
+Then("the inventory contains the exact 9-tool surface", async function () {
   await runToolE2E({
     listTools: () => this.stagedMcp.server.request("tools/list"),
     callTool: (name, args) => this.stagedMcp.server.request("tools/call", { name, arguments: args }),
@@ -403,7 +371,7 @@ When("the mutation and freshness matrix is exercised", { timeout: 60000 }, async
   this.toolE2E = await runToolE2EPhase(this.stagedMcp, "mutation");
 });
 
-Then("every evidence and corpus mutation is detected", function () {
+Then("a stale corpus cursor is rejected", function () {
   assert.equal(this.toolE2E, undefined);
 });
 
@@ -460,11 +428,12 @@ Then("stale cursor, conflict, and target indeterminate recoveries are bounded an
 
 After({ tags: "@staged-mcp" }, async function () {
   if (this.stagedMcp?.server) await this.stagedMcp.server.close();
-  if (this.stagedMcp?.root) await rm(this.stagedMcp.root, { recursive: true, force: true });
-  if (this.stagedMcp?.outsideRoot) await rm(this.stagedMcp.outsideRoot, { recursive: true, force: true });
+  if (this.stagedMcp?.root) await removeTempRepo(this.stagedMcp.root);
+  if (this.stagedMcp?.outsideRoot) await removeTempRepo(this.stagedMcp.outsideRoot);
+  if (this.stagedMcp?.outside) await removeTempRepo(this.stagedMcp.outside);
 });
 
-When("the additive registry, evidence states, and safe authoring are exercised", { timeout: 60000 }, async function () {
+When("the registry and safe authoring are exercised", { timeout: 60000 }, async function () {
   await this.stagedMcp.server.close();
   this.stagedMcp.server = spawnMcpServer({
     serverPath: SERVER_PATH,
@@ -476,36 +445,6 @@ When("the additive registry, evidence states, and safe authoring are exercised",
   assert.equal(initialized.result.serverInfo.name, "omp-spec-kit");
   const listed = await this.stagedMcp.server.request("tools/list");
   this.stagedMcp.v05Names = listed.result.tools.map((tool) => tool.name);
-  const projectRoot = this.stagedMcp.root;
-  const evidenceDir = path.join(projectRoot, ".omp-spec-kit", "evidence");
-  const evidencePath = path.join(evidenceDir, "last-test-run.ndjson");
-  const fixture = await captureProductEvidence({ projectRoot, repositoryRoot: REPOSITORY_ROOT });
-  await writeFile(evidencePath, fixture);
-  const evidenceRequest = (view, requestId) => this.stagedMcp.server.request("tools/call", {
-    name: "spec_evidence",
-    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId, view, scenarioId: "product:SCEN-specification-only-init" },
-  });
-  const passing = await evidenceRequest("result", "v05-passing");
-  const trace = await evidenceRequest("trace", "v05-trace");
-  await writeFile(evidencePath, await captureProductEvidence({ projectRoot, repositoryRoot: REPOSITORY_ROOT, fail: true }));
-  const failed = await evidenceRequest("result", "v05-failed");
-  await writeFile(evidencePath, incompleteEvidence(fixture));
-  const incomplete = await evidenceRequest("result", "v05-incomplete");
-  const unknownScenario = await this.stagedMcp.server.request("tools/call", {
-    name: "spec_evidence",
-    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "v05-unknown-scenario", view: "result", scenarioId: "product:SCEN-unknown" },
-  });
-  const invalid = await this.stagedMcp.server.request("tools/call", {
-    name: "spec_evidence",
-    arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "v05-invalid", view: "result" },
-  });
-  await writeFile(evidencePath, fixture);
-  const scenarioPath = path.join(this.stagedMcp.root, ".specs", "product", "product-user-stories.feature");
-  const originalScenario = await readFile(scenarioPath, "utf8");
-  const beforeMutation = await evidenceRequest("result", "v05-before-mutation");
-  await writeFile(scenarioPath, originalScenario.replace("Scenario: Specification-only init reports no installable plugin", "Scenario: Specification-only init reports no installable plugin changed"));
-  // Keep the server alive: stale evidence must be rejected without a restart.
-  const afterMutation = await evidenceRequest("result", "v05-after-mutation");
   const changedOverview = await this.stagedMcp.server.request("tools/call", {
     name: "spec_catalog",
     arguments: { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "v05-changed-overview", view: "overview", specSlugs: [] },
@@ -523,26 +462,12 @@ When("the additive registry, evidence states, and safe authoring are exercised",
   const applied = await this.stagedMcp.server.request("tools/call", { name: "spec_patch", arguments: patchArgs });
   const replay = await this.stagedMcp.server.request("tools/call", { name: "spec_patch", arguments: { ...patchArgs, requestId: "v05-replay" } });
   const proposal = applied.result.structuredContent;
-  this.stagedMcp.v05 = { passing, trace, failed, incomplete, unknownScenario, invalid, beforeMutation, afterMutation, proposal, applied, replay };
+  this.stagedMcp.v05 = { proposal, applied, replay };
 });
 
-Then("the surface exposes 10 bounded tools, preserves authoring, and refuses stale evidence", async function () {
+Then("the surface exposes 9 bounded tools and preserves authoring", async function () {
   assert.deepEqual(this.stagedMcp.v05Names, [...ALL_TOOL_NAMES]);
   const result = this.stagedMcp.v05;
-  assert.equal(result.passing.result.structuredContent.data.result, "PASSED");
-  assert.equal(result.passing.result.structuredContent.data.stale, false);
-  assert.equal(result.trace.result.structuredContent.data.trace.status, "bounded");
-  assert.equal(result.failed.result.structuredContent.data.result, "FAILED");
-  assert.equal(result.incomplete.result.structuredContent.data.result, "UNKNOWN");
-  assert.equal(result.unknownScenario.result.structuredContent.ok, false);
-  assert.equal(result.unknownScenario.result.structuredContent.error.code, "SCENARIO_NOT_FOUND");
-  assert.equal(result.invalid.result.structuredContent.ok, false);
-  assert.equal(result.invalid.result.structuredContent.error.code, "INVALID_REQUEST");
-  assert.equal(result.beforeMutation.result.structuredContent.data.result, "PASSED");
-  assert.equal(result.afterMutation.result.structuredContent.data.result, "UNKNOWN");
-  assert.equal(result.afterMutation.result.structuredContent.data.stale, true);
-  assert.ok(result.beforeMutation.result.structuredContent.data.evidenceBinding.graphFingerprint);
-  assert.equal(result.afterMutation.result.structuredContent.data.evidenceBinding, null);
   assert.equal(result.proposal.ok, true, JSON.stringify(result.proposal));
   assert.equal(result.applied.result.structuredContent.ok, true, JSON.stringify(result.applied));
   assert.equal(result.replay.result.structuredContent.ok, true, JSON.stringify(result.replay));
@@ -629,6 +554,9 @@ When("all consolidated branches and all 15 spec patch intents are exercised", { 
   const roadmapSpecDir = path.join(root, "." + "specs", "roadmap-e2e");
   await mkdir(roadmapSpecDir, { recursive: true });
   await writeFile(path.join(roadmapSpecDir, "README.md"), "# Roadmap E2E\n\nProfile: roadmap\n", "utf8");
+  for (const kind of ["user-stories", "use-cases"]) {
+    await writeFile(path.join(roadmapSpecDir, `roadmap-e2e-${kind}.feature`), `Feature: Roadmap E2E ${kind}\n`, "utf8");
+  }
   await writeFile(path.join(roadmapSpecDir, "FR.md"), "# FR\n\n## FR-1: Roadmap E2E FR\n\nBody.\n\nImplements: product:FR-1\n", "utf8");
   await writeFile(path.join(roadmapSpecDir, "TASKS.md"), "# Tasks\n\n## TASK-1: Roadmap E2E Task\n- **Status:** todo\n\nImplements: product:FR-1\n", "utf8");
 
@@ -667,6 +595,12 @@ When("all consolidated branches and all 15 spec patch intents are exercised", { 
     ["spec_documents", { action: "list", spec: "product" }, "documents", "spec-documents"],
     ["spec_documents", { action: "read", spec: "product", doc: "FR.md", limit: 5 }, "documents", "document"],
     ["spec_documents", { action: "attachment", spec: "product", path: "tool-e2e.bin" }, "documents", "attachment"],
+    // The glossary belongs to a registered project and is served by the hosted
+    // transport. On this local corpus server all three actions must refuse with
+    // the declared code instead of pretending the file is missing.
+    ["spec_documents", { action: "glossaryStatus" }, "documents", null, "GLOSSARY_PROJECT_REQUIRED"],
+    ["spec_documents", { action: "glossaryRead" }, "documents", null, "GLOSSARY_PROJECT_REQUIRED"],
+    ["spec_documents", { action: "glossarySearch", query: "пул" }, "documents", null, "GLOSSARY_PROJECT_REQUIRED"],
 
     // 5. spec_inspect
     ["spec_inspect", { check: "scenariosByTags", tags: ["@feature1"] }, "inspect", "scenarios"],
@@ -680,9 +614,6 @@ When("all consolidated branches and all 15 spec patch intents are exercised", { 
     // 6. spec_tasks
     ["spec_tasks", { spec: "product", limit: 5 }, "tasks", "tasks"],
 
-    // 7. spec_evidence
-    ["spec_evidence", { view: "result", scenarioId: "product:SCEN-specification-only-init" }, "evidence", "test-result"],
-    ["spec_evidence", { view: "trace", scenarioId: "product:SCEN-specification-only-init" }, "evidence", "scenario-trace"],
 
     // 8. spec_markdown
     ["spec_markdown", { specSlugs: ["product"] }, "markdown", "markdownInventory"],
@@ -768,6 +699,9 @@ When("assembleRoadmap is applied and re-run as dryRun", { timeout: 30000 }, asyn
   // Implements: references so the assembler can derive scope.
   const roadmapDir = path.join(root, "." + "specs", "roadmap-e2e");
   await mkdir(roadmapDir, { recursive: true });
+  for (const kind of ["user-stories", "use-cases"]) {
+    await writeFile(path.join(roadmapDir, `roadmap-e2e-${kind}.feature`), `Feature: Roadmap E2E ${kind}\n`, "utf8");
+  }
   await writeFile(path.join(roadmapDir, "ROADMAP.md"), "# Roadmap E2E\n\n<!-- roadmap:auto:start -->\n<!-- roadmap:auto:end -->\n", "utf8");
   await writeFile(path.join(roadmapDir, "FR.md"), "# FR\n\n## FR-1: Roadmap E2E FR\n\nBody.\n\nImplements: product:FR-1\n", "utf8");
   await writeFile(path.join(roadmapDir, "TASKS.md"), "# Tasks\n\n## TASK-1: Roadmap E2E Task\n- **Status:** todo\n\nImplements: product:FR-1\n", "utf8");

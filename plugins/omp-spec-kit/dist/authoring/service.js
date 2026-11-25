@@ -5,8 +5,14 @@ import { ProposalCompiler, publicOperationKind } from "./proposals.js";
 import {
   canonicalJson,
   commitDocuments,
+  MIGRATION_RECEIPT_SCHEMA,
+  migrationReceiptChanges,
+  migrationReceiptGenerationValid,
+  readMigrationReceipt,
   readDocumentBytes,
+  requestIdWithinBounds,
   sha256,
+  specificationDirectoryDigest,
   withWriteLock,
 } from "./transactions.js";
 import {
@@ -24,7 +30,7 @@ const ADMISSION_REFUSAL_CODES = new Set(Object.keys(READINESS_REFUSALS));
 
 
 function compileRefusalCode(code) {
-  return code === "CONFLICT" || code === "DESIGN_REVIEW_REQUIRED" || code === "DESIGN_REVIEW_INVALID";
+  return code === "CONFLICT";
 }
 
 function validateActorRef(actorRef) {
@@ -39,6 +45,30 @@ function validateActorRef(actorRef) {
     return { ok: false, message: "actorRef resembles a secret credential" };
   }
   return { ok: true };
+}
+
+function appliedMigrationResponse(saved, input) {
+  return {
+    ok: true,
+    data: {
+      schemaVersion: "spec-mcp-operations-patch@1",
+      requestId: saved.requestId,
+      dryRun: false,
+      proposalHash: saved.proposalHash,
+      outcome: "APPLIED",
+      receipt: {
+        schemaVersion: "spec-mcp-operations-receipt@1",
+        requestId: saved.requestId,
+        proposalHash: saved.proposalHash,
+        outcome: "APPLIED",
+        reason: input.reason,
+        ...(input.actorRef ? { actorRef: input.actorRef } : {}),
+        changedDocuments: saved.changedDocuments,
+        migration: saved.migration,
+        findings: [],
+      },
+    },
+  };
 }
 
 export class SpecPatchService {
@@ -82,7 +112,7 @@ export class SpecPatchService {
     }
   }
 
-  async execute(input = {}, context = {}) {
+  async execute(input = {}, context = {}, internal = {}) {
     const requestId = input.requestId;
     if (input.intent === "approveBddCoverage" && context.coverageOwner !== true) {
       return error("BDD_COVERAGE_PROTECTED", "Approval requires the hosted project owner");
@@ -103,7 +133,10 @@ export class SpecPatchService {
     }
 
     const dryRun = input.dryRun ?? true;
-    const requestKey = canonicalJson({ ...input, intent: input.intent ?? "patch", dryRun: false });
+    const requestKey = canonicalJson({
+      input: { ...input, intent: input.intent ?? "patch", dryRun: false },
+      ...(input.intent === "migrateSpec" ? { migrationScope: context.migrationScope ?? null } : {}),
+    });
 
     const refusal = (code, message, findings = [], proposalHash = "", details = {}) => {
       this.auditRefusal(code, input, details);
@@ -132,9 +165,47 @@ export class SpecPatchService {
         return refusal("PATH_FORBIDDEN", "untrusted caller cannot mutate specifications");
       }
 
-      // Replay detection using canonical request key before compile
+      const localMigration = input.intent === "migrateSpec" && context.hostedCoverage !== true;
+      if (localMigration && !requestIdWithinBounds(requestId)) return error("INVALID_REQUEST", "requestId must be a bounded non-empty string");
+
+      // A migration receipt is durable on local roots. Its read, any stale
+      // journal recovery, and a new migration all run under one write lock.
+      if (localMigration && !internal.migrationLockHeld) {
+        try {
+          return await withWriteLock(this.root, requestId, async () => {
+            const saved = await readMigrationReceipt(this.root, requestId);
+            if (saved) {
+              if (saved.requestKeyHash !== sha256(requestKey) || saved.spec !== input.spec ||
+                  saved.snapshot !== input.snapshot || saved.proposalHash !== input.expectedProposalHash ||
+                  saved.migration.sourceHash !== sha256(canonicalJson(input.mapping)) ||
+                  canonicalJson(saved.migration.scope ?? null) !== canonicalJson(context.migrationScope ?? null)) {
+                return refusal("CONFLICT", `requestId ${requestId} already used with different payload`);
+              }
+              if (!(await migrationReceiptGenerationValid(this.root, saved))) {
+                return refusal("CONFLICT", "migration was recorded, but its current generation has changed; reconcile before retrying");
+              }
+              return appliedMigrationResponse(saved, input);
+            }
+            return this.execute(input, context, { migrationLockHeld: true });
+          });
+        } catch (caught) {
+          return refusal(safeErrorCode(caught?.code ?? "INTERNAL_ERROR"), caught?.message || "migration recovery was refused");
+        }
+      }
+
+      // Existing migration request IDs must not become ordinary patch IDs
+      // after a process restart. Recheck once more under the commit lock below.
+      if (!localMigration && context.hostedCoverage !== true && requestIdWithinBounds(requestId)) {
+        try {
+          if (await readMigrationReceipt(this.root, requestId)) return refusal("CONFLICT", `requestId ${requestId} already used for a migration`);
+        } catch (caught) {
+          return refusal(safeErrorCode(caught?.code ?? "INTERNAL_ERROR"), caught?.message || "migration receipt could not be checked");
+        }
+      }
+
+      // Replay detection using canonical request key before compile.
       const prior = this.applied.get(requestId);
-      if (prior) {
+      if (prior && !localMigration) {
         if (prior.requestKey === requestKey) {
           return prior.response;
         }
@@ -185,17 +256,29 @@ export class SpecPatchService {
             diff: change.preview.unifiedDiff,
           })),
           findings: proposal.findings ?? [],
-          ...(proposal.designReview ? { designReview: proposal.designReview } : {}),
           ...(proposal.archive ? { archive: { ...proposal.archive } } : {}),
+          ...(proposal.migration ? { migration: proposal.migration } : {}),
         },
       };
     }
 
     // Mode 2: dryRun: false transactional commit
     const proposalHash = proposal.proposalHash;
+    if (proposal.kind === "migration" && input.expectedProposalHash !== proposalHash) {
+      return refusal("CONFLICT", "Preview migration and pass its exact proposalHash as expectedProposalHash", [], proposalHash);
+    }
 
     try {
-      const result = await withWriteLock(this.root, requestId, async () => {
+      const commit = async () => {
+        if (context.hostedCoverage !== true && proposal.kind !== "migration" && await readMigrationReceipt(this.root, requestId)) {
+          return refusal("CONFLICT", `requestId ${requestId} already used for a migration`);
+        }
+        if (proposal.kind === "migration") {
+          const current = await specificationDirectoryDigest(this.root, proposal.spec);
+          if (!current.ok || current.digest !== proposal.migration.snapshot) {
+            return refusal("CONFLICT", "specification snapshot changed after migration preview", [], proposalHash);
+          }
+        }
         // Under write lock, verify graph fingerprint hasn't changed
         const freshGraph = typeof this.refreshGraph === "function" ? await this.refreshGraph() : await this.getGraph();
         if (freshGraph.fingerprint !== proposal.baseSnapshotSha256) {
@@ -204,7 +287,7 @@ export class SpecPatchService {
 
         // Under write lock, verify each document preimage hash
         for (const change of proposal.changes) {
-          const current = await readDocumentBytes(this.root, proposal.spec, change.document);
+          const current = await readDocumentBytes(this.root, proposal.spec, change.document, { allowLegacy: change.migrationLegacy === true });
           const currentHash = current.ok ? current.sha256 : sha256(Buffer.alloc(0));
           if (currentHash !== change.preview.beforeSha256) {
             return refusal("CONFLICT", "a targeted document changed after proposal creation", [], proposalHash);
@@ -244,9 +327,6 @@ export class SpecPatchService {
           }));
         }
 
-        await commitDocuments(this.root, requestId, changesToApply, this.options);
-        if (typeof this.refreshGraph === "function") await this.refreshGraph();
-
         const receipt = {
           schemaVersion: "spec-mcp-operations-receipt@1",
           requestId,
@@ -260,9 +340,27 @@ export class SpecPatchService {
             afterSha256: change.preview.afterSha256,
           })),
           ...(proposal.archive ? { archive: { ...proposal.archive } } : {}),
-          ...(proposal.designReview ? { designReview: proposal.designReview } : {}),
+          ...(proposal.migration ? { migration: { snapshot: proposal.migration.snapshot, scope: proposal.migration.scope, sourceHash: proposal.migration.summary.sourceHash } } : {}),
           findings: [],
         };
+
+        const durableMigrationReceipt = proposal.kind === "migration" && context.hostedCoverage !== true ? {
+          schema: MIGRATION_RECEIPT_SCHEMA,
+          requestId,
+          requestKeyHash: sha256(requestKey),
+          spec: proposal.spec,
+          snapshot: proposal.migration.snapshot,
+          proposalHash,
+          changes: migrationReceiptChanges(changesToApply),
+          changedDocuments: receipt.changedDocuments,
+          migration: receipt.migration,
+        } : null;
+
+        await commitDocuments(this.root, requestId, changesToApply, {
+          ...this.options,
+          ...(durableMigrationReceipt ? { durableMigrationReceipt } : {}),
+        });
+        if (typeof this.refreshGraph === "function") await this.refreshGraph();
 
         return {
           ok: true,
@@ -275,7 +373,8 @@ export class SpecPatchService {
             receipt,
           },
         };
-      });
+      };
+      const result = internal.migrationLockHeld ? await commit() : await withWriteLock(this.root, requestId, commit);
 
       if (result.ok && result.data?.outcome === "APPLIED") {
         this.applied.set(requestId, { requestKey, response: result });

@@ -128,14 +128,11 @@ describe("OpenCode spec guard", () => {
     await assert.rejects(call(guard(), "spec_patch", { spec: "foo" }), /UNREGISTERED_AUTHORING_CALL/u);
   });
 
-  it("requires a design review for a scenario-authoring patch", async () => {
+  it("allows a scenario-authoring patch", async () => {
     const operations = [
       { kind: "replace_document", document: "foo-user-stories.feature", content: SCENARIO_FEATURE.replace("the result is visible", "the updated result is visible") },
     ];
-    await assert.rejects(
-      call(guard(), "spec-registry_spec_patch", { spec: "foo", intent: "patch", operations }),
-      /DESIGN_REVIEW_REQUIRED/u,
-    );
+    await call(guard(), "spec-registry_spec_patch", { spec: "foo", intent: "patch", operations });
   });
 
   it("refuses to start when the registry transport is local", () => {

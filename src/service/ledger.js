@@ -1,4 +1,5 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
 import path from "node:path";
 
 /**
@@ -25,6 +26,32 @@ CREATE TABLE IF NOT EXISTS ledger (
   published_at TEXT,
   PRIMARY KEY (spec_key, version)
 );
+CREATE TABLE IF NOT EXISTS publication_reservations (
+  spec_key TEXT NOT NULL,
+  version TEXT NOT NULL,
+  token TEXT NOT NULL,
+  request_hash TEXT NOT NULL,
+  commit_sha TEXT NOT NULL,
+  tag_object TEXT NOT NULL,
+  digest TEXT NOT NULL,
+  expected_head TEXT NOT NULL,
+  repo_url TEXT NOT NULL,
+  repo_branch TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (spec_key, version)
+);
+CREATE TRIGGER IF NOT EXISTS ledger_reservation_insert_guard
+BEFORE INSERT ON ledger
+WHEN EXISTS (SELECT 1 FROM publication_reservations WHERE spec_key = NEW.spec_key AND version = NEW.version)
+BEGIN
+  SELECT RAISE(ABORT, 'PUBLICATION_RESERVED');
+END;
+CREATE TRIGGER IF NOT EXISTS ledger_reservation_update_guard
+BEFORE UPDATE ON ledger
+WHEN EXISTS (SELECT 1 FROM publication_reservations WHERE (spec_key = NEW.spec_key AND version = NEW.version) OR (spec_key = OLD.spec_key AND version = OLD.version))
+BEGIN
+  SELECT RAISE(ABORT, 'PUBLICATION_RESERVED');
+END;
 CREATE TABLE IF NOT EXISTS access_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ts TEXT,
@@ -101,6 +128,8 @@ function migrateLedger(db) {
   const columns = new Set(db.prepare("PRAGMA table_info(ledger)").all().map((row) => row.name));
   if (!columns.has("repo_url")) db.exec("ALTER TABLE ledger ADD COLUMN repo_url TEXT");
   if (!columns.has("repo_branch")) db.exec("ALTER TABLE ledger ADD COLUMN repo_branch TEXT");
+  const reservationColumns = new Set(db.prepare("PRAGMA table_info(publication_reservations)").all().map((row) => row.name));
+  if (!reservationColumns.has("tag_object")) db.exec("ALTER TABLE publication_reservations ADD COLUMN tag_object TEXT");
   const bindingColumns = new Set(db.prepare("PRAGMA table_info(repo_bindings)").all().map((row) => row.name));
   if (!bindingColumns.has("migrated_from_branch")) db.exec("ALTER TABLE repo_bindings ADD COLUMN migrated_from_branch TEXT");
   const credentialColumns = new Set(db.prepare("PRAGMA table_info(repo_credentials)").all().map((row) => row.name));
@@ -115,8 +144,9 @@ function migrateLedger(db) {
 }
 
 class SqliteStore {
-  constructor(db) {
+  constructor(db, file) {
     this.db = db;
+    this.file = file;
     this.driver = "sqlite";
   }
 
@@ -125,7 +155,7 @@ class SqliteStore {
     const db = new DatabaseSync(file);
     db.exec(SCHEMA_SQL);
     migrateLedger(db);
-    return new SqliteStore(db);
+    return new SqliteStore(db, file);
   }
 
   getClaim(key) {
@@ -150,10 +180,11 @@ class SqliteStore {
   }
 
   appendLedger(entry) {
-    this.db.prepare(
-      "INSERT INTO ledger (spec_key, version, digest, commit_sha, published_at, repo_url, repo_branch) VALUES (?, ?, ?, ?, ?, ?, ?) " +
+    const info = this.db.prepare(
+      "INSERT INTO ledger (spec_key, version, digest, commit_sha, published_at, repo_url, repo_branch) SELECT ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM publication_reservations WHERE spec_key = ? AND version = ?) " +
       "ON CONFLICT(spec_key, version) DO UPDATE SET digest = excluded.digest, commit_sha = excluded.commit_sha, published_at = excluded.published_at, repo_url = excluded.repo_url, repo_branch = excluded.repo_branch",
-    ).run(entry.specKey, entry.version, entry.digest, entry.commitSha ?? null, entry.publishedAt ?? new Date().toISOString(), entry.repoUrl ?? null, entry.repoBranch ?? null);
+    ).run(entry.specKey, entry.version, entry.digest, entry.commitSha ?? null, entry.publishedAt ?? new Date().toISOString(), entry.repoUrl ?? null, entry.repoBranch ?? null, entry.specKey, entry.version);
+    if (Number(info.changes) !== 1) throw Object.assign(new Error("publication version is reserved"), { code: "PUBLICATION_RESERVED" });
   }
 
   /**
@@ -163,15 +194,78 @@ class SqliteStore {
    */
   insertLedgerIfAbsent(entry) {
     const info = this.db.prepare(
-      "INSERT INTO ledger (spec_key, version, digest, commit_sha, published_at, repo_url, repo_branch) VALUES (?, ?, ?, ?, ?, ?, ?) " +
+      "INSERT INTO ledger (spec_key, version, digest, commit_sha, published_at, repo_url, repo_branch) SELECT ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM publication_reservations WHERE spec_key = ? AND version = ?) " +
       "ON CONFLICT(spec_key, version) DO NOTHING",
-    ).run(entry.specKey, entry.version, entry.digest, entry.commitSha ?? null, entry.publishedAt ?? new Date().toISOString(), entry.repoUrl ?? null, entry.repoBranch ?? null);
+    ).run(entry.specKey, entry.version, entry.digest, entry.commitSha ?? null, entry.publishedAt ?? new Date().toISOString(), entry.repoUrl ?? null, entry.repoBranch ?? null, entry.specKey, entry.version);
     return Number(info.changes) === 1;
   }
 
   getLedger(specKey) {
     return this.db.prepare("SELECT spec_key, version, digest, commit_sha, published_at, repo_url, repo_branch FROM ledger WHERE spec_key = ? ORDER BY published_at DESC").all(specKey)
       .map((row) => ({ specKey: row.spec_key, version: row.version, digest: row.digest, commitSha: row.commit_sha, publishedAt: row.published_at, repoUrl: row.repo_url, repoBranch: row.repo_branch }));
+  }
+
+  getPublicationReservation(specKey, version) {
+    const row = this.db.prepare("SELECT * FROM publication_reservations WHERE spec_key = ? AND version = ?").get(specKey, version);
+    return row ? { specKey: row.spec_key, version: row.version, token: row.token, requestHash: row.request_hash, commitSha: row.commit_sha, tagObject: row.tag_object, digest: row.digest, expectedHead: row.expected_head, repoUrl: row.repo_url, repoBranch: row.repo_branch, createdAt: row.created_at } : null;
+  }
+
+  findPublicationReservation(specKey, requestHash) {
+    const rows = this.db.prepare("SELECT version FROM publication_reservations WHERE spec_key = ? AND request_hash = ?").all(specKey, requestHash);
+    return rows.length === 1 ? this.getPublicationReservation(specKey, rows[0].version) : null;
+  }
+
+  /** Short durable reservation; no database lock is held while Git runs. */
+  async beginPublicationReservation(specKey, version, metadata) {
+    if (!metadata || ["requestHash", "commitSha", "tagObject", "digest", "expectedHead", "repoUrl", "repoBranch"].some((key) => typeof metadata[key] !== "string" || !metadata[key])) throw new Error("publication reservation metadata is incomplete");
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const rows = this.getLedger(specKey);
+      if (rows.some((row) => row.version === version)) {
+        this.db.exec("ROLLBACK");
+        return { ok: false, code: "VERSION_EXISTS" };
+      }
+      let current = this.getPublicationReservation(specKey, version);
+      const reused = current !== null;
+      if (current && ["requestHash", "commitSha", "tagObject", "digest", "expectedHead", "repoUrl", "repoBranch"].some((key) => current[key] !== metadata[key])) {
+        this.db.exec("ROLLBACK");
+        return { ok: false, code: "PUBLICATION_RESERVED" };
+      }
+      if (!current) {
+        const token = randomBytes(24).toString("hex");
+        this.db.prepare("INSERT INTO publication_reservations (spec_key, version, token, request_hash, commit_sha, tag_object, digest, expected_head, repo_url, repo_branch, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+          .run(specKey, version, token, metadata.requestHash, metadata.commitSha, metadata.tagObject, metadata.digest, metadata.expectedHead, metadata.repoUrl, metadata.repoBranch, new Date().toISOString());
+        current = this.getPublicationReservation(specKey, version);
+      }
+      this.db.exec("COMMIT");
+      return {
+        ok: true, rows, reused, token: current.token, commit: (entry) => this.completePublicationReservation(specKey, version, current.token, entry),
+        rollback: () => this.releasePublicationReservation(specKey, version, current.token),
+      };
+    } catch (error) {
+      try { this.db.exec("ROLLBACK"); } catch {}
+      throw error;
+    }
+  }
+
+  completePublicationReservation(specKey, version, token, entry) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const current = this.getPublicationReservation(specKey, version);
+      if (!current || current.token !== token || current.digest !== entry.digest || current.commitSha !== entry.commitSha || current.repoUrl !== entry.repoUrl || current.repoBranch !== entry.repoBranch) throw new Error("publication reservation does not match the confirmed Git result");
+      const removed = this.db.prepare("DELETE FROM publication_reservations WHERE spec_key = ? AND version = ? AND token = ?").run(specKey, version, token);
+      if (Number(removed.changes) !== 1) throw new Error("publication reservation disappeared during commit");
+      this.db.prepare("INSERT INTO ledger (spec_key, version, digest, commit_sha, published_at, repo_url, repo_branch) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .run(specKey, version, entry.digest, entry.commitSha, entry.publishedAt ?? new Date().toISOString(), entry.repoUrl, entry.repoBranch);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      try { this.db.exec("ROLLBACK"); } catch {}
+      throw error;
+    }
+  }
+
+  releasePublicationReservation(specKey, version, token) {
+    return Number(this.db.prepare("DELETE FROM publication_reservations WHERE spec_key = ? AND version = ? AND token = ?").run(specKey, version, token).changes) === 1;
   }
 
   putBinding(binding) {

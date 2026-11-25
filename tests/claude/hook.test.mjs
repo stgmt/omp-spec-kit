@@ -239,37 +239,14 @@ describe("PreToolUse hook allows ordinary work", () => {
 });
 
 describe("PreToolUse hook gates spec_patch", () => {
-  it("blocks a scenario-bearing .feature patch without designReview", () => {
-    const operations = [{ kind: "replace_document", document: "foo-user-stories.feature", content: SCENARIO_FEATURE.replace("the result is visible", "the updated result is visible") }];
-    const result = runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", operations, dryRun: true }));
-    assertBlocked(result, /DESIGN_REVIEW_REQUIRED/u);
+  it("allows scenario authoring through spec_patch", () => {
+    const operations = [{ kind: "replace_document", document: "foo-user-stories.feature", content: SCENARIO_FEATURE }];
+    assertAllowedWithProject(runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", operations })), "stgmt/alpha", { spec: "foo" });
   });
-
-  it("blocks archiveSpec of a spec with a scenario feature, resolving the root from CLAUDE_PROJECT_DIR", () => {
-    const outside = mkdtempSync(path.join(tmpdir(), "omp-spec-kit-hook-cwd-"));
-    try {
-      const result = runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", intent: "archiveSpec" }, outside), { cwd: outside });
-      assertBlocked(result, /DESIGN_REVIEW_REQUIRED/u);
-    } finally {
-      rmSync(outside, { recursive: true, force: true });
-    }
-  });
-
-  it("allows the same patch once designReview is attached", () => {
-    const operations = [{ kind: "replace_document", document: "foo-user-stories.feature", content: SCENARIO_FEATURE.replace("the result is visible", "the updated result is visible") }];
-    const designReview = { schema: "omp-spec-kit/design-review@1" };
-    assertAllowedWithProject(
-      runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", operations, designReview })),
-      "stgmt/alpha",
-      { spec: "foo" },
-    );
-  });
-
   it("leaves an explicit per-call project untouched", () => {
     const operations = [{ kind: "replace_document", document: "foo-user-stories.feature", content: SCENARIO_FEATURE.replace("the result is visible", "the updated result is visible") }];
-    const designReview = { schema: "omp-spec-kit/design-review@1" };
     assertAllowed(
-      runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", operations, designReview, project: "acme/gamma" })),
+      runHook(payload(`${OWN_MCP}spec_patch`, { spec: "foo", operations, project: "acme/gamma" })),
     );
   });
 

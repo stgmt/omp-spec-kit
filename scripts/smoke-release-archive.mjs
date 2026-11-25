@@ -29,10 +29,10 @@ let outsideRoot = null;
   await prepareToolE2EFixtures(projectRoot);
   outsideRoot = path.join(path.dirname(projectRoot), path.basename(projectRoot) + "-outside");
   await mkdir(outsideRoot, { recursive: true });
-  await mkdir(path.join(projectRoot, ".omp-spec-kit", "evidence"), { recursive: true });
+  await mkdir(path.join(projectRoot, ".omp-spec-kit", "containment"), { recursive: true });
   await writeFile(path.join(outsideRoot, "secret.md"), "outside secret", "utf8");
   await writeFile(path.join(outsideRoot, "secret.bin"), Buffer.from("outside-bytes", "utf8"));
-  await symlink(outsideRoot, path.join(projectRoot, ".omp-spec-kit", "evidence", "outside-link"), "junction");
+  await symlink(outsideRoot, path.join(projectRoot, ".omp-spec-kit", "containment", "outside-link"), "junction");
 }
 
 function createArchiveClient(command, args, cwd, env) {
@@ -94,7 +94,7 @@ try {
   assert.equal(initialize.error, undefined, JSON.stringify(initialize));
   const listed = await client.send("tools/list", {});
   const toolNames = listed.result.tools.map((tool) => tool.name).sort();
-  assert.deepEqual(toolNames, expectedTools, "the archived server must expose the single 10-tool surface");
+  assert.deepEqual(toolNames, expectedTools, "the archived server must expose the single 9-tool surface");
 
   {
     const listTools = async () => client.send("tools/list", {});
@@ -114,6 +114,6 @@ try {
   console.log(JSON.stringify({ result: "passed", packageVersion: packageManifest.version, toolCount: toolNames.length, toolNames }));
 } finally {
   if (client) await client.close().catch(() => {});
-  if (outsideRoot) await rm(outsideRoot, { recursive: true, force: true });
-  await rm(tempRoot, { recursive: true, force: true, maxRetries: 3 });
+  if (outsideRoot) await rm(outsideRoot, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+  await rm(tempRoot, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
 }

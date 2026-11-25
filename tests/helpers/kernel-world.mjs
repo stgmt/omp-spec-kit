@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -222,7 +222,20 @@ export async function plantDirectoryJunction(linkPath, targetPath) {
 
 export async function removeTempRepo(root) {
   if (root === null) return;
-  await rm(root, { recursive: true, force: true, maxRetries: 3 });
+  if (typeof root !== "string" || !path.isAbsolute(root)) throw new Error("temporary cleanup target must be an absolute path");
+  const tempRoot = await realpath(tmpdir());
+  let target;
+  try {
+    target = await realpath(root);
+  } catch (error) {
+    if (error?.code === "ENOENT") return;
+    throw error;
+  }
+  const relative = path.relative(tempRoot, target);
+  if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new Error("temporary cleanup target must stay inside the operating system temporary directory");
+  }
+  await rm(target, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
 }
 
 export function createKernelState() {

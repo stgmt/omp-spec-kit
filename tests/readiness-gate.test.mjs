@@ -555,6 +555,9 @@ describe("bypass closure", () => {
     // A rename onto a missing TASKS.md is the other route the pre-resolution
     // gate cannot see: there is no before-bytes to compare, so the headings
     // arrive as the after-state of a document that did not exist.
+    // The layout gate refuses writes to a spec that still needs migration, so
+    // the fixture must already carry the canonical Gherkin pair — otherwise
+    // the migration refusal fires first and the bypass gate is never reached.
     const dir = path.join(root, specsDirName, "rename-probe");
     await mkdir(dir, { recursive: true });
     for (const [name, content] of [
@@ -563,7 +566,8 @@ describe("bypass closure", () => {
       ["FR.md", "# Functional requirements\n\n## FR-1 — Something\n\nIt must work.\n"],
       ["ACCEPTANCE_CRITERIA.md", "# Acceptance criteria\n\n## AC-1.1 — FR-1\n\nGiven a caller, when it asks, then it works.\n"],
       ["FIXTURES.md", "# Fixtures\n\n## TASK-98 — Raw fixture\n\n- **Status:** todo\n"],
-      ["rename-probe.feature", "Feature: Rename probe\n"],
+      ["rename-probe-user-stories.feature", "Feature: Rename probe stories\n"],
+      ["rename-probe-use-cases.feature", "Feature: Rename probe cases\n"],
     ]) {
       await writeFile(path.join(dir, name), content);
     }

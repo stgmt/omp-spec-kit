@@ -19,6 +19,7 @@ import {
 import { isValidSpecSlug, makeCanonicalId, splitCanonicalId } from "../identity.js";
 import { canonicalJson } from "../normalize.js";
 import { decodeCursor, encodeCursor } from "./cursor.js";
+import { allSpecSlugs, completenessFor, unindexedEntity } from "./layout.js";
 
 const OPERATION_ARG_FIELDS = {
   inventory: ["specSlugs", "includeDocuments", "limit", "cursor"],
@@ -83,9 +84,7 @@ function indexOf(graph) {
 }
 
 function countSpecs(graph) {
-  const slugs = new Set();
-  for (const row of graph.documents) slugs.add(row.specSlug);
-  return slugs.size;
+  return allSpecSlugs(graph).length;
 }
 
 function specOfPath(path) {
@@ -159,6 +158,7 @@ function graphMeta(graph) {
     schemaVersion: KERNEL_SCHEMA_VERSION,
     fingerprint: graph.fingerprint,
     valid: graph.valid,
+    complete: completenessFor(graph).complete,
     specCount: countSpecs(graph),
     documentCount: graph.counts.discoveredDocuments,
     nodeCount: graph.nodes.length,
@@ -663,13 +663,26 @@ function makePage(args, pagination, dataBytes) {
 // ---- operations ------------------------------------------------------------
 
 export function executeQuery(graph, request, limitsOverride) {
-  const limits = graph.limits ?? limitsOverride;
-  if (!limits) throw new Error("query service requires graph.limits or explicit limits");
+  const baseLimits = graph.limits ?? limitsOverride;
+  if (!baseLimits) throw new Error("query service requires graph.limits or explicit limits");
 
-  const validation = validateRequest(graph, limits, request);
+  const validation = validateRequest(graph, baseLimits, request);
   if (validation.error) return errorEnvelope(graph, request, validation.error);
   const args = validation.args;
   const operation = request.operation;
+  // Edges and traces can cross specification boundaries, so omitted legacy
+  // definitions anywhere in the corpus make their results incomplete.
+  let scope = [];
+  if (Array.isArray(args.specSlugs)) scope = args.specSlugs;
+  else if (operation === "getNode" && !args.includeIncidentCounts) {
+    const identity = splitCanonicalId(args.canonicalId);
+    if (identity) scope = [identity.specSlug];
+  }
+  const completeness = completenessFor(graph, scope);
+  // Pagination must reserve space for the same completeness information on
+  // every page, including when a caller uses a smaller response budget.
+  const metadataBytes = Buffer.byteLength(JSON.stringify({ completeness }), "utf8");
+  const limits = { ...baseLimits, maxResponseBytes: Math.max(1, baseLimits.maxResponseBytes - metadataBytes) };
 
   // Cursor decode errors are reported before identity checks.
   if ("cursor" in args && args.cursor !== null) {
@@ -677,30 +690,33 @@ export function executeQuery(graph, request, limitsOverride) {
     if (probe !== null) return errorEnvelope(graph, request, probe);
   }
 
+  let result;
   switch (operation) {
     case "inventory":
-      return runInventory(graph, request, args, limits);
+      result = runInventory(graph, request, args, limits); break;
     case "getNode":
-      return runGetNode(graph, request, args, limits);
+      result = runGetNode(graph, request, args, limits); break;
     case "findNodes":
-      return runFindNodes(graph, request, args, limits);
+      result = runFindNodes(graph, request, args, limits); break;
     case "getEdges":
-      return runGetEdges(graph, request, args, limits);
+      result = runGetEdges(graph, request, args, limits); break;
     case "trace":
-      return runTrace(graph, request, args, limits);
+      result = runTrace(graph, request, args, limits); break;
     case "diagnostics":
-      return runDiagnostics(graph, request, args, limits);
+      result = runDiagnostics(graph, request, args, limits); break;
     case "overview":
-      return runOverview(graph, request, args, limits);
+      result = runOverview(graph, request, args, limits); break;
     case "markdownInventory":
-      return runMarkdownInventory(graph, request, args, limits);
+      result = runMarkdownInventory(graph, request, args, limits); break;
     case "validation":
-      return runValidation(graph, request, args, limits);
+      result = runValidation(graph, request, args, limits); break;
     case "board":
-      return runBoard(graph, request, args, limits);
+      result = runBoard(graph, request, args, limits); break;
     default:
       return errorEnvelope(graph, request, { code: "UNKNOWN_OPERATION", preGraph: true });
   }
+  if (result.ok && result.data && typeof result.data === "object") result.data.completeness = completeness;
+  return result;
 }
 
 function probeCursor(cursor, limits) {
@@ -710,9 +726,7 @@ function probeCursor(cursor, limits) {
 }
 
 function selectedSpecs(graph, slugFilter) {
-  const all = new Set();
-  for (const row of graph.documents) all.add(row.specSlug);
-  const selected = [...all].filter((slug) => slugFilter.length === 0 || slugFilter.includes(slug));
+  const selected = allSpecSlugs(graph).filter((slug) => slugFilter.length === 0 || slugFilter.includes(slug));
   selected.sort();
   return selected;
 }
@@ -856,7 +870,7 @@ function runBoard(graph, request, args, limits) {
     schemaVersion: "BoardProjectionV1",
     fingerprint: graph.fingerprint,
     scope: { mode: specSlugs.length === 0 ? "corpus" : "specifications", specSlugs: [...selected].sort() },
-    complete: true,
+    complete: completenessFor(graph, [...selected]).complete,
     page: null,
     nodes,
     edges,
@@ -882,9 +896,11 @@ function runInventory(graph, request, args, limits) {
       (ref) => ref.outcome === "UNRESOLVED" && ref.sourceCanonicalId?.startsWith(`${slug}:`),
     );
     const diags = graph.diagnostics.filter((diagnostic) => diagnostic.specSlug === slug);
+    const layout = (graph.specLayouts ?? []).find((entry) => entry.specSlug === slug);
     specs.push({
       specSlug: slug,
-      valid: !diags.some((diagnostic) => diagnostic.severity === "ERROR"),
+      valid: layout?.status === "canonical" && !diags.some((diagnostic) => diagnostic.severity === "ERROR"),
+      layout: layout?.status ?? "incomplete",
       documentCount: documents.length,
       missingCanonicalDocuments: missingCanonicalKinds(slug, acceptedKinds),
       nodeCount: nodes.length,
@@ -956,6 +972,8 @@ function runGetNode(graph, request, args, limits) {
   }
   const node = idx.nodeById.get(args.canonicalId);
   if (!node) {
+    const unknown = unindexedEntity(graph, args.canonicalId);
+    if (unknown) return successEnvelope(graph, request.requestId, "getNode", unknown, null);
     return errorEnvelope(graph, request, { code: "NOT_FOUND", canonicalId: args.canonicalId, message: `no node ${args.canonicalId}` });
   }
   const incoming = idx.inEdges.get(args.canonicalId) ?? [];
@@ -1033,6 +1051,8 @@ function compareStrings(a, b) {
 function runGetEdges(graph, request, args, limits) {
   const idx = indexOf(graph);
   if (!idx.nodeById.has(args.canonicalId)) {
+    const unknown = unindexedEntity(graph, args.canonicalId);
+    if (unknown) return successEnvelope(graph, request.requestId, "getEdges", unknown, null);
     return errorEnvelope(graph, request, { code: "NOT_FOUND", canonicalId: args.canonicalId, message: `no node ${args.canonicalId}` });
   }
   const direction = args.direction;
@@ -1150,6 +1170,8 @@ function runTrace(graph, request, args, limits) {
   const idx = indexOf(graph);
   const startId = args.canonicalId;
   if (!idx.nodeById.has(startId)) {
+    const unknown = unindexedEntity(graph, startId);
+    if (unknown) return successEnvelope(graph, request.requestId, "trace", unknown, null);
     return errorEnvelope(graph, request, { code: "NOT_FOUND", canonicalId: startId, message: `no node ${startId}` });
   }
   const maxDepth = Math.min(args.maxDepth, limits.maxTraceDepth);
@@ -1229,8 +1251,7 @@ function runTrace(graph, request, args, limits) {
 }
 
 function runValidation(graph, request, args, limits) {
-  const knownSlugs = new Set();
-  for (const doc of graph.documents) knownSlugs.add(doc.specSlug);
+  const knownSlugs = new Set(allSpecSlugs(graph));
 
   const rawSlugs = args.specSlugs;
   if (Array.isArray(rawSlugs) && rawSlugs.length > 0) {
@@ -1284,8 +1305,9 @@ function runValidation(graph, request, args, limits) {
     matchedItems.push(diagnostic);
   }
 
-  const valid = errors === 0;
-  const verdict = valid ? "VALID" : "INVALID";
+  const complete = completenessFor(graph, scope.specSlugs).complete;
+  const valid = errors === 0 && complete;
+  const verdict = errors > 0 ? "INVALID" : complete ? "VALID" : "INCOMPLETE";
 
   const binding = { fingerprint: graph.fingerprint, operation: "validation", digest: filterDigest(args) };
   const pagination = paginate(
@@ -1425,6 +1447,13 @@ function runMarkdownInventory(graph, request, args, limits) {
   if (args.mode === "focus") {
     focusHeading = headingRecords.find((heading) => heading.path === args.focusPath && heading.canonicalAnchor === args.focusAnchor);
     if (!focusHeading) {
+      const oldSource = pathInScope(args.focusPath) && (graph.specLayouts ?? []).find((layout) => layout.legacyDocuments.includes(args.focusPath));
+      if (oldSource) {
+        return successEnvelope(graph, request.requestId, "markdownInventory", {
+          kind: "unindexed-legacy-document", path: args.focusPath, anchor: args.focusAnchor,
+          presence: "unknown", reason: "SPEC_LAYOUT_INCOMPLETE", sourceDocuments: [args.focusPath],
+        }, null);
+      }
       return errorEnvelope(graph, request, {
         code: "HEADING_NOT_FOUND",
         path: args.focusPath,

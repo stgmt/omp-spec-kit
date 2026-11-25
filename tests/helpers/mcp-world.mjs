@@ -10,7 +10,7 @@
 // imported in-process here.
 
 import { spawn, spawnSync } from "node:child_process";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
@@ -22,6 +22,7 @@ import {
   loadRealCorpusManifest,
   query,
   readRepositorySpecs,
+  removeTempRepo,
   sha256Hex,
   writeCorpus,
 } from "./kernel-world.mjs";
@@ -336,7 +337,7 @@ export async function runExtensionProbe({ extensionPath, cwd, env = {}, queries 
       timeout: 60000,
     });
   } finally {
-    await rm(probeDir, { recursive: true, force: true, maxRetries: 3 });
+    await removeTempRepo(probeDir);
   }
   if (receipt.error) throw receipt.error;
   if (receipt.signal !== null) throw new Error(`extension probe was terminated by ${receipt.signal}`);
@@ -381,11 +382,11 @@ export function createMcpState() {
         await server.close();
       }
       if (this.tempRoot !== null) {
-        await rm(this.tempRoot, { recursive: true, force: true, maxRetries: 3 });
+        await removeTempRepo(this.tempRoot);
         this.tempRoot = null;
       }
       if (this.provenanceOverrideRoot !== null) {
-        await rm(this.provenanceOverrideRoot, { recursive: true, force: true, maxRetries: 3 });
+        await removeTempRepo(this.provenanceOverrideRoot);
         this.provenanceOverrideRoot = null;
       }
     },

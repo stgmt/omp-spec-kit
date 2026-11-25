@@ -519,35 +519,7 @@ const DEMO_DOCS = Object.freeze({
   "TASKS.md": "# Tasks\n",
 });
 
-const DEMO_REVIEW = Object.freeze({
-  schemaVersion: "omp-spec-kit/design-review@1",
-  decision: "proceed",
-  boundary: {
-    kind: "user-visible-contract",
-    name: "Spec Graph demo board",
-    claim: "an explicit demo load shows every entity kind; a fresh install shows zero demo specs",
-  },
-  evidence: [
-    { kind: "test", reference: "tests/features/app-install-live.feature", observation: "the live app-install journey exercises the installed package and the Spec Service page" },
-    { kind: "source", reference: "skills/spec-stack-setup/template/roadmap-demo/README.md", observation: "the demo template is marked Demo: true and is loaded only by the demo contour" },
-    { kind: "documentation", reference: "skills/spec-stack-setup/SKILL.md", observation: "--no-demo is the fresh-install path and seeds no specifications" },
-  ],
-  alternatives: [
-    { option: "auto-seed the demo in every install", reasonRejected: "a fresh install must have zero valid specs in the dashboard" },
-    { option: "hide the demo behind a separate app", reasonRejected: "the demo is a specification fixture and must exercise the same projection and delete path" },
-  ],
-  selfTestCheck: {
-    status: "passed",
-    mutation: "failed-as-expected",
-    command: "node skills/spec-stack-setup/setup.mjs --no-demo",
-    hypothesis: "the fresh-install path must not create any demo specification",
-    answer: "--no-demo leaves the registry and dashboard without demo specs",
-    positiveCase: "--no-demo is the fresh-install path and seeds nothing",
-    negativeCase: "the demo template directory is present and the default demo path loads it",
-    expectedFailure: "a fresh install that seeds the demo would show a valid demo spec",
-    observedFailure: "the demo spec appears only when the demo loader is enabled, not on --no-demo",
-  },
-});
+
 
 Given("an explicit demo spec is created through MCP", { timeout: 300_000 }, async function () {
   const liveFixture = await loadLiveFixture();
@@ -594,7 +566,7 @@ Given("an explicit demo spec is created through MCP", { timeout: 300_000 }, asyn
       document: featureDocument,
       content: "Feature: Delivery demo\n\n  @id:SCEN-delivery-demo-live @AC-1.1\n  Scenario: the demo is readable\n    Given the demo exists\n    Then an authorized caller reads it\n",
     }],
-    designReview: DEMO_REVIEW,
+
   });
   await mutateWithRetry(alice, "stgmt/alpha", "spec_release", { spec: live.demoSpec, requestId: "delivery-demo-release" });
   await syncSnapshot();

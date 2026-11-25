@@ -1,6 +1,6 @@
 # omp-spec-kit
 
-`omp-spec-kit` gives Oh My Pi (OMP) and Claude Code a bounded view of a project's specifications through exactly 10 task-oriented MCP tools: 9 bounded read-only tools (`mcp_preflight`, `spec_catalog`, `spec_entities`, `spec_graph`, `spec_documents`, `spec_inspect`, `spec_tasks`, `spec_evidence`, `spec_markdown`) and one transactional patch tool, `spec_patch`. Only a hash-checked `spec_patch` apply with `dryRun: false` can write specification bytes.
+`omp-spec-kit` gives Oh My Pi (OMP) and Claude Code a bounded view of a project's specifications through exactly 9 task-oriented MCP tools: 8 bounded read-only tools (`mcp_preflight`, `spec_catalog`, `spec_entities`, `spec_graph`, `spec_documents`, `spec_inspect`, `spec_tasks`, `spec_markdown`) and one transactional patch tool, `spec_patch`. Only a hash-checked `spec_patch` apply with `dryRun: false` can write specification bytes.
 
 ## Install
 
@@ -25,9 +25,7 @@ Both hosts read the same payload from the single catalog `.claude-plugin/marketp
 
 ## Use
 
-MCP tools read the project from which the host session starts; the packaged server locates only its own code and does not select the data root. `OMP_SPEC_KIT_ROOT` is optional diagnostic configuration: only an explicit absolute value is accepted, and a missing, relative, placeholder, or bare variable name leaves the active project as the root.
-
-Every MCP `QueryEnvelope` includes `provenance` with the fixed server name, opaque resolved/active root IDs, `rootMode`, and `matchesActiveProject`. An explicit absolute override is allowed for diagnostics but is reported as `explicit-absolute-override` with `matchesActiveProject: false`; absolute paths and environment values are never returned.
+The installed hosts connect to the configured MCP registry. The workspace project record selects the project for each call, and the registry reads its bound specification repository. Query results include provenance for the selected project and corpus.
 
 The payload ships three skills: `spec-inventory` (lists specifications through `spec_catalog`), `spec-elicitation` (source and gap assessment before the first specification write), and `engineering-anti-bike`. The skills are guidance only and implement no scanner or runtime of their own.
 

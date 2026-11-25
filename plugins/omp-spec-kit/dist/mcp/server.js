@@ -1,6 +1,6 @@
 // FC-7 / FR-9: dependency-free stdio MCP server over the shared kernel query
 // service. Newline-delimited JSON-RPC 2.0 (MCP stdio transport; no
-// Content-Length headers). Exposes 10 task-oriented tools: nine read-only
+// Content-Length headers). Exposes 9 task-oriented tools: eight read-only
 // operations and the single spec_patch mutation. Read calls return one
 // canonical QueryEnvelope as structured content; stdout contains JSON-RPC
 // responses only.
@@ -113,7 +113,6 @@ const ARGUMENT_ALIASES = Object.freeze({
   scenario_id: "scenarioId",
   actor_ref: "actorRef",
   repository_root_fingerprint: "repositoryRootFingerprint",
-  design_review: "designReview",
   expected_sha: "expectedSha",
   old_string: "oldText",
   new_string: "newText",
@@ -308,6 +307,8 @@ async function handleMessage(message) {
           // ignored (the hosted transport selects by project instead).
           const declaredRoot = args.project !== undefined
             ? { ok: false, code: "PROJECT_CONTEXT_UNSUPPORTED", message: "project selection belongs to the hosted transport; this local transport selects a corpus with declaredWorktree (absolute worktree path)", parameter: "project", expected: "declaredWorktree (absolute path)" }
+            : args.topic !== undefined
+              ? { ok: false, code: "TOPIC_CONTEXT_UNSUPPORTED", message: "topic selection belongs to the hosted transport; select a local worktree with declaredWorktree instead", parameter: "topic", expected: "declaredWorktree (absolute path)" }
             : args.declaredWorktree === undefined || args.declaredWorktree === null
               ? null
               : resolveDeclaredWorktree(args.declaredWorktree);

@@ -228,7 +228,7 @@ export function changedReadyCoverageFindings({ baseline, graph, spec, proposed, 
   const previous = new Map(ready(baseline).map((node) => [node.localId, shape(node)]));
   const selected = ready(graph).filter((node) => previous.get(node.localId) !== shape(node));
   if (!selected.length) return [];
-  if (validateMap(approved, true)) return [{ message: "Approve the executable examples before promoting them to @spec-ready" }];
+  if (validateMap(approved, true)) return [{ message: "Approve the examples before promoting them to @spec-ready" }];
   const nodes = context(graph, spec);
   const complete = new Set();
   for (const [id, item] of Object.entries(approved.outcomes)) {

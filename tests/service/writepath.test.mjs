@@ -63,33 +63,7 @@ async function setup() {
   };
 }
 
-const ARCHIVE_REVIEW = Object.freeze({
-  schemaVersion: "omp-spec-kit/design-review@1",
-  decision: "proceed",
-  boundary: {
-    kind: "user-visible-contract",
-    name: "Spec registry archive move",
-    claim: "archiving a specification removes its source tree and keeps the archived documents addressable",
-  },
-  evidence: [
-    { kind: "test", reference: "tests/service/writepath.test.mjs", observation: "the archive write lands as one bot commit on the spec branch" },
-    { kind: "source", reference: "src/service/writepath.js", observation: "the write path commits after the kernel applies the change" },
-  ],
-  alternatives: [
-    { option: "leave the source directory in place", reasonRejected: "an archived spec must not stay live in the corpus" },
-  ],
-  selfTestCheck: {
-    status: "passed",
-    mutation: "failed-as-expected",
-    command: "node --test tests/service/writepath.test.mjs",
-    hypothesis: "archiveSpec must land as a remote commit",
-    answer: "the remote branch gains the archive move",
-    positiveCase: "the archive commit carries the moved documents",
-    negativeCase: "the source directory still exists on the branch",
-    expectedFailure: "APPLIED without a commit leaves the source tree live",
-    observedFailure: "the source tree stays on the remote branch",
-  },
-});
+
 
 function patchArgs(overrides = {}) {
   return {
@@ -139,7 +113,7 @@ describe("write path over POST /mcp (live-verified identity)", () => {
       reason: "archive the fixture",
       dryRun: false,
       requestId: "w-archive",
-      designReview: ARCHIVE_REVIEW,
+
     });
     assert.equal(result.isError, false, JSON.stringify(result.structuredContent?.error ?? result.structuredContent?.data?.error ?? {}));
     assert.equal(result.structuredContent.data.outcome, "APPLIED");
@@ -163,7 +137,7 @@ describe("write path over POST /mcp (live-verified identity)", () => {
       reason: "archive for visibility",
       dryRun: false,
       requestId: "w-archive-visibility",
-      designReview: ARCHIVE_REVIEW,
+
     });
     assert.equal(archived.isError, false, JSON.stringify(archived.structuredContent?.error ?? archived.structuredContent?.data?.error ?? {}));
 
@@ -241,7 +215,7 @@ describe("write path over POST /mcp (live-verified identity)", () => {
       reason: "archive the fixture",
       dryRun: false,
       requestId: "w-archive-replay",
-      designReview: ARCHIVE_REVIEW,
+
     };
     const first = await callTool(url, tokens.alice, "spec_patch", args);
     assert.equal(first.isError, false, JSON.stringify(first.structuredContent?.error ?? first.structuredContent?.data?.error ?? {}));
@@ -519,6 +493,7 @@ async function pipelineFixture({
   const refreshes = [];
   const forgotten = [];
   const git = {
+    run: async () => ({ stdout: "" }),
     add: async (paths) => { calls.push({ op: "add", paths }); },
     commit: async () => {
       calls.push({ op: "commit" });

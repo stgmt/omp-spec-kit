@@ -27,6 +27,8 @@ import { createSpecBranchManager } from "./spec-branches.js";
 import { BRANCH_CONTRACTS, createBranchOps } from "./ops/branch.js";
 import { registerAction, registerCommand, serviceErrorEnvelope, serviceSuccess, setupAction, setupCommand } from "./dispatch.js";
 import { secretsKeyFromEnv, sealSecret } from "./secrets.js";
+import { readDocumentBytes, specificationDirectoryDigest } from "../authoring/transactions.js";
+import { canonicalDocumentFilename, GHERKIN_DOCUMENT_KINDS, isLegacySpecificationDocument } from "../kernel/types.js";
 export async function bootService({ configPath, cloneDir, git = new GitClient(), identity, store: storeOption = null, secretsKey = null, logger = () => {} }) {
   const config = await loadProjectsConfig(configPath);
   const store = storeOption ?? (await createStore({ file: path.join(path.dirname(configPath), "registry.db") }));
@@ -211,7 +213,7 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
       // deleteCanonical already performed a strict fetch; do not fetch again
       // with the tolerant read path, or a transient second failure could make
       // archivalProof inspect a stale corpus.
-      await mounts.projectRoot(projectId, { fetch: false });
+      const root = await mounts.projectRoot(projectId, { fetch: false });
       const proof = await mounts.serviceFor(projectId).runQuery(
         "inspect",
         { check: "archivalProof", spec },
@@ -220,6 +222,32 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
       if (!proof?.ok || proof.data?.kind !== "archival-proof") {
         throw new Error(proof?.error?.message ?? "archival proof failed");
       }
+      if (proof.data.complete !== true || !["ARCHIVE", "KEEP_FALSE_POSITIVE"].includes(proof.data.verdict)) {
+        // A new demo branch consists of one exact scaffold and has no stories,
+        // cases or scenarios to hide. Verify its full directory and require
+        // every *other* spec to be indexed before allowing its cleanup.
+        const inventory = await specificationDirectoryDigest(root, spec);
+        const readme = inventory.ok && inventory.files.length === 1 && inventory.files[0].path === "README.md"
+          ? await readDocumentBytes(root, spec, "README.md") : null;
+        const queryService = mounts.serviceFor(projectId);
+        const catalog = await queryService.runQuery("catalog", { view: "specs" }, { requestId: `dependents-layouts-${projectId}-${spec}` });
+        const graphState = await queryService.ensure();
+        const discovery = await mounts.discoverProject(projectId, { fetch: false });
+        const binding = discovery.bindings.find((entry) => entry.spec === spec);
+        const tracked = binding ? await discovery.mount.git.run(["ls-tree", "-r", "-z", binding.ref, "--", `.specs/${spec}/`], { cwd: discovery.mount.mirrorDir }) : null;
+        const trackedEntries = tracked?.stdout.split("\u0000").filter(Boolean) ?? [];
+        const trackedScaffold = trackedEntries.length === 1 &&
+          trackedEntries[0].endsWith(`\t.specs/${spec}/README.md`) && /^100(?:644|755) blob [0-9a-f]+\t/u.test(trackedEntries[0]);
+        const excluded = catalog.data?.layouts?.filter((layout) => layout.status !== "canonical" || layout.indexComplete === false);
+        const unresolvedTargetLink = graphState.graph?.markdownLinkOccurrences?.some((link) =>
+          link.outcome === "UNRESOLVED" && (link.targetPath === `.specs/${spec}` || link.targetPath?.startsWith(`.specs/${spec}/`)));
+        const emptyScaffoldOnly = proof.data.incompleteReason === "SPEC_LAYOUT_INCOMPLETE" &&
+          trackedScaffold && readme?.ok === true && readme.bytes.toString("utf8") === `# ${spec}\n\nStatus: DRAFT\n` &&
+          catalog.ok === true && Array.isArray(excluded) && excluded.length === 1 && excluded[0].specSlug === spec &&
+          graphState.status === "ready" && graphState.graph?.counts?.unresolvedReferenceOccurrences === 0 &&
+          unresolvedTargetLink === false;
+        if (!emptyScaffoldOnly) throw new Error("archival proof is incomplete; migrate or repair the affected specifications first");
+      }
       return proof.data.liveInboundReferences ?? [];
     },
   });
@@ -227,8 +255,19 @@ export function buildServiceStack({ mounts, config, identity = botIdentityFromEn
   const catalogBranches = async ({ args, project, requestId }) => {
     if ((args.view ?? "specs") !== "branches") return undefined;
     try {
-      const { branches, invalid } = await mounts.listBranches(project, { includeArchived: args.includeArchived === true });
-      return { envelope: serviceSuccess("catalog", requestId, { kind: "branches", branches, invalid }) };
+      const { mount, branches, invalid } = await mounts.listBranches(project, { includeArchived: args.includeArchived === true });
+      const withLayouts = await Promise.all(branches.map(async (branch) => {
+        if (branch.archive) return { ...branch, layout: "archived" };
+        const prefix = `.specs/${branch.spec}/`;
+        const { stdout } = await mount.git.run(["ls-tree", "-r", "-z", "--name-only", branch.ref, "--", prefix], { cwd: mount.mirrorDir });
+        const files = stdout.split("\u0000").filter(Boolean).map((name) => name.slice(prefix.length));
+        const legacy = files.some((name) => isLegacySpecificationDocument(name, branch.spec));
+        const pair = GHERKIN_DOCUMENT_KINDS.map((kind) => canonicalDocumentFilename(kind, branch.spec));
+        const present = pair.filter((name) => files.includes(name)).length;
+        const layout = legacy ? (present ? "mixed" : "legacy") : present === pair.length ? "canonical" : "incomplete";
+        return { ...branch, layout };
+      }));
+      return { envelope: serviceSuccess("catalog", requestId, { kind: "branches", branches: withLayouts, invalid }) };
     } catch (error) {
       return {
         envelope: serviceErrorEnvelope("catalog", requestId, error?.code ?? "ADAPTER_READ_ERROR", String(error?.message ?? error)),

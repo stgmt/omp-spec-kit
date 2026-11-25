@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile, rm, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { snapshotTree } from "../support/world.mjs";
-import { prepareEvidenceFixtures } from "./evidence-e2e.mjs";
+import { prepareQueryFixtures } from "./query-e2e.mjs";
 import {
   annotationsFor,
   KERNEL_ENVELOPE_OUTPUT_SCHEMA,
@@ -27,7 +27,7 @@ function assertEnvelopeSchema(value) {
 }
 
 export async function prepareToolE2EFixtures(projectRoot) {
-  await prepareEvidenceFixtures(projectRoot);
+  await prepareQueryFixtures(projectRoot);
   const testSpecDir = path.join(projectRoot, ".specs", "e2e-spec");
   await mkdir(testSpecDir, { recursive: true });
   await writeFile(
@@ -101,7 +101,7 @@ export async function runToolE2E({
     assert.ok(Array.isArray(tools), JSON.stringify(listed));
     const names = tools.map((tool) => tool.name);
     assert.deepEqual(names, ALL_TOOL_NAMES, "registration order is part of the contract");
-    assert.equal(names.length, 10, "single surface exposes exactly 10 tools");
+    assert.equal(names.length, 9, "single surface exposes exactly 9 tools");
 
     for (const tool of tools) {
       assert.equal(tool.inputSchema.type, "object", tool.name);
@@ -267,21 +267,6 @@ export async function runToolE2E({
     assert.equal(tasksRes.ok, true);
     assert.equal(tasksRes.operation, "tasks");
     assert.equal(tasksRes.data.kind, "tasks");
-
-    // 7. spec_evidence (result and trace)
-    const evidenceRes = structured(
-      await callTool("spec_evidence", { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "v08-ev-res", view: "result", scenarioId: "product:SCEN-specification-only-init" }),
-    );
-    assert.equal(evidenceRes.ok, true);
-    assert.equal(evidenceRes.operation, "evidence");
-    assert.equal(evidenceRes.data.kind, "test-result");
-
-    const evidenceTrace = structured(
-      await callTool("spec_evidence", { schemaVersion: KERNEL_SCHEMA_VERSION, requestId: "v08-ev-tr", view: "trace", scenarioId: "product:SCEN-specification-only-init" }),
-    );
-    assert.equal(evidenceTrace.ok, true);
-    assert.equal(evidenceTrace.operation, "evidence");
-    assert.equal(evidenceTrace.data.kind, "scenario-trace");
 
     // 8. spec_markdown
     const mdRes = structured(

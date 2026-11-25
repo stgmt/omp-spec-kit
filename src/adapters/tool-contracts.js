@@ -1,6 +1,6 @@
-// Single source of truth for the consolidated 10-tool MCP surface.
+// Single source of truth for the consolidated 9-tool MCP surface.
 // Every tool is task-oriented, strictly typed, and self-contained.
-// 9 tools are read-only; exactly 1 tool (spec_patch) is mutating.
+// 8 tools are read-only; exactly 1 tool (spec_patch) is mutating.
 
 import {
   DIAGNOSTIC_CODES,
@@ -210,15 +210,15 @@ export const TOOL_CONTRACTS = Object.freeze([
     tool: "spec_documents",
     label: "Spec Documents",
     operation: "documents",
-    description: "List, read, or fetch attachments for spec documents.",
+    description: "List, read, or fetch attachments for spec documents, and read or search the project glossary. Existing legacy documents remain readable before migration.",
     discriminator: "action",
     variants: Object.freeze({
       list: Object.freeze({
-        description: "List readable documents and binary attachments under one specification.",
-        fields: Object.freeze([field("spec", "string")]),
+        description: "List readable documents and binary attachments under one specification. Set includeSnapshot to capture file hashes for a migration preview. On hosted transport topic selects a work branch; local stdio uses declaredWorktree instead.",
+        fields: Object.freeze([field("spec", "string"), optionalField("includeSnapshot", "boolean"), optionalField("topic", "string")]),
       }),
       read: Object.freeze({
-        description: "Read one specification document, optionally by section or window. Archived documents require includeArchived: true.",
+        description: "Read a document by section or line window. For large files use byteOffset and byteLimit; continue with nextByteOffset. Archived documents require includeArchived: true.",
         fields: Object.freeze([
           field("spec", "string"),
           field("doc", "string"),
@@ -226,6 +226,10 @@ export const TOOL_CONTRACTS = Object.freeze([
           optionalField("offset", "integer"),
           optionalField("limit", "integer"),
           optionalField("readForEdit", "boolean"),
+          optionalField("byteOffset", "nonnegativeInteger"),
+          optionalField("byteLimit", "integer"),
+          optionalField("snapshot", "string"),
+          optionalField("topic", "string"),
           optionalField("version", "nullableString"),
           optionalField("includeArchived", "boolean"),
         ]),
@@ -236,6 +240,18 @@ export const TOOL_CONTRACTS = Object.freeze([
           field("spec", "string"),
           field("path", "string"),
         ]),
+      }),
+      glossaryStatus: Object.freeze({
+        description: "Report the project glossary: whether the file exists on the glossary branch, its content hash and term count. Served by the hosted transport for a registered project; the local stdio transport has no registry and refuses.",
+        fields: Object.freeze([]),
+      }),
+      glossaryRead: Object.freeze({
+        description: "Read the whole project glossary: text, contentSha256 and parsed terms. The 2 MiB document cap applies and the file is never paged.",
+        fields: Object.freeze([]),
+      }),
+      glossarySearch: Object.freeze({
+        description: "Search the project glossary by canonical term, definition or forbidden form; each hit names the matched field and the canonical term for a forbidden form.",
+        fields: Object.freeze([optionalField("query", "string"), optionalField("limit", "integer")]),
       }),
     }),
   },
@@ -312,29 +328,6 @@ export const TOOL_CONTRACTS = Object.freeze([
     ],
   },
   {
-    tool: "spec_evidence",
-    label: "Spec Evidence",
-    operation: "evidence",
-    description: "Read scenario test results or execution trace metadata.",
-    discriminator: "view",
-    variants: Object.freeze({
-      result: Object.freeze({
-        description: "Read the last recorded result and freshness fields for one scenario.",
-        fields: Object.freeze([
-          field("scenarioId", "string"),
-          optionalField("spec", "string"),
-        ]),
-      }),
-      trace: Object.freeze({
-        description: "Read one scenario result with its hash-bound runtime trace metadata.",
-        fields: Object.freeze([
-          field("scenarioId", "string"),
-          optionalField("spec", "string"),
-        ]),
-      }),
-    }),
-  },
-  {
     tool: "spec_markdown",
     label: "Spec Markdown",
     operation: "markdown",
@@ -365,23 +358,44 @@ export const TOOL_CONTRACTS = Object.freeze([
       field("spec", "string"),
       optionalField("dryRun", "boolean"),
       optionalField("actorRef", "nullableString"),
+      optionalField("topic", "string"),
     ]),
     variants: Object.freeze({
       patch: Object.freeze({
         description: [
           "Patch operations on one spec. Write the two canonical Gherkin documents with replace_document.",
           "In <slug>-user-stories.feature, declare @story:US-N on each Rule and supply Actor, Goal, Benefit and at least one Scenario.",
-          "In <slug>-use-cases.feature, declare @case:UC-N and @story:US-N on the same Rule. Supply Actor, Boundary, Trigger, Precondition, Success and Step/Branch declarations.",
+          "In <slug>-use-cases.feature, declare @case:UC-N and @story:US-N on the same Rule. Supply Actor, Boundary, Trigger, Precondition, Success and at least one Step. Add Branch declarations for the outcomes to cover.",
           "Use ScenarioRef: <branch-id> | SCEN-<id> or SCEN-<id>#<example_id> for an Examples row. Use complete Given/When/Then in drafts.",
-          "Add @spec-ready only on the scenario and provide designReview when promoting or changing a protected example.",
+          "Use Refs: <slug>:<ID> before Context for direct links of the story or case; text after Context is prose and creates no graph links.",
+          "Add @spec-ready only after the owner approves the covered examples.",
         ].join("\n"),
         fields: Object.freeze([
           optionalField("repositoryRootFingerprint", "string"),
-          optionalField("designReview", "json"),
           field("operations", "operations"),
           // Declared here as well: clients read force from the operations
           // variant, and task maintenance needs it for idempotent cleanup.
           optionalField("force", "boolean"),
+        ]),
+      }),
+      migrateSpec: Object.freeze({
+        description: [
+          "Migrate one legacy or incomplete specification to its canonical Gherkin pair before changing it.",
+          "Read the existing documents with spec_documents, list with includeSnapshot, and map each preserved source span to a target span.",
+          "Supply replace_document operations for both canonical feature files and any other changed documents. Preview first, then apply the same proposal with expectedProposalHash.",
+          "The server checks the source snapshot and preservation. For an ambiguous UC-to-US link, include the owner's decision with a reason; do not invent missing requirements or approve coverage.",
+          "For owner-approved fixes to legacy scenario step lines, supply repairs with exact source/before/after SHA-256 hashes, scenario ID, line range, replacement and reason. Preview shows both fragments; other source lines and tags must remain intact.",
+          "If a canonical field cannot be proven by the corresponding source field, ask the owner and supply fieldDecisions: [{entityId:'US-1', field:'Goal', value:'...', sourceDocument:'legacy.feature', sourceSha256:'<sha256>', sourceStartLine:1, sourceEndLine:1, reason:'...'}]. Its source range must be mapped to that same Rule. Unapproved values are refused.",
+          "On hosted transport topic selects a work branch; local stdio uses declaredWorktree instead.",
+        ].join("\n"),
+        fields: Object.freeze([
+          field("snapshot", "string"),
+          optionalField("expectedProposalHash", "sha256"),
+          field("operations", "migrationOperations"),
+          field("mapping", "migrationMapping"),
+          optionalField("decisions", "migrationDecisions"),
+          optionalField("fieldDecisions", "migrationFieldDecisions"),
+          optionalField("repairs", "migrationRepairs"),
         ]),
       }),
       amendRequirement: Object.freeze({
@@ -466,7 +480,6 @@ export const TOOL_CONTRACTS = Object.freeze([
         fields: Object.freeze([
           field("doc", "string"),
           optionalField("expectedSha", "string"),
-          optionalField("designReview", "json"),
         ]),
       }),
       deleteEntity: Object.freeze({
@@ -474,7 +487,6 @@ export const TOOL_CONTRACTS = Object.freeze([
         fields: Object.freeze([
           field("entity", "string"),
           optionalField("forceDelete", "boolean"),
-          optionalField("designReview", "json"),
         ]),
       }),
       renameSpecDoc: Object.freeze({
@@ -482,19 +494,17 @@ export const TOOL_CONTRACTS = Object.freeze([
         fields: Object.freeze([
           field("doc", "string"),
           field("newDoc", "string"),
-          optionalField("designReview", "json"),
         ]),
       }),
       createSpec: Object.freeze({
         description: "Create a canonical spec scaffold.",
         fields: Object.freeze([
           optionalField("title", "string"),
-          optionalField("designReview", "json"),
         ]),
       }),
       archiveSpec: Object.freeze({
         description: "Archive a spec after inbound-reference proof.",
-        fields: Object.freeze([optionalField("designReview", "json")]),
+        fields: Object.freeze([]),
       }),
       addBacklogTask: Object.freeze({
         description: `Refused: ${READINESS_REFUSALS.BACKLOG_FORBIDDEN}.`,
@@ -653,12 +663,101 @@ export const OPERATIONS_SCHEMA = Object.freeze({
   },
 });
 
+const MIGRATION_OPERATIONS_SCHEMA = Object.freeze({
+  type: "array",
+  minItems: 2,
+  items: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kind", "document", "content"],
+    properties: {
+      kind: { type: "string", enum: ["replace_document"] },
+      document: { type: "string", minLength: 1 },
+      content: { type: "string" },
+      expectedSha: { type: "string" },
+      expectedDocumentSha256: { type: "string" },
+    },
+  },
+});
+
+const MIGRATION_MAPPING_SCHEMA = Object.freeze({
+  type: "array",
+  minItems: 1,
+  maxItems: 10000,
+  items: {
+    type: "object",
+    additionalProperties: false,
+    required: ["sourceDocument", "sourceSha256", "sourceStartLine", "sourceEndLine", "targetDocument", "targetStartLine", "targetEndLine"],
+    properties: {
+      sourceDocument: { type: "string", minLength: 1 },
+      sourceSha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+      sourceStartLine: { type: "integer", minimum: 1 },
+      sourceEndLine: { type: "integer", minimum: 1 },
+      targetDocument: { type: "string", minLength: 1 },
+      targetStartLine: { type: "integer", minimum: 1 },
+      targetEndLine: { type: "integer", minimum: 1 },
+    },
+  },
+});
+
+const MIGRATION_DECISIONS_SCHEMA = Object.freeze({
+  type: "array",
+  maxItems: 1000,
+  description: "Owner-approved UC-to-US decisions; caseId must be unique and each reason is limited to 512 UTF-8 bytes.",
+  items: {
+    type: "object",
+    additionalProperties: false,
+    required: ["caseId", "storyId", "reason"],
+    properties: {
+      caseId: { type: "string", pattern: "^UC-[1-9][0-9]*$" },
+      storyId: { type: "string", pattern: "^US-[1-9][0-9]*$" },
+      reason: { type: "string", minLength: 1, maxLength: 512, pattern: "\\S" },
+    },
+  },
+});
+
+const MIGRATION_REPAIRS_SCHEMA = Object.freeze({
+  type: "array", maxItems: 32,
+  description: "Owner-approved exact changes to legacy scenario step lines; SHA-256 hashes cover the original source and the exact before/after fragments, including their newline bytes.",
+  items: {
+    type: "object", additionalProperties: false,
+    required: ["sourceDocument", "sourceSha256", "scenarioId", "sourceStartLine", "sourceEndLine", "beforeSha256", "afterSha256", "replacement", "reason"],
+    properties: {
+      sourceDocument: { type: "string", minLength: 1 },
+      sourceSha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+      scenarioId: { type: "string", pattern: "^SCEN-[a-z0-9]+(?:-[a-z0-9]+)*$" },
+      sourceStartLine: { type: "integer", minimum: 1 }, sourceEndLine: { type: "integer", minimum: 1 },
+      beforeSha256: { type: "string", pattern: "^[0-9a-f]{64}$" }, afterSha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+      replacement: { type: "string", minLength: 1, maxLength: 65536 },
+      reason: { type: "string", minLength: 1, maxLength: 512, pattern: "\\S" },
+    },
+  },
+});
+
+const MIGRATION_FIELD_DECISIONS_SCHEMA = Object.freeze({
+  type: "array", maxItems: 1000,
+  description: "Owner-approved exact values for fields not proven by the corresponding source field; source range must map to the same Rule.",
+  items: {
+    type: "object", additionalProperties: false,
+    required: ["entityId", "field", "value", "reason", "sourceDocument", "sourceSha256", "sourceStartLine", "sourceEndLine"],
+    properties: {
+      entityId: { type: "string", pattern: "^(?:US|UC)-[1-9][0-9]*$" },
+      field: { type: "string", pattern: "^(?:Actor|Goal|Benefit|Independent Test|Boundary|Trigger|Precondition|Success|Covers|(?:Step|Branch|Outcome|ScenarioRef):[a-z0-9]+(?:-[a-z0-9]+)*)$" },
+      value: { type: "string", minLength: 1, maxLength: 8192 }, reason: { type: "string", minLength: 1, maxLength: 512, pattern: "\\S" },
+      sourceDocument: { type: "string", minLength: 1 }, sourceSha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+      sourceStartLine: { type: "integer", minimum: 1 }, sourceEndLine: { type: "integer", minimum: 1 },
+    },
+  },
+});
+
 function topSchemaType(f) {
   if (f.kind === "operations") return { type: "array" };
   switch (f.kind) {
     case "string": return { type: "string" };
+    case "sha256": return { type: "string", pattern: "^[0-9a-f]{64}$" };
     case "boolean": return { type: "boolean" };
     case "integer": return { type: "integer", minimum: 1 };
+    case "nonnegativeInteger": return { type: "integer", minimum: 0 };
     case "nullableString": return { type: ["string", "null"] };
     case "enum": return { type: "string" };
     case "enumArray": return { type: "array", items: { type: "string" } };
@@ -671,13 +770,20 @@ function topSchemaType(f) {
 function branchSchemaType(f) {
   switch (f.kind) {
     case "string": return { type: "string" };
+    case "sha256": return { type: "string", pattern: "^[0-9a-f]{64}$" };
     case "boolean": return { type: "boolean" };
     case "integer": return { type: "integer", minimum: 1 };
+    case "nonnegativeInteger": return { type: "integer", minimum: 0 };
     case "nullableString": return { type: ["string", "null"] };
     case "enum": return { type: "string" };
     case "enumArray": return { type: "array", items: { type: "string" } };
     case "stringArray": return { type: "array", items: { type: "string" } };
     case "operations": return OPERATIONS_SCHEMA;
+    case "migrationOperations": return MIGRATION_OPERATIONS_SCHEMA;
+    case "migrationMapping": return MIGRATION_MAPPING_SCHEMA;
+    case "migrationDecisions": return MIGRATION_DECISIONS_SCHEMA;
+    case "migrationRepairs": return MIGRATION_REPAIRS_SCHEMA;
+    case "migrationFieldDecisions": return MIGRATION_FIELD_DECISIONS_SCHEMA;
     case "json": return { type: "object" };
     default: return {};
   }
@@ -738,34 +844,48 @@ export function jsonSchemaFor(contract) {
   for (const [vName, variant] of Object.entries(contract.variants)) {
     const vProps = {
       [disc]: {
-        type: "string",
         enum: [vName],
       },
     };
-    const required = [disc];
+    // The parent already requires and types the discriminator. Branches only
+    // need the variant-specific required fields and the distinguishing value.
+    const required = [];
 
     for (const f of [...(contract.commonFields ?? []), ...variant.fields]) {
       if (!f.optional) required.push(f.name);
       // A name that means something different per branch keeps its own schema
       // in the branch: the shared root entry cannot describe both meanings.
-      if (conflictingFieldNames.has(f.name)) vProps[f.name] = branchSchemaType(f);
+      if (conflictingFieldNames.has(f.name)) {
+        const variantSchema = branchSchemaType(f);
+        const sharedSchema = f.name === "operations" && contract.tool === "spec_patch" ? OPERATIONS_SCHEMA : {};
+        // The root's shared schema applies to every branch. Repeating the
+        // identical schema inside oneOf changes no validation and needlessly
+        // expands the tool catalogue.
+        if (JSON.stringify(variantSchema) !== JSON.stringify(sharedSchema)) vProps[f.name] = variantSchema;
+      }
     }
 
     // The root declares every other field's type and closes unknown keys, so a
     // branch only has to pin its discriminator and its own required names.
     // Repeating the field schemas per branch added nothing the request path
     // checks and cost kilobytes of catalog on every call.
-    oneOf.push({
-      type: "object",
+    const branch = {
       title: `${disc}: ${vName}`,
       description: variant.description,
       properties: vProps,
-      required,
-    });
+      ...(required.length ? { required } : {}),
+    };
+    if (contract.tool === "spec_patch" && vName === "migrateSpec") {
+      branch.allOf = [{
+        if: { properties: { dryRun: { const: false } }, required: ["dryRun"] },
+        then: { required: ["expectedProposalHash"] },
+      }];
+    }
+    oneOf.push(branch);
   }
 
   for (const name of conflictingFieldNames) {
-    if (topProperties[name]) topProperties[name] = {};
+    if (topProperties[name]) topProperties[name] = name === "operations" && contract.tool === "spec_patch" ? OPERATIONS_SCHEMA : {};
   }
 
   addTransportContextFields(topProperties);
@@ -913,10 +1033,14 @@ function validFieldValue(entry, value) {
   switch (entry.kind) {
     case "string":
       return typeof value === "string";
+    case "sha256":
+      return typeof value === "string" && /^[0-9a-f]{64}$/u.test(value);
     case "boolean":
       return typeof value === "boolean";
     case "integer":
       return Number.isSafeInteger(value) && value >= 1;
+    case "nonnegativeInteger":
+      return Number.isSafeInteger(value) && value >= 0;
     case "nullableString":
       return value === null || typeof value === "string";
     case "enum":
@@ -935,6 +1059,72 @@ function validFieldValue(entry, value) {
       );
     case "operations":
       return Array.isArray(value) && value.length >= 1 && value.every(validateOperationObject);
+    case "migrationOperations":
+      return Array.isArray(value) && value.length >= 2 && value.every((op) =>
+        op !== null && typeof op === "object" && !Array.isArray(op) &&
+        Object.keys(op).every((key) => ["kind", "document", "content", "expectedSha", "expectedDocumentSha256"].includes(key)) &&
+        op.kind === "replace_document" && typeof op.document === "string" && op.document.trim() !== "" &&
+        typeof op.content === "string" && (op.expectedSha === undefined || typeof op.expectedSha === "string") &&
+        (op.expectedDocumentSha256 === undefined || typeof op.expectedDocumentSha256 === "string"));
+    case "migrationMapping": {
+      const keys = ["sourceDocument", "sourceSha256", "sourceStartLine", "sourceEndLine", "targetDocument", "targetStartLine", "targetEndLine"];
+      return Array.isArray(value) && value.length >= 1 && value.length <= 10000 && value.every((item) =>
+        item !== null && typeof item === "object" && !Array.isArray(item) &&
+        Object.keys(item).length === keys.length && keys.every((key) => Object.hasOwn(item, key)) &&
+        typeof item.sourceDocument === "string" && item.sourceDocument.length > 0 &&
+        typeof item.targetDocument === "string" && item.targetDocument.length > 0 &&
+        typeof item.sourceSha256 === "string" && /^[0-9a-f]{64}$/u.test(item.sourceSha256) &&
+        [item.sourceStartLine, item.sourceEndLine, item.targetStartLine, item.targetEndLine].every((line) => Number.isSafeInteger(line) && line >= 1));
+    }
+    case "migrationDecisions": {
+      if (!Array.isArray(value) || value.length > 1000) return false;
+      const ids = new Set();
+      return value.every((item) => {
+        if (item === null || typeof item !== "object" || Array.isArray(item) ||
+          Object.keys(item).length !== 3 || !["caseId", "storyId", "reason"].every((key) => Object.hasOwn(item, key)) ||
+          typeof item.caseId !== "string" || !/^UC-[1-9][0-9]*$/u.test(item.caseId) ||
+          typeof item.storyId !== "string" || !/^US-[1-9][0-9]*$/u.test(item.storyId) ||
+          typeof item.reason !== "string" || item.reason.trim() === "" || Buffer.byteLength(item.reason, "utf8") > 512 || ids.has(item.caseId)) return false;
+        ids.add(item.caseId);
+        return true;
+      });
+    }
+    case "migrationRepairs": {
+      if (!Array.isArray(value) || value.length > 32) return false;
+      const keys = ["sourceDocument", "sourceSha256", "scenarioId", "sourceStartLine", "sourceEndLine", "beforeSha256", "afterSha256", "replacement", "reason"];
+      let bytes = 0;
+      return value.every((item) => {
+        if (!item || typeof item !== "object" || Array.isArray(item) || Object.keys(item).length !== keys.length ||
+            !keys.every((key) => Object.hasOwn(item, key)) || typeof item.sourceDocument !== "string" || !item.sourceDocument ||
+            !/^[0-9a-f]{64}$/u.test(item.sourceSha256 ?? "") || !/^[0-9a-f]{64}$/u.test(item.beforeSha256 ?? "") ||
+            !/^[0-9a-f]{64}$/u.test(item.afterSha256 ?? "") || !/^SCEN-[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(item.scenarioId ?? "") ||
+            !Number.isSafeInteger(item.sourceStartLine) || !Number.isSafeInteger(item.sourceEndLine) || item.sourceStartLine < 1 || item.sourceEndLine < item.sourceStartLine ||
+            typeof item.replacement !== "string" || !item.replacement || typeof item.reason !== "string" || !item.reason.trim() ||
+            Buffer.byteLength(item.reason, "utf8") > 512) return false;
+        bytes += Buffer.byteLength(item.replacement, "utf8");
+        return bytes <= 65536;
+      });
+    }
+    case "migrationFieldDecisions": {
+      if (!Array.isArray(value) || value.length > 1000) return false;
+      const keys = ["entityId", "field", "value", "reason", "sourceDocument", "sourceSha256", "sourceStartLine", "sourceEndLine"];
+      const ids = new Set();
+      let bytes = 0;
+      return value.every((item) => {
+        if (!item || typeof item !== "object" || Array.isArray(item) || Object.keys(item).length !== keys.length ||
+            !keys.every((key) => Object.hasOwn(item, key)) || !/^(?:US|UC)-[1-9]\d*$/u.test(item.entityId ?? "") ||
+            !/^(?:Actor|Goal|Benefit|Independent Test|Boundary|Trigger|Precondition|Success|Covers|(?:Step|Branch|Outcome|ScenarioRef):[a-z0-9]+(?:-[a-z0-9]+)*)$/u.test(item.field ?? "") ||
+            typeof item.value !== "string" || !item.value || Buffer.byteLength(item.value, "utf8") > 8192 ||
+            typeof item.reason !== "string" || !item.reason.trim() || Buffer.byteLength(item.reason, "utf8") > 512 ||
+            typeof item.sourceDocument !== "string" || !item.sourceDocument || !/^[0-9a-f]{64}$/u.test(item.sourceSha256 ?? "") ||
+            !Number.isSafeInteger(item.sourceStartLine) || !Number.isSafeInteger(item.sourceEndLine) || item.sourceStartLine < 1 || item.sourceEndLine < item.sourceStartLine) return false;
+        const key = `${item.entityId}\u0000${item.field}`;
+        if (ids.has(key)) return false;
+        ids.add(key);
+        bytes += Buffer.byteLength(item.value, "utf8");
+        return bytes <= 65536;
+      });
+    }
     case "json":
       return value !== null && typeof value === "object";
     default:
@@ -1084,6 +1274,9 @@ export function validateContractArguments(contract, args) {
       }
     }
 
+    if (contract.tool === "spec_patch" && discVal === "migrateSpec" && args.dryRun === false && args.expectedProposalHash === undefined) {
+      return { ok: false, code: "INVALID_REQUEST", message: "expectedProposalHash is required to apply a migration preview", parameter: "expectedProposalHash", expected: "sha256" };
+    }
     return { ok: true };
   }
 
@@ -1188,7 +1381,7 @@ export function annotationsFor(contract, action = null) {
   return contractIsMutating(contract) ? MUTATING_TOOL_ANNOTATIONS : READ_TOOL_ANNOTATIONS;
 }
 
-export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Every tool accepts an optional project (owner/project) that selects the project serving that call only; when it is omitted the host's session project or your default scope applies, and an unresolved or unauthorized project is refused instead of falling back. declaredWorktree (absolute path) selects a corpus only on the local stdio/test transport; the hosted HTTP transport refuses it, so select a project there instead. Archived specifications are read-only and hidden from normal lists; request them explicitly with spec_catalog view: "branches" and spec_documents action: "read", both with includeArchived: true. ${READINESS_RULE_TEXT} ${ELICITATION_HINT}`;
+export const MCP_SERVER_INSTRUCTIONS = `Start with spec_catalog, then read the affected documents. Use spec_patch to preview or apply changes: omit dryRun or pass dryRun: true to review diffs and hashes in memory without writing, or pass dryRun: false to commit changes atomically under exclusive lock. Legacy documents remain readable. Before changing one legacy specification, list it with spec_documents includeSnapshot: true, read its source documents, and prepare spec_patch intent: "migrateSpec" with both canonical feature files and source-to-target mapping. Preserve source content; ask the owner to resolve ambiguous UC-to-US links and include their decisions with reasons. Preview, apply the same proposal with expectedProposalHash, then retry the requested change. Hosted migrations containing decisions require an owner to apply them. Every tool accepts an optional project (owner/project) that selects the project serving that call only; when it is omitted the host's session project or your default scope applies, and an unresolved or unauthorized project is refused instead of falling back. Specs live only in each project's own repository on orphan spec-<slug> branches; the selected project is a request scope, not a central storage location. declaredWorktree (absolute path) selects a corpus only on the local stdio/test transport; the hosted HTTP transport refuses it, so select a project there instead. Archived specifications are read-only and hidden from normal lists; request them explicitly with spec_catalog view: "branches" and spec_documents action: "read", both with includeArchived: true. ${READINESS_RULE_TEXT} ${ELICITATION_HINT}`;
 
 export const KERNEL_ENVELOPE_OUTPUT_SCHEMA = Object.freeze({
   type: "object",
@@ -1248,7 +1441,6 @@ export const TOOL_ARGUMENT_ALIASES = Object.freeze({
   replace_all: "replaceAll",
   new_doc: "newDoc",
   node_id: "canonicalId",
-  design_review: "designReview",
 });
 
 export function normalizeToolArguments(rawArguments) {
@@ -1264,8 +1456,8 @@ export function normalizeToolArguments(rawArguments) {
 }
 
 export function assertContractInvariants(contracts = TOOL_CONTRACTS) {
-  if (!Array.isArray(contracts) || contracts.length !== 10) {
-    throw new Error("Invariants failed: expected exactly 10 contracts, got " + contracts?.length);
+  if (!Array.isArray(contracts) || contracts.length !== 9) {
+    throw new Error("Invariants failed: expected exactly 9 contracts, got " + contracts?.length);
   }
   const toolNames = contracts.map((c) => c.tool);
   if (new Set(toolNames).size !== contracts.length) {
@@ -1280,8 +1472,8 @@ export function assertContractInvariants(contracts = TOOL_CONTRACTS) {
     throw new Error("Invariants failed: expected exactly one mutating tool 'spec_patch', got " + mutatingTools.map((c) => c.tool).join(","));
   }
   const readOnlyTools = contracts.filter((c) => !contractIsMutating(c));
-  if (readOnlyTools.length !== 9) {
-    throw new Error("Invariants failed: expected exactly 9 read-only tools");
+  if (readOnlyTools.length !== 8) {
+    throw new Error("Invariants failed: expected exactly 8 read-only tools");
   }
   for (const c of contracts) {
     if (typeof c.description !== "string" || c.description.trim().length === 0) {

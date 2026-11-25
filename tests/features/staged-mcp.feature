@@ -5,7 +5,7 @@ Feature: Exercise the single-surface MCP server through the packaged server
   Scenario: Single registry has live bounded handlers
     Given a real staged MCP corpus and packaged server
     When the registry and every handler are called
-    Then the registry has exactly 10 names and every call has a bounded envelope
+    Then the registry has exactly 9 names and every call has a bounded envelope
 
   Scenario: Authoring applies spec patch without duplicating documents
     Given a real staged MCP corpus and packaged server
@@ -22,11 +22,6 @@ Feature: Exercise the single-surface MCP server through the packaged server
     When the read server receives alias and unknown-field calls
     Then aliases work, unknown fields fail, and removed tools stay unknown
 
-  Scenario: Evidence requires a complete producer chain
-    Given a real staged MCP corpus and packaged server
-    When an incomplete evidence stream is queried
-    Then the evidence result is unknown and stale
-
   Scenario: Archive moves only a proven specification
     Given a real staged MCP corpus and packaged server
     When a new specification is created and archived through the spec patch door
@@ -35,13 +30,13 @@ Feature: Exercise the single-surface MCP server through the packaged server
   Scenario: OMP marks only spec patch as mutating write tool
     Given a real staged MCP corpus and packaged server
     When the staged OMP extension registry is inspected
-    Then spec patch is marked as mutating and 9 tools remain read-only
+    Then spec patch is marked as mutating and 8 tools remain read-only
 
   @tool-e2e
-  Scenario: Single surface keeps safe authoring and binds producer evidence
+  Scenario: Single surface keeps safe authoring
     Given a real staged MCP corpus and packaged server
-    When the additive registry, evidence states, and safe authoring are exercised
-    Then the surface exposes 10 bounded tools, preserves authoring, and refuses stale evidence
+    When the registry and safe authoring are exercised
+    Then the surface exposes 9 bounded tools and preserves authoring
 
   @tool-e2e
   Scenario: MCP results expose actionable recovery and exact mirrors
@@ -53,7 +48,7 @@ Feature: Exercise the single-surface MCP server through the packaged server
   Scenario: v0.5 exposes the exact tool inventory and schemas
     Given a real staged MCP corpus and packaged server
     When the tool inventory matrix is exercised
-    Then the inventory contains the exact 10-tool surface
+    Then the inventory contains the exact 9-tool surface
 
   @tool-e2e
   Scenario: v0.5 tools return semantic success results
@@ -68,10 +63,10 @@ Feature: Exercise the single-surface MCP server through the packaged server
     Then every tool rejects closed-schema and boundary violations
 
   @tool-e2e
-  Scenario: v0.5 tools detect stale corpus and evidence mutations
+  Scenario: tools detect stale corpus cursors
     Given a real staged MCP corpus and packaged server
     When the mutation and freshness matrix is exercised
-    Then every evidence and corpus mutation is detected
+    Then a stale corpus cursor is rejected
 
   @tool-e2e
   Scenario: v0.5 read-only calls preserve project bytes
@@ -120,6 +115,8 @@ Feature: Exercise the single-surface MCP server through the packaged server
       | spec_documents     | {"action": "read", "spec": "product", "doc": "FR.md", "offset": -1}                                           | INVALID_REQUEST   |
       | spec_documents     | {"action": "attachment", "spec": "product"}                                                                   | INVALID_REQUEST   |
       | spec_documents     | {"action": "attachment", "spec": "product", "path": "../outside.bin"}                                         | PATH_FORBIDDEN    |
+      | spec_documents     | {"action": "glossarySearch", "limit": 0}                                                                      | INVALID_REQUEST   |
+      | spec_documents     | {"action": "glossaryStatus", "spec": "product"}                                                               | INVALID_REQUEST   |
       | spec_inspect       | {}                                                                                                            | INVALID_REQUEST   |
       | spec_inspect       | {"check": "anchor"}                                                                                           | INVALID_REQUEST   |
       | spec_inspect       | {"check": "scenariosByTags"}                                                                                  | INVALID_REQUEST   |
@@ -134,10 +131,6 @@ Feature: Exercise the single-surface MCP server through the packaged server
       | spec_tasks         | {}                                                                                                            | INVALID_REQUEST   |
       | spec_tasks         | {"spec": "product", "limit": 0}                                                                               | INVALID_REQUEST   |
       | spec_tasks         | {"spec": "product", "statuses": ["todo", "todo"]}                                                            | INVALID_REQUEST   |
-      | spec_evidence      | {}                                                                                                            | INVALID_REQUEST   |
-      | spec_evidence      | {"view": "result"}                                                                                            | INVALID_REQUEST   |
-      | spec_evidence      | {"view": "trace"}                                                                                             | INVALID_REQUEST   |
-      | spec_evidence      | {"view": "result", "scenarioId": 123}                                                                         | INVALID_REQUEST   |
       | spec_patch         | {}                                                                                                            | INVALID_REQUEST   |
       | spec_patch         | {"intent": "patch"}                                                                                           | INVALID_REQUEST   |
       | spec_patch         | {"intent": "patch", "spec": "product", "reason": "r", "requestId": "q", "operations": []}                   | INVALID_REQUEST   |

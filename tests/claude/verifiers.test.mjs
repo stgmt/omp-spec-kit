@@ -60,6 +60,19 @@ describe("payload verifiers accept the untouched inputs", () => {
 });
 
 describe("marketplace catalog guards", () => {
+  it("ignores release worktrees while still rejecting additional catalogs in the repository", () => {
+    const dir = copyRepository();
+    const source = path.join(dir, ".claude-plugin", "marketplace.json");
+    const worktreeCatalog = path.join(dir, ".omp-spec-kit", "release-worktree-test", ".claude-plugin");
+    mkdirSync(worktreeCatalog, { recursive: true });
+    cpSync(source, path.join(worktreeCatalog, "marketplace.json"));
+    assert.equal(verify(dir, "verify-marketplace.mjs").status, 0);
+    const unexpectedCatalog = path.join(dir, ".omp-spec-kit", "unexpected", ".claude-plugin");
+    mkdirSync(unexpectedCatalog, { recursive: true });
+    cpSync(source, path.join(unexpectedCatalog, "marketplace.json"));
+    assertRejected(verify(dir, "verify-marketplace.mjs"), /catalog layout must be exactly/u);
+  });
+
   it("rejects the retired .omp-plugin catalog", () => {
     const dir = copyRepository();
     mkdirSync(path.join(dir, ".omp-plugin"), { recursive: true });

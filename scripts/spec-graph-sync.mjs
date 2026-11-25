@@ -325,6 +325,9 @@ export class HttpBoardReader {
     const projectBoards = Object.create(null);
     for (const project of projects) {
       const board = await this.#client.callTool("spec_graph", { view: "board", specSlugs, project });
+      if (board?.complete !== true || board.page !== null) {
+        throw new Error(`cannot synchronize an incomplete or paged board for ${project}`);
+      }
       projectBoards[project] = board;
       for (const node of board?.nodes ?? []) {
         // Same-project duplicate identity is still a defect; the same
@@ -709,10 +712,12 @@ export function startServe({
 }
 
 /**
- * The canonical corpus is served by the spec registry and no longer lives in
- * this repository, so projecting the working tree would read an EMPTY board
- * and reconcile YouTrack against it. An explicit corpus root is therefore
- * required — fail closed instead of silently destroying the projection.
+ * The canonical corpus lives on the project repository's orphan `spec-<slug>`
+ * branches and is served by the spec registry; the working code branch carries
+ * no `.specs/`, so projecting it would read an EMPTY board and reconcile
+ * YouTrack against it. An explicit corpus root (a spec-branch worktree) is
+ * therefore required — fail closed instead of silently destroying the
+ * projection.
  */
 function requireCorpusRoot() {
   const raw = process.env.OMP_SPEC_KIT_ROOT;

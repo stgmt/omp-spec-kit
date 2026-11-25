@@ -22,7 +22,7 @@ import {
 import {
   computeMetrics,
   evaluateGates,
-  EXPECTED_10_TOOLS,
+  EXPECTED_9_TOOLS,
   LIMITS,
   RETIRED_TOOL_NAMES,
 } from "./measure-mcp-tool-blast.mjs";
@@ -54,8 +54,8 @@ function runMutant(id, description, mutantFn, oracleFn) {
 export function generateAndEvaluateMutants() {
   const receipts = [];
 
-  // Group 1: Delete each of the 10 tools (10 mutants)
-  for (const toolName of EXPECTED_10_TOOLS) {
+  // Group 1: Delete each of the 9 tools (9 mutants)
+  for (const toolName of EXPECTED_9_TOOLS) {
     const receipt = runMutant(
       `delete-tool-${toolName}`,
       `Remove tool ${toolName} from contracts`,

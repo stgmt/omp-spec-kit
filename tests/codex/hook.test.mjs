@@ -141,13 +141,12 @@ describe("Codex spec guard", () => {
     }
   });
 
-  it("requires a design review for a scenario-authoring patch", () => {
+  it("allows a scenario-authoring patch", () => {
     const operations = [
       { kind: "replace_document", document: "foo-user-stories.feature", content: "Feature: Foo\n  @story:US-1\n  Rule: Foo\n    Actor: Reader\n    Goal: Read Foo\n    Benefit: See the result\n    @spec-ready @feature1 @id:SCEN-foo\n    Scenario: Foo works\n      Given a foo\n      When it is opened\n      Then the result is visible\n" },
     ];
     const decision = guard().decide(payload("mcp__spec_registry__spec_patch", { spec: "foo", operations }));
-    assert.equal(decision.block, true);
-    assert.match(decision.reason, /DESIGN_REVIEW_REQUIRED/u);
+    assert.equal(decision.block, false);
   });
 
   it("blocks a malformed payload without a tool name", () => {

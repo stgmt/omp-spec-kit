@@ -12,8 +12,6 @@ export const WRITE_ERROR_CODES = new Set([
   "CLAIM_HELD",
   "UNAVAILABLE",
   "VERSION_EXISTS",
-  "DESIGN_REVIEW_REQUIRED",
-  "DESIGN_REVIEW_INVALID",
   // Admission refusals. Without an entry here safeErrorCode collapses every one
   // of them to VALIDATION_FAILED and the caller loses the fix plan.
   "SPEC_NOT_READY",

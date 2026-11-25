@@ -1,15 +1,10 @@
-import { readFile, readdir } from "node:fs/promises";
-import path from "node:path";
-import { gherkinPairFindings, parseFeature, parseGherkinDocument } from "../src/kernel/parsers/gherkin.js";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { parseFeature } from "../src/kernel/parsers/gherkin.js";
 import { compile } from "../src/kernel/vendor/gherkin.js";
-import { canonicalDocumentFilename, GHERKIN_DOCUMENT_KINDS, isLegacySpecificationDocument } from "../src/kernel/types.js";
-import { resolveCorpusRoot } from "./corpus-root.mjs";
 
 const spec = "plugin-distribution";
-
-export function releaseFeaturePaths(root) {
-  return GHERKIN_DOCUMENT_KINDS.map((kind) => path.join(root, ".specs", spec, canonicalDocumentFilename(kind, spec)));
-}
+const releaseFeature = fileURLToPath(new URL("../tests/features/release-contract.feature", import.meta.url));
 
 function releaseScenarios(sources) {
   const rows = new Map();
@@ -42,20 +37,7 @@ function releaseScenarios(sources) {
   };
 }
 
-export async function readReleaseScenarios({ corpusRoot } = {}) {
-  const root = resolveCorpusRoot({ root: corpusRoot });
-  const names = await readdir(path.join(root, ".specs", spec));
-  if (names.some((filename) => isLegacySpecificationDocument(filename, spec))) {
-    throw new Error(`remove the legacy documents from the ${spec} release corpus`);
-  }
-  const sources = await Promise.all(releaseFeaturePaths(root).map(async (file) => {
-    const filepath = path.relative(root, file).replaceAll("\\", "/");
-    return { filepath, text: await readFile(file, "utf8") };
-  }));
-  const [stories, cases] = sources.map(({ filepath, text }) => parseGherkinDocument({ path: filepath, specSlug: spec, text }));
-  const findings = [...stories.diagnostics, ...cases.diagnostics, ...gherkinPairFindings(stories, cases)];
-  if (findings.length) {
-    throw new Error(`invalid release Gherkin pair: ${findings.map(({ message }) => message).join("; ")}`);
-  }
-  return releaseScenarios(sources);
+export async function readReleaseScenarios({ featurePath = releaseFeature } = {}) {
+  const text = await readFile(featurePath, "utf8");
+  return releaseScenarios([{ filepath: featurePath, text }]);
 }

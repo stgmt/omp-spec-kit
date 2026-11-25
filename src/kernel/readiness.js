@@ -11,8 +11,7 @@ import { createHash } from "node:crypto";
 // tool descriptions, the MCP instructions and hook messages render. A copy that
 // diverges from these constants is a build failure (tests/readiness-drift).
 
-// The rungs the corpus itself can prove. Execution evidence arrives through
-// the evidence pipeline, not through a document, so it is not a rung here.
+// The rungs the corpus itself can prove from its documents and links.
 export const READINESS_LEVELS = Object.freeze(["L0", "L1", "L2", "L3"]);
 
 // The chain a specification walks before a task may exist. A task is the last
@@ -67,7 +66,7 @@ export const READINESS_RULE_TEXT = [
   "TASKS are the last entity in the chain; FR is refused while REQUIREMENTS.md is still the scaffold.",
   "Readiness ladder: L0 scaffold, L1 requirements, L2 criteria and design, L3 assembled documents (requirements index, NFR, schema, cross-spec link).",
   "A task is created only on a specification that reached L3 and names at least one requirement from the same specification.",
-  "Write User Stories and Use Cases in the two canonical Gherkin files. Each use case Rule declares its story. Draft scenarios need Given/When/Then. @spec-ready requires FR/AC trace and designReview.",
+  "Write User Stories and Use Cases in the two canonical Gherkin files. Each use case Rule declares its story. Draft scenarios need Given/When/Then. @spec-ready requires FR/AC trace and owner-approved coverage.",
   "Creating or changing the requirements or coverageScope of a task requires current owner-approved BDD examples. Raw insertion of a task heading in TASKS.md is refused.",
   "The preview and the write report the same blockers and the same fix calls.",
 ].join("\n");
@@ -206,9 +205,7 @@ export function specReadiness(graph, specSlug) {
       requirements: requirements.length,
       criteria: criteria.length,
       design: design,
-      // Execution evidence lives in the evidence pipeline, not in the corpus
-      // graph, so the ladder stops where the corpus can prove a rung and the
-      // task count is reported without being a rung of its own.
+      // Task count is reported without being a rung of its own.
       tasks: tasks,
     },
     blockers,
@@ -217,7 +214,7 @@ export function specReadiness(graph, specSlug) {
 
 /**
  * Blockers that stop a task from being admitted, in level order.
- * Only the rungs up to L2 matter: evidence and tasks come after admission.
+ * Only the rungs up to L2 matter for admission.
  */
 export function taskAdmissionBlockers(readiness) {
   // Every blocker gates a task: the chain is ordered, so an unfinished rung

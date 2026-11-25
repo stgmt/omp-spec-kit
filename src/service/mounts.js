@@ -9,8 +9,9 @@ import { parseTenants } from "./tenants.js";
 import { openSecret } from "./secrets.js";
 import { projectIdError } from "./project-id.js";
 import { ensureMirror, ensureWorktree } from "./spec-checkouts.js";
+import { createGlossaryStore } from "./glossary-store.js";
 import { discoverSpecBindings, readSpecBinding, listSpecRefs } from "./spec-discovery.js";
-import { validateSpecBinding, specBranchName } from "./spec-binding.js";
+import { validateSpecBinding, specBranchName, specWorkBranchName } from "./spec-binding.js";
 
 const LOCK_FILE = ".omp-spec-kit-write.lock";
 
@@ -434,9 +435,10 @@ export class MountManager {
   }
 
   /** A checkout of one spec branch; the only place a spec document lives. */
-  async worktreeFor(projectId, spec, { fetch = true } = {}) {
-    const mount = await this.ensureRepo(projectId, { fetch });
-    const branch = specBranchName(spec);
+  async worktreeFor(projectId, spec, { fetch = true, strict = false, topic = null, preserveChanges = false } = {}) {
+    const mount = await this.ensureRepo(projectId, { fetch, strict });
+    const canonicalBranch = specBranchName(spec);
+    const branch = topic === null ? canonicalBranch : specWorkBranchName(spec, topic);
     const ref = `refs/remotes/origin/${branch}`;
     const head = await mount.git.revParse(ref, { cwd: mount.mirrorDir }).catch(() => null);
     if (!head) {
@@ -445,7 +447,8 @@ export class MountManager {
       throw error;
     }
     const raw = await readSpecBinding({ git: mount.git, cwd: mount.mirrorDir, branch: ref });
-    const valid = validateSpecBinding(raw, { branch, repoUrl: mount.repoUrl });
+    // Work branches carry the canonical binding; their own ref identifies the topic.
+    const valid = validateSpecBinding(raw, { branch: canonicalBranch, repoUrl: mount.repoUrl });
     if (!valid.ok || raw.project !== projectId || raw.spec !== spec) {
       const error = new Error(`branch ${branch} is not a valid binding for ${projectId}/${spec}: ${valid.errors.join("; ") || "metadata disagrees"}`);
       error.code = "SPEC_BINDING_INVALID";
@@ -453,7 +456,7 @@ export class MountManager {
     }
     const worktreeDir = path.join(mount.cwd, "worktrees", branch);
     const localBranch = `work/${branch}`;
-    await ensureWorktree({ git: mount.git, mirrorDir: mount.mirrorDir, worktreeDir, branch: localBranch, startPoint: ref, cwd: mount.cwd });
+    await ensureWorktree({ git: mount.git, mirrorDir: mount.mirrorDir, worktreeDir, branch: localBranch, startPoint: ref, cwd: mount.cwd, preserveChanges });
     return {
       ...mount,
       key: `${mount.key}:${branch}`,
@@ -463,6 +466,8 @@ export class MountManager {
       cwd: worktreeDir,
       project: projectId,
       spec,
+      topic,
+      head,
       archived: raw.archive !== undefined,
       archive: raw.archive ?? null,
     };
@@ -752,6 +757,21 @@ export class MountManager {
     return report;
   }
 
+  /**
+   * The project glossary, read from the `glossary` branch of the project's
+   * repository. Read-only: writes go through the authoring transaction layer.
+   */
+  async glossaryFor(projectId) {
+    this.requireConfigured(projectId);
+    const mount = await this.ensureReadableRepo(projectId);
+    const store = createGlossaryStore({ git: mount.git ?? this.git, cwd: mount.mirrorDir });
+    return {
+      status: () => store.status(projectId),
+      read: () => store.read(projectId),
+      search: (options) => store.search(projectId, options),
+    };
+  }
+
   serviceFor(projectId) {
     this.requireConfigured(projectId);
     const mount = this.readableRepo(projectId);
@@ -762,6 +782,14 @@ export class MountManager {
     if (!service) {
       service = createSpecService(this.cacheRootFor(projectId, mount), {
         audit: durableAudit(this.store),
+        // The glossary lives on its own branch of the same repository, so the
+        // service reads it through the project's mirror. A transport without a
+        // registry passes no provider and refuses the glossary actions.
+        glossary: {
+          status: async () => (await this.glossaryFor(projectId)).status(),
+          read: async () => (await this.glossaryFor(projectId)).read(),
+          search: async (options) => (await this.glossaryFor(projectId)).search(options),
+        },
       });
       this.services.set(key, service);
     }

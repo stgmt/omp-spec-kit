@@ -71,7 +71,7 @@ export async function runToolE2e({ url, token, project }) {
   const tools = listed.tools.map((tool) => tool.name);
   const required = [
     "mcp_preflight", "spec_catalog", "spec_entities", "spec_graph", "spec_documents",
-    "spec_inspect", "spec_tasks", "spec_evidence", "spec_markdown", "spec_patch",
+    "spec_inspect", "spec_tasks", "spec_markdown", "spec_patch",
     "spec_registry", "spec_drift", "spec_claim", "spec_release", "spec_branch",
   ];
   const missing = required.filter((tool) => !tools.includes(tool));
@@ -93,23 +93,6 @@ export async function runToolE2e({ url, token, project }) {
   checks.push(["spec_markdown", await call("spec_markdown", { specSlugs: [slug] })]);
   checks.push(["spec_registry", await call("spec_registry", {})]);
   checks.push(["spec_drift", await call("spec_drift", {})]);
-
-  const scenarios = await call("spec_entities", { mode: "find", specSlugs: [slug], kinds: ["SCENARIO"], limit: 1 });
-  expectOk("spec_entities (scenario)", scenarios);
-  const scenarioId = scenarios.data?.nodes?.[0]?.canonicalId ?? scenarios.data?.entities?.[0]?.canonicalId ?? scenarios.data?.items?.[0]?.canonicalId ?? null;
-  let evidenceMode = "scenario";
-  if (scenarioId !== null) {
-    checks.push(["spec_evidence", await call("spec_evidence", { view: "trace", scenarioId, spec: slug })]);
-  } else {
-    // The hosted corpus may carry no executable scenarios. The tool path is
-    // still real: a missing scenario must produce a typed refusal, never an
-    // internal error.
-    const missingScenario = await call("spec_evidence", { view: "trace", scenarioId: `${slug}:SCENARIO-MISSING`, spec: slug });
-    if (missingScenario.ok !== false || typeof missingScenario.error?.code !== "string") {
-      fail(`spec_evidence returned neither a scenario nor a typed refusal: ${JSON.stringify(missingScenario).slice(0, 300)}`);
-    }
-    evidenceMode = `typed-error:${missingScenario.error.code}`;
-  }
 
   const readme = await call("spec_documents", { action: "read", spec: slug, doc: "README.md" });
   expectOk("spec_documents (patch source)", readme);
@@ -139,10 +122,9 @@ export async function runToolE2e({ url, token, project }) {
     endpoint: url,
     tools: tools.length,
     checked: [...checks.map(([name]) => name), "spec_patch", "spec_branch"],
-    complete: scenarioId !== null,
-    evidence: evidenceMode,
+    complete: true,
     specs: catalog.data.specs.length,
-    status: scenarioId === null ? "passed-with-typed-evidence" : "passed",
+    status: "passed",
   };
 }
 

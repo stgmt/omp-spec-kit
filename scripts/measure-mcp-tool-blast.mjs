@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-export const EXPECTED_10_TOOLS = Object.freeze([
+export const EXPECTED_9_TOOLS = Object.freeze([
   "mcp_preflight",
   "spec_catalog",
   "spec_entities",
@@ -15,11 +15,11 @@ export const EXPECTED_10_TOOLS = Object.freeze([
   "spec_documents",
   "spec_inspect",
   "spec_tasks",
-  "spec_evidence",
   "spec_markdown",
   "spec_patch",
 ]);
 export const RETIRED_TOOL_NAMES = Object.freeze([
+  "spec_evidence",
   "spec_inventory",
   "spec_get_node",
   "spec_find_nodes",
@@ -61,10 +61,10 @@ export const RETIRED_TOOL_NAMES = Object.freeze([
 ]);
 
 export const LIMITS = Object.freeze({
-  toolCount: 10,
-  readOnlyCount: 9,
+  toolCount: 9,
+  readOnlyCount: 8,
   mutatingCount: 1,
-  // The ten-tool surface carries every spec_patch intent and the readiness
+  // The nine-tool surface carries every spec_patch intent and the readiness
   // selector; the budget is a growth cap, not a target. The gate measures
   // 25375 bytes on the shipped server after the readiness gate, against 24158
   // at v3.6.3 and 42499 for the 38-tool baseline it replaced, so 32000 is 75%
@@ -129,11 +129,11 @@ export function computeDeltas(baselineMetrics, candidateMetrics) {
 export function evaluateGates(candidateMetrics, candidateTools) {
   const candidateNames = candidateTools.map((t) => t.name);
   const retiredPresent = RETIRED_TOOL_NAMES.filter((name) => candidateNames.includes(name));
-  const missingExpected = EXPECTED_10_TOOLS.filter((name) => !candidateNames.includes(name));
-  const unexpected = candidateNames.filter((name) => !EXPECTED_10_TOOLS.includes(name));
+  const missingExpected = EXPECTED_9_TOOLS.filter((name) => !candidateNames.includes(name));
+  const unexpected = candidateNames.filter((name) => !EXPECTED_9_TOOLS.includes(name));
 
-  const toolCountIs10 = candidateMetrics.toolCount === LIMITS.toolCount;
-  const readOnlyCountIs9 = candidateMetrics.readOnlyCount === LIMITS.readOnlyCount;
+  const toolCountIs9 = candidateMetrics.toolCount === LIMITS.toolCount;
+  const readOnlyCountIs8 = candidateMetrics.readOnlyCount === LIMITS.readOnlyCount;
   const mutatingCountIs1 = candidateMetrics.mutatingCount === LIMITS.mutatingCount;
   const noRetiredNames = retiredPresent.length === 0;
   const catalogBytesWithinLimit = candidateMetrics.totalCatalogBytes <= LIMITS.maxTotalCatalogBytes;
@@ -141,8 +141,8 @@ export function evaluateGates(candidateMetrics, candidateTools) {
   const exactToolsMatch = missingExpected.length === 0 && unexpected.length === 0;
 
   const passed =
-    toolCountIs10 &&
-    readOnlyCountIs9 &&
+    toolCountIs9 &&
+    readOnlyCountIs8 &&
     mutatingCountIs1 &&
     noRetiredNames &&
     catalogBytesWithinLimit &&
@@ -151,8 +151,8 @@ export function evaluateGates(candidateMetrics, candidateTools) {
 
   return {
     passed,
-    toolCountIs10,
-    readOnlyCountIs9,
+    toolCountIs9,
+    readOnlyCountIs8,
     mutatingCountIs1,
     noRetiredNames,
     retiredPresent,
@@ -259,8 +259,8 @@ async function main() {
 
   if (!gates.passed) {
     console.error("FAIL CLOSED: Tool surface blast gates failed:");
-    if (!gates.toolCountIs10) console.error(`  - Tool count is ${candidateMetrics.toolCount}, expected ${LIMITS.toolCount}`);
-    if (!gates.readOnlyCountIs9) console.error(`  - Read-only count is ${candidateMetrics.readOnlyCount}, expected ${LIMITS.readOnlyCount}`);
+    if (!gates.toolCountIs9) console.error(`  - Tool count is ${candidateMetrics.toolCount}, expected ${LIMITS.toolCount}`);
+    if (!gates.readOnlyCountIs8) console.error(`  - Read-only count is ${candidateMetrics.readOnlyCount}, expected ${LIMITS.readOnlyCount}`);
     if (!gates.mutatingCountIs1) console.error(`  - Mutating count is ${candidateMetrics.mutatingCount}, expected ${LIMITS.mutatingCount}`);
     if (!gates.noRetiredNames) console.error(`  - Retired tool names present: ${gates.retiredPresent.join(", ")}`);
     if (!gates.catalogBytesWithinLimit) console.error(`  - Catalog bytes ${candidateMetrics.totalCatalogBytes} exceeds limit ${LIMITS.maxTotalCatalogBytes}`);

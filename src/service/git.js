@@ -148,6 +148,56 @@ export class GitClient {
     );
   }
 
+  /** Bounded command including queue time; kills its process tree on timeout. */
+  runBounded(args, { cwd = this.defaultCwd, timeoutMs = 30_000, input = null } = {}) {
+    if (!Array.isArray(args) || args.some((arg) => typeof arg !== "string") || typeof cwd !== "string" || cwd.length === 0 || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || (input !== null && typeof input !== "string")) {
+      return Promise.reject(new GitError("bounded git command has invalid arguments", { args }));
+    }
+    let started = false;
+    let timedOut = false;
+    let child = null;
+    let deadlineReject;
+    const deadline = new Promise((_, reject) => { deadlineReject = reject; });
+    const killTree = () => {
+      if (!child?.pid) return;
+      if (process.platform === "win32") {
+        execFile("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true }, () => { try { child.kill("SIGKILL"); } catch {} });
+      } else {
+        try { process.kill(-child.pid, "SIGKILL"); } catch { try { child.kill("SIGKILL"); } catch {} }
+      }
+    };
+    const timeoutError = () => new GitError(`git ${args[0]} exceeded its ${timeoutMs}ms deadline`, { args: args.map((arg) => this.redact(arg)), exitCode: "TIMEOUT" });
+    const timer = setTimeout(() => {
+      timedOut = true;
+      if (started) killTree();
+      else deadlineReject(timeoutError());
+    }, timeoutMs);
+    const queued = enqueue(cwd, () => new Promise((resolve, reject) => {
+      if (timedOut) return reject(timeoutError());
+      started = true;
+      child = spawn("git", args, { cwd, windowsHide: true, detached: process.platform !== "win32", env: this.childEnv(), stdio: [input === null ? "ignore" : "pipe", "pipe", "pipe"] });
+      if (input !== null) { child.stdin.on("error", () => {}); child.stdin.end(input); }
+      let stdout = "";
+      let stderr = "";
+      let overflow = false;
+      const collect = (part, type) => {
+        if (type === "stdout") stdout += part; else stderr += part;
+        if (Buffer.byteLength(stdout) + Buffer.byteLength(stderr) > 32 * 1024 * 1024) { overflow = true; killTree(); }
+      };
+      child.stdout.setEncoding("utf8");
+      child.stderr.setEncoding("utf8");
+      child.stdout.on("data", (part) => collect(part, "stdout"));
+      child.stderr.on("data", (part) => collect(part, "stderr"));
+      child.on("error", (error) => reject(new GitError(this.redact(`git ${args[0]} failed in ${cwd}: ${error.message}`), { args, exitCode: error.code })));
+      child.on("close", (code) => {
+        if (timedOut) return reject(timeoutError());
+        if (code !== 0 || overflow) return reject(new GitError(this.redact(`git ${args[0]} failed in ${cwd}: ${(stderr || "output limit exceeded").trim().slice(0, 500)}`), { args: args.map((arg) => this.redact(arg)), stdout: this.redact(stdout), stderr: this.redact(stderr), exitCode: code }));
+        resolve({ stdout, stderr });
+      });
+    }));
+    return Promise.race([queued, deadline]).finally(() => clearTimeout(timer));
+  }
+
   async revParse(rev, { cwd } = {}) {
     const { stdout } = await this.run(["rev-parse", "--verify", rev], { cwd });
     return stdout.trim();
@@ -171,12 +221,20 @@ export class GitClient {
     await this.run(["add", "--", ...paths], { cwd });
   }
 
-  async commit({ message, authorName, authorEmail, cwd } = {}) {
+  async commit({ message, authorName, authorEmail, cwd, paths = null } = {}) {
     const args = [
       "-c", `user.name=${authorName}`,
       "-c", `user.email=${authorEmail}`,
       "commit", "--no-verify", "--allow-empty", "-m", message,
     ];
+    // A scoped commit must not accidentally publish entries another process
+    // staged in the same worktree after the caller checked its index.
+    if (paths !== null) {
+      if (!Array.isArray(paths) || paths.length === 0 || paths.some((item) => typeof item !== "string" || !item)) {
+        throw new Error("commit paths must be a non-empty list of paths");
+      }
+      args.push("--only", "--", ...paths);
+    }
     await this.run(args, { cwd });
   }
 

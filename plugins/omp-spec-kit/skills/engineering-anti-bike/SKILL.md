@@ -1,6 +1,6 @@
 ---
 name: engineering-anti-bike
-description: Anti-bikeshedding and anti-fake-green discipline for specification authoring and implementation — evidence-first claims, prior-art scan before custom code, and a mandatory self-test check when authoring BDD scenarios.
+description: Anti-bikeshedding and anti-fake-green discipline for specification authoring and implementation — evidence-first claims, prior-art scan before custom code, and evidence-based BDD scenario authoring.
 ---
 
 # Engineering anti-bike
@@ -18,18 +18,13 @@ Operating discipline that prevents two failure modes: bikeshedding (debating tas
 - Before writing a new mechanism, search the repository and the installed toolchain for an existing one. Name what you found and why it does not fit, or reuse it.
 - Prefer the boring option that already exists over a novel abstraction. A second convention beside an existing one is prohibited.
 
-## Self-test / fake-green check at BDD scenario authoring
+## BDD scenario authoring
 
-Draft scenarios require complete Given/When/Then steps and valid links. To add `@spec-ready` or change a protected scenario, send `spec_patch` with a `designReview` field (schema `omp-spec-kit/design-review@1`). This includes moving or deleting the scenario and changing its effective background or examples. The server reports `DESIGN_REVIEW_REQUIRED` for a missing review and `DESIGN_REVIEW_INVALID` for a malformed review. Approval of the scenario text for task scope is handled separately through the owner's BDD coverage map.
+Draft scenarios require complete Given/When/Then steps and valid links. Write observable behavior and use concrete examples that distinguish the intended outcome from an incorrect one. The owner's BDD coverage map approves the examples used for task scope and promotion to `@spec-ready`.
 
-The review must answer, with evidence:
+## Migrating an existing specification
 
-- **boundary** — which external contract, external system, or user-visible contract the scenario pins, and the claim being made about it.
-- **evidence** — 2–8 items; at least one `kind:"test"` and at least one non-test kind (`source`, `documentation`, or `research`).
-- **alternatives** — 1–5 rejected approaches with a reason each.
-- **selfTestCheck** — proof the scenario is not vacuous: `status:"passed"`, `mutation:"failed-as-expected"`, plus the command run, the hypothesis, the answer, the positive case, the negative case, the expected failure, and the observed failure.
-
-Before marking a scenario executable, verify that it fails for the specific wrong behavior it claims to catch.
+Legacy specification documents remain readable through `spec_documents`. Before changing one specification with an old or incomplete layout, request its file list with `includeSnapshot: true` and read the sources against that snapshot. Prepare `spec_patch` with `intent: "migrateSpec"`, both canonical Gherkin documents and source-to-target mapping, then preview it. Preserve the source content and links; direct links of a story or case use `Refs: <slug>:<ID>` before `Context`. For an ambiguous case-to-story link, ask the owner and include the approved `decisions` entry with its reason. If a canonical field is not proven by its corresponding source field, ask the owner and include `fieldDecisions` such as `{ "entityId": "US-1", "field": "Goal", "value": "Review the proposal", "reason": "Owner confirmed this goal", "sourceDocument": "legacy.feature", "sourceSha256": "<source SHA-256>", "sourceStartLine": 1, "sourceEndLine": 1 }`. The source range must belong to a mapping into that same Rule. If existing scenario step lines need correction, obtain the owner's decision and provide `repairs` with exact source/before/after SHA-256 hashes, original line range, scenario ID, replacement and reason. Review the shown before/after fragments. Do not invent requirements or approve coverage. After reviewing the preservation findings and diff, apply the same proposal using its `expectedProposalHash` and repeat the original change. The remaining specifications can stay in their current format until they need changes.
 
 ## Hypothesis Q&A
 

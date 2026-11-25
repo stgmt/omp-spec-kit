@@ -140,8 +140,8 @@ Feature: safe specification authoring
     When the scenario "elicitation-concurrent-first-applies" runs
     Then the scenario passes
 
-  @safe-authoring @design-review
-  Scenario: Scenario-authoring patches require a design review receipt
+  @safe-authoring @bdd-approval
+  Scenario: Ready examples require approved BDD coverage
     Given a disposable real authoring corpus and live MCP server
-    When the scenario "design-review-gate" runs
+    When the scenario "bdd-approval-gate" runs
     Then the scenario passes

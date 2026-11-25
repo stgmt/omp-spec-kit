@@ -39,10 +39,10 @@ test("candidate surface gate rejects a whitelisted version with drifted surface"
   );
 });
 
-test("expectedManagerToolCount(2.8.x) matches the live manager tool catalog", () => {
-  assert.equal(expectedManagerToolCount("2.8.0"), TOOL_CONTRACTS.length);
-  assert.equal(expectedManagerToolCount("2.8.1"), TOOL_CONTRACTS.length);
-  assert.equal(TOOL_CONTRACTS.length, 10);
+test("expectedManagerToolCount preserves the 2.8.x release catalog", () => {
+  assert.equal(expectedManagerToolCount("2.8.0"), 10);
+  assert.equal(expectedManagerToolCount("2.8.1"), 10);
+  assert.equal(TOOL_CONTRACTS.length, 9);
 });
 
 test("expectedManagerToolCount falls back for unknown versions", () => {

@@ -65,7 +65,7 @@ function sourceRange(node, source) {
   return source.span(start, lastLine(node, source.lines));
 }
 
-const storyFields = { Actor: "actor", Goal: "goal", Benefit: "benefit" };
+const storyFields = { Actor: "actor", Goal: "goal", Benefit: "benefit", "Independent Test": "independentTest" };
 const caseFields = {
   Actor: "actor", Boundary: "boundary", Trigger: "trigger", Precondition: "precondition", Success: "success",
 };
@@ -76,6 +76,7 @@ function parseRuleDescription(rule, isCase, issue) {
   const outcomes = {};
   const steps = {};
   const refs = {};
+  let directRefs = null;
   let covers = null;
   const malformed = (message) => issue(rule.location.line, message);
   for (const line of rule.description.split("\n").map((line) => line.trim()).filter(Boolean)) {
@@ -83,6 +84,13 @@ function parseRuleDescription(rule, isCase, issue) {
     const name = line.slice(0, separator);
     const value = line.slice(separator + 1).trim();
     if (separator >= 0 && name === "Context") break;
+    if (separator >= 0 && name === "Refs") {
+      const targets = value.split(/[\s,]+/u).filter(Boolean);
+      if (directRefs !== null || targets.length === 0 || new Set(targets).size !== targets.length) {
+        malformed(`Rule ${rule.name} requires one nonempty Refs list without duplicates`);
+      } else directRefs = targets;
+      continue;
+    }
     if (separator >= 0 && name === "Covers") {
       const targets = value.split(",").map((target) => target.trim());
       if (covers !== null || new Set(targets).size !== targets.length ||
@@ -113,6 +121,7 @@ function parseRuleDescription(rule, isCase, issue) {
     declaration[0][id] = name === "ScenarioRef" ? values[0] : values;
   }
   for (const [name, key] of Object.entries(expected)) {
+    if (name === "Independent Test") continue;
     if (!Object.hasOwn(fields, key)) malformed(`Rule ${rule.name} is missing ${name}`);
   }
   for (const [id, ref] of Object.entries(refs)) {
@@ -124,7 +133,7 @@ function parseRuleDescription(rule, isCase, issue) {
       malformed(`Branch ${id} of ${rule.name} names an undefined step`);
     }
   }
-  return { ...fields, outcomes, steps, refs, covers: covers ?? [] };
+  return { ...fields, outcomes, steps, refs, directRefs: directRefs ?? [], covers: covers ?? [] };
 }
 
 function referenceTags(tags, locations) {
@@ -246,11 +255,12 @@ export function parseGherkinDocument({ path, specSlug, text }) {
         }
         examples.push({ headers, rows: table });
       }
-      if (scenario.keyword === "Scenario Outline" && exampleIds.size === 0) issue(line, `${scenarioId} needs Examples`);
-      const refs = [];
-      for (const match of scenario.description.matchAll(/^\s*Refs:[ \t]*([^\n]+)/gmu)) {
-        for (const rawTarget of match[1].trim().split(/[\s,]+/u)) refs.push({ rawTarget, requestedEdgeType: "REFS", span: source.span(line) });
+      if (["Scenario Outline", "Scenario Template"].includes(scenario.keyword) && exampleIds.size === 0) {
+        issue(line, `${scenarioId} needs Examples`);
       }
+      const refs = scenarioReferences(scenario.description).map((rawTarget) => ({
+        rawTarget, requestedEdgeType: "REFS", span: source.span(line),
+      }));
       const entry = {
         localId: scenarioId, name: scenario.name, keyword: scenario.keyword, featureName: feature.name,
         nameSpan: sourceRange(scenario, source), steps: scenario.steps.map(({ keyword, text }) => ({ keyword: keyword.trim(), text })),
@@ -281,6 +291,14 @@ export function parseGherkinDocument({ path, specSlug, text }) {
     scenario.pickles.push({ rowId, sha256 });
   }
   return result;
+}
+
+export function scenarioReferences(description = "") {
+  const references = [];
+  for (const match of description.matchAll(/^\s*Refs:[ \t]*([^\n]+)/gmu)) {
+    references.push(...match[1].trim().split(/[\s,]+/u));
+  }
+  return references;
 }
 
 export function gherkinPairFindings(stories, cases) {
@@ -315,10 +333,4 @@ export function gherkinPairFindings(stories, cases) {
     }
   }
   return findings;
-}
-
-export function protectedScenarios(document) {
-  return document.scenarios.filter(({ ready }) => ready).map(({ localId, pickles, tags }) => ({
-    localId, pickles, tags: tags.map(({ tag }) => tag),
-  }));
 }

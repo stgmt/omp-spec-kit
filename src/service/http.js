@@ -1,4 +1,5 @@
 import express from "express";
+import { MAX_MCP_JSON_BODY_BYTES } from "../kernel/limits.js";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -7,7 +8,6 @@ import { CallToolRequestSchema, InitializeRequestSchema, ListToolsRequestSchema,
 import { createDispatcher, serverInfo } from "./dispatch.js";
 import { sanitizeRepoUrl } from "./mounts.js";
 import { scopeFromContext, requireScope } from "./scope.js";
-import { MAX_UPLOAD_BYTES, storeProjectEvidence } from "./evidence-upload.js";
 
 /**
  * Shared tool dispatch for the HTTP transport: same contracts, same argument
@@ -103,29 +103,7 @@ export function createServiceApp({ mounts, authenticate, serviceOps = {}, servic
     authGate(req, res, next);
   });
 
-  // Authenticate and authorize before accepting the potentially large body.
-  app.post("/evidence", authGate, (req, res, next) => {
-    if (!["owner", "writer"].includes(req.ctx?.role)) return res.status(403).json({ error: "FORBIDDEN_ROLE" });
-    const project = req.query.project;
-    if (typeof project !== "string" || !requireScope(req.ctx?.scope, "POST /evidence").allows(project)) {
-      return res.status(403).json({ error: "PROJECT_NOT_ALLOWED" });
-    }
-    if (!req.is("application/x-ndjson")) return res.status(415).json({ error: "INVALID_CONTENT_TYPE" });
-    next();
-  }, express.raw({ type: "application/x-ndjson", limit: MAX_UPLOAD_BYTES, inflate: false }), async (req, res) => {
-    try {
-      await storeProjectEvidence(mounts, req.query.project, req.body);
-      res.status(201).json({ ok: true, project: req.query.project });
-    } catch (error) {
-      res.status(Number.isSafeInteger(error?.status) ? error.status : 500).json({ error: error?.code ?? "EVIDENCE_UPLOAD_FAILED" });
-    }
-  });
-
-  app.use("/evidence", (error, _req, res, next) => {
-    if (error?.type === "entity.too.large") return res.status(413).json({ error: "EVIDENCE_TOO_LARGE" });
-    if (error?.status === 415) return res.status(415).json({ error: "INVALID_CONTENT_ENCODING" });
-    next(error);
-  });
+  app.use("/mcp", express.json({ limit: MAX_MCP_JSON_BODY_BYTES }));
   app.use(express.json({ limit: "4mb" }));
 
   app.get("/health", (_req, res) => {

@@ -44,8 +44,7 @@ npm run verify
 
 For a release candidate, run the archive matrix and the separate `--stage safe-authoring` compatibility smoke. Record repository-owned evidence paths only:
 
-- `.omp-spec-kit/evidence/last-test-run.ndjson`
-- `.omp-spec-kit/evidence/bdd-results/run.ndjson`
+- `.omp-spec-kit/evidence/release-test-run.ndjson`
 - `tests/fixtures/release-candidate/cucumber-messages.ndjson`
 
 A missing, skipped, stale, malformed, partial, or mutation-unproven row blocks completion.

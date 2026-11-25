@@ -33,8 +33,6 @@ function argumentsFor(contract, index) {
       return { check: "orphans" };
     case "spec_tasks":
       return { spec: "plugin-distribution" };
-    case "spec_evidence":
-      return { view: "result", scenarioId: "SCEN-mri-active-project-root" };
     case "spec_markdown":
       return { specSlugs: ["plugin-distribution"] };
     case "spec_patch":

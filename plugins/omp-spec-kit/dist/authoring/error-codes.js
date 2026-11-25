@@ -12,8 +12,6 @@ export const WRITE_ERROR_CODES = new Set([
   "CLAIM_HELD",
   "UNAVAILABLE",
   "VERSION_EXISTS",
-  "DESIGN_REVIEW_REQUIRED",
-  "DESIGN_REVIEW_INVALID",
   // Admission refusals. Without an entry here safeErrorCode collapses every one
   // of them to VALIDATION_FAILED and the caller loses the fix plan.
   "SPEC_NOT_READY",
@@ -24,6 +22,11 @@ export const WRITE_ERROR_CODES = new Set([
   "REQUIREMENTS_DOC_REQUIRED",
   "BDD_COVERAGE_INCOMPLETE",
   "BDD_COVERAGE_PROTECTED",
+  // Project glossary reads: the three outcomes stay distinct so a caller can
+  // tell "create the glossary" from "the repository is unreachable".
+  "GLOSSARY_PROJECT_INVALID",
+  "GLOSSARY_BRANCH_MISSING",
+  "GLOSSARY_UNAVAILABLE",
 ]);
 
 export function isRetryable(code) {
@@ -33,7 +36,8 @@ export function isRetryable(code) {
     code === "CONCURRENT_READ" ||
     code === "RECOVERY_REQUIRED" ||
     code === "ROLLBACK_FAILED" ||
-    code === "UNAVAILABLE"
+    code === "UNAVAILABLE" ||
+    code === "GLOSSARY_UNAVAILABLE"
   );
 }
 

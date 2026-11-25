@@ -13,7 +13,7 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const pluginRoot = path.join(repositoryRoot, "plugins", "omp-spec-kit");
 const PLUGIN_ROOT_PLACEHOLDER = "${CLAUDE_PLUGIN_ROOT}";
 const PROJECT_DIR_PLACEHOLDER = "${CLAUDE_PROJECT_DIR}";
-const EXPECTED_TOOL_COUNT = 10;
+const EXPECTED_TOOL_COUNT = 9;
 const STEP_TIMEOUT_MS = 20_000;
 
 let projectDir;
@@ -120,7 +120,7 @@ describe(".mcp.json launch shape", () => {
 });
 
 describe("bundled MCP server", () => {
-  it("answers tools/list with ten tools and keeps stdout JSON-only", async () => {
+  it("answers tools/list with nine tools and keeps stdout JSON-only", async () => {
     const server = {
       command: process.execPath,
       args: [path.join(pluginRoot, "dist", "mcp", "server.js")],

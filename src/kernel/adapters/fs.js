@@ -8,6 +8,7 @@ import { lstat, readdir, realpath, readFile } from "node:fs/promises";
 import path from "node:path";
 import { canonicalDocumentKind, isLegacySpecificationDocument } from "../types.js";
 import { isValidSpecSlug } from "../identity.js";
+import { DEFAULT_LIMITS } from "../limits.js";
 
 export class AdapterContainmentError extends Error {
   constructor(code, diagnostics) {
@@ -23,10 +24,10 @@ function sanitizedDiagnostic(code, relativePath, extra = {}) {
 
 export async function readRepositorySpecs({ root, limits } = {}) {
   const budgets = {
-    maxDocuments: limits?.maxDocuments ?? 2000,
-    maxBytesPerDocument: limits?.maxBytesPerDocument ?? 2 * 1024 * 1024,
-    maxAggregateBytes: limits?.maxAggregateBytes ?? 50 * 1024 * 1024,
-    maxPathBytes: limits?.maxPathBytes ?? 512,
+    maxDocuments: limits?.maxDocuments ?? DEFAULT_LIMITS.maxDocuments,
+    maxBytesPerDocument: limits?.maxBytesPerDocument ?? DEFAULT_LIMITS.maxBytesPerDocument,
+    maxAggregateBytes: limits?.maxAggregateBytes ?? DEFAULT_LIMITS.maxAggregateBytes,
+    maxPathBytes: limits?.maxPathBytes ?? DEFAULT_LIMITS.maxPathBytes,
   };
   const diagnostics = [];
 
@@ -139,13 +140,21 @@ export async function readRepositorySpecs({ root, limits } = {}) {
         const realFile = await realpath(absolute);
         if (!isInsideRoot(rootReal, realFile)) throw containment("SYMLINK_REJECTED", relativePath);
         if (stats.size > budgets.maxBytesPerDocument) {
-          diagnostics.push(sanitizedDiagnostic("FILE_TOO_LARGE", relativePath));
+          diagnostics.push(sanitizedDiagnostic("FILE_TOO_LARGE", relativePath, {
+            limitName: "maxBytesPerDocument",
+            limitValue: budgets.maxBytesPerDocument,
+            observedValue: stats.size,
+          }));
           refused = true;
           break;
         }
         if (aggregateBytes + stats.size > budgets.maxAggregateBytes) {
           diagnostics.push(
-            sanitizedDiagnostic("CORPUS_LIMIT_EXCEEDED", relativePath, { limitName: "maxAggregateBytes" }),
+            sanitizedDiagnostic("CORPUS_LIMIT_EXCEEDED", relativePath, {
+              limitName: "maxAggregateBytes",
+              limitValue: budgets.maxAggregateBytes,
+              observedValue: aggregateBytes + stats.size,
+            }),
           );
           refused = true;
           break;

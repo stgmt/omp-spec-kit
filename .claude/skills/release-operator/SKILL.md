@@ -14,8 +14,7 @@ Use this skill before every omp-spec-kit release operation. A release is not rea
 3. Run the complete staged suite, Docker checks, release-integrity scenarios, candidate checks, archive checks, and installed-package checks.
    If the release includes any changed MCP tool, tool contract, handler, evidence parser, launcher, or registry, run the complete @tool-e2e matrix for all affected tools against both the built server and the extracted archive launcher. Archive inventory alone is insufficient.
 4. Verify that all evidence comes from repository-owned sources:
-   - `.omp-spec-kit/evidence/last-test-run.ndjson`;
-   - `.omp-spec-kit/evidence/bdd-results/run.ndjson`;
+   - `.omp-spec-kit/evidence/release-test-run.ndjson`;
    - `tests/fixtures/release-candidate/cucumber-messages.ndjson`.
 5. Verify the candidate, package-tree, archive, tag, workflow, and attestation values against one peeled commit.
 

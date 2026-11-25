@@ -16,7 +16,7 @@ omp plugin marketplace add stgmt/omp-spec-kit
 omp plugin install omp-spec-kit@omp-spec-kit --scope project
 ```
 
-After installing or updating, restart OMP in the target project. A fresh session loads the plugin and its MCP server from that project.
+After installing or updating, restart OMP in the target project. A fresh session loads the plugin and connects to the configured MCP registry.
 
 Update an existing project install with:
 
@@ -34,13 +34,15 @@ Requires Claude Code 2.1.292 or newer. In a Claude Code session:
 /reload-plugins
 ```
 
-The plugin starts the MCP server with `node` against the project where Claude Code runs, and registers a `PreToolUse` hook that blocks direct reads and writes of `.specs`, so specification access goes through the MCP tools. The hook is a barrier, not a sandbox: the Bash-level checks are regex based and do not catch every way a shell command can reach a file.
+The plugin connects Claude Code to the configured MCP registry and registers a `PreToolUse` hook. The hook blocks direct reads and writes of `.specs` and directs authors to the MCP tools. The hook is a barrier, not a sandbox: the Bash-level checks are regex based and do not catch every way a shell command can reach a file.
 
 ## Two surfaces, one product
 
-The plugin install above gives your OMP or Claude Code session the **local kernel**: the 10 MCP tools read the `.specs/` corpus of the project you open the host in — no services required.
+The plugin connects the host to the configured registry. The registry uses the kernel to read and validate the selected project’s specification corpus through nine core MCP tools.
 
 The **hosted path** is the spec-registry service (`spec-registryd`): every specification is an orphan `spec-<slug>` branch in its project's own Git repository, with `.spec-kit.json` at the branch root and the corpus under `.specs/<slug>/`. Writes go through the service's MCP endpoint with YouTrack-verified identity, roles, and project scopes. Consumers connect with a `.mcp.json` that carries the `Authorization` header only: the project is never a connection-wide header, it is selected per call from the workspace record described below.
+
+Migrating or merging an `ACTIVE` specification requires a durable SQLite ledger and a Git remote that supports atomic push. If the service uses its JSONL store, these operations return `PUBLICATION_LEDGER_UNAVAILABLE`; ordinary reads and other supported JSONL operations remain available. On Node 22, start the service with `--experimental-sqlite` if required by the runtime, and verify that it opened the intended SQLite ledger. Enabling SQLite does not import an existing JSONL ledger: transfer and verify published-version records before switching stores.
 
 ```mermaid
 flowchart LR
@@ -135,7 +137,7 @@ After install, open **Administration → Integrations → Spec Service** (the ap
 
 ## Available today
 
-The local kernel in v3.1.0 is exactly 10 task-oriented MCP tools: 9 bounded read-only tools and one transactional patch tool. The hosted registry adds service-owned operations on top — `spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, `spec_branch`, and `spec_repo` (register or bind a project's specs repository, unbind it, probe a credential, list bindings) — exposed over the same MCP endpoint.
+The kernel exposes nine task-oriented MCP tools: eight bounded read-only tools and one transactional patch tool. The hosted registry adds service-owned operations on top — `spec_registry`, `spec_drift`, `spec_claim`, `spec_release`, `spec_branch`, and `spec_repo` (register or bind a project's specs repository, unbind it, probe a credential, list bindings) — exposed over the same MCP endpoint.
 
 A project must be registered in the registry before it can be read or written; the tool never serves an unregistered working tree as a substitute. Registration is one call, available to an owner verified by the operator's YouTrack: `spec_repo {"action":"register","project":"owner/project","repoUrl":"<git-url>","token":"<fine-grained-pat-with-contents-rw>"}`. It checks the project id against tenants, operator config and existing bindings — so an owned id cannot be taken over — seals the credential, queues the work and answers immediately; the repository clone runs in the background and reports its phase (`queued`, `probing`, `mirroring`, `materialising`, `active`, or `error` with the reason). Poll `spec_repo {"action":"status","project":"owner/project"}` for the phase, the elapsed time and the one next step; the registering login's scope widens as soon as the registration is queued, and nobody else sees the project until the operator adds it to a tenant. Repeating the same registration of the same repository and branch is a no-op, and a queued registration survives a service restart.
 
@@ -149,17 +151,14 @@ An unregistered project never leaves the caller guessing: any refusal names the 
 | Documents & Attachments | `spec_documents` | `action: "list" | "read" | "attachment"` |
 | Validation & Policy | `spec_inspect` | `check: "scenariosByTags" | "orphans" | "anchor" | "requirementMetadata" | "requirementsPolicy" | "archivalProof" | "validation"` |
 | Tasks | `spec_tasks` | filters: `spec`, `statuses`, `phase`, `requirement` |
-| Runtime Evidence | `spec_evidence` | `view: "result" | "trace"` |
 | Markdown References | `spec_markdown` | headings & links inventory |
 | Preflight | `mcp_preflight` | root provenance & admissions |
 | Safe Authoring | `spec_patch` | `dryRun` preview or atomic apply with 13 typed intents |
 | Branch lifecycle (hosted) | `spec_branch` | `action: "create" | "merge" | "delete"` |
 
-The read and evidence tools share one bounded graph and return structured results with current-project provenance. Evidence is content-addressed and stale when its captured graph or scenario binding no longer matches. `spec_patch` defaults to an in-memory preview; only `dryRun: false` can change a specification through hash-checked atomic transactions.
+The read tools share one bounded graph and return structured results with current-project provenance. `spec_patch` defaults to an in-memory preview; only `dryRun: false` can change a specification through hash-checked atomic transactions.
 
-`node scripts/capture-gherkin-evidence.mjs <root> <spec> <step-module>` runs the `@spec-ready` scenarios in the specification's two canonical files. Save its NDJSON output to `.omp-spec-kit/evidence/last-test-run.ndjson` under that root. `spec_evidence` verifies the starting graph fingerprint, source hashes and executed Examples rows. A stale or unbound result reports `UNKNOWN`.
-
-For a hosted registry, opt in to uploading that same artifact by setting `SPEC_EVIDENCE_UPLOAD_URL` to the registry base URL, `SPEC_EVIDENCE_PROJECT` to the authorized `owner/project`, and `SPEC_EVIDENCE_TOKEN` to a writer or owner bearer token before running the capture command. The token is read from the environment, not the command line. The registry accepts at most 16 MiB, checks the project scope and current graph fingerprint, and atomically replaces that project's last run; failed test runs are uploaded too. Use HTTPS except for loopback HTTP. The upload is an assertion by the authenticated writer, not an independently verified CI attestation.
+Specifications store scenarios in `<slug>-user-stories.feature` and `<slug>-use-cases.feature`. The parser validates their structure, references, and owner-approved BDD coverage when admitting tasks. `@spec-ready` marks an approved example in the specification.
 
 ## Typical use
 

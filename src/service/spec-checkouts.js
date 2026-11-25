@@ -48,14 +48,14 @@ export async function ensureMirror({ git, repoUrl, mirrorDir, cwd }) {
   return { created: true };
 }
 
-export async function ensureWorktree({ git, mirrorDir, worktreeDir, branch, startPoint = null, cwd }) {
+export async function ensureWorktree({ git, mirrorDir, worktreeDir, branch, startPoint = null, cwd, preserveChanges = false }) {
   await mkdir(cwd, { recursive: true });
   if (existsSync(path.join(worktreeDir, ".git"))) {
     const current = (await git.run(["-C", worktreeDir, "rev-parse", "--abbrev-ref", "HEAD"], { cwd })).stdout.trim();
     if (current === branch) {
       // The mirror ref may have moved (fetch in another process); the working
       // tree must match its own branch tip before any read or write.
-      await git.run(["-C", worktreeDir, "reset", "--hard"], { cwd });
+      if (!preserveChanges) await git.run(["-C", worktreeDir, "reset", "--hard"], { cwd });
       return { reused: true };
     }
     await removeWorktree({ git, mirrorDir, worktreeDir, cwd });

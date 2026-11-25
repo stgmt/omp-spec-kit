@@ -1,13 +1,16 @@
 import { createHash } from "node:crypto";
 import { lstat, mkdir, open, readFile, readdir, realpath, rename, rm, rmdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { canonicalDocumentKind } from "../kernel/types.js";
+import { canonicalDocumentKind, isLegacySpecificationDocument } from "../kernel/types.js";
 import { isValidSpecSlug } from "../kernel/identity.js";
 import { readRepositorySpecs } from "../kernel/adapters/fs.js";
 import { buildKernelGraph } from "../kernel/index.js";
 
 const LOCK_FILE = ".omp-spec-kit-write.lock";
 const STAGING_DIRECTORY = ".omp-spec-kit-staging";
+const RECEIPTS_DIRECTORY = ".receipts";
+export const MIGRATION_RECEIPT_SCHEMA = "omp-spec-kit-migration-receipt@1";
+const REMOVE_TREE_OPTIONS = Object.freeze({ recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
 const MAX_REQUEST_ID_BYTES = 128;
 
 function normalized(value) {
@@ -39,20 +42,20 @@ export function isCanonicalDocument(document, spec) {
   return segments.length === 1 && canonicalDocumentKind(document, spec) !== null;
 }
 
-export function validateSpecDocument(spec, document) {
+export function validateSpecDocument(spec, document, { allowLegacy = false } = {}) {
   if (!isValidSpecSlug(spec)) return { ok: false, code: "PATH_FORBIDDEN", message: "spec must be a valid specification slug" };
-  if (!isCanonicalDocument(document, spec)) return { ok: false, code: "PATH_FORBIDDEN", message: "document must be a canonical spec document" };
+  if (!isCanonicalDocument(document, spec) && !(allowLegacy && isLegacySpecificationDocument(document, spec))) return { ok: false, code: "PATH_FORBIDDEN", message: "document must be a canonical spec document" };
   return { ok: true, absolute: path.join(process.cwd(), ".specs", spec, document), relative: `.specs/${spec}/${document}` };
 }
 
-export function documentAbsolute(root, spec, document) {
-  const checked = validateSpecDocument(spec, document);
+export function documentAbsolute(root, spec, document, options = {}) {
+  const checked = validateSpecDocument(spec, document, options);
   if (!checked.ok) return checked;
   return { ok: true, absolute: path.join(root, ".specs", spec, document), relative: checked.relative };
 }
 
-export async function readDocumentBytes(root, spec, document) {
-  const checked = await inspectAuthoringTarget(root, spec, document, { allowMissing: true });
+export async function readDocumentBytes(root, spec, document, options = {}) {
+  const checked = await inspectAuthoringTarget(root, spec, document, { allowMissing: true, ...options });
   if (!checked.ok) return checked;
   if (checked.missing) return documentNotFound(`document does not exist: ${document}`, { spec, document });
   try {
@@ -109,6 +112,102 @@ async function syncDirectory(absolute) {
 async function writeJournal(absolute, journal) {
   await writeFile(absolute, `${JSON.stringify(journal)}\n`, "utf8");
   await syncFile(absolute);
+}
+
+function recoveryRequired(message) {
+  return Object.assign(new Error(message), { code: "RECOVERY_REQUIRED" });
+}
+
+async function migrationReceiptDirectory(root, create = false) {
+  const rootReal = await realpath(root);
+  const specs = path.join(rootReal, ".specs");
+  const specsStat = await lstatOrNull(specs);
+  if (!specsStat && !create) return null;
+  if (!specsStat || specsStat.isSymbolicLink() || !specsStat.isDirectory()) throw recoveryRequired("specification root is not a regular directory");
+  if (!isInsidePath(rootReal, await realpath(specs))) throw recoveryRequired("specification root escapes the repository");
+  let parent = specs;
+  for (const name of [STAGING_DIRECTORY, RECEIPTS_DIRECTORY]) {
+    const directory = path.join(parent, name);
+    let stat = await lstatOrNull(directory);
+    if (!stat && create) {
+      await mkdir(directory).catch((error) => { if (error?.code !== "EEXIST") throw error; });
+      stat = await lstatOrNull(directory);
+    }
+    if (!stat) return null;
+    if (stat.isSymbolicLink() || !stat.isDirectory() || !isInsidePath(rootReal, await realpath(directory))) {
+      throw recoveryRequired("migration receipt directory is not a contained regular directory");
+    }
+    parent = directory;
+  }
+  return parent;
+}
+
+function validMigrationReceipt(receipt, requestId) {
+  const hash = (value) => typeof value === "string" && /^[0-9a-f]{64}$/u.test(value);
+  if (!(receipt?.schema === MIGRATION_RECEIPT_SCHEMA && receipt.requestId === requestId &&
+    requestIdWithinBounds(receipt.requestId) && isValidSpecSlug(receipt.spec) &&
+    hash(receipt.requestKeyHash) && hash(receipt.snapshot) && hash(receipt.proposalHash) &&
+    receipt.migration?.snapshot === receipt.snapshot && hash(receipt.migration?.sourceHash) &&
+    Array.isArray(receipt.changes) && receipt.changes.length > 0 &&
+    Array.isArray(receipt.changedDocuments) && receipt.changedDocuments.length === receipt.changes.length)) return false;
+  const names = new Set();
+  return receipt.changes.every((change, index) => {
+    if (!(change?.spec === receipt.spec &&
+      typeof change.document === "string" && hash(change.beforeSha256) && hash(change.afterSha256) &&
+      typeof change.deleteAfter === "boolean" && typeof change.beforeMissing === "boolean" &&
+      typeof change.migrationLegacy === "boolean" && change.destination === null && change.destinationSha256 === null &&
+      validateSpecDocument(change.spec, change.document, { allowLegacy: change.migrationLegacy }).ok &&
+      (!change.migrationLegacy || (change.deleteAfter && isLegacySpecificationDocument(change.document, change.spec))))) return false;
+    if (names.has(change.document)) return false;
+    names.add(change.document);
+    const published = receipt.changedDocuments[index];
+    return published?.path === `.specs/${change.spec}/${change.document}` &&
+      published.beforeSha256 === change.beforeSha256 &&
+      published.afterSha256 === (change.deleteAfter ? null : change.afterSha256);
+  });
+}
+
+/** Read only an integrity-checked receipt, while the caller owns the write lock. */
+export async function readMigrationReceipt(root, requestId) {
+  if (!requestIdWithinBounds(requestId)) throw Object.assign(new Error("invalid requestId"), { code: "INVALID_REQUEST" });
+  const directory = await migrationReceiptDirectory(root);
+  if (!directory) return null;
+  const absolute = path.join(directory, `${sha256(requestId)}.json`);
+  const stat = await lstatOrNull(absolute);
+  if (!stat) return null;
+  if (stat.isSymbolicLink() || !stat.isFile() || stat.size > 1024 * 1024) throw recoveryRequired("migration receipt is not a safe regular file");
+  let receipt;
+  try { receipt = JSON.parse(await readFile(absolute, "utf8")); }
+  catch { throw recoveryRequired("migration receipt is unreadable"); }
+  if (!validMigrationReceipt(receipt, requestId)) throw recoveryRequired("migration receipt identity is invalid");
+  return receipt;
+}
+
+export async function migrationReceiptGenerationValid(root, receipt) {
+  if (!validMigrationReceipt(receipt, receipt?.requestId)) throw recoveryRequired("migration receipt identity is invalid");
+  return committedGenerationValid(root, receipt);
+}
+
+async function persistMigrationReceipt(root, stageRoot, receipt) {
+  if (!validMigrationReceipt(receipt, receipt?.requestId)) throw recoveryRequired("migration receipt identity is invalid");
+  if (!(await committedGenerationValid(root, receipt))) throw recoveryRequired("cannot prove committed migration generation");
+  const directory = await migrationReceiptDirectory(root, true);
+  const absolute = path.join(directory, `${sha256(receipt.requestId)}.json`);
+  const existing = await readMigrationReceipt(root, receipt.requestId);
+  if (existing) {
+    if (canonicalJson(existing) !== canonicalJson(receipt)) throw recoveryRequired("migration receipt conflicts with existing operation");
+    return;
+  }
+  // The temporary file lives in the already protected transaction directory;
+  // rename publishes a complete receipt in one operation, never a partial one.
+  const temporary = path.join(stageRoot, ".receipt.pending");
+  const tempStat = await lstatOrNull(temporary);
+  if (tempStat && (tempStat.isSymbolicLink() || !tempStat.isFile())) throw recoveryRequired("pending migration receipt is unsafe");
+  await writeFile(temporary, `${JSON.stringify(receipt)}\n`, { encoding: "utf8", mode: 0o600 });
+  await syncFile(temporary);
+  await rename(temporary, absolute);
+  await syncFile(absolute);
+  await syncDirectory(directory);
 }
 
 function pathForbidden(message, extra = {}) {
@@ -169,8 +268,8 @@ async function inspectSpecificationDirectory(root, spec, document, allowMissing)
   return { ok: true, rootReal, specsDir, specDir, specReal, missing: false };
 }
 
-async function inspectAuthoringTarget(root, spec, document, { allowMissing = false } = {}) {
-  const resolved = documentAbsolute(root, spec, document);
+async function inspectAuthoringTarget(root, spec, document, { allowMissing = false, allowLegacy = false } = {}) {
+  const resolved = documentAbsolute(root, spec, document, { allowLegacy });
   if (!resolved.ok) return resolved;
   const directory = await inspectSpecificationDirectory(root, spec, document, allowMissing);
   if (!directory.ok) return directory;
@@ -264,7 +363,7 @@ async function committedGenerationValid(root, journal) {
       if (sha256(bytes) !== change.destinationSha256) return false;
       continue;
     }
-    const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
+    const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true, allowLegacy: change.migrationLegacy === true });
     if (!checked.ok) throw Object.assign(new Error(checked.message), { code: checked.code });
     if (change.deleteAfter) {
       if (!checked.missing) return false;
@@ -278,6 +377,54 @@ async function committedGenerationValid(root, journal) {
 }
 
 async function rollbackInterruptedGeneration(root, stageRoot, journal) {
+  if (journal.durableReceipt) {
+    // Check every path before touching any of them. A user may have edited a
+    // file while the process was down; recovery must not overwrite those bytes.
+    const restore = [];
+    for (const change of journal.changes ?? []) {
+      if (change.destination) throw recoveryRequired("migration recovery cannot contain an archive destination");
+      const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true, allowLegacy: change.migrationLegacy === true });
+      if (!checked.ok) throw recoveryRequired(checked.message);
+      const backupParent = path.join(stageRoot, ".backup", change.spec);
+      for (const ancestor of [path.join(stageRoot, ".backup"), backupParent]) {
+        const ancestorStat = await lstatOrNull(ancestor);
+        if (ancestorStat && (ancestorStat.isSymbolicLink() || !ancestorStat.isDirectory() || !isInsidePath(stageRoot, await realpath(ancestor)))) {
+          throw recoveryRequired("migration backup directory is unsafe");
+        }
+      }
+      const backup = path.join(backupParent, change.document);
+      const backupStat = await lstatOrNull(backup);
+      const targetStat = await lstatOrNull(checked.absolute);
+      if ((backupStat && (backupStat.isSymbolicLink() || !backupStat.isFile())) ||
+          (targetStat && (targetStat.isSymbolicLink() || !targetStat.isFile()))) {
+        throw recoveryRequired("migration recovery encountered an unsafe file");
+      }
+      if (backupStat) {
+        if (sha256(await readFile(backup)) !== change.beforeSha256) throw recoveryRequired("migration backup no longer matches its preimage");
+        if (targetStat && (change.deleteAfter || sha256(await readFile(checked.absolute)) !== change.afterSha256)) {
+          throw recoveryRequired("migration recovery found an external change");
+        }
+        restore.push({ target: checked.absolute, backup, removeOnly: false });
+      } else if (change.beforeMissing) {
+        if (targetStat && (change.deleteAfter || sha256(await readFile(checked.absolute)) !== change.afterSha256)) {
+          throw recoveryRequired("migration recovery found an external change");
+        }
+        if (targetStat) restore.push({ target: checked.absolute, removeOnly: true });
+      } else if (!targetStat || sha256(await readFile(checked.absolute)) !== change.beforeSha256) {
+        throw recoveryRequired("migration original generation cannot be proved");
+      }
+    }
+    for (const item of restore.reverse()) {
+      await rm(item.target, { force: true });
+      if (!item.removeOnly) {
+        await mkdir(path.dirname(item.target), { recursive: true });
+        await rename(item.backup, item.target);
+        await syncFile(item.target);
+      }
+      await syncDirectory(path.dirname(item.target));
+    }
+    return;
+  }
   for (const change of [...(journal.changes ?? [])].reverse()) {
     if (change.destination) {
       const destPath = path.join(root, change.destination);
@@ -285,7 +432,7 @@ async function rollbackInterruptedGeneration(root, stageRoot, journal) {
       const backup = path.join(stageRoot, ".backup", change.spec, change.document);
       const backupStat = await lstatOrNull(backup);
       if (backupStat?.isFile()) {
-        const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
+        const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true, allowLegacy: change.migrationLegacy === true });
         if (checked.ok) {
           await mkdir(path.dirname(checked.absolute), { recursive: true });
           await rename(backup, checked.absolute);
@@ -293,7 +440,7 @@ async function rollbackInterruptedGeneration(root, stageRoot, journal) {
       }
       continue;
     }
-    const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
+    const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true, allowLegacy: change.migrationLegacy === true });
     if (!checked.ok) throw Object.assign(new Error(checked.message), { code: "RECOVERY_REQUIRED" });
     const targetStat = await lstatOrNull(checked.absolute);
     if (targetStat && (targetStat.isSymbolicLink() || !targetStat.isFile())) throw Object.assign(new Error("recovery target is not a regular file"), { code: "RECOVERY_REQUIRED" });
@@ -320,6 +467,13 @@ export async function recoverInterruptedTransactions(root, lockPath, lockMetadat
   if (stagingStat) {
     const entries = await readdir(stagingParent, { withFileTypes: true });
     for (const entry of entries) {
+      if (entry.name === RECEIPTS_DIRECTORY) {
+        // Receipts are retained alongside transaction journals and are not a
+        // transaction to roll back. Validate the reserved entry before skipping.
+        const receiptStat = await lstat(path.join(stagingParent, entry.name));
+        if (receiptStat.isSymbolicLink() || !receiptStat.isDirectory()) throw recoveryRequired("migration receipt directory is unsafe");
+        continue;
+      }
       if (entry.isSymbolicLink() || !entry.isDirectory()) throw Object.assign(new Error("transaction staging contains an unsafe entry"), { code: "RECOVERY_REQUIRED" });
       const stageRoot = path.join(stagingParent, entry.name);
       const journalPath = path.join(stageRoot, "transaction.json");
@@ -329,13 +483,23 @@ export async function recoverInterruptedTransactions(root, lockPath, lockMetadat
       } catch (error) {
         throw Object.assign(new Error(`transaction journal is unreadable: ${error.message}`), { code: "RECOVERY_REQUIRED" });
       }
-      if (journal?.schema !== "omp-spec-kit-authoring-transaction@1" || (lockMetadata && journal.requestId !== lockMetadata.requestId) || !Array.isArray(journal.changes)) {
+      const completedMigration = journal?.phase === "committed" && journal?.durableReceipt;
+      if (journal?.schema !== "omp-spec-kit-authoring-transaction@1" ||
+          (lockMetadata && journal.requestId !== lockMetadata.requestId && !completedMigration) ||
+          !requestIdWithinBounds(journal.requestId) || entry.name !== stagingName(journal.requestId) || !Array.isArray(journal.changes)) {
         throw Object.assign(new Error("transaction journal identity is invalid"), { code: "RECOVERY_REQUIRED" });
       }
-      if (journal.phase !== "committed" || !(await committedGenerationValid(root, journal))) {
+      if (journal.durableReceipt && (!validMigrationReceipt(journal.durableReceipt, journal.requestId) ||
+          canonicalJson(journal.durableReceipt.changes) !== canonicalJson(journal.changes))) {
+        throw recoveryRequired("migration journal and receipt do not describe the same operation");
+      }
+      if (journal.phase === "committed" && journal.durableReceipt) {
+        if (!(await committedGenerationValid(root, journal))) throw recoveryRequired("committed migration generation cannot be proved");
+        await persistMigrationReceipt(root, stageRoot, journal.durableReceipt);
+      } else if (journal.phase !== "committed" || !(await committedGenerationValid(root, journal))) {
         await rollbackInterruptedGeneration(root, stageRoot, journal);
       }
-      await rm(stageRoot, { recursive: true, force: true });
+      await rm(stageRoot, REMOVE_TREE_OPTIONS);
     }
     await rmdir(stagingParent).catch(() => {});
   }
@@ -370,7 +534,26 @@ async function acquireLock(root, requestId) {
         conflict.code = "CONFLICT";
         throw conflict;
       }
-      await recoverInterruptedTransactions(root, lockPath, metadata);
+      // Only one restarted process may examine and recover a stale generation.
+      // A stranded recovery lease is deliberately fail-closed; it is not proof
+      // that another process finished restoring the files.
+      const recoveryLockPath = `${lockPath}.recovery`;
+      let recoveryLease;
+      try { recoveryLease = await open(recoveryLockPath, "wx"); }
+      catch (cause) {
+        if (cause?.code === "EEXIST") throw recoveryRequired("another recovery owns the specification recovery lease");
+        throw cause;
+      }
+      try {
+        let current;
+        try { current = JSON.parse(await readFile(lockPath, "utf8")); }
+        catch (cause) { if (cause?.code === "ENOENT") continue; throw recoveryRequired("stale write lock identity is unreadable"); }
+        if (!current || processAlive(current.pid)) throw Object.assign(new Error("another specification transaction owns the write lock"), { code: "CONFLICT" });
+        await recoverInterruptedTransactions(root, lockPath, current);
+      } finally {
+        await recoveryLease.close();
+        await rm(recoveryLockPath, { force: true });
+      }
     }
   }
   if (!handle) {
@@ -395,6 +578,15 @@ async function acquireLock(root, requestId) {
       throw error;
     }
   }
+  try {
+    // Recover a committed journal left by an interrupted cleanup even when a
+    // prior process released its lock after reporting an infrastructure error.
+    await recoverInterruptedTransactions(root, null, null);
+  } catch (error) {
+    await handle.close();
+    await rm(lockPath, { force: true });
+    throw error;
+  }
   return async () => {
     await handle.close();
     await rm(lockPath, { force: true });
@@ -416,6 +608,7 @@ export async function withWriteLock(root, requestId, operation) {
 }
 
 function injectFault(options, point) {
+  if (typeof options?.faultInjector === "function") options.faultInjector(point);
   if (options?.faultAt === point) {
     const error = new Error(`deterministic transaction fault at ${point}`);
     error.code = "INTERNAL_ERROR";
@@ -423,9 +616,28 @@ function injectFault(options, point) {
   }
 }
 
+export function migrationReceiptChanges(changes) {
+  return changes.map((change) => ({
+    spec: change.spec,
+    document: change.document,
+    beforeSha256: change.beforeBytes === undefined ? null : sha256(change.beforeBytes),
+    beforeMissing: change.beforeMissing === true,
+    afterSha256: sha256(change.afterBytes),
+    deleteAfter: change.deleteAfter === true,
+    migrationLegacy: change.migrationLegacy === true,
+    destination: change.destination ?? null,
+    destinationSha256: change.destination ? sha256(change.beforeBytes) : null,
+  }));
+}
+
 /** Commit a complete set of changed document bytes with rollback on failure. */
 export async function commitDocuments(root, requestId, changes, options = {}) {
   if (!Array.isArray(changes) || changes.length === 0) throw Object.assign(new Error("transaction needs at least one document"), { code: "INVALID_REQUEST" });
+  for (const change of changes) {
+    if (change.migrationLegacy === true && (!change.deleteAfter || !isLegacySpecificationDocument(change.document, change.spec))) {
+      throw Object.assign(new Error("legacy documents may only be deleted by migration"), { code: "PATH_FORBIDDEN" });
+    }
+  }
   const stagingParent = path.join(root, ".specs", STAGING_DIRECTORY);
   const stageRoot = path.join(stagingParent, stagingName(requestId));
   const journalPath = path.join(stageRoot, "transaction.json");
@@ -435,20 +647,18 @@ export async function commitDocuments(root, requestId, changes, options = {}) {
     schema: "omp-spec-kit-authoring-transaction@1",
     requestId,
     phase: "prepared",
-    changes: changes.map((change) => ({
-      spec: change.spec,
-      document: change.document,
-      afterSha256: sha256(change.afterBytes),
-      deleteAfter: change.deleteAfter === true,
-      destination: change.destination ?? null,
-      destinationSha256: change.destination ? sha256(change.beforeBytes) : null,
-    })),
+    changes: migrationReceiptChanges(changes),
     installed: [],
+    ...(options.durableMigrationReceipt ? { durableReceipt: options.durableMigrationReceipt } : {}),
   };
+  if (journal.durableReceipt && (!validMigrationReceipt(journal.durableReceipt, requestId) ||
+      canonicalJson(journal.durableReceipt.changes) !== canonicalJson(journal.changes))) {
+    throw recoveryRequired("migration receipt and transaction differ");
+  }
 
   try {
     const firstSpec = changes[0].spec;
-    const rootCheck = await inspectAuthoringTarget(root, firstSpec, changes[0].document, { allowMissing: true });
+    const rootCheck = await inspectAuthoringTarget(root, firstSpec, changes[0].document, { allowMissing: true, allowLegacy: changes[0].migrationLegacy === true });
     if (!rootCheck.ok) throw Object.assign(new Error(rootCheck.message), { code: rootCheck.code });
     let stagingStat = await tryStat(stagingParent);
     if (stagingStat && (stagingStat.isSymbolicLink() || !stagingStat.isDirectory())) throw Object.assign(new Error("transaction staging parent must be a regular directory"), { code: "PATH_FORBIDDEN" });
@@ -460,7 +670,7 @@ export async function commitDocuments(root, requestId, changes, options = {}) {
     // Phase 1: Staging files
     for (const change of changes) {
       if (change.destination) {
-        const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
+        const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true, allowLegacy: change.migrationLegacy === true });
         if (!checked.ok || checked.missing) throw Object.assign(new Error(checked.message ?? "document not found"), { code: checked.code ?? "DOC_NOT_FOUND" });
         const sourceBytes = await readFile(checked.absolute);
         const stageDestDir = path.join(stageRoot, "dest", path.dirname(change.destination));
@@ -470,7 +680,7 @@ export async function commitDocuments(root, requestId, changes, options = {}) {
         await syncFile(stageDestPath);
         continue;
       }
-      const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
+      const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true, allowLegacy: change.migrationLegacy === true });
       if (!checked.ok) throw Object.assign(new Error(checked.message), { code: checked.code });
       const stageSpecDir = path.join(stageRoot, change.spec);
       await mkdir(stageSpecDir, { recursive: true });
@@ -488,7 +698,7 @@ export async function commitDocuments(root, requestId, changes, options = {}) {
     injectFault(options, "before-swap");
     for (const change of changes) {
       if (change.destination) {
-        const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
+        const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true, allowLegacy: change.migrationLegacy === true });
         if (!checked.ok) throw Object.assign(new Error(checked.message), { code: checked.code });
         const sourcePath = checked.absolute;
         const destPath = path.join(root, change.destination);
@@ -510,7 +720,7 @@ export async function commitDocuments(root, requestId, changes, options = {}) {
         continue;
       }
 
-      const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
+      const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true, allowLegacy: change.migrationLegacy === true });
       if (!checked.ok) throw Object.assign(new Error(checked.message), { code: checked.code });
       const target = checked.absolute;
       const stagePath = path.join(stageRoot, change.spec, change.document);
@@ -552,7 +762,7 @@ export async function commitDocuments(root, requestId, changes, options = {}) {
         }
         continue;
       }
-      const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true });
+      const checked = await inspectAuthoringTarget(root, change.spec, change.document, { allowMissing: true, allowLegacy: change.migrationLegacy === true });
       if (!checked.ok) throw Object.assign(new Error(checked.message), { code: checked.code });
       if (change.deleteAfter) {
         if (!checked.missing) throw Object.assign(new Error("deleted document remained after installation"), { code: "WRITE_FAILED" });
@@ -567,6 +777,10 @@ export async function commitDocuments(root, requestId, changes, options = {}) {
     journal.phase = "committed";
     await writeJournal(journalPath, journal);
     await syncDirectory(path.dirname(stageRoot));
+    if (journal.durableReceipt) {
+      injectFault(options, "after-commit-before-receipt");
+      await persistMigrationReceipt(root, stageRoot, journal.durableReceipt);
+    }
 
     // If archiving, remove empty source spec directory
     for (const change of changes) {
@@ -578,10 +792,17 @@ export async function commitDocuments(root, requestId, changes, options = {}) {
     }
 
     injectFault(options, "during-cleanup");
-    await rm(stageRoot, { recursive: true, force: true });
+    await rm(stageRoot, REMOVE_TREE_OPTIONS);
     await rmdir(stagingParent).catch(() => {});
     return { ok: true };
   } catch (error) {
+    // A committed migration may already have published its durable receipt.
+    // Never roll it back after that point: retain the journal for recovery.
+    if (journal.durableReceipt && journal.phase === "committed") {
+      const failure = recoveryRequired("migration commit requires journal recovery");
+      failure.cause = error;
+      throw failure;
+    }
     let rollbackError;
     try {
       injectFault(options, "during-rollback");
@@ -603,7 +824,7 @@ export async function commitDocuments(root, requestId, changes, options = {}) {
           throw new Error(`restored file hash mismatch on rollback: ${backup.target}`);
         }
       }
-      await rm(stageRoot, { recursive: true, force: true });
+      await rm(stageRoot, REMOVE_TREE_OPTIONS);
       await rmdir(stagingParent).catch(() => {});
     } catch (restoreError) {
       rollbackError = restoreError;

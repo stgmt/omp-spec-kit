@@ -24,7 +24,7 @@ for (const [index, row] of rows.entries()) {
 }
 if (new Set(rows.map((row) => row.name)).size !== rows.length) fail("destination names are not unique");
 
-if (TOOL_CONTRACTS.length !== 10) fail(`single surface drifted from 10 tools, found ${TOOL_CONTRACTS.length}`);
+if (TOOL_CONTRACTS.length !== 9) fail(`single surface drifted from 9 tools, found ${TOOL_CONTRACTS.length}`);
 const annotationKeys = ["destructiveHint", "idempotentHint", "openWorldHint", "readOnlyHint"];
 
 for (const contract of TOOL_CONTRACTS) {
@@ -65,8 +65,6 @@ const UPSTREAM_TO_CONSOLIDATED = Object.freeze({
   list_spec_docs: "spec_documents",
   read_spec_doc: "spec_documents",
   read_attachment: "spec_documents",
-  get_test_result: "spec_evidence",
-  get_scenario_trace: "spec_evidence",
   propose_patch: "spec_patch",
   apply_proposed_patch: "spec_patch",
   amend_requirement: "spec_patch",
@@ -85,10 +83,11 @@ const UPSTREAM_TO_CONSOLIDATED = Object.freeze({
 
 const contractedTools = new Set(TOOL_CONTRACTS.map((c) => c.tool));
 for (const row of rows) {
+  if (["get_test_result", "get_scenario_trace"].includes(row.name)) continue;
   const targetTool = UPSTREAM_TO_CONSOLIDATED[row.name];
   if (!targetTool || !contractedTools.has(targetTool)) {
     fail(`census row ${row.name} has no valid consolidated tool in contracts`);
   }
 }
 
-console.log("verified spec port: tools=10");
+console.log("verified spec port: tools=9");

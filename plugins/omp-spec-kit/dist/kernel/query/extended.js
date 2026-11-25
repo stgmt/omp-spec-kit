@@ -7,6 +7,7 @@ import {
 } from "../types.js";
 import { isValidSpecSlug } from "../identity.js";
 import { specReadiness } from "../readiness.js";
+import { allSpecSlugs, completenessFor, unindexedEntity } from "./layout.js";
 
 export const EXTENDED_OPERATIONS = Object.freeze([
   "findByTags",
@@ -48,7 +49,7 @@ function operationSuccess(data, page = null) {
 }
 
 function specSlugs(graph) {
-  return [...new Set(graph.documents.map((document) => document.specSlug))].sort(compareStrings);
+  return allSpecSlugs(graph);
 }
 
 function compareStrings(left, right) {
@@ -360,15 +361,22 @@ function runValidateAnchor(graph, args) {
     const path = anchor.slice(0, hash);
     const fragment = anchor.slice(hash + 1);
     const match = graph.markdownHeadingOccurrences.find((heading) => heading.path === path && heading.canonicalAnchor === fragment);
+    if (!match && (graph.specLayouts ?? []).some((layout) => layout.legacyDocuments.includes(path))) {
+      return operationSuccess({ anchor, registered: null, kind: "marksman-heading-slug", presence: "unknown", sourceDocuments: [path] });
+    }
     return operationSuccess({ anchor, registered: match !== undefined, kind: "marksman-heading-slug", location: match ? { path: match.path, headingOccurrenceId: match.headingOccurrenceId, source: nodeSource({ span: match.span }) } : null });
   }
   const resolved = resolveNode(graph, anchor, args.spec);
   if (resolved.node) return operationSuccess({ anchor, registered: true, kind: "spec-graph-id", location: nodeSummary(resolved.node) });
+  const canonical = anchor.includes(":") ? anchor : args.spec ? `${args.spec}:${anchor}` : null;
+  const unknown = canonical ? unindexedEntity(graph, canonical) : null;
+  if (unknown) return operationSuccess({ anchor, registered: null, kind: "spec-graph-id", presence: "unknown", sourceDocuments: unknown.sourceDocuments });
   return resolved.error ?? operationSuccess({ anchor, registered: false, kind: "spec-graph-id" });
 }
 
 function runListSpecs(graph) {
-  return operationSuccess({ kind: "specs", specs: specSlugs(graph), count: specSlugs(graph).length });
+  const specs = specSlugs(graph);
+  return operationSuccess({ kind: "specs", specs, count: specs.length, layouts: graph.specLayouts ?? [] });
 }
 
 function runValidateRequirementMetadata(args) {
@@ -398,8 +406,8 @@ function runPolicyQueryRequirements(graph, args) {
 
 function runArchivalProof(graph, args) {
   if (typeof args.spec !== "string" || !isValidSpecSlug(args.spec)) return operationError("INVALID_PARAMETER", "spec must be a valid specification slug", { parameter: "spec" });
+  if (!specSlugs(graph).includes(args.spec)) return operationError("NOT_FOUND", `specification not found: ${args.spec}`, { specSlug: args.spec });
   const nodes = graph.nodes.filter((node) => node.specSlug === args.spec);
-  if (nodes.length === 0) return operationError("NOT_FOUND", `specification not found: ${args.spec}`, { specSlug: args.spec });
   const ids = new Set(nodes.map((node) => node.canonicalId));
   const references = graph.edges
     .filter((edge) => ids.has(edge.to))
@@ -407,7 +415,11 @@ function runArchivalProof(graph, args) {
     .filter((node) => node && node.specSlug !== args.spec)
     .map((node) => nodeSummary(node));
   const uniqueReferences = [...new Map(references.map((node) => [node.canonicalId, node])).values()].sort((left, right) => compareStrings(left.canonicalId, right.canonicalId));
-  return operationSuccess({ kind: "archival-proof", spec: args.spec, verdict: uniqueReferences.length > 0 ? "KEEP_FALSE_POSITIVE" : "ARCHIVE", liveInboundReferences: uniqueReferences, count: uniqueReferences.length });
+  // Any unread old source can hold an incoming reference. An invalid graph is
+  // likewise insufficient evidence that no references exist.
+  const complete = completenessFor(graph).complete && graph.valid === true;
+  const verdict = !complete ? "INCOMPLETE" : uniqueReferences.length > 0 ? "KEEP_FALSE_POSITIVE" : "ARCHIVE";
+  return operationSuccess({ kind: "archival-proof", spec: args.spec, complete, verdict, incompleteReason: complete ? null : graph.valid === true ? "SPEC_LAYOUT_INCOMPLETE" : "GRAPH_INVALID", liveInboundReferences: uniqueReferences, count: uniqueReferences.length });
 }
 
 function statusForSpec(graph, spec) {
@@ -423,7 +435,7 @@ function statusForSpec(graph, spec) {
     counts: { nodes: nodes.length, requirements: requirements.length, tasks: tasks.length, scenarios: scenarios.length, documents: graph.documents.filter((document) => document.specSlug === spec).length },
     taskStatuses,
     scenarios: { total: scenarios.length, passed: passedScenarioCount, ids: scenarioIds },
-    readiness: findingsForSpec(graph, spec).length === 0 ? "READY_FOR_REVIEW" : "INCOMPLETE",
+    readiness: completenessFor(graph, [spec]).complete && findingsForSpec(graph, spec).length === 0 ? "READY_FOR_REVIEW" : "INCOMPLETE",
   };
 }
 
@@ -446,18 +458,28 @@ function runSpecStatus(graph, args) {
 
 export function executeExtendedQuery(graph, operation, args = {}) {
   if (!EXTENDED_OPERATIONS.includes(operation)) return operationError("UNKNOWN_OPERATION", `unknown extended operation: ${operation}`);
+  let result;
   switch (operation) {
-    case "findByTags": return runFindByTags(graph, args);
-    case "listTasks": return runListTasks(graph, args);
-    case "listPhaseTasks": return runListTasks(graph, args, true);
-    case "getSpecReadiness": return runSpecReadiness(graph, args);
-    case "findOrphans": return runFindOrphans(graph);
-    case "validateAnchor": return runValidateAnchor(graph, args);
-    case "listSpecs": return runListSpecs(graph);
-    case "validateRequirementMetadata": return runValidateRequirementMetadata(args);
-    case "policyQueryRequirements": return runPolicyQueryRequirements(graph, args);
-    case "getArchivalProof": return runArchivalProof(graph, args);
-    case "getSpecStatus": return runSpecStatus(graph, args);
+    case "findByTags": result = runFindByTags(graph, args); break;
+    case "listTasks": result = runListTasks(graph, args); break;
+    case "listPhaseTasks": result = runListTasks(graph, args, true); break;
+    case "getSpecReadiness": result = runSpecReadiness(graph, args); break;
+    case "findOrphans": result = runFindOrphans(graph); break;
+    case "validateAnchor": result = runValidateAnchor(graph, args); break;
+    case "listSpecs": result = runListSpecs(graph); break;
+    case "validateRequirementMetadata": result = runValidateRequirementMetadata(args); break;
+    case "policyQueryRequirements": result = runPolicyQueryRequirements(graph, args); break;
+    case "getArchivalProof": result = runArchivalProof(graph, args); break;
+    case "getSpecStatus": result = runSpecStatus(graph, args); break;
     default: return operationError("UNKNOWN_OPERATION", `unknown extended operation: ${operation}`);
   }
+  const global = ["findByTags", "findOrphans", "getArchivalProof", "policyQueryRequirements"].includes(operation)
+    || (operation === "getSpecStatus" && args.view === "coverage");
+  const scope = !global && typeof args.spec === "string" ? [args.spec] : [];
+  if (result.ok && result.data && typeof result.data === "object") {
+    result.data.completeness = operation === "validateRequirementMetadata"
+      ? { complete: true, excludedKinds: [], excludedSpecs: [] }
+      : completenessFor(graph, scope);
+  }
+  return result;
 }

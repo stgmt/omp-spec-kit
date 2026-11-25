@@ -134,7 +134,7 @@ export const ENTITY_TYPE_DESCRIPTORS = Object.freeze([
   Object.freeze({
     kind: "SCENARIO",
     label: "Scenario",
-    description: "Executable behavioral example or test scenario.",
+    description: "Structured behavioral example in a Gherkin specification.",
   }),
   Object.freeze({
     kind: "FIXTURE",

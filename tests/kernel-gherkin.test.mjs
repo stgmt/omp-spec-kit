@@ -34,6 +34,13 @@ describe("native Gherkin inside canonical story Rules", () => {
       }
     });
   }
+  for (const keyword of ["Scenario Outline", "Scenario Template"]) {
+    it(`rejects ${keyword} without Examples`, () => {
+      const doc = parse(["    @id:SCEN-x-001", `    ${keyword}: Missing rows`, ...boundSteps].join("\n"));
+      assert.ok(doc.diagnostics.some(({ message }) => message.includes("needs Examples")));
+      assert.equal(doc.scenarios[0].pickles.length, 0);
+    });
+  }
 
   it("keeps scenario-looking text inside tab-indented docstrings out of the graph", () => {
     const source = [

@@ -138,6 +138,9 @@ async function findCatalogs(root) {
   async function visit(directory) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (entry.name === ".git" || entry.name === "node_modules") continue;
+      // These ignored release checkouts are separate Git worktrees, not part
+      // of the payload being checked (see the matching rule in .gitignore).
+      if (directory === path.join(root, ".omp-spec-kit") && entry.isDirectory() && entry.name.startsWith("release-worktree-")) continue;
       const absolute = path.join(directory, entry.name);
       if (entry.isSymbolicLink()) continue;
       if (entry.isDirectory()) {

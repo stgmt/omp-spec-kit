@@ -41,7 +41,9 @@ describe("first specification authoring lifecycle", () => {
   });
 
   function patch(arguments_) {
-    return service.runQuery("specPatch", arguments_, { requestId: `first-lifecycle-${++requestSequence}` });
+    return service.runQuery("specPatch", arguments_, {
+      requestId: `first-lifecycle-${++requestSequence}`, hostedCoverage: true, coverageOwner: true,
+    });
   }
 
   async function readLifecycleDocument() {
@@ -128,16 +130,36 @@ describe("first specification authoring lifecycle", () => {
         reason: "verify draft task visibility",
         dryRun: false,
       });
-    let task = await createTask();
-    // TASKS is the last entity in the chain: walk the readiness fix steps the
-    // refusal carries instead of asserting the task appears on a scaffold.
-    for (let attempt = 0; attempt < 8 && task.ok === false && task.error?.code === "SPEC_NOT_READY"; attempt += 1) {
-      const step = task.error.fix?.[0];
-      assert.ok(step, JSON.stringify(task.error ?? {}).slice(0, 300));
-      const applied = await patch({ ...step.arguments, dryRun: false });
-      assert.equal(applied.data?.outcome, "APPLIED", JSON.stringify(applied).slice(0, 300));
-      task = await createTask();
-    }
+    const unready = await createTask();
+    assert.equal(unready.error?.code, "SPEC_NOT_READY", JSON.stringify(unready));
+    const detail = "The saved project must remain accessible after the service restarts. ".repeat(5);
+    const documents = {
+      "REQUIREMENTS.md": `# Requirements\n\n${detail}\n`,
+      "NFR.md": "# Quality\n\n## NFR-PERF-1: Restart time\n\nProject access is restored promptly.\n",
+      "ACCEPTANCE_CRITERIA.md": "# Criteria\n\n## AC-1.1: Retained project\n\n**Covers:** FR-1\n\nThe same project is available after restart.\n",
+      "DESIGN.md": `# Design\n\n${detail}\n`,
+      [`${spec}_SCHEMA.md`]: `# Schema\n\n${detail}\n`,
+      [`${spec}-user-stories.feature`]: "Feature: Project retention\n  @contract\n  Rule: Restore project access\n    @feature1 @id:SCEN-retained-project\n    Scenario: Resume after restart\n      Given a saved project\n      When the service restarts\n      Then the same project is available\n",
+    };
+    const authored = await patch({
+      intent: "patch", spec, reason: "describe the task's behavior and prerequisites", dryRun: false,
+      operations: Object.entries(documents).map(([document, content]) => ({ kind: "replace_document", document, content })),
+    });
+    assert.equal(authored.data?.outcome, "APPLIED", JSON.stringify(authored));
+    const uncovered = await createTask();
+    assert.equal(uncovered.error?.code, "BDD_COVERAGE_INCOMPLETE", JSON.stringify(uncovered));
+    const map = {
+      schema: "omp-spec-kit/bdd-coverage@1",
+      outcomes: { retained: { requirements: ["FR-1"], criteria: ["AC-1.1"], scenario: "SCEN-retained-project" } },
+      scopes: {},
+    };
+    const preview = await patch({ intent: "approveBddCoverage", spec, map, reason: "approve the described outcome", dryRun: true });
+    const approval = await patch({
+      intent: "approveBddCoverage", spec, map, reason: "approve the described outcome", dryRun: false,
+      repositoryRootFingerprint: preview.data.baseGenerationSha256,
+    });
+    assert.equal(approval.data?.outcome, "APPLIED", JSON.stringify(approval));
+    const task = await createTask();
     assert.equal(task.data?.outcome, "APPLIED", JSON.stringify(task).slice(0, 300));
     const listed = await service.runQuery("tasks", { spec, statuses: ["todo"] });
     assert.equal(listed.ok, true, JSON.stringify(listed));

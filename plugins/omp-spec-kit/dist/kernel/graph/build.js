@@ -66,6 +66,9 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
 
   // ---- Phase 1: entry validation and document records ----
   const entries = [];
+  // Keep identity and hashes for legacy sources without parsing them into the
+  // canonical graph. They still affect completeness and cursor freshness.
+  const legacyDocuments = [];
   let aggregateBytes = 0;
   let aggregateExceeded = false;
   const rawList = Array.isArray(files) ? files : [];
@@ -128,9 +131,10 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
     }
 
     if (isLegacySpecificationDocument(filename, specSlug)) {
+      legacyDocuments.push({ path: normalizedPath, specSlug, sha256: sha256Bytes(bytes), byteLength: bytes.length });
       diagnostics.push(makeDiagnostic({
         code: "LEGACY_SPEC_LAYOUT",
-        message: `legacy specification document ${filename} requires offline migration to the story and case feature pair`,
+        message: `legacy specification document ${filename} remains readable; migrate this specification before writing`,
         specSlug,
         span: emptySpan(normalizedPath),
       }));
@@ -244,8 +248,23 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
   }
 
   entries.sort((a, b) => compareCodePoints(a.row.path, b.row.path));
+  legacyDocuments.sort((a, b) => compareCodePoints(a.path, b.path));
   const documents = entries.map((entry) => entry.row);
   const usableEntries = entries.filter((entry) => !entry.skip && entry.row.accepted);
+  const specSlugs = [...new Set([...documents.map((row) => row.specSlug), ...legacyDocuments.map((row) => row.specSlug)])].sort(compareCodePoints);
+  const specLayouts = specSlugs.map((specSlug) => {
+    const own = documents.filter((row) => row.specSlug === specSlug);
+    const old = legacyDocuments.filter((row) => row.specSlug === specSlug);
+    const missingKinds = GHERKIN_DOCUMENT_KINDS.filter((kind) => {
+      const expected = `.specs/${specSlug}/${canonicalDocumentFilename(kind, specSlug)}`;
+      return !own.some((row) => row.path === expected);
+    });
+    const hasPair = missingKinds.length === 0;
+    const hasEither = missingKinds.length !== GHERKIN_DOCUMENT_KINDS.length;
+    const status = old.length ? (hasEither ? "mixed" : "legacy")
+      : hasPair ? "canonical" : "incomplete";
+    return { specSlug, status, missingKinds, legacyDocuments: old.map((row) => row.path) };
+  });
 
   // ---- Phase 2: parsing ----
   const parsedByPath = new Map();
@@ -589,8 +608,15 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
     KERNEL_SCHEMA_VERSION,
     canonicalLimitsJson(limits),
     ...documents.map((row) => `${row.path}:${row.sha256}`),
+    ...legacyDocuments.map((row) => `${row.path}:${row.sha256}`),
   ].join("|");
   const fingerprint = sha256Hex(fingerprintInput);
+
+  for (const layout of specLayouts) {
+    const pair = documents.filter((row) => row.specSlug === layout.specSlug && GHERKIN_DOCUMENT_KINDS.includes(row.documentKind));
+    layout.indexComplete = layout.status === "canonical" && pair.length === GHERKIN_DOCUMENT_KINDS.length && pair.every((row) => row.accepted)
+      && !diagnostics.some((diagnostic) => diagnostic.specSlug === layout.specSlug && diagnostic.code === "MALFORMED_GHERKIN" && diagnostic.severity === "ERROR");
+  }
 
   const sortedDiagnostics = sortDiagnostics(diagnostics);
   let finalDiagnostics = sortedDiagnostics;
@@ -613,6 +639,7 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
     limits,
     counts,
     documents: documents.map((row) => row),
+    specLayouts,
     definitionCandidates: definitionOccurrences
       .slice()
       .sort((a, b) =>
@@ -1019,6 +1046,7 @@ function collectReferences(parsedByPath, usableEntries, definitionOccurrences, n
         reference(documentCanonicalId, id, "DECLARES", rule.span);
         if (rule.kind === "USE_CASE") reference(id, rule.attributes.storyId, "REFS", rule.span);
         for (const target of rule.attributes.covers) reference(id, target, "COVERS", rule.span);
+        for (const target of rule.attributes.directRefs) reference(id, target, "REFS", rule.span);
         for (const target of Object.values(rule.attributes.refs)) reference(id, target.split("#")[0], "REFS", rule.span);
       }
       for (const scenario of holder.parsed.scenarios) {

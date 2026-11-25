@@ -19,6 +19,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { createServiceApp } from "../../../src/service/http.js";
 import { createStore } from "../../../src/service/ledger.js";
+import { commitToSpecBranch } from "../../service/lib/spec-repo.mjs";
 
 const execFileAsync = promisify(execFile);
 const IDENTITY = { name: "spec-bot", email: "bot@example.invalid" };
@@ -75,7 +76,7 @@ async function setupShared() {
   return { base, bare, mounts, manager };
 }
 
-async function pushToWork(bare, { spec, topic, files, message = "work edit" }) {
+async function pushToWork(bare, { spec, topic, files, message = "work edit", includePair = true }) {
   const dir = await tempDir("spec-work-");
   const work = path.join(dir, "work");
   const branch = `spec-${spec}--${topic}`;
@@ -83,7 +84,11 @@ async function pushToWork(bare, { spec, topic, files, message = "work edit" }) {
   await git(work, ["checkout", "-B", branch, `origin/${branch}`]);
   await git(work, ["config", "user.email", "alice@example.invalid"]);
   await git(work, ["config", "user.name", "alice"]);
-  for (const [relative, content] of Object.entries(files)) {
+  const pair = includePair ? {
+    [`.specs/${spec}/${spec}-user-stories.feature`]: "Feature: Stories\n",
+    [`.specs/${spec}/${spec}-use-cases.feature`]: "Feature: Use cases\n",
+  } : {};
+  for (const [relative, content] of Object.entries({ ...pair, ...files })) {
     await writeFile(path.join(work, relative), content);
   }
   await git(work, ["add", "-A"]);
@@ -105,6 +110,32 @@ async function markDemo(bare, manager, { project = PROJECT, spec = "demo-spec", 
 }
 
 describe("spec_branch", () => {
+  it("refuses to create a work branch from a legacy canonical specification", async () => {
+    const { bare, manager } = await setup();
+    const spec = "legacy-block";
+    assert.equal((await manager.run({ args: { action: "create", spec }, project: PROJECT, requestId: "legacy-init", login: "alice" })).ok, true);
+    await commitToSpecBranch(bare, { spec, files: { "USER_STORIES.md": "# Existing stories\n" } });
+    const before = await git(bare, ["rev-parse", `refs/heads/spec-${spec}`]);
+    const result = await manager.run({ args: { action: "create", spec, topic: "edit" }, project: PROJECT, requestId: "legacy-work", login: "alice" });
+    assert.equal(result.error?.causeCode, "LEGACY_SPEC_LAYOUT", JSON.stringify(result));
+    assert.equal(await git(bare, ["rev-parse", `refs/heads/spec-${spec}`]), before);
+    await assert.rejects(git(bare, ["rev-parse", "--verify", `refs/heads/spec-${spec}--edit`]));
+  });
+
+  it("refuses merging an uninitialized work branch without the complete pair", async () => {
+    const { bare, manager } = await setup();
+    const spec = "partial-block";
+    const topic = "edit";
+    assert.equal((await manager.run({ args: { action: "create", spec }, project: PROJECT, requestId: "partial-init", login: "alice" })).ok, true);
+    assert.equal((await manager.run({ args: { action: "create", spec, topic }, project: PROJECT, requestId: "partial-work", login: "alice" })).ok, true);
+    await pushToWork(bare, { spec, topic, includePair: false, files: { [`.specs/${spec}/README.md`]: "# Changed\n" } });
+    const refs = [`refs/heads/spec-${spec}`, `refs/heads/spec-${spec}--${topic}`];
+    const before = await git(bare, ["rev-parse", ...refs]);
+    const result = await manager.run({ args: { action: "merge", spec, topic }, project: PROJECT, requestId: "partial-merge", login: "alice" });
+    assert.equal(result.error?.code, "UNSUPPORTED_DOCUMENT", JSON.stringify(result));
+    assert.equal(await git(bare, ["rev-parse", ...refs]), before);
+  });
+
   it("seeds and reruns the shipped demo through HTTP MCP and Git", async (t) => {
     const { base, bare, mounts, config } = await setup();
     const store = await createStore({ file: path.join(base, "demo.db") });
@@ -184,7 +215,7 @@ describe("spec_branch", () => {
     await pushToWork(bare, {
       spec: "demo-spec",
       topic: "rewrite",
-      files: { ".specs/demo-spec/README.md": "# demo-spec\n\nStatus: ACTIVE\nVersion: 1.0.0\n" },
+      files: { ".specs/demo-spec/README.md": "# demo-spec\n\nStatus: DRAFT\nVersion: 1.0.0\n" },
     });
 
     const merged = await manager.run({ args: { action: "merge", spec: "demo-spec", topic: "rewrite" }, project: PROJECT, requestId: "b3", login: "alice" });
@@ -213,6 +244,38 @@ describe("spec_branch", () => {
     assert.equal(merge.error?.code, "BDD_COVERAGE_PROTECTED", JSON.stringify(merge));
     assert.equal(await git(bare, ["rev-parse", ...refs]), before);
   });
+
+  for (const [label, files, expected, diagnostic] of [
+    ["an uncovered task", {
+      "FR.md": "# Requirements\n\n## FR-1: First\n\nA first requirement.\n",
+      "TASKS.md": "# Tasks\n\n## TASK-1: First\n\n**Requirements:** FR-1\n",
+    }, "BDD_COVERAGE_INCOMPLETE", null],
+    ["a duplicate task", {
+      "FR.md": "# Requirements\n\n## FR-1: First\n\nA first requirement.\n\n## FR-2: Second\n\nA second requirement.\n",
+      "TASKS.md": "# Tasks\n\n## TASK-1: First\n\n**Requirements:** FR-1\n\n## TASK-1: Second\n\n**Requirements:** FR-2\n",
+    }, "VALIDATION_FAILED", "DUPLICATE_DEFINITION"],
+    ["an unresolved story reference", {
+      "merge-check-user-stories.feature": "Feature: Stories\n  @story:US-1\n  Rule: Example\n    Actor: Author\n    Goal: Make a request\n    Benefit: Get a result\n    Covers: FR-99\n    @id:SCEN-request\n    Scenario: Request\n      Given a request\n      When it is submitted\n      Then a result is returned\n",
+      "merge-check-use-cases.feature": "Feature: Use cases\n",
+    }, "VALIDATION_FAILED", "BROKEN_REFERENCE"],
+  ]) {
+    it(`rejects ${label} without changing either Git ref`, async () => {
+      const { bare, manager } = await setup();
+      const spec = "merge-check";
+      const topic = "work";
+      const run = (args) => manager.run({ args: { spec, ...args }, project: PROJECT, requestId: label, login: "alice", role: "writer" });
+      assert.equal((await run({ action: "create" })).ok, true);
+      assert.equal((await run({ action: "create", topic })).ok, true);
+      const paths = Object.fromEntries(Object.entries(files).map(([name, content]) => [`.specs/${spec}/${name}`, content]));
+      await pushToWork(bare, { spec, topic, files: paths });
+      const refs = [`refs/heads/spec-${spec}`, `refs/heads/spec-${spec}--${topic}`];
+      const before = await git(bare, ["rev-parse", ...refs]);
+      const result = await run({ action: "merge", topic });
+      assert.equal(result.error?.code, expected, JSON.stringify(result));
+      if (diagnostic) assert.ok(result.error.findings?.some(({ code }) => code === diagnostic), JSON.stringify(result));
+      assert.equal(await git(bare, ["rev-parse", ...refs]), before);
+    });
+  }
 
   it("deletes only a spec explicitly marked Demo: true", async () => {
     const { bare, manager } = await setup();

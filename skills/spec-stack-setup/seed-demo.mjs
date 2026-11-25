@@ -41,6 +41,18 @@ export async function seedDemo({ mcp, project, templateDir, log = () => {} }) {
       // The checked-in template supplies the content and coverage decisions.
       return result ?? call("spec_patch", { ...request, requestId: randomUUID() });
     };
+    // A newly created branch is only a README scaffold. The layout gate lets
+    // a scaffold be written only through `createSpec`, which lays down the
+    // canonical Gherkin pair before ordinary patches are allowed. On an
+    // already seeded spec the same call is a permitted no-op (CONFLICT), so
+    // reruns stay byte-for-byte idempotent.
+    const initialize = async () => {
+      const request = { intent: "createSpec", spec, reason: "Seed checked-in demo specification", dryRun: false };
+      const permitted = ["ELICITATION_REQUIRED", "CONFLICT"];
+      const first = await call("spec_patch", { ...request, requestId: randomUUID() }, permitted);
+      // First creation of the canonical documents is stopped for elicitation.
+      if (first === null) await call("spec_patch", { ...request, requestId: randomUUID() }, permitted);
+    };
     const read = (doc) => call("spec_documents", { action: "read", spec, doc, readForEdit: true }, ["DOC_NOT_FOUND"]);
     const replace = (document, content, current) => ({
       kind: "replace_document", document, content, ...(current ? { expectedSha: current.sha256 } : {}),
@@ -50,6 +62,7 @@ export async function seedDemo({ mcp, project, templateDir, log = () => {} }) {
       if (!specs.includes(spec)) {
         await call("spec_branch", { action: "create", spec, demo: demo === true }, ["SPEC_EXISTS"]);
       }
+      await initialize();
       const operations = [];
       const docs = (await readdir(dir)).filter((name) => /\.(?:md|feature)$/u.test(name));
       for (const document of docs.filter((name) => name !== "TASKS.md")) {

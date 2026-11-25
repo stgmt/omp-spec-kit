@@ -221,6 +221,17 @@ describe("HttpTaskStatusWriteback", () => {
 });
 
 describe("HttpBoardReader", () => {
+  it("refuses to publish a partial project board as a complete aggregate", async () => {
+    const reader = new HttpBoardReader({
+      client: { callTool: async () => ({
+        fingerprint: "f".repeat(64), complete: false, page: null,
+        scope: { specSlugs: ["old-spec"] }, nodes: [], edges: [],
+      }) },
+      projects: async () => ["owner/project"],
+    });
+    await assert.rejects(reader.readBoard(), /incomplete or paged board for owner\/project/u);
+  });
+
   it("merges one board per project named by the root index and tags every node", async () => {
     const toolCalls = [];
     const server = fakeMcpServer(async (message) => {
@@ -229,6 +240,8 @@ describe("HttpBoardReader", () => {
         const project = message.params.arguments.project;
         return {
           fingerprint: project === "a/p" ? "a".repeat(64) : "b".repeat(64),
+          complete: true,
+          page: null,
           scope: { specSlugs: ["spec-" + project.replace("/", "")] },
           nodes: [{ canonicalId: project + ":1", specSlug: project, kind: "TASK" }],
           edges: [],
@@ -261,6 +274,8 @@ describe("HttpBoardReader", () => {
         const project = message.params.arguments.project;
         return {
           fingerprint: "f".repeat(64),
+          complete: true,
+          page: null,
           scope: { specSlugs: ["native-task-review"] },
           nodes: [{ canonicalId: "native-task-review:T-12", specSlug: "native-task-review", kind: "TASK" }],
           edges: [],
@@ -287,6 +302,8 @@ describe("HttpBoardReader", () => {
       if (message.method === "tools/call") {
         return {
           fingerprint: "f".repeat(64),
+          complete: true,
+          page: null,
           scope: { specSlugs: ["s"] },
           nodes: [
             { canonicalId: "s:1", specSlug: "s", kind: "TASK" },

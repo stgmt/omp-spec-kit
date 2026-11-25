@@ -18,7 +18,6 @@ const sourceTrees = Object.freeze([
   { source: path.join(repositoryRoot, "src", "kernel"), output: "kernel" },
   { source: path.join(repositoryRoot, "src", "adapters"), output: "adapters" },
   { source: path.join(repositoryRoot, "src", "mcp"), output: "mcp" },
-  { source: path.join(repositoryRoot, "src", "evidence"), output: "evidence" },
   { source: path.join(repositoryRoot, "src", "authoring"), output: "authoring" },
   { source: path.join(repositoryRoot, "src", "enforcement"), output: "enforcement" },
   { source: path.join(repositoryRoot, "src", "gate"), output: "gate" },
@@ -177,7 +176,6 @@ function assertRuntimeImports(relativePath, source) {
       relativePath === "dist/extension.js" &&
       (specifier.startsWith("./adapters/") ||
         specifier.startsWith("./kernel/") ||
-        specifier.startsWith("./evidence/") ||
         specifier.startsWith("./authoring/") ||
         specifier.startsWith("./enforcement/") ||
         specifier.startsWith("./gate/"))
@@ -190,7 +188,6 @@ function assertRuntimeImports(relativePath, source) {
       (relativePath.startsWith("dist/kernel/") ||
         relativePath.startsWith("dist/adapters/") ||
         relativePath.startsWith("dist/mcp/") ||
-        relativePath.startsWith("dist/evidence/") ||
         relativePath.startsWith("dist/authoring/") ||
         relativePath.startsWith("dist/enforcement/") ||
         relativePath.startsWith("dist/gate/") ||

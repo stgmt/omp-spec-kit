@@ -12,8 +12,8 @@ import {
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputPath = path.join(repositoryRoot, "docs", "mcp-tools.html");
 
-if (TOOL_CONTRACTS.length !== 10) {
-  throw new Error(`Expected 10 MCP contracts, received ${TOOL_CONTRACTS.length}`);
+if (TOOL_CONTRACTS.length !== 9) {
+  throw new Error(`Expected 9 MCP contracts, received ${TOOL_CONTRACTS.length}`);
 }
 
 const catalog = {
@@ -252,8 +252,17 @@ const html = `<!doctype html>
         if (f.name === 'proposalId') return '0'.repeat(64);
         if (f.name === 'proposalSha256') return '0'.repeat(64);
         if (f.name === 'repositoryRootFingerprint') return '0'.repeat(64);
+        if (f.name === 'snapshot' || f.kind === 'sha256') return '0'.repeat(64);
         if (f.name === 'approval') return 'approve';
         if (f.name === 'expectedDocuments') return [{ path: '.specs/plugin-distribution/FR.md', beforeSha256: '0'.repeat(64) }];
+        if (f.kind === 'migrationOperations') return [
+          { kind: 'replace_document', document: 'plugin-distribution-user-stories.feature', content: 'Feature: Stories\\n' },
+          { kind: 'replace_document', document: 'plugin-distribution-use-cases.feature', content: 'Feature: Cases\\n' },
+        ];
+        if (f.kind === 'migrationMapping') return [{
+          sourceDocument: 'USER_STORIES.md', sourceSha256: '0'.repeat(64), sourceStartLine: 1, sourceEndLine: 1,
+          targetDocument: 'plugin-distribution-user-stories.feature', targetStartLine: 1, targetEndLine: 1,
+        }];
         if (f.name === 'operations') return [{ kind: 'insert_at_eof', document: 'FR.md', text: 'note' }];
         if (f.name === 'tags') return ['@feature1'];
         if (f.name === 'kinds') return ['FUNCTIONAL_REQUIREMENT'];

@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { basename } from "node:path";
 import { createHash } from "node:crypto";
-import { gherkinPairFindings, missingScenarioSteps, parseFeature, parseGherkinDocument } from "../src/kernel/parsers/gherkin.js";
+import { gherkinPairFindings, missingScenarioSteps, parseFeature, parseGherkinDocument, scenarioReferences } from "../src/kernel/parsers/gherkin.js";
 import { canonicalDocumentFilename } from "../src/kernel/types.js";
 import { isValidSpecSlug } from "../src/kernel/identity.js";
 import { compile } from "../src/kernel/vendor/gherkin.js";
@@ -26,6 +26,7 @@ export function inspectGherkinMigration(text, uri = "") {
     }
     const definition = {
       id, line: scenario.location.line, name: scenario.name, missing: missingScenarioSteps(scenario), examples: [],
+      refs: scenarioReferences(scenario.description).sort(),
     };
     byAstId.set(scenario.id, definition);
     definitions.set(id, definition);
@@ -38,7 +39,10 @@ export function inspectGherkinMigration(text, uri = "") {
     byAstId.get(pickle.astNodeIds[0]).examples.push(example);
   }
   return new Map([...definitions].map(([id, definition]) => [id, {
-    ...definition, sha256: hash({ name: definition.name, examples: definition.examples }),
+    ...definition, sha256: hash({
+      name: definition.name, examples: definition.examples,
+      ...(definition.refs.length ? { refs: definition.refs } : {}),
+    }),
   }]));
 }
 

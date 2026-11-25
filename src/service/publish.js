@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { authoredField } from "./registry.js";
@@ -7,13 +8,74 @@ export function publishTagName(projectId, slug, version) {
   return `spec/${projectId}/${slug}/${version}`;
 }
 
+export function publicationProtectionRef(requestHash) {
+  if (typeof requestHash !== "string" || !/^[0-9a-f]{64}$/u.test(requestHash)) throw new Error("invalid publication operation identity");
+  return `refs/omp-spec-kit/pending/${requestHash}`;
+}
+
+/** Protect the tag and its commit from Git GC before persisting a reservation. */
+export async function protectPublicationTag({ tag, requestHash }) {
+  const ref = publicationProtectionRef(requestHash);
+  try {
+    await tag.git.run(["update-ref", ref, tag.object, "0".repeat(tag.object.length)], { cwd: tag.cwd });
+    return { ref, object: tag.object, git: tag.git, cwd: tag.cwd, created: true };
+  } catch (error) {
+    const existing = await tag.git.revParse(ref, { cwd: tag.cwd }).catch(() => null);
+    if (existing === tag.object) return { ref, object: tag.object, git: tag.git, cwd: tag.cwd, created: false };
+    if (existing === null) throw error;
+    throw Object.assign(new Error("publication protection ref already belongs to a different object"), { causeCode: "PUBLICATION_PROTECTION_CONFLICT", cause: error });
+  }
+}
+
+/** Delete only the expected object from this operation's private ref. */
+export async function removePublicationProtection(protection) {
+  if (!protection) return;
+  if (!/^refs\/omp-spec-kit\/pending\/[0-9a-f]{64}$/u.test(protection.ref) || !/^[0-9a-f]{40,64}$/u.test(protection.object)) throw new Error("invalid publication protection identity");
+  const existing = await protection.git.revParse(protection.ref, { cwd: protection.cwd }).catch(() => null);
+  if (existing === null) return;
+  if (existing !== protection.object) throw Object.assign(new Error("publication protection ref changed; refusing to delete it"), { causeCode: "PUBLICATION_PROTECTION_CONFLICT" });
+  await protection.git.run(["update-ref", "-d", protection.ref, protection.object], { cwd: protection.cwd });
+}
+
+/** Create an annotated tag object without installing or replacing a local ref. */
+export async function createOwnedPublicationTag({ git, cwd, project, spec, version, commit, identity }) {
+  const name = publishTagName(project, spec, version);
+  const ref = `refs/tags/${name}`;
+  await git.run(["check-ref-format", ref], { cwd });
+  if (await git.revParse(ref, { cwd }).catch(() => null)) {
+    throw Object.assign(new Error(`local publication tag ${name} already exists`), { causeCode: "VERSION_EXISTS" });
+  }
+  const tagger = (await git.run(["-c", `user.name=${identity.name}`, "-c", `user.email=${identity.email}`, "var", "GIT_COMMITTER_IDENT"], { cwd })).stdout.trim();
+  const input = `object ${commit}\ntype commit\ntag ${name}\ntagger ${tagger}\n\nspec(${project}) ${spec} ${version}\n`;
+  const created = await git.runBounded(["mktag"], { cwd, timeoutMs: 5_000, input });
+  const object = created.stdout.trim();
+  if (!/^[0-9a-f]{40,64}$/u.test(object)) throw new Error("Git did not return an annotated tag object");
+  return { ref, object, git, cwd, localRefCreated: false };
+}
+
+/** Both refs advance together, and only from the reviewed branch/tag state. */
+export async function pushBranchAndPublicationTag({ git, cwd, branch, expectedHead, tag }) {
+  await git.runBounded(["push", "--atomic", `--force-with-lease=refs/heads/${branch}:${expectedHead}`, `--force-with-lease=${tag.ref}:`, "origin", `HEAD:refs/heads/${branch}`, `${tag.object}:${tag.ref}`], { cwd, timeoutMs: 30_000 });
+}
+
+/** Delete only the exact local tag object created by this operation. */
+export async function removeOwnedPublicationTag(tag) {
+  if (tag?.localRefCreated) await tag.git.run(["update-ref", "-d", tag.ref, tag.object], { cwd: tag.cwd });
+}
+
 /** Peeled commit sha of a remote tag — annotated tags list both refs. */
 function remoteTagCommit(refs, tagRef) {
   return refs.get(`${tagRef}^{}`) ?? refs.get(tagRef) ?? null;
 }
 
+function ledgerFingerprint(rows) {
+  const stable = rows.map(({ version, digest, commitSha, repoUrl, repoBranch }) => ({ version, digest, commitSha, repoUrl, repoBranch }))
+    .sort((left, right) => left.version.localeCompare(right.version));
+  return createHash("sha256").update(JSON.stringify(stable), "utf8").digest("hex");
+}
+
 /** A version becomes a refname: it must be a single git-ref-safe component. */
-function isRefSafeVersion(version) {
+export function isRefSafeVersion(version) {
   return (
     typeof version === "string" &&
     version.length > 0 &&
@@ -73,6 +135,7 @@ export function createPublisher({ mounts, store, identity, logger = () => {} }) 
       if (existing && existing.digest !== treeHash) {
         return reject(projectId, slug, version, "VERSION_EXISTS", `version ${version} was published concurrently with a different digest`);
       }
+      if (!existing) return reject(projectId, slug, version, "PUBLICATION_RESERVED", `version ${version} is reserved by an unfinished migration`);
       return { spec: specKey, outcome: "noop", version };
     }
     return { spec: specKey, outcome: "published", version, digest: treeHash, commit: commitSha };
@@ -181,8 +244,8 @@ export function createPublisher({ mounts, store, identity, logger = () => {} }) 
       remoteTree = null;
     }
     if (remoteTree !== null && remoteTree === snap.treeHash) {
-      await store?.insertLedgerIfAbsent?.({ specKey, version: snap.version, digest: remoteTree, commitSha: remoteSha, repoUrl: mount.repoUrl, repoBranch: mount.branch });
-      return { spec: specKey, outcome: "adopted", version: snap.version, commit: remoteSha };
+      const adopted = await record(mount, projectId, slug, snap.version, remoteTree, remoteSha);
+      return adopted.outcome === "published" ? { ...adopted, outcome: "adopted" } : adopted;
     }
     return reject(projectId, slug, snap.version, "VERSION_EXISTS", `remote tag ${tag} points at ${remoteSha.slice(0, 12)} with different content`);
   }
@@ -200,6 +263,94 @@ export function createPublisher({ mounts, store, identity, logger = () => {} }) 
       if (inFlight.get(key) === stored) inFlight.delete(key);
     });
     return next;
+  }
+
+  /** Validate an ACTIVE migration against both durable publication sources. */
+  async function inspectMigration({ project, spec, worktree, operations, role, requestHash = null, allowStatusChange = false }) {
+    const oldReadme = await worktree.git.show(worktree.head, `.specs/${spec}/README.md`, { cwd: worktree.cwd }).catch(() => null);
+    if (oldReadme === null) return { ok: false, code: "PUBLICATION_STATE_UNKNOWN", message: "Cannot read the source README for publication validation" };
+    const oldStatus = authoredField(oldReadme, "Status");
+    const oldVersion = authoredField(oldReadme, "Version");
+    const readmeChanges = (operations ?? []).filter((operation) => operation?.document === "README.md");
+    if (readmeChanges.length > 1 || readmeChanges.some((operation) => operation.kind !== "replace_document" || typeof operation.content !== "string")) {
+      return { ok: false, code: "MIGRATION_README_INVALID", message: "A migration may provide one replacement README" };
+    }
+    const candidate = readmeChanges[0]?.content ?? oldReadme;
+    const status = authoredField(candidate, "Status");
+    const version = authoredField(candidate, "Version");
+    if ((!allowStatusChange && status !== oldStatus) || (oldStatus === "ACTIVE" && status !== "ACTIVE")) return { ok: false, code: "MIGRATION_STATUS_CHANGED", message: "Migration must preserve the specification status" };
+    if (status !== "ACTIVE") return { ok: true, active: false, published: false, version: null };
+    if (store?.driver !== "sqlite" || typeof store.getLedger !== "function" || typeof store.insertLedgerIfAbsent !== "function" || typeof store.beginPublicationReservation !== "function") {
+      return { ok: false, code: "PUBLICATION_LEDGER_UNAVAILABLE", message: "ACTIVE migration requires the durable SQLite publication ledger" };
+    }
+    const ledger = store.getLedger(`${project}/${spec}`);
+    const prefix = `refs/tags/${publishTagName(project, spec, "*")}`;
+    const refs = await worktree.git.lsRemote(prefix, { cwd: worktree.cwd });
+    const published = ledger.length > 0 || refs.size > 0;
+    if (published && role !== "owner") return { ok: false, code: "PUBLICATION_OWNER_REQUIRED", message: "Only an owner may migrate a published ACTIVE specification" };
+    if (!isRefSafeVersion(version)) return { ok: false, code: "MIGRATION_VERSION_REQUIRED", message: "Provide a valid new Version in the migration README" };
+    if (published && (!readmeChanges.length || version === oldVersion)) {
+      return { ok: false, code: "MIGRATION_VERSION_REQUIRED", message: `Change README Version from ${oldVersion ?? "the published version"} to a new free version in the migration` };
+    }
+    if (ledger.some((entry) => entry.version === version) || remoteTagCommit(refs, `refs/tags/${publishTagName(project, spec, version)}`) !== null) {
+      return { ok: false, code: "VERSION_EXISTS", message: `Version ${version} is already published or reserved by a remote tag` };
+    }
+    const reserved = store.getPublicationReservation?.(`${project}/${spec}`, version);
+    if (reserved && reserved.requestHash !== requestHash) return { ok: false, code: "PUBLICATION_RESERVED", message: `Version ${version} is reserved by an unfinished migration` };
+    if (oldVersion) {
+      const row = ledger.find((entry) => entry.version === oldVersion);
+      const oldTag = remoteTagCommit(refs, `refs/tags/${publishTagName(project, spec, oldVersion)}`);
+      if ((row && (!oldTag || oldTag !== row.commitSha)) || (oldTag && !row)) {
+        return { ok: false, code: "PUBLICATION_INTEGRITY", message: `Existing ledger and Git tag for ${oldVersion} do not agree` };
+      }
+    }
+    return { ok: true, active: true, published, oldVersion, version, ledgerFingerprint: ledgerFingerprint(ledger) };
+  }
+
+  async function reserveMigrationPublication({ project, spec, publication, metadata }) {
+    try {
+      const reservation = await store.beginPublicationReservation(`${project}/${spec}`, publication.version, metadata);
+      if (!reservation.ok) return { ok: false, code: reservation.code, message: "The target Version was reserved in the ledger" };
+      if (ledgerFingerprint(reservation.rows) !== publication.ledgerFingerprint) {
+        if (!reservation.reused) reservation.rollback();
+        return { ok: false, code: "PUBLICATION_STATE_CHANGED", message: "The publication ledger changed after the preview; request a new preview" };
+      }
+      return reservation;
+    } catch (error) {
+      return { ok: false, code: "PUBLICATION_BUSY", message: String(error?.message ?? error).split("\n")[0] };
+    }
+  }
+
+  function findMigrationReservation({ project, spec, requestHash }) {
+    return store?.findPublicationReservation?.(`${project}/${spec}`, requestHash) ?? null;
+  }
+
+  async function confirmMigrationPublication({ project, spec, version, commit, requestHash = null }) {
+    try {
+      const mount = await mounts.ensureRepo(project, { fetch: true, strict: true });
+      const tree = await mount.git.objectId(commit, `.specs/${spec}`, { cwd: mount.mirrorDir });
+      const tagRef = `refs/tags/${publishTagName(project, spec, version)}`;
+      const refs = await mount.git.lsRemote(`${tagRef}*`, { cwd: mount.mirrorDir });
+      if (remoteTagCommit(refs, tagRef) !== commit) return { ok: false, code: "PUBLISHED_LEDGER_UNCONFIRMED" };
+      await mount.git.run(["merge-base", "--is-ancestor", commit, `refs/remotes/origin/${specBranchName(spec)}`], { cwd: mount.mirrorDir });
+      const specKey = `${project}/${spec}`;
+      const pending = store.getPublicationReservation?.(specKey, version);
+      const operationIdentity = requestHash ?? pending?.requestHash ?? null;
+      if (pending) {
+        if (pending.commitSha !== commit || pending.tagObject !== refs.get(tagRef) || pending.digest !== tree || pending.repoUrl !== mount.repoUrl || pending.repoBranch !== specBranchName(spec)) return { ok: false, code: "PUBLISHED_LEDGER_UNCONFIRMED" };
+        store.completePublicationReservation(specKey, version, pending.token, { digest: tree, commitSha: commit, repoUrl: mount.repoUrl, repoBranch: specBranchName(spec) });
+      }
+      let row = store.getLedger(specKey).find((entry) => entry.version === version);
+      if (!row) {
+        await publishSpec(project, spec);
+        row = store.getLedger(specKey).find((entry) => entry.version === version);
+      }
+      if (!row || row.commitSha !== commit || row.digest !== tree) return { ok: false, code: "PUBLISHED_LEDGER_UNCONFIRMED" };
+      if (operationIdentity) await removePublicationProtection({ git: mount.git, cwd: mount.mirrorDir, ref: publicationProtectionRef(operationIdentity), object: refs.get(tagRef) });
+      return { ok: true, version, commit, digest: tree };
+    } catch (error) {
+      return { ok: false, code: "PUBLISHED_LEDGER_UNCONFIRMED", message: String(error?.message ?? error).split("\n")[0] };
+    }
   }
 
   async function publishProject(projectId) {
@@ -232,5 +383,5 @@ export function createPublisher({ mounts, store, identity, logger = () => {} }) 
     return results;
   }
 
-  return { publishSpec, publishProject, publishAll };
+  return { publishSpec, publishProject, publishAll, inspectMigration, reserveMigrationPublication, findMigrationReservation, confirmMigrationPublication };
 }

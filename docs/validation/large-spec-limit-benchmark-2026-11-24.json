@@ -1,0 +1,45 @@
+{
+  "schema": "omp-large-spec-limit-benchmark@1",
+  "artifact": {
+    "path": "plugins/omp-spec-kit/dist",
+    "manifestSha256": "86231a8f4bd706b7c48d0595e8251160ecd0aaeaae0e587453958df7b98f7647"
+  },
+  "runtime": {
+    "node": "v24.17.0",
+    "platform": "win32",
+    "release": "10.0.26200",
+    "arch": "x64"
+  },
+  "machine": {
+    "cpu": "AMD Ryzen 9 7845HX with Radeon Graphics        ",
+    "logicalCores": 24,
+    "totalMemoryBytes": 67881328640
+  },
+  "input": {
+    "perDocumentLimitBytes": 8388608,
+    "aggregateLimitBytes": 20971520,
+    "singleDocumentSourceBytes": 8388608,
+    "aggregateCorpusSourceBytes": 20971520
+  },
+  "method": {
+    "warmupSamples": 1,
+    "measuredSamples": 20,
+    "isolatedNodeProcesses": true
+  },
+  "profiles": {
+    "oneDocumentAtHardCap": {
+      "allGraphsValid": true,
+      "p95BuildMs": 196.326,
+      "maxIncrementalPeakRssBytes": 75923456,
+      "maxPeakRssBytes": 134537216,
+      "maxDiagnosticCount": 0
+    },
+    "aggregateCorpusAtHardCap": {
+      "allGraphsValid": true,
+      "p95BuildMs": 422.15070000000003,
+      "maxIncrementalPeakRssBytes": 173154304,
+      "maxPeakRssBytes": 232235008,
+      "maxDiagnosticCount": 0
+    }
+  }
+}

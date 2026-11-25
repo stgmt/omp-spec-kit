@@ -92,9 +92,16 @@ describe("POST /mcp — official SDK, stateless, YouTrack-verified callers", () 
     assert.equal(listed.status, 200);
     assert.equal(listed.sessionId, null);
     const names = listed.json.result.tools.map((tool) => tool.name);
-    assert.equal(names.length, 16, "10 kernel tools + 5 service ops + spec_repo for a writer");
+    assert.equal(names.length, 15, "9 kernel tools + 5 service ops + spec_repo for a writer");
     assert.ok(names.includes("spec_patch"));
     assert.ok(names.includes("spec_branch"));
+    assert.equal(names.includes("spec_evidence"), false);
+    const removedUpload = await fetch(`${url.replace(/\/mcp$/u, "")}/evidence?project=stgmt%2Falpha`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/x-ndjson" },
+      body: "{}\n",
+    });
+    assert.equal(removedUpload.status, 404);
 
     const result = await callTool(url, token, "spec_catalog", { view: "specs", requestId: "http-1" });
     assert.equal(result.isError, false, JSON.stringify(result.structuredContent?.error ?? {}));
@@ -117,6 +124,22 @@ describe("POST /mcp — official SDK, stateless, YouTrack-verified callers", () 
     assert.deepEqual(statusBody.projects.map((entry) => [entry.project, entry.binding, entry.specs, entry.setup.required]), [["stgmt/alpha", "active", 1, false]]);
   });
 
+  it("accepts a bounded MCP JSON request larger than the previous 4 MiB parser cap", async () => {
+    const { fixture, url } = await setup();
+    const token = await fixture.userToken("alice");
+    const response = await rpc(url, {
+      jsonrpc: "2.0",
+      id: "large-mcp-request",
+      method: "tools/call",
+      params: {
+        name: "spec_catalog",
+        arguments: { view: "types", requestId: "large-mcp-request", padding: "x".repeat(5 * 1024 * 1024) },
+      },
+    }, token);
+    assert.equal(response.status, 200, response.text.slice(0, 500));
+    assert.ok(response.json?.result || response.json?.error, "the oversized-to-old-cap body reached MCP JSON-RPC handling");
+  });
+
   it("deletes a demo-marked spec through the hosted spec_branch surface", async () => {
     const { fixture, url } = await setup();
     const token = await fixture.userToken("alice");
@@ -126,6 +149,7 @@ describe("POST /mcp — official SDK, stateless, YouTrack-verified callers", () 
     assert.equal(deleted.isError, false, JSON.stringify(deleted.structuredContent?.error ?? {}));
     assert.equal(deleted.structuredContent.data.action, "deleteSpec");
   });
+
 
   it("reports SETUP_REQUIRED only for an unbound project and keeps the bound one working", async () => {
     const { fixture, url } = await setup({ projects: ["stgmt/alpha", "stgmt/beta"], unbound: ["stgmt/beta"] });
@@ -298,7 +322,7 @@ describe("POST /mcp — official SDK, stateless, YouTrack-verified callers", () 
     assert.equal(listed.status, 200);
     const tools = listed.json.result.tools;
     const names = tools.map((tool) => tool.name);
-    assert.equal(names.length, 12, "reader sees 9 reads + registry + drift + spec_repo");
+    assert.equal(names.length, 11, "reader sees 8 reads + registry + drift + spec_repo");
     assert.ok(!names.includes("spec_patch"), "a mutating-only tool is hidden");
     assert.ok(!names.includes("spec_claim"), "a mutating-only tool is hidden");
     assert.ok(!names.includes("spec_branch"), "a mutating-only tool is hidden");

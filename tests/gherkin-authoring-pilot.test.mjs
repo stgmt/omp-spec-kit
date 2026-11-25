@@ -9,11 +9,8 @@ import { coverageRegion } from "../src/authoring/bdd-coverage.js";
 import { readRepositorySpecs } from "../src/kernel/adapters/fs.js";
 import { buildKernelGraph } from "../src/kernel/graph/build.js";
 import { compareGherkinMigration, inspectGherkinMigration, inspectMigratedPair } from "../scripts/verify-gherkin-migration.mjs";
-import { captureGherkinEvidence } from "../scripts/capture-gherkin-evidence.mjs";
-import { PassThrough } from "node:stream";
 import { fileURLToPath } from "node:url";
-import { executeEvidenceOperation } from "../src/evidence/service.js";
-import { readReleaseScenarios, releaseFeaturePaths } from "../scripts/release-gherkin.mjs";
+import { readReleaseScenarios } from "../scripts/release-gherkin.mjs";
 import { resolveCorpusRoot } from "../scripts/corpus-root.mjs";
 
 const spec = "gherkin-review";
@@ -179,64 +176,26 @@ test("approved coverage counts the effective Then, rejects changed task scope, a
   assert.equal(replayedApproval.data?.error?.code ?? replayedApproval.error?.code, "CONFLICT");
 });
 
-test("a draft can be stored and promotion requires a review", async (t) => {
-  const { invoke } = await workspace(t);
+test("promotion requires owner-approved coverage, without running scenarios", async (t) => {
+  const { invoke, owner } = await workspace(t);
   const ready = cases.replace("@id:SCEN-refusal", "@id:SCEN-refusal @feature1 @spec-ready");
   const preview = await invoke({ intent: "patch", dryRun: true, operations: [{
     kind: "replace_document", document: casesDoc, content: ready,
   }] });
-  assert.equal(preview.error?.code, "DESIGN_REVIEW_REQUIRED");
-});
-
-test("scenario evidence requires a current bound source and each distinct Examples row", async (t) => {
-  const { root, dir, graph: readGraph } = await workspace(t);
-  const text = cases.replace("@id:SCEN-refusal", "@id:SCEN-refusal @spec-ready @feature1")
-    .replace("ScenarioRef: invalid | SCEN-refusal", "ScenarioRef: invalid | SCEN-refusal#a")
-    .replace("Scenario: Refuse", "Scenario Outline: Refuse")
-    .replace("Given a proposed edit with a broken anchor", "Given a proposed edit with <fault>")
-    + "      Examples:\n        | example_id | fault |\n        | a | a broken anchor |\n        | b | a broken anchor |\n";
-  await writeFile(path.join(dir, casesDoc), text);
-  const graph = await readGraph();
-  const modulePath = path.join(root, "steps.mjs");
-  await writeFile(modulePath, `
-    import { Given, When, Then } from ${JSON.stringify(import.meta.resolve("@cucumber/cucumber"))};
-    Given("a proposed edit with a broken anchor", function () {});
-    When("the author previews it", function () {});
-    Then("the proposal is refused", function () {});
-  `);
-  const captured = await captureGherkinEvidence({ root, spec, imports: [modulePath], stderr: new PassThrough() });
-  assert.equal(captured.success, true);
-  const frames = captured.messages.trim().split("\n").map((line) => JSON.parse(line));
-  const selected = frames.filter(({ pickle }) => pickle?.tags.some(({ name }) => name === "@spec-ready"));
-  assert.equal(selected.length, 2);
-  const evidencePath = path.join(root, ".omp-spec-kit", "evidence", "last-test-run.ndjson");
-  await mkdir(path.dirname(evidencePath), { recursive: true });
-  const observe = async (records, currentGraph = graph) => {
-    await writeFile(evidencePath, records.map((record) => JSON.stringify(record)).join("\n") + "\n");
-    const result = await executeEvidenceOperation(root, currentGraph, "getTestResult", { spec, scenarioId: "SCEN-refusal" });
-    return result.data.result;
-  };
-  assert.equal(await observe(frames.slice(1)), "UNKNOWN");
-  assert.equal(await observe(frames), "PASSED");
-  const olderPath = path.join(path.dirname(evidencePath), "bdd-results", "run.ndjson");
-  await mkdir(path.dirname(olderPath), { recursive: true });
-  await writeFile(olderPath, captured.messages);
-  assert.equal(await observe(frames.filter((frame) => !selected.includes(frame))), "NOT_RUN");
-  await writeFile(evidencePath, "{invalid json\n");
-  assert.equal((await executeEvidenceOperation(root, graph, "getTestResult", { spec, scenarioId: "SCEN-refusal" })).data.result, "UNKNOWN");
-  assert.equal(await observe(frames.filter((frame) => frame !== selected[0])), "UNKNOWN");
-  const failed = structuredClone(frames);
-  failed.find((frame) => frame.testStepFinished).testStepFinished.testStepResult.status = "FAILED";
-  failed.find((frame) => frame.testRunFinished).testRunFinished.success = false;
-  assert.equal(await observe(failed), "FAILED");
-  await observe(frames);
-  const service = createSpecService(root);
-  const queryEvidence = () => service.runQuery("evidence", { spec, scenarioId: "SCEN-refusal" });
-  assert.equal((await queryEvidence()).data.result, "PASSED");
-  const frPath = path.join(dir, "FR.md");
-  await writeFile(frPath, (await readFile(frPath, "utf8")).replace("A proposal can be previewed.", "A proposal now requires a different input."));
-  assert.equal((await queryEvidence()).data.result, "UNKNOWN");
-  assert.equal(await observe(frames, await readGraph()), "UNKNOWN");
+  assert.equal(preview.error?.code, "BDD_COVERAGE_INCOMPLETE");
+  const approvalPreview = await invoke({ intent: "approveBddCoverage", map, dryRun: true }, owner);
+  const approved = await invoke({
+    intent: "approveBddCoverage", map, dryRun: false, repositoryRootFingerprint: approvalPreview.data.baseGenerationSha256,
+  }, owner);
+  assert.equal(approved.data?.outcome, "APPLIED", JSON.stringify(approved.error));
+  const promoted = await invoke({ intent: "patch", dryRun: false, operations: [{
+    kind: "replace_document", document: casesDoc, content: ready,
+  }] });
+  assert.equal(promoted.data?.outcome, "APPLIED", JSON.stringify(promoted.error));
+  const stale = await invoke({ intent: "patch", dryRun: true, operations: [{
+    kind: "replace_document", document: casesDoc, content: ready.replace("Then the proposal is refused", "Then the proposal is accepted"),
+  }] });
+  assert.equal(stale.error?.code, "BDD_COVERAGE_INCOMPLETE");
 });
 
 test("Gherkin migration requires reviewed repairs for valid legacy syntax with missing BDD steps", async () => {
@@ -260,6 +219,21 @@ test("Gherkin migration requires reviewed repairs for valid legacy syntax with m
 });
 
 
+test("migration detects removed scenario references", () => {
+  const original = `Feature: References
+  @id:SCEN-linked
+  Scenario: A linked scenario
+    Refs: FR-1, FR-2
+    Given a request
+    When the request is processed
+    Then the result is recorded
+`;
+  const before = inspectGherkinMigration(original);
+  const same = inspectGherkinMigration(original.replace("FR-1, FR-2", "FR-2 FR-1"));
+  assert.deepEqual(compareGherkinMigration(before, same), []);
+  const removed = inspectGherkinMigration(original.replace("Refs: FR-1, FR-2\n", ""));
+  assert.equal(compareGherkinMigration(before, removed)[0].id, "SCEN-linked");
+});
 test("migration rejects a byte-preserving rename with top-level scenarios", () => {
   const result = inspectMigratedPair({
     storyPath: storiesDoc,
@@ -270,30 +244,28 @@ test("migration rejects a byte-preserving rename with top-level scenarios", () =
   assert.match(JSON.stringify(result), /scenarios belong to a story, use case or contract Rule/u);
 });
 
-test("release loads both migrated sources and refuses invalid or legacy inputs", async (t) => {
+test("release fixture preserves the migrated scenario pair", async () => {
   const source = new URL("./fixtures/gherkin-migration/plugin-distribution.feature", import.meta.url);
   const repairs = JSON.parse(await readFile(new URL("./fixtures/gherkin-migration/plugin-distribution-repairs.json", import.meta.url), "utf8"));
   const corpusRoot = fileURLToPath(new URL("./fixtures/kernel/authoring-real-corpus", import.meta.url));
-  const [storyPath, casePath] = releaseFeaturePaths(corpusRoot);
+  const storyPath = path.join(corpusRoot, ".specs", "plugin-distribution", "plugin-distribution-user-stories.feature");
+  const casePath = path.join(corpusRoot, ".specs", "plugin-distribution", "plugin-distribution-use-cases.feature");
   const storyText = await readFile(storyPath, "utf8");
   const caseText = await readFile(casePath, "utf8");
   const migrated = inspectMigratedPair({ storyPath, storyText, casePath, caseText });
   assert.deepEqual(migrated.findings, []);
   assert.equal(migrated.definitions.size, 33);
   assert.deepEqual(compareGherkinMigration(inspectGherkinMigration(await readFile(source, "utf8")), migrated.definitions, repairs), []);
-  const selected = await readReleaseScenarios({ corpusRoot });
+  assert.throws(() => resolveCorpusRoot({ root: null }), /explicitly name an absolute corpus root/u);
+});
+
+test("release checks use their own feature file and reject incomplete release tags", async (t) => {
+  const selected = await readReleaseScenarios();
   assert.equal(selected.requirements.size, 6);
   assert.equal(selected.requirements.get("SCEN-mri-active-project-root"), "plugin-distribution:FR-19");
   assert.equal(selected.requirements.get("SCEN-mri-terminal-json-rpc"), "plugin-distribution:FR-20");
-  assert.throws(() => resolveCorpusRoot({ root: null }), /explicitly name an absolute corpus root/u);
   const { root } = await workspace(t);
-  const [story, useCase] = releaseFeaturePaths(root);
-  await mkdir(path.dirname(story), { recursive: true });
-  await writeFile(story, storyText);
-  await assert.rejects(readReleaseScenarios({ corpusRoot: root }), { code: "ENOENT" });
-  await writeFile(useCase, "Feature: Unmigrated\n  Scenario: Not in a rule\n    Given preparation\n    When action\n    Then outcome\n");
-  await assert.rejects(readReleaseScenarios({ corpusRoot: root }), /scenarios belong to a story, use case or contract Rule/u);
-  await writeFile(useCase, caseText);
-  await writeFile(path.join(path.dirname(story), "plugin-distribution.feature"), "Feature: Legacy\n");
-  await assert.rejects(readReleaseScenarios({ corpusRoot: root }), /remove the legacy documents/u);
+  const featurePath = path.join(root, "release-check.feature");
+  await writeFile(featurePath, "Feature: Release\n  @release-evidence @id:SCEN-release\n  Scenario: Check\n    Given preparation\n    When action\n    Then outcome\n");
+  await assert.rejects(readReleaseScenarios({ featurePath }), /invalid release-evidence scenario tags/u);
 });

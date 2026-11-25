@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { serviceSuccess } from "./dispatch.js";
+import { decodeHostedSnapshot, encodeHostedSnapshot, materializeBranchRoot, repositoryBindingId } from "./migration-snapshot.js";
 
 function errorEnvelope(operation, requestId, code, message, extra = {}) {
   return {
@@ -131,11 +132,41 @@ async function readArchivedDocuments({ mounts, project, args, requestId }) {
 
 export function createVersionedReads({ mounts, store }) {
   return async function documents({ args, project, requestId, schemaVersion }) {
+    const topic = args.topic ?? null;
+    if (topic !== null && (args.includeArchived === true || args.version != null)) {
+      return { envelope: errorEnvelope("documents", requestId, "INVALID_REQUEST", "topic cannot be combined with version or includeArchived", { parameter: "topic" }) };
+    }
+    if ((args.snapshot !== undefined || args.includeSnapshot === true) && (args.includeArchived === true || args.version != null)) {
+      return { envelope: errorEnvelope("documents", requestId, "INVALID_REQUEST", "snapshot cannot be combined with version or includeArchived", { parameter: "snapshot" }) };
+    }
     if (args.includeArchived === true) {
       return { envelope: await readArchivedDocuments({ mounts, project, args, requestId }) };
     }
     const version = args.version;
     if (version == null) {
+      if (topic !== null || args.includeSnapshot === true || args.snapshot !== undefined) {
+        let root;
+        try {
+          const worktree = await mounts.worktreeFor(project, args.spec, { strict: true, topic, preserveChanges: true });
+          const scope = { project, spec: args.spec, topic, head: worktree.head, repository: repositoryBindingId(worktree.repoUrl) };
+          const snapshot = args.snapshot === undefined ? null : decodeHostedSnapshot(args.snapshot, scope);
+          if (args.snapshot !== undefined && (!snapshot || snapshot.head !== worktree.head)) {
+            return { envelope: errorEnvelope("documents", requestId, "CONFLICT", "snapshot belongs to another project, branch, or source revision; obtain a new snapshot", { causeCode: "SPEC_SNAPSHOT_MISMATCH", retryable: true, specSlug: args.spec }) };
+          }
+          root = await materializeBranchRoot({ mounts, project, spec: args.spec, worktree });
+          const innerArgs = { ...args, ...(snapshot ? { snapshot: snapshot.tree } : {}) };
+          delete innerArgs.topic;
+          const envelope = await root.service.runQuery("documents", innerArgs, { requestId, schemaVersion });
+          if (envelope.ok && typeof envelope.data?.snapshot === "string") {
+            envelope.data.snapshot = encodeHostedSnapshot({ ...scope, tree: envelope.data.snapshot });
+          }
+          return { envelope };
+        } catch (error) {
+          return { envelope: errorEnvelope("documents", requestId, error?.code ?? "ADAPTER_READ_ERROR", String(error?.message ?? error).split("\n")[0], { causeCode: error?.code ?? null, specSlug: args.spec }) };
+        } finally {
+          await root?.cleanup();
+        }
+      }
       const envelope = await mounts.serviceFor(project).runQuery("documents", args, { requestId, schemaVersion });
       return { envelope };
     }

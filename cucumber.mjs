@@ -1,5 +1,3 @@
-import { resolveCorpusRoot } from "./scripts/corpus-root.mjs";
-import { releaseFeaturePaths } from "./scripts/release-gherkin.mjs";
 
 const messagePath = process.env.OMP_SPEC_KIT_BDD_MESSAGE_PATH;
 const stdoutMessages = process.env.OMP_SPEC_KIT_BDD_MESSAGE_STDOUT === "1";
@@ -35,7 +33,7 @@ const dockerRelease = process.env.OMP_SPEC_KIT_BDD_CONTAINER === "1";
 const releaseRequested = dockerRelease || process.argv.includes("release") || process.argv.includes("--profile=release");
 export const release = releaseRequested ? {
   ...options,
-  paths: [...releaseFeaturePaths(resolveCorpusRoot()), "tests/features/release-evidence.feature"],
+  paths: ["tests/features/release-contract.feature", "tests/features/release-evidence.feature"],
   tags: "@release-evidence or @id:SCEN-mri-malformed-json-recovery",
 } : {};
 

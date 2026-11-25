@@ -1,11 +1,12 @@
-// Default and hard limits from NFR.md "Hard input and query limits".
+// Current bounded graph contract for the next package minor. The v0.3.0
+// fixture's NFR table is an immutable historical snapshot, not these limits.
 // Callers may choose stricter values; hard maxima are clamped, never raised.
 
 export const DEFAULT_LIMITS = Object.freeze({
   maxSpecs: 100,
   maxDocuments: 2000,
-  maxBytesPerDocument: 2 * 1024 * 1024,
-  maxAggregateBytes: 50 * 1024 * 1024,
+  maxBytesPerDocument: 8 * 1024 * 1024,
+  maxAggregateBytes: 20 * 1024 * 1024,
   maxPathBytes: 512,
   maxLinesPerDocument: 100000,
   maxDefinitionOccurrences: 100000,
@@ -29,6 +30,10 @@ export const DEFAULT_LIMITS = Object.freeze({
   // measured board while staying inside the NFR-MEM-1 memory budget.
   maxResponseBytes: 8 * 1024 * 1024,
 });
+
+// Hosted MCP receives one complete proposal (both Gherkin files plus migration
+// evidence). Keep the envelope bounded separately from the graph input budget.
+export const MAX_MCP_JSON_BODY_BYTES = 24 * 1024 * 1024;
 
 export const LIMIT_NAMES = Object.freeze(Object.keys(DEFAULT_LIMITS));
 

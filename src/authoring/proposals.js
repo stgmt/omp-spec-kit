@@ -29,7 +29,8 @@ import {
 import { parseGherkinDocument } from "../kernel/parsers/gherkin.js";
 import { scanBlocks } from "../kernel/parsers/md-blocks.js";
 import { assembleRoadmap as assembleRoadmapContent } from "../kernel/roadmap/assemble.js";
-import { validateDesignReviewForChanges } from "./design-review.js";
+import { introducedDefinitionFindings, preservedPendingReferences } from "./definition-integrity.js";
+import { validateMigration } from "./migration.js";
 import { error } from "./error-codes.js";
 import {
   approvedCoverageMap, changedReadyCoverageFindings, changedTaskCoverageFindings, coverageRegion, localApprovedCoverage, replaceCoverageRegion,
@@ -39,25 +40,6 @@ const MAX_REASON_BYTES = 512;
 const MAX_DIFF_BYTES = 64 * 1024;
 const STATUS_FIELD_PREFIX = /^([ ]{0,3}(?:[-*][ \t]+)?(?:\*\*)?[ \t]*Status[ \t]*(?:\*\*)?[ \t]*:(?:\*\*)?)/u;
 
-// Definition-integrity diagnostic classes a proposal must not introduce.
-// Compared as per-(code, path) counts before/after so pre-existing violations
-// elsewhere (or line shifts within an edited document) never block a write,
-// while any net-new occurrence fails the proposal.
-const DEFINITION_INTEGRITY_DIAGNOSTIC_CODES = new Set([
-  "MALFORMED_GHERKIN",
-  "UNSUPPORTED_GHERKIN_DIALECT",
-  "MISSING_SCENARIO_ID",
-  "DUPLICATE_SCENARIO_ID_TAG",
-  "INVALID_LOCAL_ID",
-  "MALFORMED_HEADING",
-  "FORBIDDEN_EDGE_ENDPOINT",
-  "DUPLICATE_DEFINITION",
-  // A reference the write itself introduces must resolve in the same corpus;
-  // otherwise "FR-999" would be written now and only fail a later validation.
-  "BROKEN_REFERENCE",
-  "MALFORMED_REFERENCE",
-  "AMBIGUOUS_REFERENCE",
-]);
 
 function success(data) {
   return { ok: true, data };
@@ -896,6 +878,58 @@ export class ProposalCompiler {
 
     const intent = input.intent ?? "patch";
 
+    // A layout transition is a write boundary, never a prerequisite to read.
+    // Inspect the complete directory rather than the graph, which deliberately
+    // does not parse old stories or use cases as active entities.
+    const existingDirectory = await specificationDirectoryExists(this.root, spec);
+    if (!existingDirectory.ok) return error(existingDirectory.code, existingDirectory.message);
+    let sourceDirectory = null;
+    let legacyFiles = [];
+    let needsMigration = false;
+    let scaffold = false;
+    if (existingDirectory.exists) {
+      sourceDirectory = await specificationDirectoryDigest(this.root, spec);
+      if (!sourceDirectory.ok) return error(sourceDirectory.code, sourceDirectory.message);
+      const paths = new Set(sourceDirectory.files.map(({ path }) => path));
+      legacyFiles = sourceDirectory.files.filter(({ path }) => isLegacySpecificationDocument(path, spec));
+      const storyPath = canonicalDocumentFilename("USER_STORIES", spec);
+      const casePath = canonicalDocumentFilename("USE_CASES", spec);
+      needsMigration = legacyFiles.length > 0 || !paths.has(storyPath) || !paths.has(casePath);
+      if (sourceDirectory.files.length === 0) scaffold = true;
+      if (sourceDirectory.files.length === 1 && paths.has("README.md")) {
+        const readme = await readDocumentBytes(this.root, spec, "README.md");
+        scaffold = readme.ok && readme.bytes.toString("utf8") === `# ${spec}\n\nStatus: DRAFT\n`;
+      }
+    }
+    if (intent !== "migrateSpec" && needsMigration && !(intent === "createSpec" && scaffold)) {
+      return error("VALIDATION_FAILED", "Migrate this specification through spec_patch intent migrateSpec before writing", {
+        causeCode: legacyFiles.length ? "LEGACY_SPEC_LAYOUT" : "INCOMPLETE_GHERKIN_PAIR",
+        spec,
+        paths: legacyFiles.map(({ path }) => path),
+        fix: [{ tool: "spec_documents", arguments: { action: "list", spec, includeSnapshot: true } }],
+      });
+    }
+    if (intent === "migrateSpec") {
+      if (!sourceDirectory || !needsMigration) return error("VALIDATION_FAILED", "specification does not need layout migration");
+      if (typeof input.snapshot !== "string" || !/^[0-9a-f]{64}$/u.test(input.snapshot)) {
+        return error("INVALID_REQUEST", "migration requires the specification snapshot from spec_documents list");
+      }
+      if (input.snapshot !== sourceDirectory.digest) return error("CONFLICT", "specification snapshot changed before migration");
+      if (!Array.isArray(input.operations) || !input.operations.length ||
+          input.operations.some((op) => op?.kind !== "replace_document")) {
+        return error("INVALID_REQUEST", "migration requires replace_document operations");
+      }
+      if (Array.isArray(input.decisions) && input.decisions.length && context.hostedCoverage && !context.coverageOwner) {
+        return error("PATH_FORBIDDEN", "migration decisions require the hosted project owner");
+      }
+      if (Array.isArray(input.repairs) && input.repairs.length && context.hostedCoverage && !context.coverageOwner) {
+        return error("PATH_FORBIDDEN", "migration repairs require the hosted project owner");
+      }
+      if (Array.isArray(input.fieldDecisions) && input.fieldDecisions.length && context.hostedCoverage && !context.coverageOwner) {
+        return error("PATH_FORBIDDEN", "migration field decisions require the hosted project owner");
+      }
+    }
+
     if (intent === "archiveSpec") {
       if (typeof input.repositoryRootFingerprint === "string" && input.repositoryRootFingerprint !== graph.fingerprint) {
         return error("CONFLICT", "repositoryRootFingerprint does not match the current graph snapshot", {
@@ -904,6 +938,13 @@ export class ProposalCompiler {
       }
       if (!graph.nodes.some((node) => node.specSlug === spec)) {
         return error("NOT_FOUND", `specification not found: ${spec}`);
+      }
+      const incomplete = (graph.specLayouts ?? []).filter((layout) => layout.indexComplete !== true);
+      if (incomplete.length) {
+        return error("VALIDATION_FAILED", "cannot prove absence of inbound links while the specification graph is incomplete", {
+          causeCode: "INCOMPLETE_SPEC_GRAPH",
+          specs: incomplete.map((layout) => layout.specSlug),
+        });
       }
       const references = archivalReferences(graph, spec);
       if (references.length > 0) {
@@ -918,21 +959,10 @@ export class ProposalCompiler {
         fileCount: source.files.length,
         destination: `.${'specs'}/archive/${spec}`,
       };
-      // Archival removes every document — including scenario-bearing .feature
-      // files — so it must pass the same design-review gate as delete_document.
-      // Real before bytes are loaded for .feature documents so the gate can
-      // inspect scenario headers; other documents keep empty placeholders.
-      const featureBytes = new Map();
-      for (const file of source.files) {
-        if (!/\.feature$/iu.test(file.path)) continue;
-        const loaded = await readDocumentBytes(this.root, spec, file.path);
-        if (!loaded.ok) return error(loaded.code, loaded.message);
-        featureBytes.set(file.path, loaded.bytes);
-      }
       const changes = source.files.map((file) => ({
         spec,
         document: file.path,
-        beforeBytes: featureBytes.get(file.path) ?? Buffer.alloc(0),
+        beforeBytes: Buffer.alloc(0),
         afterBytes: Buffer.alloc(0),
         operation: { kind: "archive_document", document: file.path, spec },
         deleteAfter: true,
@@ -945,10 +975,6 @@ export class ProposalCompiler {
           diffTruncated: false,
         },
       }));
-      const reviewCheck = validateDesignReviewForChanges(input.designReview, changes);
-      if (!reviewCheck.ok) {
-        return error(reviewCheck.code, reviewCheck.message, { findings: reviewCheck.findings });
-      }
       const proposalMaterial = {
         kind: "archive_spec",
         requestId,
@@ -957,7 +983,6 @@ export class ProposalCompiler {
         reason,
         normalizedOperations,
         archive,
-        designReview: reviewCheck.material,
       };
       const proposalSha256 = sha256(canonicalJson(proposalMaterial));
       return success({
@@ -974,7 +999,6 @@ export class ProposalCompiler {
         complete: true,
         changes,
         archive,
-        designReview: reviewCheck.receipt,
         kind: "archive",
       });
     }
@@ -1020,7 +1044,7 @@ export class ProposalCompiler {
       const compiled = await compileDeleteEntity({ graph, root: this.root, spec, input });
       if (compiled.ok === false) return compiled;
       rawOperations = compiled.operations;
-    } else if (intent === "patch") {
+    } else if (intent === "patch" || intent === "migrateSpec") {
       if (typeof input.repositoryRootFingerprint === "string" && input.repositoryRootFingerprint !== graph.fingerprint) {
         return error("CONFLICT", "repositoryRootFingerprint does not match the current graph snapshot", {
           causeCode: "REPOSITORY_ROOT_FINGERPRINT_MISMATCH",
@@ -1033,10 +1057,12 @@ export class ProposalCompiler {
     } else if (intent === "createSpec") {
       const existing = await specificationDirectoryExists(this.root, spec);
       if (!existing.ok) return error(existing.code, existing.message);
-      if (existing.exists) return error("CONFLICT", `specification already exists: ${spec}`);
+      if (existing.exists && !scaffold) return error("CONFLICT", `specification already exists: ${spec}`);
       const compiled = operationForFacade("createSpec", input);
       if (compiled.ok === false) return compiled;
-      rawOperations = compiled.operations;
+      rawOperations = existing.exists && sourceDirectory.files.some(({ path }) => path === "README.md")
+        ? compiled.operations.filter((operation) => operation.document !== "README.md")
+        : compiled.operations;
     } else {
       const compiled = operationForFacade(intent, input, facadeContext);
       if (compiled.ok === false) return compiled;
@@ -1415,6 +1441,41 @@ export class ProposalCompiler {
       addChange(operation.document, current.bytes, Buffer.from(transformedText, "utf8"), operation, transformed.delete === true, current.missing === true);
     }
 
+    let migration = null;
+    let repositorySnapshot = null;
+    if (intent === "migrateSpec") {
+      const storyPath = canonicalDocumentFilename("USER_STORIES", spec);
+      const casePath = canonicalDocumentFilename("USE_CASES", spec);
+      if (!documents.has(storyPath) || !documents.has(casePath)) {
+        return error("INVALID_REQUEST", "migration must supply both canonical Gherkin documents");
+      }
+      const sources = [];
+      const requiredNames = new Set([...legacyFiles.map(({ path }) => path), storyPath, casePath]);
+      const requestedNames = new Set((Array.isArray(input.mapping) ? input.mapping : []).map((entry) => entry?.sourceDocument));
+      for (const file of sourceDirectory.files) {
+        if (!requiredNames.has(file.path) && !requestedNames.has(file.path)) continue;
+        const legacy = isLegacySpecificationDocument(file.path, spec);
+        const current = await readDocumentBytes(this.root, spec, file.path, { allowLegacy: legacy });
+        if (!current.ok) return error(current.code, current.message);
+        let text;
+        try { text = new TextDecoder("utf-8", { fatal: true }).decode(current.bytes); }
+        catch { return error("VALIDATION_FAILED", `migration source is not UTF-8: ${file.path}`); }
+        sources.push({ document: file.path, sha256: current.sha256, text, required: requiredNames.has(file.path) });
+        if (legacy) {
+          addChange(file.path, current.bytes, Buffer.alloc(0), { kind: "delete_document", document: file.path }, true, false);
+          documents.get(file.path).migrationLegacy = true;
+          documents.get(file.path).preview.afterSha256 = null;
+        }
+      }
+      const targets = [storyPath, casePath].map((document) => ({
+        document, text: documents.get(document).afterBytes.toString("utf8"),
+      }));
+      repositorySnapshot = await readRepositorySpecs({ root: this.root });
+      if (repositorySnapshot.error) return error("PATH_FORBIDDEN", "specification repository could not be read");
+      migration = validateMigration({ spec, sources, targets, mapping: input.mapping, decisions: input.decisions, fieldDecisions: input.fieldDecisions, repairs: input.repairs, repositoryFiles: repositorySnapshot.files });
+      if (!migration.ok) return error("VALIDATION_FAILED", migration.message, { causeCode: "MIGRATION_MAPPING_INVALID" });
+    }
+
     // ---- Raw-path gates (compiler stage) ----
     // DEC-2: one place decides. Both transports reach this method, so a hook
     // never needs a second implementation of the cycle.
@@ -1448,12 +1509,9 @@ export class ProposalCompiler {
       }
     }
 
-    const snapshot = await readRepositorySpecs({ root: this.root });
+    const snapshot = repositorySnapshot ?? await readRepositorySpecs({ root: this.root });
     if (snapshot.error) return error("PATH_FORBIDDEN", "specification repository could not be read");
     const prefix = `.specs/${spec}/`;
-    if (snapshot.files.some(({ path }) => path.startsWith(prefix) && isLegacySpecificationDocument(path.slice(prefix.length), spec))) {
-      return error("VALIDATION_FAILED", "Migrate the legacy specification documents offline before writing");
-    }
     const replacements = new Map();
     for (const change of documents.values()) {
       const key = `.${'specs'}/${change.spec}/${change.document}`;
@@ -1463,6 +1521,11 @@ export class ProposalCompiler {
       .filter((file) => !replacements.has(file.path))
       .concat([...replacements.entries()].filter(([, bytes]) => bytes !== null).map(([path, bytes]) => ({ path, bytes })))
       .sort((left, right) => left.path.localeCompare(right.path));
+    if (!resultingFiles.some(({ path }) => path === `${prefix}${canonicalDocumentFilename("USER_STORIES", spec)}`) ||
+        !resultingFiles.some(({ path }) => path === `${prefix}${canonicalDocumentFilename("USE_CASES", spec)}`) ||
+        resultingFiles.some(({ path }) => path.startsWith(prefix) && isLegacySpecificationDocument(path.slice(prefix.length), spec))) {
+      return error("VALIDATION_FAILED", "the resulting specification must contain exactly the canonical Gherkin pair", { causeCode: "INCOMPLETE_GHERKIN_PAIR" });
+    }
     const criteriaPath = `${prefix}${FIXED_DOCUMENT_FILES.ACCEPTANCE_CRITERIA}`;
     const coverage = (files) => coverageRegion(Buffer.from(files.find(({ path }) => path === criteriaPath)?.bytes ?? "").toString("utf8"));
     const beforeCoverage = coverage(snapshot.files);
@@ -1495,21 +1558,6 @@ export class ProposalCompiler {
         renamePairs.set(newKey, oldKey);
       }
     }
-    const diagnosticIdentity = (diagnostic) => {
-      const rawPath = diagnostic.span?.path ?? "";
-      const path = renamePairs.get(rawPath) ?? rawPath;
-      const content = diagnostic.canonicalId ?? diagnostic.actual ?? diagnostic.message ?? "";
-      return `${diagnostic.code}\u0000${path}\u0000${content}`;
-    };
-    const multisetOf = (diagnostics) => {
-      const counts = new Map();
-      for (const diagnostic of diagnostics) {
-        if (!DEFINITION_INTEGRITY_DIAGNOSTIC_CODES.has(diagnostic.code)) continue;
-        const key = diagnosticIdentity(diagnostic);
-        counts.set(key, (counts.get(key) ?? 0) + 1);
-      }
-      return counts;
-    };
     const baseline = buildKernelGraph({ files: snapshot.files });
     if (tasksDocument) {
       const approved = context.hostedCoverage ? beforeCoverage.map : await localApprovedCoverage(this.root, spec);
@@ -1518,44 +1566,19 @@ export class ProposalCompiler {
       });
       if (findings.length) return error("BDD_COVERAGE_INCOMPLETE", "Task scope requires current approved BDD examples", { spec, findings });
     }
-    const beforeCounts = multisetOf(baseline.diagnostics);
-    const afterCounts = multisetOf(resulting.diagnostics);
-    const firstAfter = new Map();
-    for (const diagnostic of resulting.diagnostics) {
-      if (!DEFINITION_INTEGRITY_DIAGNOSTIC_CODES.has(diagnostic.code)) continue;
-      const key = diagnosticIdentity(diagnostic);
-      if (!firstAfter.has(key)) firstAfter.set(key, diagnostic);
-    }
-    const introducedFindings = [];
-    for (const [key, diagnostic] of firstAfter) {
-      if ((afterCounts.get(key) ?? 0) <= (beforeCounts.get(key) ?? 0)) continue;
-      const path = diagnostic.span?.path ?? "";
-      introducedFindings.push({
-        code: diagnostic.code,
-        ...(path ? { path } : {}),
-        ...(diagnostic.span?.startLine ? { line: diagnostic.span.startLine } : {}),
-        message: diagnostic.message ?? diagnostic.code,
-      });
-    }
+    const preserved = migration ? preservedPendingReferences(resulting.graph, migration.preservedReferences) : { skippedDiagnosticIds: new Set(), pending: [] };
+    if (migration) migration.pendingReferences = preserved.pending;
+    const introducedFindings = introducedDefinitionFindings(baseline.diagnostics,
+      resulting.diagnostics.filter((diagnostic) => !preserved.skippedDiagnosticIds.has(diagnostic.diagnosticId)), renamePairs);
     if (introducedFindings.length > 0) {
-      introducedFindings.sort(
-        (left, right) =>
-          (left.path ?? "").localeCompare(right.path ?? "") || left.code.localeCompare(right.code),
-      );
       return error("VALIDATION_FAILED", "proposal introduces malformed definitions or references that do not resolve", {
         findings: introducedFindings,
       });
     }
 
-    const reviewCheck = validateDesignReviewForChanges(input.designReview, [...documents.values()]);
-    if (!reviewCheck.ok) {
-      return error(reviewCheck.code, reviewCheck.message, { findings: reviewCheck.findings });
-    }
-    if (reviewCheck.receipt?.required === true) {
-      const approved = context.hostedCoverage ? beforeCoverage.map : await localApprovedCoverage(this.root, spec);
-      const findings = changedReadyCoverageFindings({ baseline: baseline.graph, graph: resulting.graph, spec, proposed: afterCoverage.map, approved });
-      if (findings.length) return error("BDD_COVERAGE_INCOMPLETE", "Executable examples require current approval", { spec, findings });
-    }
+    const approved = context.hostedCoverage ? beforeCoverage.map : await localApprovedCoverage(this.root, spec);
+    const readyFindings = changedReadyCoverageFindings({ baseline: baseline.graph, graph: resulting.graph, spec, proposed: afterCoverage.map, approved });
+    if (readyFindings.length) return error("BDD_COVERAGE_INCOMPLETE", "Examples require current approval", { spec, findings: readyFindings });
     const previews = [...documents.values()].map((entry) => entry.preview).sort((left, right) => left.document.localeCompare(right.document));
     const proposalMaterial = {
       requestId,
@@ -1564,7 +1587,7 @@ export class ProposalCompiler {
       reason,
       normalizedOperations,
       previews,
-      designReview: reviewCheck.material,
+      ...(migration ? { migration: { snapshot: input.snapshot, mapping: input.mapping, decisions: input.decisions ?? [], fieldDecisions: input.fieldDecisions ?? [], repairs: input.repairs ?? [], scope: context.migrationScope ?? null, summary: migration } } : {}),
     };
     const proposalSha256 = sha256(canonicalJson(proposalMaterial));
 
@@ -1576,12 +1599,12 @@ export class ProposalCompiler {
       normalizedOperations,
       documents: previews,
       affectedNodeIds: [],
-      findings: [],
+      findings: preserved.pending,
       complete: true,
       changes: [...documents.values()],
       previews,
-      designReview: reviewCheck.receipt,
-      kind: "patch",
+      ...(migration ? { migration: { snapshot: input.snapshot, mapping: input.mapping, decisions: input.decisions ?? [], fieldDecisions: input.fieldDecisions ?? [], repairs: input.repairs ?? [], scope: context.migrationScope ?? null, summary: migration } } : {}),
+      kind: migration ? "migration" : "patch",
     });
   }
 }

@@ -1,0 +1,53 @@
+import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { promisify } from "node:util";
+import { test } from "node:test";
+import { GitClient } from "../../../src/service/git.js";
+import { createOwnedPublicationTag, protectPublicationTag, removePublicationProtection } from "../../../src/service/publish.js";
+
+const exec = promisify(execFile);
+test("a bounded Git push terminates its hook tree and leaves the remote unchanged", async (t) => {
+  const dir = await mkdtemp(path.join(tmpdir(), "bounded-git-"));
+  t.after(() => rm(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }));
+  const bare = path.join(dir, "remote.git");
+  const checkout = path.join(dir, "checkout");
+  await exec("git", ["init", "--bare", "--initial-branch=main", bare]);
+  await exec("git", ["clone", bare, checkout]);
+  await exec("git", ["-C", checkout, "config", "user.name", "test"]);
+  await exec("git", ["-C", checkout, "config", "user.email", "test@example.invalid"]);
+  await writeFile(path.join(checkout, "README.md"), "hello\n");
+  await exec("git", ["-C", checkout, "add", "README.md"]);
+  await exec("git", ["-C", checkout, "commit", "-m", "initial"]);
+  const hook = path.join(bare, "hooks", "pre-receive");
+  await writeFile(hook, "#!/bin/sh\nsleep 30\n", { mode: 0o755 });
+  await chmod(hook, 0o755);
+  const git = new GitClient();
+  const start = Date.now();
+  await assert.rejects(git.runBounded(["push", "origin", "HEAD:refs/heads/test"], { cwd: checkout, timeoutMs: 1200 }), (error) => error.exitCode === "TIMEOUT");
+  assert.ok(Date.now() - start < 10_000, "timed-out Git process tree should terminate promptly");
+  await assert.rejects(exec("git", ["--git-dir", bare, "rev-parse", "--verify", "refs/heads/test"]));
+});
+
+test("publication protection uses compare-and-swap and never replaces or deletes another object", async (t) => {
+  const dir = await mkdtemp(path.join(tmpdir(), "protected-git-"));
+  t.after(() => rm(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }));
+  await exec("git", ["init", "--initial-branch=main", dir]);
+  await exec("git", ["-C", dir, "config", "user.name", "test"]);
+  await exec("git", ["-C", dir, "config", "user.email", "test@example.invalid"]);
+  await exec("git", ["-C", dir, "commit", "--allow-empty", "-m", "one"]);
+  const git = new GitClient();
+  const identity = { name: "test", email: "test@example.invalid" };
+  const first = await createOwnedPublicationTag({ git, cwd: dir, project: "owner/repo", spec: "example", version: "1.0.0", commit: await git.revParse("HEAD", { cwd: dir }), identity });
+  const requestHash = "a".repeat(64);
+  const protection = await protectPublicationTag({ tag: first, requestHash });
+  await exec("git", ["-C", dir, "commit", "--allow-empty", "-m", "two"]);
+  const second = await createOwnedPublicationTag({ git, cwd: dir, project: "owner/repo", spec: "example", version: "1.0.0", commit: await git.revParse("HEAD", { cwd: dir }), identity });
+  await assert.rejects(protectPublicationTag({ tag: second, requestHash }), { causeCode: "PUBLICATION_PROTECTION_CONFLICT" });
+  await assert.rejects(removePublicationProtection({ ...protection, object: second.object }), { causeCode: "PUBLICATION_PROTECTION_CONFLICT" });
+  assert.equal(await git.revParse(protection.ref, { cwd: dir }), first.object);
+  await removePublicationProtection(protection);
+  assert.equal(await git.revParse(protection.ref, { cwd: dir }).catch(() => null), null);
+});

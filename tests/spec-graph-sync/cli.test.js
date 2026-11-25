@@ -238,6 +238,8 @@ describe("spec-graph-sync CLI wiring", () => {
             ? {
                 fingerprint: "f".repeat(64),
                 scope: { mode: "project", project: "demo/stack", specSlugs: ["demo-spec"] },
+                complete: true,
+                page: null,
                 nodes: [
                   {
                     canonicalId: "demo-spec:TASK-1",

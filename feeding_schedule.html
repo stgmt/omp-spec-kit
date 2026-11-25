@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Питание — 63 дня, три таблицы</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0f1117; color: #e0e0e0; padding: 16px; }
+  h1 { text-align: center; margin-bottom: 6px; font-size: 1.4em; color: #7ee787; }
+  .sub { text-align: center; color: #777; font-size: .8em; margin-bottom: 14px; }
+
+  .anchorb { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; background: #1a1d27; border: 1px solid #2c3142; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: .85em; }
+  .anchorb label { color: #9aa0b0; }
+  .anchorb input { background: #0f1117; color: #e0e0e0; border: 1px solid #3a3f50; border-radius: 5px; padding: 5px 8px; font: inherit; width: 130px; }
+  .anchorb input:focus { outline: 1px solid #7ee787; }
+  #hint { color: #f0883e; font-size: .85em; }
+
+  .tabs { display: flex; gap: 6px; justify-content: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .tabs button { background: #1a1d27; color: #9aa0b0; border: 1px solid #2c3142; border-radius: 7px; padding: 8px 16px; font: inherit; font-size: .85em; cursor: pointer; }
+  .tabs button.on { background: #7ee787; color: #0f1117; border-color: #7ee787; font-weight: 600; }
+
+  .wrap { overflow-x: auto; border: 1px solid #2c3142; border-radius: 8px; background: #14161f; }
+  table { border-collapse: collapse; font-size: .72em; white-space: nowrap; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid #23262f; border-right: 1px solid #1d2029; text-align: center; }
+  th { background: #1a1d27; color: #9aa0b0; font-weight: 600; position: sticky; top: 0; }
+  tbody tr:hover { background: #1a1d27; }
+  td.wk { font-weight: 600; color: #7ee787; }
+  td.dt { color: #79c0ff; }
+  td.hl { background: #1f2a1f; color: #b7f7b7; font-weight: 600; }
+  td.na { color: #4a4f5c; }
+  .leaf { font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif; font-weight: 400; }
+  th .leaf { margin-right: 2px; }
+  .tabpane { display: none; }
+  .tabpane.on { display: block; }
+
+  .notes { margin-top: 18px; display: grid; gap: 12px; }
+  .card { background: #14161f; border: 1px solid #2c3142; border-radius: 8px; padding: 14px 16px; font-size: .84em; line-height: 1.55; }
+  .card h2 { font-size: 1em; color: #7ee787; margin-bottom: 8px; }
+  .card ol, .card ul { padding-left: 20px; }
+  .card li { margin-bottom: 4px; }
+  .src { color: #6f7686; font-size: .82em; padding: 8px 10px; line-height: 1.45; }
+  b { color: #e6edf3; }
+  .warn { color: #f0883e; }
+</style>
+</head>
+<body>
+
+<h1>Питание — 63 дня</h1>
+<p class="sub">8 недель 12/12 + 7 дней 8/16 · 🍃 — по листу · 💧 — в корень (опция) · Trichomizer — всегда в корень</p>
+
+<div class="anchorb">
+  <label for="anchor">День 1 — перевод на 12/12:</label>
+  <input id="anchor" type="text" inputmode="numeric" placeholder="31.10" autocomplete="off" value="30.10.2026">
+  <span id="hint">формат 31.10 или 31.10.2026</span>
+</div>
+
+<div class="tabs">
+  <button data-tab="hydro" class="on">Гидро · Simplex</button>
+  <button data-tab="coco">Кокос · Alpha</button>
+  <button data-tab="soil">Земля · BioBizz</button>
+</div>
+
+<div class="wrap">
+<div id="hydro" class="tabpane">
+  <table>
+    <thead><tr><th>Неделя</th><th>Дни</th><th>Даты</th><th>Стадия</th><th>Свет</th><th>База Simplex</th><th>Canna CalMag</th><th>Canna Rhizotonic</th><th>Canna Cannazym</th><th>Canna Boost</th><th>Canna PK 13/14</th><th>AN Big Bud</th><th>RasTea Trichomizer · корень</th><th>TA FinalPart</th><th>TA FlashClean</th><th><span class="leaf">🍃</span> Simplex Вега · лист</th><th><span class="leaf">🍃</span> Simplex Масса</th><th><span class="leaf">🍃</span> Simplex Сила</th><th><span class="leaf">🍃</span> CBG Delta 9 · лист / корень</th><th>pH</th><th>EC</th><th>Слив</th></tr></thead>
+    <tbody>
+      <tr data-d1="-999" data-d2="-8"><td class="wk">Вега</td><td>до перевода</td><td class="dt">—</td><td>вегетация</td><td>18/6</td><td>Вега 0,5–1,5</td><td class="hl">0,1–0,5</td><td>2</td><td>2,5</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 1–2</td><td class="na">–</td><td class="na">–</td><td>🍃 4–6</td><td>5,5–5,9</td><td>0,7–1,3 (0,9–1,3)</td><td>—</td></tr>
+      <tr data-d1="1" data-d2="7"><td class="wk">W1</td><td>1–7</td><td class="dt">30.10 – 05.11</td><td>предцвет</td><td>12/12</td><td>Вега 2,0–2,5</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 1–2</td><td>🍃 0,25–0,5</td><td class="na">–</td><td>🍃 4–6</td><td>5,5–5,9</td><td>1,6–1,9</td><td>не менять</td></tr>
+      <tr data-d1="8" data-d2="14"><td class="wk">W2</td><td>8–14</td><td class="dt">06.11 – 12.11</td><td>начало цветения</td><td>12/12</td><td>Блум 2,5–3,0</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td>2,0</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 1–2</td><td>🍃 4–6</td><td>5,5–5,9</td><td>1,8–2,2</td><td>№1 · день 8</td></tr>
+      <tr data-d1="15" data-d2="21"><td class="wk">W3</td><td>15–21</td><td class="dt">13.11 – 19.11</td><td>развитие цветов</td><td>12/12</td><td>Блум 2,0–3,0</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 0,25–0,5</td><td class="na">–</td><td>💧 4–6</td><td>6,0–6,5</td><td>1,5–2,0</td><td>—</td></tr>
+      <tr data-d1="22" data-d2="28"><td class="wk">W4</td><td>22–28</td><td class="dt">20.11 – 26.11</td><td>развитие цветов</td><td>12/12</td><td>Блум 2,0–3,0</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td>2,0</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>💧 4–6</td><td>6,0–6,5</td><td>1,5–2,0</td><td>—</td></tr>
+      <tr data-d1="29" data-d2="35"><td class="wk">W5</td><td>29–35</td><td class="dt">27.11 – 03.12</td><td>развитие цветов</td><td>12/12</td><td>Блум 2,0–3,0</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 0,25–0,5</td><td>🍃 1–2</td><td>💧 4–6</td><td>6,0–6,5</td><td>1,5–2,0</td><td>—</td></tr>
+      <tr data-d1="36" data-d2="42"><td class="wk">W6</td><td>36–42</td><td class="dt">04.12 – 10.12</td><td>созревание</td><td>12/12</td><td>Блум 1,5–2,5</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="hl">1,5</td><td class="na">–</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>💧 4–6</td><td>6,0–6,5</td><td>1,2–1,7 · с PK до 2,2</td><td>№2 · день 36</td></tr>
+      <tr data-d1="43" data-d2="49"><td class="wk">W7</td><td>43–49</td><td class="dt">11.12 – 17.12</td><td>созревание</td><td>12/12</td><td>Блум 1,5–2,5</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>6,0–6,5</td><td>1,2–1,7</td><td>—</td></tr>
+      <tr data-d1="50" data-d2="56"><td class="wk">W8</td><td>50–56</td><td class="dt">18.12 – 24.12</td><td>созревание → финиш</td><td>12/12</td><td>снята</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>2,0 (50–52)</td><td class="na">–</td><td class="na">–</td><td>2,0</td><td class="hl">5,0 с д.52</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 1–2</td><td class="na">–</td><td>5,5–6,0</td><td>до 2,6</td><td>№3 · день 52</td></tr>
+      <tr data-d1="57" data-d2="63"><td class="wk">W9</td><td>57–63</td><td class="dt">25.12 – 31.12</td><td>финиш · промывка</td><td>8/16</td><td>снята</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>2,0 д.60</td><td class="hl">5,0 (57–61)</td><td class="hl">1,5–3 (62–63)</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>5,5–6,0</td><td>2,6 → 0</td><td>№4 · день 62</td></tr>
+    </tbody>
+  </table>
+  <p class="src">Источник: simplex.garden → карточка ГидроВега/ГидроБлум → «Таблицы применения» → PDF «Simplex_Таблица-Применения_Гидро». В таблице стоит доза <b>лёгкого старта</b>. Продвинутый уровень и цифры с бутылок — в карточке ниже, они не смешиваются с основной дозой. У Simplex стадии, не недели: недели — привязка к 63-дневному циклу.</p>
+</div>
+<div id="coco" class="tabpane">
+  <table>
+    <thead><tr><th>Неделя</th><th>Дни</th><th>Даты</th><th>Стадия</th><th>Свет</th><th>Alpha Coco A</th><th>Alpha Coco B</th><th>Canna CalMag</th><th>Canna Rhizotonic</th><th>Canna Cannazym</th><th>Canna Boost</th><th>Canna PK 13/14</th><th>AN Big Bud</th><th>RasTea Trichomizer · корень</th><th>TA FinalPart</th><th>TA FlashClean</th><th><span class="leaf">🍃</span> Simplex Вега · лист</th><th><span class="leaf">🍃</span> Simplex Масса</th><th><span class="leaf">🍃</span> Simplex Сила</th><th><span class="leaf">🍃</span> CBG Delta 9 · лист / корень</th><th>pH</th><th>EC</th></tr></thead>
+    <tbody>
+      <tr data-d1="-999" data-d2="-8"><td class="wk">Вега</td><td>до перевода</td><td class="dt">—</td><td>вегетация</td><td>18/6</td><td>4,0</td><td>4,0</td><td class="hl">0,1–0,5</td><td>2</td><td>2,5</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 1–2</td><td class="na">–</td><td class="na">–</td><td>🍃 4–6</td><td>5,8–6,2</td><td>1,4–1,6</td></tr>
+      <tr data-d1="1" data-d2="7"><td class="wk">W1</td><td>1–7</td><td class="dt">30.10 – 05.11</td><td>предцвет</td><td>12/12</td><td>4,0</td><td>4,0</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 1–2</td><td>🍃 0,25–0,5</td><td class="na">–</td><td>🍃 4–6</td><td>5,8–6,2</td><td>1,6–1,8</td></tr>
+      <tr data-d1="8" data-d2="14"><td class="wk">W2</td><td>8–14</td><td class="dt">06.11 – 12.11</td><td>начало цветения</td><td>12/12</td><td>4,0</td><td>4,0</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td>2,0</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 1–2</td><td>🍃 4–6</td><td>5,8–6,2</td><td>1,7–1,9</td></tr>
+      <tr data-d1="15" data-d2="21"><td class="wk">W3</td><td>15–21</td><td class="dt">13.11 – 19.11</td><td>развитие цветов</td><td>12/12</td><td>4,0</td><td>4,0</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 0,25–0,5</td><td class="na">–</td><td>💧 4–6</td><td>5,8–6,2</td><td>1,7–1,9</td></tr>
+      <tr data-d1="22" data-d2="28"><td class="wk">W4</td><td>22–28</td><td class="dt">20.11 – 26.11</td><td>развитие цветов</td><td>12/12</td><td>4,0</td><td>4,0</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td>2,0</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>💧 4–6</td><td>5,8–6,2</td><td>1,7–1,9</td></tr>
+      <tr data-d1="29" data-d2="35"><td class="wk">W5</td><td>29–35</td><td class="dt">27.11 – 03.12</td><td>развитие цветов</td><td>12/12</td><td>4,0</td><td>4,0</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 0,25–0,5</td><td>🍃 1–2</td><td>💧 4–6</td><td>5,8–6,2</td><td>1,7–1,9</td></tr>
+      <tr data-d1="36" data-d2="42"><td class="wk">W6</td><td>36–42</td><td class="dt">04.12 – 10.12</td><td>созревание</td><td>12/12</td><td>3,0</td><td>3,0</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="hl">1,5</td><td class="na">–</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>💧 4–6</td><td>5,8–6,2</td><td>1,7–1,9 · с PK до 2,3</td></tr>
+      <tr data-d1="43" data-d2="49"><td class="wk">W7</td><td>43–49</td><td class="dt">11.12 – 17.12</td><td>созревание</td><td>12/12</td><td>3,0</td><td>3,0</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>5,8–6,2</td><td>1,6–1,8</td></tr>
+      <tr data-d1="50" data-d2="56"><td class="wk">W8</td><td>50–56</td><td class="dt">18.12 – 24.12</td><td>созревание → финиш</td><td>12/12</td><td>снята</td><td>снята</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>2,0 (50–52)</td><td class="na">–</td><td class="na">–</td><td>2,0</td><td class="hl">5,0 с д.52</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 1–2</td><td class="na">–</td><td>5,8–6,2</td><td>до 2,6</td></tr>
+      <tr data-d1="57" data-d2="63"><td class="wk">W9</td><td>57–63</td><td class="dt">25.12 – 31.12</td><td>финиш · промывка</td><td>8/16</td><td>снята</td><td>снята</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>2,0 д.60</td><td class="hl">5,0 (57–61)</td><td class="hl">1,5–3 (62–63)</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>5,8–6,2</td><td>2,6 → 0</td></tr>
+    </tbody>
+  </table>
+  <p class="src">Единственный официальный источник Alpha — «Карта кормления Alpha coco», опубликованная картинкой в карточке товара на Ozon (ir.ozone.ru/s3/multimedia-1-4/9555949336.jpg). На сайте alphanpk.ru доз нет вообще. Из линейки у тебя только база: 2+2 проращивание, 4+4 вега и цветение, 3+3 созревание, 0 на подготовке к сбору. Остальные продукты Alpha из таблицы убраны — их у тебя нет. pH 5,8–6,2 и EC — практика, производитель их не публикует. База снимается с дня 52: FinalPart по паспорту только соло.</p>
+</div>
+<div id="soil" class="tabpane">
+  <table>
+    <thead><tr><th>Неделя</th><th>Дни</th><th>Даты</th><th>Стадия</th><th>Свет</th><th>BB Root·Juice</th><th>BB Bio·Grow</th><th>BB Bio·Bloom</th><th>BB Top·Max</th><th>BB Bio·Heaven</th><th>BB Acti·Vera</th><th>BB Alg·A·Mic</th><th>Canna CalMag</th><th>Canna Rhizotonic</th><th>Canna Cannazym</th><th>Canna Boost</th><th>Canna PK 13/14</th><th>AN Big Bud</th><th>RasTea Trichomizer · корень</th><th>TA FinalPart</th><th>TA FlashClean</th><th><span class="leaf">🍃</span> Simplex Вега · лист</th><th><span class="leaf">🍃</span> Simplex Масса</th><th><span class="leaf">🍃</span> Simplex Сила</th><th><span class="leaf">🍃</span> CBG Delta 9 · лист / корень</th><th>pH</th></tr></thead>
+    <tbody>
+      <tr data-d1="-999" data-d2="-8"><td class="wk">Вега</td><td>до перевода</td><td class="dt">—</td><td>вегетация</td><td>18/6</td><td>4</td><td>2</td><td class="na">–</td><td class="na">–</td><td>2</td><td>2</td><td>– / 2</td><td class="hl">0,1–0,5</td><td>2</td><td>2,5</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 1–2</td><td class="na">–</td><td class="na">–</td><td>🍃 4–6</td><td>6,2–6,5</td></tr>
+      <tr data-d1="1" data-d2="7"><td class="wk">W1</td><td>1–7</td><td class="dt">30.10 – 05.11</td><td>предцвет</td><td>12/12</td><td>2</td><td>3</td><td>1 / 2</td><td>1</td><td>2</td><td>3</td><td>– / 2</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 1–2</td><td>🍃 0,25–0,5</td><td class="na">–</td><td>🍃 4–6</td><td>6,2–6,5</td></tr>
+      <tr data-d1="8" data-d2="14"><td class="wk">W2</td><td>8–14</td><td class="dt">06.11 – 12.11</td><td>начало цветения</td><td>12/12</td><td>2</td><td>2 / 4</td><td>2 / 3</td><td>2</td><td>3</td><td>4</td><td>– / 2</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td>2,0</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 1–2</td><td>🍃 4–6</td><td>6,2–6,5</td></tr>
+      <tr data-d1="15" data-d2="21"><td class="wk">W3</td><td>15–21</td><td class="dt">13.11 – 19.11</td><td>развитие цветов</td><td>12/12</td><td class="na">–</td><td>2 / 4</td><td>3 / 3</td><td>2</td><td>4</td><td>5</td><td>– / 3</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 0,25–0,5</td><td class="na">–</td><td>💧 4–6</td><td>6,2–6,5</td></tr>
+      <tr data-d1="22" data-d2="28"><td class="wk">W4</td><td>22–28</td><td class="dt">20.11 – 26.11</td><td>развитие цветов</td><td>12/12</td><td class="na">–</td><td>2 / 4</td><td>3 / 4</td><td>3</td><td>5</td><td>5</td><td>– / 3</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td>2,0</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>💧 4–6</td><td>6,2–6,5</td></tr>
+      <tr data-d1="29" data-d2="35"><td class="wk">W5</td><td>29–35</td><td class="dt">27.11 – 03.12</td><td>развитие цветов</td><td>12/12</td><td class="na">–</td><td>2 / 2</td><td>3 / 4</td><td>3</td><td>5</td><td>3</td><td>– / 4</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 0,25–0,5</td><td>🍃 1–2</td><td>💧 4–6</td><td>6,2–6,5</td></tr>
+      <tr data-d1="36" data-d2="42"><td class="wk">W6</td><td>36–42</td><td class="dt">04.12 – 10.12</td><td>созревание</td><td>12/12</td><td class="na">–</td><td>2 / 2</td><td>4 / 4</td><td>4</td><td>4 / 3</td><td>3</td><td>– / 4</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="hl">1,5</td><td class="na">–</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>💧 4–6</td><td>6,2–6,5</td></tr>
+      <tr data-d1="43" data-d2="49"><td class="wk">W7</td><td>43–49</td><td class="dt">11.12 – 17.12</td><td>созревание</td><td>12/12</td><td class="na">–</td><td>2 / 2</td><td>4 / 3</td><td>4</td><td>4 / 3</td><td>2</td><td>– / 3</td><td class="hl">0,1–0,5</td><td>0,5</td><td>2,5</td><td>2,0</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>6,2–6,5</td></tr>
+      <tr data-d1="50" data-d2="56"><td class="wk">W8</td><td>50–56</td><td class="dt">18.12 – 24.12</td><td>созревание → финиш</td><td>12/12</td><td class="na">–</td><td>1 / 1</td><td>4 / 3</td><td>4 / 1</td><td>3 / 2</td><td>1</td><td>– / 2</td><td class="hl">0,1–0,5</td><td class="na">–</td><td>2,5</td><td>2,0 (50–52)</td><td class="na">–</td><td class="na">–</td><td>2,0</td><td class="hl">4,0 с д.52</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>🍃 1–2</td><td class="na">–</td><td>6,2–6,5</td></tr>
+      <tr data-d1="57" data-d2="63"><td class="wk">W9</td><td>57–63</td><td class="dt">25.12 – 31.12</td><td>финиш · промывка</td><td>8/16</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>2,0 д.60</td><td class="hl">4,0 (57–61)</td><td class="hl">1,5–3 (62–63)</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td class="na">–</td><td>6,2–6,5</td></tr>
+    </tbody>
+  </table>
+  <p class="src">Дозы BioBizz — официальный Nutrient Schedule 2026 (biobizz.com, PDF 2026). Через дробь — All·Mix / Light·Mix; одно число — одинаково. Alg·A·Mic в графике All·Mix отсутствует, поэтому «– / 2». pH 6,2–6,5 — практика для органической земли. По графику BioBizz W9 — чистая вода; если идёшь на FinalPart, лей 4,0 мл/л вместо воды (EC ≤ 2,0) и последние 2 дня FlashClean.</p>
+</div>
+</div>
+
+<div class="notes">
+  <div class="card">
+    <h2>По листу — можно в один раствор</h2>
+    <ul>
+      <li>Simplex в карточке Массы и Силы: <b>«Не смешивайте компоненты между собой до внесения в воду»</b>. То есть концентраты в одну бутылку не сливать, а в воду — по очереди, по одному. Один общий раствор после этого допустим.</li>
+      <li>Delta 9 на этикетке: <b>«совместим со всеми продуктами, которые держат pH 5–9»</b>.</li>
+      <li>Порядок: вода → Масса → Сила → Delta, каждый размешать до следующего. pH 5,5–6,5. С Силой (хитозан) держи ближе к 5,5–6,0.</li>
+      <li>Первый раз — на 2–3 листьях, сутки посмотреть. Опрыскивать перед выключением света.</li>
+      <li>Частоты: Вега — раз в неделю · Масса — не чаще 1–2 недель · Сила — не чаще 2–3 недель · Delta — 3 раза через 10 дней. Поэтому в таблице Масса стоит W1/W3/W5, Сила — W2/W5/W8, а не каждую неделю.</li>
+      <li>Если в одну неделю попали два-три продукта — это один общий раствор, а не три обработки подряд.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Старый кокос с перлитом — переиспользование</h2>
+    <ol>
+      <li><b>Сначала оценка.</b> Была гниль корней, плесень, вредители? Тогда не переиспользуй — или стерилизуй паром/перекисью.</li>
+      <li><b>Кого сажать:</b> только уже укоренённое, здоровое растение. Семена и клоны в старый кокос не сажают — они слишком хрупкие. Лунку под новый корневой ком делай <b>свежим кокосом</b>, старый идёт вокруг.</li>
+      <li><b>Вынь корневой ком</b>, выбери крупные корни руками, разрыхли комки.</li>
+      <li><b>Проверь соли методом Canna 1:1,5:</b> 1 часть кокоса + 1,5 части воды, взболтать, замерить EC. Сравни со свежим кокосом; если заметно выше — промывать.</li>
+      <li><b>Промывка:</b> вода pH 5,8–6,2, проливать до дренажа, пока EC дренажа не упадёт.</li>
+      <li><b>FlashClean 1,5–3 мл/л</b> в воде pH 5,8–6,2, пролить до дренажа. Официально для кокоса: «reset and refresh», раз в 15 дней или по необходимости, <b>не чаще раза в 2 недели</b>. Растворяет и вымывает <b>растворимые</b> соли — буфер не восстанавливает, кальция в нём нет.</li>
+      <li><b>Cannazym 5 мл/л</b> — двойная доза для переиспользованного субстрата (обычная 2,5). Разлагает мёртвые корни. Это ферменты, а не буфер.</li>
+      <li><b>Буферизация — не обязательный ритуал.</b> Canna прямо пишет: буфер восстанавливается сам, когда ты кормишь Ca-базой. Практика: после промывки два полива базой + CalMag до дренажа — этого достаточно. Отдельное замачивание 12–24 часа нужно только если дренаж остался солёным (EC заметно выше влитого) или полезла нехватка кальция/магния.</li>
+      <li><b>Если всё же замачивать аэропот:</b> топить не надо. Либо проливать с рециркуляцией — собрал дренаж и вылил обратно, 2–3 прохода, либо поставить горшок в пакет/бак и залить раствором. Смысл — контакт кальция с кокосом, а не объём воды.</li>
+      <li><b>Структура:</b> добавь 20–30% свежего кокоса и перлита. Перлит, который рассыпался в пыль, заменить — он больше не аэрирует.</li>
+      <li><b>Первый полив</b> — база + Rhizotonic, до дренажа. Пустоты засыпать свежим кокосом.</li>
+    </ol>
+    <p class="src">Canna: «Re-using coco is easier and safer than you think» (canna.com.au) — проверка солей 1:1,5, корневой ком, Cannazym против мёртвых корней, не для рассады. Terra Aquatica FlashClean — «in potting soil &amp; soilless mixes inc. coco coir», 1,5–3 мл/л до дренажа. Двойная доза Cannazym при переиспользовании — график Canna.</p>
+  </div>
+
+  <div class="card">
+    <h2>Аптечка — где что стоит</h2>
+    <ul>
+      <li><b>База:</b> Simplex ГидроВега A+B / ГидроБлум A+B (гидро) · Alpha Coco A+B (кокос) · BioBizz Bio·Grow + Bio·Bloom (земля).</li>
+      <li><b>Canna CalMag Agent</b> — все три таблицы, 0,1–0,5 мл/л до EC 0,4.</li>
+      <li><b>Canna Rhizotonic</b> — все три, 2 → 0,5 → 0.</li>
+      <li><b>Canna Cannazym</b> — все три, 2,5 мл/л на каждый полив до дня 52. Дальше снимается: FinalPart идёт соло.</li>
+      <li><b>Canna Boost Accelerator</b> — все три, 2,0 мл/л с W1 до дня 52 (для усиления — 4,0). Canna на сайте пишет старт «с образования соцветий», но её же Grow Guide ставит бустер с W1 — в таблице W1.</li>
+      <li><b>Canna PK 13/14</b> — все три, 1,5 мл/л только W6.</li>
+      <li><b>AN Big Bud</b> — все три, 2,0 мл/л W2–W5.</li>
+      <li><b>RasTea Trichomizer</b> — все три, 2,0 мл/л W2/W4/W6/W8 + день 60, <b>в корень</b>. По листу паспорт разрешает только до вытягивания цветоносов — в графике не используется.</li>
+      <li><b>TA FinalPart</b> — все три, гидро и кокос 5,0 / земля 4,0, с дня 52.</li>
+      <li><b>TA FlashClean</b> — все три, 1,5–3 мл/л, дни 62–63.</li>
+      <li><b>Simplex Вега · Масса · Сила</b> — все три, только по листу: 1–2 / 0,25–0,5 / 1–2 мл/л.</li>
+      <li><b>CBG Delta 9</b> — все три: 🍃 по листу 4–6 мл/л три раза через 10 дней от перевода (за 10 дней до цвета, в перевод, через 10 дней), затем 💧 в субстрат 4–6 мл/л каждые 10 дней — опция производителя «если хочешь больше урожая». В гидро это сильно поднимает EC: лей по EC. Этикетка разрешает смешивать с чем угодно при pH 5–9.</li>
+      <li><b>Alpha Coco A+B</b> — кокос, база. Остальные продукты Alpha не используются.</li>
+      <li><b>BioBizz Bio·Bloom / Top·Max / Bio·Heaven / Acti·Vera / Root·Juice / Alg·A·Mic</b> — земля.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Что не включено и почему</h2>
+    <ul>
+      <li><b>Simplex ПКБуст</b> — другого PK не держим, вместо него Canna PK 13/14.</li>
+      <li><b>Alpha PK 13/14</b> — то же, убран.</li>
+      <li><b>Simplex СилИкс, ФульвикГолд, АромарПанч, СиФорс, ВитаС, КалМаг Плюс</b> — из продвинутой схемы Simplex; в твоём наборе их нет. Появятся — добавлю колонками.</li>
+      <li><b>BioBizz Fish·Mix</b> — альтернатива Bio·Grow в той же дозе, в базе дубль, поэтому только в примечании.</li>
+      <li><b>BioBizz Microbes</b> — 0,2–0,4 г/л раз в неделю, в график колонкой не ставил.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Порядок смешивания</h2>
+    <ol>
+      <li>Вода → CalMag 0,1–0,5 мл/л, пока EC не станет 0,4.</li>
+      <li>Кремний (если есть) — первым, до всего.</li>
+      <li>База A, размешать, потом B. Никогда A и B вместе в концентрате.</li>
+      <li>Rhizotonic → Cannazym → CANNABOOST.</li>
+      <li>PK 13/14 и Big Bud — по одной, в разные недели.</li>
+      <li>pH в конце, потом EC.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>Замены раствора</h2>
+    <ul>
+      <li><b>Смена раствора — только когда меняется формула:</b> день 8 (Вега → Блум), день 36 (созревание + PK 13/14), день 52 (FinalPart), день 62 (FlashClean).</li>
+      <li>Между ними — долив воды, EC не поднимать выше недельной нормы.</li>
+      <li>В проточке дополнительно меняй раствор, когда EC или pH уехали, а не по календарю. Фиксированных «промежуточных сбросов» производитель не требует.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Финиш — три шага</h2>
+    <ol>
+      <li><b>День 52–61. FinalPart</b> — гидро и кокос 5,0 мл/л до EC 2,6; земля 4,0 мл/л до EC 2,0. Только соло: база, CalMag, Cannazym и стимуляторы сняты. 10 дней — минимум по паспорту Terra Aquatica.</li>
+      <li><b>День 60. Trichomizer 2,0</b> — в корень, отдельной обработкой, pH 5,5–6,0. По листу на финише запрещён паспортом.</li>
+      <li><b>День 62–63. FlashClean 1,5–3</b> — слить FinalPart, залить воду с FlashClean, гонять 2 дня, срез.</li>
+    </ol>
+    <p>FinalPart до самого среза <span class="warn">не держат</span>, если идёт FlashClean: промывка должна быть последней.</p>
+  </div>
+
+  <div class="card">
+    <h2>CANNABOOST Accelerator</h2>
+    <ul>
+      <li>Доза CANNA: <b>1:500 = 2,0 мл/л</b> с момента образования соцветий. Для усиления цветения — <b>1:250 = 4,0 мл/л</b>.</li>
+      <li>Способ: в бак, капельный полив или по листу — на выбор.</li>
+      <li><span class="warn">Не совмещать</span> с продуктами, содержащими перекись водорода (H2O2).</li>
+      <li>Разведённый раствор использовать в течение 4 дней.</li>
+      <li>В таблицах стоит W1–W7 по 2,0, W8 — 2,0 до дня 52. С FinalPart не мешается: он соло с дня 52.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>PK 13/14 — что это и зачем</h2>
+    <ul>
+      <li><b>Состав:</b> 0-13-14. По разъяснению CANNA — 130 г P2O5 и 140 г K2O на литр концентрата, то есть примерно 1:1. Азота нет.</li>
+      <li><b>1,5 мл/л</b> даёт сверх базы <b>+195 мг P2O5</b> и <b>+210 мг K2O</b>. Это не питание, а добавка к базе: N, Mg и микро даёт база, PK добавляет только фосфор и калий.</li>
+      <li><b>Фосфор:</b> АТФ и энергия клетки, ДНК/РНК, мембраны, закладка и налив соцветий.</li>
+      <li><b>Калий:</b> осмос и устьица, транспорт сахаров в шишку, устойчивость к стрессу. Потребность растёт к концу цикла.</li>
+      <li><b>Почему одна неделя:</b> избыток фосфора блокирует цинк, железо и медь и связывает кальций; избыток калия конкурирует с кальцием и магнием. Поэтому короткий импульс в пик, а не весь цикл.</li>
+      <li><b>Почему не просто больше базы:</b> в базе N, Mg и железо уже на максимуме — поднимать её дозу нельзя, поэтому P и K добавляют отдельно (статья CANNA).</li>
+      <li><b>Не смешивать бренды</b> с другими пропорциями PK — прямая рекомендация CANNA.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Расхождения в источниках — все бренды</h2>
+    <ul>
+      <li><b>Canna Rhizotonic:</b> лифлет — «during the rooting and growing phase», а сайт и Grow Guide дают «Generative dosing 5 ml/10 L». Взял сайт: 0,5 мл/л весь цвет, снимается в W8.</li>
+      <li><b>Canna CANNABOOST:</b> сайт — «с момента образования соцветий», Grow Guide — с W1 и «through flowering» до конца. Взял W1, обрез на дне 52 только потому, что FinalPart идёт соло.</li>
+      <li><b>Canna PK 13/14:</b> «3–6 days» на странице, «always for one week!» в FAQ, «3 weeks before harvest» в инструкции. Взял одну неделю W6.</li>
+      <li><b>Canna CalMag:</b> пороги воды разные — сайт 0,4–0,5 / выше 0,5, лифлет 0,4–0,7 / выше 0,8. Взял лифлет.</li>
+      <li><b>Terra Aquatica FinalPart:</b> земля 4 мл/л на сайте, 5 мл/л в Application Chart; кокос есть только в PDF — 5 мл/л, EC 2,6. Взял PDF: в кокосе 5,0, а не 4,0. Длительность 10–15 дней в PDF против 10–20 на сайте — взял 10.</li>
+      <li><b>RasTea Trichomizer:</b> карта ставит лист в фазу «Вытягивание цветоносов I», а текст PDS запрещает лист при вытягивании. Взял текст: лист не используем.</li>
+      <li><b>AN Big Bud:</b> жидкость 0-1-3 по 2 мл/л, порошок 0-15-35 по 0,5 г/л, отдельная Coco-версия 0-4-4. В таблицах — жидкость. Правила «не смешивать с другими PK» у AN нет: наоборот, «completely compatible».</li>
+      <li><b>Cannabiogen Delta 9:</b> «в помещении и гидропонике использовать максимальную дозу» — это 6, а не 4–6. Совместимость — pH рабочего раствора 5–9, а не pH продукта 6,5.</li>
+      <li><b>BioBizz Bio·Bloom:</b> бутылка 2–4 мл/л, а в графике W1 = 1 мл. <b>Acti·Vera:</b> карточка 5 мл, даташит 1–4, график 2→5→1. <b>Fish·Mix:</b> карточка 1 мл на All·Mix, график 2–3. Взял график.</li>
+      <li><b>BioBizz pH:</b> официально оптимум 6,2–6,3, поглощение 6,2–6,5. Поправил с 6,2–6,8.</li>
+      <li><b>Alpha:</b> сайт alphanpk.ru доз не публикует вообще — ни одной. Единственный источник — карта кормления картинкой в карточке Ozon (ir.ozone.ru/s3/multimedia-1-4/9555949336.jpg). База по карте: 2+2 / 4+4 / 3+3 / 0 — совпадает. Остальные продукты Alpha не используются.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Simplex: три набора цифр</h2>
+    <ul>
+      <li><b>В таблицах стоит «лёгкий старт»</b> — основная схема из официальной таблицы: предцвет Вега 2,0–2,5 · начало цветения Блум 2,5–3,0 · развитие 2,0–3,0 · созревание 1,5–2,5.</li>
+      <li><b>Продвинутый уровень</b> (нижний блок той же таблицы): предцвет Вега 1,0–1,5 · начало Блум 1,5–2,0 · развитие 1,5–2,0 · созревание 1.</li>
+      <li><b>Бутылка ГидроБлум:</b> развитие соцветий 3–4 · уплотнение и остановка вертикального роста 1,5–2 · остановка роста соцветий 1.</li>
+      <li><b>Бутылка ГидроВега:</b> набор зелёной массы 0,5–1,5 · начало образования соцветий 1,5–2.</li>
+      <li>Это три разных набора, а не сумма. Выбирай один. Я держу официальную таблицу, потому что её дозы сшиты с её же EC: на развитии EC 1,5–2,0, а на 3–4 мл/л Блума EC выйдет выше.</li>
+      <li>На предцвете Блум не даётся ни по таблице, ни по бутылке — только Вега.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Что здесь не от производителя</h2>
+    <ul>
+      <li>Привязка стадий к неделям 63-дневного цикла — практика, не паспорт.</li>
+      <li>pH 5,8–6,2 и EC для кокоса Alpha не публикует.</li>
+      <li>pH 6,2–6,5 для земли BioBizz не нормирует — это практика.</li>
+      <li>Совмещение BioBizz-графика и финиша FinalPart/FlashClean — два разных протокола, выбран финиш.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+(function () {
+  var KEY = 'feeding_d12_v2';
+  var input = document.getElementById('anchor');
+  var hint = document.getElementById('hint');
+
+  function parseAnchor(v) {
+    v = (v || '').trim();
+    var m = v.match(/^(\d{1,2})[.\-/](\d{1,2})(?:[.\-/](\d{2,4}))?$/);
+    if (!m) return null;
+    var d = +m[1], mo = +m[2], y = m[3] ? +m[3] : new Date().getFullYear();
+    if (y < 100) y += 2000;
+    var dt = new Date(y, mo - 1, d);
+    if (dt.getDate() !== d || dt.getMonth() !== mo - 1 || dt.getFullYear() !== y) return null;
+    return dt;
+  }
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function fmt(dt, withYear) {
+    var s = pad(dt.getDate()) + '.' + pad(dt.getMonth() + 1);
+    if (withYear) s += '.' + String(dt.getFullYear()).slice(-2);
+    return s;
+  }
+
+  function addDays(base, n) {
+    var d = new Date(base.getTime());
+    d.setDate(d.getDate() + n);
+    return d;
+  }
+
+  function render() {
+    var base = parseAnchor(input.value);
+    document.querySelectorAll('tr[data-d1]').forEach(function (tr) {
+      var cellEl = tr.querySelector('.dt');
+      var d1 = +tr.getAttribute('data-d1');
+      var d2 = +tr.getAttribute('data-d2');
+      if (!base || d1 < -900) { cellEl.textContent = '—'; return; }
+      var a = addDays(base, d1 - 1), b = addDays(base, d2 - 1);
+      var cross = a.getFullYear() !== b.getFullYear() || a.getFullYear() !== base.getFullYear();
+      cellEl.textContent = fmt(a, cross) + ' – ' + fmt(b, cross);
+    });
+    hint.textContent = 'формат 31.10 или 31.10.2026';
+    hint.style.color = base ? '#4a4f5c' : '#f0883e';
+  }
+
+  input.addEventListener('input', function () {
+    try { localStorage.setItem(KEY, input.value); } catch (e) {}
+    render();
+  });
+
+  try {
+    var saved = localStorage.getItem(KEY);
+    if (saved) input.value = saved;
+  } catch (e) {}
+
+  document.querySelectorAll('.tabs button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tabs button').forEach(function (b) { b.classList.remove('on'); });
+      btn.classList.add('on');
+      document.querySelectorAll('.tabpane').forEach(function (p) { p.classList.remove('on'); });
+      document.getElementById(btn.getAttribute('data-tab')).classList.add('on');
+    });
+  });
+
+  document.querySelector('.tabpane').classList.add('on');
+  render();
+})();
+</script>
+</body>
+</html>

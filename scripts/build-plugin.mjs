@@ -13,7 +13,6 @@ const SOURCE_TREES = Object.freeze([
   { source: "src/kernel", output: "kernel" },
   { source: "src/adapters", output: "adapters" },
   { source: "src/mcp", output: "mcp" },
-  { source: "src/evidence", output: "evidence" },
   { source: "src/authoring", output: "authoring" },
   { source: "src/enforcement", output: "enforcement" },
   { source: "src/gate", output: "gate" },
@@ -102,7 +101,7 @@ for (const tree of SOURCE_TREES) {
   }
 }
 
-await rm(distRoot, { recursive: true, force: true });
+await rm(distRoot, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
 await mkdir(distRoot, { recursive: true });
 // Flat extension sources live one directory deeper in src (src/v0.1) than in
 // dist, so deterministic rewrites rebase sibling runtime trees to the dist

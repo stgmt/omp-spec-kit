@@ -1,7 +1,7 @@
 import { KERNEL_SCHEMA_VERSION } from "../../src/kernel/index.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { access, cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -89,8 +89,8 @@ async function runCandidateManagerE2E() {
     }
     return JSON.parse(result.stdout);
   } finally {
-    await rm(probeRoot, { recursive: true, force: true });
-    await rm(probeHome, { recursive: true, force: true });
+    await removeTempRepo(probeRoot);
+    await removeTempRepo(probeHome);
   }
 }
 Given("a disposable real authoring corpus and live MCP server", async function () {
@@ -109,7 +109,7 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
   if (scenario === "inventory") {
     const listed = await this.server.request("tools/list");
     const names = listed.result.tools.map((tool) => tool.name).sort();
-    assert.equal(names.length, 10, "single surface exposes exactly 10 tools");
+    assert.equal(names.length, 9, "single surface exposes exactly 9 tools");
     for (const name of ["spec_patch", "spec_catalog"]) assert.equal(names.includes(name), true, name + " must be registered");
     for (const removed of ["spec_propose_patch", "apply_proposed_patch", "propose_patch", "create_spec", "spec_overview", "spec_inventory", "list_specs", "apply_spec_change", "apply_spec_transaction", "apply_spec_repairs", "append_to_section", "insert_after_heading", "insert_at_eof", "replace_in_section", "propose_spec_change", "propose_spec_repairs", "list_phase_tasks", "propose_requirement_contract"]) assert.equal(names.includes(removed), false, removed + " must be gone");
     this.result = true;
@@ -406,7 +406,7 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
       assert.equal(absSpecWrite.action, "block", JSON.stringify(absSpecWrite));
       assert.equal(absSpecWrite.code, "RAW_SPEC_WRITE", JSON.stringify(absSpecWrite));
     } finally {
-      await rm(tempNoSpecs, { recursive: true, force: true });
+      await removeTempRepo(tempNoSpecs);
     }
     this.result = true;
     return;
@@ -502,7 +502,7 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     }
     assert.equal(receipt.provenance.runtime.version, "18.0.11");
     assert.deepEqual(receipt.manager.connectionResult.connectedServers, ["omp-spec-kit:omp-spec-kit"]);
-    assert.equal(receipt.manager.connectionResult.toolCount, 10);
+    assert.equal(receipt.manager.connectionResult.toolCount, 9);
     assert.deepEqual(receipt.manager.connectionResult.managedAuthoring.toolNames, ["spec_catalog", "spec_patch"]);
     assert.equal(receipt.manager.connectionResult.managedAuthoring.applyOutcome, "APPLIED");
     assert.equal(receipt.manager.connectionResult.managedAuthoring.finalDocumentContainsMarker, true);
@@ -750,6 +750,23 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     return;
   }
   if (scenario === "elicitation-single-document-boundaries") {
+    for (const dryRun of [true, false]) {
+      const incomplete = await call(this, "spec_patch", {
+        requestId: `safe-incomplete-new-${dryRun}`,
+        intent: "patch",
+        spec: "incomplete-new",
+        reason: "reject a new specification without the Gherkin pair",
+        dryRun,
+        operations: [{ kind: "replace_document", document: "README.md", content: "# Incomplete\n" }],
+      });
+      assert.equal(incomplete.error?.code, "VALIDATION_FAILED", JSON.stringify(incomplete));
+      assert.equal(incomplete.error?.causeCode, "INCOMPLETE_GHERKIN_PAIR", JSON.stringify(incomplete));
+      await assert.rejects(access(path.join(this.root, ".specs", "incomplete-new")), { code: "ENOENT" });
+    }
+    await writeCorpus(this.root, ["user-stories", "use-cases"].map((kind) => ({
+      path: `.specs/single-document-feature/single-document-feature-${kind}.feature`,
+      bytes: Buffer.from("Feature: Single document\n"),
+    })));
     const first = await call(this, "spec_patch", {
       requestId: "safe-single-1",
       intent: "patch",
@@ -778,7 +795,8 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
       operations: [{ kind: "replace_document", document: "feature-only-user-stories.feature", content: "Feature: Feature only\n" }],
     });
     assert.equal(featureOnly.error?.code, "VALIDATION_FAILED", JSON.stringify(featureOnly));
-    assert.match(JSON.stringify(featureOnly.error?.findings), /documents must exist together/u);
+    assert.equal(featureOnly.error?.causeCode, "INCOMPLETE_GHERKIN_PAIR", JSON.stringify(featureOnly));
+    await assert.rejects(access(path.join(this.root, ".specs", "feature-only", "feature-only-user-stories.feature")), { code: "ENOENT" });
     const pair = await call(this, "spec_patch", {
       requestId: "safe-feature-pair",
       intent: "patch",
@@ -804,6 +822,10 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     return;
   }
   if (scenario === "elicitation-concurrent-first-applies") {
+    await writeCorpus(this.root, ["user-stories", "use-cases"].map((kind) => ({
+      path: `.specs/concurrent-feature/concurrent-feature-${kind}.feature`,
+      bytes: Buffer.from("Feature: Concurrent feature\n"),
+    })));
     const common = {
       schemaVersion: SCHEMA_VERSION,
       intent: "patch",
@@ -827,7 +849,7 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
     this.result = true;
     return;
   }
-  if (scenario === "design-review-gate") {
+  if (scenario === "bdd-approval-gate") {
     const featureDoc = "plugin-distribution-user-stories.feature";
     const featurePath = path.join(this.root, ".specs", "plugin-distribution", featureDoc);
     const before = await readFile(featurePath, "utf8");
@@ -855,43 +877,10 @@ When("the scenario {string} runs", { timeout: 120000 }, async function (scenario
       dryRun: false,
       operations: [{ kind: "replace_document", document: featureDoc, content: scenarioContent }],
     };
-    const preflight = classifyToolCall({ toolName: "mcp__omp_spec_kit_spec_patch", input: { ...baseArgs, requestId: "safe-dr-preflight" } }, { root: this.root });
-    assert.equal(preflight.action, "block", JSON.stringify(preflight));
-    assert.equal(preflight.code, "DESIGN_REVIEW_REQUIRED", JSON.stringify(preflight));
-    assert.match(preflight.reason, /template in skill engineering-anti-bike/u, JSON.stringify(preflight));
-    assert.ok(Buffer.byteLength(preflight.reason, "utf8") <= 512, JSON.stringify(preflight));
-    const missing = await call(this, "spec_patch", { ...baseArgs, requestId: "safe-dr-missing" });
-    assert.equal(missing.data?.outcome, "REFUSED", JSON.stringify(missing));
-    assert.equal(missing.data?.error?.code, "DESIGN_REVIEW_REQUIRED", JSON.stringify(missing));
-    const malformed = await call(this, "spec_patch", { ...baseArgs, requestId: "safe-dr-malformed", designReview: { schemaVersion: "wrong" } });
-    assert.equal(malformed.data?.outcome, "REFUSED", JSON.stringify(malformed));
-    assert.equal(malformed.data?.error?.code, "DESIGN_REVIEW_INVALID", JSON.stringify(malformed));
-    const review = {
-      schemaVersion: "omp-spec-kit/design-review@1",
-      decision: "proceed",
-      boundary: { kind: "external-contract", name: "spec_patch scenario-authoring gate", claim: "promoting a draft example to @spec-ready requires a design review receipt" },
-      evidence: [
-        { kind: "test", reference: "tests/features/safe-authoring.feature", observation: "this scenario exercises the gate through the live MCP server" },
-        { kind: "source", reference: "src/authoring/design-review.js", observation: "validateDesignReviewForChanges enforces the closed review schema and mutation claim" },
-      ],
-      alternatives: [{ option: "allow scenario edits without a review", reasonRejected: "a scenario that cannot name a failing mutation is decoration, not a test" }],
-      selfTestCheck: {
-        status: "passed",
-        mutation: "failed-as-expected",
-        command: "cucumber-js tests/features/safe-authoring.feature --tags @design-review",
-        hypothesis: "the gate refuses scenario-authoring patches without a valid designReview",
-        answer: "missing and malformed reviews are refused; a valid review reaches the coverage approval gate",
-        positiveCase: "valid designReview attached to a scenario patch",
-        negativeCase: "same patch without designReview",
-        expectedFailure: "DESIGN_REVIEW_INVALID when the mutation claim is weakened",
-        observedFailure: "mutated review refused with DESIGN_REVIEW_INVALID",
-      },
-    };
-    const mutated = await call(this, "spec_patch", { ...baseArgs, requestId: "safe-dr-mutated", designReview: { ...review, selfTestCheck: { ...review.selfTestCheck, mutation: "passed" } } });
-    assert.equal(mutated.data?.outcome, "REFUSED", JSON.stringify(mutated));
-    assert.equal(mutated.data?.error?.code, "DESIGN_REVIEW_INVALID", JSON.stringify(mutated));
-    const reviewed = await call(this, "spec_patch", { ...baseArgs, requestId: "safe-dr-reviewed", designReview: review });
-    assert.equal(reviewed.error?.code, "BDD_COVERAGE_INCOMPLETE", JSON.stringify(reviewed));
+    const preflight = classifyToolCall({ toolName: "mcp__omp_spec_kit_spec_patch", input: { ...baseArgs, requestId: "safe-bdd-preflight" } }, { root: this.root });
+    assert.equal(preflight.action, "allow", JSON.stringify(preflight));
+    const refused = await call(this, "spec_patch", { ...baseArgs, requestId: "safe-bdd-unapproved" });
+    assert.equal(refused.error?.code, "BDD_COVERAGE_INCOMPLETE", JSON.stringify(refused));
     assert.equal(await readFile(featurePath, "utf8"), stored);
     this.result = true;
     return;

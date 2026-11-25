@@ -1,6 +1,6 @@
 {
   "schema": "omp-spec-kit-tool-surface-blast@1",
-  "timestamp": "2026-11-21T06:02:22.235Z",
+  "timestamp": "2026-11-24T00:54:34.465Z",
   "serverPath": "plugins/omp-spec-kit/dist/mcp/server.js",
   "baseline": {
     "sha256": "c00fb06179047427e9ba43cc5df312a0740df04ff9a0087e35462bd7804c28ef",
@@ -15,30 +15,30 @@
     }
   },
   "candidate": {
-    "sha256": "701f365c4200766584e6977b9792879532eedbf8cdf55585250d7c2538c62deb",
+    "sha256": "1579b7158dc9c748d84310a3537b0bdab5306a680e0a125cb90fc06b21f7f4d6",
     "metrics": {
-      "sha256": "701f365c4200766584e6977b9792879532eedbf8cdf55585250d7c2538c62deb",
-      "toolCount": 10,
-      "readOnlyCount": 9,
+      "sha256": "1579b7158dc9c748d84310a3537b0bdab5306a680e0a125cb90fc06b21f7f4d6",
+      "toolCount": 9,
+      "readOnlyCount": 8,
       "mutatingCount": 1,
-      "totalCatalogBytes": 27760,
-      "schemaBytes": 20563,
-      "descriptionChars": 1509,
-      "nameChars": 120
+      "totalCatalogBytes": 31057,
+      "schemaBytes": 24372,
+      "descriptionChars": 1566,
+      "nameChars": 107
     }
   },
   "deltas": {
     "toolCount": {
       "baseline": 38,
-      "candidate": 10,
-      "absolute": -28,
-      "percentage": -73.68
+      "candidate": 9,
+      "absolute": -29,
+      "percentage": -76.32
     },
     "readOnlyCount": {
       "baseline": 37,
-      "candidate": 9,
-      "absolute": -28,
-      "percentage": -75.68
+      "candidate": 8,
+      "absolute": -29,
+      "percentage": -78.38
     },
     "mutatingCount": {
       "baseline": 1,
@@ -48,33 +48,33 @@
     },
     "totalCatalogBytes": {
       "baseline": 42499,
-      "candidate": 27760,
-      "absolute": -14739,
-      "percentage": -34.68
+      "candidate": 31057,
+      "absolute": -11442,
+      "percentage": -26.92
     },
     "schemaBytes": {
       "baseline": 12881,
-      "candidate": 20563,
-      "absolute": 7682,
-      "percentage": 59.64
+      "candidate": 24372,
+      "absolute": 11491,
+      "percentage": 89.21
     },
     "descriptionChars": {
       "baseline": 3362,
-      "candidate": 1509,
-      "absolute": -1853,
-      "percentage": -55.12
+      "candidate": 1566,
+      "absolute": -1796,
+      "percentage": -53.42
     },
     "nameChars": {
       "baseline": 598,
-      "candidate": 120,
-      "absolute": -478,
-      "percentage": -79.93
+      "candidate": 107,
+      "absolute": -491,
+      "percentage": -82.11
     }
   },
   "gates": {
     "passed": true,
-    "toolCountIs10": true,
-    "readOnlyCountIs9": true,
+    "toolCountIs9": true,
+    "readOnlyCountIs8": true,
     "mutatingCountIs1": true,
     "noRetiredNames": true,
     "retiredPresent": [],

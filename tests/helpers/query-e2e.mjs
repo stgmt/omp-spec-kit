@@ -1,23 +1,8 @@
 import { KERNEL_SCHEMA_VERSION } from "../../src/kernel/index.js";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import assert from "node:assert/strict";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { snapshotTree } from "../support/world.mjs";
-
-export const V05_NEW_TOOL_NAMES = Object.freeze([
-  "mcp_preflight",
-  "spec_catalog",
-  "spec_entities",
-  "spec_graph",
-  "spec_documents",
-  "spec_inspect",
-  "spec_tasks",
-  "spec_evidence",
-  "spec_markdown",
-  "spec_patch",
-]);
 
 const OPERATIONS = Object.freeze({
   mcp_preflight: "mcpPreflight",
@@ -27,13 +12,10 @@ const OPERATIONS = Object.freeze({
   spec_documents: "documents",
   spec_inspect: "inspect",
   spec_tasks: "tasks",
-  spec_evidence: "evidence",
   spec_markdown: "markdown",
   spec_patch: "specPatch",
 });
 
-const EVIDENCE_DIR = ".omp-spec-kit/evidence";
-const SCENARIO_ID = "product:SCEN-specification-only-init";
 
 function structured(response) {
   assert.ok(response?.result, JSON.stringify(response));
@@ -87,13 +69,13 @@ function restartOf(surface) {
   return typeof surface === "object" && surface !== null && typeof surface.restart === "function" ? surface.restart : null;
 }
 
-async function callRow({ callTool, name, args, projectRoot, repositoryRoot, requestId, allowEvidenceMutation = false }) {
+async function callRow({ callTool, name, args, projectRoot, repositoryRoot, requestId }) {
   const before = await snapshotTree(projectRoot);
   const response = await callTool(name, { schemaVersion: KERNEL_SCHEMA_VERSION, requestId, ...args });
   const value = structured(response);
   assertEnvelope(value, name, requestId, projectRoot, repositoryRoot);
   const after = await snapshotTree(projectRoot);
-  if (!allowEvidenceMutation) assert.deepEqual(after, before, `${name} must not mutate the temporary project`);
+  assert.deepEqual(after, before, `${name} must not mutate the temporary project`);
   return value;
 }
 
@@ -101,34 +83,6 @@ async function callInvalid({ callTool, name, args, expected, projectRoot, reposi
   const value = await callRow({ callTool, name, args, projectRoot, repositoryRoot, requestId });
   errorCode(value, expected);
   return value;
-}
-
-const exec = promisify(execFile);
-const evidencePathFor = (root) => path.join(root, EVIDENCE_DIR, "last-test-run.ndjson");
-
-export async function captureProductEvidence({ projectRoot, repositoryRoot, fail = false }) {
-  const args = [
-    path.join(repositoryRoot, "scripts", "capture-gherkin-evidence.mjs"),
-    projectRoot, "product",
-    path.join(repositoryRoot, "tests", "fixtures", "kernel", "staged-product", "product-evidence.steps.mjs"),
-  ];
-  const archive = path.join(projectRoot, "release-candidate");
-  if (fail) await writeFile(archive, "An unexpected release artifact");
-  try {
-    const output = await exec(process.execPath, args, { cwd: projectRoot });
-    assert.equal(fail, false, "a release artifact should fail the public-init example");
-    return output.stdout;
-  } catch (error) {
-    if (!fail || error.code !== 1) throw error;
-    assert.match(error.stderr, /1 scenario \(1 failed\)/u);
-    return error.stdout;
-  } finally {
-    if (fail) await rm(archive, { force: true });
-  }
-}
-
-export function incompleteEvidence(messages) {
-  return messages.trimEnd().split("\n").filter((line) => !JSON.parse(line).testRunFinished).join("\n") + "\n";
 }
 
 async function runSuccessMatrix({ callTool, projectRoot, repositoryRoot }) {
@@ -220,18 +174,6 @@ async function runSuccessMatrix({ callTool, projectRoot, repositoryRoot }) {
       assert.equal(data.bytes, 15);
       assert.equal(Buffer.from(data.base64, "base64").toString("utf8"), "tool-e2e-bytes\n");
     }],
-    ["spec_evidence", { view: "result", scenarioId: SCENARIO_ID }, (data) => {
-      assert.equal(data.kind, "test-result");
-      assert.equal(data.scenarioId, SCENARIO_ID);
-      assert.ok(["NOT_RUN", "PASSED", "FAILED", "UNKNOWN"].includes(data.result));
-      assert.equal(typeof data.stale, "boolean");
-    }],
-    ["spec_evidence", { view: "trace", scenarioId: SCENARIO_ID }, (data) => {
-      assert.equal(data.kind, "scenario-trace");
-      assert.equal(data.scenarioId, SCENARIO_ID);
-      assert.ok(["NOT_RUN", "PASSED", "FAILED", "UNKNOWN"].includes(data.result));
-      assert.equal(typeof data.stale, "boolean");
-    }],
   ]);
   for (const [name, args, check] of V08_CONSOLIDATED_CASES) {
     const value = await callRow({ callTool, name, args, projectRoot, repositoryRoot, requestId: `tool-e2e-success-${name}` });
@@ -260,10 +202,6 @@ async function runInvalidMatrix({ callTool, projectRoot, repositoryRoot }) {
     ["spec_documents", { action: "list", spec: "missing" }, "NOT_FOUND"],
     ["spec_documents", { action: "read", spec: "product", doc: "../FR.md", offset: 1, limit: 1 }, "PATH_FORBIDDEN"],
     ["spec_documents", { action: "attachment", spec: "product", path: "../FR.md" }, "PATH_FORBIDDEN"],
-    ["spec_evidence", { view: "result" }, "INVALID_REQUEST"],
-    ["spec_evidence", { view: "trace" }, "INVALID_REQUEST"],
-    ["spec_evidence", { view: "result", scenarioId: "product:SCEN-unknown" }, "SCENARIO_NOT_FOUND"],
-    ["spec_evidence", { view: "trace", scenarioId: "product:SCEN-unknown" }, "SCENARIO_NOT_FOUND"],
   ];
   for (const [name, args, expected] of cases) {
     await callInvalid({ callTool, name, args, expected, projectRoot, repositoryRoot, requestId: "tool-e2e-invalid-" + name });
@@ -317,8 +255,8 @@ async function runBoundaryMatrix({ callTool, projectRoot, repositoryRoot, outsid
   await callInvalid({ callTool, name: "spec_documents", args: { action: "read", spec: "product", doc: "missing.md" }, expected: "DOC_NOT_FOUND", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-missing-doc" });
   await callInvalid({ callTool, name: "spec_documents", args: { action: "attachment", spec: "product", path: "FR.md" }, expected: "ATTACHMENT_NOT_FOUND", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-text-attachment" });
   if (outsideRoot) {
-    await callInvalid({ callTool, name: "spec_documents", args: { action: "read", spec: "product", doc: "../../.omp-spec-kit/evidence/outside-link/secret.md" }, expected: "PATH_FORBIDDEN", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-symlink-doc" });
-    await callInvalid({ callTool, name: "spec_documents", args: { action: "attachment", spec: "product", path: "../../.omp-spec-kit/evidence/outside-link/secret.bin" }, expected: "PATH_FORBIDDEN", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-symlink-attachment" });
+    await callInvalid({ callTool, name: "spec_documents", args: { action: "read", spec: "product", doc: "../../.omp-spec-kit/containment/outside-link/secret.md" }, expected: "PATH_FORBIDDEN", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-symlink-doc" });
+    await callInvalid({ callTool, name: "spec_documents", args: { action: "attachment", spec: "product", path: "../../.omp-spec-kit/containment/outside-link/secret.bin" }, expected: "PATH_FORBIDDEN", projectRoot, repositoryRoot, requestId: "tool-e2e-boundary-symlink-attachment" });
   }
 }
 
@@ -336,79 +274,16 @@ async function runMutationMatrix({ callTool, projectRoot, repositoryRoot, surfac
   assert.equal(staleCursor.error.code, "STALE_CURSOR");
   await writeFile(taskPath, originalTasks, "utf8");
   await restart();
-  const evidencePath = evidencePathFor(projectRoot);
-  await rm(evidencePath, { force: true });
-  const notRun = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-not-run" });
-  assert.equal(notRun.data.result, "NOT_RUN");
-  assert.equal(notRun.data.stale, true);
-  const notRunTrace = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-not-run-trace" });
-  assert.equal(notRunTrace.data.result, "NOT_RUN");
-  assert.equal(notRunTrace.data.trace, null);
-  const green = await captureProductEvidence({ projectRoot, repositoryRoot });
-  await writeFile(evidencePath, green);
-  const passing = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-passing" });
-  assert.equal(passing.data.result, "PASSED");
-  assert.equal(passing.data.stale, false);
-  const trace = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-trace" });
-  assert.equal(trace.data.result, "PASSED");
 
-  await writeFile(evidencePath, await captureProductEvidence({ projectRoot, repositoryRoot, fail: true }));
-  const failed = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-failed" });
-  assert.equal(failed.data.result, "FAILED");
-  assert.equal(failed.data.stale, true);
-  const failedTrace = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-failed-trace" });
-  assert.equal(failedTrace.data.result, "FAILED");
-  assert.ok(failedTrace.data.trace && failedTrace.data.trace.status);
-  await writeFile(evidencePath, incompleteEvidence(green));
-  const incomplete = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-incomplete" });
-  assert.equal(incomplete.data.result, "UNKNOWN");
-  assert.equal(incomplete.data.stale, true);
-  const incompleteTrace = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-incomplete-trace" });
-  assert.equal(incompleteTrace.data.result, "UNKNOWN");
-  assert.ok(incompleteTrace.data.trace === null || !incompleteTrace.data.trace.status);
-  const scenarioPath = path.join(projectRoot, ".specs", "product", "FR.md");
-  const originalScenario = await readFile(scenarioPath, "utf8");
-  await writeFile(evidencePath, green);
-  await writeFile(scenarioPath, originalScenario + "\n\nTool E2E corpus mutation.\n", "utf8");
-  await restart();
-  const changed = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-scenario" });
-  assert.equal(changed.data.result, "UNKNOWN", JSON.stringify(changed.data));
-  assert.equal(changed.data.stale, true);
-  await writeFile(scenarioPath, originalScenario, "utf8");
-  await restart();
-
-  const featurePath = path.join(projectRoot, ".specs", "product", "product-user-stories.feature");
-  const originalFeature = await readFile(featurePath, "utf8");
-  await writeFile(evidencePath, green);
-  await writeFile(featurePath, originalFeature.replace("Scenario: Specification-only init reports no installable plugin", "Scenario: Specification-only init reports no installable plugin changed"), "utf8");
-  await restart();
-  const scenarioMutation = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-scenario" });
-  assert.equal(scenarioMutation.data.result, "UNKNOWN", JSON.stringify(scenarioMutation.data));
-  assert.equal(scenarioMutation.data.stale, true);
-  await writeFile(featurePath, originalFeature, "utf8");
-  await restart();
-
-  await writeFile(evidencePath, "malformed evidence\n", "utf8");
-  const malformed = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-malformed" });
-  assert.equal(malformed.data.result, "UNKNOWN");
-  const malformedResult = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-malformed-result" });
-  assert.equal(malformedResult.data.result, "UNKNOWN");
-  const largeEvidence = Buffer.alloc(16 * 1024 * 1024 + 1, 1);
-  await writeFile(evidencePath, largeEvidence);
-  const oversizedResult = await callRow({ callTool, name: "spec_evidence", args: { view: "result", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-large-result" });
-  assert.equal(oversizedResult.data.result, "UNKNOWN");
-  const oversizedTrace = await callRow({ callTool, name: "spec_evidence", args: { view: "trace", scenarioId: SCENARIO_ID }, projectRoot, repositoryRoot, requestId: "tool-e2e-mutation-large-trace" });
-  assert.equal(oversizedTrace.data.result, "UNKNOWN");
-  await rm(evidencePath, { force: true });
 }
 
-export async function prepareEvidenceFixtures(projectRoot) {
+export async function prepareQueryFixtures(projectRoot) {
   const productRoot = path.join(projectRoot, ".specs", "product");
   await writeFile(path.join(productRoot, "tool-e2e.bin"), Buffer.from("tool-e2e-bytes\n", "utf8"));
   await writeFile(path.join(productRoot, "TASKS.md"), `${await readFile(path.join(productRoot, "TASKS.md"), "utf8")}\n## TASK-99 — Tool E2E fixture\n\n- **Status:** Planned\n- **Phase:** tool-e2e\n`, "utf8");
 }
 
-export async function runEvidenceE2E({ listTools, callTool, projectRoot, repositoryRoot, surface = "built" }) {
+export async function runQueryE2E({ callTool, projectRoot, repositoryRoot, surface = "built" }) {
   const phase = phaseOf(surface);
   const outsideRoot = typeof surface === "object" && surface !== null ? surface.outsideRoot : null;
   if (phase === "inventory") throw new Error("inventory moved to tool-e2e matrix");
@@ -420,5 +295,5 @@ export async function runEvidenceE2E({ listTools, callTool, projectRoot, reposit
   await runInvalidMatrix({ callTool, projectRoot, repositoryRoot });
   await runBoundaryMatrix({ callTool, projectRoot, repositoryRoot, outsideRoot });
   await runMutationMatrix({ callTool, projectRoot, repositoryRoot, surface });
-  return { toolCount: 10 };
+  return { toolCount: 9 };
 }

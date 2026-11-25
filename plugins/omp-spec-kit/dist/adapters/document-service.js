@@ -3,12 +3,15 @@ import { statSync } from "node:fs";
 import { lstat, readdir, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { isValidSpecSlug } from "../kernel/identity.js";
-import { isLegacySpecificationDocument, KERNEL_SCHEMA_VERSION } from "../kernel/types.js";
+import { KERNEL_SCHEMA_VERSION } from "../kernel/types.js";
+import { specificationDirectoryDigest } from "../authoring/transactions.js";
 import { PLUGIN_VERSION } from "./plugin-version.js";
 
 const MAX_DOCUMENT_BYTES = 2 * 1024 * 1024;
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 const MAX_SECTION_LINES = 500;
+const MAX_SNAPSHOT_FILES = 4096;
+const MAX_SNAPSHOT_BYTES = 64 * 1024 * 1024;
 const TEXT_EXTENSIONS = new Set([".md", ".feature", ".json"]);
 const MIME_TYPES = Object.freeze({
   ".png": "image/png",
@@ -134,11 +137,51 @@ async function listSpecDocs(root, args) {
   } catch (error) {
     return operationError("PATH_FORBIDDEN", "specification inventory encountered a linked path", { spec: args.spec, causeCode: String(error.message).split(":", 1)[0] });
   }
-  const legacy = files.filter((file) => isLegacySpecificationDocument(file.relative, args.spec)).map((file) => file.relative);
-  if (legacy.length) return operationError("UNSUPPORTED_DOCUMENT", "Migrate the legacy specification documents before reading the active specification", { spec: args.spec, paths: legacy });
+  let snapshot;
+  if (args.includeSnapshot === true) {
+    const first = await specSnapshot(root, args.spec);
+    if (!first.ok) return first;
+    const second = await specSnapshot(root, args.spec, first.digest);
+    if (!second.ok) return second;
+    snapshot = second;
+    files = snapshot.files.map((file) => ({ relative: file.path, bytes: file.bytes }));
+  }
   const docs = files.filter((file) => TEXT_EXTENSIONS.has(path.extname(file.relative).toLowerCase())).map((file) => file.relative).sort();
   const attachments = files.filter((file) => !TEXT_EXTENSIONS.has(path.extname(file.relative).toLowerCase())).map((file) => file.relative).sort();
-  return operationSuccess({ kind: "spec-documents", spec: args.spec, docs, count: docs.length, attachments });
+  return operationSuccess({ kind: "spec-documents", spec: args.spec, docs, count: docs.length, attachments, ...(snapshot ? { snapshot: snapshot.digest, files: snapshot.files } : {}) });
+}
+
+async function specSnapshot(root, spec, expected = null) {
+  try {
+    const directory = await containedSpecDirectory(root, spec);
+    if (!directory.ok) return directory;
+    const files = await walkSpecFiles(directory.specDir);
+    if (files.length > MAX_SNAPSHOT_FILES) return operationError("LIMIT_EXCEEDED", "specification has too many files for a snapshot", { spec, limitName: "maxSnapshotFiles", limitValue: MAX_SNAPSHOT_FILES, observedValue: files.length });
+    const totalBytes = files.reduce((total, file) => total + file.bytes, 0);
+    if (totalBytes > MAX_SNAPSHOT_BYTES) return operationError("LIMIT_EXCEEDED", "specification exceeds the snapshot read budget", { spec, limitName: "maxSnapshotBytes", limitValue: MAX_SNAPSHOT_BYTES, observedValue: totalBytes });
+    const result = await specificationDirectoryDigest(root, spec);
+    if (!result.ok) return operationError(result.code, result.message, { spec });
+    if (expected !== null && result.digest !== expected) {
+      return operationError("CONFLICT", "specification changed since the snapshot; obtain a new snapshot before reading", { spec, causeCode: "SPEC_SNAPSHOT_MISMATCH", retryable: true });
+    }
+    return result;
+  } catch (error) {
+    if (String(error?.message ?? "").startsWith("PATH_FORBIDDEN:")) {
+      return operationError("PATH_FORBIDDEN", "specification snapshot encountered a linked path", { spec });
+    }
+    if (error?.code === "ENOENT" || error?.code === "ENOTDIR") {
+      return operationError("CONFLICT", "specification changed while creating or reading the snapshot", { spec, causeCode: "SPEC_SNAPSHOT_MISMATCH", retryable: true });
+    }
+    return operationError("INTERNAL_ERROR", "specification snapshot could not be read", { spec });
+  }
+}
+
+// Keep each original newline with its line so that concatenating paged reads
+// reproduces the exact UTF-8 source, including CRLF and a final empty line.
+function sourceLines(content) {
+  const lines = content.match(/[^\n]*\n|[^\n]+$/gu) ?? [];
+  if (content.length === 0 || content.endsWith("\n")) lines.push("");
+  return lines;
 }
 
 function sectionWindow(text, section) {
@@ -169,36 +212,84 @@ function sectionWindow(text, section) {
 }
 
 async function readSpecDoc(root, args) {
-  if (isLegacySpecificationDocument(args.doc, args.spec)) {
-    return operationError("UNSUPPORTED_DOCUMENT", "Use the canonical story or case feature document", { spec: args.spec, doc: args.doc });
+  if (!safeRelativePath(args.doc)) return operationError("PATH_FORBIDDEN", "document path must stay inside the specification", { spec: args.spec, path: args.doc });
+  let before;
+  if (args.snapshot !== undefined) {
+    if (typeof args.snapshot !== "string" || !/^[0-9a-f]{64}$/u.test(args.snapshot)) {
+      return operationError("INVALID_REQUEST", "snapshot must be a SHA-256 digest", { parameter: "snapshot" });
+    }
+    before = await specSnapshot(root, args.spec, args.snapshot);
+    if (!before.ok) return before;
   }
   const resolved = await resolveSpecFile(root, args.spec, args.doc);
-  if (!resolved.ok) return resolved;
+  if (!resolved.ok) {
+    if (before && resolved.error.code === "DOC_NOT_FOUND") {
+      const after = await specSnapshot(root, args.spec, args.snapshot);
+      if (!after.ok) return after;
+    }
+    return resolved;
+  }
   const extension = path.extname(resolved.relative).toLowerCase();
   if (!TEXT_EXTENSIONS.has(extension)) return operationError("DOC_NOT_FOUND", "requested path is not a text document", { spec: args.spec, doc: resolved.relative });
-  const bytes = await readFile(resolved.absolute);
-  if (bytes.length > MAX_DOCUMENT_BYTES) return operationError("LIMIT_EXCEEDED", "document exceeds the read budget", { spec: args.spec, doc: resolved.relative, limitName: "maxDocumentBytes", limitValue: MAX_DOCUMENT_BYTES, observedValue: bytes.length });
-  const content = bytes.toString("utf8");
+  const expectedFile = before?.files.find((file) => file.path === resolved.relative);
+  if (before && !expectedFile) return operationError("CONFLICT", "document was added after the snapshot; obtain a new snapshot before reading", { spec: args.spec, doc: resolved.relative, causeCode: "SPEC_SNAPSHOT_MISMATCH", retryable: true });
+  const bytePage = args.byteOffset !== undefined || args.byteLimit !== undefined;
+  if (bytePage && (args.offset !== undefined || args.limit !== undefined || args.section != null || args.readForEdit === true)) return operationError("INVALID_REQUEST", "byte pagination cannot be combined with line, section or edit reads");
+  if (bytePage && (!Number.isSafeInteger(args.byteOffset ?? 0) || (args.byteOffset ?? 0) < 0 || !Number.isSafeInteger(args.byteLimit ?? 65536) || (args.byteLimit ?? 65536) < 4 || (args.byteLimit ?? 65536) > MAX_DOCUMENT_BYTES)) return operationError("INVALID_REQUEST", "byteOffset must be nonnegative and byteLimit must be between 4 and 2097152");
+  const paged = bytePage || (args.limit !== undefined && args.section == null && args.readForEdit !== true);
+  const maxReadBytes = paged ? MAX_SNAPSHOT_BYTES : MAX_DOCUMENT_BYTES;
+  const sourceSize = expectedFile?.bytes ?? (await lstat(resolved.absolute)).size;
+  if (sourceSize > maxReadBytes) return operationError("LIMIT_EXCEEDED", "document exceeds the read budget", { spec: args.spec, doc: resolved.relative, limitName: "maxDocumentBytes", limitValue: maxReadBytes, observedValue: sourceSize });
+  let bytes;
+  try {
+    bytes = await readFile(resolved.absolute);
+  } catch (error) {
+    if (before && (error?.code === "ENOENT" || error?.code === "ENOTDIR")) {
+      return operationError("CONFLICT", "document changed while reading the snapshot", { spec: args.spec, doc: resolved.relative, causeCode: "SPEC_SNAPSHOT_MISMATCH", retryable: true });
+    }
+    throw error;
+  }
   const digest = sha256(bytes);
+  if (expectedFile && (expectedFile.sha256 !== digest || expectedFile.bytes !== bytes.length)) {
+    return operationError("CONFLICT", "document changed since the snapshot; obtain a new snapshot before reading", { spec: args.spec, doc: resolved.relative, causeCode: "SPEC_SNAPSHOT_MISMATCH", retryable: true });
+  }
+  if (bytes.length > maxReadBytes) return operationError("LIMIT_EXCEEDED", "document exceeds the read budget", { spec: args.spec, doc: resolved.relative, limitName: "maxDocumentBytes", limitValue: maxReadBytes, observedValue: bytes.length });
+  const content = bytes.toString("utf8");
+  if (before) {
+    if (!Buffer.from(content, "utf8").equals(bytes)) return operationError("INVALID_UTF8", "document is not valid UTF-8", { spec: args.spec, doc: resolved.relative });
+    const after = await specSnapshot(root, args.spec, args.snapshot);
+    if (!after.ok) return after;
+  }
+  const snapshotField = before ? { snapshot: args.snapshot } : {};
+  if (bytePage) {
+    const startByte = args.byteOffset ?? 0;
+    if (startByte > bytes.length || (startByte < bytes.length && (bytes[startByte] & 0xc0) === 0x80)) return operationError("INVALID_REQUEST", "byteOffset must point to a UTF-8 character boundary within the document");
+    if (!Buffer.from(content, "utf8").equals(bytes)) return operationError("INVALID_UTF8", "document is not valid UTF-8", { spec: args.spec, doc: resolved.relative });
+    let endByte = Math.min(startByte + (args.byteLimit ?? 65536), bytes.length);
+    while (endByte < bytes.length && (bytes[endByte] & 0xc0) === 0x80) endByte--;
+    return operationSuccess({ kind: "document", spec: args.spec, doc: resolved.relative, startByte, endByte, nextByteOffset: endByte, totalBytes: bytes.length, truncated: endByte < bytes.length, sha256: digest, content: bytes.subarray(startByte, endByte).toString("utf8"), ...snapshotField });
+  }
   if (args.readForEdit === true) {
     const headings = content.split(/\r?\n/u).flatMap((line, index) => {
       const match = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/u);
       return match ? [{ level: match[1].length, text: match[2].trim(), anchor: marksmanSlug(match[2]), line: index + 1 }] : [];
     });
-    return operationSuccess({ kind: "document", spec: args.spec, doc: resolved.relative, mode: "read_for_edit", sha256: digest, content, bytes: bytes.length, totalLines: content.split(/\r?\n/u).length, headings });
+    return operationSuccess({ kind: "document", spec: args.spec, doc: resolved.relative, mode: "read_for_edit", sha256: digest, content, bytes: bytes.length, totalLines: content.split(/\r?\n/u).length, headings, ...snapshotField });
   }
   if (args.section !== undefined && args.section !== null) {
     const selected = sectionWindow(content, String(args.section));
     if (!selected) return operationError("SECTION_NOT_FOUND", `section not found: ${args.section}`, { spec: args.spec, doc: resolved.relative, section: args.section });
-    const sectionContent = selected.lines.slice(selected.start, selected.end);
-    return operationSuccess({ kind: "document", spec: args.spec, doc: resolved.relative, section: selected.heading, startLine: selected.start + 1, endLine: selected.end, lines: sectionContent.length, bytes: Buffer.byteLength(sectionContent.join("\n"), "utf8"), sha256: digest, content: sectionContent.join("\n") });
+    const sectionContent = (before ? sourceLines(content) : selected.lines).slice(selected.start, selected.end);
+    const sectionText = sectionContent.join(before ? "" : "\n");
+    return operationSuccess({ kind: "document", spec: args.spec, doc: resolved.relative, section: selected.heading, startLine: selected.start + 1, endLine: selected.end, lines: sectionContent.length, bytes: Buffer.byteLength(sectionText, "utf8"), sha256: digest, content: sectionText, ...snapshotField });
   }
-  const allLines = content.split(/\r?\n/u);
+  const allLines = before ? sourceLines(content) : content.split(/\r?\n/u);
   const startLine = args.offset === undefined ? 1 : args.offset;
   const limit = args.limit === undefined ? allLines.length : args.limit;
   if (!Number.isSafeInteger(startLine) || startLine < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > MAX_SECTION_LINES) return operationError("LIMIT_EXCEEDED", `offset must be positive and limit must be 1 through ${MAX_SECTION_LINES}`, { parameter: "limit" });
   const slice = allLines.slice(startLine - 1, startLine - 1 + limit);
-  return operationSuccess({ kind: "document", spec: args.spec, doc: resolved.relative, startLine, endLine: slice.length === 0 ? startLine - 1 : startLine + slice.length - 1, lines: slice.length, totalLines: allLines.length, totalBytes: bytes.length, truncated: startLine - 1 + slice.length < allLines.length, sha256: digest, content: slice.join("\n") });
+  if (Buffer.byteLength(slice.join(before ? "" : "\n"), "utf8") > MAX_DOCUMENT_BYTES) return operationError("LIMIT_EXCEEDED", "page exceeds the response budget; use byteOffset and byteLimit", { spec: args.spec, doc: resolved.relative, limitName: "maxPageBytes", limitValue: MAX_DOCUMENT_BYTES });
+  return operationSuccess({ kind: "document", spec: args.spec, doc: resolved.relative, startLine, endLine: slice.length === 0 ? startLine - 1 : startLine + slice.length - 1, lines: slice.length, totalLines: allLines.length, totalBytes: bytes.length, truncated: startLine - 1 + slice.length < allLines.length, sha256: digest, content: slice.join(before ? "" : "\n"), ...snapshotField });
 }
 
 async function readAttachment(root, args) {

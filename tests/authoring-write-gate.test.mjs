@@ -140,6 +140,10 @@ describe("Definition-integrity write gate", () => {
     // the shared fixture.
     const specDir = path.join(tempRoot, specsDirName, "rename-probe");
     await mkdir(specDir, { recursive: true });
+    // The rename assertion exercises definition integrity on an initialized
+    // specification; the write gate requires both canonical feature files.
+    await writeFile(path.join(specDir, "rename-probe-user-stories.feature"), "Feature: Stories\n");
+    await writeFile(path.join(specDir, "rename-probe-use-cases.feature"), "Feature: Cases\n");
     await writeFile(
       path.join(specDir, "DESIGN.md"),
       "# Design\n\nStatus: DRAFT\n\n## Decisions\n\n### DEC-1: Wrong level\n\nText.\n",
