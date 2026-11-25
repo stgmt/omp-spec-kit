@@ -2,6 +2,8 @@
 
 Status: DRAFT
 
+> **Single source of truth — storage location.** A specification lives only on an orphan `spec-<slug>` branch of **its own project repository**; there is no shared or default specs repository. `stgmt/spec-database` is archived and is not a source of truth; `stgmt/omp-spec-kit` holds only spec-kit's own specs. Authoritative record: `docs/decisions/spec-per-branch-2026-10-31.md` in `stgmt/omp-spec-kit`; normative requirements: R-1 and R-4 of this specification.
+
 Centralized, multi-tenant specification registry hosted by the operator: a canonical specification is an **orphan `spec-<slug>` branch of its project repository**, with `.spec-kit.json` at the branch root and the corpus under `.specs/<slug>/` — many users, many projects per repository, many specs per project. Consumers get **no repository access at all** — not even read clones. All access is centralized through two remote surfaces: HTTPS MCP for AI agents, and the YouTrack app for humans and non-developer agents (either the operator's YouTrack, or a consumer's own YouTrack running the extension bound to this backend). Writes go only through the service, which wraps the existing kernel. Deployment is a docker-compose stack.
 
 This specification owns: the per-spec orphan-branch model, the centralized write path and its exclusivity rules, multi-project mounting, the remote agent surface, the YouTrack entry point, claim/ownership semantics, and the compose deployment shape.
