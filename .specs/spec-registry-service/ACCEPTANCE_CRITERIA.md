@@ -28,7 +28,7 @@ Status: DRAFT
 
 ### AC-7 — Compose boot
 
-**Given** a host with only specs-repo credentials + project config + service token, **when** `docker compose up` runs, **then** the service clones the specs repo, creates missing `owner/project/.specs` skeletons, rebuilds the index, and reports ready; a read call against each project then succeeds. Boot duration is measured and recorded in the run evidence — the AC is the readiness outcome, not a latency bound.
+**Given** a host with per-project repository bindings + a service token, **when** `docker compose up` runs, **then** the service clones each bound project repository, discovers its `spec-<slug>` branches, rebuilds the index from their `.specs/<slug>/` trees, and reports ready; a read call against each project then succeeds. Boot duration is measured and recorded in the run evidence — the AC is the readiness outcome, not a latency bound.
 
 ### AC-8 — Operator fallback survives outage
 
