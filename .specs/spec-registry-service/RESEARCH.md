@@ -32,7 +32,7 @@ Condensed findings from the 2026-09-13 deep-research session on spec-collision U
 
 ## Open questions
 
-- ~~Whether `specs` should become a separate repo instead of a branch~~ — **resolved 2026-10-31**: no separate specs repository. Canonical specs are orphan `spec-<slug>` branches of their own project repository; `stgmt/spec-database` is archived.
+- ~~Whether `specs` should become a separate repo instead of a branch~~ — **resolved 2026-10-31 (historical)**: no separate specs repository. Canonical specs are orphan `spec-<slug>` branches of their own project repository; `stgmt/spec-database` is archived.
 - ~~Whether claim enforcement should hard-deny non-holder writes once full auth lands (v1 logs `force` writes instead).~~ — **resolved 2026-09-14 (TASK-12)**: non-holder writes are hard-denied without `force`; `force` itself is owner-only (non-owner hard-denied, owner `force` logged). Identity is the verified YouTrack login.
 - Cross-project spec references — deferred.
 
