@@ -2,7 +2,7 @@
 
 Status: DRAFT
 
-## Phase 0 — Specs repo provisioning
+## Phase 0 — Specs repo provisioning (historical, retired)
 
 ## TASK-1 — (SUPERSEDED by TASK-20, historical) Create the dedicated specs repo + seed the layout
 - **Status:** done
