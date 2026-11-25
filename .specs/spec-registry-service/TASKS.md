@@ -4,7 +4,7 @@ Status: DRAFT
 
 ## Phase 0 — Specs repo provisioning
 
-## TASK-1 — (superseded by TASK-20) Create the dedicated specs repo + seed the layout
+## TASK-1 — (SUPERSEDED by TASK-20, historical) Create the dedicated specs repo + seed the layout
 - **Status:** done
 - **(historical, superseded by TASK-20) Done When:** the operator-owned specs repo exists with a root `.gitignore` (`**/.omp-spec-kit-*`); service bot push protection is configured (or staged for TASK-2); repo accepts `<owner>/<project>/.specs/<slug>/` layout.
 - **Requirements:** R-1, FR-1
