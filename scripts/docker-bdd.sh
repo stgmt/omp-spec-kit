@@ -47,6 +47,10 @@ CONTAINER_RUN_FILE="$CONTAINER_RESULTS_DIR/$(basename "$HOST_RUN_FILE")"
 DOCKER_MOUNT_SOURCE="$RESULTS_DIR"
 if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
   DOCKER_MOUNT_SOURCE="$(cygpath -m "$RESULTS_DIR")"
+elif [[ "$RESULTS_DIR" == /mnt/* ]] && command -v wslpath >/dev/null 2>&1; then
+  # WSL bash has no cygpath; Docker Desktop's Windows engine needs a Windows
+  # path for the bind mount, not the /mnt/<drive> form used inside WSL.
+  DOCKER_MOUNT_SOURCE="$(wslpath -m "$RESULTS_DIR")"
 fi
 
 IMAGE="omp-spec-kit-bdd:local"

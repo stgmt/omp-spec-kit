@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "93b5ff2574e7e65f959d8f579aa377326b749acd8f8700de1cc5d93b9e1a0b2e",
+  "aggregateSha256": "682c2c6707bffd8e53558b09cd049856ab81098f2e9de4e47e3647b040dae4db",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -220,8 +220,8 @@
     },
     {
       "path": "scripts/docker-bdd.sh",
-      "bytes": 4439,
-      "sha256": "e3744a0a23a0756212f7af12c9c280f404c5ee0e643c4513e5cf0c24fac82f00"
+      "bytes": 4721,
+      "sha256": "0022d15210c45cc6e886f1fc31378b09a8490207d13b225a46a3d8c58fa4483b"
     },
     {
       "path": "scripts/dogfood-mcp.mjs",
