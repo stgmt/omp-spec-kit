@@ -20,7 +20,7 @@ Status: DRAFT
 
 ## TASK-3 — `src/service/` skeleton: project mount manager (one specs-repo clone; per-project roots)
 - **Status:** done
-- **Done When:** service boots with `projects.json`, clones the specs repo, resolves `project`→`<clone>/<owner>/<project>` (creating the `.specs` skeleton for new projects), builds kernel graph per project root.
+- **(historical) Done When:** service boots with `projects.json`, clones each bound project repository, resolves `project`→`<clone>/<owner>/<project>` (creating the `.specs` skeleton for new projects), builds kernel graph per project root.
 - **Requirements:** R-4, FR-3, FR-16
 - **Evidence:** `src/service/mounts.js` + `src/service/index.js` (boot: clone → skeleton as bot → `recoverInterruptedTransactions` per root → graphs); git CLI wrapper serialized per clone (`src/service/git.js`); tests `tests/unit/service/mounts.test.mjs`, `tests/service/integration.test.mjs` (bare-remote boot, idempotent second boot, stale-artifact recovery). Commit c52ab25.
 
