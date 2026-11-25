@@ -1,12 +1,12 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "4301910a099d7301fd49055e694b284b9f10463631d5b8a5661a0fd8f5d529eb",
+  "aggregateSha256": "93b5ff2574e7e65f959d8f579aa377326b749acd8f8700de1cc5d93b9e1a0b2e",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
       "bytes": 733,
-      "sha256": "b2d3fd7f5bac3fc56fdc30abc84d6576129874a6a5344c87ebf9c6e307595c94"
+      "sha256": "3d408750a9c7354d9de72535022fdfc8f9058c2a148e26945d9654b76b030975"
     },
     {
       "path": "CHANGELOG.md",
@@ -56,12 +56,12 @@
     {
       "path": "package.json",
       "bytes": 7932,
-      "sha256": "f5a3c1720334b7b83896afe649ec0fe9c71ea36290c24a35b5521054c97d060d"
+      "sha256": "4aa4d7f225ff482c62115076475ad7775312dd4b9c67f40feb8d7229b102c91e"
     },
     {
       "path": "plugins/omp-spec-kit/.claude-plugin/plugin.json",
       "bytes": 402,
-      "sha256": "b20bfd5b43c65f0b2adc838de8f62e099cde4d5ce386c51bee3f122da496a1f4"
+      "sha256": "3374e2ae9e0daaa8356370b0915379bd92adb642335eee273d57a7f1e9c31f67"
     },
     {
       "path": "plugins/omp-spec-kit/.mcp.json",
@@ -101,7 +101,7 @@
     {
       "path": "plugins/omp-spec-kit/package.json",
       "bytes": 647,
-      "sha256": "21a70e0b7185d0731c53de6f081cf44361297988fc008e2f71f12177eb17e5e1"
+      "sha256": "9a22b5a067a418bc6f7e721a7a9ff5f127472521449eae686a9e02409c6433d1"
     },
     {
       "path": "plugins/omp-spec-kit/skills/engineering-anti-bike/SKILL.md",
@@ -124,9 +124,19 @@
       "sha256": "7196c7744b072e4cecdddb9f527e55ba4ab29d3f234fae86f60e3f209cfa3621"
     },
     {
+      "path": "scripts/benchmark-large-spec-limit.mjs",
+      "bytes": 7103,
+      "sha256": "1870acf5a4bd4943de09628fc2ea60131775b5cc33e987ed185735218aacc157"
+    },
+    {
       "path": "scripts/build-gherkin.mjs",
       "bytes": 1589,
       "sha256": "8a711d857ad413d6bbf9d3497fe90d17a94c87366048ec103aeeaa7f083b8e2e"
+    },
+    {
+      "path": "scripts/build-markdown-it.mjs",
+      "bytes": 2918,
+      "sha256": "bdb91bea3e08dc1a7151d2d49da704243aa642529a49214dbecde30b691fd090"
     },
     {
       "path": "scripts/build-plugin.mjs",
@@ -247,6 +257,11 @@
       "path": "scripts/install-stamp.mjs",
       "bytes": 2857,
       "sha256": "c8f4405ee81d042aa2c56ad7c4083563f6ae12050966023616343b31a6cfd09d"
+    },
+    {
+      "path": "scripts/lib/storage-rule.mjs",
+      "bytes": 2256,
+      "sha256": "11dcaaffee56703af8c07648848726d8b87b89ad3e748de71a8c7f96471b3f3a"
     },
     {
       "path": "scripts/lifecycle/build-tagged-candidate.mjs",
@@ -501,7 +516,7 @@
     {
       "path": "src/adapters/plugin-version.js",
       "bytes": 112,
-      "sha256": "ea6cd2ea072150e081650c0d8ffa70caa5c9954b54e31aef2291792005d33b79"
+      "sha256": "085c6013427e25e19617111fdd4e7bbee7008574fa0f8625872ec074d6287598"
     },
     {
       "path": "src/adapters/query-service.js",
@@ -557,6 +572,11 @@
       "path": "src/authoring/error-codes.js",
       "bytes": 1822,
       "sha256": "36b17bddb2444017833bb18d57644bf67251646d5152d4eb504bc296e2bef586"
+    },
+    {
+      "path": "src/authoring/migration.js",
+      "bytes": 43578,
+      "sha256": "1d14d8bc4bd69f2ec01b67baccceac45b1c554fb05498508b6515cc29e8650c6"
     },
     {
       "path": "src/authoring/proposals.js",
@@ -669,6 +689,11 @@
       "sha256": "04c3778d0bcdaae9eccc277ef33004bf0012fdbe2357589452450481c1ec1687"
     },
     {
+      "path": "src/kernel/glossary.js",
+      "bytes": 13849,
+      "sha256": "77f5eb01931425084dd76968a3428a7fee72d702a5af83e33a4de28c14fe3498"
+    },
+    {
       "path": "src/kernel/graph/build.js",
       "bytes": 43912,
       "sha256": "7978fdfecb156fb7f26eb72fe69376f489bf057312269fadba633e6e87dc4746"
@@ -744,6 +769,11 @@
       "sha256": "d66b16579583cadbc342d8ca6cc6fd9f96b5c0a483addfbd7e8870e2ee88e55c"
     },
     {
+      "path": "src/kernel/query/layout.js",
+      "bytes": 2022,
+      "sha256": "9b25a1de4f1c18aa20f457e8d1d70f13e0a389b342dfec00ec6bc73754c77eb9"
+    },
+    {
       "path": "src/kernel/query/service.js",
       "bytes": 61495,
       "sha256": "ca163e912ac0367f90b3452fd2e1eaa9ffef5e1ed2800df6840cacd5fb837f4c"
@@ -767,6 +797,11 @@
       "path": "src/kernel/vendor/gherkin.js",
       "bytes": 243248,
       "sha256": "66de0e711122980d067b1b2656864895ade1ab5a8f880549346d33c1669ebce0"
+    },
+    {
+      "path": "src/kernel/vendor/markdown-it.js",
+      "bytes": 154241,
+      "sha256": "a2283e9347fcaaf3a61125b64531c85dcdfce9ac20937dc929e468b67054eb94"
     },
     {
       "path": "src/mcp/server.js",
@@ -809,6 +844,11 @@
       "sha256": "d8159251632f4fc77639399f77e8d58e53d5fed490dc733dbfd4ef53856e58bc"
     },
     {
+      "path": "src/service/glossary-store.js",
+      "bytes": 7164,
+      "sha256": "7412a1c6c85ce8a91a92d31cf3ac9e1316d9febc209cd871843475594440e094"
+    },
+    {
       "path": "src/service/http.js",
       "bytes": 20160,
       "sha256": "55c1c936e2784eace97d0242cedf8c0138f102ef9c901527e2b16d475a17732c"
@@ -827,6 +867,11 @@
       "path": "src/service/ledger.js",
       "bytes": 28281,
       "sha256": "f4109136f72975f99a8c1e39c74e99977cd7d24d10d792183325f82a0eb58efb"
+    },
+    {
+      "path": "src/service/migration-snapshot.js",
+      "bytes": 3632,
+      "sha256": "56c4ba15ccf483f5587163d1822d273c93c4741962221ee0ecc443aeb230a9e7"
     },
     {
       "path": "src/service/mounts.js",
@@ -976,7 +1021,7 @@
     {
       "path": "src/v0.1/extension.js",
       "bytes": 1133,
-      "sha256": "b9ef478b944c67cbc5c029e67fb79b38e85c5d4c5dbd7c4c5abafffa09f576e9"
+      "sha256": "3f530db4950aba28d399654bd5edefedb0239fa6839a16a10b6887bb2860396b"
     },
     {
       "path": "tests/.rev-tmp/board.mjs",
@@ -999,9 +1044,24 @@
       "sha256": "95607ada9efbe7df85529109ffa067e898d47a4c7f68cd3fda0078932ff788c1"
     },
     {
+      "path": "tests/authoring-cross-spec-migration.test.mjs",
+      "bytes": 30558,
+      "sha256": "4af03881a543bc38c723494a4d27d380aa259c5beef3c387a930ef584da39366"
+    },
+    {
       "path": "tests/authoring-elicitation-edges.test.mjs",
       "bytes": 9899,
       "sha256": "07792c4e2a25b808f4e5a450a8607c039a5e1c4b534acfe9d637c6b5276b16c3"
+    },
+    {
+      "path": "tests/authoring-migration-replay.test.mjs",
+      "bytes": 10727,
+      "sha256": "3a5816eb3c3341da8f46c1ba7a770016e2fe630a0bbba5f6c5f66805ac93deb3"
+    },
+    {
+      "path": "tests/authoring-migration.test.mjs",
+      "bytes": 50613,
+      "sha256": "ee79583e55527d4c59e770033db0aa5745c00e20b964649fdc9c492d0b915c33"
     },
     {
       "path": "tests/authoring-secrets.test.mjs",
@@ -1079,9 +1139,19 @@
       "sha256": "ffe4415a9ab97e88da619ccbe4a896c7e9631c4b185b5d43f1558f07f1d2938a"
     },
     {
+      "path": "tests/corpus-storage-rule.test.mjs",
+      "bytes": 3335,
+      "sha256": "dbc7ac8def887b9bf063f516b82913a3ba58153332a010ca34c73ece940fe4f6"
+    },
+    {
       "path": "tests/deploy-dockerignore.test.mjs",
       "bytes": 5591,
       "sha256": "d23df8f58351dafd5b6dacabc7f7a8305142cebee13a2632c14fece7594d7831"
+    },
+    {
+      "path": "tests/dist-migration.test.mjs",
+      "bytes": 13189,
+      "sha256": "20339b4649b1840a867a1c5e3f5ca3dbf9403234cf416712ef6278e866e45f56"
     },
     {
       "path": "tests/distribution/Dockerfile",
@@ -1092,6 +1162,11 @@
       "path": "tests/distribution/Dockerfile.dockerignore",
       "bytes": 330,
       "sha256": "fecf5330c268301de81003d8e4110e12e8d81d6340fbe1524311144bbe6d8ff1"
+    },
+    {
+      "path": "tests/document-service.test.mjs",
+      "bytes": 9808,
+      "sha256": "2b007ff75aa0de25578196b7ec4f335cfe326e53ffab844cc89b11cc136760f7"
     },
     {
       "path": "tests/e2e/compose.yml",
@@ -1954,6 +2029,11 @@
       "sha256": "a03f9ddbb51c897d5475bd3146bb4c354beae7e1cb6389e80bdff5e0fdf870e2"
     },
     {
+      "path": "tests/helpers/migration-fixture.mjs",
+      "bytes": 2742,
+      "sha256": "5418399b7a487f2b0a3f534ddcab38696a8d7801134c2c524718e86a7d82a784"
+    },
+    {
       "path": "tests/helpers/omp-discovery-world.mjs",
       "bytes": 2261,
       "sha256": "310bd497ce585e200af2c1403f37eafd60edf5a49cf1d0e31fb36fbe6e8d1fc4"
@@ -2004,9 +2084,19 @@
       "sha256": "9075d656aefe435152b65aafeaecd0b013ad556c7127115e0f29a8a1409cda17"
     },
     {
+      "path": "tests/kernel-glossary.test.mjs",
+      "bytes": 9476,
+      "sha256": "a6c6d375b200210be175950c878bca5e224833b9183e8efc21a0215bc6c9091a"
+    },
+    {
       "path": "tests/kernel-headings.test.mjs",
       "bytes": 2833,
       "sha256": "60d916c9af9a807026af265648ccb10385f5f8f247b6c9062412685640c0ab0c"
+    },
+    {
+      "path": "tests/kernel-large-document-limit.test.mjs",
+      "bytes": 3120,
+      "sha256": "14e41aade84b8eab70f83fadf53dfa26e4a82cbacc0db2ca83c14361c4a9c40d"
     },
     {
       "path": "tests/kernel-task-comments.test.mjs",
@@ -2017,6 +2107,11 @@
       "path": "tests/mcp-protocol.test.mjs",
       "bytes": 22584,
       "sha256": "2fe15c5863a2a9ba2ba067ef0dc68ecfbbb9f5766263351473a3accc767e5323"
+    },
+    {
+      "path": "tests/mixed-corpus-query.test.mjs",
+      "bytes": 8504,
+      "sha256": "a8d0ba731657c23144156e66089fb87dc07dfd8dd4e964adeefb2d5a05cc094d"
     },
     {
       "path": "tests/opencode/hook.test.mjs",
@@ -2064,6 +2159,21 @@
       "sha256": "cdc7d0a74b0c14934f211edcc867274e32a91bacd4d461610853c89004430532"
     },
     {
+      "path": "tests/service/active-migration-http.test.mjs",
+      "bytes": 33930,
+      "sha256": "2374b2db5cfa05da4931e807283796a3d51f2a37ea62003804fd7b8cb2fbb66f"
+    },
+    {
+      "path": "tests/service/glossary-documents.test.mjs",
+      "bytes": 3415,
+      "sha256": "858291f43ed8ada8cb7dcc525bf9605b1c6d4c32cd9f8e29921accfba2058fa4"
+    },
+    {
+      "path": "tests/service/glossary-store.test.mjs",
+      "bytes": 9270,
+      "sha256": "3c6c5583b0b7374952597ece1fbfbd711560e66c30186b140c61dbc7215205ed"
+    },
+    {
       "path": "tests/service/http.test.mjs",
       "bytes": 20633,
       "sha256": "f0357c9e09cec2b51b47f14bcbf1bb43bcfa47eb23139b1abd55fcc8e1dd10d0"
@@ -2072,6 +2182,11 @@
       "path": "tests/service/integration.test.mjs",
       "bytes": 4386,
       "sha256": "524eb8fb4d491d38e912f8a33cc7fba285ba9b3b3a2529537eba30c2530633af"
+    },
+    {
+      "path": "tests/service/lib/migration-http-auth.mjs",
+      "bytes": 2139,
+      "sha256": "97739bc879a9a0a9f0925bea7ebdb5c50c7f737ea833ed52345f3d74a6af1381"
     },
     {
       "path": "tests/service/lib/scoped-service.mjs",
@@ -2087,6 +2202,11 @@
       "path": "tests/service/lib/spec-repo.mjs",
       "bytes": 3289,
       "sha256": "114fe5c7907e256e120969dc0ef4d38422815c9c3cf14dd8907e1706b37b6c40"
+    },
+    {
+      "path": "tests/service/migration-http.test.mjs",
+      "bytes": 22912,
+      "sha256": "a9cd946468c0190933f20d100fc54a163c5947de709e528e82a29804cbe1e934"
     },
     {
       "path": "tests/service/onboarding.test.mjs",
@@ -2274,6 +2394,21 @@
       "sha256": "e8692c845ad25193c9f8d23b5c2c4ada14435396b862f57803f4acd4a5e9c049"
     },
     {
+      "path": "tests/unit/service/git-bounded.test.mjs",
+      "bytes": 3618,
+      "sha256": "3513806a25fe78f92d7f9e130dd8b90d78422484d22719cb13f5055dd812bb54"
+    },
+    {
+      "path": "tests/unit/service/git-scoped-commit.test.mjs",
+      "bytes": 3751,
+      "sha256": "ce446bb07b708ebdbc1abd34da540a99b80662eb20fc33194cffbaac84ff1608"
+    },
+    {
+      "path": "tests/unit/service/hosted-migration-read.test.mjs",
+      "bytes": 3697,
+      "sha256": "ae719648f0a45547a825f563ab1fd5b6edbc939f6806059a309ce4b1af65f2a0"
+    },
+    {
       "path": "tests/unit/service/http-projection.test.mjs",
       "bytes": 4261,
       "sha256": "0d92c99f08a9c21bff241a28c809a37bbb1b446bcc234e2fbb2d841f65d935a1"
@@ -2317,6 +2452,11 @@
       "path": "tests/unit/service/projects-example.test.mjs",
       "bytes": 1166,
       "sha256": "0acb41b9a18872c5e3dddbb4814d3a1b4bf345b2afe6667b9f0547d877004bfb"
+    },
+    {
+      "path": "tests/unit/service/publication-reservation.test.mjs",
+      "bytes": 7860,
+      "sha256": "833c30e573809d182cb3c2f5d75ee6cc2daf4716053077ac4f638d6e0114aeff"
     },
     {
       "path": "tests/unit/service/repo-policy.test.mjs",
