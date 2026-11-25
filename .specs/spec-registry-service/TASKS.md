@@ -8,7 +8,7 @@ Status: DRAFT
 - **Status:** done
 - **(historical, superseded by TASK-20) Done When:** the operator-owned specs repo exists with a root `.gitignore` (`**/.omp-spec-kit-*`); service bot push protection is configured (or staged for TASK-2); repo accepts `<owner>/<project>/.specs/<slug>/` layout.
 - **Requirements:** R-1, FR-1
-- **Evidence:** `stgmt/spec-database` (private) created 2026-09-13; `main` seeded with root `.gitignore` (`**/.omp-spec-kit-*`) + README documenting the `owner/project/.specs` layout and service-only-write rule. Bot push protection staged for TASK-2.
+- **(historical, superseded; `stgmt/spec-database` archived) Evidence:** `stgmt/spec-database` (private) created 2026-09-13; `main` seeded with root `.gitignore` (`**/.omp-spec-kit-*`) + README documenting the `owner/project/.specs` layout and service-only-write rule. Bot push protection staged for TASK-2.
 
 ## TASK-2 — Push protection on the specs repo + break-glass logging
 - **Status:** done
