@@ -132,6 +132,6 @@ Status: DRAFT
 
 ## TASK-20 — Migrate the corpus to orphan spec branches — done
 
-- **Status:** done — 10 specs live on `spec-<slug>` branches of `stgmt/omp-spec-kit`; `.spec-kit.json` is valid on every branch and the old `stgmt/spec-database` repository is archived.
+- **Status:** done — 20 specs live on `spec-<slug>` branches of `stgmt/omp-spec-kit`; `.spec-kit.json` is valid on every branch. `stgmt/spec-database` is archived (SUPERSEDED) and is never a source of truth.
 - **Evidence:** `GET /registry` reports 10 specs / 144 documents; `GET /drift` is empty; the service reads through bare mirrors and per-spec worktrees; `spec_branch` create/merge/delete is covered by `tests/unit/service/spec-branches.test.mjs`.
 - **Boundary:** canonical branches contain only `.spec-kit.json` and `.specs/<slug>/**`; merge rejects every other path with `PATH_FORBIDDEN`.
