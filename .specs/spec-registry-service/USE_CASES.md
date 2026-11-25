@@ -6,7 +6,7 @@ Status: DRAFT
 
 1. Caller (agent via MCP, or human via YT app) submits `createSpec` intent with title.
 2. Service allocates the slug within the `owner/project` scope; if it is already taken (locally or on the remote spec-<slug> branch), the call fails with `CONFLICT` naming the existing spec — no silent disambiguation, the caller picks a distinct slug.
-3. Kernel compiles skeleton documents; transaction commits to the specs repo; index updated.
+3. Kernel compiles skeleton documents; transaction commits to the project's spec-<slug> branch; index updated.
 4. Spec is `DRAFT`, unpublished, claimable.
 
 ## UC-2 — Patch a spec (happy path)
