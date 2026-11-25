@@ -8,7 +8,7 @@ Every canonical specification is an **orphan `spec-<slug>` branch of its project
 
 ## R-2 — Service-only writes
 
-The only path that mutates the specs repository is the registry service, committing through a dedicated bot identity. Direct human/agent pushes to the specs repo are rejected by repository rules (bot-only push ruleset). Separately, a managed product repo rejects `.specs/**` on its code branches via a required check — enforced per-repo once that project migrates. A break-glass admin path exists and is reported as drift.
+The only path that mutates a project's spec-<slug> branch is the registry service, committing through a dedicated bot identity. Direct human/agent pushes to those branches are rejected by repository rules (bot-only push ruleset). Separately, a managed product repo rejects `.specs/**` on its code branches via a required check — enforced per-repo once that project migrates. A break-glass admin path exists and is reported as drift.
 
 ## R-3 — Multi-user write safety
 
