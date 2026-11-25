@@ -62,11 +62,12 @@ Verification cache (token hash → verified user + groups + role) is **in-memory
 ## Project config (compose)
 
 ```jsonc
-// config/projects.json — registry of scopes inside the single specs repo + auth
+// config/projects.json — per-project bindings; no shared store (historical: stgmt/spec-database retired)
 { "schema": "registry-projects@1",
-  "specsRepo": { "url": "https://github.com/stgmt/spec-database.git", "branch": "main",
-                 "clone": "/data/specs-repo" },
-  "projects": [{ "id": "stgmt/omp-spec-kit" }, { "id": "acme/billing" }],
+  "bindings": [
+    { "project": "stgmt/omp-spec-kit", "repoUrl": "https://github.com/stgmt/omp-spec-kit.git", "tokenEnv": "SPEC_REGISTRY_REPO_TOKEN" },
+    { "project": "acme/billing", "repoUrl": "https://github.com/acme/billing.git", "tokenEnv": "SPEC_REGISTRY_ACME_TOKEN" }
+  ],
   "tenants": [
     { "tenant": "stgmt", "projects": ["stgmt/omp-spec-kit"],
       "hubGroups": ["spec-stgmt"], "defaultProject": "stgmt/omp-spec-kit" }
