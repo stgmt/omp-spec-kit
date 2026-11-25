@@ -32,7 +32,7 @@ Status: DRAFT
 
 ### AC-8 — Operator fallback survives outage
 
-**Given** the service stopped, **when** the operator clones the specs repo, **then** every `<owner>/<project>/.specs/` tree is complete and self-consistent (kernel validation passes offline). Consumers experience the outage as `UNAVAILABLE` — they hold no credentials that could reach the content directly, by design.
+**Given** the service stopped, **when** the operator reads the bound project repositories, **then** every canonical `spec-<slug>` branch carries a complete, self-consistent `.specs/<slug>/` tree (kernel validation passes offline). Consumers experience the outage as `UNAVAILABLE` — they hold no credentials that could reach the content directly, by design.
 
 ### AC-9 — Versioned read integrity (ledger)
 
