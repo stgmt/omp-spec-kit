@@ -58,8 +58,8 @@ Feature: Centralized spec registry service
   @id:SCEN-read-outage-fallback
   Scenario: Operator read survives service outage
     Given the service is stopped
-    When the operator clones the specs repo
-    Then every owner/project/.specs tree validates offline with the kernel rules
+    When the operator reads the bound project repositories
+    Then every spec-<slug> branch tree validates offline with the kernel rules
 
   @id:SCEN-versioned-read-integrity
   Scenario: Versioned read resolves through the ledger
