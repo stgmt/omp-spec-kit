@@ -28,19 +28,45 @@ export async function openAppsPage(page) {
 }
 
 /**
+ * Opens the "Add app…" dropdown and confirms its "Upload ZIP file…" item is
+ * rendered before clicking it. YouTrack can paint the button before the Ring
+ * UI dropdown is interactive, so verify the menu rather than waiting for a
+ * filechooser that a swallowed click could never produce.
+ *
+ * Trusted input is a precondition: the host Chrome 157 channel drops pointer
+ * and key events on this admin page, so callers must use a browser that
+ * delivers them (see the suite's chromium.launch in the delivery steps).
+ */
+async function openUploadMenuItem(page) {
+  const addApp = page.getByRole("button", { name: /add app/i }).first();
+  const uploadItem = page.getByRole("button", { name: /upload zip file/i }).first();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (await uploadItem.isVisible().catch(() => false)) return;
+    await addApp.click();
+    await uploadItem.waitFor({ state: "visible", timeout: 5_000 }).catch(() => {});
+  }
+  throw new Error(`"Upload ZIP file…" did not appear after clicking "Add app…" (${page.url()})`);
+}
+
+/**
  * Uploads the built package through the native file chooser, exactly as the
  * "Upload ZIP file…" menu does for a human operator. Returns after YouTrack
  * selects the uploaded app's card (?selected=<appId>) — the "is uploaded!"
  * toast text is not reliable across YouTrack versions.
  */
 export async function uploadAppZip(page, zipPath) {
-  await page.getByRole("button", { name: /add app/i }).first().click();
-  const [chooser] = await Promise.all([
-    page.waitForEvent("filechooser", { timeout: 15_000 }),
-    page.getByRole("button", { name: /upload zip file/i }).click(),
-  ]);
-  await chooser.setFiles(zipPath);
-  await page.waitForURL(/[?&]selected=\d+-/, { timeout: 60_000 });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await openUploadMenuItem(page);
+    const uploadItem = page.getByRole("button", { name: /upload zip file/i }).first();
+    const chooserPromise = page.waitForEvent("filechooser", { timeout: 15_000 }).catch(() => null);
+    await uploadItem.click();
+    const chooser = await chooserPromise;
+    if (!chooser) continue; // the click landed before the menu handler was live
+    await chooser.setFiles(zipPath);
+    await page.waitForURL(/[?&]selected=\d+-/, { timeout: 60_000 });
+    return;
+  }
+  throw new Error(`"Upload ZIP file…" did not open a file chooser (${page.url()})`);
 }
 
 /** App card tabs carry data-test="ring-link"; the sidebar "Projects" does not. */

@@ -5,7 +5,7 @@ import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { After, AfterAll, Before, BeforeAll, Given, setDefaultTimeout, Then, When } from "@cucumber/cucumber";
+import { After, AfterAll, Before, BeforeAll, Given, setDefaultTimeout, Status, Then, When } from "@cucumber/cucumber";
 import { chromium } from "playwright-core";
 import { ADMIN_PASSWORD, APP_NAME, BRIDGE_TOKEN, USERS, deployApp } from "../e2e/lib/bootstrap.mjs";
 import { E2E_DIR, SERVICE_URL, YT_URL } from "../e2e/lib/compose.mjs";
@@ -77,7 +77,11 @@ if (LIVE) BeforeAll({ timeout: 1_200_000 }, async () => {
   assert.ok(Array.isArray(issues) && issues.length > 0, "no anchor issue in project SPEC");
   live.issue = issues[0];
 
-  live.browser = await chromium.launch({ channel: "chrome", headless: true });
+  // Use Playwright's pinned Chromium, not the host's Chrome channel: host
+  // Chrome 157 silently drops trusted pointer/key events on the YouTrack 2025.3
+  // admin page, so the real "Upload ZIP file…" filechooser never fires. The
+  // bundled browser delivers trusted input and keeps the operator path real.
+  live.browser = await chromium.launch({ headless: true });
 });
 
 if (LIVE) AfterAll(async () => {
@@ -88,8 +92,25 @@ if (LIVE) Before(async function () {
   this.pages = [];
 });
 
-if (LIVE) After(async function () {
+if (LIVE) After(async function (scenario) {
   for (const page of this.pages ?? []) await page.close().catch(() => {});
+  // A failed demo scenario must not leave an incomplete scaffold behind: such
+  // a spec makes the whole corpus noncanonical and blocks projection sync for
+  // every later scenario and every later run.
+  if (scenario.result?.status === Status.FAILED && live.demoSpec) {
+    try {
+      const carol = await loadLiveFixture().then((fixture) => fixture.userToken("carol"));
+      await mcpCall(carol, "stgmt/alpha", "spec_branch", {
+        action: "deleteSpec",
+        spec: live.demoSpec,
+        requestId: `delivery-demo-cleanup-${Date.now()}`,
+      });
+    } catch {
+      // Cleanup is best-effort: a scaffold that cannot be removed is reported
+      // by the failure that created it, not turned into a second failure.
+    }
+    live.demoSpec = null;
+  }
 });
 
 async function newPage(world) {
@@ -179,7 +200,8 @@ async function mcpCall(token, project, name, args) {
 function expectOk(name, envelope) {
   if (envelope.ok !== true || envelope.data?.outcome === "REFUSED") {
     const detail = envelope.error ?? envelope.data?.error ?? envelope;
-    throw new Error(`${name} refused: ${detail?.code ?? "unknown"} ${detail?.message ?? JSON.stringify(detail).slice(0, 600)}`);
+    const findings = detail?.findings?.map((finding) => `${finding.code}: ${finding.message}`).join("; ");
+    throw new Error(`${name} refused: ${detail?.code ?? "unknown"} ${detail?.message ?? JSON.stringify(detail).slice(0, 600)}${findings ? ` [${findings}]` : ""}`);
   }
 }
 
@@ -188,7 +210,7 @@ function expectOk(name, envelope) {
  * an elicitation retry and serializes concurrent patches with CONFLICT. The
  * setup skill retries both; the live scenario must do the same.
  */
-async function mutateWithRetry(token, project, name, args, { attempts = 4 } = {}) {
+async function mutateWithRetry(token, project, name, args, { attempts = 4, allowed = [] } = {}) {
   let last = null;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     last = await mcpCall(token, project, name, {
@@ -197,12 +219,15 @@ async function mutateWithRetry(token, project, name, args, { attempts = 4 } = {}
     });
     if (last.ok === true && last.data?.outcome !== "REFUSED") return last;
     const code = last.data?.error?.code ?? last.error?.code;
+    if (allowed.includes(code)) return null;
     if (code !== "ELICITATION_REQUIRED" && code !== "CONFLICT") {
       expectOk(name, last);
       return last;
     }
     await new Promise((resolve) => setTimeout(resolve, 1_500));
   }
+  const code = last?.data?.error?.code ?? last?.error?.code;
+  if (allowed.includes(code)) return null;
   expectOk(name, last);
   return last;
 }
@@ -506,13 +531,20 @@ Then("the dashboard keeps one spec-board widget", async function () {
 // ---- SCEN-delivery-demo -----------------------------------------------------
 
 const DEMO_DOCS = Object.freeze({
-  "README.md": "# Delivery Demo\n\nStatus: DRAFT\n\nOpt-in demo spec for the live delivery E2E.\n",
+  "README.md": "# Delivery Demo\n\nStatus: DRAFT\n\nOpt-in demo spec for the live delivery E2E. The user stories live in the canonical Gherkin pair created by createSpec and linked here as the cross-spec read path.\n\n[User stories](./__SPEC__-user-stories.feature#us-1)\n",
+  "REQUIREMENTS.md": "# Requirements\n\nThe demo lists the requirement index before its functional requirement. The criterion lives in the acceptance document and the constraint in the non-functional document; both are reached through the canonical documents rather than a seed script.\n\n| Requirement | Acceptance | Scenario |\n|---|---|---|\n| FR-1 | AC-1.1 | SCEN-delivery-demo-live |\n",
   "FR.md": "# Functional Requirements\n\n## FR-1: Demo requirement\n\nThe demo SHALL expose one requirement.\n",
   "NFR.md": "# Non-Functional Requirements\n\n## NFR-DEMO-1: Demo constraint\n\nThe demo SHALL stay bounded.\n",
   "ACCEPTANCE_CRITERIA.md": "# Acceptance Criteria\n\n## AC-1.1: Demo criterion\n\n**EARS:** WHEN the demo is loaded THEN it is visible.\n",
   // The demo has to carry a design, not just a stub: the admission gate admits a
   // task only on a specification whose documented rungs are all reached.
   "DESIGN.md": "# Design\n\n## DEC-1: The demo is written through the document path\n\nThe demo specification is assembled from the same document operations every other corpus entry uses, so loading it proves the projection path rather than a seed script. It declares one requirement with its criterion, one constraint and one task; the task is created through the canonical task intent because a raw task heading in TASKS.md is refused by admission.\n",
+  "__SPEC___SCHEMA.md": "# Delivery demo Schema\n\nThe board reads the entity kinds from the assembled documents: one functional requirement, one constraint, one criterion, one task and the feature scenario. Every kind is named through the canonical document path, so the snapshot can project the demo without a separate fixture.\n",
+  // The example must live in one canonical Gherkin pair. A raw `<spec>.feature`
+  // would make the corpus noncanonical again and block the very projection the
+  // scenario is meant to prove.
+  "__SPEC__-user-stories.feature": "Feature: Delivery demo\n\n  @story:US-1\n  Rule: Loading the demo\n    Actor: Spec owner\n    Goal: Load a representative demo specification\n    Benefit: Prove the opt-in projection path\n    Covers: FR-1, NFR-DEMO-1\n    Outcome: loaded | The demo is readable\n    ScenarioRef: loaded | SCEN-delivery-demo-live\n\n    @feature1 @FR-1 @AC-1.1 @id:SCEN-delivery-demo-live\n    Scenario: the demo is readable\n      Given the demo exists\n      When an authorized caller reads it\n      Then the caller sees the demo kinds\n",
+  "__SPEC__-use-cases.feature": "Feature: Delivery demo cases\n",
   // Only the empty document is scaffolded here: a task definition needs an
   // existing TASKS.md and is added by the canonical intent below, never as raw
   // document text.
@@ -523,28 +555,78 @@ const DEMO_DOCS = Object.freeze({
 
 Given("an explicit demo spec is created through MCP", { timeout: 300_000 }, async function () {
   const liveFixture = await loadLiveFixture();
-  const alice = await liveFixture.userToken("alice");
+  // The owner holds the lease for the whole demo: coverage approval is an
+  // owner-only write, and a lease is per login, so mixing writers would make
+  // the approval refuse with CLAIM_HELD.
+  const owner = await liveFixture.userToken("carol");
   live.demoSpec = `delivery-demo-${Date.now().toString(36)}`;
-  await mutateWithRetry(alice, "stgmt/alpha", "spec_branch", {
+  await mutateWithRetry(owner, "stgmt/alpha", "spec_branch", {
     action: "create",
     spec: live.demoSpec,
     demo: true,
     requestId: "delivery-demo-create",
   });
-  await mutateWithRetry(alice, "stgmt/alpha", "spec_claim", { spec: live.demoSpec, requestId: "delivery-demo-claim" });
-  for (const [document, content] of Object.entries(DEMO_DOCS)) {
-    await mutateWithRetry(alice, "stgmt/alpha", "spec_patch", {
-      intent: "patch",
-      spec: live.demoSpec,
-      dryRun: false,
-      reason: "live delivery demo",
-      requestId: `delivery-demo-${document.replace(/\W/gu, "-")}`,
-      operations: [{ kind: "replace_document", document, content }],
-    });
+  await mutateWithRetry(owner, "stgmt/alpha", "spec_claim", { spec: live.demoSpec, requestId: "delivery-demo-claim" });
+  // A new branch is only a README scaffold. The layout gate lets a scaffold be
+  // written only through createSpec, which lays down the canonical Gherkin pair
+  // before ordinary patches are allowed. The first creation is stopped for
+  // elicitation; the retry is a permitted no-op if the scaffold already exists.
+  // Same pattern as skills/spec-stack-setup/seed-demo.mjs:49-65.
+  const initialize = () => mutateWithRetry(owner, "stgmt/alpha", "spec_patch", {
+    intent: "createSpec",
+    spec: live.demoSpec,
+    reason: "live delivery demo",
+    dryRun: false,
+    requestId: `delivery-demo-create-spec-${Date.now()}`,
+  }, { attempts: 1, allowed: ["ELICITATION_REQUIRED", "CONFLICT"] });
+  await initialize();
+  await initialize();
+  for (const [key, template] of Object.entries(DEMO_DOCS)) {
+    const document = key.replaceAll("__SPEC__", live.demoSpec);
+    const content = template.replaceAll("__SPEC__", live.demoSpec);
+    try {
+      await mutateWithRetry(owner, "stgmt/alpha", "spec_patch", {
+        intent: "patch",
+        spec: live.demoSpec,
+        dryRun: false,
+        reason: "live delivery demo",
+        requestId: `delivery-demo-${document.replace(/\W/gu, "-")}`,
+        operations: [{ kind: "replace_document", document, content }],
+      });
+    } catch (error) {
+      throw new Error(`demo document ${document}: ${error.message}`);
+    }
   }
+  // A task scope needs currently approved BDD examples. Preview the coverage
+  // map and apply the same proposal, exactly as the seed-demo helper does.
+  const map = {
+    schema: "omp-spec-kit/bdd-coverage@1",
+    outcomes: {
+      loaded: { requirements: ["FR-1"], criteria: ["AC-1.1"], rule: "US-1", outcome: "loaded" },
+    },
+    scopes: {},
+  };
+  const preview = await mutateWithRetry(owner, "stgmt/alpha", "spec_patch", {
+    intent: "approveBddCoverage",
+    spec: live.demoSpec,
+    map,
+    dryRun: true,
+    reason: "live delivery demo",
+    requestId: "delivery-demo-coverage-preview",
+  });
+  expectOk("spec_patch approveBddCoverage preview", preview);
+  await mutateWithRetry(owner, "stgmt/alpha", "spec_patch", {
+    intent: "approveBddCoverage",
+    spec: live.demoSpec,
+    map,
+    dryRun: false,
+    reason: "live delivery demo",
+    requestId: "delivery-demo-coverage",
+    repositoryRootFingerprint: preview.data.baseGenerationSha256,
+  });
   // TASKS.md is never written as a raw document: the demo's task enters through
   // the canonical intent, which is also the only way admission admits one.
-  await mutateWithRetry(alice, "stgmt/alpha", "spec_patch", {
+  await mutateWithRetry(owner, "stgmt/alpha", "spec_patch", {
     intent: "confirmTaskCreation",
     spec: live.demoSpec,
     entity: "TASK-1",
@@ -554,21 +636,7 @@ Given("an explicit demo spec is created through MCP", { timeout: 300_000 }, asyn
     reason: "live delivery demo",
     requestId: "delivery-demo-task",
   });
-  const featureDocument = `${live.demoSpec}.feature`;
-  await mutateWithRetry(alice, "stgmt/alpha", "spec_patch", {
-    intent: "patch",
-    spec: live.demoSpec,
-    dryRun: false,
-    reason: "live delivery demo",
-    requestId: "delivery-demo-feature",
-    operations: [{
-      kind: "replace_document",
-      document: featureDocument,
-      content: "Feature: Delivery demo\n\n  @id:SCEN-delivery-demo-live @AC-1.1\n  Scenario: the demo is readable\n    Given the demo exists\n    Then an authorized caller reads it\n",
-    }],
-
-  });
-  await mutateWithRetry(alice, "stgmt/alpha", "spec_release", { spec: live.demoSpec, requestId: "delivery-demo-release" });
+  await mutateWithRetry(owner, "stgmt/alpha", "spec_release", { spec: live.demoSpec, requestId: "delivery-demo-release" });
   await syncSnapshot();
 });
 

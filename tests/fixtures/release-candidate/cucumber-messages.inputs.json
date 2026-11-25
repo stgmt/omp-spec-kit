@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "682c2c6707bffd8e53558b09cd049856ab81098f2e9de4e47e3647b040dae4db",
+  "aggregateSha256": "954047294283f0a3cf39e2881438f7773f4060cca62916f7c5211571b53e7307",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -1180,8 +1180,8 @@
     },
     {
       "path": "tests/e2e/lib/app-admin-ui.mjs",
-      "bytes": 3725,
-      "sha256": "5fecfa3c5f596f2756b82da6ba4a4cc269c616e1743abf634e3c1c62a34aebe3"
+      "bytes": 5083,
+      "sha256": "9a3c9cc67d7299b530083439974a38052d2019f152527559114f5ee1423816b9"
     },
     {
       "path": "tests/e2e/lib/bootstrap.mjs",
@@ -2365,8 +2365,8 @@
     },
     {
       "path": "tests/step-definitions/youtrack-spec-delivery.steps.mjs",
-      "bytes": 31014,
-      "sha256": "cc24d963f4b82f6232546ff9dfaec09da5b84104fb189ad37bc6e427e082ad5f"
+      "bytes": 35731,
+      "sha256": "6a8ead0c90431001a00a3c3b9201c198e7fe7646fd0e8f52fc374c844f2e0049"
     },
     {
       "path": "tests/support/world.mjs",
