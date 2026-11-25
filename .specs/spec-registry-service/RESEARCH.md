@@ -24,7 +24,7 @@ Condensed findings from the 2026-09-13 deep-research session on spec-collision U
 
 ## Decisions this spec takes from the research
 
-1. **Dedicated specs repo** — cleanest write boundary: one canonical store the stack owns; nothing to police on product code branches after migration; service-only pushes; offline read fallback is a plain clone of the specs repo. Layout `<owner>/<project>/.specs/<slug>/` preserves the kernel's `<root>/.specs` convention with `<root> = <repo>/<owner>/<project>`. (Revised 2026-09-13: originally spec'd as per-repo `specs` branches — superseded by the dedicated-repo model.)
+1. **Dedicated specs repo — SUPERSEDED 2026-10-31.** Canonical specs live only on orphan `spec-<slug>` branches of their own project repository (R-1, R-4; ADR `docs/decisions/spec-per-branch-2026-10-31.md`). The shared store is archived. The reasoning below is kept as the historical record of why the model changed, not as the current design.
 2. **D1+D3 authority split** — content in git (D1 facade), claims/ledger/allocation in the service (D3). Rejected D2 (service-owns-content): it would kill PR review and git audit.
 3. **Claims + expectedSha** instead of sequential numbers — beads/OpenSpec showed coordination-free identity wins; our existing optimistic concurrency already carries the conflict semantics.
 4. **Publish = attested artifact** reusing the release.yml pattern — Buf/Confluent-style gate without a bespoke service.
