@@ -2,11 +2,11 @@
   "schema": "omp-spec-kit-release-candidate@2",
   "version": "3.7.1",
   "tag": "v3.7.1",
-  "commit": "76a3d6ca42f1a3f867d91136271a7c0cd8b923d8",
-  "packageTreeDigest": "76040d8a63f19656fa9dabf5bdfaa2704284f06d74e3849341e03879ef1f4f93",
+  "commit": "6d46e769bd0176b262a947e4ba252b7c7b9f538c",
+  "packageTreeDigest": "972edafb44327628433935862824911ab083a2361628b3e91a939b3ad66ea283",
   "archive": {
     "file": "omp-spec-kit-3.7.1.tar",
-    "sha256": "1d555ec4afa66fda598c8f3dcec6d417995ec42264765c90b4bc7cc6440fb61a",
+    "sha256": "05ba1b3b758a001d20847d81500831e33bbe859298cfb45783acacf6750e3586",
     "bytes": 1256448
   },
   "youtrackApp": {
@@ -133,8 +133,8 @@
     {
       "path": "dist/authoring/secrets.js",
       "mode": 420,
-      "bytes": 1093,
-      "sha256": "c675f88b73501829fa8ea31a1dbb7a7f5a57b57a4c05ed09beeb43470bbaec06"
+      "bytes": 1346,
+      "sha256": "c51b9ba3279a4ea769229c644596bee67279c691ed495e3f3046f55aba7ef632"
     },
     {
       "path": "dist/authoring/service.js",
@@ -350,7 +350,7 @@
       "path": "dist/manifest.json",
       "mode": 420,
       "bytes": 6907,
-      "sha256": "b054ed1f25db1e53b5a5a3a2edb2a34e4b4473bcb72d3bd41abb2006c2393912"
+      "sha256": "5ed2836bc4d044e2de8f03765ec7c57a2ad514f511823b2b697c3fe15eb9d2ac"
     },
     {
       "path": "dist/mcp/server.js",
@@ -425,5 +425,5 @@
       "sha256": "25c3f5808affc370b31b763034044a7e9cac6f54510ceda16787ef5088df6bfb"
     }
   ],
-  "candidateDigest": "7ed86aa1bf68c13bdc8419e1231d85b05e7dda03504bc3125d5340337fafb69f"
+  "candidateDigest": "fefc07a85e2b0d76f2f36f5b196054d21a80bc4199f3c6ce1fb1fe1ae60a165b"
 }

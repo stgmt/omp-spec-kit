@@ -60,6 +60,8 @@ jobs:
       - run: git config --global user.email "bot@spec-registryd.invalid"
       - run: npm run test:service
       - run: npm run tool:e2e:live
+      - name: Install the Playwright Chromium used by the live delivery scenarios
+        run: npx playwright-core install --with-deps chromium
       - name: Run the live delivery Cucumber scenarios
         run: npm run test:delivery-live
       - name: Tear down the live contour

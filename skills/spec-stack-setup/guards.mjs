@@ -10,6 +10,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { installerArguments } from "../../scripts/lib/installer-arguments.mjs";
 
 function firstLine(text, limit = 400) {
   return String(text ?? "").trim().split(/\r?\n/u)[0].slice(0, limit);
@@ -18,7 +19,7 @@ function firstLine(text, limit = 400) {
 function runInstaller({ script, token, url, repoRoot, project, workspace, run }) {
   // The installer refuses without --project: the repo-local record is the only
   // place a session's project lives, so the guard phase must name it.
-  return run(process.execPath, [path.join(repoRoot, script), "--url", url, "--project", project, "--workspace", workspace], {
+  return run(process.execPath, [path.join(repoRoot, script), ...installerArguments(null, { url, project, workspace })], {
     env: { ...process.env, OMP_SPEC_REGISTRY_TOKEN: token },
     encoding: "utf8",
     timeout: 120_000,

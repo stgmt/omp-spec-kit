@@ -1,7 +1,7 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "0a36c5deae77b8f388c74594fc962ffbe9d223890b65e329029d5f1f40b3fe0e",
+  "aggregateSha256": "9bb28d41d28363ebd5fd50daba6b677f57b1fd8749523d7a35e67560334cc6a5",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
@@ -235,8 +235,8 @@
     },
     {
       "path": "scripts/host-delivery.mjs",
-      "bytes": 21242,
-      "sha256": "fe55cc45ffe81c63221d8f4c03086bc86f042ec1c2aedf6577d991f6ce52fbde"
+      "bytes": 21356,
+      "sha256": "c10a95c3eaca1ea7c102159950adfd946ddd52e4b624f6cfa4c7f3bbaee465c7"
     },
     {
       "path": "scripts/install-codex-guard.mjs",
@@ -257,6 +257,11 @@
       "path": "scripts/install-stamp.mjs",
       "bytes": 2857,
       "sha256": "c8f4405ee81d042aa2c56ad7c4083563f6ae12050966023616343b31a6cfd09d"
+    },
+    {
+      "path": "scripts/lib/installer-arguments.mjs",
+      "bytes": 367,
+      "sha256": "047556d909da0f3068566a18909dd7070a3504d3e521ea5096dac8d17c61405f"
     },
     {
       "path": "scripts/lib/storage-rule.mjs",
@@ -2060,8 +2065,8 @@
     },
     {
       "path": "tests/host-delivery.test.mjs",
-      "bytes": 6736,
-      "sha256": "486283bc0480cb2dd422b945fea6c3d44c432b898d4272c7892768e9c07b1f4f"
+      "bytes": 11089,
+      "sha256": "777c4bc7e97a9976b826abcb933853403d05b2f7d82151708dffe42d5228db0c"
     },
     {
       "path": "tests/hosts/omp-project-injection.test.mjs",

@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 
-import { auditCodexEntry, auditEntry } from "../scripts/host-delivery.mjs";
+import { auditCodexEntry, auditEntry, run as runHostDelivery } from "../scripts/host-delivery.mjs";
+import { PLUGIN_VERSION } from "../src/adapters/plugin-version.js";
+import { installerArguments } from "../scripts/lib/installer-arguments.mjs";
 import { inspectCopy, readStamp, writeStamp } from "../scripts/install-stamp.mjs";
 import { checkVersions, setVersion } from "../scripts/version.mjs";
 
@@ -17,6 +19,84 @@ function scratchRoot(name) {
 
 after(() => {
   for (const root of scratch) rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+});
+
+describe("installer arguments", () => {
+  it("has one owner for the registry-target triple", () => {
+    const options = { url: "http://127.0.0.1:8650/mcp", project: "acme/widgets", workspace: "/tmp/workspace" };
+    assert.deepEqual(installerArguments(null, options), ["--url", options.url, "--project", options.project, "--workspace", options.workspace]);
+    assert.deepEqual(installerArguments("claude", options), ["--host", "claude", "--url", options.url, "--project", options.project, "--workspace", options.workspace]);
+  });
+});
+
+describe("Claude repair forwards the project scope", () => {
+  const environmentKeys = ["HOME", "USERPROFILE", "PI_CONFIG_DIR", "PATH"];
+  const originalEnvironment = Object.fromEntries(environmentKeys.map((key) => [key, process.env[key]]));
+
+  function fakeClaude(root) {
+    const bin = path.join(root, "bin");
+    mkdirSync(bin, { recursive: true });
+    const marker = path.join(root, "updated.marker");
+    const current = `[{"id":"omp-spec-kit@omp-spec-kit","version":"${PLUGIN_VERSION}"}]`;
+    const stale = '[{"id":"omp-spec-kit@omp-spec-kit","version":"0.0.0"}]';
+    if (process.platform === "win32") {
+      writeFileSync(path.join(bin, "claude.cmd"), [
+        "@echo off",
+        `if "%~2"=="list" (if exist "${marker}" (echo ${current}) else (echo ${stale}))`,
+        `if "%~2"=="update" echo.> "${marker}"`,
+        "exit /b 0",
+        "",
+      ].join("\r\n"));
+    } else {
+      const shim = path.join(bin, "claude");
+      writeFileSync(shim, `#!/bin/sh\nif [ "$2" = "list" ]; then\n  if [ -f "${marker}" ]; then echo '${current}'; else echo '${stale}'; fi\nelif [ "$2" = "update" ]; then : > "${marker}"; fi\nexit 0\n`);
+      chmodSync(shim, 0o755);
+    }
+    return bin;
+  }
+
+  async function repairWith({ explicitProject, recordOnly }) {
+    const root = scratchRoot("claude-repair");
+    const workspace = path.join(root, "workspace");
+    mkdirSync(workspace, { recursive: true });
+    if (recordOnly) {
+      mkdirSync(path.join(workspace, ".omp-spec-kit"), { recursive: true });
+      writeFileSync(path.join(workspace, ".omp-spec-kit", "project.json"), '{"schema":"omp-spec-kit/project-binding@1","project":"acme/widgets"}\n');
+      // The installer rewrites this config only after the project check passes;
+      // a dropped resolved project leaves the stale endpoint untouched.
+      writeFileSync(path.join(workspace, ".mcp.json"), '{"mcpServers":{"omp-spec-kit":{"type":"http","url":"http://127.0.0.1:1/stale"}}}\n');
+    }
+    process.env.HOME = root;
+    process.env.USERPROFILE = root;
+    process.env.PI_CONFIG_DIR = path.join(root, ".omp");
+    process.env.PATH = `${fakeClaude(root)}${path.delimiter}${originalEnvironment.PATH ?? ""}`;
+    const args = ["--fix", "--host", "claude", "--url", "http://127.0.0.1:8650/mcp", "--workspace", workspace];
+    if (explicitProject) args.push("--project", "acme/widgets");
+    const lines = [];
+    await runHostDelivery(args, {}, (line) => lines.push(line));
+    return { root, workspace, lines };
+  }
+
+  after(() => {
+    for (const [key, value] of Object.entries(originalEnvironment)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+
+  it("passes an explicit --project through the Claude repair installer", async () => {
+    const { workspace, lines } = await repairWith({ explicitProject: true, recordOnly: false });
+    assert.ok(lines.some((line) => line.includes("repaired claude:")), lines.join("\n"));
+    const record = JSON.parse(readFileSync(path.join(workspace, ".omp-spec-kit", "project.json"), "utf8"));
+    assert.equal(record.project, "acme/widgets", lines.join("\n"));
+  });
+
+  it("resolves the project from the workspace record when --project is absent", async () => {
+    const { workspace, lines } = await repairWith({ explicitProject: false, recordOnly: true });
+    assert.ok(lines.some((line) => line.includes("repaired claude:")), lines.join("\n"));
+    const config = JSON.parse(readFileSync(path.join(workspace, ".mcp.json"), "utf8"));
+    assert.equal(config.mcpServers["omp-spec-kit"].url, "http://127.0.0.1:8650/mcp", lines.join("\n"));
+  });
 });
 
 describe("MCP entry audit", () => {

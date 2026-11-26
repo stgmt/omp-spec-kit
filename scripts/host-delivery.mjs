@@ -28,6 +28,7 @@ import { PLUGIN_VERSION } from "../src/adapters/plugin-version.js";
 import { isProjectIdentity } from "../src/enforcement/project-binding.js";
 import { readCodexServer } from "../src/hosts/codex/hook.mjs";
 import { inspectCopy } from "./install-stamp.mjs";
+import { installerArguments } from "./lib/installer-arguments.mjs";
 
 const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const HOSTS = Object.freeze(["omp", "claude", "codex", "opencode"]);
@@ -163,7 +164,7 @@ function hostPaths() {
 }
 
 function cliJson(command, args) {
-  const result = spawnSync(command, args, { encoding: "utf8", windowsHide: true, timeout: 120000 });
+  const result = spawnSync(command, args, { encoding: "utf8", windowsHide: true, timeout: 120000, shell: process.platform === "win32" });
   if (result.error || result.status !== 0) return null;
   try {
     return JSON.parse(result.stdout);
@@ -264,9 +265,10 @@ function resolveProject(options) {
   return project !== null && isProjectIdentity(project) ? project : null;
 }
 
+
 /** Repairs go through the installers, never through hand-written config. */
 function repair(host, { url, project, workspace }) {
-  const shared = ["--url", url, "--project", project, "--workspace", workspace];
+  const shared = installerArguments(null, { url, project, workspace });
   const plans = {
     omp: ["install-host.mjs", ["--host", "omp", ...shared]],
     claude: ["install-host.mjs", ["--host", "claude", ...shared]],
@@ -284,7 +286,7 @@ function repair(host, { url, project, workspace }) {
   return { ok: true, detail: output.split("\n").find((line) => line.includes("installed copy")) ?? "reinstalled" };
 }
 
-function repairClaude({ url, workspace }) {
+function repairClaude({ url, project, workspace }) {
   // Claude owns its plugin copies, so the version is moved by its own CLI;
   // the config half is still written by the installer.
   const commands = [
@@ -292,11 +294,11 @@ function repairClaude({ url, workspace }) {
     ["claude", ["plugin", "update", "omp-spec-kit@omp-spec-kit"]],
   ];
   for (const [command, args] of commands) {
-    spawnSync(command, args, { encoding: "utf8", windowsHide: true, timeout: 300000 });
+    spawnSync(command, args, { encoding: "utf8", windowsHide: true, timeout: 300000, shell: process.platform === "win32" });
   }
   const config = spawnSync(
     process.execPath,
-    [path.join(REPOSITORY_ROOT, "scripts", "install-host.mjs"), "--host", "claude", "--url", url, "--workspace", workspace],
+    [path.join(REPOSITORY_ROOT, "scripts", "install-host.mjs"), ...installerArguments("claude", { url, project, workspace })],
     { encoding: "utf8", windowsHide: true, timeout: 300000 },
   );
   const listed = cliJson("claude", ["plugin", "list", "--json"]);
@@ -426,7 +428,7 @@ export async function run(argv, env = process.env, out = console.log) {
     if (!options.fix) continue;
     const audit = AUDITS[host]({ paths, url });
     if (audit.problems.length === 0 && audit.versionOk) continue;
-    const result = host === "claude" ? repairClaude({ url, workspace: options.workspace }) : repair(host, { url, project, workspace: options.workspace });
+    const result = host === "claude" ? repairClaude({ url, project, workspace: options.workspace }) : repair(host, { url, project, workspace: options.workspace });
     repairs.push({ host, ...result });
   }
 

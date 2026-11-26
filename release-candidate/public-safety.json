@@ -1,11 +1,8 @@
 {
   "schema": "omp-spec-kit-public-safety@1",
-  "status": "failed",
-  "candidateDigest": "7ed86aa1bf68c13bdc8419e1231d85b05e7dda03504bc3125d5340337fafb69f",
-  "packageTreeDigest": "76040d8a63f19656fa9dabf5bdfaa2704284f06d74e3849341e03879ef1f4f93",
-  "findings": [
-    "secret-like-content:generic-secret:dist/adapters/openai-decisions.js",
-    "secret-like-content:generic-secret:dist/adapters/query-service.js"
-  ],
-  "digest": "3688c46c0720d5b52d3bcec77bb8a5c46632e1d29c0ffc412d07c6b664232369"
+  "status": "passed",
+  "candidateDigest": "fefc07a85e2b0d76f2f36f5b196054d21a80bc4199f3c6ce1fb1fe1ae60a165b",
+  "packageTreeDigest": "972edafb44327628433935862824911ab083a2361628b3e91a939b3ad66ea283",
+  "findings": [],
+  "digest": "debbe615e40a0b402480a129d3de8dc88693cc0a2f626b3ff9b65765eb24551f"
 }
