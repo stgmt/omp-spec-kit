@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { SpecPatchService } from "../src/authoring/service.js";
+import { writeCoveredSpec } from "./helpers/approved-coverage-fixture.mjs";
 import { readRepositorySpecs } from "../src/kernel/adapters/fs.js";
 import { buildKernelGraph } from "../src/kernel/graph/build.js";
 
@@ -53,23 +54,21 @@ describe("task creation requirement integrity", () => {
     assert.equal(result.error?.fix?.[0]?.arguments?.requirements?.length, 1);
   });
 
-  it("accepts a task whose requirement exists in the corpus", async () => {
-    const graph = await graphAt(tempRoot);
-    const requirement = graph.nodes.find(
-      (node) => node.kind === "FUNCTIONAL_REQUIREMENT" && node.specSlug === "spec-mcp-access-gate"
-    );
-    assert.ok(requirement, "fixture corpus must contain a functional requirement");
+  it("accepts a task whose requirement exists in the corpus and has approved coverage", async () => {
+    // The converted fixture cannot approve an example; use a covered corpus
+    // for the positive control instead of weakening the coverage gate.
+    const { spec } = await writeCoveredSpec(tempRoot, "task-requirement-integrity");
     const result = await serviceAt(tempRoot).execute({
       requestId: "task-req-known-1",
       intent: "confirmTaskCreation",
-      spec: "spec-mcp-access-gate",
+      spec,
       reason: "requirement integrity",
       dryRun: true,
       entity: "TASK-89",
       subject: "Задача с существующим требованием",
-      requirements: [requirement.localId ?? requirement.canonicalId],
-    });
-    assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 200));
+      requirements: ["FR-1"],
+    }, { hostedCoverage: true });
+    assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
   });
 });
 

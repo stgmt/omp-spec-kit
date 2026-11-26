@@ -233,7 +233,7 @@ export const LOCAL_ID_ROLES = Object.freeze({
     kind: "NON_FUNCTIONAL_REQUIREMENT",
     re: /^NFR-[A-Z][A-Z0-9-]*-[1-9][0-9]*$/,
   },
-  ACCEPTANCE_CRITERION: { kind: "ACCEPTANCE_CRITERION", re: /^AC-[1-9][0-9]*\.[1-9][0-9]*$/ },
+  ACCEPTANCE_CRITERION: { kind: "ACCEPTANCE_CRITERION", re: /^AC-(?:[1-9][0-9]*|NFR-[A-Z][A-Z0-9-]*-[1-9][0-9]*)\.[1-9][0-9]*$/ },
   DECISION: { kind: "DECISION", re: /^DEC-[1-9][0-9]*$/ },
   TASK: { kind: "TASK", re: /^TASK-[1-9][0-9]*$/ },
   FILE_CHANGE: { kind: "FILE_CHANGE", re: /^FC-[1-9][0-9]*$/ },

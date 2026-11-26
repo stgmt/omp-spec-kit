@@ -1,14 +1,14 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { scanBlocks } from "../kernel/parsers/md-blocks.js";
-import { extractReferenceTarget, isValidSpecSlug } from "../kernel/identity.js";
+import { criterionParent, extractReferenceTarget, isValidSpecSlug } from "../kernel/identity.js";
 import { canonicalJson, sha256 } from "./transactions.js";
 
 const git = promisify(execFile);
 const schema = "omp-spec-kit/bdd-coverage@1";
 const key = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const requirement = /^(?:FR-[1-9]\d*|NFR-[A-Z][A-Z0-9-]*-[1-9]\d*)$/u;
-const criterion = /^AC-[1-9]\d*\.[1-9]\d*$/u;
+const criterion = /^AC-(?:[1-9]\d*|NFR-[A-Z][A-Z0-9-]*-[1-9]\d*)\.[1-9]\d*$/u;
 const ref = /^(SCEN-[a-z0-9]+(?:-[a-z0-9]+)*)(?:#([a-z0-9]+(?:-[a-z0-9]+)*))?$/u;
 const ruleId = /^(?:US|UC)-[1-9]\d*$/u;
 const digest = /^[a-f0-9]{64}$/u;
@@ -93,7 +93,7 @@ function outcomeMaterial(item, nodes) {
   const criteria = item.criteria.map((id) => nodes.get(id));
   if (requirements.some((node) => !node || !["FUNCTIONAL_REQUIREMENT", "NON_FUNCTIONAL_REQUIREMENT"].includes(node.kind)) ||
       criteria.some((node) => node?.kind !== "ACCEPTANCE_CRITERION" ||
-        !item.requirements.includes(node.attributes.parentLocalId ?? node.localId.split(".")[0].replace("AC-", "FR-")))) {
+        !item.requirements.includes(node.attributes.parentLocalId ?? criterionParent(node.localId)?.parentLocalId))) {
     return { problem: "the linked FR/NFR or its acceptance criterion is missing" };
   }
   const subject = item.rule === undefined ? null : nodes.get(item.rule);
@@ -205,7 +205,7 @@ export function changedTaskCoverageFindings({ baseline, graph, spec, proposed, a
       .map(({ rawTarget, requestedEdgeType }) => {
         const normalized = normalize(rawTarget);
         if (requestedEdgeType === "IMPLEMENTS" && criterion.test(normalized)) {
-          return normalized.split(".")[0].replace("AC-", "FR-");
+          return criterionParent(normalized)?.parentLocalId ?? null;
         }
         return requirement.test(normalized.split(":").at(-1)) ? normalized : null;
       }).filter(Boolean);

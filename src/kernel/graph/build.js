@@ -522,6 +522,11 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
         specSlug: reference.specSlug ?? splitCanonicalId(reference.sourceCanonicalId)?.specSlug ?? null,
         canonicalId: reference.candidateCanonicalIds[0] ?? null,
         referenceOccurrenceId: reference.occurrenceId,
+        // A Gherkin trace tag is the author's explicit coverage claim: a bare
+        // id that lives only in another spec must block the write. Prose and
+        // task references keep the corpus-wide WARNING so an upgrade does not
+        // invalidate unrelated historical documents.
+        severity: reference.strictSpecScope && result.reason === "UNQUALIFIED_CROSS_SPEC" ? "ERROR" : undefined,
         expected: expectedForReason(result.reason),
       });
       diagnostics.push(diagnostic);
@@ -562,7 +567,7 @@ export function buildKernelGraph({ files, limits: limitsOverride, cancel } = {})
         specSlug: node.specSlug,
         localId: node.localId,
         canonicalId: node.canonicalId,
-        expected: "existing FR-N parent in the same spec",
+        expected: "existing FR-N or NFR-CATEGORY-N parent in the same spec",
         actual: node.attributes.parentLocalId,
       });
       diagnostics.push(diagnostic);
@@ -972,7 +977,7 @@ function pushCandidate(definitionOccurrences, groups, identity, record, canonica
 }
 
 const ID_TOKEN_RE =
-  /((?:[a-z0-9]+(?:-[a-z0-9]+)*):)?(?:US|UC|RF|RISK|FR|DEC|TASK|FC)-[1-9][0-9]*|((?:[a-z0-9]+(?:-[a-z0-9]+)*):)?AC-[1-9][0-9]*\.[1-9][0-9]*|((?:[a-z0-9]+(?:-[a-z0-9]+)*):)?NFR-[A-Z][A-Z0-9-]*-[1-9][0-9]*/gu;
+  /((?:[a-z0-9]+(?:-[a-z0-9]+)*):)?(?:US|UC|RF|RISK|FR|DEC|TASK|FC)-[1-9][0-9]*|((?:[a-z0-9]+(?:-[a-z0-9]+)*):)?AC-(?:[1-9][0-9]*|NFR-[A-Z][A-Z0-9-]*-[1-9][0-9]*)\.[1-9][0-9]*|((?:[a-z0-9]+(?:-[a-z0-9]+)*):)?NFR-[A-Z][A-Z0-9-]*-[1-9][0-9]*/gu;
 
 export function findReferenceTargetInText(text) {
   for (const match of text.matchAll(ID_TOKEN_RE)) {
@@ -1060,6 +1065,7 @@ function collectReferences(parsedByPath, usableEntries, definitionOccurrences, n
             sourceCanonicalId,
             rawTarget: ref.rawTarget,
             requestedEdgeType: ref.requestedEdgeType,
+            strictSpecScope: ref.requestedEdgeType === "TESTED_BY",
             span: ref.span,
             specSlug: entry.specSlug,
           });
@@ -1081,6 +1087,7 @@ function collectReferences(parsedByPath, usableEntries, definitionOccurrences, n
         sourceCanonicalId: ref.sourceCanonicalId,
         rawTarget: boundPath(ref.rawTarget),
         requestedEdgeType: ref.requestedEdgeType,
+        strictSpecScope: ref.strictSpecScope === true,
         span: { ...ref.span, path: docPath },
         outcome: "PENDING",
         resolvedEdgeId: null,

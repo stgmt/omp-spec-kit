@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
   canonicalJson,
   documentAbsolute,
@@ -15,7 +14,7 @@ import {
   canonicalDocumentFilename, DOCUMENT_KINDS, FIXED_DOCUMENT_FILES, GHERKIN_DOCUMENT_KINDS,
   isLegacySpecificationDocument, SPEC_STATUS_VALUES,
 } from "../kernel/types.js";
-import { extractReferenceTarget, isValidSpecSlug } from "../kernel/identity.js";
+import { criterionId, criterionParent, extractReferenceTarget, isValidSpecSlug } from "../kernel/identity.js";
 import { validateMetadata } from "../kernel/query/extended.js";
 import {
   READINESS_LEVELS,
@@ -758,13 +757,16 @@ export function operationForFacade(name, input, context = {}) {
   if (name === "addAcceptanceCriterion") {
     if (typeof input.requirement !== "string" || typeof input.criterion !== "string")
       return error("INVALID_REQUEST", "addAcceptanceCriterion requires requirement and criterion");
-    const suffix =
-      (Number.parseInt(
-        createHash("sha256").update(`${spec}\u0000${input.requirement}\u0000${input.criterion}`).digest("hex").slice(0, 8),
-        16,
-      ) %
-        1_000_000) +
-      1;
+    if (criterionId(input.requirement, 1) === null)
+      return error("INVALID_REQUEST", "addAcceptanceCriterion requires an existing FR-N or NFR-CATEGORY-N requirement");
+    const taken = new Set(
+      (context.criterionIds ?? [])
+        .map((existing) => criterionParent(existing))
+        .filter((parent) => parent?.parentLocalId === input.requirement)
+        .map((parent) => parent.index),
+    );
+    let index = 1;
+    while (taken.has(index)) index += 1;
     return {
       spec,
       reason,
@@ -772,7 +774,7 @@ export function operationForFacade(name, input, context = {}) {
         {
           kind: "insert_at_eof",
           document: "ACCEPTANCE_CRITERIA.md",
-          text: `\n## AC-9000.${suffix} — ${input.requirement}\n\n${input.criterion}\n`,
+          text: `\n## ${criterionId(input.requirement, index)} — ${input.requirement}\n\n${input.criterion}\n`,
         },
       ],
     };
@@ -1021,6 +1023,7 @@ export class ProposalCompiler {
     const facadeContext = {
       requirementId: firstRequirementId,
       taskId: `TASK-${freeTaskNumber}`,
+      criterionIds: specNodes.filter((node) => node.kind === "ACCEPTANCE_CRITERION").map((node) => node.localId),
       readiness: specReadiness(graph, spec),
     };
 

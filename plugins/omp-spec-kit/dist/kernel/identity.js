@@ -87,8 +87,30 @@ export function sha256Hex(bytesOrString) {
   return createHash("sha256").update(bytesOrString).digest("hex");
 }
 
+const CRITERION_FR_RE = /^AC-([1-9][0-9]*)\.([1-9][0-9]*)$/u;
+const CRITERION_NFR_RE = /^AC-NFR-([A-Z][A-Z0-9-]*)-([1-9][0-9]*)\.([1-9][0-9]*)$/u;
+
+/** The one parser for both criterion ID forms; returns the owning requirement. */
+export function criterionParent(localId) {
+  if (typeof localId !== "string") return null;
+  const fr = CRITERION_FR_RE.exec(localId);
+  if (fr) return { parentLocalId: `FR-${fr[1]}`, index: Number(fr[2]) };
+  const nfr = CRITERION_NFR_RE.exec(localId);
+  if (nfr) return { parentLocalId: `NFR-${nfr[1]}-${nfr[2]}`, index: Number(nfr[3]) };
+  return null;
+}
+
+/** The one allocator: AC-N.M for FR parents, AC-NFR-CAT-N.M for NFR parents. */
+export function criterionId(parentLocalId, index) {
+  const fr = /^FR-([1-9][0-9]*)$/u.exec(parentLocalId ?? "");
+  if (fr) return `AC-${fr[1]}.${index}`;
+  const nfr = /^NFR-([A-Z][A-Z0-9-]*)-([1-9][0-9]*)$/u.exec(parentLocalId ?? "");
+  if (nfr) return `AC-NFR-${nfr[1]}-${nfr[2]}.${index}`;
+  return null;
+}
+
 const REFERENCE_TARGET_RE =
-  /(?:[a-z0-9]+(?:-[a-z0-9]+)*:)?(?:US|UC|RF|RISK|FR|DEC|TASK|FC)-[1-9][0-9]*|(?:[a-z0-9]+(?:-[a-z0-9]+)*:)?AC-[1-9][0-9]*\.[1-9][0-9]*|(?:[a-z0-9]+(?:-[a-z0-9]+)*:)?NFR-[A-Z][A-Z0-9-]*-[1-9][0-9]*/gu;
+  /(?:[a-z0-9]+(?:-[a-z0-9]+)*:)?(?:US|UC|RF|RISK|FR|DEC|TASK|FC)-[1-9][0-9]*|(?:[a-z0-9]+(?:-[a-z0-9]+)*:)?AC-(?:[1-9][0-9]*|NFR-[A-Z][A-Z0-9-]*-[1-9][0-9]*)\.[1-9][0-9]*|(?:[a-z0-9]+(?:-[a-z0-9]+)*:)?NFR-[A-Z][A-Z0-9-]*-[1-9][0-9]*/gu;
 
 // Extract a valid authored/qualified reference target embedded in arbitrary
 // token text (e.g. inside a Markdown link). Returns { target, index } or null.

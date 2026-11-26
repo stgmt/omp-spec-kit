@@ -365,6 +365,7 @@ export const TOOL_CONTRACTS = Object.freeze([
         description: [
           "Patch operations on one spec. Write the two canonical Gherkin documents with replace_document.",
           "In <slug>-user-stories.feature, declare @story:US-N on each Rule and supply Actor, Goal, Benefit and at least one Scenario.",
+          "@featureN and @AC-N.M trace a scenario to a requirement in the same specification; use @ref:<spec-slug>:<FR-N|NFR-CATEGORY-N|AC-N.M> for a qualified cross-specification trace.",
           "In <slug>-use-cases.feature, declare @case:UC-N and @story:US-N on the same Rule. Supply Actor, Boundary, Trigger, Precondition, Success and at least one Step. Add Branch declarations for the outcomes to cover.",
           "Use ScenarioRef: <branch-id> | SCEN-<id> or SCEN-<id>#<example_id> for an Examples row. Use complete Given/When/Then in drafts.",
           "Use Refs: <slug>:<ID> before Context for direct links of the story or case; text after Context is prose and creates no graph links.",

@@ -3,6 +3,7 @@
 // or empty arrays, never invented structure.
 
 import { TASK_REVIEW_VALUES, TASK_STATUS_NORMALIZATION } from "../types.js";
+import { criterionParent } from "../identity.js";
 
 // Parse `**Field:** value` style lines plus their immediately following bullet
 // lists. Keys keep authored casing; lookup is exact.
@@ -112,9 +113,9 @@ export function extractAttributes(documentKind, role, localId, title, bodyText, 
       };
     }
     case "ACCEPTANCE_CRITERION": {
-      const numberMatch = /^AC-([1-9][0-9]*)\.[1-9][0-9]*$/u.exec(localId);
+      const parent = criterionParent(localId);
       return {
-        parentLocalId: numberMatch ? `FR-${numberMatch[1]}` : "",
+        parentLocalId: parent?.parentLocalId ?? "",
         earsText: normativeBody(bodyText),
       };
     }

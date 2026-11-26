@@ -8,10 +8,11 @@ These are kernel-level workarounds discovered while validating specifications, n
 | `Status` пишется только каноническим словом (`todo`, а не `pending`) | неизвестное слово нормализуется в `unknown` без ошибки | `tests/authoring-task-status.test.mjs` |
 | В `Done When` нет `,` и `;` | значение режется на список по этим разделителям | проверка атрибутов задачи |
 | `@id:SCEN-n` ставится на `Scenario`, не на `Feature` | иначе диагностика `MISSING_SCENARIO_ID` | `spec_inspect validation` |
-| Для покрытия FR используется `@featureN`, для AC — `@AC-N.M` | `@featureN` и `@AC-N.M` создают `TESTED_BY`; `@FR-N` без namespace игнорируется, а `@ac:AC-1.1` создаёт `REFS` | `spec_inspect coverage`, `spec_inspect orphans` |
-| `@NFR-N` пока не поддержан парсером | NFR-покрытие не материализуется; используйте сценарии, привязанные к FR/AC, которые ограничивает NFR | расширение `acTagRef` в `src/kernel/parsers/gherkin.js` |
+| Для покрытия FR используется `@featureN`, для AC — `@AC-N.M` | `@featureN` и `@AC-N.M` создают `TESTED_BY`; `@FR-N` без namespace игнорируется, а `@ac:AC-1.1` создаёт `REFS` | `spec_inspect orphans`, `spec_inspect validation` |
+| Критерий NFR пишется как `AC-NFR-<CATEGORY>-<N>.<M>` | ID кодирует родителя `NFR-<CATEGORY>-<N>`; форма `AC-PERF-1` не распознаётся и остаётся обычным текстом | `spec_inspect readiness`, `spec_entities` |
+| Для покрытия другой спеки используется `@ref:<slug>:<FR-N\|NFR-CATEGORY-N\|AC-N.M>` | `@featureN` и `@AC-N.M` всегда локальны; голой ID, существующий только в другой спеке, теперь ошибка | `spec_inspect validation`, `spec_documents` |
 
-These constraints are workarounds. The underlying parser gaps (bullet-form structured fields, status diagnostics, `@NFR-N`) should be fixed separately; documenting them here does not make the corpus self-validating.
+These constraints are workarounds. The remaining parser gaps (bullet-form structured fields, status diagnostics) should be fixed separately; documenting them here does not make the corpus self-validating. NFR criteria are already supported as `AC-NFR-<CATEGORY>-<N>.<M>`.
 
 ## Where this file lives
 

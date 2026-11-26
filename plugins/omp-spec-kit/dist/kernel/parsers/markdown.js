@@ -131,7 +131,7 @@ function rolePrefixPattern(role) {
     case "NON_FUNCTIONAL_REQUIREMENT":
       return "NFR-[A-Z][A-Z0-9-]*-[1-9][0-9]*";
     case "ACCEPTANCE_CRITERION":
-      return "AC-[1-9][0-9]*\\.[1-9][0-9]*";
+      return "AC-(?:[1-9][0-9]*|NFR-[A-Z][A-Z0-9-]*-[1-9][0-9]*)\\.[1-9][0-9]*";
     case "DECISION":
       return "DEC-[1-9][0-9]*";
     case "TASK":

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { SpecPatchService } from "../src/authoring/service.js";
+import { writeCoveredSpec } from "./helpers/approved-coverage-fixture.mjs";
 import { readRepositorySpecs } from "../src/kernel/adapters/fs.js";
 import { buildKernelGraph } from "../src/kernel/graph/build.js";
 import { executeExtendedQuery } from "../src/kernel/query/extended.js";
@@ -36,21 +37,17 @@ describe("task links and review state", () => {
   });
 
   it("writes a requirement reference the corpus can resolve", async () => {
-    const graph = await graphAt(tempRoot);
-    const requirement = graph.nodes.find(
-      (node) => node.kind === "FUNCTIONAL_REQUIREMENT" && node.specSlug === "spec-mcp-access-gate"
-    );
-    assert.ok(requirement);
+    const { spec } = await writeCoveredSpec(tempRoot, "task-links-integrity");
     const result = await serviceAt(tempRoot).execute({
       requestId: "links-1",
       intent: "confirmTaskCreation",
-      spec: "spec-mcp-access-gate",
+      spec,
       reason: "links",
       dryRun: true,
       entity: "TASK-95",
       subject: "Задача со ссылкой",
-      requirements: [requirement.localId ?? requirement.canonicalId],
-    });
+      requirements: ["FR-1"],
+    }, { hostedCoverage: true });
     assert.equal(result.ok, true, JSON.stringify(result.error ?? {}).slice(0, 300));
   });
 

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { criterionId } from "./identity.js";
 
 // Readiness ladder over the specification graph.
 //
@@ -66,7 +67,7 @@ export const READINESS_RULE_TEXT = [
   "TASKS are the last entity in the chain; FR is refused while REQUIREMENTS.md is still the scaffold.",
   "Readiness ladder: L0 scaffold, L1 requirements, L2 criteria and design, L3 assembled documents (requirements index, NFR, schema, cross-spec link).",
   "A task is created only on a specification that reached L3 and names at least one requirement from the same specification.",
-  "Write User Stories and Use Cases in the two canonical Gherkin files. Each use case Rule declares its story. Draft scenarios need Given/When/Then. @spec-ready requires FR/AC trace and owner-approved coverage.",
+  "Write User Stories and Use Cases in the two canonical Gherkin files. Each use case Rule declares its story. Draft scenarios need Given/When/Then. @featureN and @AC-N.M trace locally; use @ref:<spec-slug>:<FR-N|NFR-CATEGORY-N|AC-N.M> for another specification. @spec-ready requires FR/AC trace and owner-approved coverage.",
   "Creating or changing the requirements or coverageScope of a task requires current owner-approved BDD examples. Raw insertion of a task heading in TASKS.md is refused.",
   "The preview and the write report the same blockers and the same fix calls.",
 ].join("\n");
@@ -133,9 +134,9 @@ export function specReadiness(graph, specSlug) {
   // traceable parent, so a rung that ignored NFRs would pin an NFR-only
   // specification at L0 while the same compiler accepts its ids.
   const requirements = nodes.filter((node) => REQUIREMENT_KINDS.has(node.kind));
-  // A criterion is parented by its id (AC-<n>.<m> to FR-<n>), so only a
-  // functional requirement can carry one. A specification held back at the
-  // criteria rung for want of an FR must be told that, not told it has none.
+  // A criterion is parented by its id: AC-<n>.<m> to FR-<n>, and
+  // AC-NFR-<category>-<n>.<m> to NFR-<category>-<n>. Both requirement kinds
+  // can carry criteria, so the criteria rung is no longer FR-only.
   const functionalRequirements = requirements.filter((node) => node.kind === "FUNCTIONAL_REQUIREMENT");
   const requirementIds = new Set(requirements.map((node) => node.localId));
   const requirementCanonicalIds = new Set(requirements.map((node) => node.canonicalId));
@@ -259,7 +260,7 @@ export function taskAdmissionFixSteps(spec, readiness) {
     }));
   }
   if (has(READINESS_BLOCKER_CODES.CRITERIA)) {
-    const parent = readiness.firstFunctionalRequirement;
+    const parent = readiness.firstRequirement;
     if (!parent) {
       steps.push(fixStep(spec, "readiness: a criterion attaches to a functional requirement", {
         kind: "insert_at_eof",
@@ -271,7 +272,7 @@ export function taskAdmissionFixSteps(spec, readiness) {
         kind: "insert_at_eof",
         document: "ACCEPTANCE_CRITERIA.md",
         text:
-          `\n## AC-${parent.slice(3)}.1 — ${parent}\n\n` +
+          `\n## ${criterionId(parent, 1)} — ${parent}\n\n` +
           "Given the requirement is exercised, when the caller sends the request, then the expected outcome holds.\n",
       }));
     }

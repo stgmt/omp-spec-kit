@@ -90,13 +90,14 @@ describe("readiness verdict", () => {
       // admission gate accepts its id as a traceable parent.
       assert.equal(verdict.level, "L1", JSON.stringify(verdict.blockers));
       assert.equal(verdict.firstRequirement, "NFR-PERF-1");
-      // A criterion is parented by AC-<n>.<m> to FR-<n>, so what is missing is
-      // the functional requirement, not the requirement rung.
+      // AC-PERF-1 is not a criterion ID; the authored criterion still needs the
+      // NFR form. The readiness gap is the criterion, not the requirement rung.
       assert.equal(verdict.firstFunctionalRequirement, null);
       assert.deepEqual(verdict.blockers.map((entry) => entry.code), ["NO_ACCEPTANCE_CRITERIA"]);
-      // The plan starts with the document the blocker actually names.
+      // The plan attaches the criterion to the NFR that actually exists.
       const step = taskAdmissionFixSteps("nfr-spec", verdict)[0];
-      assert.equal(step.arguments.operations[0].document, "FR.md");
+      assert.equal(step.arguments.operations[0].document, "ACCEPTANCE_CRITERIA.md");
+      assert.match(step.arguments.operations[0].text, /## AC-NFR-PERF-1\.1 — NFR-PERF-1/u);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -410,7 +411,10 @@ describe("task admission", () => {
     });
     assert.equal(refused.error.code, "BACKLOG_FORBIDDEN");
     assert.equal(refused.error.fix[0].arguments.intent, "patch");
-    assert.equal(refused.error.fix[0].arguments.operations[0].document, "FR.md");
+    // The NFR is already present; attaching a criterion to it clears the rung
+    // without inventing a functional requirement first.
+    assert.equal(refused.error.fix[0].arguments.operations[0].document, "ACCEPTANCE_CRITERIA.md");
+    assert.match(refused.error.fix[0].arguments.operations[0].text, /AC-NFR-PERF-1\.1/u);
   });
 
   it("writes the refusal to the durable log with slug, code, level and blockers", async () => {

@@ -1,6 +1,6 @@
 import { AstBuilder, compile, GherkinClassicTokenMatcher, IdGenerator, Parser } from "../vendor/gherkin.js";
 import { canonicalJson, sha256Bytes } from "../normalize.js";
-import { localIdKind } from "../identity.js";
+import { criterionParent, isValidSpecSlug, localIdKind } from "../identity.js";
 import { canonicalDocumentKind } from "../types.js";
 import { Positions } from "./markdown.js";
 
@@ -138,12 +138,20 @@ function parseRuleDescription(rule, isCase, issue) {
 
 function referenceTags(tags, locations) {
   const result = [];
+  const traceKinds = new Set(["FUNCTIONAL_REQUIREMENT", "NON_FUNCTIONAL_REQUIREMENT", "ACCEPTANCE_CRITERION"]);
   for (const { name, location } of tags) {
     if (name.startsWith("@id:")) continue;
     const feature = /^@feature([1-9][0-9]*)$/u.exec(name);
+    const qualifiedTrace = /^@ref:([a-z0-9]+(?:-[a-z0-9]+)*):([A-Za-z][A-Za-z0-9.-]*)$/u.exec(name);
     const tag = name.slice(1);
     const qualified = /^([a-z0-9]+(?:-[a-z0-9]+)*):([A-Za-z][A-Za-z0-9.-]*)$/u.exec(tag);
-    if (feature || /^AC-[1-9][0-9]*\.[1-9][0-9]*$/u.test(tag)) {
+    if (qualifiedTrace && isValidSpecSlug(qualifiedTrace[1]) && traceKinds.has(localIdKind(qualifiedTrace[2]))) {
+      result.push({
+        rawTarget: `${qualifiedTrace[1]}:${qualifiedTrace[2]}`,
+        requestedEdgeType: "TESTED_BY",
+        span: locations.span(location.line),
+      });
+    } else if (feature || criterionParent(tag) !== null) {
       result.push({ rawTarget: feature ? `FR-${feature[1]}` : tag, requestedEdgeType: "TESTED_BY", span: locations.span(location.line) });
     } else if (!ruleTag.test(name) && qualified && localIdKind(qualified[2]) !== null) {
       result.push({ rawTarget: tag, requestedEdgeType: "REFS", span: locations.span(location.line) });
