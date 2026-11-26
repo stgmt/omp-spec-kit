@@ -2,6 +2,13 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.8.0 — 2026-11-26
+### Fixed
+- **NFR acceptance criteria now have a real identity.** `AC-<n>.<m>` still attaches to `FR-<n>`; `AC-NFR-<CATEGORY>-<n>.<m>` attaches to `NFR-<CATEGORY>-<n>`. One parser and one allocator in `src/kernel/identity.js` replace the magic `AC-9000.<hash>` id: `addAcceptanceCriterion` now takes the first free suffix from the corpus. An NFR-only specification can clear the criteria rung, and the readiness fix step points at the NFR it actually has.
+- **Cross-spec scenario traces are explicit.** `@featureN` and `@AC-N.M` remain local; `@ref:<spec-slug>:<FR-N|NFR-CATEGORY-N|AC-N.M>` creates a qualified `TESTED_BY`. A bare trace tag whose target lives only in another specification is now a blocking error with a fix hint. Historical prose and task references stay warnings, so upgrading does not invalidate existing task documents.
+- **The spec-authoring contract no longer asks for a fake mutation.** The removed `designReview.selfTestCheck` required an attestation that a mutation failed while nothing was executed; owner-approved BDD coverage and the migration owner review remain the real gates. The reasoning is recorded in `docs/plans/instructions-gherkin-cutover.md`.
+- **Claude host repair actually forwards the project scope.** `--project` reaches `install-host.mjs` both from an explicit argument and from the workspace record; the registry-target argv is built in one shared module used by host repair and demo-stack guards.
+
 ## 3.7.1 — 2026-11-25
 ### Fixed
 - **Specs live only in each project's own repository — now stated once and enforced.** The canonical rule is in `spec-registry-service/README.md`, backed by R-1/R-4 and `docs/decisions/spec-per-branch-2026-10-31.md`. Retired dedicated-store wording across the corpus is rewritten or explicitly marked historical; `MCP_SERVER_INSTRUCTIONS` carries the same rule so every agent context receives it. `scripts/check-corpus-via-mcp.mjs` checks the canonical rule and scans all 20 specs / 296 documents for unmarked retired-store wording through MCP; the pure rule lives in `scripts/lib/storage-rule.mjs` with mutation coverage in `tests/corpus-storage-rule.test.mjs`. The live gate's stale 10-spec/144-document constants were refreshed to 20/296.

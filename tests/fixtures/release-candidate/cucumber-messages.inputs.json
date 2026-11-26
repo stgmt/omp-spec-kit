@@ -1,17 +1,17 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "9bb28d41d28363ebd5fd50daba6b677f57b1fd8749523d7a35e67560334cc6a5",
+  "aggregateSha256": "803496eb3dafc0c3d7a7e2acd85484aa17ebf70e8a07295e60f35b4ecb1a6820",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
       "bytes": 733,
-      "sha256": "3d408750a9c7354d9de72535022fdfc8f9058c2a148e26945d9654b76b030975"
+      "sha256": "6f33be77b04e3ebea78247007161a44a659b5d19e873731aad4ad0d53b1bcb8f"
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 89203,
-      "sha256": "fb58e949d8eaaf608b6f020c2047fd210c8e78f91c4b736cf5176de63ade0112"
+      "bytes": 90673,
+      "sha256": "19c28d08dcd185b5d4a949bd6cd51a6171d19a0ff86a5cc017dd452e58af0dfd"
     },
     {
       "path": "LICENSE",
@@ -56,12 +56,12 @@
     {
       "path": "package.json",
       "bytes": 8169,
-      "sha256": "740fc72ddf3dc259d093b143546af74046c109b05e6efe5a6653c51f13aad744"
+      "sha256": "b9480b09d587ac8d622851de6b2a085cb3e7a142110935cf82c4bd852f0cf4e1"
     },
     {
       "path": "plugins/omp-spec-kit/.claude-plugin/plugin.json",
       "bytes": 402,
-      "sha256": "3374e2ae9e0daaa8356370b0915379bd92adb642335eee273d57a7f1e9c31f67"
+      "sha256": "29b5177ee0ea5f787d83fc827abbc278e31b093d507acff7ca8f4dead500d2d7"
     },
     {
       "path": "plugins/omp-spec-kit/.mcp.json",
@@ -101,7 +101,7 @@
     {
       "path": "plugins/omp-spec-kit/package.json",
       "bytes": 647,
-      "sha256": "9a22b5a067a418bc6f7e721a7a9ff5f127472521449eae686a9e02409c6433d1"
+      "sha256": "2a5dfca129cb836bcc756105a036cdbdcbfe111dee9d949e096370c22d9767b0"
     },
     {
       "path": "plugins/omp-spec-kit/skills/engineering-anti-bike/SKILL.md",
@@ -521,7 +521,7 @@
     {
       "path": "src/adapters/plugin-version.js",
       "bytes": 112,
-      "sha256": "085c6013427e25e19617111fdd4e7bbee7008574fa0f8625872ec074d6287598"
+      "sha256": "0ce533167fb99709272cda1db6399cebef31b52a8b70ce25e871d27f330b0a41"
     },
     {
       "path": "src/adapters/query-service.js",
@@ -1026,7 +1026,7 @@
     {
       "path": "src/v0.1/extension.js",
       "bytes": 1133,
-      "sha256": "3f530db4950aba28d399654bd5edefedb0239fa6839a16a10b6887bb2860396b"
+      "sha256": "e4ea079b1853c97648ea12ff161ac0eb9ba74e237d2358992864324f7485af86"
     },
     {
       "path": "tests/.rev-tmp/board.mjs",
