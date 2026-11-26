@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -72,9 +72,12 @@ test("the OpenCode installer writes a loadable .js bridge, not only .mjs", async
     const loaded = await import(`${pathToFileURL(bridgePath).href}?v=${Date.now()}`);
     const definition = loaded.default;
     assert.equal(definition.id, "omp-spec-kit-guard");
-    for (const name of ["effect", "setup", "server"]) {
-      assert.equal(typeof definition[name], "function", `default.${name} must be callable`);
-    }
+    assert.equal(typeof definition.server, "function", "default.server must be callable");
+    // OpenCode awaits a plugin `effect` entry as an Effect and never settles a
+    // plain async function, which stalls every prompt. The loader must not
+    // publish that key.
+    assert.equal(definition.effect, undefined, "default.effect must stay absent");
+    assert.equal(definition.setup, undefined, "default.setup must stay absent");
     const hooks = await definition.server({ directory: project });
     await assert.rejects(
       () => hooks["tool.execute.before"](
@@ -83,8 +86,43 @@ test("the OpenCode installer writes a loadable .js bridge, not only .mjs", async
       ),
       /SPEC_READ_REDIRECT/u,
     );
+    // The built setup-warning must land beside its `./project-binding.js`
+    // import; the host copy is only a re-export. A wrong destination or depth
+    // leaves the setup half unloadable while text-only assertions stay green.
+    const installedRoot = path.join(pluginsDir, "omp-spec-kit");
+    const builtSetupWarning = path.join(REPO_ROOT, "plugins", "omp-spec-kit", "dist", "enforcement", "setup-warning.js");
+    const installedSetupWarning = path.join(installedRoot, "enforcement", "setup-warning.js");
+    assert.equal(
+      readFileSync(installedSetupWarning, "utf8"),
+      readFileSync(builtSetupWarning, "utf8"),
+      "the built setup-warning is installed beside its project-binding import",
+    );
+    assert.ok(
+      existsSync(path.join(installedRoot, "enforcement", "project-binding.js")),
+      "project-binding.js sits beside the installed setup-warning",
+    );
+    const hostShim = path.join(installedRoot, "hosts", "opencode", "setup-warning.js");
+    assert.match(
+      readFileSync(hostShim, "utf8"),
+      /export \* from "\.\.\/\.\.\/enforcement\/setup-warning\.js"/u,
+      "the host copy re-exports the built setup-warning",
+    );
+    const shimModule = await import(`${pathToFileURL(hostShim).href}?shim=${Date.now()}`);
+    assert.equal(typeof shimModule.setupWarning, "function", "the host re-export resolves");
+    const installedSetup = await import(
+      `${pathToFileURL(path.join(installedRoot, "hosts", "opencode", "setup.mjs")).href}?setup=${Date.now()}`
+    );
+    assert.equal(typeof installedSetup.OmpSpecKitSetup, "function", "the installed setup host module loads");
+
     const setupBridge = readFileSync(path.join(pluginsDir, "omp-spec-kit-setup.js"), "utf8");
     assert.match(setupBridge, /export default \{ id: "omp-spec-kit-setup"/u);
+    const setupDefinition = (
+      await import(`${pathToFileURL(path.join(pluginsDir, "omp-spec-kit-setup.js")).href}?def=${Date.now()}`)
+    ).default;
+    assert.equal(setupDefinition.id, "omp-spec-kit-setup");
+    assert.equal(typeof setupDefinition.server, "function", "setup default.server must be callable");
+    assert.equal(setupDefinition.effect, undefined, "setup default.effect must stay absent");
+    assert.equal(setupDefinition.setup, undefined, "setup default.setup must stay absent");
   } finally {
     if (previous.USERPROFILE === undefined) delete process.env.USERPROFILE;
     else process.env.USERPROFILE = previous.USERPROFILE;

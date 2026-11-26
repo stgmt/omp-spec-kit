@@ -79,14 +79,24 @@ mkdirSync(path.join(pluginRoot, "enforcement"), { recursive: true });
 cpSync(distSource, path.join(pluginRoot, "dist"), { recursive: true });
 copyFileSync(hostSource, path.join(pluginRoot, "hosts", "opencode", "plugin.mjs"));
 copyFileSync(path.join(repositoryRoot, "src", "hosts", "opencode", "setup.mjs"), path.join(pluginRoot, "hosts", "opencode", "setup.mjs"));
-copyFileSync(path.join(distSource, "enforcement", "setup-warning.js"), path.join(pluginRoot, "hosts", "opencode", "setup-warning.js"));
+copyFileSync(path.join(distSource, "enforcement", "setup-warning.js"), path.join(pluginRoot, "enforcement", "setup-warning.js"));
+// The built file imports `./project-binding.js`, which resolves only beside
+// `enforcement/`. The host copy is a re-export so the import stays correct
+// instead of pointing at a file that does not exist in `hosts/opencode`.
+writeFileSync(
+  path.join(pluginRoot, "hosts", "opencode", "setup-warning.js"),
+  'export * from "../../enforcement/setup-warning.js";\n',
+);
 copyFileSync(path.join(repositoryRoot, "src", "enforcement", "project-binding.js"), path.join(pluginRoot, "enforcement", "project-binding.js"));
 
 const loaderPath = path.join(pluginsDir, "omp-spec-kit-guard.js");
 // OpenCode 1.19.3 scans `.js` plugin files but ignores `.mjs` in the plugin
-// directory. Newer builds require a default plugin definition (`id` plus
-// `effect`/`setup` or `server`); older builds load the named export. Write both
-// shapes and keep the legacy `.mjs` loader for older hosts.
+// directory. Newer builds load a default plugin definition and call `server`
+// with the plugin input; older builds load the named export. `effect` must not
+// appear here: OpenCode treats that key as an Effect-based entry and awaits it,
+// and a plain async function never settles that way, so every prompt stalls
+// right after `config.updated`. `setup` is not needed either — `server` alone is
+// the documented shape (`PluginModule` in @opencode-ai/plugin).
 writeFileSync(
   loaderPath,
   'const guard = async (ctx) => {\n' +
@@ -94,7 +104,7 @@ writeFileSync(
     '  return mod.OmpSpecKitGuard(ctx);\n' +
     '};\n' +
     'export const OmpSpecKitGuard = guard;\n' +
-    'export default { id: "omp-spec-kit-guard", effect: guard, setup: guard, server: guard };\n',
+    'export default { id: "omp-spec-kit-guard", server: guard };\n',
 );
 const legacyLoaderPath = path.join(pluginsDir, "omp-spec-kit-guard.mjs");
 writeFileSync(legacyLoaderPath, 'export { OmpSpecKitGuard } from "./omp-spec-kit/hosts/opencode/plugin.mjs";\n');
@@ -106,7 +116,7 @@ writeFileSync(
     '  return mod.OmpSpecKitSetup(ctx);\n' +
     '};\n' +
     'export const OmpSpecKitSetup = setup;\n' +
-    'export default { id: "omp-spec-kit-setup", effect: setup, setup, server: setup };\n',
+    'export default { id: "omp-spec-kit-setup", server: setup };\n',
 );
 const legacySetupLoaderPath = path.join(pluginsDir, "omp-spec-kit-setup.mjs");
 writeFileSync(legacySetupLoaderPath, 'export { OmpSpecKitSetup } from "./omp-spec-kit/hosts/opencode/setup.mjs";\n');
