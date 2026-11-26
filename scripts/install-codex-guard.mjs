@@ -75,7 +75,14 @@ cpSync(distSource, path.join(installRoot, "dist"), { recursive: true });
 for (const name of ["hook.mjs", "normalize.mjs", "sessionstart.mjs", "caps.mjs"]) {
   copyFileSync(path.join(hostsSource, name), path.join(installRoot, "hosts", "codex", name));
 }
-copyFileSync(path.join(distSource, "enforcement", "setup-warning.js"), path.join(installRoot, "hosts", "codex", "setup-warning.js"));
+copyFileSync(path.join(distSource, "enforcement", "setup-warning.js"), path.join(installRoot, "enforcement", "setup-warning.js"));
+// The built file imports `./project-binding.js`, which resolves only beside
+// `enforcement/`. The host copy is a re-export so the import stays correct
+// instead of pointing at a file that does not exist in `hosts/codex`.
+writeFileSync(
+  path.join(installRoot, "hosts", "codex", "setup-warning.js"),
+  'export * from "../../enforcement/setup-warning.js";\n',
+);
 copyFileSync(path.join(repositoryRoot, "src", "enforcement", "project-binding.js"), path.join(installRoot, "enforcement", "project-binding.js"));
 writeFileSync(path.join(installRoot, "package.json"), JSON.stringify({ type: "module" }, null, 2) + "\n");
 const skills = installSkills({
@@ -142,7 +149,11 @@ const envName = "OMP_SPEC_REGISTRY_TOKEN";
 // once broke every host at once. Persist only a missing variable; a
 // deliberate rotation passes --overwrite-env.
 const overwriteEnv = flag("overwrite-env", null) !== null;
-if (process.platform === "win32") {
+// A caller that must not touch the account environment (tests, CI, ephemeral
+// sandboxes) passes --no-persist-env; the install then only references the
+// variable and writes it nowhere.
+const persistEnv = flag("no-persist-env", null) === null;
+if (persistEnv && process.platform === "win32") {
   const read = spawnSync(
     "powershell",
     ["-NoProfile", "-Command", `[Environment]::GetEnvironmentVariable('${envName}','User')`],
@@ -156,7 +167,7 @@ if (process.platform === "win32") {
     if (set.status !== 0) fail(`setx ${envName} failed: ${(set.stderr ?? "").trim().slice(0, 200)}`);
     console.log(`environment: ${envName} set for new processes`);
   }
-} else {
+} else if (persistEnv) {
   const profile = path.join(homedir(), ".profile");
   const current = existsSync(profile) ? readFileSync(profile, "utf8") : "";
   if (!current.includes(`export ${envName}=`)) {

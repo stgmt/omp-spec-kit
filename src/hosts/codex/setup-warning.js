@@ -1,3 +1,5 @@
-// Source-side re-export. The installer replaces this file with the built
-// `dist/enforcement/setup-warning.js` so the installed copy has no repo path.
+// Source-side re-export. The installer keeps the built
+// `dist/enforcement/setup-warning.js` under `enforcement/` (where its
+// `./project-binding.js` import resolves) and writes this same re-export at the
+// installed `hosts/codex/` path.
 export * from "../../enforcement/setup-warning.js";
