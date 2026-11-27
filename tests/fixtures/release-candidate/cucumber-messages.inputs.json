@@ -1,17 +1,17 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "1f594f7fc807ec05a358a50b18d7704b56a62cd0d500295e6bf5ba87ae34f5e8",
+  "aggregateSha256": "6d5db24b87653fcea59b0ec6e3351c010bf617fe67e0fbfa7691e07b4ad87580",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
       "bytes": 733,
-      "sha256": "9eac89fdca2ff1a89d60f763527553208b5a43bc911b30d05281260713c606c5"
+      "sha256": "6cab9f8b6d40913e373bd24191c35a2a311a10efde690985ef75ffe750c868e0"
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 91215,
-      "sha256": "92a11fa0d8e23172aab92800428c0fcbd2c95f4e2c78928cadf498ff3b8acb3e"
+      "bytes": 91745,
+      "sha256": "ac9bd278897871981aae026fa9889490dfd846dbb7cf6f41b3f00ba3376cbc7e"
     },
     {
       "path": "LICENSE",
@@ -56,12 +56,12 @@
     {
       "path": "package.json",
       "bytes": 8208,
-      "sha256": "747c7cf88735100d923138d11fa38b35e0f841fa0cc59567bd34eeef3c7c9749"
+      "sha256": "715397e5de5e5bbc425eb9e836518fb9eeddf43c877cd740d34f36e4b68acd43"
     },
     {
       "path": "plugins/omp-spec-kit/.claude-plugin/plugin.json",
       "bytes": 402,
-      "sha256": "56986d4a3403dfb54c9b8cf94df2eda7c9a48991c88ac4977cf4091a20623504"
+      "sha256": "72db1cab598b9eb713da3f9a055390824625aa0c693e1082727bfddf4cad69f5"
     },
     {
       "path": "plugins/omp-spec-kit/.mcp.json",
@@ -101,7 +101,7 @@
     {
       "path": "plugins/omp-spec-kit/package.json",
       "bytes": 647,
-      "sha256": "26acf0b3b30d1c335dee0e390ecca3e876ad1aa7d75509b8a286a801aa508e64"
+      "sha256": "6693681f918648fce7c7400d81be7bac29192b166557eb7757ad7281a57edf7b"
     },
     {
       "path": "plugins/omp-spec-kit/skills/engineering-anti-bike/SKILL.md",
@@ -521,7 +521,7 @@
     {
       "path": "src/adapters/plugin-version.js",
       "bytes": 112,
-      "sha256": "2dac003db159cc44783272aea5d77952306c671650a4acc5a1158d458d02eca9"
+      "sha256": "06d8d81ae887f442746e1c14051097b38c9897f912a49cfad8253407b334a3a1"
     },
     {
       "path": "src/adapters/query-service.js",
@@ -1026,7 +1026,7 @@
     {
       "path": "src/v0.1/extension.js",
       "bytes": 1133,
-      "sha256": "91f81fba7d1b53f30090d6151e2cd05fffc93552e15f92ae71739982a8f11945"
+      "sha256": "ba086f0593f38042fd3bc98675689f8595ec4e1392b6a329f096af14907f1b0b"
     },
     {
       "path": "tests/.rev-tmp/board.mjs",
@@ -1190,8 +1190,8 @@
     },
     {
       "path": "tests/e2e/lib/bootstrap.mjs",
-      "bytes": 13911,
-      "sha256": "d7c686a0549f5a5d7fe2888a213d27b39992e1aae484517de2cdb9550b6919af"
+      "bytes": 15343,
+      "sha256": "7e926cd933b0a6dc45a698252de983191456b3928b1725b736a7dbd5bcad4e8a"
     },
     {
       "path": "tests/e2e/lib/browser.mjs",

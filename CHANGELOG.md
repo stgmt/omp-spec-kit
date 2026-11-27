@@ -2,6 +2,10 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.8.2 — 2026-11-27
+### Fixed
+- **The live delivery contour now seeds and reconciles a canonical Gherkin pair for every bound project.** The beta and gamma seeds had no `<slug>-user-stories.feature` / `<slug>-use-cases.feature`, so their layouts were `incomplete` and the service projection refused the whole board with `board projection must be complete and unpaged`. The seeder now reconciles existing branches instead of declaring them `UP_TO_DATE`, so warm local stacks get the pair too. No projection semantics changed.
+
 ## 3.8.1 — 2026-11-27
 ### Fixed
 - **The live delivery gate now reports why projection sync failed instead of an opaque assertion.** A 404 on the tracker resets the service's cached project id and the next sync re-resolves it, but the delivery step made a single call and asserted on `outcome`. It now retries that documented transient once and, if the outcome still never converges, fails with the server's error record. `projectionOutcome` is the one owner of the acceptable outcomes, covered by `tests/projection-sync-outcome.test.mjs`.

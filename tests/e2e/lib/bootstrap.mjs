@@ -56,6 +56,20 @@ const BETA_SEED_FILES = Object.freeze({
   "TASKS.md": "# Tasks\n\nStatus: DRAFT\n\n## TASK-1 - beta seed task\n- **Status:** todo\n- **Done When:** the beta corpus is readable inside its own scope.\n- **Requirements:** FR-1\n",
   "FR.md": "# Functional requirements\n\nStatus: DRAFT\n\n## FR-1 — beta seeded requirement\n\nThe system SHALL keep beta readable only through the beta scope.\n",
   "ACCEPTANCE_CRITERIA.md": "# Acceptance criteria\n\nStatus: DRAFT\n\n## AC-1 — beta seeded criterion\n\n**Given** the beta corpus, **when** an authorized beta caller reads it, **then** it is visible.\n",
+  "beta-spec-user-stories.feature": `Feature: Beta seeded stories
+  @story:US-1
+  Rule: Read the beta corpus
+    Actor: Authorized caller
+    Goal: Read the beta specification.
+    Benefit: Verify project isolation.
+
+    @feature1 @AC-1.1 @id:SCEN-beta-seeded
+    Scenario: Beta corpus is readable
+      Given the beta corpus exists
+      When an authorized beta caller reads it
+      Then only beta content is visible
+`,
+  "beta-spec-use-cases.feature": "Feature: Beta use cases\n",
 });
 
 // TASK-13: the external-IdP tenant's corpus — readable only through a binding
@@ -65,6 +79,20 @@ const GAMMA_SEED_FILES = Object.freeze({
   "TASKS.md": "# Tasks\n\nStatus: DRAFT\n\n## TASK-1 — gamma seed task\n- **Status:** todo\n- **Done When:** readable only through the external tenant scope.\n- **Requirements:** FR-1\n",
   "FR.md": "# Functional requirements\n\nStatus: DRAFT\n\n## FR-1 — gamma requirement\n\nThe system SHALL serve gamma only to callers of the bound external IdP.\n",
   "ACCEPTANCE_CRITERIA.md": "# Acceptance criteria\n\nStatus: DRAFT\n\n## AC-1 — gamma criterion\n\n**Given** the external binding, **when** an external caller reads, **then** only their corpus is visible.\n",
+  "gamma-spec-user-stories.feature": `Feature: Gamma seeded stories
+  @story:US-1
+  Rule: Read the gamma corpus
+    Actor: External caller
+    Goal: Read the bound gamma specification.
+    Benefit: Verify external tenant isolation.
+
+    @feature1 @AC-1.1 @id:SCEN-gamma-seeded
+    Scenario: Gamma corpus is readable
+      Given the external binding exists
+      When an external caller reads gamma
+      Then only gamma content is visible
+`,
+  "gamma-spec-use-cases.feature": "Feature: Gamma use cases\n",
 });
 
 const SEED_TREES = Object.freeze([
@@ -111,6 +139,19 @@ export async function seedSpecsRepo({ logger = () => {} } = {}) {
       `  git commit -qm "seed: ${branch}"`,
       `  git push -q origin HEAD:refs/heads/${branch}`,
       "  echo SEEDED",
+      "else",
+      `  git checkout -q -B ${branch} origin/${branch}`,
+      `  mkdir -p ".specs/${tree.spec}"`,
+      "  cat > .spec-kit.json <<'META_EOF'",
+      metadata,
+      "META_EOF",
+      ...heredocs,
+      "  git add -A",
+      "  if ! git diff --cached --quiet; then",
+      `    git commit -qm "seed update: ${branch}"`,
+      `    git push -q origin HEAD:refs/heads/${branch}`,
+      "    echo RESEEDED",
+      "  fi",
       "fi",
     ].join("\n");
   }).join("\n");
@@ -125,7 +166,7 @@ export async function seedSpecsRepo({ logger = () => {} } = {}) {
     "rm -rf /tmp/seed",
   ].join("\n");
   const { stdout } = await execFileAsync("docker", ["exec", "spec-auth-e2e-spec-git-1", "sh", "-c", script]);
-  if (!/SEEDED|UP_TO_DATE/.test(stdout)) throw new Error(`specs repo seeding produced no marker: ${stdout.slice(0, 200)}`);
+  if (!/SEEDED|RESEEDED|UP_TO_DATE/.test(stdout)) throw new Error(`specs repo seeding produced no marker: ${stdout.slice(0, 200)}`);
   logger(`specs repo: ${stdout.trim().split("\n").pop()}`);
 }
 
