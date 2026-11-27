@@ -1,17 +1,17 @@
 {
   "schema": "omp-spec-kit-cucumber-source-inputs@1",
   "algorithm": "sha256(path NUL sha256 NUL bytes LF), paths code-point sorted",
-  "aggregateSha256": "803496eb3dafc0c3d7a7e2acd85484aa17ebf70e8a07295e60f35b4ecb1a6820",
+  "aggregateSha256": "1f594f7fc807ec05a358a50b18d7704b56a62cd0d500295e6bf5ba87ae34f5e8",
   "entries": [
     {
       "path": ".claude-plugin/marketplace.json",
       "bytes": 733,
-      "sha256": "6f33be77b04e3ebea78247007161a44a659b5d19e873731aad4ad0d53b1bcb8f"
+      "sha256": "9eac89fdca2ff1a89d60f763527553208b5a43bc911b30d05281260713c606c5"
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 90673,
-      "sha256": "19c28d08dcd185b5d4a949bd6cd51a6171d19a0ff86a5cc017dd452e58af0dfd"
+      "bytes": 91215,
+      "sha256": "92a11fa0d8e23172aab92800428c0fcbd2c95f4e2c78928cadf498ff3b8acb3e"
     },
     {
       "path": "LICENSE",
@@ -55,13 +55,13 @@
     },
     {
       "path": "package.json",
-      "bytes": 8169,
-      "sha256": "b9480b09d587ac8d622851de6b2a085cb3e7a142110935cf82c4bd852f0cf4e1"
+      "bytes": 8208,
+      "sha256": "747c7cf88735100d923138d11fa38b35e0f841fa0cc59567bd34eeef3c7c9749"
     },
     {
       "path": "plugins/omp-spec-kit/.claude-plugin/plugin.json",
       "bytes": 402,
-      "sha256": "29b5177ee0ea5f787d83fc827abbc278e31b093d507acff7ca8f4dead500d2d7"
+      "sha256": "56986d4a3403dfb54c9b8cf94df2eda7c9a48991c88ac4977cf4091a20623504"
     },
     {
       "path": "plugins/omp-spec-kit/.mcp.json",
@@ -101,7 +101,7 @@
     {
       "path": "plugins/omp-spec-kit/package.json",
       "bytes": 647,
-      "sha256": "2a5dfca129cb836bcc756105a036cdbdcbfe111dee9d949e096370c22d9767b0"
+      "sha256": "26acf0b3b30d1c335dee0e390ecca3e876ad1aa7d75509b8a286a801aa508e64"
     },
     {
       "path": "plugins/omp-spec-kit/skills/engineering-anti-bike/SKILL.md",
@@ -521,7 +521,7 @@
     {
       "path": "src/adapters/plugin-version.js",
       "bytes": 112,
-      "sha256": "0ce533167fb99709272cda1db6399cebef31b52a8b70ce25e871d27f330b0a41"
+      "sha256": "2dac003db159cc44783272aea5d77952306c671650a4acc5a1158d458d02eca9"
     },
     {
       "path": "src/adapters/query-service.js",
@@ -1026,7 +1026,7 @@
     {
       "path": "src/v0.1/extension.js",
       "bytes": 1133,
-      "sha256": "e4ea079b1853c97648ea12ff161ac0eb9ba74e237d2358992864324f7485af86"
+      "sha256": "91f81fba7d1b53f30090d6151e2cd05fffc93552e15f92ae71739982a8f11945"
     },
     {
       "path": "tests/.rev-tmp/board.mjs",
@@ -2049,6 +2049,11 @@
       "sha256": "310bd497ce585e200af2c1403f37eafd60edf5a49cf1d0e31fb36fbe6e8d1fc4"
     },
     {
+      "path": "tests/helpers/projection-outcome.mjs",
+      "bytes": 307,
+      "sha256": "d210a65c5c41631fa77dec224f9a84dbae90248dfabd196a043cf8cb749f77f8"
+    },
+    {
       "path": "tests/helpers/query-e2e.mjs",
       "bytes": 18131,
       "sha256": "37a2a007b737df0a5b6b1d54d43736c4069a7774d66c5fa8145d3b4046d4ee0c"
@@ -2147,6 +2152,11 @@
       "path": "tests/project-registration.test.mjs",
       "bytes": 26725,
       "sha256": "070ec5713b20b15bb2e0a393cf6c5c7708f944e9d9cf8a11fe78c742446441e5"
+    },
+    {
+      "path": "tests/projection-sync-outcome.test.mjs",
+      "bytes": 832,
+      "sha256": "aa247a224adf59b6d8522a29e2ab7cdf77d6d15e722b9f38a1addad9d849f525"
     },
     {
       "path": "tests/proposal-review.test.mjs",
@@ -2390,8 +2400,8 @@
     },
     {
       "path": "tests/step-definitions/youtrack-spec-delivery.steps.mjs",
-      "bytes": 35731,
-      "sha256": "6a8ead0c90431001a00a3c3b9201c198e7fe7646fd0e8f52fc374c844f2e0049"
+      "bytes": 36376,
+      "sha256": "f4b53433a48a1ac9fdf0007c4f146e2e7a70b24740a0cc687a635921e58ef076"
     },
     {
       "path": "tests/support/world.mjs",

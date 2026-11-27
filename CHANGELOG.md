@@ -2,6 +2,10 @@
 
 All notable changes to `omp-spec-kit`. Claims are limited to recorded evidence.
 
+## 3.8.1 — 2026-11-27
+### Fixed
+- **The live delivery gate now reports why projection sync failed instead of an opaque assertion.** A 404 on the tracker resets the service's cached project id and the next sync re-resolves it, but the delivery step made a single call and asserted on `outcome`. It now retries that documented transient once and, if the outcome still never converges, fails with the server's error record. `projectionOutcome` is the one owner of the acceptable outcomes, covered by `tests/projection-sync-outcome.test.mjs`.
+
 ## 3.8.0 — 2026-11-26
 ### Fixed
 - **NFR acceptance criteria now have a real identity.** `AC-<n>.<m>` still attaches to `FR-<n>`; `AC-NFR-<CATEGORY>-<n>.<m>` attaches to `NFR-<CATEGORY>-<n>`. One parser and one allocator in `src/kernel/identity.js` replace the magic `AC-9000.<hash>` id: `addAcceptanceCriterion` now takes the first free suffix from the corpus. An NFR-only specification can clear the criteria rung, and the readiness fix step points at the NFR it actually has.

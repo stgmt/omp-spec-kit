@@ -15,6 +15,7 @@ import { attachAppToProjectViaUI, fillAppSettings, openAppsPage, openAppTab, upl
 import { loadLiveFixture } from "../e2e/lib/live-fixture.mjs";
 import { digest } from "../../src/adapters/youtrack-projection.js";
 import { OmpSpecKitSetup } from "../../src/hosts/opencode/setup.mjs";
+import { projectionOutcome } from "../helpers/projection-outcome.mjs";
 
 const execFileAsync = promisify(execFile);
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
@@ -239,7 +240,7 @@ async function syncSnapshot() {
   // Preferred path: the service owns the projection and publishes the v7 root
   // index plus per-project pointers. Owner role, tenant header.
   const carol = await liveFixture.userToken("carol");
-  const projectionResponse = await fetch(`${SERVICE_URL}/projection/sync`, {
+  const request = () => fetch(`${SERVICE_URL}/projection/sync`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${carol}`,
@@ -249,9 +250,22 @@ async function syncSnapshot() {
     body: "{}",
     signal: AbortSignal.timeout(300_000),
   });
+  const projectionResponse = await request();
   if (projectionResponse.ok) {
     const payload = await projectionResponse.json();
-    return payload.last ?? payload;
+    let result = payload.last ?? payload;
+    // A 404 on the tracker resets the service's cached project id; the next
+    // sync re-resolves it. Retry that one documented transient before failing,
+    // and keep the actual outcome in the error when it never converges.
+    if (result?.error) {
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      const retry = await request();
+      if (retry.ok) {
+        const retryPayload = await retry.json();
+        result = retryPayload.last ?? retryPayload;
+      }
+    }
+    return projectionOutcome(result);
   }
   if (projectionResponse.status !== 501) {
     const detail = await projectionResponse.text().catch(() => "");
